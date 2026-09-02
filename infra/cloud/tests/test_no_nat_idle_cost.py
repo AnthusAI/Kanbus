@@ -226,6 +226,54 @@ class NoNatIdleCostTemplateTests(unittest.TestCase):
         dispatcher_timeout = dispatchers[0]["Properties"]["Timeout"]
         self.assertGreater(queue_visibility, dispatcher_timeout)
 
+    def test_dispatcher_env_includes_task_stop_wait_seconds(self) -> None:
+        template = self._template()
+        template.has_resource_properties(
+            "AWS::Lambda::Function",
+            {
+                "Handler": "sync_dispatcher.handler",
+                "Environment": {
+                    "Variables": Match.object_like(
+                        {
+                            "SYNC_TASK_STOP_WAIT_SECONDS": "720",
+                        }
+                    )
+                },
+            },
+        )
+
+    def test_dispatcher_run_task_scoped_to_cluster(self) -> None:
+        template = self._template()
+        rendered = self._rendered_resources(template)
+        dispatcher_role_ids = {
+            resource_id
+            for resource_id, resource in rendered.items()
+            if resource["Type"] == "AWS::IAM::Role"
+            and "SyncTaskDispatcher" in resource_id
+        }
+        self.assertEqual(len(dispatcher_role_ids), 1)
+        dispatcher_role_id = next(iter(dispatcher_role_ids))
+
+        run_task_statements = []
+        for resource in rendered.values():
+            if resource["Type"] != "AWS::IAM::Policy":
+                continue
+            roles = resource["Properties"].get("Roles", [])
+            if not any(role.get("Ref") == dispatcher_role_id for role in roles):
+                continue
+            for statement in resource["Properties"]["PolicyDocument"]["Statement"]:
+                actions = statement.get("Action", [])
+                if isinstance(actions, str):
+                    actions = [actions]
+                if "ecs:RunTask" in actions:
+                    run_task_statements.append(statement)
+
+        self.assertEqual(len(run_task_statements), 1)
+        statement = run_task_statements[0]
+        self.assertIn("Condition", statement)
+        self.assertIn("ecs:cluster", statement["Condition"]["ArnEquals"])
+        self.assertNotEqual(statement.get("Resource"), "*")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -714,6 +714,7 @@ class KanbusCloudFoundationStack(Stack):
                 "ECS_SUBNET_IDS": ",".join(public_subnets.subnet_ids),
                 "ECS_SECURITY_GROUP_IDS": sync_task_sg.security_group_id,
                 "ECS_ASSIGN_PUBLIC_IP": "ENABLED",
+                "SYNC_TASK_STOP_WAIT_SECONDS": str(int(Duration.minutes(12).to_seconds())),
             },
             description="Dispatch tenant sync jobs from SQS to on-demand Fargate tasks",
         )
@@ -721,7 +722,17 @@ class KanbusCloudFoundationStack(Stack):
             lambda_event_sources.SqsEventSource(sync_queue, batch_size=1)
         )
         sync_queue.grant_consume_messages(sync_dispatcher)
-        sync_task_definition.grant_run(sync_dispatcher)
+        sync_dispatcher.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["ecs:RunTask"],
+                resources=[sync_task_definition.task_definition_arn],
+                conditions={
+                    "ArnEquals": {
+                        "ecs:cluster": sync_cluster.cluster_arn,
+                    }
+                },
+            )
+        )
         sync_dispatcher.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["ecs:DescribeTasks"],

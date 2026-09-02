@@ -6,12 +6,17 @@ from typing import Any
 
 import boto3
 
+DISPATCHER_TIMEOUT_SECONDS = 720
+TASK_STOP_WAITER_DELAY_SECONDS = 15
+TASK_STOP_WAITER_MAX_ATTEMPTS = DISPATCHER_TIMEOUT_SECONDS // TASK_STOP_WAITER_DELAY_SECONDS
+
 ECS_ASSIGN_PUBLIC_IP_ENV = "ECS_ASSIGN_PUBLIC_IP"
 ECS_CLUSTER_NAME_ENV = "ECS_CLUSTER_NAME"
 ECS_CONTAINER_NAME_ENV = "ECS_CONTAINER_NAME"
 ECS_SECURITY_GROUP_IDS_ENV = "ECS_SECURITY_GROUP_IDS"
 ECS_SUBNET_IDS_ENV = "ECS_SUBNET_IDS"
 ECS_TASK_DEFINITION_ENV = "ECS_TASK_DEFINITION"
+SYNC_TASK_STOP_WAIT_SECONDS_ENV = "SYNC_TASK_STOP_WAIT_SECONDS"
 
 
 def _required_environment(name: str) -> str:
@@ -19,6 +24,20 @@ def _required_environment(name: str) -> str:
     if not value:
         raise ValueError(f"{name} is not configured")
     return value
+
+
+def _task_stop_waiter_config() -> dict[str, int]:
+    configured_wait_seconds = int(
+        os.environ.get(SYNC_TASK_STOP_WAIT_SECONDS_ENV, str(DISPATCHER_TIMEOUT_SECONDS))
+    )
+    max_attempts = max(
+        1,
+        configured_wait_seconds // TASK_STOP_WAITER_DELAY_SECONDS,
+    )
+    return {
+        "Delay": TASK_STOP_WAITER_DELAY_SECONDS,
+        "MaxAttempts": max_attempts,
+    }
 
 
 def _run_sync_task(ecs_client: Any, job_body: str) -> None:
@@ -56,7 +75,11 @@ def _run_sync_task(ecs_client: Any, job_body: str) -> None:
 
     task_arn = tasks[0]["taskArn"]
     waiter = ecs_client.get_waiter("tasks_stopped")
-    waiter.wait(cluster=cluster, tasks=[task_arn])
+    waiter.wait(
+        cluster=cluster,
+        tasks=[task_arn],
+        WaiterConfig=_task_stop_waiter_config(),
+    )
 
     described = ecs_client.describe_tasks(cluster=cluster, tasks=[task_arn])
     task = described["tasks"][0]

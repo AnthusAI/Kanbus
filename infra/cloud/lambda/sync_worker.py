@@ -74,13 +74,6 @@ def process_job(body: dict[str, Any]) -> None:
         _publish_sync_event(account, project, sha, ref)
 
 
-def handler(event: dict[str, Any], _context: Any) -> dict[str, str]:
-    for record in event.get("Records", []):
-        process_job(json.loads(record["body"]))
-
-    return {"status": "ok"}
-
-
 def main() -> None:
     job_json = os.environ.get("SYNC_JOB_JSON", "")
     if not job_json:

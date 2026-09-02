@@ -95,31 +95,6 @@ class SyncWorkerTests(unittest.TestCase):
             sync_repo.assert_called_once()
             publish_event.assert_called_once_with("acct", "proj", "abc123", "refs/heads/dev")
 
-    @patch.object(sync_worker, "_publish_sync_event")
-    @patch.object(sync_worker, "_sync_repo")
-    def test_handler_processes_sqs_records(self, sync_repo: MagicMock, publish_event: MagicMock) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            os.environ["KANBUS_TENANT_MOUNT"] = tmp
-            event = {
-                "Records": [
-                    {
-                        "body": json.dumps(
-                            {
-                                "tenant": {"account": "acct", "project": "proj"},
-                                "repo_url": "https://github.com/org/repo.git",
-                                "after_sha": "abc123",
-                                "ref": "refs/heads/dev",
-                            }
-                        )
-                    }
-                ]
-            }
-
-            result = sync_worker.handler(event, None)
-            self.assertEqual(result["status"], "ok")
-            sync_repo.assert_called_once()
-            publish_event.assert_called_once()
-
     @patch.object(sync_worker, "process_job")
     def test_main_reads_sync_job_json(self, process_job: MagicMock) -> None:
         os.environ["SYNC_JOB_JSON"] = json.dumps({"tenant": {"account": "a", "project": "p"}})
@@ -201,6 +176,20 @@ class SyncDispatcherTests(unittest.TestCase):
         overrides = ecs_client.run_task.call_args.kwargs["overrides"]["containerOverrides"][0]
         self.assertEqual(overrides["environment"][0]["name"], "SYNC_JOB_JSON")
         waiter.wait.assert_called_once()
+        waiter_config = waiter.wait.call_args.kwargs["WaiterConfig"]
+        self.assertEqual(waiter_config["Delay"], sync_dispatcher.TASK_STOP_WAITER_DELAY_SECONDS)
+        self.assertGreaterEqual(
+            waiter_config["Delay"] * waiter_config["MaxAttempts"],
+            sync_dispatcher.DISPATCHER_TIMEOUT_SECONDS,
+        )
+
+    def test_task_stop_waiter_config_matches_dispatcher_timeout(self) -> None:
+        os.environ["SYNC_TASK_STOP_WAIT_SECONDS"] = str(sync_dispatcher.DISPATCHER_TIMEOUT_SECONDS)
+        waiter_config = sync_dispatcher._task_stop_waiter_config()
+        self.assertGreaterEqual(
+            waiter_config["Delay"] * waiter_config["MaxAttempts"],
+            sync_dispatcher.DISPATCHER_TIMEOUT_SECONDS,
+        )
 
 
 if __name__ == "__main__":
