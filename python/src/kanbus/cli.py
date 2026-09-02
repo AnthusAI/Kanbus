@@ -1997,11 +1997,7 @@ def render_wiki(page: str, as_json: bool) -> None:
     :type as_json: bool
     """
     root = Path.cwd()
-    try:
-        resolved_page = resolve_wiki_page_path(root, page)
-    except WikiError as error:
-        raise click.ClickException(str(error)) from error
-    request = WikiRenderRequest(root=root, page_path=Path(resolved_page))
+    request = WikiRenderRequest(root=root, page_path=Path(page))
     try:
         link_problems = check_wiki_page_links(root, page)
         reference_warnings: list[str] = []
@@ -2013,6 +2009,10 @@ def render_wiki(page: str, as_json: bool) -> None:
     for warning in reference_warnings:
         click.echo(warning, err=True)
     if as_json:
+        try:
+            resolved_page = resolve_wiki_page_path(root, page)
+        except WikiError as error:
+            raise click.ClickException(str(error)) from error
         click.echo(format_wiki_render_json(resolved_page.as_posix(), output))
         return
     click.echo(output)

@@ -677,10 +677,7 @@ fn load_stdout_json(world: &KanbusWorld) -> serde_json::Map<String, serde_json::
     let stdout = world.stdout.as_ref().expect("stdout").trim();
     let payload: serde_json::Value =
         serde_json::from_str(stdout).expect("stdout is not valid JSON");
-    payload
-        .as_object()
-        .cloned()
-        .expect("expected JSON object")
+    payload.as_object().cloned().expect("expected JSON object")
 }
 
 #[then("stdout should be valid JSON")]
@@ -706,7 +703,9 @@ fn then_json_field_contains(world: &mut KanbusWorld, field: String, text: String
     let actual = payload.get(&field).expect("missing JSON field");
     if let Some(items) = actual.as_array() {
         assert!(
-            items.iter().any(|item| item.as_str().is_some_and(|value| value.contains(&text))),
+            items
+                .iter()
+                .any(|item| item.as_str().is_some_and(|value| value.contains(&text))),
             "expected {} to contain {text:?}, got {actual:?}",
             field
         );
@@ -763,7 +762,11 @@ fn then_json_field_is_empty(world: &mut KanbusWorld, field: String) {
     let payload = load_stdout_json(world);
     let actual = payload.get(&field).expect("missing JSON field");
     let items = actual.as_array().expect("expected JSON array");
-    assert!(items.is_empty(), "expected {} to be empty, got {actual:?}", field);
+    assert!(
+        items.is_empty(),
+        "expected {} to be empty, got {actual:?}",
+        field
+    );
 }
 
 #[then("the project issues AGENTS.md content should match baseline")]

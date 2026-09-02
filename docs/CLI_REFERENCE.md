@@ -400,7 +400,10 @@ Render a wiki page with live interpolated data.
 
 ```bash
 kanbus wiki render <page>
+kanbus wiki render <page> --json
 ```
+
+- `--json` Emit JSON with `path` and `rendered` fields (warnings stay on stderr)
 
 ### `kanbus wiki list`
 
@@ -408,7 +411,25 @@ List available wiki pages.
 
 ```bash
 kanbus wiki list
+kanbus wiki list --json
+kanbus wiki list --limit 10
 ```
+
+- `--json` Emit JSON with `count` and `pages` fields
+- `--limit <n>` Cap output to n pages after sorting (0 for no limit)
+
+### `kanbus wiki search`
+
+Search wiki pages by path, title, and body.
+
+```bash
+kanbus wiki search <query>
+kanbus wiki search <query> --json
+kanbus wiki search <query> --limit 5
+```
+
+- `--json` Emit JSON with `query`, `count`, and `pages` fields (zero matches: `count` 0, not `0 results`)
+- `--limit <n>` Cap output to n matches after sorting (0 for no limit)
 
 ## Maintenance
 

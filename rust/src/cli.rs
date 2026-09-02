@@ -74,8 +74,7 @@ const DEP_USAGE: &str = "usage: kanbus dep <identifier> blocked-by|relates-to <t
 use crate::wiki::{
     apply_wiki_page_limit, check_wiki_page_links, format_wiki_link_problem, format_wiki_list_json,
     format_wiki_render_json, format_wiki_search_json, init_wiki, lint_wiki, list_wiki_pages,
-    render_wiki_page, resolve_wiki_page_path, search_wiki_pages, show_wiki_page,
-    WikiRenderRequest,
+    render_wiki_page, resolve_wiki_page_path, search_wiki_pages, show_wiki_page, WikiRenderRequest,
 };
 
 /// Kanbus CLI arguments.
@@ -3123,7 +3122,6 @@ fn execute_command(
         }
         Commands::Wiki { command } => match command {
             WikiCommands::Render { page, json } => {
-                let resolved_page = resolve_wiki_page_path(root, &page)?;
                 let link_problems = check_wiki_page_links(root, &page)?;
                 for problem in &link_problems {
                     crate::rich_text_signals::emit_stderr_line(&format_wiki_link_problem(
@@ -3132,10 +3130,11 @@ fn execute_command(
                 }
                 let request = WikiRenderRequest {
                     root: root.to_path_buf(),
-                    page_path: Path::new(&resolved_page).to_path_buf(),
+                    page_path: Path::new(&page).to_path_buf(),
                 };
                 let output = render_wiki_page(&request)?;
                 if json {
+                    let resolved_page = resolve_wiki_page_path(root, &page)?;
                     Ok(Some(format_wiki_render_json(
                         &resolved_page.to_string_lossy(),
                         &output,
