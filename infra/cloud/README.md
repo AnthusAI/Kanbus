@@ -13,7 +13,7 @@ This CDK app provisions the v1 cloud foundation for the Kanbus console backend:
 - IoT IAM policy scaffolding for tenant-scoped topics via principal tags
 - DynamoDB-backed MQTT API token registry
 - IoT Core custom authorizer for CLI MQTT API-token auth
-- GitHub webhook ingress Lambda (`/internal/webhooks/github`) + SQS + DLQ
+- GitHub webhook ingress Lambda (`/internal/webhooks/github/{account}/{project}`) + SQS + DLQ
 - Git sync Lambda (non-VPC, GitHub clone/fetch, uploads tarball to S3)
 - EFS writer Lambda (VPC-isolated, extracts S3 tarball to EFS, writes S3 completion marker)
 - Sync notify Lambda (non-VPC, publishes IoT events from completion markers)
@@ -99,14 +99,20 @@ instead of single-value claim parity.
 
 ## Webhook sync note
 
-Webhook ingress currently expects:
+Webhook ingress expects:
 
+- `POST /internal/webhooks/github/{account}/{project}`
 - `X-GitHub-Event: push`
 - `X-Hub-Signature-256` HMAC header
-- `X-Kanbus-Account` and `X-Kanbus-Project` tenant headers
+
+Tenant coordinates come from the URL path only. GitHub cannot send custom Kanbus headers.
 
 The stack provisions a Secrets Manager secret and passes its ARN to webhook ingress.
 Rotate this secret and configure GitHub webhook delivery to use the same value.
+
+Example payload URL for tenant `anthus/kanbus`:
+
+- `{ApiBaseUrl}internal/webhooks/github/anthus/kanbus`
 
 ## How tenant projects are created in v1
 
@@ -114,7 +120,7 @@ There is no central tenant registry resource yet. A tenant project becomes activ
 tuple `<account>/<project>` is used and synced.
 
 - Tenant route/API usage is `/{account}/{project}/...`.
-- Webhook ingress carries tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`).
+- Webhook ingress uses path-scoped URL `/internal/webhooks/github/{account}/{project}`.
 - Sync git Lambda clones/syncs the webhook repo URL into a tarball and uploads to S3:
   - `{account}/{project}/{sha}.tar.gz`
 - EFS writer Lambda extracts the tarball to:

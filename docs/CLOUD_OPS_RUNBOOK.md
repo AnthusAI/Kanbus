@@ -84,7 +84,7 @@ WAF or by rotating `GithubWebhookSecretArn`.
 
 2. Webhook ingress errors:
 - Confirm signature header and secret retrieval.
-- Confirm tenant headers (`X-Kanbus-Account`, `X-Kanbus-Project`) are valid.
+- Confirm path tenant segments (`account`, `project`) are valid.
 
 3. Console API 4xx spike:
 - Confirm Cognito token issuer/audience values match deployed outputs.
