@@ -2,6 +2,11 @@
 
 pub const DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME: &str = "CONTRIBUTING_AGENT.template.md";
 
+/// Return the conventional default project management template filename.
+pub fn default_project_management_template_filename() -> &'static str {
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE_FILENAME
+}
+
 pub const DEFAULT_PROJECT_MANAGEMENT_TEMPLATE: &str = r#"# THE WAY
 
 This repository is governed by The Way.
@@ -9,11 +14,11 @@ The Way is not a suggestion. It is the prescribed order of creation.
 All work must pass through its forms.
 This is The Way.
 
-Deviation from The Way is extremely offensive to the religious sensibilities of its practitioners, including the human user of this coding agent. Sins against The Way must be avoided at all costs.
+Deviations from The Way must be avoided. The Way keeps work legible and reviewable across sessions and agents.
 
-## The Sacrament of Work
+## The Discipline of Work
 
-The Sacrament of Work is the sacrament of vibe coding in this repository.
+Work in this repository follows a shared discipline so intent stays legible across sessions and agents.
 
 Kanbus is the instrument of record. Nothing exists until it is named there.
 
@@ -40,7 +45,7 @@ For complex work, break the plan into sub-tasks and file them under the parent t
 
 Operational discipline: use the minimum commands needed. To inspect work, run `kbs list --status open --long` once to find the ID, then `kbs show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
 
-Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
+Editing project/ directly bypasses the record The Way depends on. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
 ## The Order of Being
 
@@ -128,7 +133,7 @@ Record intent and Definition of Done.
 6. Refactor only while all specifications remain green.
 7. Record progress. Close only when complete.
 
-Skipping steps is corruption of the process.
+Skipping steps undermines the process.
 
 ## Coverage
 
@@ -174,12 +179,19 @@ The wiki lives under project/wiki/. You may edit Markdown files there directly.
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.
 - Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- Use `kbs wiki show <path>` to print raw page source without rendering templates.
+- Use `kbs wiki search <query>` to find pages by path, title, or body.
+- Use `kbs wiki lint` or `kbs wiki check` to validate wiki-internal markdown links.
+- Use `kbs wiki init` to create project/wiki/ with a stub index page.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize). Render warns on broken wiki links but still outputs content.
+- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
+- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier.
+- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
 - In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
 
 Cache behavior:
 - AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
-- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
+- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues, templates, or story reference JSON change on pages that call references()).
 
 ## Command examples
 
@@ -195,7 +207,7 @@ Issue types map directly to release categories.
 - {{ mapping.type }} -> {{ mapping.category }}
 {% endfor %}
 
-Release notes are not commentary. They are a ledger of truth.
+Release notes are a record, not commentary.
 
 ## Example: Hello World
 
@@ -252,3 +264,8 @@ Run the behavior tests in the repo and confirm the new scenario fails for the ri
 Write the smallest change that makes the Gherkin scenario pass.
 Refactor only while all specs remain green.
 "#;
+
+/// Return the default project management template body.
+pub fn default_project_management_template() -> &'static str {
+    DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+}

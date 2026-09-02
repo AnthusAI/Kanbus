@@ -2,8 +2,12 @@
 
 use owo_colors::{AnsiColors, OwoColorize};
 
+use crate::agent_metadata::{
+    format_agent_display_line, format_agent_settings_display, format_comment_author_label,
+};
 use crate::ids::format_issue_key;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::summarize::get_comment_display_text;
 use crate::wiki;
 
 fn dim(text: &str, use_color: bool) -> String {
@@ -119,8 +123,9 @@ fn render_description_and_comments(
     let comments: Vec<String> = issue
         .comments
         .iter()
-        .map(|c| {
-            wiki::render_template_string(&c.text, all_issues).unwrap_or_else(|_| c.text.clone())
+        .map(|comment| {
+            let display_text = get_comment_display_text(comment);
+            wiki::render_template_string(&display_text, all_issues).unwrap_or(display_text)
         })
         .collect();
     (description, comments)
@@ -193,12 +198,30 @@ pub fn format_issue_for_display(
             paint(&value, final_color, use_color)
         ));
     }
+    if let Some(agent) = issue.agent.as_ref() {
+        lines.push(format!(
+            "{} {}",
+            dim("Agent:", use_color),
+            format_agent_display_line(agent)
+        ));
+        if let Some(settings_line) = format_agent_settings_display(agent) {
+            lines.push(format!(
+                "  {} {}",
+                dim("settings:", use_color),
+                settings_line
+            ));
+        }
+    }
     let (description, comments_texts) = if let Some(issues) = all_issues {
         render_description_and_comments(issue, issues)
     } else {
         (
             issue.description.clone(),
-            issue.comments.iter().map(|c| c.text.clone()).collect(),
+            issue
+                .comments
+                .iter()
+                .map(get_comment_display_text)
+                .collect(),
         )
     };
 
@@ -230,21 +253,39 @@ pub fn format_issue_for_display(
                 .chars()
                 .take(6)
                 .collect::<String>();
+            let fallback_text = get_comment_display_text(comment);
             let text = comments_texts
                 .get(i)
                 .map(|s| s.as_str())
-                .unwrap_or(&comment.text);
+                .unwrap_or(&fallback_text);
             if prefix.is_empty() {
                 lines.push(format!(
                     "  {} {}",
-                    dim(&format!("{author}:"), use_color),
+                    dim(
+                        &format_comment_author_label(author, comment.agent.as_ref()),
+                        use_color
+                    ),
                     text
                 ));
             } else {
                 lines.push(format!(
                     "  [{prefix}] {} {}",
-                    dim(&format!("{author}:"), use_color),
+                    dim(
+                        &format_comment_author_label(author, comment.agent.as_ref()),
+                        use_color
+                    ),
                     text
+                ));
+            }
+            if let Some(settings_line) = comment
+                .agent
+                .as_ref()
+                .and_then(format_agent_settings_display)
+            {
+                lines.push(format!(
+                    "    {} {}",
+                    dim("settings:", use_color),
+                    settings_line
                 ));
             }
         }

@@ -1158,6 +1158,7 @@ mod tests {
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::sync::{mpsc, Mutex};
+    use std::io::{Read, Write};
     use tempfile::TempDir;
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
@@ -1199,6 +1200,53 @@ mod tests {
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
     }
+
+
+    #[test]
+    fn test_gossip_server_and_broadcast() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let root = temp.path();
+
+        let dummy_issue: IssueData = serde_json::from_value(serde_json::json!({
+            "id": "kanbus-test01",
+            "title": "Test Issue",
+            "description": "Test Description",
+            "type": "task",
+            "status": "open",
+            "priority": 1,
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "labels": [],
+            "dependencies": [],
+            "custom": {},
+            "comments": []
+        }))
+        .unwrap();
+
+        let root_clone = root.to_path_buf();
+        std::thread::spawn(move || {
+            let _ = run_gossip_broker(&root_clone, None);
+        });
+
+        std::thread::sleep(std::time::Duration::from_millis(150));
+
+        let _ = publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
+
+        let _ = publish_issue_deleted(root, root, "id", None);
+
+        #[cfg(unix)]
+        {
+            let socket_path = root.join(".kanbus").join("gossip.sock");
+            if let Ok(mut stream) = std::os::unix::net::UnixStream::connect(&socket_path) {
+                use std::io::Write;
+                let _ = stream.write_all(b"invalid json\n");
+                let _ = stream.flush();
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
 
     #[test]
     fn publish_uds_if_available_returns_false_without_socket() {
@@ -1686,6 +1734,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: Default::default(),

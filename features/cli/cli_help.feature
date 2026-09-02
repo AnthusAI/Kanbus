@@ -8,6 +8,7 @@ Feature: CLI help
     When I run "kanbus --help"
     Then the command should succeed
     And stdout should contain "Usage"
+    And stdout should contain "commit"
 
   Scenario: CLI rejects unknown options
     Given a Kanbus project with default configuration

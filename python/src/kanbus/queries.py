@@ -6,6 +6,7 @@ from typing import Iterable, List
 
 from kanbus.ids import matches_issue_identifier
 from kanbus.models import IssueData
+from kanbus.comment_summary import get_comment_display_text
 
 
 class QueryError(RuntimeError):
@@ -121,7 +122,7 @@ def search_issues(issues: Iterable[IssueData], term: str | None) -> List[IssueDa
                 seen.add(issue.identifier)
             continue
         for comment in issue.comments:
-            if lowered in comment.text.lower():
+            if lowered in get_comment_display_text(comment).lower():
                 if issue.identifier not in seen:
                     matches.append(issue)
                     seen.add(issue.identifier)

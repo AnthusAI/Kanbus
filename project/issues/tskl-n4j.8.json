@@ -3,7 +3,7 @@
   "title": "Extract shared Kanban components with frame motion",
   "description": "",
   "type": "task",
-  "status": "done",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "unknown",
@@ -12,9 +12,11 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-02-22T05:36:44.628851Z",
-  "updated_at": "2026-02-22T16:50:33.681255Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T15:58:51.953912097Z",
+  "closed_at": "2026-08-27T15:58:51.953912097Z",
   "custom": {
-    "beads_owner": "unknown"
+    "beads_owner": "unknown",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

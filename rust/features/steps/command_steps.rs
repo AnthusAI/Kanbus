@@ -13,7 +13,9 @@ use kanbus::daemon_client::{
 use kanbus::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
 use kanbus::daemon_server::handle_request_for_testing;
 
-use crate::step_definitions::initialization_steps::KanbusWorld;
+use crate::step_definitions::initialization_steps::{
+    apply_environment_overrides, restore_environment, KanbusWorld,
+};
 use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_project_command;
 
 fn run_cli_command(world: &mut KanbusWorld, command: &str) {
@@ -61,10 +63,16 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
     }
 
+    if normalized.contains("kanbus create") && world.existing_kanbus_ids.is_none() {
+        world.existing_kanbus_ids = Some(current_issue_ids(world));
+    }
+
     let cwd_path = cwd.to_path_buf();
+    let saved_env = apply_environment_overrides(&world.environment_overrides);
     let result = thread::spawn(move || run_from_args_with_output(args, &cwd_path))
         .join()
         .expect("cli thread panicked");
+    restore_environment(saved_env);
 
     match result {
         Ok(output) => {
@@ -132,13 +140,13 @@ fn record_kanbus_issue_id_if_created(world: &mut KanbusWorld, command: &str) {
         return;
     }
 
-    if let Some(existing) = world.existing_kanbus_ids.clone() {
-        let current = current_issue_ids(world);
-        let new_ids: HashSet<String> = current.difference(&existing).cloned().collect();
-        if let Some(identifier) = new_ids.iter().next().cloned() {
-            world.last_kanbus_issue_id = Some(identifier.clone());
-            return;
-        }
+    let before = world.existing_kanbus_ids.clone().unwrap_or_default();
+    let current = current_issue_ids(world);
+    let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
+    if let Some(identifier) = new_ids.iter().next() {
+        world.last_kanbus_issue_id = Some(identifier.clone());
+        world.existing_kanbus_ids = Some(current);
+        return;
     }
 
     if let Some(stdout) = world.stdout.as_ref() {
@@ -182,25 +190,7 @@ fn current_issue_ids(world: &KanbusWorld) -> HashSet<String> {
 }
 
 fn build_kbs_binary() -> PathBuf {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let target_dir = std::env::var("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| manifest_dir.join("target"));
-    let binary_path = target_dir.join("debug").join("kbs");
-    if binary_path.exists() {
-        return binary_path;
-    }
-
-    let status = Command::new("cargo")
-        .args(["build", "--bin", "kbs"])
-        .current_dir(&manifest_dir)
-        .env("CARGO_TARGET_DIR", &target_dir)
-        .status()
-        .expect("build kbs binary");
-    if !status.success() {
-        panic!("failed to build kbs binary");
-    }
-    binary_path
+    PathBuf::from(env!("CARGO_BIN_EXE_kbs"))
 }
 
 fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &str) {

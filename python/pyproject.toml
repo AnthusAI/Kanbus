@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kanbus"
-version = "0.18.4"
+version = "0.24.1"
 description = "A git-backed project management system."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "click==8.4.1",
+    "click==8.4.2",
     "jinja2",
     "pydantic",
     "pyyaml",
@@ -62,6 +62,7 @@ line-length = 88
 target-version = "py311"
 
 [tool.semantic_release]
+# 2026-08-29 Dependabot paydown (#173): patch release. chore(deps) does not bump.
 version_toml = [
     "pyproject.toml:project.version",
     "../rust/Cargo.toml:package.version",

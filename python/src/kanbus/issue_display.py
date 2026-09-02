@@ -9,7 +9,12 @@ from typing import Dict, List, Optional
 import click
 
 from kanbus.ids import format_issue_key
-from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.models import AgentMetadata, IssueData, ProjectConfiguration
+from kanbus.comment_summary import get_comment_display_text
+from kanbus.agent_metadata import (
+    format_agent_display_line,
+    format_agent_settings_display,
+)
 
 STATUS_GLYPHS = {
     "backlog": "○",
@@ -116,11 +121,22 @@ def _render_description_and_comments(
             description = ""
         comments_text: List[str] = []
         for comment in issue.comments:
-            text = render_template_string(comment.text, all_issues)
+            text = render_template_string(get_comment_display_text(comment), all_issues)
             comments_text.append(text)
         return description, comments_text
     except WikiError:
-        return issue.description or "", [c.text for c in issue.comments]
+        return issue.description or "", [
+            get_comment_display_text(comment) for comment in issue.comments
+        ]
+
+
+def _format_comment_author_label(
+    author: str, agent: Optional[AgentMetadata], use_color: bool
+) -> str:
+    if agent is None:
+        return _dim(f"{author}:", use_color)
+    agent_suffix = format_agent_display_line(agent)
+    return _dim(f"{author} ({agent_suffix}):", use_color)
 
 
 def format_issue_for_display(
@@ -203,6 +219,15 @@ def format_issue_for_display(
         )
         lines.append(f"{_dim(label, color_output)} {painted_value}")
 
+    if issue.agent is not None:
+        lines.append(
+            f"{_dim('Agent:', color_output)} "
+            f"{_paint(format_agent_display_line(issue.agent), None, color_output)}"
+        )
+        settings_line = format_agent_settings_display(issue.agent)
+        if settings_line is not None:
+            lines.append(f"  {_dim('settings:', color_output)} {settings_line}")
+
     description = issue.description
     comments_texts: List[str] = []
     if all_issues:
@@ -210,7 +235,9 @@ def format_issue_for_display(
             issue, all_issues
         )
     else:
-        comments_texts = [c.text for c in issue.comments]
+        comments_texts = [
+            get_comment_display_text(comment) for comment in issue.comments
+        ]
 
     if description:
         lines.append(f"{_dim('Description:', color_output)}")
@@ -226,10 +253,26 @@ def format_issue_for_display(
         for idx, comment in enumerate(issue.comments):
             author = comment.author or "unknown"
             prefix = (comment.id or "")[:6]
-            text = comments_texts[idx] if idx < len(comments_texts) else comment.text
+            comment_agent = getattr(comment, "agent", None)
+            text = (
+                comments_texts[idx]
+                if idx < len(comments_texts)
+                else get_comment_display_text(comment)
+            )
             if prefix:
-                lines.append(f"  [{prefix}] {_dim(f'{author}:', color_output)} {text}")
+                lines.append(
+                    f"  [{prefix}] {_format_comment_author_label(author, comment_agent, color_output)} {text}"
+                )
             else:
-                lines.append(f"  {_dim(f'{author}:', color_output)} {text}")
+                lines.append(
+                    f"  {_format_comment_author_label(author, comment_agent, color_output)} {text}"
+                )
+            settings_line = (
+                format_agent_settings_display(comment_agent)
+                if comment_agent is not None
+                else None
+            )
+            if settings_line is not None:
+                lines.append(f"    {_dim('settings:', color_output)} {settings_line}")
 
     return "\n".join(lines)

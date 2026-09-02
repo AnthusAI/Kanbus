@@ -76,12 +76,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     if event_type != "push":
         return _response(202, {"status": "ignored", "reason": f"event={event_type}"})
 
-    account = _header(headers, "X-Kanbus-Account")
-    project = _header(headers, "X-Kanbus-Project")
+    path_params = event.get("pathParameters") or {}
+    account = str(path_params.get("account", "")).strip()
+    project = str(path_params.get("project", "")).strip()
     if not account or not project:
-        return _response(400, {"error": "missing X-Kanbus-Account or X-Kanbus-Project"})
+        return _response(400, {"error": "missing account or project path parameter"})
     if not TENANT_RE.match(account) or not TENANT_RE.match(project):
-        return _response(400, {"error": "invalid tenant header format"})
+        return _response(400, {"error": "invalid tenant path format"})
 
     payload_json = json.loads(payload.decode("utf-8"))
     repo = payload_json.get("repository") or {}

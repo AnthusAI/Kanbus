@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use crate::error::KanbusError;
 use crate::ids::issue_identifier_matches;
 use crate::models::IssueData;
+use crate::summarize::get_comment_display_text;
 
 /// Filter issues by common fields.
 ///
@@ -102,10 +103,11 @@ pub fn search_issues(issues: Vec<IssueData>, term: Option<&str>) -> Vec<IssueDat
             continue;
         }
 
-        let found = issue
-            .comments
-            .iter()
-            .any(|comment| comment.text.to_lowercase().contains(&lowered));
+        let found = issue.comments.iter().any(|comment| {
+            get_comment_display_text(comment)
+                .to_lowercase()
+                .contains(&lowered)
+        });
         if found && seen.insert(issue.identifier.clone()) {
             matches.push(issue);
         }
@@ -138,6 +140,7 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),

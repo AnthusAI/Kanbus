@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 
 from kanbus.event_history import (
@@ -17,7 +18,7 @@ from kanbus.gossip import publish_issue_mutation
 from kanbus.issue_files import write_issue_to_file
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
-from kanbus.models import IssueComment, IssueData
+from kanbus.models import AgentMetadata, IssueComment, IssueData
 from kanbus.users import get_current_user
 
 
@@ -49,6 +50,9 @@ def _ensure_comment_ids(issue: IssueData) -> tuple[IssueData, bool]:
                     author=comment.author,
                     text=comment.text,
                     created_at=comment.created_at,
+                    comment_type=comment.comment_type,
+                    data=comment.data,
+                    agent=comment.agent,
                 )
             )
         else:
@@ -126,7 +130,11 @@ def _persist_comment_mutation(
 
 
 def add_comment(
-    root: Path, identifier: str, author: str, text: str
+    root: Path,
+    identifier: str,
+    author: str,
+    text: str,
+    agent: Optional[AgentMetadata] = None,
 ) -> IssueCommentResult:
     """Add a comment to an issue.
 
@@ -138,6 +146,8 @@ def add_comment(
     :type author: str
     :param text: Comment text.
     :type text: str
+    :param agent: Optional agent provenance metadata for this comment.
+    :type agent: Optional[AgentMetadata]
     :return: Comment result including the updated issue.
     :rtype: IssueCommentResult
     :raises IssueCommentError: If the issue cannot be found or updated.
@@ -154,6 +164,7 @@ def add_comment(
         author=author,
         text=text,
         created_at=timestamp,
+        agent=agent,
     )
     comments = [*base_issue.comments, comment]
     updated = base_issue.model_copy(update={"comments": comments})
@@ -166,7 +177,7 @@ def add_comment(
         updated,
         lookup.issue,
         "comment_added",
-        comment_payload(comment_id, comment.author),
+        comment_payload(comment_id, comment.author, comment.agent),
     )
     return IssueCommentResult(issue=persisted, comment=comment)
 
@@ -229,5 +240,7 @@ def delete_comment(root: Path, identifier: str, comment_id: str) -> IssueData:
         updated,
         lookup.issue,
         "comment_deleted",
-        comment_payload(removed_comment.id, removed_comment.author),
+        comment_payload(
+            removed_comment.id, removed_comment.author, removed_comment.agent
+        ),
     )

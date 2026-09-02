@@ -1,0 +1,64 @@
+{
+  "id": "kbs-53af5025-baa8-458f-a732-93d06c62f8da",
+  "title": "Python list --limit defaults to 50; Rust has no --limit (parity gap)",
+  "description": "## Intent\n\nAs a Kanbus CLI user, I want `kbs list` / `kanbus list` to show every matching issue by default, with `--limit` as an explicit opt-in cap that both Python and Rust honor identically, so that large boards are not silently truncated and the two CLIs stay in spec parity.\n\n## Current violation\n\n- Python `python/src/kanbus/cli.py` `--limit` defaults to 50 and slices at `issues = issues[:limit]`.\n- Rust `kbs list` (`rust/src/cli.rs` `Commands::List`) has no `--limit` flag at all (`kbs list --limit 20` is `unexpected argument`).\n- This violates AGENTS.md spec-parity: Python and Rust must produce identical behavior for the same inputs.\n\n## Target behavior (Gherkin)\n\n```gherkin\nFeature: List command result limit\n  As a Kanbus user\n  I want list to show all matching issues by default\n  And to optionally cap results with --limit\n  So that Python and Rust CLIs stay in parity\n\n  Scenario: List defaults to no limit\n    Given a Kanbus project with default configuration\n    And more than 50 issues exist\n    When I run \"kanbus list\"\n    Then the command should succeed\n    And stdout should list every matching issue\n\n  Scenario: List --limit N returns at most N issues\n    Given a Kanbus project with default configuration\n    And more than 3 issues exist\n    When I run \"kanbus list --limit 3\"\n    Then the command should succeed\n    And stdout should contain at most 3 issue rows\n\n  Scenario: List --limit 0 means no limit\n    Given a Kanbus project with default configuration\n    And more than 50 issues exist\n    When I run \"kanbus list --limit 0\"\n    Then the command should succeed\n    And stdout should list every matching issue\n```\n\nPrefer adding these scenarios to `features/queries/queries.feature` (existing list spec) rather than a new file, unless a separate file is clearly cleaner.\n\n## Related hygiene (same slice)\n\n- Delete untracked stale backups in the **primary clone** (worktrees will not copy them): `python/src/kanbus/cli.py.bak`, `.bak2`, `.bak4`, `.backup` under `/Users/home/Projects/Kanbus`.\n- Keep `CLI_REFERENCE.md` `--limit` docs consistent with default 0 (no limit). Update Rust help/docs if `--limit` is added. Fix Python help text that currently says \"Matches Beads default.\"\n\n## Out of scope\n\n- Do not deploy. Do not touch Chattic.us. Do not merge to main.\n- Wiki `--json`/`--limit` (kbs-c445a6) is a different command.\n\n## Definition of Done\n\n- Gherkin for `--limit` exists and both implementations pass it.\n- Python default is 0; `--limit` remains opt-in; `--limit 0` is unlimited.\n- Rust `kbs list` accepts `--limit` with the same semantics.\n- Stale `.bak`/`.backup` copies of `cli.py` are gone from the primary clone.\n- Docs match. `pytest` and `cargo test` (if Rust touched) pass.\n- PR to `develop` is open; do not merge.\n\n## Worktree / branch (worker creates)\n\n- Path: `/tmp/kanbus-list-cap-fix`\n- Branch: `cursor/kanbus-list-cap-fix-4a21` from `origin/develop`",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tskl-5er",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b89ce538-73eb-4259-8fdc-ab1d65de1a0a",
+      "author": "home",
+      "text": "Composer 2.5 planning the list --limit parity fix. Worktree /tmp/kanbus-list-cap-fix, branch cursor/kanbus-list-cap-fix-4a21 from origin/develop. Implementation not authorized yet.",
+      "created_at": "2026-09-02T12:42:25.775354Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "99e85fae-08df-4d48-8799-b706c66ffcc7",
+      "author": "home",
+      "text": "Implementation authorized on cursor/kanbus-list-cap-fix-4a21 in /tmp/kanbus-list-cap-fix. Gherkin first in features/queries/queries.feature; Python default 0; Rust gains --limit; tracked cli.py bak files to be git rm'd. Acceptance running in a throwaway project in parallel.",
+      "created_at": "2026-09-02T12:49:58.812173Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "7aca5b7c-12af-49ee-b8fd-a3415c796973",
+      "author": "home",
+      "text": "PR opened: https://github.com/AnthusAI/Kanbus/pull/194 — Python default 0, Rust gained --limit, Gherkin in features/queries/queries.feature, tracked cli.py bak files git-rm'd. Local gates green (735 pytest, 33 behave queries.feature, cargo test). CI in progress. Not merging until review+CI.",
+      "created_at": "2026-09-02T13:07:51.601300Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "96b0fdb8-3988-400d-9955-19fc0815de90",
+      "author": "home",
+      "text": "CI rust job failed on fmt in the PR merge with develop (wiki.rs, not the list change). Merged develop, rustfmt, pushed 15c0bce2. Acceptance 18/18 PASS on a80e6ca0. Watching CI; not merging.",
+      "created_at": "2026-09-02T13:31:08.951086Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "c53507a1-4cdf-4e8d-9525-e58bae3ae8d7",
+      "author": "home",
+      "text": "CI green on PR 194 (python, rust, rust-console-parity, coverage-ratchet, beads-interop, binary-smoke). Acceptance 18/18. Not merging — waiting for parent review.",
+      "created_at": "2026-09-02T14:00:57.924637Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "caf39b76-4116-4e21-990a-44a2c63a8feb",
+      "author": "home",
+      "text": "Shipped in v0.24.0 (#194): Python --limit default is 0 (no cap); Rust kbs list gained --limit with the same default. Closing as done.",
+      "created_at": "2026-09-02T16:04:42.295766Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-02T12:42:03.054744Z",
+  "updated_at": "2026-09-02T16:04:42.295766Z",
+  "closed_at": "2026-09-02T16:04:42.215292Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

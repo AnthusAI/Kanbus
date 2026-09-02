@@ -3,9 +3,9 @@
 Use Kanbus for task management.
 Why: Kanbus task management is MANDATORY here; every task must live in Kanbus.
 When: Create/update the Kanbus task before coding; close it only after the change lands.
-How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
+How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the mistakes to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
 Performance: Prefer kbs (Rust) when available; kanbus (Python) is equivalent but slower.
-Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.
+Warning: Editing project/ directly violates The Way. Do not read or write anything in project/; work only through Kanbus.
 
 ## System-wide kbs/kbsc install (agent PATH)
 
@@ -48,7 +48,45 @@ VIDEOS_BUCKET=<bucket-name> VIDEOS_PREFIX=videos node scripts/upload-videos.js
 ```
 The upload script requires `VIDEOS_BUCKET` and `VIDEOS_PREFIX` and syncs MP4/JPG assets to S3. There is no fallback logic.
 
-## Console UI Control
+## Console board screenshots (agents)
+
+When the user or Quality asks to **see the board**, capture it with `kbs console screenshot` (not a text `kbs list`). Set layout flags on the command so the PNG matches the ask; do not describe the board in prose when a screenshot can show it.
+
+```bash
+# Default: light mode, console default type filter, config-collapsed columns stay collapsed
+kbs console screenshot
+
+# Newsroom / pod board: every issue type, every column expanded (backlog, blocked, closed, etc.)
+kbs console screenshot --view all --expand-all --output board.png
+
+# Single-type views match the console tabs (initiatives, epics, issues)
+kbs console screenshot --view epics --expand-all
+
+# Expand or collapse specific status columns (status keys from .kanbus.yml)
+kbs console screenshot --expand backlog --expand closed
+kbs console screenshot --collapse in_progress
+```
+
+`--view all` uses the console `?type=all` filter (the "All" type selector). `--view initiatives|epics|issues` navigates to that tab path. Column expand/collapse is applied in the headless capture session (Playwright), not via deprecated `kbs console view` / `collapse-column` live-control commands.
+
+If screenshot cannot express the requested layout, extend `kbs console screenshot` in Kanbus rather than substituting a textual board summary.
+
+### Console ports (Ryan's machine)
+
+Each project checkout must have a unique `console_port` in `.kanbus.yml`. Do not leave it unset (defaults to 5174 and collides across repos).
+
+| Project | `console_port` |
+| --- | --- |
+| Kanbus | 4242 (collides with Plexus 4242 — only one kbsc on 4242 at a time) |
+| Tactus | 4244 |
+| Biblicus | 4245 |
+| Papyrus | 4246 |
+| Anth.us newsroom pod (`Papyrus/pods/anthus-blog`) | 4247 |
+| Virtuus | 4451 |
+
+Start kbsc for the repo you are dogfooding, then capture with `kbs console screenshot` from that repo root (or set `CONSOLE_PORT` to match).
+
+## Console UI Control (deprecated live-control commands)
 
 When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention. These commands use real-time socket+SSE notifications with sub-100ms latency.
 
@@ -336,6 +374,19 @@ python tools/coverage_parity_report.py \
 - Use serde-based structs for data at boundaries
 - Validation should produce clear, user-facing error messages
 
+## Behavior specs are authoritative (read this before coding)
+
+Kanbus is a **behavior-spec-first** project. Gherkin scenarios in `features/` are the source of truth — the specification. Python (`python/`) and Rust (`rust/`) are **derived implementations** that must stay in parity with those specs.
+
+**Do not invent CLI behavior in Python or Rust and add a feature file later.** When adding or changing behavior:
+
+1. Write or extend the Gherkin scenario in `features/` first (see `CONTRIBUTING_AGENT.md`, "The Rite of Gherkin").
+2. Run the specs and confirm new scenarios fail for the right reason.
+3. Implement Python and Rust so both pass the same scenarios with identical observable behavior.
+4. Run `tools/check_spec_parity.py` and all quality gates.
+
+Production code exists only to make failing specifications pass. Tasks and sub-tasks implement what the spec already describes; they do not define new behavior.
+
 ## Spec Parity Requirements
 
 **Critical:** Python and Rust implementations must produce identical behavior for the same inputs.
@@ -362,9 +413,9 @@ The Python behavior specs use tags to control which scenarios run by default and
 - **`~console`**: Console UI scenarios excluded by default (require console features).
 - **`~console-server`**: Scenarios that require a running kbsc are excluded by default. Run only when `KBSC_BINARY` is set or in the dedicated CI job that builds kbsc first.
 - **Local full run**: `behave --tags "~wip ~console-server"` (default from behave.ini).
-- **Console-server only**: `behave --tags "@console-server"` with `KBSC_BINARY` set to the path to the built kbsc binary.
+- **Console-server only**: `behave --tags "@console-server and not @slow"` with `KBSC_BINARY` set to the path to the built kbsc binary.
 
-CI runs the main behave job with `~wip ~console-server` and a separate `python-console-parity` job that builds kbsc and runs `behave --tags "@console-server"`.
+CI runs the main behave job with `~wip ~console-server ~slow` and a separate `python-console-parity` job that builds kbsc and runs `behave --tags "@console-server and not @slow"`. Live `@slow` screenshot capture requires Playwright Chromium and is not part of default CI.
 
 ## Quality Gates (All Must Pass)
 
@@ -431,11 +482,13 @@ python -m coverage xml -o ../coverage-python/coverage.xml
 
 ## Workflow for Implementing Features
 
-1. **Write Gherkin scenarios first** in `features/`
-2. **Verify both test runners can parse them** (scenarios will be pending/skipped)
+This list is the operational detail for the behavior-spec-first rule above. Do not skip step 1.
+
+1. **Write Gherkin scenarios first** in `features/` — specs are authoritative; code is derived
+2. **Verify both test runners can parse them** (new scenarios should fail until implementation lands)
 3. **Implement Python step definitions** in `python/features/steps/`
 4. **Implement Python production code** to make scenarios pass
-5. **Implement Rust step definitions** in `rust/tests/step_definitions/`
+5. **Implement Rust step definitions** in `rust/features/steps/` (and related test harness)
 6. **Implement Rust production code** to make scenarios pass
 7. **Run parity checker** to verify both implementations are in sync
 8. **Run all quality gates**

@@ -216,3 +216,56 @@ Feature: Policy guidance hooks
     Then the command should succeed
     And stderr should contain "GUIDANCE WARNING: Review parent-child structure before making workflow changes."
     And stderr should contain "GUIDANCE SUGGESTION: Use update to keep status aligned with current progress."
+
+  Scenario: Guidance output deduplicates identical messages and sorts warnings first
+    Given a Kanbus project with default configuration
+    And a policy file "duplicate-guidance.policy" with content:
+      """
+      Feature: Deduplication
+
+        Rule: Multiple rules suggesting the same thing
+          Scenario: Trigger one
+            When viewing an issue
+            Then suggest "Update tags"
+            Then explain "Tags are useful"
+
+          Scenario: Trigger two
+            When viewing an issue
+            Then suggest "Update tags"
+
+          Scenario: Trigger three
+            When viewing an issue
+            Then warn "Missing owner"
+            Then explain "An owner must be set"
+      """
+    And an issue "kanbus-test01" of type "task" with status "open"
+    When I run "kanbus policy guide kanbus-test01"
+    Then the command should succeed
+    And stderr should contain "GUIDANCE WARNING: Missing owner"
+    And stderr should contain "Explanation: An owner must be set"
+        And stderr should contain "GUIDANCE SUGGESTION: Update tags"
+    And stderr should contain "Explanation: Tags are useful" 
+
+  Scenario: Global KANBUS_NO_GUIDANCE environment variable suppresses guidance
+    Given a Kanbus project with default configuration
+    And a policy file "env-guidance.policy" with content:
+      """
+      Feature: View guidance
+        Rule: Viewing reminders
+          Scenario: Viewing reminder
+            When viewing an issue
+            Then suggest "Keep statuses updated as you work."
+      """
+    And an issue "kanbus-test01" of type "task" with status "open"
+    And the environment variable "KANBUS_NO_GUIDANCE" is set to "1"
+    When I run "kanbus show kanbus-test01"
+    Then the command should succeed
+    And stderr should not contain "GUIDANCE SUGGESTION"
+    Given the environment variable "KANBUS_NO_GUIDANCE" is set to "TRUE"
+    When I run "kanbus show kanbus-test01"
+    Then the command should succeed
+    And stderr should not contain "GUIDANCE SUGGESTION"
+    Given the environment variable "KANBUS_NO_GUIDANCE" is set to "off"
+    When I run "kanbus show kanbus-test01"
+    Then the command should succeed
+    And stderr should contain "GUIDANCE SUGGESTION: Keep statuses updated as you work."

@@ -55,9 +55,9 @@ There are no per-seat licenses or hosted fees. If you have a git repository, you
 
 ---
 
-## Status: Planning Phase
+## Status
 
-This repository contains the complete vision, implementation plan, and task breakdown for building Kanbus. We are building it in public, using Kanbus to track itself.
+Kanbus is in production.
 
 ## Quick Start
 
@@ -139,6 +139,34 @@ Or for multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
 http://127.0.0.1:5174/<account>/<project>/
 ```
 
+### Board screenshot (CLI)
+
+With the console server running, capture a PNG of the board UI:
+
+```bash
+kbs console screenshot
+# writes kanbus-board.png in the current directory
+
+kbs console screenshot --output reports/board.png
+
+# Dark appearance mode (light is the default for reproducible captures)
+kbs console screenshot --mode dark --output reports/board-dark.png
+
+# All issue types (?type=all) with every column expanded
+kbs console screenshot --view all --expand-all
+
+# Epics tab only, expand backlog and closed columns
+kbs console screenshot --view epics --expand backlog --expand closed
+```
+
+Headless capture uses Playwright against the live console page (not a separate renderer). Install Chromium once:
+
+```bash
+cd apps/console && npx playwright install chromium
+```
+
+If Chromium is missing, the command fails with an actionable error instead of crashing.
+
 ### Environment Variables
 
 - `CONSOLE_PORT` (default `5174`)
@@ -169,7 +197,7 @@ kbs daemon-stop
 
 ## Python vs Rust
 
-Kanbus ships two CLI implementations with identical features. Both run the same behavior specs with full coverage and share interoperability tests (including Beads), so workflows and outputs match exactly. The difference is setup and speed: Python is the lightest install path, while Rust requires a Rust toolchain but runs substantially faster.
+Kanbus ships two CLI implementations with identical features. Both run the same behavior specs with full coverage and share interoperability tests (including Beads), so workflows and outputs match exactly. The difference is setup and speed: Python is the lightest install path, while Rust requires Rust 1.88+ (pinned in `rust-toolchain.toml` for rustup and CI) but runs substantially faster.
 
 **Choose Python if:**
 - You want easy `pip install` with no compilation
@@ -273,3 +301,14 @@ cd rust && cargo run --release --bin index_benchmark
 ## License
 
 MIT
+
+## Single Source of Truth
+We firmly believe in the ideal single-source-of-spec religion: all system behavior should be codified into shared Gherkin `.feature` specifications that run against both Python and Rust implementations, minimizing language-specific unit tests.
+
+---
+
+Built by [Anthus AI Solutions](https://anth.us). We run this class of system in production.
+
+We use Kanbus so agents and humans share one board.
+
+If you need this operated, not just cloned, [talk to us](https://anth.us).

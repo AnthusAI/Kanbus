@@ -72,11 +72,23 @@ export interface ProjectConfig {
   right_now?: RightNowConfiguration;
 }
 
+export type AgentSettings = Record<string, unknown>;
+
+export interface AgentMetadata {
+  platform: string;
+  model: string;
+  name?: string;
+  settings?: AgentSettings;
+}
+
 export interface IssueComment {
   id?: string;
   author: string;
-  text: string;
+  text?: string;
   created_at: string;
+  comment_type?: string;
+  data?: Record<string, unknown>;
+  agent?: AgentMetadata;
 }
 
 export interface IssueDependency {
@@ -106,6 +118,7 @@ export interface Issue {
   right_now_summary?: string | null;
   right_now_updated_at?: string | null;
   custom?: Record<string, unknown>;
+  agent?: AgentMetadata;
 }
 
 export type IssueEventType =

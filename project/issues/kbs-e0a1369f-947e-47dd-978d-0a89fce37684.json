@@ -1,0 +1,33 @@
+{
+  "id": "kbs-e0a1369f-947e-47dd-978d-0a89fce37684",
+  "title": "Screenshot tests, CI gating, and docs",
+  "description": "KANBUS_TEST_SCREENSHOT_MOCK for mocked capture in default CI; gate @slow live-browser scenario. Document browser install path in README or CLI help. Parity across Python and Rust.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "rap@endymion.com",
+  "creator": null,
+  "parent": "kbs-8de39f09-9709-48f6-a7ed-ca5e5af94fce",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "41590c61-9acd-4fca-9fcd-ae0dc0980b07",
+      "author": "ryan",
+      "text": "CI on PR #171 failed for three reasons, all fixable without rewriting screenshot:\n\n1. **python**: black wants `console_screenshot.py` and `console_screenshot_steps.py` reformatted\n2. **rust**: rustfmt diffs in `cli.rs`, `console_screenshot.rs`, `lib.rs`, screenshot steps\n3. **python-console-parity**: `@slow` live capture ran because it is also tagged `@console-server`. Rust cucumber already skips `@slow`. Align the Python parity job to `not @slow` so CI does not require Playwright Chromium.\n\nMerging origin/develop first (wiki, Dependabot, rust AI-mock serialize).",
+      "created_at": "2026-08-29T19:33:31.938732Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "fa4c62e9-2839-4e54-98d8-fef864cfa207",
+      "author": "home",
+      "text": "Shipped on main in kanbus 0.24.1 (PR #178). Epic kbs-8de39f already closed; closing leftover child task.",
+      "created_at": "2026-09-02T13:04:55.715265Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-28T16:52:48.999557Z",
+  "updated_at": "2026-09-02T13:04:55.735358Z",
+  "closed_at": "2026-09-02T13:04:55.735358Z",
+  "custom": {}
+}

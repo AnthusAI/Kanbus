@@ -38,6 +38,9 @@ pub fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
                     author: comment.author.clone(),
                     text: comment.text.clone(),
                     created_at: comment.created_at,
+                    comment_type: comment.comment_type.clone(),
+                    data: comment.data.clone(),
+                    agent: comment.agent.clone(),
                 }
             } else {
                 comment.clone()
@@ -150,14 +153,18 @@ pub fn add_comment(
     identifier: &str,
     author: &str,
     text: &str,
+    agent: Option<crate::models::AgentMetadata>,
 ) -> Result<IssueCommentResult, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let timestamp = Utc::now();
     let comment = IssueComment {
         id: Some(generate_comment_id()),
         author: author.to_string(),
-        text: text.to_string(),
+        text: Some(text.to_string()),
         created_at: timestamp,
+        comment_type: "default".to_string(),
+        data: std::collections::BTreeMap::new(),
+        agent,
     };
     let (base_issue, _) = ensure_comment_ids(&lookup.issue);
     let mut comments = base_issue.comments.clone();
@@ -176,7 +183,7 @@ pub fn add_comment(
         updated,
         lookup.issue.clone(),
         EventType::CommentAdded,
-        comment_payload(&comment_id, &comment.author),
+        comment_payload(&comment_id, &comment.author, comment.agent.as_ref()),
     )?;
     Ok(IssueCommentResult {
         issue: persisted,
@@ -210,7 +217,7 @@ pub fn update_comment(
         .cloned()
         .ok_or_else(|| KanbusError::IssueOperation("comment not found".to_string()))?;
     if let Some(comment) = issue.comments.get_mut(index) {
-        comment.text = text.to_string();
+        comment.text = Some(text.to_string());
     }
     let comment_id = existing_comment
         .id
@@ -246,6 +253,6 @@ pub fn delete_comment(
         issue,
         lookup.issue.clone(),
         EventType::CommentDeleted,
-        comment_payload(&comment_id, &removed.author),
+        comment_payload(&comment_id, &removed.author, removed.agent.as_ref()),
     )
 }

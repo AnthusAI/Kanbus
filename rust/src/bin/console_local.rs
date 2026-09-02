@@ -997,8 +997,9 @@ fn start_gossip_bridge(state: AppState) {
             }
         });
 
-        if let Err(error) = run_gossip_bridge(&root, callback) {
+        while let Err(error) = run_gossip_bridge(&root, callback.clone()) {
             eprintln!("warning: realtime bridge stopped: {}", error);
+            std::thread::sleep(std::time::Duration::from_secs(2));
         }
     });
 }
@@ -1724,6 +1725,7 @@ mod tests {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
@@ -2213,6 +2215,7 @@ mod tests {
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
                 closed_at: None,
+                agent: None,
                 right_now_summary: None,
                 right_now_updated_at: None,
                 custom: std::collections::BTreeMap::new(),

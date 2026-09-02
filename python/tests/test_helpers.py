@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from kanbus.issue_mutation import (
     PersistIssueMutationRequest,
     PersistIssueMutationResult,
 )
 from kanbus.models import IssueData, ProjectConfiguration
+
+if TYPE_CHECKING:
+    from kanbus.issue_update import IssueUpdateResult
 
 
 def build_issue(
@@ -41,6 +44,20 @@ def build_issue(
             "closed_at": None,
             "custom": custom or {},
         }
+    )
+
+
+def build_update_result(
+    identifier: str,
+    *,
+    changed: bool = True,
+    **issue_kwargs: object,
+) -> IssueUpdateResult:
+    from kanbus.issue_update import IssueUpdateResult
+
+    return IssueUpdateResult(
+        issue=build_issue(identifier, **issue_kwargs),
+        changed=changed,
     )
 
 

@@ -1,0 +1,26 @@
+{
+  "id": "kbs-2ab1f8c1-990b-44fa-b71f-b8c3412d525c",
+  "title": "Reject agent flags in Beads compatibility mode",
+  "description": "Story: kbs-1d5214. Guard beads_write when --agent-* present; clear native-storage-only error.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "260f000b-7a8c-4cdd-a8f5-2eba06859aeb",
+      "author": "home",
+      "text": "Already on develop (aeab7644 and #177). CLI/models/events/Beads Gherkin live in features/agent/agent_metadata.feature. Closing as shipped; remaining epic work is console display and docs.",
+      "created_at": "2026-09-02T18:20:06.921902Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-29T13:41:36.910824Z",
+  "updated_at": "2026-09-02T18:20:06.921902Z",
+  "closed_at": "2026-09-02T18:20:06.877417Z",
+  "custom": {}
+}

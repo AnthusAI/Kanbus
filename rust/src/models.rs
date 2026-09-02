@@ -20,14 +20,37 @@ pub struct DependencyLink {
     pub dependency_type: String,
 }
 
+/// Structured AI agent provenance metadata.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct AgentMetadata {
+    pub platform: String,
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub settings: BTreeMap<String, serde_json::Value>,
+}
+
 /// Comment on an issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueComment {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub author: String,
-    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
     pub created_at: DateTime<Utc>,
+    #[serde(default = "default_comment_type")]
+    pub comment_type: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub data: BTreeMap<String, serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<AgentMetadata>,
+}
+
+fn default_comment_type() -> String {
+    "default".to_string()
 }
 
 /// Issue data representation.
@@ -50,6 +73,8 @@ pub struct IssueData {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub closed_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<AgentMetadata>,
     #[serde(default)]
     pub right_now_summary: Option<String>,
     #[serde(default)]
@@ -345,6 +370,7 @@ pub struct ProjectConfiguration {
     pub overlay: OverlayConfig,
     #[serde(default)]
     pub hooks: HooksConfiguration,
+    #[serde(default)]
     pub github_security: Option<GithubSecurityConfiguration>,
 }
 

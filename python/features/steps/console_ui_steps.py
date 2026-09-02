@@ -42,7 +42,7 @@ def _allocate_port() -> int:
         return sock.getsockname()[1]
 
 
-def _wait_for_server(port: int, timeout: float = 10.0) -> int | None:
+def _wait_for_server(port: int, timeout: float = 30.0) -> int | None:
     """Poll GET /api/config until the server responds with 200.
 
     kbsc can auto-fallback to nearby ports if the requested port is busy.
@@ -149,6 +149,12 @@ def stop_console_server(context: object) -> None:
 
 
 @dataclass
+class ConsoleAgentMetadata:
+    platform: str
+    model: str
+
+
+@dataclass
 class ConsoleIssue:
     title: str
     issue_type: str
@@ -163,6 +169,7 @@ class ConsoleIssue:
     source: str = "shared"
     identifier: str | None = None
     priority: int = 2
+    agent: ConsoleAgentMetadata | None = None
     right_now_summary: str | None = None
 
 
@@ -170,6 +177,7 @@ class ConsoleIssue:
 class ConsoleComment:
     author: str
     created_at: str
+    agent: ConsoleAgentMetadata | None = None
 
 
 @dataclass
@@ -588,6 +596,112 @@ def then_issue_detail_right_now_summary(context: object, expected: str) -> None:
         actual = summary
     if actual != expected:
         raise AssertionError(f"expected right-now summary {expected}, got {actual}")
+
+
+@given(
+    'the console has a task "{title}" with agent platform "{platform}" model "{model}"'
+)
+def given_console_task_with_agent_metadata(
+    context: object, title: str, platform: str, model: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.agent = ConsoleAgentMetadata(platform=platform, model=model)
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given('the console has a task "{title}" without agent metadata')
+def given_console_task_without_agent_metadata(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.agent = None
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given(
+    'the console has a comment from "{author}" on task "{title}" with agent platform "{platform}" model "{model}"'
+)
+def given_console_comment_with_agent_metadata(
+    context: object, author: str, title: str, platform: str, model: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.comments.append(
+                ConsoleComment(
+                    author=author,
+                    created_at="2026-02-11T04:00:00.000Z",
+                    agent=ConsoleAgentMetadata(platform=platform, model=model),
+                )
+            )
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given('the console has a comment from "{author}" on task "{title}"')
+def given_console_comment_without_agent_metadata(
+    context: object, author: str, title: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.comments.append(
+                ConsoleComment(
+                    author=author,
+                    created_at="2026-02-11T04:00:00.000Z",
+                )
+            )
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@then('the issue agent metadata should include platform "{platform}"')
+def then_issue_agent_metadata_platform(context: object, platform: str) -> None:
+    issue = _get_selected_issue(context)
+    if issue.agent is None or issue.agent.platform != platform:
+        actual = issue.agent.platform if issue.agent else None
+        raise AssertionError(f"expected platform {platform} but found {actual}")
+
+
+@then('the issue agent metadata should include model "{model}"')
+def then_issue_agent_metadata_model(context: object, model: str) -> None:
+    issue = _get_selected_issue(context)
+    if issue.agent is None or issue.agent.model != model:
+        actual = issue.agent.model if issue.agent else None
+        raise AssertionError(f"expected model {model} but found {actual}")
+
+
+@then("the issue agent metadata should not be visible")
+def then_issue_agent_metadata_not_visible(context: object) -> None:
+    issue = _get_selected_issue(context)
+    if issue.agent is not None:
+        raise AssertionError(f"expected no agent metadata but found {issue.agent}")
+
+
+@then('the comment agent metadata should include platform "{platform}"')
+def then_comment_agent_metadata_platform(context: object, platform: str) -> None:
+    issue = _get_selected_issue(context)
+    if not issue.comments:
+        raise AssertionError("no comments found")
+    comment = issue.comments[-1]
+    if comment.agent is None or comment.agent.platform != platform:
+        actual = comment.agent.platform if comment.agent else None
+        raise AssertionError(f"expected platform {platform} but found {actual}")
+
+
+@then("the comment agent metadata should not be visible")
+def then_comment_agent_metadata_not_visible(context: object) -> None:
+    issue = _get_selected_issue(context)
+    if not issue.comments:
+        raise AssertionError("no comments found")
+    if issue.comments[-1].agent is not None:
+        raise AssertionError(
+            f"expected no comment agent metadata but found {issue.comments[-1].agent}"
+        )
 
 
 @when('I open the console route "{route}"')
