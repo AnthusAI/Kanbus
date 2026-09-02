@@ -13,7 +13,7 @@ use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
-use crate::right_now::get_right_now_summary;
+use crate::right_now::{ensure_right_now_summaries, get_right_now_summary};
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
@@ -81,6 +81,21 @@ pub fn run_right_now_command(
     let effective_limit = effective_right_now_limit(options);
     if effective_limit > 0 {
         issues.truncate(effective_limit);
+    }
+    if !options.raw {
+        let identifiers: Vec<String> = issues
+            .iter()
+            .map(|issue| issue.identifier.clone())
+            .collect();
+        ensure_right_now_summaries(root, &identifiers);
+        let mut reloaded = Vec::new();
+        for issue in issues {
+            match load_issue_from_project(root, &issue.identifier) {
+                Ok(lookup) => reloaded.push(lookup.issue),
+                Err(_) => reloaded.push(issue),
+            }
+        }
+        issues = reloaded;
     }
     let configuration = load_configuration(root);
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());

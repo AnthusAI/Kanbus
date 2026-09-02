@@ -23,6 +23,7 @@ import { WikiPanel } from "./components/WikiPanel";
 import {
   fetchAuthBootstrap,
   fetchSnapshot,
+  fetchNowIssues,
   setAuthHeaderProvider,
   setMqttTokenProvider,
   setAuthQueryProvider,
@@ -696,6 +697,21 @@ export default function App() {
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
+
+  useEffect(() => {
+    if (panelMode !== "now" || !apiBase) {
+      return;
+    }
+    fetchNowIssues(apiBase)
+      .then((nowIssues) => {
+        setSnapshot((previous) =>
+          previous
+            ? { ...previous, issues: nowIssues, updated_at: new Date().toISOString() }
+            : previous
+        );
+      })
+      .catch((err) => console.warn("[now] backfill failed", err));
+  }, [panelMode, apiBase]);
 
   useEffect(() => {
     snapshotRef.current = snapshot;

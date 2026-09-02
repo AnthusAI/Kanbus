@@ -127,6 +127,22 @@ impl FileStore {
         })
     }
 
+    /// Backfill right-now summaries for every issue in this store.
+    ///
+    /// # Errors
+    ///
+    /// Returns `KanbusError` when configuration or issue loading fails.
+    pub fn ensure_right_now_summaries(&self) -> Result<(), KanbusError> {
+        let configuration = self.load_config()?;
+        let issues = self.load_issues(&configuration)?;
+        let identifiers: Vec<String> = issues
+            .iter()
+            .map(|issue| issue.identifier.clone())
+            .collect();
+        crate::right_now::ensure_right_now_summaries(self.root(), &identifiers);
+        Ok(())
+    }
+
     /// Build the JSON payload for a snapshot.
     pub fn build_snapshot_payload(&self) -> Result<String, KanbusError> {
         let snapshot = self.build_snapshot()?;
