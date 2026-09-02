@@ -85,16 +85,18 @@ def test_update_issue_matching_values_succeed_without_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     lookup, _cfg, _issues_dir = _setup(monkeypatch, tmp_path)
-    writes: list[str] = []
+    persist_calls: list[object] = []
     monkeypatch.setattr(
-        issue_update, "write_issue_to_file", lambda *_a: writes.append("w")
+        issue_update,
+        "persist_issue_mutation",
+        stub_persist_issue_mutation(persist_calls),
     )
     result = issue_update.update_issue(
         tmp_path, "kanbus-1", "Old", "", "open", None, False, validate=False
     )
     assert not result.changed
     assert result.issue.identifier == lookup.issue.identifier
-    assert writes == []
+    assert persist_calls == []
 
 
 def test_update_issue_title_duplicate_and_normalization(
