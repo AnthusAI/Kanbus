@@ -337,18 +337,36 @@ enum Commands {
         local_only: bool,
     },
     /// List recently-updated issues with right-now summaries.
-    #[command(name = "now")]
+    #[command(
+        name = "now",
+        after_help = "Examples:\n  \
+kbs now                          tree of recently-updated issues (cap 30)\n  \
+kbs now --list                   reverse-chronological list\n  \
+kbs now --all                    every issue as a tree\n  \
+kbs now --limit 10               10 most recently updated\n  \
+kbs now kbs-abc                  issue and descendants as a tree\n  \
+kbs now kbs-abc --no-recursive   that issue only\n  \
+kbs now kbs-abc --list           descendants as a flat list\n  \
+kbs now --json                   machine-readable JSON for agents\n  \
+kbs now --raw                    titles only, no summaries"
+    )]
     RightNow {
-        /// Maximum number of issues to show.
-        #[arg(long, default_value_t = 30)]
-        limit: usize,
-        /// Show issues hierarchically.
+        /// Maximum number of issues to show. Default: 30 when listing the board.
         #[arg(long)]
-        tree: bool,
-        /// With --tree, expand all nodes by default.
+        limit: Option<usize>,
+        /// Show every issue, ignoring the default limit.
+        #[arg(long)]
+        all: bool,
+        /// Show a reverse-chronological list instead of a hierarchy.
+        #[arg(long)]
+        list: bool,
+        /// Show only the named issues, without descendants.
+        #[arg(long = "no-recursive")]
+        no_recursive: bool,
+        /// Expand all tree nodes by default.
         #[arg(long)]
         expanded: bool,
-        /// With --tree, collapse all nodes by default.
+        /// Collapse all tree nodes by default.
         #[arg(long)]
         collapsed: bool,
         /// Show titles only, without right-now summaries.
@@ -357,6 +375,9 @@ enum Commands {
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Issue identifiers to show. Default: recently-updated issues.
+        #[arg(value_name = "ISSUE")]
+        issue_ids: Vec<String>,
     },
     /// Jira synchronization commands.
     Jira {
@@ -2655,19 +2676,25 @@ fn execute_command(
         }
         Commands::RightNow {
             limit,
-            tree,
+            all,
+            list,
+            no_recursive,
             expanded,
             collapsed,
             raw,
             json,
+            issue_ids,
         } => {
             let options = RightNowCommandOptions {
                 limit,
-                tree,
+                tree: !list,
                 expanded,
                 collapsed,
                 raw,
                 as_json: json,
+                show_all: all,
+                recursive: !no_recursive,
+                issue_ids,
             };
             let output = run_right_now_command(root, &options)?;
             Ok(Some(output))

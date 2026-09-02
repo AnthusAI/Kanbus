@@ -1,6 +1,6 @@
 //! Right-now CLI listing and formatting.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use chrono::{DateTime, SecondsFormat, Utc};
@@ -10,18 +10,24 @@ use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_listing::list_issues;
+use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::get_right_now_summary;
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
+const CANNOT_COMBINE_ALL_WITH_LIMIT: &str = "cannot combine --all with --limit";
+const CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS: &str =
+    "cannot combine --all with issue identifiers";
+const NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS: &str =
+    "--no-recursive requires one or more issue identifiers";
 
 /// Options for the right-now CLI command.
 #[derive(Debug, Clone)]
 pub struct RightNowCommandOptions {
     /// Maximum number of issues to include after sorting.
-    pub limit: usize,
+    pub limit: Option<usize>,
     /// Whether to render a hierarchical tree.
     pub tree: bool,
     /// Whether tree nodes default to expanded markers.
@@ -32,17 +38,27 @@ pub struct RightNowCommandOptions {
     pub raw: bool,
     /// Whether to emit JSON output.
     pub as_json: bool,
+    /// Whether to list every issue without the default cap.
+    pub show_all: bool,
+    /// Whether to include descendants of selected issues.
+    pub recursive: bool,
+    /// Optional issue identifiers to select.
+    pub issue_ids: Vec<String>,
 }
 
+/// Default right-now command options: hierarchical tree with recursive descendants.
 impl Default for RightNowCommandOptions {
     fn default() -> Self {
         Self {
-            limit: DEFAULT_RIGHT_NOW_LIMIT,
-            tree: false,
+            limit: None,
+            tree: true,
             expanded: false,
             collapsed: false,
             raw: false,
             as_json: false,
+            show_all: false,
+            recursive: true,
+            issue_ids: Vec::new(),
         }
     }
 }
@@ -54,27 +70,17 @@ impl Default for RightNowCommandOptions {
 /// * `options` - Right-now command options.
 ///
 /// # Errors
-/// Returns `KanbusError` when issue listing fails.
+/// Returns `KanbusError` when issue listing fails or options are invalid.
 pub fn run_right_now_command(
     root: &Path,
     options: &RightNowCommandOptions,
 ) -> Result<String, KanbusError> {
-    let mut issues = list_issues(
-        root,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        &[],
-        true,
-        false,
-    )?;
+    validate_right_now_options(options)?;
+    let mut issues = select_right_now_issues(root, options)?;
     issues = sort_issues_by_recently_updated(issues);
-    if options.limit > 0 {
-        issues.truncate(options.limit);
+    let effective_limit = effective_right_now_limit(options);
+    if effective_limit > 0 {
+        issues.truncate(effective_limit);
     }
     let configuration = load_configuration(root);
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());
@@ -118,6 +124,96 @@ pub fn run_right_now_command(
     }
     lines.push(String::new());
     Ok(lines.join("\n"))
+}
+
+fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), KanbusError> {
+    if options.show_all && options.limit.is_some() {
+        return Err(KanbusError::IssueOperation(
+            CANNOT_COMBINE_ALL_WITH_LIMIT.to_string(),
+        ));
+    }
+    if options.show_all && !options.issue_ids.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS.to_string(),
+        ));
+    }
+    if !options.recursive && options.issue_ids.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS.to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn effective_right_now_limit(options: &RightNowCommandOptions) -> usize {
+    if options.show_all {
+        return 0;
+    }
+    if !options.issue_ids.is_empty() {
+        return options.limit.unwrap_or(0);
+    }
+    options.limit.unwrap_or(DEFAULT_RIGHT_NOW_LIMIT)
+}
+
+fn select_right_now_issues(
+    root: &Path,
+    options: &RightNowCommandOptions,
+) -> Result<Vec<IssueData>, KanbusError> {
+    let issues = list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        true,
+        false,
+    )?;
+    if options.issue_ids.is_empty() {
+        return Ok(issues);
+    }
+    let mut issues_by_identifier: HashMap<String, IssueData> = issues
+        .into_iter()
+        .map(|issue| (issue.identifier.clone(), issue))
+        .collect();
+    let mut selected: HashSet<String> = HashSet::new();
+    for raw_identifier in &options.issue_ids {
+        let lookup = load_issue_from_project(root, raw_identifier)?;
+        let identifier = lookup.issue.identifier.clone();
+        issues_by_identifier
+            .entry(identifier.clone())
+            .or_insert(lookup.issue);
+        selected.insert(identifier);
+    }
+    if options.recursive {
+        let mut children_by_parent: HashMap<String, Vec<String>> = HashMap::new();
+        for issue in issues_by_identifier.values() {
+            if let Some(parent) = &issue.parent {
+                children_by_parent
+                    .entry(parent.clone())
+                    .or_default()
+                    .push(issue.identifier.clone());
+            }
+        }
+        let mut queue: Vec<String> = selected.iter().cloned().collect();
+        while let Some(current) = queue.pop() {
+            if let Some(children) = children_by_parent.get(&current) {
+                for child_identifier in children {
+                    if selected.insert(child_identifier.clone()) {
+                        queue.push(child_identifier.clone());
+                    }
+                }
+            }
+        }
+    }
+    Ok(issues_by_identifier
+        .into_iter()
+        .filter(|(identifier, _)| selected.contains(identifier))
+        .map(|(_, issue)| issue)
+        .collect())
 }
 
 fn load_configuration(root: &Path) -> Option<ProjectConfiguration> {
@@ -337,14 +433,18 @@ mod tests {
     }
 
     #[test]
-    fn default_options_use_limit_thirty_and_flat_text() {
+    fn default_options_use_board_cap_tree_and_recursive() {
         let options = RightNowCommandOptions::default();
-        assert_eq!(options.limit, DEFAULT_RIGHT_NOW_LIMIT);
-        assert!(!options.tree);
+        assert_eq!(options.limit, None);
+        assert!(options.tree);
         assert!(!options.expanded);
         assert!(!options.collapsed);
         assert!(!options.raw);
         assert!(!options.as_json);
+        assert!(!options.show_all);
+        assert!(options.recursive);
+        assert!(options.issue_ids.is_empty());
+        assert_eq!(effective_right_now_limit(&options), DEFAULT_RIGHT_NOW_LIMIT);
     }
 
     #[test]
@@ -390,5 +490,59 @@ mod tests {
         assert!(raw.right_now_summary.is_none());
         let with_summary = serialize_flat_json_entry(&issue, false);
         assert_eq!(with_summary.right_now_summary, Some(None));
+    }
+
+    #[test]
+    fn validate_right_now_options_rejects_conflicts() {
+        let all_with_limit = RightNowCommandOptions {
+            show_all: true,
+            limit: Some(2),
+            ..RightNowCommandOptions::default()
+        };
+        let error = validate_right_now_options(&all_with_limit).expect_err("limit");
+        assert_eq!(error.to_string(), CANNOT_COMBINE_ALL_WITH_LIMIT);
+        let all_with_ids = RightNowCommandOptions {
+            show_all: true,
+            issue_ids: vec!["kanbus-a".to_string()],
+            ..RightNowCommandOptions::default()
+        };
+        let error = validate_right_now_options(&all_with_ids).expect_err("ids");
+        assert_eq!(error.to_string(), CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS);
+        let no_recursive = RightNowCommandOptions {
+            recursive: false,
+            ..RightNowCommandOptions::default()
+        };
+        let error = validate_right_now_options(&no_recursive).expect_err("no-recursive");
+        assert_eq!(error.to_string(), NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS);
+        validate_right_now_options(&RightNowCommandOptions::default()).expect("ok");
+    }
+
+    #[test]
+    fn effective_right_now_limit_uses_selection_policy() {
+        assert_eq!(
+            effective_right_now_limit(&RightNowCommandOptions::default()),
+            DEFAULT_RIGHT_NOW_LIMIT
+        );
+        let show_all = RightNowCommandOptions {
+            show_all: true,
+            ..RightNowCommandOptions::default()
+        };
+        assert_eq!(effective_right_now_limit(&show_all), 0);
+        let selected = RightNowCommandOptions {
+            issue_ids: vec!["kanbus-a".to_string()],
+            ..RightNowCommandOptions::default()
+        };
+        assert_eq!(effective_right_now_limit(&selected), 0);
+        let selected_limited = RightNowCommandOptions {
+            issue_ids: vec!["kanbus-a".to_string()],
+            limit: Some(1),
+            ..RightNowCommandOptions::default()
+        };
+        assert_eq!(effective_right_now_limit(&selected_limited), 1);
+        let limited = RightNowCommandOptions {
+            limit: Some(5),
+            ..RightNowCommandOptions::default()
+        };
+        assert_eq!(effective_right_now_limit(&limited), 5);
     }
 }
