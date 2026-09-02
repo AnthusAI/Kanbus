@@ -285,6 +285,17 @@ def then_right_now_summary_result_unset(context: object) -> None:
     assert context.right_now_summary_result is None
 
 
+@given("right now litellm call tracking is reset")
+def given_right_now_litellm_call_tracking_reset(context: object) -> None:
+    """Clear right-now LiteLLM call tracking before mock AI scenarios.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    context._litellm_called_env = os.environ.get("KANBUS_RIGHT_NOW_LITELLM_CALLED")
+    os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
+
+
 @given("the Kanbus project has no AI configuration")
 def given_kanbus_project_has_no_ai_configuration(context: object) -> None:
     """Remove AI configuration from the current project.
