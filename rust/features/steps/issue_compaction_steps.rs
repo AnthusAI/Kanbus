@@ -2,32 +2,6 @@ use crate::step_definitions::initialization_steps::KanbusWorld;
 use cucumber::{given, then};
 use std::fs;
 
-#[given(expr = "the Kanbus configuration uses AI provider {string} with model {string}")]
-fn given_ai_configuration(world: &mut KanbusWorld, provider: String, model: String) {
-    let root = world.working_directory.as_ref().unwrap().clone();
-    let kanbus_yml_path = root.join(".kanbus.yml");
-    let config_data = fs::read_to_string(&kanbus_yml_path).unwrap_or_default();
-
-    let mut lines: Vec<&str> = config_data.lines().collect();
-    lines.retain(|l| {
-        !l.starts_with("ai:") && !l.starts_with("  provider:") && !l.starts_with("  model:")
-    });
-    let mut new_config = lines.join(
-        "
-",
-    );
-
-    new_config.push_str(&format!(
-        "
-ai:
-  provider: {}
-  model: {}
-",
-        provider, model
-    ));
-    fs::write(kanbus_yml_path, new_config).unwrap();
-}
-
 #[given(expr = "the issue {string} has a comment with text {string}")]
 fn given_issue_has_comment(world: &mut KanbusWorld, issue_id: String, text: String) {
     let root = world.working_directory.as_ref().unwrap().clone();
