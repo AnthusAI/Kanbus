@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cmp_to_key
+import re
 
 from behave import given, then, when
 
 from features.steps.console_ui_steps import (
     ConsoleIssue,
     ConsoleState,
+    _console_app_root,
     _ensure_console_storage,
     _post_notification,
     _require_console_state,
@@ -17,6 +19,17 @@ from features.steps.console_ui_steps import (
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 STATUS_FEED_LIMIT = 30
+PANEL_MODE_OPTION_PATTERN = re.compile(r'buildOption\("[^"]+", "([^"]+)"')
+
+
+def _panel_mode_selector_labels() -> list[str]:
+    app_source = (_console_app_root() / "src" / "App.tsx").read_text()
+    marker = "const panelModeOptions"
+    start = app_source.find(marker)
+    if start == -1:
+        raise AssertionError("panelModeOptions not found in App.tsx")
+    chunk = app_source[start : start + 800]
+    return PANEL_MODE_OPTION_PATTERN.findall(chunk)
 
 
 @dataclass
@@ -135,14 +148,14 @@ def _resolve_feed_summary(issue: ConsoleIssue) -> str:
     return summary
 
 
-@when('I switch to the "Current Status" view')
+@when('I switch to the "Now" view')
 def when_switch_current_status_view(context: object) -> None:
     state = _require_console_state(context)
     state.panel_mode = "now"
     _ensure_console_storage(context).panel_mode = "now"
 
 
-@given('I switch to the "Current Status" view')
+@given('I switch to the "Now" view')
 def given_switch_current_status_view(context: object) -> None:
     when_switch_current_status_view(context)
 
@@ -151,7 +164,22 @@ def given_switch_current_status_view(context: object) -> None:
 def then_current_status_view_active(context: object) -> None:
     state = _require_console_state(context)
     if state.panel_mode != "now":
-        raise AssertionError(f"expected current status view, got {state.panel_mode}")
+        raise AssertionError(f"expected now view, got {state.panel_mode}")
+
+
+@then('the panel mode selector labels should be "{labels}"')
+def then_panel_mode_selector_labels(context: object, labels: str) -> None:
+    expected = [label.strip() for label in labels.split(",")]
+    actual = _panel_mode_selector_labels()
+    if actual != expected:
+        raise AssertionError(f"expected panel mode labels {expected}, got {actual}")
+
+
+@then("the status tree view should be enabled")
+def then_status_tree_view_enabled(context: object) -> None:
+    state = _require_console_state(context)
+    if not state.status_tree_mode:
+        raise AssertionError("expected status tree view to be enabled")
 
 
 @given('a status issue "{title}" updated at "{timestamp}"')
@@ -242,6 +270,7 @@ def when_enable_status_tree_view(context: object) -> None:
 
 
 @when("I disable the status tree view")
+@given("I disable the status tree view")
 def when_disable_status_tree_view(context: object) -> None:
     state = _require_console_state(context)
     state.status_tree_mode = False

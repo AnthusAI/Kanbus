@@ -146,6 +146,21 @@ Then("the current status view should be active", async function () {
   await expect(this.page.getByTestId("current-status-view")).toBeVisible();
 });
 
+Then("the panel mode selector labels should be {string}", async function (labels) {
+  const expected = labels.split(",").map((label) => label.trim());
+  const actual = await this.page
+    .locator('[data-selector="panel-mode"] .selector-label')
+    .allTextContents();
+  expect(actual.map((label) => label.trim())).toEqual(expected);
+});
+
+Then("the status tree view should be enabled", async function () {
+  await expect(this.page.getByTestId("status-tree-toggle")).toBeChecked();
+  await expect(
+    this.page.getByTestId("status-tree").or(this.page.getByTestId("status-tree-empty"))
+  ).toBeVisible();
+});
+
 Given(
   "a status issue {string} updated at {string}",
   async function (title, timestamp) {
@@ -268,6 +283,11 @@ When("I enable the status tree view", async function () {
 });
 
 When("I disable the status tree view", async function () {
+  await this.page.getByTestId("status-tree-toggle").uncheck();
+  await expect(this.page.getByTestId("status-feed")).toBeVisible();
+});
+
+Given("I disable the status tree view", async function () {
   await this.page.getByTestId("status-tree-toggle").uncheck();
   await expect(this.page.getByTestId("status-feed")).toBeVisible();
 });
