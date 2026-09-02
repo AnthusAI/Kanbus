@@ -3,7 +3,7 @@
   "title": "Retarget right-now PR to develop and release to main",
   "description": "As a Kanbus maintainer, I want PR 195 merged to develop and then main with a semantic-release feat commit, so the right-now summary ships in a new version.\n\n## Definition of Done\n\n- PR 195 base is develop, not dev.\n- At least one conventional commit of type feat is on the branch so python-semantic-release bumps the version when main CI succeeds.\n- The branch is merged to develop.\n- develop is merged to main so the Semantic Release workflow can tag a new 0.x version.",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -12,9 +12,10 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-02T19:23:32.820147Z",
-  "updated_at": "2026-09-02T19:23:49.737877Z",
-  "closed_at": null,
-  "right_now_summary": "PR 195 needs to target develop, then merge to main with a feat commit for release.",
-  "right_now_updated_at": "2026-09-02T19:23:54.295255Z",
-  "custom": {}
+  "updated_at": "2026-09-02T20:17:48.810206Z",
+  "closed_at": "2026-09-02T20:17:48.783173Z",
+  "right_now_summary": "PR 195 needs retargeting to develop, merging there, then merging develop into main for release.",
+  "right_now_updated_at": "2026-09-02T20:17:53.342001Z",
+  "custom": {},
+  "agent": null
 }
