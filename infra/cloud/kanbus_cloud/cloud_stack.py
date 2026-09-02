@@ -49,7 +49,7 @@ class KanbusCloudFoundationStack(Stack):
                     cidr_mask=24,
                 ),
                 ec2.SubnetConfiguration(
-                    name="isolated",
+                    name="app",
                     subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
                     cidr_mask=24,
                 ),
