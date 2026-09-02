@@ -58,6 +58,7 @@ use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
+use crate::right_now_command::{run_right_now_command, RightNowCommandOptions};
 use crate::snyk_sync::pull_from_snyk;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
@@ -334,6 +335,28 @@ enum Commands {
         /// Show only local issues.
         #[arg(long = "local-only")]
         local_only: bool,
+    },
+    /// List recently-updated issues with right-now summaries.
+    #[command(name = "now")]
+    RightNow {
+        /// Maximum number of issues to show.
+        #[arg(long, default_value_t = 30)]
+        limit: usize,
+        /// Show issues hierarchically.
+        #[arg(long)]
+        tree: bool,
+        /// With --tree, expand all nodes by default.
+        #[arg(long)]
+        expanded: bool,
+        /// With --tree, collapse all nodes by default.
+        #[arg(long)]
+        collapsed: bool,
+        /// Show titles only, without right-now summaries.
+        #[arg(long)]
+        raw: bool,
+        /// Emit machine-readable JSON output.
+        #[arg(long)]
+        json: bool,
     },
     /// Jira synchronization commands.
     Jira {
@@ -2633,6 +2656,25 @@ fn execute_command(
                 hook_options,
             )?;
             Ok(Some(lines.join("\n")))
+        }
+        Commands::RightNow {
+            limit,
+            tree,
+            expanded,
+            collapsed,
+            raw,
+            json,
+        } => {
+            let options = RightNowCommandOptions {
+                limit,
+                tree,
+                expanded,
+                collapsed,
+                raw,
+                as_json: json,
+            };
+            let output = run_right_now_command(root, &options)?;
+            Ok(Some(output))
         }
         Commands::Jira { command } => match command {
             JiraCommands::Pull { dry_run } => {

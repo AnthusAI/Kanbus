@@ -515,8 +515,7 @@ fn delegate_right_now_summary_to_python(
         .args([
             "-m",
             "kanbus.cli",
-            "right-now",
-            "generate-internal",
+            "now-generate-internal",
             issue_identifier,
         ])
         .current_dir(root)
