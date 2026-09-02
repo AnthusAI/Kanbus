@@ -48,7 +48,7 @@ axum = { version = "0.7", features = ["tokio", "http1"] }
 tower-http = { version = "0.6", features = ["cors"] }
 mime_guess = "2.0"
 rust-embed = { version = "8.5", optional = true }
-reqwest = { version = "0.12", features = ["blocking", "json", "native-tls-vendored"] }
+reqwest = { version = "0.13", features = ["blocking", "json", "native-tls-vendored"] }
 native-tls = { version = "=0.2.16", features = ["vendored"] }
 tempfile = "3.10.1"
 gherkin = "0.15"
