@@ -257,6 +257,18 @@ impl Drop for KanbusWorld {
                 None => std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK"),
             }
         }
+        if let Some(original) = self.ai_mock_env.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
+                None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
+            }
+        }
+        if let Some(original) = self.litellm_called_env.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_RIGHT_NOW_LITELLM_CALLED", value),
+                None => std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED"),
+            }
+        }
         if let Some(mut startup) = self.mosquitto_startup.take() {
             let _ = startup.process.kill();
         }
