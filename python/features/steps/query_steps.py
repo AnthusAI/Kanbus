@@ -162,6 +162,7 @@ def when_list_issues_directly_after_configuration_failure(context: object) -> No
                 no_local=False,
                 local_only=False,
                 limit=0,
+                list_all=False,
                 porcelain=False,
                 full_ids=False,
             )
