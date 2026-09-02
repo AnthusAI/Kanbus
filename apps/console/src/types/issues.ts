@@ -44,6 +44,13 @@ export interface SortOrder {
   [statusKey: string]: SortRule | Record<string, SortRule> | undefined;
 }
 
+export interface RightNowConfiguration {
+  enabled: boolean;
+  default_tree_expanded: boolean;
+  max_length: number;
+  model?: string | null;
+}
+
 export interface ProjectConfig {
   project_directory: string;
   virtual_projects: Record<string, { path: string }>;
@@ -62,6 +69,7 @@ export interface ProjectConfig {
   sort_order?: SortOrder;
   type_colors: Record<string, string>;
   beads_compatibility: boolean;
+  right_now?: RightNowConfiguration;
 }
 
 export interface IssueComment {

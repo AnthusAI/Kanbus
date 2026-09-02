@@ -13,6 +13,8 @@ import yaml
 from behave import given, then, when
 
 from kanbus.config import DEFAULT_CONFIGURATION
+from kanbus.issue_listing import list_issues
+from kanbus.overlay import write_overlay_issue
 from kanbus.right_now import (
     LLM_USAGE_LOG,
     RIGHT_NOW_SUMMARY_OPERATION,
@@ -835,3 +837,45 @@ def then_created_issue_has_mock_right_now_summary(context: object) -> None:
     identifier = getattr(context, "last_issue_id", None)
     assert identifier is not None, "last issue id not set"
     then_issue_has_mock_right_now_summary(context, identifier)
+
+
+@given('a newer overlay snapshot for "{identifier}" has no right now summary')
+def given_newer_overlay_without_summary(context: object, identifier: str) -> None:
+    """Write a future overlay snapshot that omits the right-now summary.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    stale_issue = issue.model_copy(
+        update={"right_now_summary": None, "right_now_updated_at": None}
+    )
+    write_overlay_issue(
+        project_dir,
+        stale_issue,
+        "2099-01-01T00:00:00.000Z",
+        None,
+    )
+
+
+@then('listing issue "{identifier}" should show the mock right now summary')
+def then_listing_shows_mock_right_now_summary(context: object, identifier: str) -> None:
+    """Verify list_issues overlay merge returns the mock right-now summary.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    issues = list_issues(Path(context.working_directory))
+    match = next((issue for issue in issues if issue.identifier == identifier), None)
+    if match is None:
+        raise AssertionError(f"issue not listed: {identifier}")
+    expected = mock_right_now_summary_text(identifier)
+    if match.right_now_summary != expected:
+        raise AssertionError(
+            f"expected listed summary {expected}, got {match.right_now_summary}"
+        )

@@ -11,9 +11,10 @@ use serde_json::{json, Value};
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
-use crate::issue_files::write_issue_to_file;
+use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueComment, IssueData, ProjectConfiguration};
+use crate::overlay::{load_overlay_issue, overlay_issue_path, write_overlay_issue};
 
 const RIGHT_NOW_SUMMARY_OPERATION: &str = "right_now_summary";
 const LLM_USAGE_LOG: &str = "llm_usage.jsonl";
@@ -306,26 +307,47 @@ pub fn generate_right_now_summary(
 
 /// Persist only right-now summary fields without re-entering the write gate.
 ///
+/// Writes the two right-now fields onto every live store for the issue:
+/// the canonical IssueData file when `issue_path` is that file, and the
+/// overlay snapshot when one exists.
+///
 /// # Arguments
 ///
-/// * `issue_path` - Path to the issue JSON file.
-/// * `issue` - Issue data to update.
+/// * `project_dir` - Shared project directory.
+/// * `issue_path` - Path used by issue lookup (canonical or overlay).
+/// * `issue_identifier` - Issue identifier whose stores are updated.
 /// * `summary` - Generated right-now summary text.
 /// * `updated_at` - Timestamp for `right_now_updated_at`.
 ///
 /// # Errors
 ///
-/// Returns `KanbusError` when the issue file cannot be written.
+/// Returns `KanbusError` when a live store cannot be written.
 pub fn persist_right_now_summary(
+    project_dir: &Path,
     issue_path: &Path,
-    issue: &IssueData,
+    issue_identifier: &str,
     summary: &str,
     updated_at: chrono::DateTime<Utc>,
 ) -> Result<(), KanbusError> {
-    let mut updated_issue = issue.clone();
-    updated_issue.right_now_summary = Some(summary.to_string());
-    updated_issue.right_now_updated_at = Some(updated_at);
-    write_issue_to_file(&updated_issue, issue_path)
+    let overlay_path = overlay_issue_path(project_dir, issue_identifier);
+    if issue_path != overlay_path.as_path() && issue_path.exists() {
+        let mut stored_issue = read_issue_from_file(issue_path)?;
+        stored_issue.right_now_summary = Some(summary.to_string());
+        stored_issue.right_now_updated_at = Some(updated_at);
+        write_issue_to_file(&stored_issue, issue_path)?;
+    }
+    if let Some(overlay_record) = load_overlay_issue(project_dir, issue_identifier)? {
+        let mut overlay_issue = overlay_record.issue;
+        overlay_issue.right_now_summary = Some(summary.to_string());
+        overlay_issue.right_now_updated_at = Some(updated_at);
+        write_overlay_issue(
+            project_dir,
+            &overlay_issue,
+            &overlay_record.overlay_ts,
+            overlay_record.overlay_event_id,
+        )?;
+    }
+    Ok(())
 }
 
 /// Regenerate and persist the right-now summary for one issue.
@@ -358,7 +380,13 @@ pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
         Err(_) => return,
     };
     let current_time = Utc::now();
-    let _ = persist_right_now_summary(&lookup.issue_path, &lookup.issue, &summary, current_time);
+    let _ = persist_right_now_summary(
+        &lookup.project_dir,
+        &lookup.issue_path,
+        issue_identifier,
+        &summary,
+        current_time,
+    );
 }
 
 /// Regenerate right-now summaries for an issue and each ancestor.

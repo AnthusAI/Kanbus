@@ -26,3 +26,18 @@ Feature: Console issue detail metadata
     When I switch to the "Tasks" tab
     And I open the task "Add structured logging"
     Then the issue metadata should include closed timestamp "Saturday, February 14, 2026 2:13 AM UTC"
+
+  Scenario: Detail view shows right-now summary
+    Given the console is open
+    And the console has a task "Add structured logging" created at "2026-02-13T23:13:00.000Z" updated at "2026-02-13T23:13:00.000Z"
+    And the console issue "Add structured logging" has right-now summary "Working on logging"
+    When I switch to the "Tasks" tab
+    And I open the task "Add structured logging"
+    Then the issue detail should show right-now summary "Working on logging"
+
+  Scenario: Detail view shows placeholder when right-now summary is missing
+    Given the console is open
+    And the console has a task "Add structured logging" created at "2026-02-13T23:13:00.000Z" updated at "2026-02-13T23:13:00.000Z"
+    When I switch to the "Tasks" tab
+    And I open the task "Add structured logging"
+    Then the issue detail should show right-now summary "(no right-now summary)"

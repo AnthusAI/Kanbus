@@ -91,3 +91,10 @@ Feature: Right now summary regeneration on mutation
     When I update issue "kanbus-disabled01" to status "in_progress"
     Then the command should succeed
     And issue "kanbus-disabled01" should have no right now summary
+
+  Scenario: Regenerating a right now summary updates a newer overlay snapshot
+    Given an issue "kanbus-overlay-rn" exists with title "Overlay target"
+    And a newer overlay snapshot for "kanbus-overlay-rn" has no right now summary
+    When I update issue "kanbus-overlay-rn" to status "in_progress"
+    Then the command should succeed
+    And listing issue "kanbus-overlay-rn" should show the mock right now summary

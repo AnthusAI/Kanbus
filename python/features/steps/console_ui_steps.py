@@ -196,6 +196,9 @@ class ConsoleState:
     time_zone: str | None
     panel_mode: str = "board"
     metrics_project_filter: str | None = None
+    status_tree_mode: bool = False
+    status_tree_expanded_overrides: dict[str, bool] = field(default_factory=dict)
+    default_tree_expanded: bool = False
 
 
 @given("the console is open")
@@ -561,6 +564,30 @@ def then_issue_metadata_assignee(context: object, assignee: str) -> None:
     issue = _get_selected_issue(context)
     if issue.assignee != assignee:
         raise AssertionError(f"expected assignee {assignee} but found {issue.assignee}")
+
+
+@given('the console issue "{title}" has right-now summary "{summary}"')
+def given_console_issue_right_now_summary(
+    context: object, title: str, summary: str
+) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.right_now_summary = summary
+            return
+    raise AssertionError(f"issue not found: {title}")
+
+
+@then('the issue detail should show right-now summary "{expected}"')
+def then_issue_detail_right_now_summary(context: object, expected: str) -> None:
+    issue = _get_selected_issue(context)
+    summary = issue.right_now_summary
+    if summary is None or summary.strip() == "":
+        actual = "(no right-now summary)"
+    else:
+        actual = summary
+    if actual != expected:
+        raise AssertionError(f"expected right-now summary {expected}, got {actual}")
 
 
 @when('I open the console route "{route}"')

@@ -74,6 +74,9 @@ pub struct ConsoleState {
     pub local_filter_visible: bool,
     pub selected_project_filter: Option<String>,
     pub selected_local_filter: Option<String>,
+    pub status_tree_mode: bool,
+    pub status_tree_expanded_overrides: std::collections::HashMap<String, bool>,
+    pub default_tree_expanded: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -642,6 +645,27 @@ fn then_issue_metadata_assignee(world: &mut KanbusWorld, assignee: String) {
     assert_eq!(issue.assignee.as_deref(), Some(assignee.as_str()));
 }
 
+#[given(expr = "the console issue {string} has right-now summary {string}")]
+fn given_console_issue_right_now_summary(world: &mut KanbusWorld, title: String, summary: String) {
+    let state = require_console_state(world);
+    let issue = state
+        .issues
+        .iter_mut()
+        .find(|issue| issue.title == title)
+        .expect("issue not found");
+    issue.right_now_summary = Some(summary);
+}
+
+#[then(expr = "the issue detail should show right-now summary {string}")]
+fn then_issue_detail_right_now_summary(world: &mut KanbusWorld, expected: String) {
+    let issue = get_selected_issue(world);
+    let actual = match issue.right_now_summary.as_deref() {
+        None | Some("") => "(no right-now summary)",
+        Some(summary) => summary,
+    };
+    assert_eq!(actual, expected);
+}
+
 #[when(expr = "I open the console route {string}")]
 fn when_open_console_route(world: &mut KanbusWorld, route: String) {
     let state = require_console_state(world);
@@ -1083,6 +1107,9 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         local_filter_visible: false,
         selected_project_filter,
         selected_local_filter,
+        status_tree_mode: false,
+        status_tree_expanded_overrides: std::collections::HashMap::new(),
+        default_tree_expanded: false,
     }
 }
 
