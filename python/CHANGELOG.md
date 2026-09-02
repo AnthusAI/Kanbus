@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.25.0 (2026-09-02)
+
+### Bug Fixes
+
+- **cli**: Remove default 50-issue cap from list (parity with Rust)
+  ([`deedcef`](https://github.com/AnthusAI/Kanbus/commit/deedcef8f96b5f7e28b991602457a29b918ed29e))
+
+- **cli**: Satisfy rustfmt on wiki after develop merge
+  ([`deedcef`](https://github.com/AnthusAI/Kanbus/commit/deedcef8f96b5f7e28b991602457a29b918ed29e))
+
+### Chores
+
+- **kanbus**: Close screenshot epic children shipped in 0.24.1
+  ([`efd704a`](https://github.com/AnthusAI/Kanbus/commit/efd704a9553e8393cf3f489fee2adaaaf4515c5f))
+
+
 ## v0.24.1 (2026-08-31)
 
 ### Bug Fixes
