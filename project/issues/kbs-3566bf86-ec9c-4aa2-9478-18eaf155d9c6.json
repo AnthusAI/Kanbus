@@ -1,0 +1,26 @@
+{
+  "id": "kbs-3566bf86-ec9c-4aa2-9478-18eaf155d9c6",
+  "title": "Command shape: kbs console screenshot",
+  "description": "Add console screenshot subcommand to Rust kbs and Python kanbus with matching help, flags, and exit codes. Default output kanbus-board.png; --output for custom path. Clear errors when console server is offline.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-8de39f09-9709-48f6-a7ed-ca5e5af94fce",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7959bf72-7c3a-4e89-b7f6-6d32d794f2c3",
+      "author": "home",
+      "text": "Shipped on main in kanbus 0.24.1 (PR #178). Epic kbs-8de39f already closed; closing leftover child task.",
+      "created_at": "2026-09-02T13:04:55.549708Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-28T16:52:48.925785Z",
+  "updated_at": "2026-09-02T13:04:55.574404Z",
+  "closed_at": "2026-09-02T13:04:55.574404Z",
+  "custom": {}
+}

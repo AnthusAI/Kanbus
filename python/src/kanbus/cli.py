@@ -18,6 +18,7 @@ from kanbus.file_io import (
     initialize_project,
     repair_project_structure,
 )
+from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
@@ -42,6 +43,7 @@ from kanbus.ids import format_issue_key
 from kanbus.issue_line import compute_widths, format_issue_line
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_update import IssueUpdateError, update_issue
+from kanbus.issue_commit import IssueCommitError, commit_project_issues
 from kanbus.issue_transfer import IssueTransferError, localize_issue, promote_issue
 from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.queries import QueryError
@@ -75,8 +77,14 @@ from kanbus.dependency_tree import (
 from kanbus.wiki import (
     WikiError,
     WikiRenderRequest,
+    check_wiki_page_links,
+    format_wiki_link_problem,
+    init_wiki,
+    lint_wiki,
     list_wiki_pages,
     render_wiki_page,
+    search_wiki_pages,
+    show_wiki_page,
 )
 from kanbus.text_editor import (
     TextEditorError,
@@ -86,10 +94,17 @@ from kanbus.text_editor import (
     edit_insert,
 )
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
+from kanbus.agent_metadata import (
+    AgentMetadataRequest,
+    AgentMetadataResolutionError,
+    reject_agent_metadata_in_beads_mode,
+    resolve_agent_metadata,
+)
 from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
 from kanbus.overlay import (
     gc_overlay_for_projects,
@@ -129,6 +144,39 @@ def _deprecated_create_focus() -> click.ClickException:
     )
 
 
+def _resolve_cli_agent_metadata(
+    agent_platform: Optional[str],
+    agent_model: Optional[str],
+    agent_settings: Optional[str],
+    agent_name: Optional[str] = None,
+):
+    """Resolve optional agent metadata from CLI flags and environment.
+
+    :param agent_platform: Platform flag value.
+    :type agent_platform: Optional[str]
+    :param agent_model: Model flag value.
+    :type agent_model: Optional[str]
+    :param agent_settings: Settings JSON flag value.
+    :type agent_settings: Optional[str]
+    :param agent_name: Session or bot name flag value.
+    :type agent_name: Optional[str]
+    :return: Validated agent metadata or None.
+    :rtype: Optional[kanbus.models.AgentMetadata]
+    :raises click.ClickException: If validation fails.
+    """
+    try:
+        return resolve_agent_metadata(
+            AgentMetadataRequest(
+                platform=agent_platform,
+                model=agent_model,
+                name=agent_name,
+                settings_json=agent_settings,
+            )
+        )
+    except AgentMetadataResolutionError as error:
+        raise click.ClickException(str(error)) from error
+
+
 def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
     source = context.get_parameter_source("beads_mode")
     if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
@@ -166,6 +214,13 @@ def _resolve_beads_root(cwd: Path) -> Path:
     return cwd
 
 
+DEP_USAGE = (
+    "usage: kanbus dep <identifier> blocked-by|relates-to <target>\n"
+    "       kanbus dep <identifier> remove blocked-by|relates-to <target>\n"
+    "       kanbus dep tree <identifier> [--depth N] [--format FORMAT]"
+)
+
+
 @click.group()
 @click.version_option(__version__, prog_name="kanbus")
 @click.option("--beads", "beads_mode", is_flag=True, default=False)
@@ -191,6 +246,7 @@ def cli(
     Statuses:     open  in_progress  blocked  done  closed
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
+    _enforce_kanbus_version(context)
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {
         "beads_mode": resolved,
@@ -205,6 +261,16 @@ def _should_check_project_structure(context: click.Context) -> bool:
     if context.invoked_subcommand is None:
         return False
     return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}
+
+
+def _enforce_kanbus_version(context: click.Context) -> None:
+    if not _should_check_project_structure(context):
+        return
+    root = Path.cwd()
+    try:
+        enforce_kanbus_version(root, __version__)
+    except KanbusVersionError as error:
+        raise click.ClickException(str(error)) from error
 
 
 def _delete_terminal_is_interactive() -> bool:
@@ -228,7 +294,9 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
         return
     if plan is None:
         return
-    if not sys.stdin.isatty() or not sys.stdout.isatty():
+    if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (
+        not sys.stdin.isatty() or not sys.stdout.isatty()
+    ):
         return
     missing = []
     if plan.missing_project_dir:
@@ -335,6 +403,7 @@ def repair(yes: bool) -> None:
 @click.option("--label", "labels", multiple=True)
 @click.option("--description", default="")
 @click.option("--local", "local_issue", is_flag=True, default=False)
+@click.option("--id", "requested_id", help="Explicitly specify the issue ID")
 @click.option(
     "--focus",
     "focus_issue",
@@ -343,6 +412,10 @@ def repair(yes: bool) -> None:
     help="Deprecated. UI control commands are temporarily unavailable.",
 )
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-name")
+@click.option("--agent-settings")
 @click.pass_context
 def create(
     context: click.Context,
@@ -354,8 +427,13 @@ def create(
     labels: tuple[str, ...],
     description: str,
     local_issue: bool,
+    requested_id: str | None,
     focus_issue: bool,
     no_validate: bool,
+    agent_platform: str | None,
+    agent_model: str | None,
+    agent_name: str | None,
+    agent_settings: str | None,
 ) -> None:
     """Create a new issue in the current project.
 
@@ -403,7 +481,11 @@ def create(
 
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
     if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
         root = _resolve_beads_root(root)
         if local_issue:
             raise click.ClickException("beads mode does not support local issues")
@@ -484,6 +566,8 @@ def create(
             description=description_text,
             local=local_issue,
             validate=not no_validate,
+            requested_id=requested_id,
+            agent=agent_metadata,
         )
     except IssueCreationError as error:
         raise click.ClickException(str(error)) from error
@@ -511,14 +595,19 @@ def create(
 @cli.command("show")
 @click.argument("identifier")
 @click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--raw", is_flag=True, help="Show raw issue data without summary interception"
+)
 @click.pass_context
-def show(context: click.Context, identifier: str, as_json: bool) -> None:
+def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> None:
     """Show details for an issue.
 
     :param identifier: Issue identifier.
     :type identifier: str
     :param as_json: Emit JSON output when set.
     :type as_json: bool
+    :param raw: Bypass summary interception when set.
+    :type raw: bool
     """
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
@@ -581,6 +670,19 @@ def show(context: click.Context, identifier: str, as_json: bool) -> None:
             all_issues = list(get_issues_for_root(root))
         except Exception:
             pass
+
+    summary_comment = next(
+        (
+            c
+            for c in reversed(issue.comments)
+            if getattr(c, "comment_type", "default") == "summary"
+        ),
+        None,
+    )
+    if summary_comment is not None:
+        from kanbus.summarize import apply_virtualized_issue_view
+
+        apply_virtualized_issue_view(issue, raw=raw)
 
     click.echo(
         format_issue_for_display(
@@ -694,7 +796,10 @@ def update(
         root = _resolve_beads_root(root)
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
-        before_issue = load_beads_issue(root, identifier)
+        try:
+            before_issue = load_beads_issue(root, identifier)
+        except MigrationError as error:
+            raise click.ClickException(str(error)) from error
         proposed_issue = before_issue.model_copy(deep=True)
         if status is not None:
             proposed_issue.status = status
@@ -872,7 +977,7 @@ def update(
         beads_mode=False,
     )
     try:
-        updated_issue = update_issue(
+        update_result = update_issue(
             root=root,
             identifier=identifier,
             title=title.strip() if title else None,
@@ -890,8 +995,12 @@ def update(
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
 
+    updated_issue = update_result.issue
     formatted_identifier = format_issue_key(identifier, project_context=False)
-    click.echo(f"Updated {formatted_identifier}")
+    if update_result.changed:
+        click.echo(f"Updated {formatted_identifier}")
+    else:
+        click.echo(f"No changes for {formatted_identifier}")
     if update_quality_result:
         emit_signals(
             update_quality_result, "description", issue_id=identifier, is_update=True
@@ -971,7 +1080,7 @@ def bulk_update(
 
     for identifier in ids:
         try:
-            issue = update_issue(
+            update_result = update_issue(
                 root=root,
                 identifier=identifier,
                 title=None,
@@ -988,7 +1097,8 @@ def bulk_update(
             )
         except IssueUpdateError as error:
             raise click.ClickException(str(error)) from error
-        if issue.identifier not in seen:
+        issue = update_result.issue
+        if update_result.changed and issue.identifier not in seen:
             seen.add(issue.identifier)
             updated.append(issue)
 
@@ -1005,7 +1115,7 @@ def bulk_update(
             if issue.identifier in seen:
                 continue
             try:
-                updated_issue = update_issue(
+                update_result = update_issue(
                     root=root,
                     identifier=issue.identifier,
                     title=None,
@@ -1022,8 +1132,10 @@ def bulk_update(
                 )
             except IssueUpdateError as error:
                 raise click.ClickException(str(error)) from error
-            seen.add(updated_issue.identifier)
-            updated.append(updated_issue)
+            updated_issue = update_result.issue
+            if update_result.changed:
+                seen.add(updated_issue.identifier)
+                updated.append(updated_issue)
 
     click.echo(f"Updated {len(updated)} issue(s)")
     _run_lifecycle_hooks_for_context(
@@ -1100,6 +1212,25 @@ def close(context: click.Context, identifier: str) -> None:
     )
 
 
+@cli.command("commit")
+def commit() -> None:
+    """Commit project/issues changes to git.
+
+    \b
+    Examples:
+      kbs commit
+    """
+    root = Path.cwd()
+    try:
+        result = commit_project_issues(root)
+    except IssueCommitError as error:
+        raise click.ClickException(str(error)) from error
+    if result.committed:
+        click.echo("Committed project/issues")
+    else:
+        click.echo("Nothing to commit")
+
+
 @cli.command("move")
 @click.argument("identifier")
 @click.argument("issue_type")
@@ -1141,7 +1272,7 @@ def move(
         beads_mode=False,
     )
     try:
-        updated_issue = update_issue(
+        update_result = update_issue(
             root=root,
             identifier=identifier,
             title=None,
@@ -1160,6 +1291,7 @@ def move(
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
 
+    updated_issue = update_result.issue
     formatted_identifier = format_issue_key(identifier, project_context=False)
     click.echo(f"Moved {formatted_identifier} to type {updated_issue.issue_type}")
     _run_lifecycle_hooks_for_context(
@@ -1449,6 +1581,10 @@ def localize(context: click.Context, identifier: str) -> None:
 @click.argument("text", required=False)
 @click.option("--body-file", type=click.File("r"), default=None)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-name")
+@click.option("--agent-settings")
 @click.pass_context
 def comment(
     context: click.Context,
@@ -1456,6 +1592,10 @@ def comment(
     text: Optional[str],
     body_file: Optional[click.File],
     no_validate: bool = False,
+    agent_platform: str | None = None,
+    agent_model: str | None = None,
+    agent_name: str | None = None,
+    agent_settings: str | None = None,
 ) -> None:
     """Add a comment to an issue.
 
@@ -1472,6 +1612,9 @@ def comment(
     """
     root = Path.cwd()
     beads_mode = context.obj.get("beads_mode", False)
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
 
     # Check if beads_compatibility is enabled in config
     if not beads_mode:
@@ -1482,6 +1625,9 @@ def comment(
         except (ConfigurationError, ProjectMarkerError):
             # Treat unreadable/missing project config as standard Kanbus mode.
             pass
+
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
 
     # Handle body-file input
     comment_text = text or ""
@@ -1534,6 +1680,7 @@ def comment(
                 identifier=identifier,
                 author=get_current_user(),
                 text=comment_text,
+                agent=agent_metadata,
             )
             emit_signals(
                 comment_quality_result,
@@ -1585,9 +1732,16 @@ def comment(
 @click.option(
     "--limit",
     type=int,
-    default=50,
+    default=0,
     show_default=True,
-    help="Maximum issues to display (0 for no limit). Matches Beads default.",
+    help="Maximum issues to display (0 for no limit).",
+)
+@click.option(
+    "--all",
+    "list_all",
+    is_flag=True,
+    default=False,
+    help="Show all issues (same as --limit 0).",
 )
 @click.option(
     "--porcelain",
@@ -1616,6 +1770,7 @@ def list_command(
     no_local: bool,
     local_only: bool,
     limit: int,
+    list_all: bool,
     porcelain: bool,
     full_ids: bool,
 ) -> None:
@@ -1628,8 +1783,17 @@ def list_command(
       kbs list --status open
       kbs list --type task --status in_progress
       kbs list --parent <id>
+      kbs list --all
       kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     """
+    if (
+        list_all
+        and context.get_parameter_source("limit")
+        == click.core.ParameterSource.COMMANDLINE
+    ):
+        raise click.ClickException("cannot combine --all with --limit")
+    if list_all:
+        limit = 0
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
@@ -1827,10 +1991,32 @@ def render_wiki(page: str) -> None:
     root = Path.cwd()
     request = WikiRenderRequest(root=root, page_path=Path(page))
     try:
-        output = render_wiki_page(request)
+        link_problems = check_wiki_page_links(root, page)
+        reference_warnings: list[str] = []
+        output = render_wiki_page(request, reference_warnings=reference_warnings)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
+    for problem in link_problems:
+        click.echo(format_wiki_link_problem(problem, warning=True), err=True)
+    for warning in reference_warnings:
+        click.echo(warning, err=True)
     click.echo(output)
+
+
+@wiki.command("show")
+@click.argument("page")
+def show_wiki(page: str) -> None:
+    """Show raw wiki page source without rendering templates.
+
+    :param page: Wiki page path.
+    :type page: str
+    """
+    root = Path.cwd()
+    try:
+        output = show_wiki_page(root, page)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=False)
 
 
 @wiki.command("list")
@@ -1843,6 +2029,68 @@ def wiki_list() -> None:
         raise click.ClickException(str(error)) from error
     for path in pages:
         click.echo(path)
+
+
+@wiki.command("search")
+@click.argument("query")
+def wiki_search(query: str) -> None:
+    """Search wiki pages by path, title, and body.
+
+    :param query: Case-insensitive search string.
+    :type query: str
+    """
+    root = Path.cwd()
+    try:
+        pages = search_wiki_pages(root, query)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    if not pages:
+        click.echo("0 results")
+        return
+    for path in pages:
+        click.echo(path)
+
+
+@wiki.command("init")
+def wiki_init() -> None:
+    """Create the wiki directory and a stub index page."""
+    root = Path.cwd()
+    try:
+        index_path = init_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(index_path)
+
+
+def _run_wiki_lint(root: Path) -> None:
+    """Validate wiki-internal markdown links and report failures.
+
+    :param root: Repository root directory.
+    :type root: Path
+    :raises click.ClickException: When lint finds broken links or wiki errors occur.
+    """
+    try:
+        problems = lint_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    if problems:
+        lines = [
+            format_wiki_link_problem(problem, warning=False) for problem in problems
+        ]
+        raise click.ClickException("\n".join(lines))
+    click.echo("wiki lint: ok")
+
+
+@wiki.command("lint")
+def wiki_lint() -> None:
+    """Validate wiki-internal markdown links across the wiki tree."""
+    _run_wiki_lint(Path.cwd())
+
+
+@wiki.command("check")
+def wiki_check() -> None:
+    """Validate the wiki tree (alias for wiki lint)."""
+    _run_wiki_lint(Path.cwd())
 
 
 @cli.group("edit")
@@ -2196,6 +2444,66 @@ def console_snapshot() -> None:
     click.echo(payload)
 
 
+@console.command("screenshot")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output PNG path (default: kanbus-board.png in the current directory).",
+)
+@click.option(
+    "--mode",
+    default="light",
+    show_default=True,
+    help="Appearance mode for the board (light or dark). Defaults to light for reproducible captures.",
+)
+@click.option(
+    "--view",
+    default=None,
+    help="Board type filter. Use all for every issue type (console ?type=all).",
+)
+@click.option(
+    "--expand-all",
+    is_flag=True,
+    help="Expand every collapsed status column before capture.",
+)
+@click.option(
+    "--expand",
+    "expand_columns",
+    multiple=True,
+    help="Expand a status column before capture (repeatable).",
+)
+@click.option(
+    "--collapse",
+    "collapse_columns",
+    multiple=True,
+    help="Collapse a status column before capture (repeatable).",
+)
+def console_screenshot(
+    output: Optional[str],
+    mode: str,
+    view: Optional[str],
+    expand_all: bool,
+    expand_columns: tuple[str, ...],
+    collapse_columns: tuple[str, ...],
+) -> None:
+    """Capture a PNG screenshot of the console board."""
+    root = Path.cwd()
+    try:
+        path = capture_console_screenshot(
+            root,
+            output,
+            mode,
+            view,
+            expand_all,
+            list(expand_columns),
+            list(collapse_columns),
+        )
+    except ConsoleScreenshotError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(str(path))
+
+
 @console.command("focus")
 @click.argument("identifier")
 @click.option("--comment", default=None, help="Comment ID to scroll to.")
@@ -2392,7 +2700,7 @@ def stats() -> None:
     "dep",
     context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
-@click.argument("args", nargs=-1, required=True)
+@click.argument("args", nargs=-1, required=False)
 @click.pass_context
 def dep(context: click.Context, args: tuple[str, ...]) -> None:
     """Manage issue dependencies.
@@ -2402,7 +2710,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
            kanbus dep tree <identifier> [--depth N] [--format FORMAT]
     """
     if len(args) < 1:
-        raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
+        raise click.ClickException(DEP_USAGE)
 
     # Check if this is a tree command - handle it separately since it needs options
     if args[0] == "tree":
@@ -2444,7 +2752,7 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
         return
 
     if len(args) < 2:
-        raise click.ClickException("usage: kanbus dep <identifier> <type> <target>")
+        raise click.ClickException(DEP_USAGE)
 
     identifier = args[0]
 
@@ -3214,5 +3522,115 @@ def right_now_generate_internal(issue_id: str) -> None:
     click.echo(summary)
 
 
+@cli.command("summarize")
+@click.argument("identifier")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the summary without saving to issue.",
+)
+@click.pass_context
+def summarize(context: click.Context, identifier: str, dry_run: bool) -> None:
+    """Summarize an issue using AI."""
+    root = Path.cwd()
+    from kanbus.summarize import compaction_summarize
+
+    try:
+        compaction_summarize(root, identifier, dry_run=dry_run)
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("cost")
+@click.option(
+    "--days", type=int, default=None, help="Number of days to aggregate over."
+)
+@click.pass_context
+def cost(context: click.Context, days: int | None) -> None:
+    """Report LLM usage costs."""
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.project import get_configuration_path
+    import json
+    from datetime import datetime, timezone, timedelta
+    from pathlib import Path
+
+    root = Path.cwd()
+    config_path = get_configuration_path(root)
+    config = load_project_configuration(config_path)
+    log_path = root / config.project_directory / "events" / "llm_usage.jsonl"
+
+    if not log_path.exists():
+        click.echo("No LLM usage logs found.")
+        return
+
+    total_tokens = 0
+    total_cost = 0.0
+    cutoff = None
+    if days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    with open(log_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            data = json.loads(line)
+            ts = datetime.fromisoformat(data["timestamp"])
+            if cutoff and ts < cutoff:
+                continue
+            total_tokens += data.get("tokens", 0)
+            total_cost += data.get("cost", 0.0)
+
+    click.echo(f"Total Tokens: {total_tokens}")
+    click.echo(f"Total Cost:   ${total_cost:.4f}")
+
+
+@click.group()
+def lifecycle() -> None:
+    """Issue lifecycle management commands."""
+    pass
+
+
+@lifecycle.command("compact")
+@click.option("--all", "all_issues", is_flag=True, help="Process all eligible issues.")
+@click.option("--query", type=str, help="Filter issues by query.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show which issues would be compacted without mutating.",
+)
+@click.option(
+    "--archived-only",
+    is_flag=True,
+    help="Only compact archived issues (closed > 30 days).",
+)
+@click.option("--max-items", type=int, help="Limit number of issues to compact.")
+@click.pass_context
+def compact_command(
+    context: click.Context,
+    all_issues: bool,
+    query: str | None,
+    dry_run: bool,
+    archived_only: bool,
+    max_items: int | None,
+) -> None:
+    """Batch compact (summarize) issues based on lifecycle policies."""
+    from kanbus.lifecycle import run_lifecycle_compaction
+
+    root = Path.cwd()
+    run_lifecycle_compaction(
+        root=root,
+        all=all_issues,
+        query=query,
+        dry_run=dry_run,
+        archived_only=archived_only,
+        max_items=max_items,
+    )
+
+
+cli.add_command(lifecycle)
+
+
 if __name__ == "__main__":
+
     cli()

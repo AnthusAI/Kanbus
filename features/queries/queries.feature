@@ -99,6 +99,53 @@ Feature: Query and list operations
     Then the command should fail with exit code 1
     And stderr should contain "invalid sort key"
 
+  Scenario: List returns all issues by default
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    When I run "kanbus list"
+    Then stdout should list issue "limita"
+    And stdout should list issue "limitb"
+    And stdout should list issue "limitc"
+
+  Scenario: List --limit caps the number of issue rows
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    And issue "kanbus-limit-a" has priority 1
+    And issue "kanbus-limit-b" has priority 2
+    And issue "kanbus-limit-c" has priority 3
+    When I run "kanbus list --sort priority --limit 2"
+    Then stdout should list issue "limita"
+    And stdout should list issue "limitb"
+    And stdout should not list issue "limitc"
+
+  Scenario: List --limit 0 means no limit
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    When I run "kanbus list --limit 0"
+    Then stdout should list issue "limita"
+    And stdout should list issue "limitb"
+    And stdout should list issue "limitc"
+
+  Scenario: List --all shows all issues
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    When I run "kanbus list --all"
+    Then stdout should list issue "limita"
+    And stdout should list issue "limitb"
+    And stdout should list issue "limitc"
+
+  Scenario: List rejects combining --all with --limit
+    Given a Kanbus project with default configuration
+    And issues "kanbus-limit-a" and "kanbus-limit-b" exist
+    And an issue "kanbus-limit-c" exists
+    When I run "kanbus list --all --limit 2"
+    Then the command should fail with exit code 1
+    And stderr should contain "cannot combine --all with --limit"
+
   Scenario: List fails without a project
     Given an empty git repository
     When I run "kanbus list"

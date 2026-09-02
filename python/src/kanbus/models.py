@@ -5,7 +5,28 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+
+
+class AgentMetadata(BaseModel):
+    """Structured AI agent provenance metadata.
+
+    :param platform: Agent platform identifier (for example cursor).
+    :type platform: str
+    :param model: Model identifier used for the action.
+    :type model: str
+    :param name: Optional session or bot name for the agent runtime.
+    :type name: Optional[str]
+    :param settings: Optional open-ended model or runtime settings object.
+    :type settings: Dict[str, Any]
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    platform: str = Field(min_length=1, max_length=64)
+    model: str = Field(min_length=1, max_length=128)
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    settings: Dict[str, Any] = Field(default_factory=dict)
 
 
 class CategoryDefinition(BaseModel):
@@ -37,12 +58,59 @@ class IssueComment(BaseModel):
     :type text: str
     :param created_at: Timestamp when the comment was created.
     :type created_at: datetime
+    :param comment_type: Type of comment (e.g. default, summary).
+    :type comment_type: str
+    :param data: Structured comment payload (e.g. compaction summary fields).
+    :type data: Dict[str, Any]
+    :param agent: Optional agent provenance metadata for this comment.
+    :type agent: Optional[AgentMetadata]
     """
 
     id: Optional[str] = None
     author: str = Field(min_length=1)
-    text: str = Field(min_length=1)
+    text: Optional[str] = None
     created_at: datetime
+    comment_type: str = "default"
+    data: Dict[str, Any] = Field(default_factory=dict)
+    agent: Optional[AgentMetadata] = None
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, serializer: object) -> Dict[str, Any]:
+        """Serialize comment data for issue JSON files.
+
+        :param serializer: Pydantic serializer callable.
+        :type serializer: object
+        :return: Serialized comment payload.
+        :rtype: Dict[str, Any]
+        """
+        data: Dict[str, Any] = serializer(self)
+        if self.comment_type == "summary" and not self.text:
+            data.pop("text", None)
+        return data
+
+    @model_validator(mode="after")
+    def validate_comment_shape(self) -> "IssueComment":
+        """Validate comment text and summary payload shape.
+
+        :return: Validated comment instance.
+        :rtype: IssueComment
+        """
+        if self.comment_type == "summary":
+            rewritten_description = self.data.get("rewritten_description")
+            activity_summary = self.data.get("activity_summary")
+            has_structured_data = (
+                isinstance(rewritten_description, str) and rewritten_description
+            ) and (isinstance(activity_summary, str) and activity_summary)
+            has_text = self.text and self.text.strip()
+            if not has_structured_data and not has_text:
+                raise ValueError(
+                    "summary comment requires either data.rewritten_description + "
+                    "data.activity_summary OR non-empty text (legacy format)"
+                )
+            return self
+        if not self.text or not self.text.strip():
+            raise ValueError("comment text is required")
+        return self
 
 
 class IssueData(BaseModel):
@@ -84,6 +152,8 @@ class IssueData(BaseModel):
     :type right_now_updated_at: Optional[datetime]
     :param custom: Custom fields.
     :type custom: Dict[str, object]
+    :param agent: Optional agent provenance metadata captured at issue create.
+    :type agent: Optional[AgentMetadata]
     """
 
     identifier: str = Field(alias="id", min_length=1)
@@ -104,6 +174,7 @@ class IssueData(BaseModel):
     right_now_summary: Optional[str] = None
     right_now_updated_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
+    agent: Optional[AgentMetadata] = None
 
 
 class StatusDefinition(BaseModel):

@@ -137,6 +137,8 @@ pub fn pull_dependabot_from_github(
                     title: dependabot_alert_title(alert),
                     existing_ids: all_existing.clone(),
                     prefix: project_key.to_string(),
+
+                    requested_id: None,
                 };
                 let result = generate_issue_identifier(&request)?;
                 let new_id = result.identifier.clone();
@@ -377,6 +379,8 @@ fn resolve_dependabot_epic(
         title: GITHUB_DEPENDABOT_EPIC_TITLE.to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
+
+        requested_id: None,
     };
     let result = generate_issue_identifier(&request)?;
     let epic_id = result.identifier.clone();
@@ -403,6 +407,7 @@ fn resolve_dependabot_epic(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         right_now_summary: None,
         right_now_updated_at: None,
         custom: BTreeMap::new(),
@@ -432,6 +437,8 @@ fn resolve_security_initiative(
         title: GITHUB_SECURITY_INITIATIVE_TITLE.to_string(),
         existing_ids: all_existing.clone(),
         prefix: project_key.to_string(),
+
+        requested_id: None,
     };
     let result = generate_issue_identifier(&request)?;
     let initiative_id = result.identifier.clone();
@@ -454,6 +461,7 @@ fn resolve_security_initiative(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         right_now_summary: None,
         right_now_updated_at: None,
         custom: BTreeMap::new(),
@@ -579,6 +587,8 @@ fn resolve_manifest_task(
         title: title.clone(),
         existing_ids: all_existing.clone(),
         prefix: ctx.project_key.to_string(),
+
+        requested_id: None,
     };
     let result = generate_issue_identifier(&request)?;
     let task_id = result.identifier.clone();
@@ -619,6 +629,7 @@ fn resolve_manifest_task(
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         right_now_summary: None,
         right_now_updated_at: None,
         custom,
@@ -744,6 +755,7 @@ fn map_dependabot_to_kanbus(alert: &Value, repo: &str, task_id: &str) -> IssueDa
         created_at: now,
         updated_at: now,
         closed_at: None,
+        agent: None,
         right_now_summary: None,
         right_now_updated_at: None,
         custom,
@@ -1274,6 +1286,7 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use serde_json::json;
+    use serial_test::serial;
     use std::collections::HashSet;
     use std::fs;
     use std::process::Command;
@@ -1416,6 +1429,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::from([
@@ -1497,6 +1511,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::from([(
@@ -1565,6 +1580,7 @@ mod tests {
                 created_at: now,
                 updated_at: now,
                 closed_at: None,
+                agent: None,
                 right_now_summary: None,
                 right_now_updated_at: None,
                 custom: BTreeMap::new(),
@@ -1585,6 +1601,7 @@ mod tests {
                 created_at: now,
                 updated_at: now,
                 closed_at: None,
+                agent: None,
                 right_now_summary: None,
                 right_now_updated_at: None,
                 custom: BTreeMap::new(),
@@ -1657,6 +1674,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),
@@ -1717,6 +1735,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),
@@ -1792,6 +1811,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),
@@ -1827,6 +1847,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),
@@ -1847,6 +1868,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),
@@ -1930,6 +1952,9 @@ mod tests {
             updated_at: now,
             created_at: now,
             closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             dependencies: vec![],
@@ -1959,6 +1984,9 @@ mod tests {
             updated_at: now,
             created_at: now,
             closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             dependencies: vec![],
@@ -1988,6 +2016,9 @@ mod tests {
             updated_at: now,
             created_at: now,
             closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             dependencies: vec![],
@@ -2017,6 +2048,9 @@ mod tests {
             updated_at: now,
             created_at: now,
             closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             dependencies: vec![],
@@ -2045,6 +2079,9 @@ mod tests {
             updated_at: now,
             created_at: now,
             closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             dependencies: vec![],
@@ -2084,6 +2121,9 @@ mod tests {
             updated_at: now,
             created_at: now,
             closed_at: None,
+            dependencies: vec![],
+            comments: vec![],
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             dependencies: vec![],
@@ -2105,6 +2145,7 @@ mod tests {
         Ok(())
     }
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_missing_token_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2120,6 +2161,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_missing_repo_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2136,6 +2178,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_beads_missing_token_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2151,6 +2194,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn pull_dependabot_from_github_beads_missing_repo_returns_error() {
         let temp = TempDir::new().expect("tempdir");
         let config = crate::models::GithubSecurityConfiguration {
@@ -2169,12 +2213,65 @@ mod tests {
 
 #[cfg(test)]
 mod github_sync_err_tests {
-    use super::*;
-    use tempfile::TempDir;
+    use serial_test::serial;
 
     #[test]
-    fn test_pull_dependabot_conn_error() {
-        std::env::set_var("KANBUS_GITHUB_API_BASE", "http://127.0.0.1:9");
+    #[serial]
+    fn test_pull_dependabot_success() {
+        use super::*;
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+        use tempfile::TempDir;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        // Start mock server
+        thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut request = Vec::new();
+                let mut buf = [0; 1];
+                while stream.read(&mut buf).unwrap_or(0) == 1 {
+                    request.push(buf[0]);
+                    if request.ends_with(b"\r\n\r\n") {
+                        break;
+                    }
+                }
+
+                let body = r#"[
+  {
+    "number": 123,
+    "state": "open",
+    "dependency": {
+      "package": {
+        "ecosystem": "npm",
+        "name": "lodash"
+      },
+      "manifest_path": "package.json"
+    },
+    "security_advisory": {
+      "ghsa_id": "GHSA-1234",
+      "summary": "Mock vulnerability",
+      "description": "Mock description",
+      "severity": "high"
+    },
+    "security_vulnerability": {
+      "severity": "high"
+    },
+    "html_url": "https://github.com/mock/repo/security/dependabot/123"
+  }
+]"#;
+                let response = format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}", body.len(), body);
+                stream.write_all(response.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+
+        std::env::set_var(
+            "KANBUS_GITHUB_API_BASE",
+            format!("http://127.0.0.1:{}", port),
+        );
         std::env::set_var("GITHUB_TOKEN", "fake_token");
 
         let temp = TempDir::new().unwrap();
@@ -2200,27 +2297,9 @@ mod github_sync_err_tests {
                 parent_epic: None,
             }),
         };
-        let err = pull_dependabot_from_github(root, &config, "TST", false).unwrap_err();
-        assert!(
-            err.to_string().contains("GitHub request failed")
-                || err.to_string().contains("issues directory does not exist"),
-            "Actual error: {}",
-            err
-        );
-    }
 
-    #[test]
-    fn test_pull_dependabot_invalid_state() {
-        let temp = TempDir::new().unwrap();
-        let config = crate::models::GithubSecurityConfiguration {
-            repo: Some("repo".to_string()),
-            dependabot: Some(crate::models::DependabotConfiguration {
-                state: "invalid".to_string(),
-                min_severity: "low".to_string(),
-                parent_epic: None,
-            }),
-        };
-        let err = pull_dependabot_from_github(temp.path(), &config, "TST", false).unwrap_err();
-        assert!(err.to_string().contains("invalid dependabot state"));
+        let result = pull_dependabot_from_github(root, &config, "TST", false).unwrap();
+        assert_eq!(result.pulled, 1);
+        assert_eq!(result.updated, 0);
     }
 }

@@ -1,0 +1,36 @@
+{
+  "id": "kbs-8f2559f0-a4fb-4656-affe-32a814b9364e",
+  "title": "wiki init hint is run-on (index.md Or run: kbs wiki init)",
+  "description": "Papyrus 0.20.1 AT on /workspace/research-pod. show/lint/check/render on a project with no project/wiki/ print a create hint, but the text is run-on: index.md Or run: kbs wiki init. Product rule: put the missing-page line and the init hint on separate lines (or a clear sentence break). Do not change the hint content.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbaf62b8-0a3a-40d9-bda0-5bce8fe7fc0f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fa6ca0eb-890c-4036-a4bd-5af0e97e445b",
+      "author": "home",
+      "text": "# Implementation plan: wiki missing-directory hint must not be run-on\n\nThis is the prescribed plan. Follow it.\n\n## Intent\n\nAs an operator, I want the missing-wiki hint to be readable: the mkdir one-liner and `Or run: kbs wiki init` must not be jammed onto one line after `index.md`.\n\n## Current violation\n\nPython `wiki_directory_missing_message` and Rust `wiki_directory_missing_message` produce:\n\n`wiki directory not found at {prefix}. Create it with: mkdir -p {prefix} && echo '# Wiki' > {prefix}/index.md Or run: kbs wiki init`\n\nObserved: `index.md Or run: kbs wiki init`.\n\n## Product rule\n\nOne helper, both languages, **identical** text.\n\nPut the alternative on its **own line**:\n\n```\nwiki directory not found at {prefix}. Create it with: mkdir -p {prefix} && echo '# Wiki' > {prefix}/index.md\nOr run: kbs wiki init\n```\n\nThat is a newline after `index.md`, then `Or run: kbs wiki init`. No extra punctuation experiments. No emoji. No second wording for lint vs render.\n\n## Gherkin (first)\n\nDo not rely only on `stderr should contain \"kbs wiki init\"` (already true for the run-on string).\n\nUpdate `features/wiki/wiki_research_kb.feature` scenarios that already cover missing wiki (`Missing wiki directory shows create hint`, `Wiki lint reports missing wiki directory`, and **wiki list** if that scenario exists on this branch):\n\n- `stderr should contain \"Or run: kbs wiki init\"`\n- Add a step that the run-on form is gone. If the test harness has no \"stderr should not contain\", add one small reusable step **or** assert using existing patterns. Preferred observable check: `stderr should not contain \"index.md Or run\"`.\n\nIf `stderr should not contain` does not exist, add it in **both** Python and Rust step modules (parity).\n\n## Implementation\n\n- Change only the two helper functions (and any copied test string).\n- CLI list/render/lint automatically pick up the new message.\n\n## Coordination\n\nIf `wiki list` missing-dir work landed first, rebase onto that branch or onto `develop` after it merges. Do not revert the list-failure behavior.\n\n## Quality\n\n- Branch `cursor/wiki-init-hint-newline-bf9f` from `develop` (rebase if wiki.rs already changed).\n- Push, no PR. No debug. Dual runtime.\n\n## Proof\n\nShow stderr from `kanbus wiki render index.md` on a project without `project/wiki/` with the two-line hint. Comment on this issue.\n",
+      "created_at": "2026-08-30T16:09:16.503192Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "a7a3bb39-7346-4114-95b0-aa381885150f",
+      "author": "home",
+      "text": "Integration proof on cursor/integrate-cli-wiki-bugs-bf9f (0ad6ca11):\n\n- wiki_directory_missing_message has newline before Or run: kbs wiki init (Python + Rust)\n- behave: Missing wiki directory / Wiki lint scenarios assert stderr should not contain index.md Or run - passed\n- cargo test --test cucumber -- --name Missing wiki directory|Wiki lint reports missing wiki - passed\n- kbs wiki render on missing dir shows init hint on its own line (no index.md Or run run-on)",
+      "created_at": "2026-08-30T16:32:35.797513Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-29T13:29:05.814361Z",
+  "updated_at": "2026-08-30T16:32:35.808074Z",
+  "closed_at": "2026-08-30T16:32:35.808074Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

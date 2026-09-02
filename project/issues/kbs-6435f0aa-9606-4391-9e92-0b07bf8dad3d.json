@@ -1,0 +1,33 @@
+{
+  "id": "kbs-6435f0aa-9606-4391-9e92-0b07bf8dad3d",
+  "title": "Add console Gherkin and Playwright coverage for agent metadata",
+  "description": "Story: kbs-dd1f4a. features/console/agent_metadata.feature; console_ui_steps + Playwright steps.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-5dd18e89-25c8-4052-bc6e-e457080a9f4e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "aad16b09-60f2-4b13-aa21-ba6ccb3b2d5c",
+      "author": "home",
+      "text": "Delivered in the same PR as dd1f4a. Worktree /tmp/kanbus-dd1f4a-console-agent.",
+      "created_at": "2026-09-02T18:24:21.595988Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "a8bcb56a-8a45-4ec4-a691-f5c2cef07d64",
+      "author": "home",
+      "text": "Shipped in #203 with dd1f4a. Closing.",
+      "created_at": "2026-09-02T19:18:40.563862Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-08-29T13:41:35.563780Z",
+  "updated_at": "2026-09-02T19:18:40.563862Z",
+  "closed_at": "2026-09-02T19:18:40.515589Z",
+  "custom": {}
+}

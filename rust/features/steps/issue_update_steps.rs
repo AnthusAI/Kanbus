@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use cucumber::then;
+use cucumber::{given, then};
 
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
@@ -19,6 +19,23 @@ fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> serde_json::Value
         .join(format!("{identifier}.json"));
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     serde_json::from_str(&contents).expect("parse issue")
+}
+
+#[given(expr = "issue {string} updated_at is captured")]
+fn given_issue_updated_at_captured(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, &identifier);
+    world.captured_updated_at = Some(issue.updated_at);
+}
+
+#[then(expr = "issue {string} should have unchanged updated_at")]
+fn then_issue_has_unchanged_updated_at(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, &identifier);
+    let captured = world
+        .captured_updated_at
+        .expect("captured updated_at missing");
+    assert_eq!(issue.updated_at, captured);
 }
 
 #[then(expr = "issue {string} should have parent {string}")]

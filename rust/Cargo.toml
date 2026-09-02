@@ -1,7 +1,8 @@
 [package]
 name = "kanbus"
-version = "0.18.4"
+version = "0.24.1"
 edition = "2021"
+rust-version = "1.88"
 description = "High-performance CLI and web console for the Kanbus issue tracker. Includes kanbus (CLI) and kanbus-console (web UI server)."
 license = "MIT"
 readme = "README.md"
@@ -21,6 +22,7 @@ include = [
     "tests/**",
     "features/**",
     "tools/**",
+    "testdata/**",
     "embedded_assets/**",
 ]
 
@@ -38,7 +40,7 @@ owo-colors = "4.1"
 lambda_http = "0.9"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 bytes = "1.11"
-http-body = "1.0"
+http-body = "1.1"
 http-body-util = "0.1"
 tokio-stream = { version = "0.1", features = ["sync"] }
 futures-util = "0.3"
@@ -74,6 +76,9 @@ harness = false
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
+
+[lints.clippy]
+uninlined_format_args = "allow"
 
 [[bin]]
 name = "kbs"

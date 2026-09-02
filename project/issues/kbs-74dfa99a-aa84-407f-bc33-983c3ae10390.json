@@ -1,0 +1,99 @@
+{
+  "id": "kbs-74dfa99a-aa84-407f-bc33-983c3ae10390",
+  "title": "Issue Compaction",
+  "description": "Add issue compaction feature: summarize issue descriptions, comments, and state using a configurable LLM, and store as a summary comment for faster loading and reduced context window noise.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d07abec9-61b3-439b-923f-ecd965d6931e",
+      "author": "box",
+      "text": "## QA acceptance (2026-08-27)\n\nCompaction is **not done**. The child stories are closed, but acceptance failed.\n\n### Repro that breaks `show` / `list`\n`kanbus show tskl-qi1` on current `main` (Python 0.19.1) dies:\n\n```\nValidationError: summary comment requires data.rewritten_description\n```\n\n`tskl-qi1` was compacted **three times** on 2026-08-23 (`21:40`, `21:42`, `21:46` UTC). Those comments are `comment_type: summary` with only `text` (author `system:summary`). No `data.rewritten_description` / `data.activity_summary`.\n\nThat violates the closed story **kbs-50866563** (\"Query commands use issue compaction\"): a query must return the latest summary, not crash the CLI. One compacted issue bricks `show`.\n\nCurrent writers already emit the structured `data` shape. Readers on 0.19.1 do not accept the legacy `text`-only summaries that are already on this board. PR #167 teaches the Python reader to accept either shape; that is not on `main` yet.\n\n### Rust is not a real implementation\n`kbs summarize` (Rust) errors unless `KANBUS_TEST_AI_MOCK=1`:\n\n> Issue compaction requires mock AI in tests or LiteLLM integration in Rust\n\nPython `kanbus summarize` is the only production path.\n\n### Git (not a bug)\nAcceptance in a throwaway git repo (hooks on and off): compaction does **not** `git add` / `git commit` / move HEAD. It only dirties the working tree (issue JSON + `project/events/llm_usage.jsonl`). Do not spend time \"fixing\" git isolation.\n\n### Done when\n1. `kanbus show tskl-qi1` and `kbs show tskl-qi1` succeed on `main` and render the latest summary.\n2. Rust `kbs summarize` can call the configured LiteLLM provider (not mock-only).\n3. Re-compacting an issue replaces the old summary comments instead of appending more broken ones.\n\nDo not close this epic until (1) and (2) pass.\n",
+      "created_at": "2026-08-27T17:17:14.857525Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "08ed1c3e-4da3-40f3-9485-c23736071ec7",
+      "author": "box",
+      "text": "## Design invariant (QA, 2026-08-27)\n\nOriginal issue contents are **immutable**. Compaction is a **virtualization** on top of that history. It is **append-only**.\n\n- Do not overwrite `issue.description`.\n- Do not rewrite or delete existing comments (except replacing the latest `summary` comment if we re-compact, and even that should prefer appending a newer summary and letting `show` pick the latest).\n- `show` / `list` render the latest summary. `show --raw` must still return the original description and full comment history.\n- PR #168 does the opposite: it writes the rewrite onto `issue.description` and drops `--raw` recovery. That is not acceptable. Rework #168.\n\n#167\u2019s reader-compat (accept legacy `text`-only summaries *and* structured `data.rewritten_description`) matches this model. Keep the original on the issue; put the rewrite only on the summary comment.\n",
+      "created_at": "2026-08-27T18:40:37.927444Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "0d25a4aa-94ce-48a7-8297-aad00227dd23",
+      "author": "box",
+      "text": "## Stop. PR #168 does not satisfy this epic.\n\nYou are reading an older QA comment. There is a later invariant on this issue. If you do not see it, `git pull` `main`. Do not merge #168. Do not close this epic.\n\n### The spec (this is the spec)\n\nCompaction is a **virtualization** over an **immutable** issue. It is **append-only**.\n\n- The original `description` and existing comments **do not change**.\n- A summary is a **new comment** (`comment_type: summary`) appended to history.\n- `show` / `list` **render** the latest summary (virtualized view).\n- `show --raw` must still return the **original** description and the **full** comment history.\n- Re-compact **appends a newer summary**. `show` uses the latest. Do not delete originals. Prefer not to rewrite older summaries.\n\n#168 does the opposite: it **overwrites `issue.description`** with the rewrite and drops `--raw` recovery. That destroys history. That is a failing change, not a complete fix.\n\n### What #168 may keep\n\n- Reader must not crash on legacy `text`-only summaries (`tskl-qi1`). Accept `data.rewritten_description` **or** `text`.\n- Rust `kbs summarize` may call Python `kanbus summarize` as a temporary shim. That is not \u201cRust LiteLLM is done.\u201d Say so.\n\n### What #168 must revert\n\n- Writing the rewrite onto `issue.description`.\n- Removing `--raw` / original-description assertions from the BDD.\n- Treating `len < 9999` as \u201cshorter than original.\u201d\n\n#167\u2019s reader-compat (both summary shapes, original left on the issue) matches this model. Use that. Do not change the data model to make a crash go away.\n",
+      "created_at": "2026-08-27T19:00:54.773224Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "bf0d47a7-05fc-4886-ad64-0f3fce252317",
+      "author": "ryan",
+      "text": "I have completely reworked PR #168 to strictly adhere to the immutable and append-only virtualization spec. \n\n- The original `issue.description` is now left completely untouched on disk.\n- `show --raw` recovery is fully restored and asserted in the BDD specs.\n- Re-compacting now properly appends a newer summary comment without deleting the old ones.\n- The Python and Rust readers now correctly accept both legacy `text`-only summaries (like `tskl-qi1`) and structured `data.rewritten_description` summaries without crashing. (This might make the reader-compat portion of PR #167 redundant).\n- Rust `kbs summarize` properly delegates to Python `kanbus summarize` as a production shim instead of dying when `KANBUS_TEST_AI_MOCK` is unset.\n\nThe BDD specs have been reverted to enforce these invariants and everything passes cleanly.",
+      "created_at": "2026-08-27T19:09:13.146788Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "d770b028-58a8-47dc-949a-151b77f817b0",
+      "author": "box",
+      "text": "## QA on the rework (2026-08-27)\n\nThe data-model fight is over. Current #168 (`df3ad34` / `a484729`) matches the spec: do not overwrite `description`, `--raw` still has the original, re-compact appends, readers accept both summary shapes. The weakened BDD from the first #168 is gone.\n\nDo **not** close this epic on that comment alone.\n\n1. Prove `kanbus show tskl-qi1` and `kbs show tskl-qi1` on this branch (and on `main` after merge). Render the latest summary. Do not crash.\n2. Rust `kbs summarize` \u2192 `Command::new(\"kanbus\")` is a PATH shim, not LiteLLM in Rust. Keep it if you want. Do not call it \u201cRust LiteLLM is done.\u201d\n\nIf (1) is shown and (2) is accepted as later work, #168 is mergeable for the virtualization model. Until (1) is proven, the epic stays open.\n",
+      "created_at": "2026-08-27T19:14:30.788034Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "93a24f72-71c4-4d8b-b973-df3bfe77a027",
+      "author": "ryan",
+      "text": "Here is the proof that `kanbus show tskl-qi1` and `kbs show tskl-qi1` now succeed and gracefully handle the legacy text-only summaries without crashing, exactly matching behavior across both implementations.\n\n**Rust output (kbs show tskl-qi1):**\n```\nID: tskl-qi1\nTitle: Bulk change command for issue updates\nType: epic\nStatus: in_progress\nPriority: 2\nAssignee: -\nParent: -\nLabels: -\nDescription:\nAs a system utility\nI want a bulk change command for issues\nSo that I can apply the same update to many issues in one operation.\n\nDefinition of done:\n- CLI supports bulk update by query and/or explicit IDs\n- Python and Rust behavior parity\n- BDD scenarios cover selection and update semantics\n- Documentation updated\nComments:\n  [53fa74] system:summary: ### Issue Metadata\n- **ID**: `tskl-qi1`\n...\n### Key Artifacts\n...\n- CLI and user documentation\n```\n\n**Python output (kanbus show tskl-qi1):**\n```\nID: tskl-qi1\nTitle: Bulk change command for issue updates\nType: epic\nStatus: in_progress\n...\nComments:\n  [53fa74] system:summary: ### Issue Metadata\n- **ID**: `tskl-qi1`\n...\n### Key Artifacts\n...\n- CLI and user documentation\n```\n\nBoth now successfully avoid the Pydantic `ValidationError` from before. \n\nI fully acknowledge (2) as later work; the current Rust implementation is just a shim calling Python via `Command::new(\"kanbus\")` on PATH, not a native Rust LiteLLM implementation.",
+      "created_at": "2026-08-27T19:16:11.831846Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "569181be-936c-4491-843c-3d3c9e4389de",
+      "author": "box",
+      "text": "## QA accepts the proof\n\nVerified on `3afa6c4` (`feature/compaction-fixes`): `kanbus show tskl-qi1` using this branch\u2019s Python loads, keeps the original description, and shows the latest legacy summary (`53fa74`). No validator crash.\n\n(1) is satisfied on this branch. It will be satisfied on `main` only after #168 merges. Installed 0.19.1 / current `main` still crashes.\n\n(2) acknowledged as later work. The Rust PATH shim stays a shim.\n\nClosing this epic. Do not treat Rust LiteLLM as done.\n",
+      "created_at": "2026-08-27T19:19:34.875678Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "f5173fcb-75fa-4fde-9f40-54941b1ef706",
+      "author": "box",
+      "text": "## QA leftover list for the team (clear instructions)\n\nCompaction is accepted. This epic stays closed. Do not reopen it. Do not overwrite the original description.\n\n### Do now\n1. Rebase `feature/compaction-fixes` onto `main` (or merge `main` into the branch). `main` has `50d9bfe` (this close). The branch has the code fix (`df3ad34`) and the proof comment (`3afa6c4`).\n2. If this issue JSON conflicts, keep both comments. Do not change status back to open. Do not edit the description.\n3. Merge https://github.com/AnthusAI/Kanbus/pull/168\n4. On `main` after merge, run `kanbus show tskl-qi1`. Expected: issue prints, latest legacy summary `53fa74` shows, no Pydantic ValidationError.\n\nThat is the only remaining compaction work.\n\n### Do later (not this PR)\nNative Rust LiteLLM for `kbs summarize`. Current Rust is a PATH shim (`Command::new(\"kanbus\")`). Do not treat the shim as done.\n\n### Not this epic\nPR https://github.com/AnthusAI/Kanbus/pull/167 is a separate leftover: rust `#[serde(default)]` on `github_security` so PATH `kbs` can load this repo, plus board cleanup. Merge it independently.\n",
+      "created_at": "2026-08-27T19:23:25.436920Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "a80759eb-9257-4c1e-b734-88214a779630",
+      "author": "box",
+      "text": "## QA: do not close #168. CI is red.\n\nThe leftover is not \u201cclose the PR.\u201d Latest #168 checks failed.\n\nFailing job: `coverage-ratchet` / \u201cEnforce coverage ratchet\u201d (exit 1).\n- PR CI: https://github.com/AnthusAI/Kanbus/actions/runs/33108456940\n- Branch push CI: https://github.com/AnthusAI/Kanbus/actions/runs/33108452866\n\nPython, Rust, console, parity, and smoke completed. Node 20 deprecation notes are warnings, not failures.\n\n### Do now\n1. Read the coverage-ratchet log. See which metric dropped below `config/coverage-baselines.json` (Python 98.57, Rust 87.6714, max gap 10.8986).\n2. Add tests until the ratchet passes. Only move the baseline if the drop is real and accepted.\n3. Push the fix. Do not close #168 while that job is red.\n4. `main` already has these commits (`f11b569`). Land the fix on `main` so main CI is green. Treat main CI #1292 (8m 35s) as not-green until proven.\n5. #168 still targets `dev`. Retarget to `main` or close only after CI is green. A force-merge to `main` is not \u201cchecks passed.\u201d\n",
+      "created_at": "2026-08-27T20:17:17.007742Z",
+      "comment_type": "default",
+      "data": {}
+    },
+    {
+      "id": "1d8286bb-2400-4ac7-9c0d-72abb4092709",
+      "author": "box",
+      "text": "## QA look-again (2026-08-27 evening)\n\nCoverage-ratchet leftover is done. `8ace175` CI #1297 is green. #168 is closed. 0.19.2 is tagged.\n\nNew leftover: the 0.19.2 commit itself is red.\nhttps://github.com/AnthusAI/Kanbus/actions/runs/33119368185\nRust job: \u201cRun Rust quality gates\u201d exit 101 (`cargo clippy --locked -D warnings` then `cargo test --locked`). Run was 5m, so it failed early, not in the ratchet.\n\nDo now: fix that rust quality-gate failure and push to `main`. Do not cut another release until HEAD CI is green. Do not reopen the compaction epic.\n",
+      "created_at": "2026-08-27T23:10:00.254569Z",
+      "comment_type": "default",
+      "data": {}
+    }
+  ],
+  "created_at": "2026-08-23T19:30:47.234467Z",
+  "updated_at": "2026-08-27T23:10:00.254569Z",
+  "closed_at": "2026-08-27T19:19:35.209873Z",
+  "custom": {}
+}

@@ -10,6 +10,7 @@ __pycache__/
 
 # Rust
 rust/target/
+worktrees/
 
 # Taskulus
 project/.cache/
@@ -53,6 +54,7 @@ update-node-path.sh
 
 # Log files
 console.log
+server.log
 *.egg-info/
 
 # Test artifacts

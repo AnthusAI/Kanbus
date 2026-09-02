@@ -3,18 +3,29 @@
   "title": "Migrate Kanbus release automation from release-please to reusable release system",
   "description": "Plan and implement a safe migration from current release-please semantic release setup to the team reusable release workflow system, including validation and rollback notes.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "derek.norrbom",
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "10dc51cd-3da8-4542-b0e8-90ea228fe7b1",
+      "author": "box",
+      "text": "Shipped. Left release-please for AnthusAI/platform-ci semantic-release on 2026-03-24 (`59ac9fb`). 0.19.1 released 2026-08-26 through that workflow. No remaining work. Closing.\n",
+      "created_at": "2026-08-27T17:25:43.153226Z",
+      "comment_type": "default",
+      "data": {}
+    }
+  ],
   "created_at": "2026-03-24T21:51:21.698559Z",
-  "updated_at": "2026-03-24T21:51:21.698559Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T17:25:52.633241Z",
+  "closed_at": "2026-08-27T17:25:52.633241Z",
   "custom": {
-    "beads_owner": "derek.norrbom"
+    "beads_owner": "derek.norrbom",
+    "source": "shared",
+    "project_label": "kbs"
   }
 }

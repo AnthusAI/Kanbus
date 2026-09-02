@@ -11,6 +11,9 @@ use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 
+use crate::agent_metadata::{
+    reject_agent_metadata_in_beads_mode, resolve_agent_metadata, AgentMetadataRequest,
+};
 use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{
     add_beads_comment, add_beads_dependency, create_beads_issue, delete_beads_comment,
@@ -18,6 +21,7 @@ use crate::beads_write::{
 };
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
 use crate::config_loader::load_project_configuration;
+use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
@@ -39,6 +43,7 @@ use crate::hooks::{
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
+use crate::issue_commit::commit_project_issues;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
@@ -48,6 +53,7 @@ use crate::issue_lookup::load_issue_from_project;
 use crate::issue_transfer::{localize_issue, promote_issue};
 use crate::issue_update::update_issue;
 use crate::jira_sync::pull_from_jira;
+use crate::kanbus_version::enforce_kanbus_version;
 use crate::maintenance::{collect_project_stats, validate_project};
 use crate::migration::{
     load_beads_issue_by_id, load_beads_issue_from_workspace, load_beads_issues, migrate_from_beads,
@@ -60,9 +66,15 @@ use crate::rich_text_signals::{
 };
 use crate::right_now_command::{run_right_now_command, RightNowCommandOptions};
 use crate::snyk_sync::pull_from_snyk;
+use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
-use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
+const DEP_USAGE: &str = "usage: kanbus dep <identifier> blocked-by|relates-to <target>\n       kanbus dep <identifier> remove blocked-by|relates-to <target>\n       kanbus dep tree <identifier> [--depth N] [--format FORMAT]";
+
+use crate::wiki::{
+    check_wiki_page_links, format_wiki_link_problem, init_wiki, lint_wiki, list_wiki_pages,
+    render_wiki_page, search_wiki_pages, show_wiki_page, WikiRenderRequest,
+};
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
@@ -71,6 +83,7 @@ use crate::wiki::{list_wiki_pages, render_wiki_page, WikiRenderRequest};
     version = env!("GIT_VERSION"),
     after_help = "Examples:
   kbs list                                     list all issues
+  kbs list --limit 10                          cap output to 10 issues
   kbs issues                                   alias for: kbs list
   kbs epics / kbs tasks / kbs bugs             list by type
   kbs create \"Fix login bug\" --type bug        create an issue
@@ -100,7 +113,29 @@ pub struct Cli {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum LifecycleCommands {
+    /// Batch compact (summarize) issues based on lifecycle policies
+    Compact {
+        #[arg(long, help = "Process all eligible issues")]
+        all: bool,
+        #[arg(long, help = "Filter issues by query")]
+        query: Option<String>,
+        #[arg(long, help = "Show which issues would be compacted without mutating")]
+        dry_run: bool,
+        #[arg(long, help = "Only compact archived issues (closed > 30 days)")]
+        archived_only: bool,
+        #[arg(long, help = "Limit number of issues to compact")]
+        max_items: Option<usize>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum Commands {
+    /// Issue lifecycle management commands
+    Lifecycle {
+        #[command(subcommand)]
+        command: LifecycleCommands,
+    },
     /// Initialize a Kanbus project in the current repository.
     Init {
         /// Create project-local alongside project.
@@ -138,6 +173,9 @@ enum Commands {
         /// Parent issue identifier.
         #[arg(long)]
         parent: Option<String>,
+        /// Explicitly specify the issue ID.
+        #[arg(long, value_name = "ID")]
+        id: Option<String>,
         /// Issue labels.
         #[arg(long)]
         label: Vec<String>,
@@ -153,6 +191,18 @@ enum Commands {
         /// Deprecated: UI control commands are being migrated to pub/sub.
         #[arg(long)]
         focus: bool,
+        /// Agent platform identifier for provenance metadata.
+        #[arg(long = "agent-platform")]
+        agent_platform: Option<String>,
+        /// Agent model identifier for provenance metadata.
+        #[arg(long = "agent-model")]
+        agent_model: Option<String>,
+        /// Agent session or bot name for provenance metadata.
+        #[arg(long = "agent-name")]
+        agent_name: Option<String>,
+        /// Agent settings JSON object for provenance metadata.
+        #[arg(long = "agent-settings")]
+        agent_settings: Option<String>,
     },
     /// Show an issue.
     Show {
@@ -161,6 +211,9 @@ enum Commands {
         /// Emit JSON output.
         #[arg(long)]
         json: bool,
+        /// Bypass summary interception and show full raw data.
+        #[arg(long)]
+        raw: bool,
         /// Project root to scope lookup (directory containing .kanbus.yml).
         #[arg(long = "project-root")]
         project_root: Option<std::path::PathBuf>,
@@ -226,6 +279,8 @@ enum Commands {
         /// Issue identifier.
         identifier: String,
     },
+    /// Commit project/issues changes to git.
+    Commit,
     /// Delete an issue.
     Delete {
         /// Issue identifier.
@@ -252,6 +307,18 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
+        /// Agent platform identifier for provenance metadata.
+        #[arg(long = "agent-platform")]
+        agent_platform: Option<String>,
+        /// Agent model identifier for provenance metadata.
+        #[arg(long = "agent-model")]
+        agent_model: Option<String>,
+        /// Agent session or bot name for provenance metadata.
+        #[arg(long = "agent-name")]
+        agent_name: Option<String>,
+        /// Agent settings JSON object for provenance metadata.
+        #[arg(long = "agent-settings")]
+        agent_settings: Option<String>,
     },
     /// List issues.
     ///
@@ -261,6 +328,8 @@ enum Commands {
     ///   kbs list --status open                      only open issues
     ///   kbs list --type task --status in_progress
     ///   kbs list --parent <id>                      children of an issue
+    ///   kbs list --limit 10                         cap output to 10 issues
+    ///   kbs list --all                              show all issues
     ///   kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
     List {
         /// Status filter.
@@ -293,6 +362,12 @@ enum Commands {
         /// Show only local issues.
         #[arg(long = "local-only")]
         local_only: bool,
+        /// Maximum issues to display (0 for no limit).
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Show all issues (same as --limit 0).
+        #[arg(long)]
+        all: bool,
         /// Plain, non-colorized output for machine parsing.
         #[arg(long)]
         porcelain: bool,
@@ -321,10 +396,16 @@ enum Commands {
     /// Report project statistics.
     Stats,
     /// Manage issue dependencies.
-    #[command(name = "dep", trailing_var_arg = true, allow_hyphen_values = true)]
+    #[command(
+        name = "dep",
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        about = "Manage issue dependencies",
+        long_about = "Manage issue dependencies\n\nExamples:\n  kanbus dep kanbus-child blocked-by kanbus-parent\n  kanbus dep kanbus-left relates-to kanbus-right\n  kanbus dep kanbus-left remove blocked-by kanbus-right\n  kanbus dep tree kanbus-child"
+    )]
     Dep {
-        /// Raw arguments: <id> <type> <target> | <id> remove <type> <target> | tree <id> [--depth N] [--format FORMAT]
-        #[arg(num_args = 1..)]
+        /// Raw arguments: <id> blocked-by|relates-to <target> | <id> remove <type> <target> | tree <id> [--depth N] [--format FORMAT]
+        #[arg(num_args = 0..)]
         args: Vec<String>,
     },
     /// List issues that are ready (not blocked).
@@ -456,6 +537,17 @@ kbs now --raw                    titles only, no summaries"
     /// Stop the daemon process.
     #[command(name = "daemon-stop")]
     DaemonStop,
+    /// Summarize an issue
+    Summarize {
+        identifier: String,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Show LLM cost
+    Cost {
+        #[arg(long)]
+        days: Option<u32>,
+    },
 }
 
 fn is_help_request(kind: ErrorKind) -> bool {
@@ -486,17 +578,26 @@ fn merge_issue_views(mut beads: IssueData, project: IssueData) -> IssueData {
         beads.parent = project.parent;
     }
 
-    // Comments: keep chronological order and de-duplicate by id (or author/text/timestamp fallback).
     let mut comment_keys: HashSet<String> = HashSet::new();
     for comment in &beads.comments {
         let key = comment.id.clone().unwrap_or_else(|| {
-            format!("{}|{}|{}", comment.author, comment.text, comment.created_at)
+            format!(
+                "{}|{}|{}",
+                comment.author,
+                get_comment_display_text(comment),
+                comment.created_at
+            )
         });
         comment_keys.insert(key);
     }
     for comment in project.comments {
         let key = comment.id.clone().unwrap_or_else(|| {
-            format!("{}|{}|{}", comment.author, comment.text, comment.created_at)
+            format!(
+                "{}|{}|{}",
+                comment.author,
+                get_comment_display_text(&comment),
+                comment.created_at
+            )
         });
         if comment_keys.insert(key.clone()) {
             beads.comments.push(comment);
@@ -663,6 +764,22 @@ enum WikiCommands {
     },
     /// List wiki pages.
     List,
+    /// Search wiki pages by path, title, and body.
+    Search {
+        /// Case-insensitive search string.
+        query: String,
+    },
+    /// Create the wiki directory and a stub index page.
+    Init,
+    /// Show raw wiki page source without rendering templates.
+    Show {
+        /// Wiki page path.
+        page: String,
+    },
+    /// Validate wiki-internal markdown links across the wiki tree.
+    Lint,
+    /// Validate the wiki tree (alias for wiki lint).
+    Check,
 }
 
 #[derive(Debug, Subcommand)]
@@ -827,6 +944,27 @@ enum ConsoleCommands {
         /// State field to query: focus, view, or search.
         field: String,
     },
+    /// Capture a PNG screenshot of the console board.
+    Screenshot {
+        /// Output file path (default: kanbus-board.png in the current directory).
+        #[arg(long, short = 'o', value_name = "PATH")]
+        output: Option<String>,
+        /// Appearance mode for the board (light or dark; default light for reproducible captures).
+        #[arg(long, value_name = "MODE", default_value = "light")]
+        mode: String,
+        /// Board type filter: initiatives, epics, issues, or all (console ?type=all).
+        #[arg(long, value_name = "VIEW")]
+        view: Option<String>,
+        /// Expand every collapsed status column before capture.
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        expand_all: bool,
+        /// Expand a status column before capture (repeatable).
+        #[arg(long = "expand", value_name = "COLUMN")]
+        expand_columns: Vec<String>,
+        /// Collapse a status column before capture (repeatable).
+        #[arg(long = "collapse", value_name = "COLUMN")]
+        collapse_columns: Vec<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -985,6 +1123,11 @@ where
         stdout
             .write_all(output.stdout.as_bytes())
             .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if !output.stdout.ends_with('\n') {
+            stdout
+                .write_all(b"\n")
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+        }
         stdout.flush().ok();
     }
     if !output.stderr.is_empty() {
@@ -1033,6 +1176,10 @@ where
     };
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
+    if should_enforce_kanbus_version(&cli.command) {
+        enforce_kanbus_version(&root, env!("GIT_VERSION"))
+            .map_err(|error| KanbusError::IssueOperation(error.message().to_string()))?;
+    }
     let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
     let no_guidance = cli.no_guidance;
     let no_hooks = cli.no_hooks;
@@ -1080,6 +1227,10 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
 }
 
 fn should_check_project_structure(command: &Commands) -> bool {
+    should_enforce_kanbus_version(command)
+}
+
+fn should_enforce_kanbus_version(command: &Commands) -> bool {
     !matches!(
         command,
         Commands::Init { .. }
@@ -1098,7 +1249,9 @@ fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), Ka
         None => return Ok(()),
     };
 
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+    if std::env::var("KANBUS_FORCE_INTERACTIVE").is_err()
+        && (!std::io::stdin().is_terminal() || !std::io::stdout().is_terminal())
+    {
         return Ok(());
     }
 
@@ -1237,6 +1390,11 @@ fn execute_command(
             local,
             no_validate,
             focus,
+            id,
+            agent_platform,
+            agent_model,
+            agent_name,
+            agent_settings,
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
@@ -1258,6 +1416,15 @@ fn execute_command(
             }
             if focus {
                 return Err(deprecated_create_focus_error());
+            }
+            let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
+                platform: agent_platform,
+                model: agent_model,
+                name: agent_name,
+                settings_json: agent_settings,
+            })?;
+            if beads_mode {
+                reject_agent_metadata_in_beads_mode(agent_metadata.is_some())?;
             }
             if beads_mode && local {
                 return Err(KanbusError::IssueOperation(
@@ -1329,6 +1496,8 @@ fn execute_command(
                 },
                 local,
                 validate: !no_validate,
+                requested_id: id,
+                agent: agent_metadata,
             };
             let result = create_issue(&request)?;
             let configuration = result.configuration;
@@ -1356,6 +1525,7 @@ fn execute_command(
         Commands::Show {
             identifier,
             json,
+            raw,
             project_root,
         } => {
             let lookup_root = project_root.as_deref().unwrap_or(root);
@@ -1423,24 +1593,52 @@ fn execute_command(
             let output = if json {
                 serde_json::to_string_pretty(&issue).expect("failed to serialize issue")
             } else {
-                let use_color = should_use_color();
-                let all_issues = if beads_mode {
-                    None
-                } else {
-                    let store = crate::console_backend::FileStore::new(lookup_root);
-                    if let Ok(config) = store.load_config() {
-                        store.load_issues(&config).ok()
-                    } else {
+                let summary_comment_idx = issue
+                    .comments
+                    .iter()
+                    .rposition(|c| c.comment_type.as_str() == "summary");
+
+                if summary_comment_idx.is_some() {
+                    let mut new_issue = issue.clone();
+                    crate::summarize::apply_virtualized_issue_view(&mut new_issue, raw);
+                    let use_color = should_use_color();
+                    let all_issues = if beads_mode {
                         None
-                    }
-                };
-                format_issue_for_display(
-                    &issue,
-                    configuration.as_ref(),
-                    use_color,
-                    false,
-                    all_issues.as_deref(),
-                )
+                    } else {
+                        let store = crate::console_backend::FileStore::new(lookup_root);
+                        if let Ok(config) = store.load_config() {
+                            store.load_issues(&config).ok()
+                        } else {
+                            None
+                        }
+                    };
+                    format_issue_for_display(
+                        &new_issue,
+                        configuration.as_ref(),
+                        use_color,
+                        false,
+                        all_issues.as_deref(),
+                    )
+                } else {
+                    let use_color = should_use_color();
+                    let all_issues = if beads_mode {
+                        None
+                    } else {
+                        let store = crate::console_backend::FileStore::new(lookup_root);
+                        if let Ok(config) = store.load_config() {
+                            store.load_issues(&config).ok()
+                        } else {
+                            None
+                        }
+                    };
+                    format_issue_for_display(
+                        &issue,
+                        configuration.as_ref(),
+                        use_color,
+                        false,
+                        all_issues.as_deref(),
+                    )
+                }
             };
             run_lifecycle_hooks_for_context(
                 root,
@@ -1535,7 +1733,9 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let after_issue_for_hooks: Option<IssueData> = if beads_mode {
+            #[allow(clippy::needless_late_init)]
+            let after_issue_for_hooks: Option<IssueData>;
+            if beads_mode {
                 if parent.is_some() {
                     return Err(KanbusError::IssueOperation(
                         "parent update not supported in beads mode".to_string(),
@@ -1666,9 +1866,9 @@ fn execute_command(
                     &remove_labels,
                     set_labels.as_deref(),
                 )?;
-                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
             } else {
-                Some(update_issue(
+                let update_result = update_issue(
                     root,
                     &identifier,
                     title_value,
@@ -1683,8 +1883,43 @@ fn execute_command(
                     set_labels.as_deref(),
                     parent.as_deref(),
                     None,
-                )?)
-            };
+                )?;
+                after_issue_for_hooks = Some(update_result.issue.clone());
+                let formatted_identifier = format_issue_key(&identifier, false);
+                if let Some(ref qr) = update_quality_result {
+                    emit_signals(qr, "description", Some(&identifier), None, true);
+                }
+                let issues_for_policy = after_issue_for_hooks
+                    .as_ref()
+                    .map(|issue| vec![issue.clone()])
+                    .unwrap_or_default();
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueUpdate,
+                    serde_json::json!({
+                        "identifier": identifier,
+                        "status": status,
+                        "priority": priority,
+                        "assignee": assignee_value,
+                        "add_labels": add_labels,
+                        "remove_labels": remove_labels,
+                        "set_labels": set_labels,
+                        "parent": parent,
+                        "claim": claim,
+                        "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                        "after_issue": after_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &issues_for_policy,
+                    hook_options,
+                )?;
+                let message = if update_result.changed {
+                    format!("Updated {}", formatted_identifier)
+                } else {
+                    format!("No changes for {}", formatted_identifier)
+                };
+                return Ok(Some(message));
+            }
             let formatted_identifier = format_issue_key(&identifier, false);
             if let Some(ref qr) = update_quality_result {
                 emit_signals(qr, "description", Some(&identifier), None, true);
@@ -1742,7 +1977,7 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let moved_issue = update_issue(
+            let update_result = update_issue(
                 root,
                 &identifier,
                 None,
@@ -1758,6 +1993,7 @@ fn execute_command(
                 None,
                 Some(&issue_type),
             )?;
+            let moved_issue = update_result.issue;
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::After,
@@ -1822,7 +2058,7 @@ fn execute_command(
                 let mut seen = HashSet::new();
 
                 for identifier in &ids {
-                    let updated_issue = update_issue(
+                    let update_result = update_issue(
                         root,
                         identifier,
                         None,
@@ -1838,8 +2074,9 @@ fn execute_command(
                         None,
                         None,
                     )?;
-                    if seen.insert(updated_issue.identifier.clone()) {
-                        selected.push(updated_issue);
+                    if update_result.changed && seen.insert(update_result.issue.identifier.clone())
+                    {
+                        selected.push(update_result.issue);
                     }
                 }
 
@@ -1858,10 +2095,10 @@ fn execute_command(
                         false,
                     )?;
                     for issue in filtered {
-                        if !seen.insert(issue.identifier.clone()) {
+                        if seen.contains(&issue.identifier) {
                             continue;
                         }
-                        let updated_issue = update_issue(
+                        let update_result = update_issue(
                             root,
                             &issue.identifier,
                             None,
@@ -1877,7 +2114,10 @@ fn execute_command(
                             None,
                             None,
                         )?;
-                        selected.push(updated_issue);
+                        if update_result.changed {
+                            seen.insert(update_result.issue.identifier.clone());
+                            selected.push(update_result.issue);
+                        }
                     }
                 }
 
@@ -1954,6 +2194,14 @@ fn execute_command(
                 hook_options,
             )?;
             Ok(Some(format!("Closed {}", formatted_identifier)))
+        }
+        Commands::Commit => {
+            let result = commit_project_issues(root)?;
+            if result.committed {
+                Ok(Some("Committed project/issues".to_string()))
+            } else {
+                Ok(Some("Nothing to commit".to_string()))
+            }
         }
         Commands::Delete {
             identifier,
@@ -2134,6 +2382,10 @@ fn execute_command(
             text,
             no_validate,
             body_file,
+            agent_platform,
+            agent_model,
+            agent_name,
+            agent_settings,
         } => match command {
             Some(CommentCommands::Update {
                 identifier,
@@ -2222,6 +2474,15 @@ fn execute_command(
                 if !no_validate {
                     validate_code_blocks(&repaired_comment_text)?;
                 }
+                let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
+                    platform: agent_platform.clone(),
+                    model: agent_model.clone(),
+                    name: agent_name.clone(),
+                    settings_json: agent_settings.clone(),
+                })?;
+                if beads_mode {
+                    reject_agent_metadata_in_beads_mode(agent_metadata.is_some())?;
+                }
                 let before_issue_for_hooks = if beads_mode {
                     load_beads_issue_by_id(&root_for_beads, &identifier).ok()
                 } else {
@@ -2262,6 +2523,7 @@ fn execute_command(
                         &identifier,
                         &get_current_user(),
                         &repaired_comment_text,
+                        agent_metadata,
                     )?;
                     emit_signals(
                         &add_comment_quality_result,
@@ -2359,9 +2621,17 @@ fn execute_command(
             project,
             no_local,
             local_only,
+            limit,
+            all,
             porcelain,
             full_ids,
         } => {
+            if all && limit.is_some() {
+                return Err(KanbusError::IssueOperation(
+                    "cannot combine --all with --limit".to_string(),
+                ));
+            }
+            let effective_limit = if all { 0 } else { limit.unwrap_or(0) };
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::Before,
@@ -2377,12 +2647,13 @@ fn execute_command(
                     "projects": project.clone(),
                     "no_local": no_local,
                     "local_only": local_only,
+                    "limit": effective_limit,
                     "porcelain": porcelain,
                 }),
                 &[],
                 hook_options,
             )?;
-            let issues = if beads_mode {
+            let mut issues = if beads_mode {
                 if local_only || no_local {
                     return Err(KanbusError::IssueOperation(
                         "beads mode does not support local filtering".to_string(),
@@ -2425,6 +2696,9 @@ fn execute_command(
                     local_only,
                 )?
             };
+            if effective_limit > 0 {
+                issues.truncate(effective_limit);
+            }
             let configuration = if beads_mode {
                 None
             } else {
@@ -2501,9 +2775,7 @@ fn execute_command(
         }
         Commands::Dep { args } => {
             if args.is_empty() {
-                return Err(KanbusError::IssueOperation(
-                    "usage: kanbus dep <identifier> <type> <target>".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(DEP_USAGE.to_string()));
             }
 
             // Tree handling: kanbus dep tree <id> [--depth N] [--format FORMAT]
@@ -2544,9 +2816,7 @@ fn execute_command(
             }
 
             if args.len() < 2 {
-                return Err(KanbusError::IssueOperation(
-                    "usage: kanbus dep <identifier> <type> <target>".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(DEP_USAGE.to_string()));
             }
 
             let identifier = &args[0];
@@ -2835,6 +3105,12 @@ fn execute_command(
         }
         Commands::Wiki { command } => match command {
             WikiCommands::Render { page } => {
+                let link_problems = check_wiki_page_links(root, &page)?;
+                for problem in &link_problems {
+                    crate::rich_text_signals::emit_stderr_line(&format_wiki_link_problem(
+                        problem, true,
+                    ));
+                }
                 let request = WikiRenderRequest {
                     root: root.to_path_buf(),
                     page_path: Path::new(&page).to_path_buf(),
@@ -2846,6 +3122,34 @@ fn execute_command(
                 let pages = list_wiki_pages(root)?;
                 let output = pages.join("\n");
                 Ok(Some(output))
+            }
+            WikiCommands::Search { query } => {
+                let pages = search_wiki_pages(root, &query)?;
+                if pages.is_empty() {
+                    Ok(Some("0 results".to_string()))
+                } else {
+                    Ok(Some(pages.join("\n")))
+                }
+            }
+            WikiCommands::Init => {
+                let index_path = init_wiki(root)?;
+                Ok(Some(index_path))
+            }
+            WikiCommands::Show { page } => {
+                let output = show_wiki_page(root, &page)?;
+                Ok(Some(output))
+            }
+            WikiCommands::Lint | WikiCommands::Check => {
+                let problems = lint_wiki(root)?;
+                if problems.is_empty() {
+                    Ok(Some("wiki lint: ok".to_string()))
+                } else {
+                    let messages: Vec<String> = problems
+                        .iter()
+                        .map(|problem| format_wiki_link_problem(problem, false))
+                        .collect();
+                    Err(KanbusError::IssueOperation(messages.join("\n")))
+                }
             }
         },
         Commands::Edit { command } => match command {
@@ -3194,6 +3498,7 @@ fn execute_command(
                     created_at: now,
                     updated_at: now,
                     closed_at: None,
+                    agent: None,
                     right_now_summary: None,
                     right_now_updated_at: None,
                     custom: std::collections::BTreeMap::new(),
@@ -3370,6 +3675,25 @@ fn execute_command(
                     Err(_) => Ok(Some("Console server is not running.".to_string())),
                 }
             }
+            ConsoleCommands::Screenshot {
+                output,
+                mode,
+                view,
+                expand_all,
+                expand_columns,
+                collapse_columns,
+            } => {
+                let path = capture_console_screenshot(
+                    root,
+                    output,
+                    Some(mode),
+                    view,
+                    expand_all,
+                    expand_columns,
+                    collapse_columns,
+                )?;
+                Ok(Some(path.to_string_lossy().to_string()))
+            }
         },
         Commands::DaemonStatus => {
             let status = request_status(root).map_err(format_daemon_project_error)?;
@@ -3377,11 +3701,100 @@ fn execute_command(
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
         }
+
         Commands::DaemonStop => {
             let status = request_shutdown(root).map_err(format_daemon_project_error)?;
             let payload = serde_json::to_string_pretty(&status)
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             Ok(Some(payload))
+        }
+        Commands::Lifecycle {
+            command: lifecycle_cmd,
+        } => match lifecycle_cmd {
+            LifecycleCommands::Compact {
+                all: _all,
+                query: _query,
+                dry_run,
+                archived_only,
+                max_items,
+            } => {
+                let output = crate::lifecycle_compaction::run_lifecycle_compaction(
+                    root,
+                    dry_run,
+                    archived_only,
+                    max_items,
+                )?;
+                Ok(Some(output))
+            }
+        },
+        Commands::Summarize {
+            identifier,
+            dry_run,
+        } => {
+            if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() == Some("1") {
+                let messages = crate::summarize::compaction_summarize(root, &identifier, dry_run)?;
+                let output = messages
+                    .into_iter()
+                    .map(|message| {
+                        format!(
+                            "{message}
+"
+                        )
+                    })
+                    .collect::<String>();
+                Ok(if output.is_empty() {
+                    None
+                } else {
+                    Some(output)
+                })
+            } else {
+                let mut command = std::process::Command::new("kanbus");
+                command.arg("summarize").arg(&identifier);
+                if dry_run {
+                    command.arg("--dry-run");
+                }
+                command.current_dir(root);
+                let output = command.output().map_err(|error| {
+                    crate::error::KanbusError::Io(format!(
+                        "Failed to execute 'kanbus summarize': {error}"
+                    ))
+                })?;
+                let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+                if !stderr_str.is_empty() {
+                    eprint!("{}", stderr_str);
+                }
+                if !output.status.success() {
+                    return Err(crate::error::KanbusError::Io(format!(
+                        "Command 'kanbus summarize' failed with exit code {}",
+                        output.status.code().unwrap_or(1)
+                    )));
+                }
+                Ok(Some(stdout_str))
+            }
+        }
+        Commands::Cost { days } => {
+            let mut command = std::process::Command::new("kanbus");
+            command.arg("cost");
+            if let Some(d) = days {
+                command.arg("--days").arg(d.to_string());
+            }
+            command.current_dir(root);
+            let output = command.output().map_err(|error| {
+                KanbusError::Io(format!("Failed to execute 'kanbus cost': {error}"))
+            })?;
+            let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
+            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+            if !stderr_str.is_empty() {
+                eprint!("{}", stderr_str);
+            }
+            if !output.status.success() {
+                return Err(KanbusError::Io(format!(
+                    "Command 'kanbus cost' failed with exit code {}",
+                    output.status.code().unwrap_or(1)
+                )));
+            }
+            Ok(Some(stdout_str))
         }
     }
 }
@@ -3580,6 +3993,7 @@ mod tests {
             created_at: timestamp,
             updated_at: timestamp,
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: std::collections::BTreeMap::new(),
@@ -3754,6 +4168,8 @@ mod tests {
             project: Vec::new(),
             no_local: false,
             local_only: false,
+            limit: None,
+            all: false,
             porcelain: false,
             full_ids: false,
         }));
@@ -3871,12 +4287,17 @@ mod additional_cli_tests {
             comments: vec![IssueComment {
                 id: None,
                 author: "alice".to_string(),
-                text: "c1".to_string(),
+                text: Some("c1".to_string()),
                 created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+
+                comment_type: "comment".to_string(),
+                data: BTreeMap::new(),
+                agent: None,
             }],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),
@@ -3907,19 +4328,26 @@ mod additional_cli_tests {
                 IssueComment {
                     id: None,
                     author: "alice".to_string(),
-                    text: "c1".to_string(),
+                    text: Some("c1".to_string()),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap(),
+                    comment_type: "comment".to_string(),
+                    data: BTreeMap::new(),
+                    agent: None,
                 },
                 IssueComment {
                     id: None,
                     author: "bob".to_string(),
-                    text: "c2".to_string(),
+                    text: Some("c2".to_string()),
                     created_at: Utc.with_ymd_and_hms(2020, 1, 2, 0, 0, 0).unwrap(),
+                    comment_type: "comment".to_string(),
+                    data: BTreeMap::new(),
+                    agent: None,
                 },
             ],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::from([("k1".to_string(), serde_json::json!("v1"))]),

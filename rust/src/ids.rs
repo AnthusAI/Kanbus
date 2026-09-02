@@ -15,6 +15,8 @@ pub struct IssueIdentifierRequest {
     pub existing_ids: HashSet<String>,
     /// ID project key (prefix).
     pub prefix: String,
+    /// Explicitly requested issue ID.
+    pub requested_id: Option<String>,
 }
 
 /// Generated issue identifier.
@@ -144,6 +146,18 @@ pub fn issue_identifier_matches(candidate: &str, full_id: &str) -> bool {
 pub fn generate_issue_identifier(
     request: &IssueIdentifierRequest,
 ) -> Result<IssueIdentifierResult, KanbusError> {
+    if let Some(req_id) = &request.requested_id {
+        if request.existing_ids.contains(req_id) {
+            return Err(KanbusError::IssueOperation(format!(
+                "requested id '{}' already exists",
+                req_id
+            )));
+        }
+        return Ok(IssueIdentifierResult {
+            identifier: req_id.clone(),
+        });
+    }
+
     for _ in 0..10 {
         let identifier = format!("{}-{}", request.prefix, next_uuid());
         if !request.existing_ids.contains(&identifier) {
@@ -182,6 +196,8 @@ pub fn generate_many_identifiers(
             title: title.to_string(),
             existing_ids: existing.clone(),
             prefix: prefix.to_string(),
+
+            requested_id: None,
         };
         let result = generate_issue_identifier(&request)?;
         existing.insert(result.identifier);

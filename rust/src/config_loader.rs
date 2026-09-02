@@ -21,6 +21,10 @@ use crate::models::ProjectConfiguration;
 /// Returns `KanbusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
     let dotenv_path = path.parent().unwrap_or(Path::new(".")).join(".env");
+    if let Some(home) = std::env::var_os("HOME") {
+        let global_dotenv = Path::new(&home).join(".kanbus.env");
+        load_dotenv(&global_dotenv);
+    }
     load_dotenv(&dotenv_path);
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {

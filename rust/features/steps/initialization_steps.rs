@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command};
 use std::thread::JoinHandle;
 use std::time::SystemTime;
 
@@ -11,6 +11,7 @@ use tempfile::TempDir;
 use crate::step_definitions::console_ui_steps::{
     ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
 };
+use chrono::{DateTime, Utc};
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
@@ -78,6 +79,7 @@ pub struct KanbusWorld {
     pub last_beads_issue_id: Option<String>,
     pub existing_kanbus_ids: Option<HashSet<String>>,
     pub last_kanbus_issue_id: Option<String>,
+    pub resolved_agent_metadata: Option<kanbus::models::AgentMetadata>,
     pub unreadable_path: Option<PathBuf>,
     pub unreadable_mode: Option<u32>,
     pub console_state: Option<ConsoleState>,
@@ -89,6 +91,7 @@ pub struct KanbusWorld {
     pub metrics_project_filter: Option<String>,
     pub metrics_local_filter: Option<String>,
     pub console_port: Option<u16>,
+    pub console_server_child: Option<Child>,
     pub fake_jira_port: Option<u16>,
     pub fake_jira_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     pub fake_jira_issues: Vec<serde_json::Value>,
@@ -96,6 +99,7 @@ pub struct KanbusWorld {
     pub jira_unset_env_vars: Vec<(String, Option<String>)>,
     pub validation_error: Option<String>,
     pub wiki_directory: Option<String>,
+    pub project_issues_agents_baseline: Option<String>,
     pub external_tool_dir: Option<TempDir>,
     pub original_path: Option<Option<String>>,
     pub canonical_priorities: Option<Vec<String>>,
@@ -108,8 +112,10 @@ pub struct KanbusWorld {
     pub kanbusr_version: Option<String>,
     pub kanbusr_has_all: Option<bool>,
     pub sample_issue: Option<kanbus::models::IssueData>,
+    pub captured_updated_at: Option<DateTime<Utc>>,
     pub dependency_error: Option<String>,
     pub original_invalid_status_env: Option<Option<String>>,
+    pub original_screenshot_mock_env: Option<Option<String>>,
     pub virtual_project_state: Option<VirtualProjectState>,
     pub simulated_configuration_error: Option<String>,
     pub realtime_doc: Option<String>,
@@ -138,10 +144,51 @@ pub struct KanbusWorld {
     pub uds_published_id: Option<String>,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
     pub ai_call_count_after_first_render: Option<usize>,
+    pub environment_overrides: BTreeMap<String, String>,
+}
+
+const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [
+    "KANBUS_AGENT_PLATFORM",
+    "KANBUS_AGENT_MODEL",
+    "KANBUS_AGENT_SETTINGS",
+];
+
+/// Apply scenario environment overrides and return saved values for restoration.
+pub fn apply_environment_overrides(
+    overrides: &BTreeMap<String, String>,
+) -> BTreeMap<String, Option<String>> {
+    let mut saved = BTreeMap::new();
+    for key in AGENT_ENVIRONMENT_KEYS {
+        saved.insert(key.to_string(), std::env::var(key).ok());
+        if overrides.contains_key(key) {
+            std::env::set_var(key, overrides.get(key).expect("override value"));
+        } else {
+            std::env::remove_var(key);
+        }
+    }
+    for (key, value) in overrides {
+        if AGENT_ENVIRONMENT_KEYS.contains(&key.as_str()) {
+            continue;
+        }
+        saved.insert(key.clone(), std::env::var(key).ok());
+        std::env::set_var(key, value);
+    }
+    saved
+}
+
+/// Restore process environment values saved by ``apply_environment_overrides``.
+pub fn restore_environment(saved: BTreeMap<String, Option<String>>) {
+    for (key, value) in saved {
+        match value {
+            Some(existing) => std::env::set_var(key, existing),
+            None => std::env::remove_var(key),
+        }
+    }
 }
 
 impl Drop for KanbusWorld {
     fn drop(&mut self) {
+        crate::step_definitions::console_ui_state_steps::stop_console_server(self);
         kanbus::beads_write::set_test_beads_slug_sequence(None);
         kanbus::ids::set_test_uuid_sequence(None);
         if let Some(handle) = self.daemon_thread.take() {
@@ -202,6 +249,12 @@ impl Drop for KanbusWorld {
             match original {
                 Some(value) => std::env::set_var("KANBUS_TEST_INVALID_STATUS", value),
                 None => std::env::remove_var("KANBUS_TEST_INVALID_STATUS"),
+            }
+        }
+        if let Some(original) = self.original_screenshot_mock_env.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", value),
+                None => std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK"),
             }
         }
         if let Some(mut startup) = self.mosquitto_startup.take() {
@@ -401,6 +454,6 @@ fn then_project_do_not_edit_created(world: &mut KanbusWorld) {
         assert!(path.is_file(), "expected {}", path.display());
         let content = fs::read_to_string(&path).expect("read DO_NOT_EDIT");
         assert!(content.contains("DO NOT EDIT"));
-        assert!(content.contains("The Way"));
+        assert!(content.contains("Kanbus"));
     }
 }

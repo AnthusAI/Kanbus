@@ -1,0 +1,33 @@
+{
+  "id": "kbs-549db4a0-2703-43ac-9eb0-fd0ed73783d0",
+  "title": "Commit board state with kbs commit",
+  "description": "As an agent, I want a first-class command to git-commit project/issues, so that I do not have to remember the git add/commit ritual.\n\nDecision: add `kbs commit` (not `kbs sync` — sync is Jira/Snyk/GitHub). Keep existing CONTRIBUTING_AGENT.md docs and point them at this command. Commit project/issues only. Do not push. Do not un-gitignore project/events.\n\nFeature: Commit board state\n  Scenario: Commit persists uncommitted issue files\n    Given a Kanbus project with default configuration\n    And an uncommitted issue exists\n    When I run \"kanbus commit\"\n    Then the command should succeed\n    And the issue files are committed to git\n\n  Scenario: Commit succeeds when there is nothing to commit\n    Given a Kanbus project with default configuration\n    And the working tree has no uncommitted issue files\n    When I run \"kanbus commit\"\n    Then the command should succeed",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "grok-manager",
+  "creator": null,
+  "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6e47c280-a32a-478e-8ffc-5c040516ac40",
+      "author": "home",
+      "text": "Implemented kbs commit (not sync) in PR 200. CONTRIBUTING_AGENT.md now points agents at kbs commit. No push.",
+      "created_at": "2026-09-02T16:40:21.869065Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "fde50209-240c-4e8a-93bc-0fd60f719da3",
+      "author": "home",
+      "text": "Shipped in https://github.com/AnthusAI/Kanbus/pull/200: kbs commit stages project/issues only.",
+      "created_at": "2026-09-02T17:47:32.095710Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-02T14:59:32.983181Z",
+  "updated_at": "2026-09-02T17:47:32.095710Z",
+  "closed_at": "2026-09-02T17:47:32.050067Z",
+  "custom": {}
+}

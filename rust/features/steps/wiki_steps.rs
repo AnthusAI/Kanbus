@@ -24,7 +24,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
-            world.stderr = Some(String::new());
+            world.stderr = Some(output.stderr);
         }
         Err(error) => {
             world.exit_code = Some(1);
@@ -65,6 +65,7 @@ fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         right_now_summary: None,
         right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),
@@ -243,8 +244,11 @@ fn given_comment_contains(world: &mut KanbusWorld, identifier: String, text: Str
     issue.comments.push(IssueComment {
         id: None,
         author: author.to_string(),
-        text,
+        text: Some(text),
         created_at: Utc::now(),
+        comment_type: "default".to_string(),
+        data: std::collections::BTreeMap::new(),
+        agent: None,
     });
     write_issue_file(&project_dir, &issue);
 }
@@ -467,5 +471,219 @@ fn then_wiki_root_is(world: &mut KanbusWorld, expected: String) {
     assert!(
         wiki_path.exists(),
         "expected wiki root {expected} at {wiki_path:?}"
+    );
+}
+
+fn wiki_dir_for_world(world: &KanbusWorld) -> PathBuf {
+    let project_dir = load_project_dir(world);
+    let wiki_subdir = world.wiki_directory.as_deref().unwrap_or("wiki");
+    if wiki_subdir.starts_with("../") {
+        let repo_root = world.working_directory.as_ref().expect("working dir");
+        let normalized = wiki_subdir
+            .trim_start_matches("../")
+            .trim_start_matches("..\\");
+        repo_root.join(normalized)
+    } else {
+        project_dir.join(wiki_subdir)
+    }
+}
+
+#[given("the wiki directory does not exist")]
+fn given_wiki_directory_missing(world: &mut KanbusWorld) {
+    let wiki_dir = wiki_dir_for_world(world);
+    if wiki_dir.exists() {
+        fs::remove_dir_all(&wiki_dir).expect("remove wiki dir");
+    }
+}
+
+#[given("an empty wiki directory exists")]
+fn given_empty_wiki_directory(world: &mut KanbusWorld) {
+    let wiki_dir = wiki_dir_for_world(world);
+    fs::create_dir_all(&wiki_dir).expect("create wiki dir");
+}
+
+#[given(expr = "a story reference {string} file {string} with content:")]
+fn given_story_reference_file(
+    world: &mut KanbusWorld,
+    story_id: String,
+    filename: String,
+    step: &Step,
+) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd
+        .join("stories")
+        .join(story_id)
+        .join("references")
+        .join(filename);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create references dir");
+    }
+    let content = step.docstring().map(|s| s.as_str()).unwrap_or("");
+    fs::write(target, content).expect("write reference file");
+}
+
+#[then(expr = "a wiki page {string} should exist with content containing {string}")]
+fn then_wiki_page_exists_with_content(world: &mut KanbusWorld, filename: String, text: String) {
+    let wiki_dir = wiki_dir_for_world(world);
+    let target = wiki_dir.join(filename);
+    assert!(
+        target.exists(),
+        "expected wiki page at {}",
+        target.display()
+    );
+    let content = fs::read_to_string(&target).expect("read wiki page");
+    assert!(content.contains(&text), "expected {text:?} in {content:?}");
+}
+
+#[given("the stories directory does not exist")]
+fn given_stories_directory_missing(world: &mut KanbusWorld) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let stories_dir = cwd.join("stories");
+    if stories_dir.exists() {
+        fs::remove_dir_all(&stories_dir).expect("remove stories dir");
+    }
+}
+
+#[given(expr = "a stories directory file {string} exists")]
+fn given_stories_directory_file(world: &mut KanbusWorld, name: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let stories_dir = cwd.join("stories");
+    fs::create_dir_all(&stories_dir).expect("create stories dir");
+    fs::write(stories_dir.join(name), "not a story directory\n").expect("write stories file");
+}
+
+#[given(expr = "a story directory {string} exists without references")]
+fn given_story_directory_without_references(world: &mut KanbusWorld, story_id: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd.join("stories").join(story_id);
+    fs::create_dir_all(&target).expect("create story dir");
+}
+
+#[given(expr = "an unreadable story reference {string} file {string} exists")]
+fn given_unreadable_story_reference(world: &mut KanbusWorld, story_id: String, filename: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd
+        .join("stories")
+        .join(story_id)
+        .join("references")
+        .join(filename);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create references dir");
+    }
+    fs::write(
+        &target,
+        r#"{"id":"locked","title":"Locked","status":"accepted"}"#,
+    )
+    .expect("write reference file");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&target).expect("metadata").permissions();
+        let original = permissions.mode();
+        permissions.set_mode(0);
+        fs::set_permissions(&target, permissions).expect("chmod reference file");
+        world.unreadable_path = Some(target);
+        world.unreadable_mode = Some(original);
+    }
+}
+
+#[given(expr = "a dangling story reference symlink {string} file {string} exists")]
+fn given_dangling_story_reference_symlink(
+    world: &mut KanbusWorld,
+    story_id: String,
+    filename: String,
+) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let target = cwd
+        .join("stories")
+        .join(story_id)
+        .join("references")
+        .join(filename);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).expect("create references dir");
+    }
+    if target.exists() {
+        fs::remove_file(&target).expect("remove reference file");
+    }
+    std::os::unix::fs::symlink("/nonexistent/story-reference.json", &target)
+        .expect("create dangling symlink");
+}
+
+#[given(expr = "a wiki markdown symlink {string} points to a directory")]
+fn given_wiki_markdown_symlink_to_directory(world: &mut KanbusWorld, name: String) {
+    let wiki_dir = wiki_dir_for_world(world);
+    fs::create_dir_all(&wiki_dir).expect("create wiki dir");
+    let target_dir = wiki_dir.join(format!("{name}-target-dir"));
+    fs::create_dir_all(&target_dir).expect("create symlink target dir");
+    let link_path = wiki_dir.join(&name);
+    if link_path.exists() {
+        fs::remove_file(&link_path).expect("remove existing link");
+    } else if link_path.symlink_metadata().is_ok() {
+        fs::remove_file(&link_path).expect("remove existing symlink");
+    }
+    std::os::unix::fs::symlink(&target_dir, &link_path).expect("create wiki symlink");
+}
+
+#[given(expr = "a wiki symlink {string} points outside the wiki directory")]
+fn given_wiki_symlink_outside_directory(world: &mut KanbusWorld, name: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let wiki_dir = wiki_dir_for_world(world);
+    fs::create_dir_all(&wiki_dir).expect("create wiki dir");
+    let outside_target = cwd.join("outside-wiki-target.md");
+    fs::write(&outside_target, "outside wiki target\n").expect("write outside target");
+    let link_path = wiki_dir.join(&name);
+    if link_path.exists() {
+        fs::remove_file(&link_path).expect("remove existing link");
+    } else if link_path.symlink_metadata().is_ok() {
+        fs::remove_file(&link_path).expect("remove existing symlink");
+    }
+    std::os::unix::fs::symlink(&outside_target, &link_path).expect("create outside wiki symlink");
+}
+
+const LEGACY_PROJECT_AGENTS_TEXT: &str = "\
+# DO NOT EDIT HERE\n\
+\n\
+Editing anything under project/ directly is hacking the data and is a sin against The Way.\n\
+Do not read or write other files in this folder. Use Kanbus commands instead.\n\
+\n\
+See ../AGENTS.md and ../CONTRIBUTING_AGENT.md for required process.\n";
+
+#[given("project/AGENTS.md has legacy guard content without wiki exception")]
+fn given_legacy_project_agents_without_wiki_exception(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let agents_path = project_dir.join("AGENTS.md");
+    fs::write(agents_path, format!("{LEGACY_PROJECT_AGENTS_TEXT}\n")).expect("write agents");
+}
+
+#[given("the project issues AGENTS.md content is saved as baseline")]
+fn given_project_issues_agents_baseline_saved(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let issues_agents_path = project_dir.join("issues").join("AGENTS.md");
+    let baseline = fs::read_to_string(&issues_agents_path).expect("read issues agents");
+    world.project_issues_agents_baseline = Some(baseline);
+}
+
+#[then(expr = "project/AGENTS.md should contain {string}")]
+fn then_project_agents_contains(world: &mut KanbusWorld, text: String) {
+    let project_dir = load_project_dir(world);
+    let content = fs::read_to_string(project_dir.join("AGENTS.md")).expect("read agents");
+    assert!(
+        content.contains(&text),
+        "expected {text:?} in project/AGENTS.md: {content:?}"
+    );
+}
+
+#[then("the project issues AGENTS.md content should match baseline")]
+fn then_project_issues_agents_matches_baseline(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let issues_agents_path = project_dir.join("issues").join("AGENTS.md");
+    let current = fs::read_to_string(&issues_agents_path).expect("read issues agents");
+    let baseline = world
+        .project_issues_agents_baseline
+        .as_ref()
+        .expect("baseline not saved");
+    assert_eq!(
+        &current, baseline,
+        "project/issues/AGENTS.md changed after wiki init"
     );
 }

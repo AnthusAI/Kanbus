@@ -5,9 +5,9 @@ The Way is not a suggestion. It is the prescribed order of creation.
 All work must pass through its forms.
 This is The Way.
 
-Deviation from The Way is extremely offensive to the religious sensibilities of its practitioners, including the human user of this coding agent. Sins against The Way must be avoided at all costs.
+Deviations from The Way must be avoided. The Way keeps work legible and reviewable across sessions and agents.
 
-## The Sacrament of Work
+## The Discipline of Work
 
 Kanbus is the instrument of record. Nothing exists until it is named there.
 
@@ -38,6 +38,25 @@ Direct file system access is strictly forbidden:
 - Do not read issue JSON with tools like cat, jq, or grep
 - Do not inspect the file system structure for issues or events
 - All work on issues and events must pass through the kbs command
+
+## Committing project state to git
+
+Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted — collaborators pulling `develop` do not see the current board state.
+
+To keep the board current, commit Kanbus-written issue files to `develop`:
+
+```bash
+kbs commit
+git push origin develop
+```
+
+`kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
+
+Notes:
+- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after you update or close cards so collaborators see current board state on `develop`.
+- `project/events/` holds event logs (LLM usage transcripts). `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
+- Do this proactively as you close/update cards, not as a separate chore — the board should stay current as you work.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files (the rule above). `kbs commit` persists Kanbus-written issue state without editing it.
 
 ## Running Kanbus (Do This Exactly)
 
@@ -163,7 +182,7 @@ Record intent and Definition of Done.
 6. Refactor only while all specifications remain green.
 7. Record progress. Close only when complete.
 
-Skipping steps is corruption of the process.
+Skipping steps undermines the process.
 
 ## Coverage
 
@@ -235,7 +254,14 @@ The wiki lives under project/wiki/. You may edit Markdown files there directly.
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.
 - Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- Use `kbs wiki show <path>` to print raw page source without rendering templates.
+- Use `kbs wiki search <query>` to find pages by path, title, or body (prints `0 results` when nothing matches).
+- Use `kbs wiki lint` or `kbs wiki check` to validate wiki-internal markdown links (ignores links inside inline code and fenced code blocks).
+- Use `kbs wiki init` to create project/wiki/ with a stub index page and refresh `project/AGENTS.md` with the wiki edit exception.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize). Render warns on broken wiki links but still outputs content.
+- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
+- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier. Link wiki pages to Papyrus story directories with `issue.key`, not `issue.id` (for example `stories/{{ issue.key }}/references/`).
+- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
 - In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
 
 Cache behavior:
@@ -397,7 +423,7 @@ Issue types map directly to release categories.
 - chore -> chore
 
 
-Release notes are not commentary. They are a ledger of truth.
+Release notes are a record, not commentary.
 
 ## Example: Hello World
 

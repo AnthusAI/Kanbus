@@ -3,18 +3,42 @@
   "title": "Bulk change command for issue updates",
   "description": "As a system utility\nI want a bulk change command for issues\nSo that I can apply the same update to many issues in one operation.\n\nDefinition of done:\n- CLI supports bulk update by query and/or explicit IDs\n- Python and Rust behavior parity\n- BDD scenarios cover selection and update semantics\n- Documentation updated\n",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a01e89e2-22c5-4112-89f9-be9fb18d375b",
+      "author": "system:summary",
+      "text": "### Issue Metadata\n- **ID**: `tskl-qi1`\n- **Type**: `epic`\n- **Status**: `in_progress`\n- **Created**: `2026-03-05`\n- **Updated**: `2026-03-06`\n- **Mode**: `Active`\n\n### Current State\n\nThe issue requests a bulk issue-update command that applies the same change to multiple issues selected by query and/or explicit IDs. The desired behavior is defined at a high level, but no CLI syntax, supported fields, precedence rules, validation behavior, or implementation details are specified. Python and Rust parity, BDD coverage, and documentation updates remain to be addressed.\n\n### Action Items\n\n- Define the CLI command and syntax for:\n  - Selecting issues by query.\n  - Selecting issues by explicit IDs.\n  - Combining query-based and ID-based selection, if supported.\n  - Specifying one or more updates.\n- Define update semantics, including:\n  - Supported issue fields and operations.\n  - Behavior when no issues match.\n  - Handling duplicate IDs or overlapping query/ID results.\n  - Validation and partial-failure behavior.\n  - Output, confirmation, and dry-run behavior.\n- Implement the command in both Python and Rust with equivalent behavior and error handling.\n- Add BDD scenarios covering:\n  - Selection by query.\n  - Selection by explicit IDs.\n  - Combined selection and deduplication, if applicable.\n  - Successful bulk updates.\n  - No matches, invalid IDs, invalid updates, and update failures.\n- Add unit/integration tests for command parsing, selection, update application, and parity between implementations.\n- Update CLI and user documentation with examples, limitations, and failure semantics.\n- Resolve whether bulk updates require authorization, confirmation, transactionality, or an explicit opt-in flag.\n\n### Key Artifacts\n\n- Bulk issue-update CLI command and argument/parser definitions.\n- Query-based issue selection logic.\n- Explicit issue-ID selection logic.\n- Shared issue update/service layer used by the Python and Rust implementations.\n- Python CLI implementation.\n- Rust CLI implementation.\n- BDD feature files and step definitions for bulk issue updates.\n- CLI reference and user documentation.\n- Cross-language parity and integration test suites.",
+      "created_at": "2026-08-23T21:40:35.185818Z",
+      "comment_type": "summary"
+    },
+    {
+      "id": "d52ee303-f404-4955-aa05-d8f5cf389395",
+      "author": "system:summary",
+      "text": "### Issue Metadata\n- **ID**: `tskl-qi1`\n- **Type**: `epic`\n- **Status**: `in_progress`\n- **Created**: `2026-03-05`\n- **Updated**: `2026-08-23`\n- **Mode**: `Active`\n\n### Description\n\nAs a system utility\nI want a bulk change command for issues\nSo that I can apply the same update to many issues in one operation.\n\nDefinition of done:\n- CLI supports bulk update by query and/or explicit IDs\n- Python and Rust behavior parity\n- BDD scenarios cover selection and update semantics\n- Documentation updated\n\n\n### Current State\n\nThe issue requests a new bulk issue-update command that can apply the same change to multiple issues. The required scope includes:\n\n- Selection by query and/or explicit issue IDs\n- Matching behavior between Python and Rust implementations\n- BDD coverage for selection and update semantics\n- Updated user documentation\n\nNo implementation status, existing command design, or affected files are provided in the issue details, so the work appears to require initial design and repository investigation.\n\n### Action Items\n\n- Inspect existing issue CLI commands and update mechanisms in both Python and Rust.\n- Define the command syntax and supported update fields.\n- Implement selection using:\n  - Query-based issue matching\n  - Explicit issue IDs\n  - Clearly defined behavior when both are supplied\n- Specify handling for empty selections, invalid IDs, nonexistent issues, duplicate IDs, and partial failures.\n- Ensure Python and Rust implementations have equivalent behavior, validation, output, and error handling.\n- Add BDD scenarios covering:\n  - Query selection\n  - Explicit-ID selection\n  - Combined or conflicting selectors\n  - Successful bulk updates\n  - No-match and invalid-input cases\n  - Atomicity or partial-update semantics\n- Update CLI help, user documentation, and examples.\n- Add unit/integration tests for command parsing and update application.\n- Decide whether updates should be atomic, transactional, or best-effort, and document the decision.\n\n### Key Artifacts\n\n- Issue title: **Bulk change command for issue updates**\n- Required CLI capabilities: bulk update by query and/or explicit IDs\n- Required implementation targets: Python and Rust\n- Required acceptance coverage: BDD scenarios for selection and update semantics\n- Required deliverable: updated documentation\n",
+      "created_at": "2026-08-23T21:42:44.349283Z",
+      "comment_type": "summary"
+    },
+    {
+      "id": "53fa7437-4f27-4431-828a-f61d923dc166",
+      "author": "system:summary",
+      "text": "### Issue Metadata\n- **ID**: `tskl-qi1`\n- **Type**: `epic`\n- **Status**: `in_progress`\n- **Created**: `2026-03-05`\n- **Updated**: `2026-08-23`\n- **Mode**: `Active`\n\n### Current State\n\nThe issue requests a bulk issue-update command that applies the same change to multiple issues selected by query and/or explicit IDs. The required scope includes CLI support, matching behavior between Python and Rust implementations, BDD coverage, and documentation updates. No implementation details or progress updates are provided.\n\n### Action Items\n\n- Define the CLI command and syntax for bulk updates.\n- Support selecting issues by query, explicit IDs, or both.\n- Specify behavior for empty selections, invalid IDs, malformed queries, and partial failures.\n- Implement equivalent behavior in Python and Rust.\n- Add BDD scenarios covering selection mechanisms and update semantics.\n- Update user and command-line documentation.\n- Clarify whether duplicate IDs, conflicting selectors, and inaccessible issues require special handling.\n\n### Key Artifacts\n\n- CLI bulk-update command\n- Issue query/filter handling\n- Explicit issue ID input handling\n- Python implementation\n- Rust implementation\n- BDD feature/scenario files\n- CLI and user documentation",
+      "created_at": "2026-08-23T21:46:08.765487Z",
+      "comment_type": "summary"
+    }
+  ],
   "created_at": "2026-03-05T07:22:20.443520Z",
-  "updated_at": "2026-03-06T05:56:30.370942Z",
-  "closed_at": null,
+  "updated_at": "2026-08-27T15:59:48.515474340Z",
+  "closed_at": "2026-08-27T15:59:48.515474340Z",
   "custom": {
-    "beads_owner": "ryan.porter"
+    "beads_owner": "ryan.porter",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

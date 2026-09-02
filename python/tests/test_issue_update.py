@@ -77,8 +77,24 @@ def test_update_issue_no_updates_requested(
     _setup(monkeypatch, tmp_path)
     with pytest.raises(issue_update.IssueUpdateError, match="no updates requested"):
         issue_update.update_issue(
-            tmp_path, "kanbus-1", "Old", "", "open", None, False, validate=False
+            tmp_path, "kanbus-1", None, None, None, None, False, validate=False
         )
+
+
+def test_update_issue_matching_values_succeed_without_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lookup, _cfg, _issues_dir = _setup(monkeypatch, tmp_path)
+    writes: list[str] = []
+    monkeypatch.setattr(
+        issue_update, "write_issue_to_file", lambda *_a: writes.append("w")
+    )
+    result = issue_update.update_issue(
+        tmp_path, "kanbus-1", "Old", "", "open", None, False, validate=False
+    )
+    assert not result.changed
+    assert result.issue.identifier == lookup.issue.identifier
+    assert writes == []
 
 
 def test_update_issue_title_duplicate_and_normalization(
@@ -198,7 +214,7 @@ def test_update_issue_happy_path_with_labels_and_claim(
         remove_labels=["a"],
         parent=None,
         issue_type="story",
-    )
+    ).issue
 
     assert updated.title == "New"
     assert updated.assignee == "me"
@@ -232,7 +248,7 @@ def test_update_issue_normalization_and_parent_update_fields(
         set_labels=["x"],  # set_labels branch
         parent="kanbus-parent",  # updated_parent branch
         issue_type="  ",  # resolved_type empty -> None
-    )
+    ).issue
     assert updated.title == "New"
     assert updated.description == "trimmed"
     assert updated.parent == "kanbus-parent"
@@ -299,7 +315,7 @@ def test_update_issue_same_type_becomes_none(
         assignee=None,
         claim=False,
         issue_type="task",  # line 106 path
-    )
+    ).issue
     assert updated.issue_type == "task"
     assert updated.title == "New"
 
@@ -329,7 +345,7 @@ def test_update_issue_child_non_match_continue_path(
         assignee=None,
         claim=False,
         issue_type="story",
-    )
+    ).issue
     assert updated.issue_type == "story"
 
 

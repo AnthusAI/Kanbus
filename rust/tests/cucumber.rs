@@ -104,12 +104,23 @@ async fn main() {
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");
             let feature_has_console = feature.tags.iter().any(|tag| tag == "console");
+            let scenario_has_slow = scenario.tags.iter().any(|tag| tag == "slow");
+            let scenario_has_console_server =
+                scenario.tags.iter().any(|tag| tag == "console-server");
             if scenario_has_wip || feature_has_wip {
                 return false;
             }
             let has_console = scenario_has_console || feature_has_console;
             if only_console {
-                return has_console;
+                if !has_console {
+                    return false;
+                }
+                // Live Playwright capture is @slow; console parity CI must not require it.
+                return !scenario_has_slow;
+            }
+            if include_console && scenario_has_slow && scenario_has_console_server {
+                // llvm-cov includes @console scenarios but skips live @console-server @slow capture.
+                return false;
             }
             if !include_console && has_console {
                 return false;
@@ -170,6 +181,9 @@ fn cover_additional_paths() {
         description: Some("First description".to_string()),
         local: false,
         validate: true,
+
+        requested_id: None,
+        agent: None,
     })
     .expect("create issue one");
     let issue_two = create_issue(&IssueCreationRequest {
@@ -183,6 +197,9 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
+        agent: None,
     })
     .expect("create issue two");
     let issue_three = create_issue(&IssueCreationRequest {
@@ -196,6 +213,9 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
+        agent: None,
     })
     .expect("create issue three");
 
@@ -397,6 +417,9 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
+        agent: None,
     });
     fs::remove_file(&config_path).expect("remove config");
     let _ = run_from_args_with_output(["kanbus", "list"], root_no_config);
@@ -478,6 +501,9 @@ fn cover_additional_paths() {
         description: None,
         local: false,
         validate: true,
+
+        requested_id: None,
+        agent: None,
     })
     .expect("create update issue");
     let _ = update_issue(

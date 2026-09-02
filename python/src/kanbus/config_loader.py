@@ -46,6 +46,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if not path.exists():
         raise ConfigurationError("configuration file not found")
 
+    _load_dotenv(Path.home() / ".kanbus.env")
     _load_dotenv(path.parent / ".env")
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)

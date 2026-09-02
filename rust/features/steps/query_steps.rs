@@ -104,6 +104,7 @@ fn build_issue(identifier: &str) -> IssueData {
         created_at: timestamp,
         updated_at: timestamp,
         closed_at: None,
+        agent: None,
         right_now_summary: None,
         right_now_updated_at: None,
         custom: std::collections::BTreeMap::new(),

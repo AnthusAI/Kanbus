@@ -283,11 +283,9 @@ print(hmac.new(secret, payload, hashlib.sha256).hexdigest())
 PY
 )"
 status="$(curl -sS -D "$RESP_DIR/gate5-webhook.headers" -o "$RESP_DIR/gate5-webhook.json" -w '%{http_code}' \
-  -X POST "${API_BASE%/}/internal/webhooks/github" \
+  -X POST "${API_BASE%/}/internal/webhooks/github/$DISPOSABLE_ACCOUNT/$DISPOSABLE_PROJECT" \
   -H "X-GitHub-Event: push" \
   -H "X-Hub-Signature-256: sha256=$SIG_HEX" \
-  -H "X-Kanbus-Account: $DISPOSABLE_ACCOUNT" \
-  -H "X-Kanbus-Project: $DISPOSABLE_PROJECT" \
   -H "Content-Type: application/json" \
   --data-binary "@$PAYLOAD_FILE")"
 [[ "$status" == "202" ]] || fail_gate "$GATE" "webhook status=$status"
@@ -309,22 +307,37 @@ visible="$(jq -r '.Attributes.ApproximateNumberOfMessages' "$RESP_DIR/gate5-queu
 inflight="$(jq -r '.Attributes.ApproximateNumberOfMessagesNotVisible' "$RESP_DIR/gate5-queue-attrs-last.json")"
 [[ "${visible:-0}" == "0" && "${inflight:-0}" == "0" ]] || fail_gate "$GATE" "sync queue did not drain (visible=$visible inflight=$inflight)"
 
-SYNC_WORKER_FN="$(resolve_lambda_by_prefix TenantSyncWorker)"
-[[ -n "$SYNC_WORKER_FN" && "$SYNC_WORKER_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve sync worker lambda name"
-SYNC_LOG_FILE="$CW_DIR/gate5-sync-worker-tail.log"
-: >"$SYNC_LOG_FILE"
-worker_completed=0
+GIT_SYNC_FN="$(resolve_lambda_by_prefix GitSyncLambda)"
+[[ -n "$GIT_SYNC_FN" && "$GIT_SYNC_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve git sync lambda name"
+EFS_WRITER_FN="$(resolve_lambda_by_prefix EfsWriterLambda)"
+[[ -n "$EFS_WRITER_FN" && "$EFS_WRITER_FN" != "None" ]] || fail_gate "$GATE" "unable to resolve EFS writer lambda name"
+GIT_SYNC_LOG_FILE="$CW_DIR/gate5-git-sync-tail.log"
+EFS_WRITER_LOG_FILE="$CW_DIR/gate5-efs-writer-tail.log"
+: >"$GIT_SYNC_LOG_FILE"
+: >"$EFS_WRITER_LOG_FILE"
+git_sync_completed=0
+efs_writer_completed=0
 for _ in {1..24}; do
-  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$SYNC_WORKER_FN" --since 15m >"$SYNC_LOG_FILE" || true
-  if grep -q "END RequestId" "$SYNC_LOG_FILE"; then
-    worker_completed=1
+  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$GIT_SYNC_FN" --since 15m >"$GIT_SYNC_LOG_FILE" || true
+  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" aws logs tail "/aws/lambda/$EFS_WRITER_FN" --since 15m >"$EFS_WRITER_LOG_FILE" || true
+  if grep -q "END RequestId" "$GIT_SYNC_LOG_FILE"; then
+    git_sync_completed=1
+  fi
+  if grep -q "END RequestId" "$EFS_WRITER_LOG_FILE"; then
+    efs_writer_completed=1
+  fi
+  if [[ "$git_sync_completed" == "1" && "$efs_writer_completed" == "1" ]]; then
     break
   fi
   sleep 5
 done
-[[ "$worker_completed" == "1" ]] || fail_gate "$GATE" "sync worker completion log not observed"
-if grep -qE "ERROR|Task timed out|Traceback" "$SYNC_LOG_FILE"; then
-  fail_gate "$GATE" "sync worker log contains error markers"
+[[ "$git_sync_completed" == "1" ]] || fail_gate "$GATE" "git sync lambda completion log not observed"
+[[ "$efs_writer_completed" == "1" ]] || fail_gate "$GATE" "EFS writer lambda completion log not observed"
+if grep -qE "ERROR|Task timed out|Traceback" "$GIT_SYNC_LOG_FILE"; then
+  fail_gate "$GATE" "git sync lambda log contains error markers"
+fi
+if grep -qE "ERROR|Task timed out|Traceback" "$EFS_WRITER_LOG_FILE"; then
+  fail_gate "$GATE" "EFS writer lambda log contains error markers"
 fi
 pass_gate "$GATE"
 
@@ -351,11 +364,9 @@ print(hmac.new(secret, payload, hashlib.sha256).hexdigest())
 PY
 )"
 status="$(curl -sS -D "$RESP_DIR/gate6-webhook.headers" -o "$RESP_DIR/gate6-webhook.json" -w '%{http_code}' \
-  -X POST "${API_BASE%/}/internal/webhooks/github" \
+  -X POST "${API_BASE%/}/internal/webhooks/github/$DEFAULT_ACCOUNT/$DEFAULT_PROJECT" \
   -H "X-GitHub-Event: push" \
   -H "X-Hub-Signature-256: sha256=$SIG_HEX" \
-  -H "X-Kanbus-Account: $DEFAULT_ACCOUNT" \
-  -H "X-Kanbus-Project: $DEFAULT_PROJECT" \
   -H "Content-Type: application/json" \
   --data-binary "@$PAYLOAD_FILE")"
 [[ "$status" == "202" ]] || fail_gate "$GATE" "failed to enqueue browser probe webhook (status=$status)"
