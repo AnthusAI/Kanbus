@@ -1957,8 +1957,6 @@ mod tests {
             agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
-            dependencies: vec![],
-            comments: vec![],
             custom: Default::default(),
         }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
@@ -1989,8 +1987,6 @@ mod tests {
             agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
-            dependencies: vec![],
-            comments: vec![],
             custom: Default::default(),
         }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-1", false)?;
@@ -2021,8 +2017,6 @@ mod tests {
             agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
-            dependencies: vec![],
-            comments: vec![],
             custom: Default::default(),
         }];
         let result = resolve_beads_initiative(temp.path(), &issues, false)?;
@@ -2053,8 +2047,6 @@ mod tests {
             agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
-            dependencies: vec![],
-            comments: vec![],
             custom: Default::default(),
         }];
         let result = resolve_beads_epic(temp.path(), &issues, None, "kanbus-3", false)?;
@@ -2084,8 +2076,6 @@ mod tests {
             agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
-            dependencies: vec![],
-            comments: vec![],
             custom: Default::default(),
         }];
 
@@ -2126,8 +2116,6 @@ mod tests {
             agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
-            dependencies: vec![],
-            comments: vec![],
             custom: Default::default(),
         }];
 

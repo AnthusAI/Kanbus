@@ -124,7 +124,13 @@ pub fn build_bounded_raw_child_summary(issue: &IssueData) -> String {
     let recent_comments = select_recent_non_summary_comments(&issue.comments);
     let activity_lines: Vec<String> = recent_comments
         .iter()
-        .map(|comment| format!("{}: {}", comment.author, comment.text))
+        .map(|comment| {
+            format!(
+                "{}: {}",
+                comment.author,
+                comment.text.as_deref().unwrap_or("")
+            )
+        })
         .collect();
     let recent_activity = bound_activity_text(&activity_lines.join("\n"));
     let raw_text = format!(
@@ -247,7 +253,13 @@ pub fn build_leaf_right_now_context(issue: &IssueData) -> RightNowContext {
     let recent_comments = select_recent_non_summary_comments(&issue.comments);
     let activity_lines: Vec<String> = recent_comments
         .iter()
-        .map(|comment| format!("{}: {}", comment.author, comment.text))
+        .map(|comment| {
+            format!(
+                "{}: {}",
+                comment.author,
+                comment.text.as_deref().unwrap_or("")
+            )
+        })
         .collect();
     let recent_activity = bound_activity_text(&activity_lines.join("\n"));
     RightNowContext {
@@ -470,6 +482,8 @@ fn select_recent_non_summary_comments(comments: &[IssueComment]) -> Vec<IssueCom
         .filter(|comment| {
             !comment
                 .text
+                .as_deref()
+                .unwrap_or("")
                 .trim()
                 .to_ascii_lowercase()
                 .starts_with("summary:")
@@ -638,6 +652,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             closed_at: None,
+            agent: None,
             right_now_summary: None,
             right_now_updated_at: None,
             custom: BTreeMap::new(),

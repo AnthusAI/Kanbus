@@ -773,6 +773,8 @@ fn then_comment_agent_metadata_not_visible(world: &mut KanbusWorld) {
         comment.agent.is_none(),
         "expected no comment agent metadata"
     );
+}
+
 #[given(expr = "the console issue {string} has right-now summary {string}")]
 fn given_console_issue_right_now_summary(world: &mut KanbusWorld, title: String, summary: String) {
     let state = require_console_state(world);

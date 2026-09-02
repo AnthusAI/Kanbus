@@ -214,7 +214,7 @@ mod tests {
         write_event(&delete_me, "kanbus-1");
         write_event(&keep_me, "kanbus-2");
 
-        delete_issue(temp.path(), "kanbus-1").expect("delete shared issue");
+        delete_issue(temp.path(), "kanbus-1", false).expect("delete shared issue");
         assert!(!issue_path.exists());
         assert!(!delete_me.exists());
         assert!(keep_me.exists());
@@ -233,7 +233,7 @@ mod tests {
         write_event(&delete_me, "kanbus-local");
         write_event(&keep_me, "kanbus-other");
 
-        delete_issue(temp.path(), "kanbus-local").expect("delete local issue");
+        delete_issue(temp.path(), "kanbus-local", false).expect("delete local issue");
         assert!(!issue_path.exists());
         assert!(!delete_me.exists());
         assert!(keep_me.exists());
