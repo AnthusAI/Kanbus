@@ -285,41 +285,15 @@ def then_right_now_summary_result_unset(context: object) -> None:
     assert context.right_now_summary_result is None
 
 
-@given("mock AI is enabled")
-def given_mock_ai_enabled(context: object) -> None:
-    """Enable deterministic AI mock mode for right-now generation.
+@given("right now litellm call tracking is reset")
+def given_right_now_litellm_call_tracking_reset(context: object) -> None:
+    """Clear right-now LiteLLM call tracking before mock AI scenarios.
 
     :param context: Behave context object.
     :type context: object
     """
-    context._ai_mock_env = os.environ.get("KANBUS_TEST_AI_MOCK")
     context._litellm_called_env = os.environ.get("KANBUS_RIGHT_NOW_LITELLM_CALLED")
-    os.environ["KANBUS_TEST_AI_MOCK"] = "1"
     os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
-
-
-@given('the Kanbus configuration uses AI provider "{provider}" with model "{model}"')
-def given_kanbus_configuration_uses_ai_provider(
-    context: object, provider: str, model: str
-) -> None:
-    """Configure AI provider settings in .kanbus.yml.
-
-    :param context: Behave context object.
-    :type context: object
-    :param provider: AI provider identifier.
-    :type provider: str
-    :param model: Model identifier.
-    :type model: str
-    """
-    repository = Path(context.working_directory)
-    config_path = repository / ".kanbus.yml"
-    payload = copy.deepcopy(DEFAULT_CONFIGURATION)
-    if config_path.exists():
-        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        if isinstance(loaded, dict):
-            payload.update(loaded)
-    payload["ai"] = {"provider": provider, "model": model}
-    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 @given("the Kanbus project has no AI configuration")

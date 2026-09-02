@@ -6,6 +6,7 @@ Feature: Right now summary generation
   Background:
     Given a Kanbus project with default configuration
     And mock AI is enabled
+    And right now litellm call tracking is reset
     And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
 
   Scenario: Generating a right-now summary for an active issue produces a one-sentence string
