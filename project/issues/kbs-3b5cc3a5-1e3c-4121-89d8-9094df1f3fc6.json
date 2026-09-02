@@ -31,10 +31,17 @@
       "text": "Decision locked: two-Lambda + S3 bridge. Non-VPC Git Sync Lambda does git and writes tarball to S3 (free internet, no NAT). VPC-isolated EFS Writer Lambda copies S3 to EFS via free S3 gateway endpoint. ConsoleLambda stays on EFS unchanged. No Fargate, no ECS, no ALB, no NAT. CodeBuild rejected (AWS docs confirm CodeBuild+EFS needs private subnets + NAT). New branch fix/kbs-3b5cc3-s3-bridge.",
       "created_at": "2026-09-02T16:47:46.792387Z",
       "comment_type": "default"
+    },
+    {
+      "id": "49fd3905-1235-42fd-8b6a-c61eb420cf66",
+      "author": "home",
+      "text": "Review hold: EFS Writer is VPC-isolated with no NAT and no interface endpoints, but it publishes to IoT data plane over HTTPS. That call cannot succeed without NAT or an IoT VPC endpoint. Completion must hop through a free path (S3/DynamoDB gateway) to a non-VPC notifier. Do not add interface endpoints. Do not merge until this is fixed. Worktree stays /tmp/kanbus-kbs-3b5cc3-s3-bridge.",
+      "created_at": "2026-09-02T17:40:24.393630Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-02T14:30:02.949582Z",
-  "updated_at": "2026-09-02T16:55:38.258217Z",
+  "updated_at": "2026-09-02T17:40:24.393630Z",
   "closed_at": null,
   "custom": {}
 }
