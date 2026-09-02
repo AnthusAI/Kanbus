@@ -17,10 +17,17 @@
       "text": "Planning: Composer 2.5. Console AgentMetadataBlock + @console Gherkin. Worktree /tmp/kanbus-dd1f4a-console-agent on cursor/console-agent-dd1f4a-4a21 from origin/develop. Plan only this turn. Types already exist in apps/console/src/types/issues.ts; no AgentMetadataBlock yet. PR to develop only.",
       "created_at": "2026-09-02T18:20:07.044165Z",
       "comment_type": "default"
+    },
+    {
+      "id": "575bb581-04e8-4381-a876-6417750d902f",
+      "author": "home",
+      "text": "Plan accepted. Component already on develop. Implement Gherkin + Playwright/Python/Rust steps only in /tmp/kanbus-dd1f4a-console-agent. One PR to develop.",
+      "created_at": "2026-09-02T18:24:21.609579Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-08-29T13:41:08.901358Z",
-  "updated_at": "2026-09-02T18:20:07.044165Z",
+  "updated_at": "2026-09-02T18:24:21.609579Z",
   "closed_at": null,
   "custom": {}
 }
