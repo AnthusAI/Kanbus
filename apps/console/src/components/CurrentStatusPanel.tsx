@@ -68,7 +68,7 @@ export function CurrentStatusPanel({
   onSelectIssue,
   selectedIssueId = null,
 }: CurrentStatusPanelProps) {
-  const [treeViewEnabled, setTreeViewEnabled] = useState(false);
+  const [treeViewEnabled, setTreeViewEnabled] = useState(true);
   const feedIssues = useMemo(() => {
     const sorted = [...issues].sort(compareRecentlyUpdated);
     if (limit <= 0) {
