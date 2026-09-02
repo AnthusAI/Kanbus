@@ -14,7 +14,7 @@ from kanbus.issue_lookup import IssueLookupError
 from kanbus.issue_update import IssueUpdateError
 from kanbus.queries import QueryError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import build_issue, build_update_result, build_project_configuration
 
 
 def _run(args: list[str]) -> object:
@@ -44,7 +44,7 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     def _update_issue(**kwargs):
         identifier = kwargs["identifier"]
         update_calls.append((identifier, kwargs["validate"]))
-        return build_issue(identifier)
+        return build_update_result(identifier)
 
     monkeypatch.setattr(cli, "update_issue", _update_issue)
     monkeypatch.setattr(
@@ -101,7 +101,7 @@ def test_bulk_update_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
         call_order["count"] += 1
         if call_order["count"] == 2:
             raise IssueUpdateError("second update fail")
-        return build_issue(kwargs["identifier"])
+        return build_update_result(kwargs["identifier"])
 
     monkeypatch.setattr(cli, "update_issue", _update_issue_second_fails)
     monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: [build_issue("kanbus-2")])

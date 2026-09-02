@@ -11,6 +11,7 @@ use tempfile::TempDir;
 use crate::step_definitions::console_ui_steps::{
     ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
 };
+use chrono::{DateTime, Utc};
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
@@ -110,6 +111,7 @@ pub struct KanbusWorld {
     pub kanbusr_version: Option<String>,
     pub kanbusr_has_all: Option<bool>,
     pub sample_issue: Option<kanbus::models::IssueData>,
+    pub captured_updated_at: Option<DateTime<Utc>>,
     pub dependency_error: Option<String>,
     pub original_invalid_status_env: Option<Option<String>>,
     pub original_screenshot_mock_env: Option<Option<String>>,
