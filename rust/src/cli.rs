@@ -1514,8 +1514,7 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let after_issue_for_hooks: Option<IssueData>;
-            if beads_mode {
+            let after_issue_for_hooks: Option<IssueData> = if beads_mode {
                 if parent.is_some() {
                     return Err(KanbusError::IssueOperation(
                         "parent update not supported in beads mode".to_string(),
@@ -1646,9 +1645,9 @@ fn execute_command(
                     &remove_labels,
                     set_labels.as_deref(),
                 )?;
-                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
+                load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
-                let updated_issue = update_issue(
+                Some(update_issue(
                     root,
                     &identifier,
                     title_value,
@@ -1663,9 +1662,8 @@ fn execute_command(
                     set_labels.as_deref(),
                     parent.as_deref(),
                     None,
-                )?;
-                after_issue_for_hooks = Some(updated_issue);
-            }
+                )?)
+            };
             let formatted_identifier = format_issue_key(&identifier, false);
             if let Some(ref qr) = update_quality_result {
                 emit_signals(qr, "description", Some(&identifier), None, true);
@@ -2570,8 +2568,7 @@ fn execute_command(
                 &[],
                 hook_options,
             )?;
-            let after_issue_for_hooks: Option<IssueData>;
-            if beads_mode {
+            let after_issue_for_hooks: Option<IssueData> = if beads_mode {
                 if is_remove {
                     remove_beads_dependency(
                         &root_for_beads,
@@ -2582,18 +2579,17 @@ fn execute_command(
                 } else {
                     add_beads_dependency(&root_for_beads, identifier, &target, &dependency_type)?;
                 }
-                after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, identifier).ok();
+                load_beads_issue_by_id(&root_for_beads, identifier).ok()
             } else if is_remove {
-                after_issue_for_hooks = Some(remove_dependency(
+                Some(remove_dependency(
                     root,
                     identifier,
                     &target,
                     &dependency_type,
-                )?);
+                )?)
             } else {
-                after_issue_for_hooks =
-                    Some(add_dependency(root, identifier, &target, &dependency_type)?);
-            }
+                Some(add_dependency(root, identifier, &target, &dependency_type)?)
+            };
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::After,
