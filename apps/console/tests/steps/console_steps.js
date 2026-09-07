@@ -596,7 +596,10 @@ Then("project {string} should still be selected in the project filter", async fu
 When(
   "I view an issue card or detail that shows priority",
   async function () {
-    const priorityLocator = this.page.locator(".issue-accent-priority").first();
+    const priorityLocator = this.page
+      .locator(".issue-accent-priority")
+      .filter({ visible: true })
+      .first();
     await expect(priorityLocator).toBeVisible({ timeout: 15000 });
     this.priorityElement = priorityLocator;
   }

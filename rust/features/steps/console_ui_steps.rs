@@ -165,7 +165,9 @@ fn board_type_filter_from_selected_tab(selected: &str) -> &'static str {
     }
 }
 
-fn collect_workflow_statuses(workflow: &std::collections::BTreeMap<String, Vec<String>>) -> HashSet<String> {
+fn collect_workflow_statuses(
+    workflow: &std::collections::BTreeMap<String, Vec<String>>,
+) -> HashSet<String> {
     let mut statuses: HashSet<String> = workflow.keys().cloned().collect();
     for transitions in workflow.values() {
         for target in transitions {
@@ -246,11 +248,8 @@ fn board_column_labels(world: &mut KanbusWorld) -> Vec<String> {
             .map(|status| status.name.clone())
             .collect();
     }
-    let issue_types = issue_types_for_board_filter(
-        board_filter,
-        &configuration.hierarchy,
-        &configuration.types,
-    );
+    let issue_types =
+        issue_types_for_board_filter(board_filter, &configuration.hierarchy, &configuration.types);
     let mut status_keys = HashSet::new();
     for issue_type in issue_types {
         let workflow = get_workflow_for_issue_type(&configuration, &issue_type)

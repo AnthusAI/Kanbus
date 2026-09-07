@@ -148,11 +148,15 @@ Then("the current status view should be active", async function () {
 });
 
 Then("the type filter selector should be hidden", async function () {
-  await expect(this.page.locator('[data-selector="view"]')).toHaveCount(0);
+  await expect(
+    this.page.locator('[data-selector="view"][role="tablist"]')
+  ).toHaveCount(0);
 });
 
 Then("the type filter selector should be visible", async function () {
-  await expect(this.page.locator('[data-selector="view"]')).toBeVisible();
+  await expect(
+    this.page.locator('[data-selector="view"][role="tablist"]')
+  ).toBeVisible();
 });
 
 Then("the status tree node for {string} should be expandable", async function (title) {
@@ -339,11 +343,6 @@ When("I enable the status tree view", async function () {
 });
 
 When("I disable the status tree view", async function () {
-  await this.page.getByTestId("status-tree-toggle").uncheck();
-  await expect(this.page.getByTestId("status-feed")).toBeVisible();
-});
-
-Given("I disable the status tree view", async function () {
   await this.page.getByTestId("status-tree-toggle").uncheck();
   await expect(this.page.getByTestId("status-feed")).toBeVisible();
 });
