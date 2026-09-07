@@ -398,3 +398,34 @@ def test_wiki_page_display_title_falls_back_to_stem() -> None:
         wiki.wiki_page_display_title("Just a paragraph.", "untitled_notes.md")
         == "untitled_notes"
     )
+
+
+def test_convert_wiki_markdown_to_html_wraps_gfm_in_markus_document() -> None:
+    html = wiki.convert_wiki_markdown_to_html("Plain paragraph with **bold** text.")
+    assert "markus-document" in html
+    assert "Plain paragraph with" in html
+
+
+def test_convert_wiki_markdown_to_html_renders_pull_quote() -> None:
+    source = ":::pull-quote\n> Measure what matters.\n:::\n"
+    html = wiki.convert_wiki_markdown_to_html(source)
+    assert "markus-pull-quote" in html
+    assert "Measure what matters." in html
+
+
+def test_convert_wiki_markdown_to_html_rejects_unknown_directive() -> None:
+    source = ":::unknown-directive\nInvalid block.\n:::\n"
+    with pytest.raises(wiki.WikiError, match="Unknown directive"):
+        wiki.convert_wiki_markdown_to_html(source)
+
+
+def test_format_wiki_render_json_includes_rendered_html() -> None:
+    payload = wiki.format_wiki_render_json(
+        "project/wiki/status.md",
+        "Open: 3",
+        '<article class="markus-document"><p>Open: 3</p></article>',
+    )
+    assert '"path": "project/wiki/status.md"' in payload
+    assert '"rendered": "Open: 3"' in payload
+    assert "rendered_html" in payload
+    assert "markus-document" in payload

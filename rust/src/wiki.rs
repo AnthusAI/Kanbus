@@ -1320,10 +1320,16 @@ pub fn format_wiki_search_json(query: &str, pages: &[String]) -> String {
 }
 
 /// Format wiki render output as JSON.
-pub fn format_wiki_render_json(page_path: &str, rendered: &str) -> String {
+///
+/// # Arguments
+/// * `page_path` - Canonical wiki page path relative to repository root
+/// * `rendered` - Post-Jinja Markdown
+/// * `rendered_html` - Markus HTML converted from the Jinja Markdown
+pub fn format_wiki_render_json(page_path: &str, rendered: &str, rendered_html: &str) -> String {
     let payload = serde_json::json!({
         "path": page_path,
         "rendered": rendered,
+        "rendered_html": rendered_html,
     });
     serde_json::to_string_pretty(&payload).expect("serialize wiki render json")
 }

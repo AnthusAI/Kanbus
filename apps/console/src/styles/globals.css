@@ -1381,6 +1381,129 @@ html[data-motion="reduced"] .sidebar-column {
   gap: 0.5rem;
 }
 
+.wiki-preview-html {
+  background: var(--background);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  overflow: auto;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.wiki-preview-html .markus-document {
+  display: grid;
+  gap: 0.75rem;
+  color: var(--text-foreground);
+}
+
+.wiki-preview-html .markus-document > * + * {
+  margin-top: 0;
+}
+
+.wiki-preview-html .markus-document h1,
+.wiki-preview-html .markus-document h2,
+.wiki-preview-html .markus-document h3,
+.wiki-preview-html .markus-document h4 {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.wiki-preview-html .markus-document h1 {
+  font-size: 1.15rem;
+}
+
+.wiki-preview-html .markus-document h2 {
+  font-size: 1.05rem;
+}
+
+.wiki-preview-html .markus-document p,
+.wiki-preview-html .markus-document ul,
+.wiki-preview-html .markus-document ol {
+  margin: 0;
+}
+
+.wiki-preview-html .markus-document a {
+  color: var(--text-selected);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.wiki-preview-html .markus-document code {
+  background: var(--card-muted);
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.85em;
+}
+
+.wiki-preview-html .markus-document pre {
+  background: var(--card-muted);
+  border-radius: 10px;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.wiki-preview-html .markus-document blockquote {
+  margin: 0;
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+  color: var(--text-muted);
+}
+
+.wiki-preview-html .markus-pull-quote {
+  margin: 0;
+}
+
+.wiki-preview-html .markus-pull-quote blockquote {
+  border-left: 3px solid var(--text-selected);
+  padding: 0.35rem 0 0.35rem 0.85rem;
+  color: var(--text-foreground);
+  font-size: 1.02rem;
+}
+
+.wiki-preview-html .markus-pull-quote figcaption {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.wiki-preview-html .markus-card-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.wiki-preview-html .markus-card {
+  background: var(--card-muted);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.wiki-preview-html .markus-card-title,
+.wiki-preview-html .markus-card h2,
+.wiki-preview-html .markus-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.wiki-preview-html .markus-card-body > :first-child {
+  margin-top: 0;
+}
+
+.wiki-preview-html .markus-callout,
+.wiki-preview-html .markus-two-up,
+.wiki-preview-html .markus-aside,
+.wiki-preview-html .markus-details,
+.wiki-preview-html .markus-figure {
+  background: var(--card-muted);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+}
+
 .wiki-toolbar {
   display: flex;
   align-items: center;
