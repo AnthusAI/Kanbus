@@ -204,27 +204,27 @@ function StatusTreeRow({
                 <span className="status-tree-id" data-testid="status-tree-id">
                   {formattedIssueId}
                 </span>
-              </div>
-              {statusKey ? (
-                <span
-                  className="status-badge status-tree-status"
-                  data-testid="status-tree-status"
-                  data-issue-status={statusKey}
-                  data-status-color={statusColorName ?? undefined}
-                  style={statusBadgeStyle}
+                <button
+                  type="button"
+                  className="status-tree-title-button"
+                  data-testid="status-tree-title"
+                  onClick={() => onSelectIssue?.(issue)}
                 >
-                  {statusLabel}
-                </span>
-              ) : null}
+                  {issue.title}
+                </button>
+                {statusKey ? (
+                  <span
+                    className="status-badge status-tree-status"
+                    data-testid="status-tree-status"
+                    data-issue-status={statusKey}
+                    data-status-color={statusColorName ?? undefined}
+                    style={statusBadgeStyle}
+                  >
+                    {statusLabel}
+                  </span>
+                ) : null}
+              </div>
             </div>
-            <button
-              type="button"
-              className="status-tree-title-button"
-              data-testid="status-tree-title"
-              onClick={() => onSelectIssue?.(issue)}
-            >
-              {issue.title}
-            </button>
             <div className="status-tree-summary" data-testid="status-tree-summary">
               {summaryText}
             </div>
