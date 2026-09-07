@@ -1,0 +1,41 @@
+{
+  "id": "kbs-54f355df-4b45-4433-9b17-41be238acc63",
+  "title": "Wiki Jinja blocked_by is unknown",
+  "description": "Live wiki page blocked_issues.md fails render with:\n\n    unknown function: blocked_by is unknown (in <string>:6)\n\nWIKI_GUIDE documents template helpers query, count, issue, children, blocked_by, and blocks. Wiki Jinja currently registers query, count, issue, references, and ai_summarize only.\n\n## Acceptance\n- blocked_by(id) returns issues that block the given id (targets of blocked-by dependencies)\n- children(id) and blocks(id) are registered as documented\n- Rendering blocked_issues.md / equivalent fixture succeeds\n- Python and Rust stay in parity\n\nRequested card id kbs-993960.\n\nFeature:\n  Scenario: Render blocked issues with blocked_by\n    Given a blocked issue depends on a blocker\n    When I render blocked_issues.md\n    Then the command succeeds and lists the blocker",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 0,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-472c8199-14a0-44e6-8105-b5f0370f6d63",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1e4ec8d4-d60c-42be-9cd2-5288f6b6c0a8",
+      "author": "ubuntu",
+      "text": "Implementing documented wiki Jinja helpers on PR https://github.com/AnthusAI/Kanbus/pull/226 (same branch as Markus pipeline; requested card kbs-993960).\n\nblocked_by(id) returns blockers (targets of blocked-by). Also registering children(id) and blocks(id) as WIKI_GUIDE documents them.\n\nDo not merge #226 until this render path is green.",
+      "created_at": "2026-09-07T20:42:48.467261Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "wiki-markus-pipeline",
+        "settings": {}
+      }
+    }
+  ],
+  "created_at": "2026-09-07T20:32:02.214977Z",
+  "updated_at": "2026-09-07T20:42:48.467346Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "wiki-markus-pipeline",
+    "settings": {}
+  }
+}
