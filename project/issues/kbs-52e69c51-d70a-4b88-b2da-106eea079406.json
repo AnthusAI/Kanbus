@@ -1,0 +1,41 @@
+{
+  "id": "kbs-52e69c51-d70a-4b88-b2da-106eea079406",
+  "title": "Console Wiki tab shows empty when pages exist",
+  "description": "## Symptom\nThe console Wiki tab shows **Wiki Home** and *This directory is empty.* even when `GET /api/wiki/pages` returns markdown paths and files exist under `project/wiki/`.\n\nRelated cards referenced by the report: kbs-e77e32 (serve data root / wiki path) and kbs-177741 (empty-state honesty). Those IDs are not on this board; this bug covers both the false-empty listing and honest empty/missing/error states.\n\n## Intent\nAs a console user, I want the Wiki tab to show existing pages (or open `index.md`) and to distinguish a missing wiki folder, a truly empty wiki, and a failed pages request, so I am not told the directory is empty when it is not.\n\n## Definition of Done\n- With `project/wiki/*.md`, the Wiki tab lists those pages or auto-opens `index.md`.\n- If the wiki directory is missing, the UI says the wiki folder is missing (not the empty-directory copy).\n- If `/api/wiki/pages` fails, a visible error is shown (not a silent empty directory).\n- Console Gherkin covers the false-empty and missing-directory cases.\n- Python and Rust step definitions stay in parity.\n\n```mermaid\nflowchart TD\n  openWiki[Open Wiki tab] --> fetchPages[GET /api/wiki/pages]\n  fetchPages -->|invalid or HTTP error| showError[Show visible load error]\n  fetchPages -->|wiki_directory_exists false| showMissing[Show wiki folder is missing]\n  fetchPages -->|pages include index.md| openIndex[Open index.md]\n  fetchPages -->|pages exist without index| showListing[Show directory listing]\n  fetchPages -->|directory exists and pages empty| showEmpty[Show this directory is empty]\n```",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "50597187-5ee0-487a-a816-33847a64fea5",
+      "author": "ubuntu",
+      "text": "Feature: Console wiki workspace\n\n  Scenario: existing wiki pages are listed instead of a false empty directory\n    Given the console is open\n    And a wiki page \"notes.md\" exists with content:\n      \"\"\"\n      Notes body\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki page list should include \"notes.md\"\n    And the wiki empty state should not be visible\n\n  Scenario: wiki home opens index.md when that page exists\n    Given the console is open\n    And a wiki page \"index.md\" exists with content:\n      \"\"\"\n      Wiki home\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki editor path should be \"index.md\"\n    And the wiki empty state should not be visible\n\n  Scenario: missing wiki directory is distinct from an empty wiki\n    Given the console is open\n    And the console wiki directory is missing\n    When I switch to the \"Wiki\" view\n    Then the wiki missing-directory state should be visible\n    And the wiki empty state should not be visible\n\n  Scenario: wiki pages request failure shows a visible error\n    Given the console is open\n    And the console wiki pages request fails\n    When I switch to the \"Wiki\" view\n    Then the wiki error banner should contain \"wiki pages request failed\"\n    And the wiki empty state should not be visible",
+      "created_at": "2026-09-07T19:06:07.345703Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": null,
+        "settings": {}
+      }
+    }
+  ],
+  "created_at": "2026-09-07T19:05:57.931381Z",
+  "updated_at": "2026-09-07T19:06:07.345776Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6-high-fast",
+    "name": null,
+    "settings": {}
+  }
+}
