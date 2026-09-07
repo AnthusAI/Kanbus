@@ -8,6 +8,7 @@ from kanbus import wiki
 from kanbus import config_loader, project
 from kanbus.console_snapshot import ConsoleSnapshotError
 from kanbus.config_loader import ConfigurationError
+from kanbus.models import DependencyLink
 from kanbus.project import ProjectMarkerError
 
 from test_helpers import build_issue, build_project_configuration
@@ -62,6 +63,60 @@ def test_wiki_context_query_count_issue_and_invalid_sort() -> None:
 
     with pytest.raises(wiki.WikiError, match="invalid sort key"):
         context.query(sort="bad")
+
+
+def test_wiki_context_children_blocked_by_and_blocks() -> None:
+    parent = build_issue("kanbus-epic01", title="Epic", issue_type="epic")
+    child = build_issue("kanbus-child", title="Child", parent="kanbus-epic01")
+    blocker = build_issue("kanbus-blocker", title="Blocker")
+    blocked = build_issue("kanbus-blocked01", title="Blocked", status="blocked")
+    blocked = blocked.model_copy(
+        update={
+            "dependencies": [
+                DependencyLink(target="kanbus-blocker", type="blocked-by"),
+                DependencyLink(target="kanbus-epic01", type="relates-to"),
+            ]
+        }
+    )
+    context = wiki.WikiContext([parent, child, blocker, blocked], root=Path.cwd())
+
+    assert [row["id"] for row in context.children("kanbus-epic01")] == ["kanbus-child"]
+    assert context.children("missing") == []
+
+    blockers = context.blocked_by("kanbus-blocked01")
+    assert [row["id"] for row in blockers] == ["kanbus-blocker"]
+    assert context.blocked_by("kanbus-blocker") == []
+    assert context.blocked_by("missing") == []
+
+    blocked_rows = context.blocks("kanbus-blocker")
+    assert [row["id"] for row in blocked_rows] == ["kanbus-blocked01"]
+    assert context.blocks("kanbus-blocked01") == []
+
+
+def test_render_template_string_blocked_by_helper() -> None:
+    blocker = build_issue("kanbus-blocker", title="Blocker")
+    blocked = build_issue("kanbus-blocked01", title="Blocked", status="blocked")
+    blocked = blocked.model_copy(
+        update={
+            "dependencies": [DependencyLink(target="kanbus-blocker", type="blocked-by")]
+        }
+    )
+    rendered = wiki.render_template_string(
+        "{% for blocker in blocked_by('kanbus-blocked01') %}{{ blocker.id }}{% endfor %}",
+        [blocker, blocked],
+    )
+    assert rendered == "kanbus-blocker"
+
+    combined = wiki.render_template_string(
+        (
+            "{% for issue in query(status='blocked') %}"
+            "{{ issue.id }}:"
+            "{% for blocker in blocked_by(issue.id) %}{{ blocker.id }}{% endfor %}"
+            "{% endfor %}"
+        ),
+        [blocker, blocked],
+    )
+    assert combined == "kanbus-blocked01:kanbus-blocker"
 
 
 def test_wiki_render_cache_helpers(

@@ -751,6 +751,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
             .map(serialize_issue_for_wiki);
         Ok(Value::from_serialize(found))
     });
+    add_wiki_relationship_functions(&mut env, Arc::clone(&issues));
 
     let references_root_for_fn = references_root.clone();
     env.add_function("references", move |kwargs: Kwargs| {
@@ -862,6 +863,74 @@ fn serialize_issue_for_wiki(issue: &IssueData) -> BTreeMap<String, JsonValue> {
 
 fn serialize_issues_for_wiki(issues: &[IssueData]) -> Vec<BTreeMap<String, JsonValue>> {
     issues.iter().map(serialize_issue_for_wiki).collect()
+}
+
+/// Register documented relationship helpers: children, blocked_by, and blocks.
+fn add_wiki_relationship_functions(env: &mut Environment<'_>, issues: Arc<Vec<IssueData>>) {
+    let children_issues = Arc::clone(&issues);
+    env.add_function("children", move |identifier: String| {
+        Ok(Value::from_serialize(wiki_children(
+            &children_issues,
+            &identifier,
+        )))
+    });
+    let blocked_by_issues = Arc::clone(&issues);
+    env.add_function("blocked_by", move |identifier: String| {
+        Ok(Value::from_serialize(wiki_blocked_by(
+            &blocked_by_issues,
+            &identifier,
+        )))
+    });
+    let blocks_issues = Arc::clone(&issues);
+    env.add_function("blocks", move |identifier: String| {
+        Ok(Value::from_serialize(wiki_blocks(
+            &blocks_issues,
+            &identifier,
+        )))
+    });
+}
+
+/// Return issues whose parent matches `identifier`, sorted by id.
+fn wiki_children(issues: &[IssueData], identifier: &str) -> Vec<BTreeMap<String, JsonValue>> {
+    let mut children: Vec<&IssueData> = issues
+        .iter()
+        .filter(|issue| issue.parent.as_deref() == Some(identifier))
+        .collect();
+    children.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    children.into_iter().map(serialize_issue_for_wiki).collect()
+}
+
+/// Return targets of the issue's `blocked-by` dependencies, sorted by id.
+fn wiki_blocked_by(issues: &[IssueData], identifier: &str) -> Vec<BTreeMap<String, JsonValue>> {
+    let Some(source) = issues.iter().find(|issue| issue.identifier == identifier) else {
+        return Vec::new();
+    };
+    let blocker_ids: Vec<&str> = source
+        .dependencies
+        .iter()
+        .filter(|dependency| dependency.dependency_type == "blocked-by")
+        .map(|dependency| dependency.target.as_str())
+        .collect();
+    let mut blockers: Vec<&IssueData> = issues
+        .iter()
+        .filter(|issue| blocker_ids.contains(&issue.identifier.as_str()))
+        .collect();
+    blockers.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    blockers.into_iter().map(serialize_issue_for_wiki).collect()
+}
+
+/// Return issues that declare a `blocked-by` dependency on `identifier`.
+fn wiki_blocks(issues: &[IssueData], identifier: &str) -> Vec<BTreeMap<String, JsonValue>> {
+    let mut blocked: Vec<&IssueData> = issues
+        .iter()
+        .filter(|issue| {
+            issue.dependencies.iter().any(|dependency| {
+                dependency.dependency_type == "blocked-by" && dependency.target == identifier
+            })
+        })
+        .collect();
+    blocked.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    blocked.into_iter().map(serialize_issue_for_wiki).collect()
 }
 
 fn filter_issues_from_kwargs(
@@ -1201,7 +1270,10 @@ fn apply_issue_type_filter(issues: &mut Vec<IssueData>, issue_type_filter: &str)
     }
 }
 
-/// Render a template string with wiki context (query, count, issue).
+/// Render a template string with wiki context helpers.
+///
+/// Registered helpers: `query`, `count`, `issue`, `children`, `blocked_by`,
+/// `blocks`, and `references`.
 ///
 /// # Arguments
 /// * `text` - Template string (may contain Jinja2).
@@ -1247,6 +1319,7 @@ pub fn render_template_string(text: &str, issues: &[IssueData]) -> Result<String
             .map(serialize_issue_for_wiki);
         Ok(Value::from_serialize(found))
     });
+    add_wiki_relationship_functions(&mut env, Arc::clone(&issues));
     let references_root_for_fn = references_root.clone();
     env.add_function("references", move |kwargs: Kwargs| {
         let status = read_string_kwarg(&kwargs, "status")?;
@@ -1337,6 +1410,8 @@ pub fn format_wiki_render_json(page_path: &str, rendered: &str, rendered_html: &
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::DependencyLink;
+    use std::collections::BTreeMap;
 
     /// Regression: `markdown_code_excluded_ranges` must not panic on multi-byte
     /// UTF-8 characters (e.g. em-dash `—`, U+2014) when iterating byte-by-byte.
@@ -1416,5 +1491,145 @@ mod tests {
             wiki_page_display_title("Just a paragraph.", "untitled_notes.md"),
             "untitled_notes"
         );
+    }
+
+    fn wiki_test_issue(
+        identifier: &str,
+        title: &str,
+        status: &str,
+        parent: Option<&str>,
+        dependencies: Vec<DependencyLink>,
+    ) -> IssueData {
+        IssueData {
+            identifier: identifier.to_string(),
+            title: title.to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: status.to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: parent.map(str::to_string),
+            labels: Vec::new(),
+            dependencies,
+            comments: Vec::new(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn wiki_relationship_helpers_children_blocked_by_and_blocks() {
+        let parent = wiki_test_issue("kanbus-epic01", "Epic", "open", None, Vec::new());
+        let child = wiki_test_issue(
+            "kanbus-child",
+            "Child",
+            "open",
+            Some("kanbus-epic01"),
+            Vec::new(),
+        );
+        let blocker = wiki_test_issue("kanbus-blocker", "Blocker", "open", None, Vec::new());
+        let blocked = wiki_test_issue(
+            "kanbus-blocked01",
+            "Blocked",
+            "blocked",
+            None,
+            vec![
+                DependencyLink {
+                    target: "kanbus-blocker".to_string(),
+                    dependency_type: "blocked-by".to_string(),
+                },
+                DependencyLink {
+                    target: "kanbus-epic01".to_string(),
+                    dependency_type: "relates-to".to_string(),
+                },
+            ],
+        );
+        let issues = vec![parent, child, blocker, blocked];
+
+        let children = wiki_children(&issues, "kanbus-epic01");
+        assert_eq!(
+            children
+                .iter()
+                .map(|row| row
+                    .get("id")
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or_default())
+                .collect::<Vec<_>>(),
+            vec!["kanbus-child"]
+        );
+        assert!(wiki_children(&issues, "missing").is_empty());
+
+        let blockers = wiki_blocked_by(&issues, "kanbus-blocked01");
+        assert_eq!(
+            blockers
+                .iter()
+                .map(|row| row
+                    .get("id")
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or_default())
+                .collect::<Vec<_>>(),
+            vec!["kanbus-blocker"]
+        );
+        assert!(wiki_blocked_by(&issues, "kanbus-blocker").is_empty());
+        assert!(wiki_blocked_by(&issues, "missing").is_empty());
+
+        let blocked_rows = wiki_blocks(&issues, "kanbus-blocker");
+        assert_eq!(
+            blocked_rows
+                .iter()
+                .map(|row| row
+                    .get("id")
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or_default())
+                .collect::<Vec<_>>(),
+            vec!["kanbus-blocked01"]
+        );
+        assert!(wiki_blocks(&issues, "kanbus-blocked01").is_empty());
+    }
+
+    #[test]
+    fn render_template_string_blocked_by_helper() {
+        let blocker = wiki_test_issue("kanbus-blocker", "Blocker", "open", None, Vec::new());
+        let blocked = wiki_test_issue(
+            "kanbus-blocked01",
+            "Blocked",
+            "blocked",
+            None,
+            vec![DependencyLink {
+                target: "kanbus-blocker".to_string(),
+                dependency_type: "blocked-by".to_string(),
+            }],
+        );
+        let rendered = render_template_string(
+            "{% for blocker in blocked_by('kanbus-blocked01') %}{{ blocker.id }}{% endfor %}",
+            &[blocker, blocked],
+        )
+        .expect("render blocked_by helper");
+        assert_eq!(rendered, "kanbus-blocker");
+    }
+
+    #[test]
+    fn render_template_string_query_blocked_with_blocked_by() {
+        let blocker = wiki_test_issue("kanbus-blocker", "Blocker", "open", None, Vec::new());
+        let blocked = wiki_test_issue(
+            "kanbus-blocked01",
+            "Blocked",
+            "blocked",
+            None,
+            vec![DependencyLink {
+                target: "kanbus-blocker".to_string(),
+                dependency_type: "blocked-by".to_string(),
+            }],
+        );
+        let template = "{% for issue in query(status=\"blocked\") %}{{ issue.id }}:{% for blocker in blocked_by(issue.id) %}{{ blocker.id }}{% endfor %}{% endfor %}";
+        let rendered = render_template_string(template, &[blocker, blocked])
+            .expect("render query plus blocked_by");
+        assert_eq!(rendered, "kanbus-blocked01:kanbus-blocker");
     }
 }
