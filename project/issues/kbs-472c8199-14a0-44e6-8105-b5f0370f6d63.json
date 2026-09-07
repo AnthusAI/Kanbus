@@ -3,7 +3,7 @@
   "title": "Markus wiki",
   "description": "Wiki pages render in two stages: Jinja templates first against the live issue index, then anthus-markus (Anthus-Flavored Markdown) for semantic HTML. The console styles Markus classes and does not invent a second markdown dialect.\n\n## Definition of Done\n- Acceptance specs for Jinja then Markus are on develop\n- Python wiki render uses Jinja then markusmd.convert\n- Console preview consumes backend HTML and styles Markus classes\n- One PR against develop",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -17,25 +17,22 @@
       "text": "Implementation PR for the Markus wiki pipeline: https://github.com/AnthusAI/Kanbus/pull/226\n\nChildren: kbs-4685fd (spec), kbs-55dddb (Python), kbs-47eb9b (console). Requested epic id kbs-bd41d7 was not on this board snapshot.",
       "created_at": "2026-09-07T20:21:17.454702Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
         "model": "cursor-grok-4.6",
-        "name": "wiki-markus-pipeline",
-        "settings": {}
+        "name": "wiki-markus-pipeline"
       }
     }
   ],
   "created_at": "2026-09-07T20:10:40.199469Z",
-  "updated_at": "2026-09-07T20:21:17.454771Z",
-  "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {},
+  "updated_at": "2026-09-07T20:55:33.908400452Z",
+  "closed_at": "2026-09-07T20:55:33.900506405Z",
   "agent": {
     "platform": "cursor",
     "model": "cursor-grok-4.6",
-    "name": "wiki-markus-pipeline",
-    "settings": {}
-  }
+    "name": "wiki-markus-pipeline"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
 }

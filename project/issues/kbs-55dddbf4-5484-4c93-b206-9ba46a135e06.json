@@ -3,7 +3,7 @@
   "title": "Python: render wiki via Jinja then anthus-markus",
   "description": "Implement Python wiki render: Jinja then anthus-markus. Add wiki render --html and extend --json with rendered_html. Wire the console/API path that serves rendered wiki HTML to this pipeline.\n\nRequested card id kbs-357e3d was not present on this develop board; this task continues that work.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -17,25 +17,22 @@
       "text": "In progress on https://github.com/AnthusAI/Kanbus/pull/226\n\nPython `wiki render` now runs Jinja then `anthus-markus` (`markusmd.convert`). `--html` prints Markus HTML; `--json` includes `rendered_html`. Unknown `:::directives` fail with `Unknown directive`. Console/API render responses include `rendered_html`. Do not close until #226 merges. Requested id kbs-357e3d was not on this board snapshot.",
       "created_at": "2026-09-07T20:21:16.098358Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
         "model": "cursor-grok-4.6",
-        "name": "wiki-markus-pipeline",
-        "settings": {}
+        "name": "wiki-markus-pipeline"
       }
     }
   ],
   "created_at": "2026-09-07T20:10:47.800594Z",
-  "updated_at": "2026-09-07T20:21:16.098431Z",
-  "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {},
+  "updated_at": "2026-09-07T20:55:29.217073496Z",
+  "closed_at": "2026-09-07T20:55:29.209230033Z",
   "agent": {
     "platform": "cursor",
     "model": "cursor-grok-4.6",
-    "name": "wiki-markus-pipeline",
-    "settings": {}
-  }
+    "name": "wiki-markus-pipeline"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
 }
