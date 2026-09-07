@@ -828,7 +828,7 @@ export default function App() {
   }, [route.basePath]);
 
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (route.basePath == null || !authReady) {
       return;
     }
     const snapshotApiBase = `${route.basePath}/api`;
@@ -853,7 +853,7 @@ export default function App() {
 
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (route.basePath == null || !authReady) {
       return;
     }
     const apiBase = `${route.basePath}/api`;

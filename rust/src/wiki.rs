@@ -1632,4 +1632,45 @@ mod tests {
             .expect("render query plus blocked_by");
         assert_eq!(rendered, "kanbus-blocked01:kanbus-blocker");
     }
+
+    #[test]
+    fn extract_wiki_title_ignores_unclosed_frontmatter() {
+        let content = "---\ntitle: Incomplete\n# Heading title\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Heading title".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_reads_indented_frontmatter_title() {
+        let content = "---\n  title: Indented title\n---\n# Ignored\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Indented title".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_unquotes_single_quoted_frontmatter_title() {
+        let content = "---\ntitle: 'Single quoted'\n---\n# Heading\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Single quoted".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_skips_empty_frontmatter_title() {
+        let content = "---\ntitle: \"\"\n---\n# Heading title\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Heading title".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_returns_none_without_heading() {
+        assert_eq!(extract_wiki_title("paragraph only"), None);
+    }
 }

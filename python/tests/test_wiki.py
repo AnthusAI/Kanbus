@@ -484,3 +484,50 @@ def test_format_wiki_render_json_includes_rendered_html() -> None:
     assert '"rendered": "Open: 3"' in payload
     assert "rendered_html" in payload
     assert "markus-document" in payload
+
+
+def test_extract_wiki_title_ignores_unclosed_frontmatter() -> None:
+    content = "---\ntitle: Incomplete\n# Heading title\n"
+    assert wiki.extract_wiki_title(content) == "Heading title"
+
+
+def test_extract_wiki_title_reads_indented_frontmatter_title() -> None:
+    content = "---\n  title: Indented title\n---\n# Ignored\n"
+    assert wiki.extract_wiki_title(content) == "Indented title"
+
+
+def test_extract_wiki_title_unquotes_single_quoted_frontmatter_title() -> None:
+    content = "---\ntitle: 'Single quoted'\n---\n# Heading\n"
+    assert wiki.extract_wiki_title(content) == "Single quoted"
+
+
+def test_extract_wiki_title_skips_empty_frontmatter_title() -> None:
+    content = '---\ntitle: ""\n---\n# Heading title\n'
+    assert wiki.extract_wiki_title(content) == "Heading title"
+
+
+def test_extract_wiki_title_returns_none_without_heading() -> None:
+    assert wiki.extract_wiki_title("paragraph only") is None
+
+
+def test_resolve_wiki_internal_link_ignores_parent_above_root() -> None:
+    assert wiki._resolve_wiki_internal_link("index.md", "../outside.md") == "outside.md"
+
+
+def test_search_wiki_pages_matches_display_title(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg_path = tmp_path / ".kanbus.yml"
+    monkeypatch.setattr(project, "get_configuration_path", lambda _root: cfg_path)
+    cfg = build_project_configuration().model_copy(
+        update={"project_directory": "project", "wiki_directory": "wiki"}
+    )
+    monkeypatch.setattr(config_loader, "load_project_configuration", lambda _path: cfg)
+    wiki_root = tmp_path / "project" / "wiki"
+    wiki_root.mkdir(parents=True)
+    (wiki_root / "notes.md").write_text(
+        "---\ntitle: Epic progress\n---\nBody without the query.\n",
+        encoding="utf-8",
+    )
+    matches = wiki.search_wiki_pages(tmp_path, "Epic progress")
+    assert matches == ["project/wiki/notes.md"]

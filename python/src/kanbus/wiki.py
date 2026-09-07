@@ -894,10 +894,6 @@ def wiki_page_display_title(content: str, path: str) -> str:
     return Path(path).stem
 
 
-def _extract_wiki_title(content: str) -> str | None:
-    return extract_wiki_title(content)
-
-
 def _split_wiki_frontmatter(content: str) -> tuple[str | None, str]:
     text = content.lstrip("\ufeff")
     lines = text.splitlines()

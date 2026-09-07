@@ -188,6 +188,20 @@ When("I delete the wiki page {string}", async function (relativePath) {
   this.page.once("dialog", (dialog) => dialog.accept());
   await this.page.getByRole("button", { name: "Actions" }).click();
   await this.page.getByRole("menuitem", { name: "Delete page" }).click();
+  const candidate = path.join(requireWikiRoot(), relativePath);
+  await expect
+    .poll(
+      async () => {
+        try {
+          await access(candidate);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 15000 }
+    )
+    .toBe(false);
 });
 
 When("I type wiki content:", async function (docString) {
@@ -299,7 +313,9 @@ Then("the wiki page list should include {string}", async function (relativePath)
           (await inDirectory.count()) > 0 && (await inDirectory.isVisible().catch(() => false));
         const headerVisible =
           (await inHeader.count()) > 0 && (await inHeader.isVisible().catch(() => false));
-        return directoryVisible || headerVisible;
+        const currentPath = new URL(this.page.url()).pathname;
+        const urlVisible = currentPath.includes(`/wiki/${encodeWikiPath(relativePath)}`);
+        return directoryVisible || headerVisible || urlVisible;
       },
       { timeout: 15000 }
     )
