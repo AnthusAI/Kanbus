@@ -7,7 +7,7 @@
   "priority": 2,
   "assignee": null,
   "creator": null,
-  "parent": "kbs-bd41d7",
+  "parent": "kbs-bd41d7ca-09b7-44f6-8187-dafac10706b3",
   "labels": [],
   "dependencies": [],
   "comments": [
@@ -25,7 +25,7 @@
     }
   ],
   "created_at": "2026-09-07T20:11:13.082466847Z",
-  "updated_at": "2026-09-07T20:11:23.827462549Z",
+  "updated_at": "2026-09-07T20:15:52.257527224Z",
   "closed_at": "2026-09-07T20:11:23.820836427Z",
   "agent": {
     "platform": "cursor",
