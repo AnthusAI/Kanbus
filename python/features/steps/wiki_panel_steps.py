@@ -218,6 +218,23 @@ def given_console_wiki_pages_request_fails(context: object) -> None:
     wiki.error_banner = None
 
 
+@given("the console wiki pages request hangs")
+def given_console_wiki_pages_request_hangs(context: object) -> None:
+    """Record a hung wiki pages request as a visible load failure.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :return: None
+    :rtype: None
+    """
+    wiki = _ensure_wiki_state(context)
+    wiki.pages = {}
+    wiki.page_order = []
+    wiki.selected_path = None
+    wiki.pages_request_failed = True
+    wiki.error_banner = None
+
+
 @then("the wiki empty state should be visible")
 def then_wiki_empty_state_visible(context: object) -> None:
     wiki = _ensure_wiki_state(context)

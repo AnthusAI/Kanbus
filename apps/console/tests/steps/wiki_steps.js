@@ -253,6 +253,10 @@ Given("the console wiki pages request fails", async function () {
   });
 });
 
+Given("the console wiki pages request hangs", async function () {
+  await this.page.route("**/api/wiki/pages", () => new Promise(() => {}));
+});
+
 Then("the wiki empty state should be visible", async function () {
   await expect(this.page.getByTestId("wiki-empty-directory")).toBeVisible();
   await expect(this.page.getByTestId("wiki-missing-directory")).toHaveCount(0);
@@ -369,7 +373,7 @@ Then("the wiki status should show {string}", async function (expected) {
 });
 
 Then("the wiki error banner should contain {string}", async function (message) {
-  await expect(this.page.locator(".wiki-error")).toContainText(message);
+  await expect(this.page.locator(".wiki-error")).toContainText(message, { timeout: 20000 });
 });
 
 Then("the wiki preview should still contain {string}", async function (expected) {
