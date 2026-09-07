@@ -101,6 +101,8 @@ pub struct WikiWorkspaceState {
     pub preview_content: String,
     pub status: String,
     pub error_banner: Option<String>,
+    pub wiki_directory_exists: bool,
+    pub pages_request_failed: bool,
 }
 
 impl WikiWorkspaceState {
@@ -113,6 +115,8 @@ impl WikiWorkspaceState {
             preview_content: "No preview yet".to_string(),
             status: "Saved".to_string(),
             error_banner: None,
+            wiki_directory_exists: true,
+            pages_request_failed: false,
         }
     }
 }
@@ -1023,9 +1027,10 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
         world.console_local_storage.panel_mode = Some("wiki".to_string());
         ensure_wiki_state(world);
         let wiki = world.console_wiki_state.as_mut().expect("wiki state");
-        if wiki.selected_path.is_none() && !wiki.page_order.is_empty() {
-            let first = wiki.page_order[0].clone();
-            select_wiki_page(wiki, &first);
+        if wiki.pages_request_failed {
+            wiki.error_banner = Some("wiki pages request failed".to_string());
+            wiki.selected_path = None;
+            return;
         }
         return;
     }
@@ -1042,6 +1047,11 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
 fn then_board_view_active(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert_eq!(state.panel_mode, "board");
+}
+
+#[then("the console board should be visible")]
+fn then_console_board_should_be_visible(world: &mut KanbusWorld) {
+    require_console_state(world);
 }
 
 #[then("the board view should be inactive")]

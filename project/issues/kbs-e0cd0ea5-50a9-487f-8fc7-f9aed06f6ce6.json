@@ -1,0 +1,69 @@
+{
+  "id": "kbs-e0cd0ea5-50a9-487f-8fc7-f9aed06f6ce6",
+  "title": "Wiki directory list shows page titles not filenames",
+  "description": "## Intent\nAs a console user, I want directory listings to show page titles, so I can scan Wiki Home by meaning rather than by filename.\n\n## Title resolution\n1. YAML frontmatter `title:`\n2. Else first markdown H1\n3. Else file stem\n\n## Gherkin\n\nFeature: Console wiki workspace\n\n  Scenario: wiki directory listing shows H1 title instead of filename\n    Given the console is open\n    And a wiki page \"blocked_issues.md\" exists with content:\n      \"\"\"\n      # Blocked issues\n      Open items that cannot move.\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki directory listing should show \"Blocked issues\"\n    And the wiki directory listing should not show \"blocked_issues.md\"\n\n  Scenario: wiki directory listing shows frontmatter title instead of H1\n    Given the console is open\n    And a wiki page \"epic_progress.md\" exists with content:\n      \"\"\"\n      ---\n      title: Epic progress\n      ---\n      # Ignored heading\n      Status body\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki directory listing should show \"Epic progress\"\n    And the wiki directory listing should not show \"epic_progress.md\"\n    And the wiki directory listing should not show \"Ignored heading\"\n\n  Scenario: wiki directory listing falls back to file stem without title\n    Given the console is open\n    And a wiki page \"untitled_notes.md\" exists with content:\n      \"\"\"\n      Just a paragraph with no heading.\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki directory listing should show \"untitled_notes\"\n    And the wiki directory listing should not show \"untitled_notes.md\"\n\n  Scenario: clicking a titled wiki page still navigates by path\n    Given the console is open\n    And a wiki page \"blocked_issues.md\" exists with content:\n      \"\"\"\n      # Blocked issues\n      Open items that cannot move.\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    And I select the wiki page titled \"Blocked issues\"\n    Then the wiki editor path should be \"blocked_issues.md\"",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e5b9cba7-a92b-427c-b388-56bfd41b1cff",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b91454da-2b45-46ca-8bc5-2f348053cde2",
+      "author": "ubuntu",
+      "text": "Implementation is on PR 223 (cursor/wiki-directory-titles-09f4). GET /api/wiki/pages now returns {path, title}. Directory listings show frontmatter, then H1, then stem. Python and Rust cucumber cover wiki-ui-018 through wiki-ui-021.",
+      "created_at": "2026-09-07T19:46:38.164964Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
+    },
+    {
+      "id": "da13074c-6b71-4c0e-8664-5cc56c145a9e",
+      "author": "ubuntu",
+      "text": "Canonical tracking story is kbs-413afd (kbs-413afd00-1e2d-449b-a17e-21e41c9f77d4) under Markus epic kbs-bd41d7. PR 223 now references that id.",
+      "created_at": "2026-09-07T19:47:11.766157Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
+    },
+    {
+      "id": "7b6ce452-3128-4636-995c-f1fd05c44262",
+      "author": "ubuntu",
+      "text": "Live verify for kbs-413afd: Wiki Home no longer auto-opens index.md. Empty route shows the titled directory listing; index.md stays reachable by clicking its title. Tracking kbs-413afd / kbs-bd41d7.",
+      "created_at": "2026-09-07T19:54:57.862132Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
+    }
+  ],
+  "created_at": "2026-09-07T19:36:49.392038Z",
+  "updated_at": "2026-09-07T19:54:57.862206Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": null,
+    "settings": {}
+  }
+}

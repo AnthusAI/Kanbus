@@ -384,7 +384,7 @@ def search_wiki_pages(root: Path, query: str) -> List[str]:
         relative = path.relative_to(location.wiki_root)
         listed_path = f"{location.list_prefix}/{relative.as_posix()}"
         body = path.read_text(encoding="utf-8")
-        title = _extract_wiki_title(body) or path.stem
+        title = wiki_page_display_title(body, path.name)
         haystack = f"{listed_path}\n{title}\n{body}".casefold()
         if needle in haystack:
             matches.append(listed_path)
@@ -758,11 +758,83 @@ def _serialize_issue(issue: IssueData) -> Dict[str, object]:
     return payload
 
 
-def _extract_wiki_title(content: str) -> str | None:
-    for line in content.splitlines():
+def extract_wiki_title(content: str) -> str | None:
+    """Extract a wiki page title from YAML frontmatter or the first markdown H1.
+
+    Resolution order:
+
+    1. YAML frontmatter ``title:`` when present
+    2. First markdown ATX H1 (``# Title``)
+
+    :param content: Raw markdown page source.
+    :type content: str
+    :return: Title string when frontmatter ``title`` or an H1 is present.
+    :rtype: str | None
+    """
+    frontmatter, body = _split_wiki_frontmatter(content)
+    if frontmatter is not None:
+        frontmatter_title = _extract_frontmatter_title(frontmatter)
+        if frontmatter_title:
+            return frontmatter_title
+    for line in body.splitlines():
         match = re.match(r"^#\s+(.+?)\s*$", line)
         if match:
             return match.group(1)
+    return None
+
+
+def wiki_page_display_title(content: str, path: str) -> str:
+    """Resolve the display title for a wiki page.
+
+    Uses YAML frontmatter ``title``, then the first markdown H1, then the file stem.
+
+    :param content: Raw markdown page source.
+    :type content: str
+    :param path: Wiki-relative page path used for the stem fallback.
+    :type path: str
+    :return: Display title.
+    :rtype: str
+    """
+    extracted = extract_wiki_title(content)
+    if extracted:
+        return extracted
+    return Path(path).stem
+
+
+def _extract_wiki_title(content: str) -> str | None:
+    return extract_wiki_title(content)
+
+
+def _split_wiki_frontmatter(content: str) -> tuple[str | None, str]:
+    text = content.lstrip("\ufeff")
+    lines = text.splitlines()
+    start = 0
+    while start < len(lines) and lines[start].strip() == "":
+        start += 1
+    if start >= len(lines) or lines[start].strip() != "---":
+        return None, text
+    for index, line in enumerate(lines[start + 1 :], start=start + 1):
+        if line.strip() == "---":
+            frontmatter = "\n".join(lines[start + 1 : index])
+            body = "\n".join(lines[index + 1 :])
+            return frontmatter, body
+    return None, text
+
+
+def _unquote_yaml_scalar(value: str) -> str:
+    stripped = value.strip()
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in {'"', "'"}:
+        return stripped[1:-1]
+    return stripped
+
+
+def _extract_frontmatter_title(frontmatter: str) -> str | None:
+    for line in frontmatter.splitlines():
+        match = re.match(r"^\s*title:\s*(.+?)\s*$", line)
+        if match:
+            title = _unquote_yaml_scalar(match.group(1))
+            if title:
+                return title
     return None
 
 

@@ -3,7 +3,7 @@ import { Folder, FileText } from "lucide-react";
 
 interface WikiDirectoryListingProps {
   path: string;
-  entries: { name: string; path: string; isDir: boolean }[];
+  entries: { name: string; path: string; isDir: boolean; title: string }[];
   onNavigate: (path: string) => void;
 }
 
@@ -19,7 +19,9 @@ export function WikiDirectoryListing({
       </div>
       
       {entries.length === 0 ? (
-        <div className="text-muted text-sm italic">This directory is empty.</div>
+        <div className="text-muted text-sm italic" data-testid="wiki-empty-directory">
+          This directory is empty.
+        </div>
       ) : (
         <div className="grid gap-2">
           {entries.map((entry) => (
@@ -27,6 +29,7 @@ export function WikiDirectoryListing({
               key={entry.path}
               type="button"
               className="flex items-center gap-3 w-full text-left rounded-lg px-3 py-2 text-sm transition-colors hover:bg-[var(--background)] text-foreground group"
+              data-wiki-path={entry.path}
               onClick={() => onNavigate(entry.path)}
             >
               {entry.isDir ? (
@@ -34,7 +37,7 @@ export function WikiDirectoryListing({
               ) : (
                 <FileText className="w-4 h-4 text-muted group-hover:text-foreground transition-colors" />
               )}
-              <span className="flex-1">{entry.name}</span>
+              <span className="flex-1">{entry.title}</span>
             </button>
           ))}
         </div>
