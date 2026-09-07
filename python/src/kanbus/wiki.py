@@ -808,11 +808,14 @@ def _extract_wiki_title(content: str) -> str | None:
 def _split_wiki_frontmatter(content: str) -> tuple[str | None, str]:
     text = content.lstrip("\ufeff")
     lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
+    start = 0
+    while start < len(lines) and lines[start].strip() == "":
+        start += 1
+    if start >= len(lines) or lines[start].strip() != "---":
         return None, text
-    for index, line in enumerate(lines[1:], start=1):
+    for index, line in enumerate(lines[start + 1 :], start=start + 1):
         if line.strip() == "---":
-            frontmatter = "\n".join(lines[1:index])
+            frontmatter = "\n".join(lines[start + 1 : index])
             body = "\n".join(lines[index + 1 :])
             return frontmatter, body
     return None, text
@@ -827,7 +830,7 @@ def _unquote_yaml_scalar(value: str) -> str:
 
 def _extract_frontmatter_title(frontmatter: str) -> str | None:
     for line in frontmatter.splitlines():
-        match = re.match(r"^title:\s*(.+?)\s*$", line)
+        match = re.match(r"^\s*title:\s*(.+?)\s*$", line)
         if match:
             title = _unquote_yaml_scalar(match.group(1))
             if title:

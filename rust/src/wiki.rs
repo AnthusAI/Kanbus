@@ -1121,12 +1121,16 @@ fn wiki_path_stem(path: &str) -> String {
 fn split_wiki_frontmatter(content: &str) -> (Option<String>, String) {
     let text = content.strip_prefix('\u{feff}').unwrap_or(content);
     let lines: Vec<&str> = text.lines().collect();
-    if lines.is_empty() || lines[0].trim() != "---" {
+    let mut start = 0;
+    while start < lines.len() && lines[start].trim().is_empty() {
+        start += 1;
+    }
+    if start >= lines.len() || lines[start].trim() != "---" {
         return (None, text.to_string());
     }
-    for (index, line) in lines.iter().enumerate().skip(1) {
+    for (index, line) in lines.iter().enumerate().skip(start + 1) {
         if line.trim() == "---" {
-            let frontmatter = lines[1..index].join("\n");
+            let frontmatter = lines[start + 1..index].join("\n");
             let body = lines[index + 1..].join("\n");
             return (Some(frontmatter), body);
         }
@@ -1136,7 +1140,8 @@ fn split_wiki_frontmatter(content: &str) -> (Option<String>, String) {
 
 fn extract_frontmatter_title(frontmatter: &str) -> Option<String> {
     for line in frontmatter.lines() {
-        let Some(value) = line.strip_prefix("title:") else {
+        let trimmed_line = line.trim();
+        let Some(value) = trimmed_line.strip_prefix("title:") else {
             continue;
         };
         let title = unquote_yaml_scalar(value.trim());
@@ -1366,6 +1371,15 @@ mod tests {
     #[test]
     fn extract_wiki_title_prefers_frontmatter_over_h1() {
         let content = "---\ntitle: Epic progress\n---\n# Ignored heading\nStatus body\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Epic progress".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_ignores_leading_blank_lines_before_frontmatter() {
+        let content = "\n---\ntitle: Epic progress\n---\n# Ignored heading\n";
         assert_eq!(
             extract_wiki_title(content),
             Some("Epic progress".to_string())
