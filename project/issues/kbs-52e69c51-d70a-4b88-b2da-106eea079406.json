@@ -38,10 +38,38 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "9cecb399-6eae-4b75-b004-1e9d49b55570",
+      "author": "ubuntu",
+      "text": "Live follow-up: opening `/api/wiki/pages` in a tab returns 12 paths, but `fetch('/api/wiki/pages')` from the Wiki tab stays pending. SSE `/api/events` shows `ERR_INCOMPLETE_CHUNKED_ENCODING`; telemetry POST is `ERR_CONNECTION_REFUSED`.\n\nWorking hypothesis: Vite proxy + long-lived SSE is starving or wedging the HTTP/1.1 connection pool, so the in-page wiki list request never settles. Snapshot/telemetry errors do not call into WikiPanel, but they can block its fetch.\n\nNext: SSE keep-alives, Vite proxy timeouts/cleanup, and a wiki list request timeout so a hung fetch becomes a visible error instead of a false empty directory.",
+      "created_at": "2026-09-07T19:16:14.548630Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": null,
+        "settings": {}
+      }
+    },
+    {
+      "id": "455ef565-0a35-44b9-9569-3d7b95a452a9",
+      "author": "ubuntu",
+      "text": "Live follow-up: `/api/wiki/pages` returns 12 files in a new tab, but in-page `fetch('/api/wiki/pages')` stayed pending. That is HTTP/1.1 slot exhaustion, not an empty wiki.\n\nSSE `/api/events` dying with `ERR_INCOMPLETE_CHUNKED_ENCODING` (and telemetry `ERR_CONNECTION_REFUSED`) does not call into WikiPanel, but those long-lived streams occupy Chrome's 6 connections per origin. React also starts the child wiki fetch before parent SSE cleanup.\n\nFix in progress: close snapshot/realtime streams synchronously when opening Wiki, time out the pages request, split the Vite proxy so only SSE has no timeout, and show a visible error if the request never settles (`@wiki-ui-017`).\n",
+      "created_at": "2026-09-07T19:21:33.249765Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T19:05:57.931381Z",
-  "updated_at": "2026-09-07T19:13:43.860277Z",
+  "updated_at": "2026-09-07T19:21:33.249843Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
