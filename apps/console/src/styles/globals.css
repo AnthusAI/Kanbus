@@ -1321,8 +1321,7 @@ html[data-motion="reduced"] .sidebar-column {
 }
 
 .dark .issue-accent-priority,
-[data-theme='dark'] .issue-accent-priority,
-@media (prefers-color-scheme: dark) {
+[data-theme='dark'] .issue-accent-priority {
   --issue-priority-bg: var(--issue-priority-bg-dark);
 }
 
