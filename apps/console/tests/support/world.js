@@ -34,6 +34,32 @@ AfterAll(async () => {
   }
 });
 
+async function waitForRestoredSnapshot(consoleApiBase, expectedIssueIds) {
+  const deadline = Date.now() + 10000;
+  let lastError = "snapshot refresh did not run";
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${consoleApiBase}/issues?refresh=1`);
+      if (!response.ok) {
+        lastError = `issues refresh ${response.status}`;
+      } else {
+        const issues = await response.json();
+        const ids = new Set(issues.map((issue) => issue.id));
+        const missing = [...expectedIssueIds].filter((id) => !ids.has(id));
+        const extra = [...ids].filter((id) => !expectedIssueIds.has(id));
+        if (missing.length === 0 && extra.length === 0) {
+          return;
+        }
+        lastError = `missing=${missing.join(",")} extra=${extra.join(",")}`;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error(`console fixture restore did not settle: ${lastError}`);
+}
+
 async function restoreConsoleFixtures() {
   const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
   if (!projectRoot) {
@@ -45,19 +71,25 @@ async function restoreConsoleFixtures() {
   const configPath = process.env.CONSOLE_CONFIG_PATH ?? path.join(repoRoot, ".kanbus.yml");
   const overridePath = path.join(repoRoot, ".kanbus.override.yml");
 
+  await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
+  await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
   await rm(issuesRoot, { recursive: true, force: true });
   await mkdir(issuesRoot, { recursive: true });
   const fixtureIssuesRoot = path.join(fixtureProjectRoot, "issues");
   const fixtureEntries = await readdir(fixtureIssuesRoot);
+  const expectedIssueIds = new Set();
   for (const entry of fixtureEntries) {
     if (!entry.endsWith(".json")) {
       continue;
     }
     const contents = await readFile(path.join(fixtureIssuesRoot, entry), "utf-8");
+    const issue = JSON.parse(contents);
+    expectedIssueIds.add(issue.id);
     await writeFile(path.join(issuesRoot, entry), contents);
   }
 
   await rm(wikiRoot, { recursive: true, force: true });
+  await mkdir(wikiRoot, { recursive: true });
   await rm(overridePath, { force: true });
   const configContents = await readFile(fixtureConfigPath, "utf-8");
   await writeFile(configPath, configContents);
@@ -66,7 +98,7 @@ async function restoreConsoleFixtures() {
   const consoleApiBase =
     process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
   await fetch(`${consoleApiBase}/config?refresh=1`).catch(() => {});
-  await fetch(`${consoleApiBase}/issues?refresh=1`).catch(() => {});
+  await waitForRestoredSnapshot(consoleApiBase, expectedIssueIds);
 }
 
 Before(async function () {

@@ -718,6 +718,8 @@ Given(
     const contents = yaml.dump({ time_zone: timeZone }, { sortKeys: false });
     await writeFile(overridePath, contents);
     this.overridePath = overridePath;
+    await refreshConsoleSnapshot();
+    await this.page.reload({ waitUntil: "domcontentloaded" });
   }
 );
 

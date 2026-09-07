@@ -109,7 +109,7 @@ app.use(
 );
 
 let cachedSnapshot: IssuesSnapshot | null = null;
-let snapshotPromise: Promise<IssuesSnapshot> | null = null;
+let snapshotRefreshTail: Promise<IssuesSnapshot> | null = null;
 
 function logConsoleEvent(
   label: string,
@@ -144,23 +144,34 @@ async function getSnapshot(): Promise<IssuesSnapshot> {
   if (cachedSnapshot) {
     return cachedSnapshot;
   }
-  if (!snapshotPromise) {
-    snapshotPromise = runSnapshot()
-      .then((snapshot) => {
-        cachedSnapshot = snapshot;
-        return snapshot;
-      })
-      .finally(() => {
-        snapshotPromise = null;
-      });
-  }
-  return snapshotPromise;
+  return refreshSnapshot();
 }
 
+/*
+ * Snapshot CLI runs can overlap. A slower earlier run must not replace a
+ * newer cached snapshot or broadcast stale issues and config over SSE.
+ */
 async function refreshSnapshot(): Promise<IssuesSnapshot> {
-  const snapshot = await runSnapshot();
-  cachedSnapshot = snapshot;
-  return snapshot;
+  const predecessor = snapshotRefreshTail;
+  const current = (async () => {
+    if (predecessor) {
+      try {
+        await predecessor;
+      } catch {
+      }
+    }
+    const snapshot = await runSnapshot();
+    cachedSnapshot = snapshot;
+    return snapshot;
+  })();
+  snapshotRefreshTail = current;
+  try {
+    return await current;
+  } finally {
+    if (snapshotRefreshTail === current) {
+      snapshotRefreshTail = null;
+    }
+  }
 }
 
 function shouldRefreshSnapshot(

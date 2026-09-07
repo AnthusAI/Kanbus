@@ -1,0 +1,41 @@
+{
+  "id": "kbs-0bc6cbbe-66df-446c-aff8-cb57717cb3b6",
+  "title": "console-ui: serialize snapshot refresh so fixtures stay isolated",
+  "description": "As a console UI test runner, I want snapshot refreshes to run one at a time, so that a slower earlier snapshot cannot overwrite a newer board and fail later scenarios.\n\nOverlapping `refreshSnapshot()` calls finish out of order. The slower `kanbus console snapshot` writes `cachedSnapshot` last and broadcasts stale issues or config over SSE. Fixture restore before each scenario is required, but without serialization the restore itself starts a stale refresh.\n\n## Specification\n\n```gherkin\nFeature: Console snapshot refresh isolation\n  Scenario: Comment hides agent metadata when absent\n    Given the console is open\n    And the console has a comment from \"Sam\" on task \"Fix crash on startup\"\n    When I switch to the \"Tasks\" tab\n    And I open the task \"Fix crash on startup\"\n    Then the comment agent metadata should not be visible\n\n  Scenario: Comments display in the configured time zone\n    Given the console is open\n    And the console configuration sets time zone \"America/Los_Angeles\"\n    And the console has a comment from \"Sam\" at \"2026-02-13T23:13:00.000Z\" on task \"Add structured logging\"\n    When I switch to the \"Tasks\" tab\n    And I open the task \"Add structured logging\"\n    Then the comment timestamp should be \"Friday, February 13, 2026 3:13 PM PST\"\n```\n\n## Done when\n\n- Snapshot refresh is serialized\n- Console fixtures, config, override, wiki, project-local, and virtual trees are restored before each UI scenario\n- Time zone override writes force a snapshot refresh\n- console-ui CI is green",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "75c10696-7b20-47ca-ba73-7b660aa1b72c",
+      "author": "ubuntu",
+      "text": "Root cause: overlapping refreshSnapshot() calls. A slower earlier kanbus console snapshot wrote cachedSnapshot last and broadcast stale issues/config over SSE. Fixture restore before each scenario is kept; refresh is now serialized, restore waits until fixture issue IDs match, project-local/virtual are wiped, wiki is recreated empty, and time-zone override writes force a snapshot refresh plus reload.",
+      "created_at": "2026-09-07T21:37:46.005749Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "wiki-markus-pipeline",
+        "settings": {}
+      }
+    }
+  ],
+  "created_at": "2026-09-07T21:36:51.763642Z",
+  "updated_at": "2026-09-07T21:37:46.005822Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "wiki-markus-pipeline",
+    "settings": {}
+  }
+}
