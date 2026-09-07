@@ -3,7 +3,7 @@
   "title": "Fix develop CI after wiki titles merge",
   "description": "As a maintainer, I want develop CI green after PR #223, so that wiki titles can stay on develop.\n\nPR #223 merged with failing coverage-ratchet and console-ui.\n\nRoot causes:\n- Local console uses basePath \"\" so \\`!route.basePath\\` never starts snapshot/realtime SSE. Board, Now, comments, and live-update Playwright scenarios starve.\n- Wiki delete recovery can leave Home without the remaining titled page.\n- Python coverage dropped: right_now subtree error paths plus unclosed wiki frontmatter.\n\nDefinition of Done:\n- Local SSE subscribes when basePath is empty string\n- wiki-ui-006 recovers selection to the remaining page\n- coverage-ratchet passes against config/coverage-baselines.json\n- PR targets develop only",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -109,11 +109,22 @@
         "platform": "cursor",
         "model": "cursor-grok-4.6"
       }
+    },
+    {
+      "id": "11813e1b-8382-4aae-8567-a45ef355321e",
+      "author": "ubuntu",
+      "text": "CI is green on e8918762: console-ui, python, rust, both parities, coverage-ratchet, performance, and binary-smoke all passed.\n\nwiki-ui-006 and wiki-ui-023 recover the next remaining page after delete. Draft PR #224 targets develop.",
+      "created_at": "2026-09-07T22:57:45.001253460Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
+      }
     }
   ],
   "created_at": "2026-09-07T20:18:30.163652Z",
-  "updated_at": "2026-09-07T22:31:13.110597096Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T22:57:45.864325098Z",
+  "closed_at": "2026-09-07T22:57:45.821366746Z",
   "agent": {
     "platform": "cursor",
     "model": "cursor-grok-4.6"
