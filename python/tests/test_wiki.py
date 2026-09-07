@@ -378,6 +378,11 @@ def test_extract_wiki_title_prefers_frontmatter_over_h1() -> None:
     assert wiki.extract_wiki_title(content) == "Epic progress"
 
 
+def test_extract_wiki_title_ignores_leading_blank_lines_before_frontmatter() -> None:
+    content = "\n---\ntitle: Epic progress\n---\n# Ignored heading\n"
+    assert wiki.extract_wiki_title(content) == "Epic progress"
+
+
 def test_extract_wiki_title_unquotes_frontmatter_title() -> None:
     content = '---\ntitle: "Quoted title"\n---\n# Heading\n'
     assert wiki.extract_wiki_title(content) == "Quoted title"

@@ -28,13 +28,17 @@ function wikiPathStem(pagePath: string): string {
 function splitWikiFrontmatter(content: string): { frontmatter: string | null; body: string } {
   const text = content.replace(/^\uFEFF/, "");
   const lines = text.split(/\r?\n/);
-  if (lines.length === 0 || lines[0].trim() !== "---") {
+  let start = 0;
+  while (start < lines.length && lines[start].trim() === "") {
+    start += 1;
+  }
+  if (start >= lines.length || lines[start].trim() !== "---") {
     return { frontmatter: null, body: text };
   }
-  for (let index = 1; index < lines.length; index += 1) {
+  for (let index = start + 1; index < lines.length; index += 1) {
     if (lines[index].trim() === "---") {
       return {
-        frontmatter: lines.slice(1, index).join("\n"),
+        frontmatter: lines.slice(start + 1, index).join("\n"),
         body: lines.slice(index + 1).join("\n")
       };
     }
@@ -44,7 +48,7 @@ function splitWikiFrontmatter(content: string): { frontmatter: string | null; bo
 
 function extractFrontmatterTitle(frontmatter: string): string | null {
   for (const line of frontmatter.split(/\r?\n/)) {
-    const match = /^title:\s*(.+?)\s*$/.exec(line);
+    const match = /^\s*title:\s*(.+?)\s*$/.exec(line);
     if (!match) {
       continue;
     }
