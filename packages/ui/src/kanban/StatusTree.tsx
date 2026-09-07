@@ -198,9 +198,7 @@ function StatusTreeRow({
                 >
                   <ExpandIcon className="status-tree-toggle-icon" aria-hidden="true" />
                 </button>
-              ) : (
-                <span className="status-tree-toggle-spacer" aria-hidden="true" />
-              )}
+              ) : null}
               <div className="status-tree-accent-bar">
                 <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
                 <span className="status-tree-id" data-testid="status-tree-id">
