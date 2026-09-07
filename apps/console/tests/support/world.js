@@ -1,10 +1,15 @@
 import { setWorldConstructor, setDefaultTimeout, BeforeAll, AfterAll, Before, After } from "@cucumber/cucumber";
 import { chromium } from "playwright";
-import { rm } from "fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const vitePort = process.env.VITE_PORT ?? "5173";
 const BASE_URL =
   process.env.CONSOLE_BASE_URL ?? `http://localhost:${vitePort}/`;
+const consoleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const fixtureProjectRoot = path.join(consoleRoot, "fixtures", "project");
+const fixtureConfigPath = path.join(consoleRoot, "fixtures", "kanbus.board-columns.yml");
 
 let browser;
 
@@ -29,7 +34,43 @@ AfterAll(async () => {
   }
 });
 
+async function restoreConsoleFixtures() {
+  const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
+  if (!projectRoot) {
+    return;
+  }
+  const issuesRoot = path.join(projectRoot, "issues");
+  const wikiRoot = path.join(projectRoot, "wiki");
+  const repoRoot = path.dirname(projectRoot);
+  const configPath = process.env.CONSOLE_CONFIG_PATH ?? path.join(repoRoot, ".kanbus.yml");
+  const overridePath = path.join(repoRoot, ".kanbus.override.yml");
+
+  await rm(issuesRoot, { recursive: true, force: true });
+  await mkdir(issuesRoot, { recursive: true });
+  const fixtureIssuesRoot = path.join(fixtureProjectRoot, "issues");
+  const fixtureEntries = await readdir(fixtureIssuesRoot);
+  for (const entry of fixtureEntries) {
+    if (!entry.endsWith(".json")) {
+      continue;
+    }
+    const contents = await readFile(path.join(fixtureIssuesRoot, entry), "utf-8");
+    await writeFile(path.join(issuesRoot, entry), contents);
+  }
+
+  await rm(wikiRoot, { recursive: true, force: true });
+  await rm(overridePath, { force: true });
+  const configContents = await readFile(fixtureConfigPath, "utf-8");
+  await writeFile(configPath, configContents);
+
+  const consolePort = process.env.CONSOLE_PORT ?? "5174";
+  const consoleApiBase =
+    process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
+  await fetch(`${consoleApiBase}/config?refresh=1`).catch(() => {});
+  await fetch(`${consoleApiBase}/issues?refresh=1`).catch(() => {});
+}
+
 Before(async function () {
+  await restoreConsoleFixtures();
   this.page = await browser.newPage();
   await this.page.goto(BASE_URL, {
     waitUntil: "domcontentloaded",
