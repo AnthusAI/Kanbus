@@ -1044,6 +1044,22 @@ fn then_board_view_active(world: &mut KanbusWorld) {
     assert_eq!(state.panel_mode, "board");
 }
 
+#[then("the console board should be visible")]
+fn then_console_board_is_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "board");
+    let app_source =
+        std::fs::read_to_string(console_app_root().join("src/App.tsx")).expect("read App.tsx");
+    assert!(
+        app_source.contains("data-testid=\"board-view\""),
+        "App.tsx must expose board-view"
+    );
+    assert!(
+        app_source.contains("data-testid=\"open-settings\""),
+        "App.tsx must expose open-settings"
+    );
+}
+
 #[then("the board view should be inactive")]
 fn then_board_view_inactive(world: &mut KanbusWorld) {
     let state = require_console_state(world);

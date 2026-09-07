@@ -345,14 +345,26 @@ pub fn persist_right_now_summary(
     updated_at: chrono::DateTime<Utc>,
 ) -> Result<(), KanbusError> {
     let overlay_path = overlay_issue_path(project_dir, issue_identifier);
+    let canonical_path = project_dir
+        .join("issues")
+        .join(format!("{issue_identifier}.json"));
+    let canonical_issue = if canonical_path.exists() {
+        Some(read_issue_from_file(&canonical_path)?)
+    } else {
+        None
+    };
     if issue_path != overlay_path.as_path() && issue_path.exists() {
-        let mut stored_issue = read_issue_from_file(issue_path)?;
+        let mut stored_issue = if let Some(issue) = canonical_issue.clone() {
+            issue
+        } else {
+            read_issue_from_file(issue_path)?
+        };
         stored_issue.right_now_summary = Some(summary.to_string());
         stored_issue.right_now_updated_at = Some(updated_at);
         write_issue_to_file(&stored_issue, issue_path)?;
     }
     if let Some(overlay_record) = load_overlay_issue(project_dir, issue_identifier)? {
-        let mut overlay_issue = overlay_record.issue;
+        let mut overlay_issue = canonical_issue.unwrap_or(overlay_record.issue);
         overlay_issue.right_now_summary = Some(summary.to_string());
         overlay_issue.right_now_updated_at = Some(updated_at);
         write_overlay_issue(
@@ -385,12 +397,24 @@ pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
         Ok(lookup) => lookup,
         Err(_) => return,
     };
+    let canonical_path = lookup
+        .project_dir
+        .join("issues")
+        .join(format!("{issue_identifier}.json"));
+    let issue = if canonical_path.exists() {
+        match read_issue_from_file(&canonical_path) {
+            Ok(issue) => issue,
+            Err(_) => lookup.issue,
+        }
+    } else {
+        lookup.issue
+    };
     let children = match load_child_issues(root, issue_identifier) {
         Ok(children) => children,
         Err(_) => return,
     };
-    let context = build_right_now_context(&lookup.issue, &children);
-    let summary = match generate_right_now_summary(root, &lookup.issue, &context) {
+    let context = build_right_now_context(&issue, &children);
+    let summary = match generate_right_now_summary(root, &issue, &context) {
         Ok(summary) => summary,
         Err(error) => {
             eprintln!("warning: right-now generation failed for {issue_identifier}: {error}");
