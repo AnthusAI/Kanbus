@@ -536,7 +536,9 @@ def then_status_tree_row_type_accent_color(
 
 
 @then('the status tree row for "{title}" should show status color "{expected}"')
-def then_status_tree_row_status_color(context: object, title: str, expected: str) -> None:
+def then_status_tree_row_status_color(
+    context: object, title: str, expected: str
+) -> None:
     state = _require_console_state(context)
     issue = _find_issue_by_title(title, state.issues)
     if issue is None:
