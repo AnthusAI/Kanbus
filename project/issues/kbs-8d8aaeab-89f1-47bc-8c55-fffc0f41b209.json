@@ -3,7 +3,7 @@
   "title": "Now panel shows the board name",
   "description": "The Now toolbar needs a left-aligned board title to the left of the Status filter so operators can tell which project they are looking at.\n\n`.kanbus.yml` gains an optional `name` field for the human-readable board title. When `name` is unset or blank, Now uses the repository directory name, then `project_key`.\n\n```mermaid\nflowchart LR\n  nameYaml[\".kanbus.yml name\"] --> resolve[\"resolve_board_name\"]\n  folder[\"repository folder\"] --> resolve\n  key[\"project_key\"] --> resolve\n  resolve --> header[\"Now toolbar title\"]\n```",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -17,11 +17,23 @@
       "text": "Implemented the Now panel board title.\n\n`.kanbus.yml` now accepts optional `name`. When it is unset or blank, the console uses the repository directory name, then `project_key`.\n\nThe Now toolbar shows that title left-aligned immediately left of Status. Verified live on Chattic.us at http://127.0.0.1:4248/ (title \"Chattic.us\" next to Status: In Progress).",
       "created_at": "2026-09-03T02:07:55.330540Z",
       "comment_type": "default"
+    },
+    {
+      "id": "752bd85f-8fdf-4131-b8c1-6bc5323f8337",
+      "author": "ubuntu",
+      "text": "Closed after verify. Now tab, tree, board name, and JIT backfill are on develop (PRs #214, #219, #220).",
+      "created_at": "2026-09-07T20:11:22.690182460Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
     }
   ],
   "created_at": "2026-09-03T01:54:43.934880Z",
-  "updated_at": "2026-09-03T02:07:55.330565Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:11:22.740923576Z",
+  "closed_at": "2026-09-07T20:11:22.734308811Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

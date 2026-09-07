@@ -17,12 +17,9 @@
       "text": "Implementation is on PR 223 (cursor/wiki-directory-titles-09f4). GET /api/wiki/pages now returns {path, title}. Directory listings show frontmatter, then H1, then stem. Python and Rust cucumber cover wiki-ui-018 through wiki-ui-021.",
       "created_at": "2026-09-07T19:46:38.164964Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -31,12 +28,9 @@
       "text": "Canonical tracking story is kbs-413afd (kbs-413afd00-1e2d-449b-a17e-21e41c9f77d4) under Markus epic kbs-bd41d7. PR 223 now references that id.",
       "created_at": "2026-09-07T19:47:11.766157Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -45,12 +39,9 @@
       "text": "Live verify for kbs-413afd: Wiki Home no longer auto-opens index.md. Empty route shows the titled directory listing; index.md stays reachable by clicking its title. Tracking kbs-413afd / kbs-bd41d7.",
       "created_at": "2026-09-07T19:54:57.862132Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -59,25 +50,32 @@
       "text": "Landed on develop in 0b808741. Canonical story kbs-413afd / epic kbs-bd41d7.",
       "created_at": "2026-09-07T20:01:25.806702Z",
       "comment_type": "default",
-      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
+      }
+    },
+    {
+      "id": "c8ae76c2-aed7-4aad-9ea2-3717b9ab641f",
+      "author": "ubuntu",
+      "text": "PR #222 and #223 covered empty-wiki honesty and directory titles. Both are merged to develop (0b808741 / 1b5f09e8).",
+      "created_at": "2026-09-07T20:11:23.589126095Z",
+      "comment_type": "default",
       "agent": {
         "platform": "cursor",
         "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "name": "board-hygiene"
       }
     }
   ],
   "created_at": "2026-09-07T19:36:49.392038Z",
-  "updated_at": "2026-09-07T20:01:26.487626Z",
+  "updated_at": "2026-09-07T20:11:23.589145854Z",
   "closed_at": "2026-09-07T20:01:26.463351Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {},
   "agent": {
     "platform": "cursor",
-    "model": "cursor-grok-4.6",
-    "name": null,
-    "settings": {}
-  }
+    "model": "cursor-grok-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
 }
