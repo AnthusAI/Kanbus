@@ -1032,13 +1032,8 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
             wiki.selected_path = None;
             return;
         }
-        if wiki.selected_path.is_none() && !wiki.page_order.is_empty() {
-            let selected = if wiki.pages.contains_key("index.md") {
-                "index.md".to_string()
-            } else {
-                wiki.page_order[0].clone()
-            };
-            select_wiki_page(wiki, &selected);
+        if wiki.selected_path.is_none() && wiki.pages.contains_key("index.md") {
+            select_wiki_page(wiki, "index.md");
         }
         return;
     }

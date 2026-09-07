@@ -540,12 +540,12 @@ fn collect_search_matches(
             relative.to_string_lossy().replace('\\', "/")
         );
         let body = fs::read_to_string(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
-        let title = extract_wiki_title(&body).unwrap_or_else(|| {
-            path.file_stem()
+        let title = wiki_page_display_title(
+            &body,
+            path.file_name()
                 .and_then(|value| value.to_str())
-                .unwrap_or_default()
-                .to_string()
-        });
+                .unwrap_or_default(),
+        );
         let haystack = format!("{}\n{}\n{}", listed_path, title, body).to_ascii_lowercase();
         if haystack.contains(needle) {
             matches.push(listed_path);
@@ -1070,13 +1070,107 @@ fn extract_issue_identifier(value: &Value) -> Option<String> {
         .and_then(|v| v.as_str().map(String::from))
 }
 
-fn extract_wiki_title(content: &str) -> Option<String> {
-    for line in content.lines() {
-        if let Some(title) = line.strip_prefix("# ") {
-            return Some(title.trim().to_string());
+/// Extract a wiki page title from YAML frontmatter or the first markdown H1.
+///
+/// Resolution order:
+/// 1. YAML frontmatter `title:` when present
+/// 2. First markdown ATX H1 (`# Title`)
+///
+/// # Arguments
+/// * `content` - Raw markdown page source
+///
+/// # Returns
+/// The title when frontmatter or an H1 is present
+pub fn extract_wiki_title(content: &str) -> Option<String> {
+    let (frontmatter, body) = split_wiki_frontmatter(content);
+    if let Some(block) = frontmatter.as_deref() {
+        if let Some(title) = extract_frontmatter_title(block) {
+            return Some(title);
+        }
+    }
+    for line in body.lines() {
+        if let Some(title) = extract_markdown_h1_title(line) {
+            return Some(title);
         }
     }
     None
+}
+
+/// Resolve the display title for a wiki page.
+///
+/// Uses frontmatter `title`, then the first markdown H1, then the file stem.
+///
+/// # Arguments
+/// * `content` - Raw markdown page source
+/// * `path` - Wiki-relative page path used for the stem fallback
+///
+/// # Returns
+/// Display title string
+pub fn wiki_page_display_title(content: &str, path: &str) -> String {
+    extract_wiki_title(content).unwrap_or_else(|| wiki_path_stem(path))
+}
+
+fn wiki_path_stem(path: &str) -> String {
+    Path::new(path)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn split_wiki_frontmatter(content: &str) -> (Option<String>, String) {
+    let text = content.strip_prefix('\u{feff}').unwrap_or(content);
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() || lines[0].trim() != "---" {
+        return (None, text.to_string());
+    }
+    for (index, line) in lines.iter().enumerate().skip(1) {
+        if line.trim() == "---" {
+            let frontmatter = lines[1..index].join("\n");
+            let body = lines[index + 1..].join("\n");
+            return (Some(frontmatter), body);
+        }
+    }
+    (None, text.to_string())
+}
+
+fn extract_frontmatter_title(frontmatter: &str) -> Option<String> {
+    for line in frontmatter.lines() {
+        let Some(value) = line.strip_prefix("title:") else {
+            continue;
+        };
+        let title = unquote_yaml_scalar(value.trim());
+        if !title.is_empty() {
+            return Some(title);
+        }
+    }
+    None
+}
+
+fn unquote_yaml_scalar(value: &str) -> String {
+    let trimmed = value.trim();
+    let bytes = trimmed.as_bytes();
+    if bytes.len() >= 2
+        && ((bytes[0] == b'"' && bytes[bytes.len() - 1] == b'"')
+            || (bytes[0] == b'\'' && bytes[bytes.len() - 1] == b'\''))
+    {
+        return trimmed[1..trimmed.len() - 1].to_string();
+    }
+    trimmed.to_string()
+}
+
+fn extract_markdown_h1_title(line: &str) -> Option<String> {
+    let stripped = line.trim_end();
+    let after_hash = stripped.strip_prefix('#')?;
+    if !after_hash.starts_with(|character: char| character.is_whitespace()) {
+        return None;
+    }
+    let title = after_hash.trim();
+    if title.is_empty() {
+        None
+    } else {
+        Some(title.to_string())
+    }
 }
 
 fn read_string_kwarg(kwargs: &Kwargs, key: &str) -> Result<Option<String>, Error> {
@@ -1187,7 +1281,7 @@ pub fn list_wiki_pages(root: &Path) -> Result<Vec<String>, KanbusError> {
     let pages: Vec<String> = response
         .pages
         .into_iter()
-        .map(|page| format!("{}/{}", prefix, page))
+        .map(|page| format!("{}/{}", prefix, page.path))
         .collect();
     Ok(pages)
 }
@@ -1259,5 +1353,48 @@ mod tests {
         let content = "A — B — C\n```\nx\n```\nD — E\n```\ny\n```\n";
         let ranges = markdown_code_excluded_ranges(content);
         assert_eq!(ranges.len(), 3, "should detect all code fence ranges");
+    }
+
+    #[test]
+    fn extract_wiki_title_reads_h1() {
+        assert_eq!(
+            extract_wiki_title("# Blocked issues\nOpen items."),
+            Some("Blocked issues".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_prefers_frontmatter_over_h1() {
+        let content = "---\ntitle: Epic progress\n---\n# Ignored heading\nStatus body\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Epic progress".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_unquotes_frontmatter_title() {
+        let content = "---\ntitle: \"Quoted title\"\n---\n# Heading\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Quoted title".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_wiki_title_uses_h1_when_frontmatter_has_no_title() {
+        let content = "---\nstatus: draft\n---\n# Heading title\n";
+        assert_eq!(
+            extract_wiki_title(content),
+            Some("Heading title".to_string())
+        );
+    }
+
+    #[test]
+    fn wiki_page_display_title_falls_back_to_stem() {
+        assert_eq!(
+            wiki_page_display_title("Just a paragraph.", "untitled_notes.md"),
+            "untitled_notes"
+        );
     }
 }

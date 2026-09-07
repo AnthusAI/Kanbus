@@ -228,3 +228,54 @@ Feature: Console wiki workspace
     When I switch to the "Wiki" view
     Then the wiki error banner should contain "wiki pages request failed"
     And the wiki empty state should not be visible
+
+  @wiki-ui-018
+  Scenario: wiki directory listing shows H1 title instead of filename
+    Given the console is open
+    And a wiki page "blocked_issues.md" exists with content:
+      """
+      # Blocked issues
+      Open items that cannot move.
+      """
+    When I switch to the "Wiki" view
+    Then the wiki directory listing should show "Blocked issues"
+    And the wiki directory listing should not show "blocked_issues.md"
+
+  @wiki-ui-019
+  Scenario: wiki directory listing shows frontmatter title instead of H1
+    Given the console is open
+    And a wiki page "epic_progress.md" exists with content:
+      """
+      ---
+      title: Epic progress
+      ---
+      # Ignored heading
+      Status body
+      """
+    When I switch to the "Wiki" view
+    Then the wiki directory listing should show "Epic progress"
+    And the wiki directory listing should not show "epic_progress.md"
+    And the wiki directory listing should not show "Ignored heading"
+
+  @wiki-ui-020
+  Scenario: wiki directory listing falls back to file stem without title
+    Given the console is open
+    And a wiki page "untitled_notes.md" exists with content:
+      """
+      Just a paragraph with no heading.
+      """
+    When I switch to the "Wiki" view
+    Then the wiki directory listing should show "untitled_notes"
+    And the wiki directory listing should not show "untitled_notes.md"
+
+  @wiki-ui-021
+  Scenario: clicking a titled wiki page still navigates by path
+    Given the console is open
+    And a wiki page "blocked_issues.md" exists with content:
+      """
+      # Blocked issues
+      Open items that cannot move.
+      """
+    When I switch to the "Wiki" view
+    And I select the wiki page titled "Blocked issues"
+    Then the wiki editor path should be "blocked_issues.md"

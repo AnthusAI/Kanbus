@@ -225,7 +225,9 @@ fn wiki_list_pages_only_markdown() {
     fs::write(wiki_root.join("a.md"), "a").expect("write a");
     fs::write(wiki_root.join("b.txt"), "b").expect("write b");
     let list = list_pages(&store).expect("list pages");
-    assert_eq!(list.pages, vec!["a.md"]);
+    assert_eq!(list.pages.len(), 1);
+    assert_eq!(list.pages[0].path, "a.md");
+    assert_eq!(list.pages[0].title, "a");
     assert!(list.wiki_directory_exists);
 }
 

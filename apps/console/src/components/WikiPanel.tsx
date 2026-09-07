@@ -13,6 +13,7 @@ import { WikiPreview } from "./WikiPreview";
 import { WikiHeader } from "./WikiHeader";
 import { WikiDirectoryListing } from "./WikiDirectoryListing";
 import { resolveWikiRoute } from "../utils/wikiRouting";
+import type { WikiPageListItem } from "../types/wiki";
 
 const WIKI_EDIT_SPLIT_STORAGE_KEY = "kanbus.console.wikiEditSplitPercent";
 const WIKI_EDIT_SPLIT_MIN = 25;
@@ -38,7 +39,7 @@ interface WikiPanelProps {
 }
 
 export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, onRouteChange }: WikiPanelProps) {
-  const [pages, setPages] = useState<string[]>([]);
+  const [pages, setPages] = useState<WikiPageListItem[]>([]);
   const [wikiDirectoryExists, setWikiDirectoryExists] = useState(true);
   const [pagesLoaded, setPagesLoaded] = useState(false);
   
@@ -162,7 +163,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     }
   }
 
-  async function refreshPages(): Promise<string[]> {
+  async function refreshPages(): Promise<WikiPageListItem[]> {
     setIsLoadingPages(true);
     setError(null);
     try {
@@ -297,10 +298,15 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     }
     setError(null);
     try {
-      const optimisticRemaining = pages.filter((candidate) => candidate !== activePath);
+      const optimisticRemaining = pages
+        .filter((candidate) => candidate.path !== activePath)
+        .map((candidate) => candidate.path);
       await deleteWikiPage(apiBase, activePath);
       const refreshedPages = await refreshPages();
-      const mergedCandidates = new Set<string>([...optimisticRemaining, ...refreshedPages]);
+      const mergedCandidates = new Set<string>([
+        ...optimisticRemaining,
+        ...refreshedPages.map((page) => page.path)
+      ]);
       const remainingPages = Array.from(mergedCandidates)
         .filter((candidate) => candidate !== activePath)
         .sort((a, b) => a.localeCompare(b));

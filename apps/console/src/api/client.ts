@@ -8,6 +8,7 @@ import type {
   WikiCreateResponse,
   WikiDeleteResponse,
   WikiPageResponse,
+  WikiPageListItem,
   WikiPagesResponse,
   WikiRenameRequest,
   WikiRenameResponse,
@@ -600,6 +601,18 @@ export async function fetchAuthBootstrap(apiBase: string): Promise<AuthBootstrap
   return (await response.json()) as AuthBootstrap;
 }
 
+function parseWikiPageListItem(page: unknown): WikiPageListItem {
+  if (page == null || typeof page !== "object") {
+    throw new Error("wiki pages response is invalid");
+  }
+  const path = (page as WikiPageListItem).path;
+  const title = (page as WikiPageListItem).title;
+  if (typeof path !== "string" || typeof title !== "string") {
+    throw new Error("wiki pages response is invalid");
+  }
+  return { path, title };
+}
+
 function parseWikiPagesResponse(payload: unknown): WikiPagesResponse {
   if (
     payload == null
@@ -609,12 +622,8 @@ function parseWikiPagesResponse(payload: unknown): WikiPagesResponse {
   ) {
     throw new Error("wiki pages response is invalid");
   }
-  const pages = (payload as WikiPagesResponse).pages;
-  if (!pages.every((page) => typeof page === "string")) {
-    throw new Error("wiki pages response is invalid");
-  }
   return {
-    pages,
+    pages: (payload as WikiPagesResponse).pages.map(parseWikiPageListItem),
     wiki_directory_exists: (payload as WikiPagesResponse).wiki_directory_exists
   };
 }

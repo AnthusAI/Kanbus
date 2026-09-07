@@ -8,6 +8,8 @@ import chokidar from "chokidar";
 import rateLimit from "express-rate-limit";
 import { resolvePortOrExit } from "../scripts/resolvePort";
 import type { IssuesSnapshot } from "../src/types/issues";
+import type { WikiPageListItem } from "../src/types/wiki";
+import { wikiPageDisplayTitle } from "./wikiTitle";
 
 const fsPromises = fs.promises;
 
@@ -415,7 +417,7 @@ function absoluteWikiPath(normalizedPath: string): string {
 async function collectMarkdownPages(
   dirPath: string,
   relativePrefix: string,
-  pages: string[]
+  pages: WikiPageListItem[]
 ): Promise<void> {
   const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -424,18 +426,23 @@ async function collectMarkdownPages(
     if (entry.isDirectory()) {
       await collectMarkdownPages(full, relative, pages);
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      pages.push(relative.replace(/\\/g, "/"));
+      const normalized = relative.replace(/\\/g, "/");
+      const content = await fsPromises.readFile(full, "utf-8");
+      pages.push({
+        path: normalized,
+        title: wikiPageDisplayTitle(content, normalized)
+      });
     }
   }
 }
 
-async function listWikiPages(): Promise<{ pages: string[]; wiki_directory_exists: boolean }> {
+async function listWikiPages(): Promise<{ pages: WikiPageListItem[]; wiki_directory_exists: boolean }> {
   if (!fs.existsSync(wikiRoot)) {
     return { pages: [], wiki_directory_exists: false };
   }
-  const pages: string[] = [];
+  const pages: WikiPageListItem[] = [];
   await collectMarkdownPages(wikiRoot, "", pages);
-  pages.sort();
+  pages.sort((left, right) => left.path.localeCompare(right.path));
   return { pages, wiki_directory_exists: true };
 }
 

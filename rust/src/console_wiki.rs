@@ -9,16 +9,27 @@ use serde::{Deserialize, Serialize};
 use crate::console_backend::FileStore;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
-use crate::wiki::{render_wiki_page, WikiRenderRequest};
+use crate::wiki::{render_wiki_page, wiki_page_display_title, WikiRenderRequest};
+
+/// A wiki page listed by the console API.
+///
+/// # Fields
+/// * `path` - Wiki-relative markdown path
+/// * `title` - Display title from frontmatter, H1, or file stem
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct WikiPageListItem {
+    pub path: String,
+    pub title: String,
+}
 
 /// Response for listing wiki pages.
 ///
 /// # Fields
-/// * `pages` - Wiki-relative markdown paths
+/// * `pages` - Wiki-relative markdown pages with display titles
 /// * `wiki_directory_exists` - Whether the configured wiki directory exists
 #[derive(Debug, Clone, Serialize)]
 pub struct WikiPagesResponse {
-    pub pages: Vec<String>,
+    pub pages: Vec<WikiPageListItem>,
     pub wiki_directory_exists: bool,
 }
 
@@ -216,7 +227,7 @@ pub fn list_pages(store: &FileStore) -> Result<WikiPagesResponse, WikiServiceErr
     }
     let mut pages = Vec::new();
     collect_markdown(&root, &root, &mut pages)?;
-    pages.sort();
+    pages.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(WikiPagesResponse {
         pages,
         wiki_directory_exists: true,
@@ -226,7 +237,7 @@ pub fn list_pages(store: &FileStore) -> Result<WikiPagesResponse, WikiServiceErr
 fn collect_markdown(
     root: &Path,
     current: &Path,
-    pages: &mut Vec<String>,
+    pages: &mut Vec<WikiPageListItem>,
 ) -> Result<(), WikiServiceError> {
     for entry in fs::read_dir(current).map_err(|error| WikiServiceError::Io(error.to_string()))? {
         let entry = entry.map_err(|error| WikiServiceError::Io(error.to_string()))?;
@@ -245,7 +256,13 @@ fn collect_markdown(
             .to_str()
             .ok_or_else(|| WikiServiceError::Io("invalid unicode path".to_string()))?
             .replace('\\', "/");
-        pages.push(normalized);
+        let content =
+            fs::read_to_string(&path).map_err(|error| WikiServiceError::Io(error.to_string()))?;
+        let title = wiki_page_display_title(&content, &normalized);
+        pages.push(WikiPageListItem {
+            path: normalized,
+            title,
+        });
     }
     Ok(())
 }
@@ -563,7 +580,13 @@ mod tests {
         std::fs::write(wiki.join("index.md"), "# Home").expect("write index");
         let store = FileStore::new(temp.path().join("project"));
         let response = list_pages(&store).expect("list pages");
-        assert_eq!(response.pages, vec!["index.md"]);
+        assert_eq!(
+            response.pages,
+            vec![WikiPageListItem {
+                path: "index.md".to_string(),
+                title: "Home".to_string(),
+            }]
+        );
         assert!(response.wiki_directory_exists);
     }
 
@@ -609,8 +632,60 @@ mod tests {
 
         let store = FileStore::new(temp.path());
         let pages = list_pages(&store).expect("list pages");
-        assert_eq!(pages.pages, vec!["guides/alpha.md", "zeta.md"]);
+        assert_eq!(
+            pages.pages,
+            vec![
+                WikiPageListItem {
+                    path: "guides/alpha.md".to_string(),
+                    title: "alpha".to_string(),
+                },
+                WikiPageListItem {
+                    path: "zeta.md".to_string(),
+                    title: "zeta".to_string(),
+                },
+            ]
+        );
         assert!(pages.wiki_directory_exists);
+    }
+
+    #[test]
+    fn list_pages_resolves_titles_from_frontmatter_h1_and_stem() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let root = temp.path().join("project").join("wiki");
+        std::fs::create_dir_all(&root).expect("create wiki");
+        std::fs::write(
+            root.join("blocked_issues.md"),
+            "# Blocked issues\nOpen items.\n",
+        )
+        .expect("write h1 page");
+        std::fs::write(
+            root.join("epic_progress.md"),
+            "---\ntitle: Epic progress\n---\n# Ignored heading\n",
+        )
+        .expect("write frontmatter page");
+        std::fs::write(root.join("untitled_notes.md"), "Just a paragraph.\n")
+            .expect("write stem page");
+
+        let store = FileStore::new(temp.path());
+        let pages = list_pages(&store).expect("list pages");
+        assert_eq!(
+            pages.pages,
+            vec![
+                WikiPageListItem {
+                    path: "blocked_issues.md".to_string(),
+                    title: "Blocked issues".to_string(),
+                },
+                WikiPageListItem {
+                    path: "epic_progress.md".to_string(),
+                    title: "Epic progress".to_string(),
+                },
+                WikiPageListItem {
+                    path: "untitled_notes.md".to_string(),
+                    title: "untitled_notes".to_string(),
+                },
+            ]
+        );
     }
 
     #[test]

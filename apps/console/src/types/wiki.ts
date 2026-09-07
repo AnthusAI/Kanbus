@@ -1,5 +1,10 @@
+export interface WikiPageListItem {
+  path: string;
+  title: string;
+}
+
 export interface WikiPagesResponse {
-  pages: string[];
+  pages: WikiPageListItem[];
   wiki_directory_exists: boolean;
 }
 
