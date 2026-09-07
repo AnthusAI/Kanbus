@@ -39,6 +39,8 @@ interface WikiPanelProps {
 
 export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, onRouteChange }: WikiPanelProps) {
   const [pages, setPages] = useState<string[]>([]);
+  const [wikiDirectoryExists, setWikiDirectoryExists] = useState(true);
+  const [pagesLoaded, setPagesLoaded] = useState(false);
   
   const [history, setHistory] = useState<string[]>(() => [initialRoutePath || ""]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -78,7 +80,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     }
     void refreshPages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
+  }, [isActive, apiBase]);
 
   const routeResult = useMemo(() => resolveWikiRoute(pages, currentRoute), [pages, currentRoute]);
   const isFile = routeResult.type === "file";
@@ -166,9 +168,13 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     try {
       const result = await fetchWikiPages(apiBase);
       setPages(result.pages);
+      setWikiDirectoryExists(result.wiki_directory_exists);
+      setPagesLoaded(true);
       return result.pages;
     } catch (err) {
       setError((err as Error).message);
+      setPages([]);
+      setPagesLoaded(true);
       return [];
     } finally {
       setIsLoadingPages(false);
@@ -382,15 +388,38 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
         onDelete={handleDelete}
       />
       
-      {error ? <div className="wiki-error">{error}</div> : null}
+      {error ? (
+        <div className="wiki-error" data-testid="wiki-error" role="alert">
+          {error}
+        </div>
+      ) : null}
 
       <div className="flex-1 overflow-hidden">
         {routeResult.type === "directory" ? (
-          <WikiDirectoryListing
-            path={routeResult.path}
-            entries={routeResult.entries}
-            onNavigate={navigate}
-          />
+          !pagesLoaded || isLoadingPages ? (
+            <div className="h-full flex items-center justify-center bg-[var(--card)] rounded-xl">
+              <div className="loading-overlay-card flex flex-col items-center gap-3">
+                <span className="loading-spinner" aria-hidden="true" />
+                <span>Loading wiki...</span>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="wiki-directory-listing" data-testid="wiki-load-error">
+              <div className="text-xl font-bold mb-6 text-foreground">Wiki Home</div>
+              <p>The wiki page list could not be loaded.</p>
+            </div>
+          ) : routeResult.path === "" && !wikiDirectoryExists ? (
+            <div className="wiki-directory-listing" data-testid="wiki-missing-directory">
+              <div className="text-xl font-bold mb-6 text-foreground">Wiki Home</div>
+              <p>The wiki folder is missing.</p>
+            </div>
+          ) : (
+            <WikiDirectoryListing
+              path={routeResult.path}
+              entries={routeResult.entries}
+              onNavigate={navigate}
+            />
+          )
         ) : routeResult.type === "file" ? (
           isLoadingFile ? (
             <div className="h-full flex items-center justify-center bg-[var(--card)] rounded-xl">

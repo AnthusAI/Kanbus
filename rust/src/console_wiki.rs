@@ -8,12 +8,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::console_backend::FileStore;
 use crate::error::KanbusError;
+use crate::file_io::get_configuration_path;
 use crate::wiki::{render_wiki_page, WikiRenderRequest};
 
 /// Response for listing wiki pages.
+///
+/// # Fields
+/// * `pages` - Wiki-relative markdown paths
+/// * `wiki_directory_exists` - Whether the configured wiki directory exists
 #[derive(Debug, Clone, Serialize)]
 pub struct WikiPagesResponse {
     pub pages: Vec<String>,
+    pub wiki_directory_exists: bool,
 }
 
 /// Response for fetching a wiki page.
@@ -142,8 +148,19 @@ fn normalize_path(path: &str) -> Result<String, WikiServiceError> {
     Ok(canonical)
 }
 
+fn configuration_repository_root(store: &FileStore) -> Result<PathBuf, KanbusError> {
+    let configuration_path = get_configuration_path(store.root())?;
+    configuration_path
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| {
+            KanbusError::IssueOperation("configuration path has no parent directory".to_string())
+        })
+}
+
 fn wiki_root(store: &FileStore) -> Result<PathBuf, KanbusError> {
     let config = store.load_config()?;
+    let repository_root = configuration_repository_root(store)?;
     let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
     if wiki_subdir.starts_with("../") {
         let normalized = wiki_subdir
@@ -151,10 +168,9 @@ fn wiki_root(store: &FileStore) -> Result<PathBuf, KanbusError> {
             .trim_start_matches("../")
             .trim_start_matches("..\\")
             .to_string();
-        Ok(store.root().join(&normalized))
+        Ok(repository_root.join(&normalized))
     } else {
-        Ok(store
-            .root()
+        Ok(repository_root
             .join(&config.project_directory)
             .join(wiki_subdir))
     }
@@ -186,16 +202,25 @@ fn absolute_page_path(store: &FileStore, path: &str) -> Result<PathBuf, KanbusEr
 }
 
 /// List all markdown pages under wiki root.
-/// Returns an empty list when the wiki directory does not exist yet (e.g. first use).
+///
+/// When the wiki directory does not exist, `pages` is empty and
+/// `wiki_directory_exists` is false so clients can distinguish a missing
+/// folder from a true empty wiki.
 pub fn list_pages(store: &FileStore) -> Result<WikiPagesResponse, WikiServiceError> {
     let root = wiki_root(store).map_err(to_service_error)?;
     if !root.exists() {
-        return Ok(WikiPagesResponse { pages: vec![] });
+        return Ok(WikiPagesResponse {
+            pages: vec![],
+            wiki_directory_exists: false,
+        });
     }
     let mut pages = Vec::new();
     collect_markdown(&root, &root, &mut pages)?;
     pages.sort();
-    Ok(WikiPagesResponse { pages })
+    Ok(WikiPagesResponse {
+        pages,
+        wiki_directory_exists: true,
+    })
 }
 
 fn collect_markdown(
@@ -515,6 +540,31 @@ mod tests {
         let store = FileStore::new(temp.path());
         let response = list_pages(&store).expect("list pages");
         assert!(response.pages.is_empty());
+        assert!(!response.wiki_directory_exists);
+    }
+
+    #[test]
+    fn list_pages_marks_existing_empty_wiki_directory() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        std::fs::create_dir_all(temp.path().join("project").join("wiki")).expect("create wiki");
+        let store = FileStore::new(temp.path());
+        let response = list_pages(&store).expect("list pages");
+        assert!(response.pages.is_empty());
+        assert!(response.wiki_directory_exists);
+    }
+
+    #[test]
+    fn list_pages_resolves_wiki_from_configuration_root_when_store_is_project_directory() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        write_config(temp.path(), "");
+        let wiki = temp.path().join("project").join("wiki");
+        std::fs::create_dir_all(&wiki).expect("create wiki");
+        std::fs::write(wiki.join("index.md"), "# Home").expect("write index");
+        let store = FileStore::new(temp.path().join("project"));
+        let response = list_pages(&store).expect("list pages");
+        assert_eq!(response.pages, vec!["index.md"]);
+        assert!(response.wiki_directory_exists);
     }
 
     #[test]
@@ -560,6 +610,7 @@ mod tests {
         let store = FileStore::new(temp.path());
         let pages = list_pages(&store).expect("list pages");
         assert_eq!(pages.pages, vec!["guides/alpha.md", "zeta.md"]);
+        assert!(pages.wiki_directory_exists);
     }
 
     #[test]

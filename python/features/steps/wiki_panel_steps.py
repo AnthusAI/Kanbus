@@ -21,6 +21,8 @@ class WikiWorkspaceState:
     preview_content: str = "No preview yet"
     status: str = "Saved"
     error_banner: str | None = None
+    wiki_directory_exists: bool = True
+    pages_request_failed: bool = False
 
 
 def _ensure_wiki_state(context: object) -> WikiWorkspaceState:
@@ -64,8 +66,13 @@ def when_switch_to_wiki_view(context: object) -> None:
     state.panel_mode = "wiki"
     _ensure_console_storage(context).panel_mode = "wiki"
     wiki = _ensure_wiki_state(context)
+    if wiki.pages_request_failed:
+        wiki.error_banner = "wiki pages request failed"
+        wiki.selected_path = None
+        return
     if wiki.selected_path is None and wiki.page_order:
-        _select_page(wiki, wiki.page_order[0])
+        selected = "index.md" if "index.md" in wiki.pages else wiki.page_order[0]
+        _select_page(wiki, selected)
 
 
 @when('I create a wiki page named "{path}"')
@@ -190,11 +197,57 @@ def then_wiki_view_inactive(context: object) -> None:
         raise AssertionError("expected wiki view to be inactive")
 
 
+@given("the console wiki directory is missing")
+def given_console_wiki_directory_is_missing(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    wiki.pages = {}
+    wiki.page_order = []
+    wiki.selected_path = None
+    wiki.wiki_directory_exists = False
+    wiki.pages_request_failed = False
+    wiki.error_banner = None
+
+
+@given("the console wiki pages request fails")
+def given_console_wiki_pages_request_fails(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    wiki.pages = {}
+    wiki.page_order = []
+    wiki.selected_path = None
+    wiki.pages_request_failed = True
+    wiki.error_banner = None
+
+
 @then("the wiki empty state should be visible")
 def then_wiki_empty_state_visible(context: object) -> None:
     wiki = _ensure_wiki_state(context)
-    if wiki.page_order:
+    if (
+        wiki.page_order
+        or not wiki.wiki_directory_exists
+        or wiki.pages_request_failed
+        or wiki.error_banner
+    ):
         raise AssertionError("expected wiki empty state with no pages")
+
+
+@then("the wiki empty state should not be visible")
+def then_wiki_empty_state_should_not_be_visible(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    is_true_empty = (
+        wiki.wiki_directory_exists
+        and not wiki.page_order
+        and not wiki.pages_request_failed
+        and wiki.error_banner is None
+    )
+    if is_true_empty:
+        raise AssertionError("wiki empty state should not be visible")
+
+
+@then("the wiki missing-directory state should be visible")
+def then_wiki_missing_directory_state_should_be_visible(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    if wiki.wiki_directory_exists or wiki.page_order or wiki.pages_request_failed:
+        raise AssertionError("expected wiki missing-directory state")
 
 
 @then('the wiki page list should include "{path}"')

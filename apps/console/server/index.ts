@@ -429,14 +429,14 @@ async function collectMarkdownPages(
   }
 }
 
-async function listWikiPages(): Promise<{ pages: string[] }> {
+async function listWikiPages(): Promise<{ pages: string[]; wiki_directory_exists: boolean }> {
   if (!fs.existsSync(wikiRoot)) {
-    return { pages: [] };
+    return { pages: [], wiki_directory_exists: false };
   }
   const pages: string[] = [];
   await collectMarkdownPages(wikiRoot, "", pages);
   pages.sort();
-  return { pages };
+  return { pages, wiki_directory_exists: true };
 }
 
 async function wikiRenderPage(relativePagePath: string): Promise<string> {

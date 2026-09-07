@@ -179,12 +179,55 @@ fn then_wiki_view_inactive(world: &mut KanbusWorld) {
     );
 }
 
+#[given("the console wiki directory is missing")]
+fn given_console_wiki_directory_is_missing(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    wiki.pages.clear();
+    wiki.page_order.clear();
+    wiki.selected_path = None;
+    wiki.wiki_directory_exists = false;
+    wiki.pages_request_failed = false;
+    wiki.error_banner = None;
+}
+
+#[given("the console wiki pages request fails")]
+fn given_console_wiki_pages_request_fails(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    wiki.pages.clear();
+    wiki.page_order.clear();
+    wiki.selected_path = None;
+    wiki.pages_request_failed = true;
+    wiki.error_banner = None;
+}
+
 #[then("the wiki empty state should be visible")]
 fn then_wiki_empty_state_visible(world: &mut KanbusWorld) {
     let wiki = ensure_wiki_state(world);
     assert!(
-        wiki.page_order.is_empty(),
+        wiki.page_order.is_empty()
+            && wiki.wiki_directory_exists
+            && !wiki.pages_request_failed
+            && wiki.error_banner.is_none(),
         "expected wiki empty state with no pages"
+    );
+}
+
+#[then("the wiki empty state should not be visible")]
+fn then_wiki_empty_state_should_not_be_visible(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    let is_true_empty = wiki.wiki_directory_exists
+        && wiki.page_order.is_empty()
+        && !wiki.pages_request_failed
+        && wiki.error_banner.is_none();
+    assert!(!is_true_empty, "wiki empty state should not be visible");
+}
+
+#[then("the wiki missing-directory state should be visible")]
+fn then_wiki_missing_directory_state_should_be_visible(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        !wiki.wiki_directory_exists && wiki.page_order.is_empty() && !wiki.pages_request_failed,
+        "expected wiki missing-directory state"
     );
 }
 

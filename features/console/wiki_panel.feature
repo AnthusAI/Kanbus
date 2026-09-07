@@ -182,3 +182,41 @@ Feature: Console wiki workspace
     When I switch to the "Metrics" view
     Then the metrics view should be active
     And the wiki view should be inactive
+
+  @wiki-ui-013
+  Scenario: existing wiki pages are listed instead of a false empty directory
+    Given the console is open
+    And a wiki page "notes.md" exists with content:
+      """
+      Notes body
+      """
+    When I switch to the "Wiki" view
+    Then the wiki page list should include "notes.md"
+    And the wiki empty state should not be visible
+
+  @wiki-ui-014
+  Scenario: wiki home opens index.md when that page exists
+    Given the console is open
+    And a wiki page "index.md" exists with content:
+      """
+      Wiki home
+      """
+    When I switch to the "Wiki" view
+    Then the wiki editor path should be "index.md"
+    And the wiki empty state should not be visible
+
+  @wiki-ui-015
+  Scenario: missing wiki directory is distinct from an empty wiki
+    Given the console is open
+    And the console wiki directory is missing
+    When I switch to the "Wiki" view
+    Then the wiki missing-directory state should be visible
+    And the wiki empty state should not be visible
+
+  @wiki-ui-016
+  Scenario: wiki pages request failure shows a visible error
+    Given the console is open
+    And the console wiki pages request fails
+    When I switch to the "Wiki" view
+    Then the wiki error banner should contain "wiki pages request failed"
+    And the wiki empty state should not be visible
