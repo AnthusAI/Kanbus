@@ -636,6 +636,22 @@ When("I switch to the {string} tab", async function (tabName) {
   await this.page.getByRole("tab", { name: resolved }).click();
 });
 
+When("I select the {string} type filter", async function (filterName) {
+  await this.page.getByRole("tab", { name: filterName }).click();
+});
+
+function boardColumnLocator(page, label) {
+  return page.locator(".kb-column").filter({ hasText: label });
+}
+
+Then("the board should show the column {string}", async function (label) {
+  await expect(boardColumnLocator(this.page, label)).toHaveCount(1);
+});
+
+Then("the board should not show the column {string}", async function (label) {
+  await expect(boardColumnLocator(this.page, label)).toHaveCount(0);
+});
+
 When("I open the task {string}", async function (title) {
   await issueCardLocator(this.page, title).click();
 });
