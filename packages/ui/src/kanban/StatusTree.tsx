@@ -2,8 +2,13 @@ import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatIssueId } from "./format-issue-id";
 import { getTypeIcon } from "./issue-icons";
-import { buildStatusBadgeStyle } from "./issue-colors";
-import type { KanbanStatusDefinition } from "./types";
+import {
+  buildIssueColorStyle,
+  buildStatusBadgeStyle,
+  resolveIssueAccentColorName,
+  resolveStatusBadgeColorName
+} from "./issue-colors";
+import type { KanbanConfig, KanbanIssue } from "./types";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 
@@ -12,6 +17,7 @@ export interface StatusTreeIssue {
   title: string;
   type?: string;
   status?: string;
+  priority?: number;
   parent?: string;
   updated_at?: string;
   right_now_summary?: string | null;
@@ -24,7 +30,7 @@ interface StatusTreeNode {
 
 interface StatusTreeProps {
   issues: StatusTreeIssue[];
-  statuses?: KanbanStatusDefinition[];
+  config?: KanbanConfig;
   defaultExpanded: boolean;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
@@ -67,6 +73,16 @@ function resolveRightNowSummary(issue: StatusTreeIssue): string {
   return summary;
 }
 
+function toKanbanIssue(issue: StatusTreeIssue): KanbanIssue {
+  return {
+    id: issue.id,
+    title: issue.title,
+    type: issue.type ?? "task",
+    status: issue.status ?? "open",
+    priority: issue.priority ?? 2
+  };
+}
+
 function buildStatusTree(issues: StatusTreeIssue[]): StatusTreeNode[] {
   const identifiers = new Set(issues.map((issue) => issue.id));
   const childrenByParent = new Map<string, StatusTreeIssue[]>();
@@ -107,7 +123,7 @@ interface StatusTreeRowProps {
   onToggleExpanded: (issueId: string, expanded: boolean) => void;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
-  statuses?: KanbanStatusDefinition[];
+  config?: KanbanConfig;
 }
 
 function StatusTreeRow({
@@ -118,22 +134,27 @@ function StatusTreeRow({
   onToggleExpanded,
   onSelectIssue,
   selectedIssueId = null,
-  statuses = []
+  config
 }: StatusTreeRowProps) {
   const { issue, children } = node;
   const hasChildren = children.length > 0;
   const expanded = expandedOverrides[issue.id] ?? defaultExpanded;
   const summaryText = resolveRightNowSummary(issue);
   const isSelected = selectedIssueId === issue.id;
-  const IssueTypeIcon = getTypeIcon(issue.type ?? "task", issue.status);
+  const kanbanIssue = toKanbanIssue(issue);
+  const IssueTypeIcon = getTypeIcon(kanbanIssue.type, kanbanIssue.status);
   const ExpandIcon = expanded ? ChevronDown : ChevronRight;
-  const statusKey = issue.status ?? "";
+  const statusKey = kanbanIssue.status;
   const statusLabel =
-    statuses.find((status) => status.key === statusKey)?.name ?? statusKey;
+    config?.statuses.find((status) => status.key === statusKey)?.name ?? statusKey;
+  const issueStyle = config ? buildIssueColorStyle(config, kanbanIssue) : undefined;
   const statusBadgeStyle =
-    statusKey.length > 0
-      ? buildStatusBadgeStyle({ statuses, categories: [], priorities: {}, type_colors: {} }, statusKey)
-      : undefined;
+    config && statusKey ? buildStatusBadgeStyle(config, statusKey) : undefined;
+  const accentColorName = config
+    ? resolveIssueAccentColorName(config, kanbanIssue)
+    : null;
+  const statusColorName =
+    config && statusKey ? resolveStatusBadgeColorName(config, statusKey) : null;
 
   const handleToggle = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -147,11 +168,13 @@ function StatusTreeRow({
     <>
       <div
         className={`status-tree-row${isSelected ? " status-tree-row-selected" : ""}`}
+        style={issueStyle}
         data-testid="status-tree-row"
         data-issue-title={issue.title}
         data-issue-id={issue.id}
-        data-issue-type={issue.type}
+        data-issue-type={kanbanIssue.type}
         data-issue-status={statusKey || undefined}
+        data-accent-color={accentColorName ?? undefined}
         data-tree-depth={depth}
         data-tree-expanded={hasChildren ? String(expanded) : undefined}
       >
@@ -171,8 +194,8 @@ function StatusTreeRow({
           ) : (
             <span className="status-tree-toggle-spacer" aria-hidden="true" />
           )}
-          <IssueTypeIcon className="status-tree-type-icon" aria-hidden="true" />
-          <span className="status-tree-id" data-testid="status-tree-id">
+          <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
+          <span className="issue-accent-id status-tree-id" data-testid="status-tree-id">
             {formatIssueId(issue.id)}
           </span>
           {statusKey ? (
@@ -180,6 +203,7 @@ function StatusTreeRow({
               className="status-badge status-tree-status"
               data-testid="status-tree-status"
               data-issue-status={statusKey}
+              data-status-color={statusColorName ?? undefined}
               style={statusBadgeStyle}
             >
               {statusLabel}
@@ -213,7 +237,7 @@ function StatusTreeRow({
               onToggleExpanded={onToggleExpanded}
               onSelectIssue={onSelectIssue}
               selectedIssueId={selectedIssueId}
-              statuses={statuses}
+              config={config}
             />
           ))
         : null}
@@ -223,7 +247,7 @@ function StatusTreeRow({
 
 export function StatusTree({
   issues,
-  statuses = [],
+  config,
   defaultExpanded,
   onSelectIssue,
   selectedIssueId = null
@@ -258,7 +282,7 @@ export function StatusTree({
           onToggleExpanded={handleToggleExpanded}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
-          statuses={statuses}
+          config={config}
         />
       ))}
     </div>

@@ -497,6 +497,57 @@ def then_status_tree_row_status(context: object, title: str, expected: str) -> N
         raise AssertionError(f"expected status {expected}, got {issue.status}")
 
 
+def _default_type_accent_color(issue_type: str) -> str | None:
+    return {
+        "initiative": "indigo",
+        "epic": "purple",
+        "story": "amber",
+        "bug": "red",
+        "task": "blue",
+        "sub-task": "teal",
+        "chore": "green",
+        "event": "indigo",
+    }.get(issue_type)
+
+
+def _default_status_badge_color(status: str) -> str | None:
+    if status in {"open", "backlog", "todo", "Discovery", "deferred"}:
+        return "gray"
+    if status in {"in_progress", "blocked", "copy_writing"}:
+        return "blue"
+    if status in {"closed", "done"}:
+        return "green"
+    return None
+
+
+@then('the status tree row for "{title}" should show type accent color "{expected}"')
+def then_status_tree_row_type_accent_color(
+    context: object, title: str, expected: str
+) -> None:
+    state = _require_console_state(context)
+    issue = _find_issue_by_title(title, state.issues)
+    if issue is None:
+        raise AssertionError(f"issue not found: {title}")
+    actual = _default_type_accent_color(issue.issue_type)
+    if actual is None:
+        raise AssertionError(f"unknown type accent color for {issue.issue_type}")
+    if actual != expected:
+        raise AssertionError(f"expected type accent color {expected}, got {actual}")
+
+
+@then('the status tree row for "{title}" should show status color "{expected}"')
+def then_status_tree_row_status_color(context: object, title: str, expected: str) -> None:
+    state = _require_console_state(context)
+    issue = _find_issue_by_title(title, state.issues)
+    if issue is None:
+        raise AssertionError(f"issue not found: {title}")
+    actual = _default_status_badge_color(issue.status)
+    if actual is None:
+        raise AssertionError(f"unknown status color for {issue.status}")
+    if actual != expected:
+        raise AssertionError(f"expected status color {expected}, got {actual}")
+
+
 @when('the right-now summary for "{title}" is updated to "{summary}"')
 def when_right_now_summary_updated(context: object, title: str, summary: str) -> None:
     state = _require_console_state(context)

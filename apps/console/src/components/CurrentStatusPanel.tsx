@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { StatusTree } from "@kanbus/ui";
-import type { Issue, StatusDefinition } from "../types/issues";
+import type { KanbanConfig } from "@kanbus/ui";
+import type { Issue, ProjectConfig } from "../types/issues";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 const DEFAULT_STATUS_FEED_LIMIT = 30;
@@ -9,12 +10,22 @@ const NOW_STATUS_FILTER_ALL = "all";
 
 interface CurrentStatusPanelProps {
   issues: Issue[];
-  statuses?: StatusDefinition[];
+  config?: ProjectConfig;
   boardTitle?: string;
   limit?: number;
   defaultTreeExpanded?: boolean;
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
+}
+
+function toKanbanConfig(config: ProjectConfig): KanbanConfig {
+  return {
+    statuses: config.statuses,
+    categories: config.categories,
+    priorities: config.priorities,
+    type_colors: config.type_colors,
+    sort_order: config.sort_order
+  };
 }
 
 function parseTimestamp(value: string | undefined): number | null {
@@ -101,13 +112,18 @@ function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issu
 
 export function CurrentStatusPanel({
   issues,
-  statuses = [],
+  config,
   boardTitle = "",
   limit = DEFAULT_STATUS_FEED_LIMIT,
   defaultTreeExpanded = false,
   onSelectIssue,
   selectedIssueId = null,
 }: CurrentStatusPanelProps) {
+  const kanbanConfig = useMemo(
+    () => (config ? toKanbanConfig(config) : undefined),
+    [config]
+  );
+  const statuses = config?.statuses ?? [];
   const [treeViewEnabled, setTreeViewEnabled] = useState(true);
   const [statusFilter, setStatusFilter] = useState(DEFAULT_NOW_STATUS_FILTER);
   const visibleIssues = useMemo(() => {
@@ -166,7 +182,7 @@ export function CurrentStatusPanel({
       {treeViewEnabled ? (
         <StatusTree
           issues={treeIssues}
-          statuses={statuses}
+          config={kanbanConfig}
           defaultExpanded={defaultTreeExpanded}
           onSelectIssue={
             onSelectIssue
