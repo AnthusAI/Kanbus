@@ -1133,13 +1133,6 @@ html[data-motion="reduced"] .sidebar-column {
   height: 1rem;
 }
 
-.status-tree-toggle-spacer {
-  display: inline-block;
-  width: 1.75rem;
-  height: 1.75rem;
-  flex-shrink: 0;
-}
-
 .status-tree-type-icon {
   width: 1rem;
   height: 1rem;
