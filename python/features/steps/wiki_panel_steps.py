@@ -72,8 +72,6 @@ def when_switch_to_wiki_view(context: object) -> None:
         wiki.error_banner = "wiki pages request failed"
         wiki.selected_path = None
         return
-    if wiki.selected_path is None and "index.md" in wiki.pages:
-        _select_page(wiki, "index.md")
 
 
 @when('I create a wiki page named "{path}"')
