@@ -679,15 +679,6 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
-  const snapshotUnsubscribeRef = React.useRef<(() => void) | null>(null);
-  const realtimeUnsubscribeRef = React.useRef<(() => void) | null>(null);
-
-  const pauseRealtimeFeeds = useCallback(() => {
-    snapshotUnsubscribeRef.current?.();
-    snapshotUnsubscribeRef.current = null;
-    realtimeUnsubscribeRef.current?.();
-    realtimeUnsubscribeRef.current = null;
-  }, []);
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -769,10 +760,9 @@ export default function App() {
 
   useEffect(() => {
     if (route.wikiPath !== null) {
-      pauseRealtimeFeeds();
       setPanelMode("wiki");
     }
-  }, [route.wikiPath, pauseRealtimeFeeds]);
+  }, [route.wikiPath]);
 
   useEffect(() => {
     let isMounted = true;
@@ -838,13 +828,11 @@ export default function App() {
   }, [route.basePath]);
 
   useEffect(() => {
-    if (!route.basePath || !authReady || panelMode === "wiki") {
-      pauseRealtimeFeeds();
+    if (!route.basePath || !authReady) {
       return;
     }
     const snapshotApiBase = `${route.basePath}/api`;
-    snapshotUnsubscribeRef.current?.();
-    snapshotUnsubscribeRef.current = subscribeToSnapshots(
+    return subscribeToSnapshots(
       snapshotApiBase,
       (nextSnapshot) => {
         lastSnapshotSuccessAtRef.current = Date.now();
@@ -861,20 +849,14 @@ export default function App() {
         setErrorTime(Date.now());
       }
     );
-    return () => {
-      snapshotUnsubscribeRef.current?.();
-      snapshotUnsubscribeRef.current = null;
-    };
-  }, [route.basePath, authReady, panelMode, pauseRealtimeFeeds]);
+  }, [route.basePath, authReady]);
 
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath || !authReady || panelMode === "wiki") {
-      pauseRealtimeFeeds();
+    if (!route.basePath || !authReady) {
       return;
     }
     const apiBase = `${route.basePath}/api`;
-    realtimeUnsubscribeRef.current?.();
     const unsubscribe = subscribeToRealtimeFeed(
       apiBase,
       (event: NotificationEvent) => {
@@ -939,12 +921,10 @@ export default function App() {
       }
     );
 
-    realtimeUnsubscribeRef.current = unsubscribe;
     return () => {
-      realtimeUnsubscribeRef.current?.();
-      realtimeUnsubscribeRef.current = null;
+      unsubscribe();
     };
-  }, [route.basePath, authReady, panelMode, pauseRealtimeFeeds]);
+  }, [route.basePath, authReady]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {
@@ -1479,11 +1459,6 @@ export default function App() {
       if (!proceed) {
         return;
       }
-    }
-    if (nextMode === "wiki") {
-      pauseRealtimeFeeds();
-      setPanelMode(nextMode);
-      return;
     }
     refreshSnapshot();
     setPanelMode(nextMode);
