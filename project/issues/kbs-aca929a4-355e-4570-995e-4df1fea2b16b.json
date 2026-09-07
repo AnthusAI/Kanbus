@@ -1,0 +1,20 @@
+{
+  "id": "kbs-aca929a4-355e-4570-995e-4df1fea2b16b",
+  "title": "Write Gherkin specs for wiki Markus integration (kbs-5d88eb)",
+  "description": "Specs-only PR for story kbs-5d88eb under epic kbs-bd41d7. Define Jinja-first, Markus-second wiki render pipeline; console backend HTML preview; unknown directive validation.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-07T15:04:15.170649955Z",
+  "updated_at": "2026-09-07T15:04:24.913102870Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,41 @@
+{
+  "id": "kbs-e77e32",
+  "title": "Console Wiki empty when serve data root lacks project/wiki",
+  "description": "Wiki path must resolve from the .kanbus.yml parent, not blindly from the file-store root, so pages are found when the serve data root is project/.\n\nShipped on develop via PR #222 (contained in #223).",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bd41d7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a6f0f411-2575-4b85-9c10-a5bc5a4cb4eb",
+      "author": "ubuntu",
+      "text": "PR #222 and #223 covered empty-wiki honesty and directory titles. Both are merged to develop (0b808741 / 1b5f09e8).",
+      "created_at": "2026-09-07T20:11:23.291047177Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
+    }
+  ],
+  "created_at": "2026-09-07T20:11:13.178224541Z",
+  "updated_at": "2026-09-07T20:11:23.665005946Z",
+  "closed_at": "2026-09-07T20:11:23.658394156Z",
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "board-hygiene"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

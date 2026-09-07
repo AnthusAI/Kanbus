@@ -17,12 +17,9 @@
       "text": "Feature: Console wiki workspace\n\n  Scenario: existing wiki pages are listed instead of a false empty directory\n    Given the console is open\n    And a wiki page \"notes.md\" exists with content:\n      \"\"\"\n      Notes body\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki page list should include \"notes.md\"\n    And the wiki empty state should not be visible\n\n  Scenario: wiki home opens index.md when that page exists\n    Given the console is open\n    And a wiki page \"index.md\" exists with content:\n      \"\"\"\n      Wiki home\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki editor path should be \"index.md\"\n    And the wiki empty state should not be visible\n\n  Scenario: missing wiki directory is distinct from an empty wiki\n    Given the console is open\n    And the console wiki directory is missing\n    When I switch to the \"Wiki\" view\n    Then the wiki missing-directory state should be visible\n    And the wiki empty state should not be visible\n\n  Scenario: wiki pages request failure shows a visible error\n    Given the console is open\n    And the console wiki pages request fails\n    When I switch to the \"Wiki\" view\n    Then the wiki error banner should contain \"wiki pages request failed\"\n    And the wiki empty state should not be visible",
       "created_at": "2026-09-07T19:06:07.345703Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -31,12 +28,9 @@
       "text": "Implementation is on PR https://github.com/AnthusAI/Kanbus/pull/222 (branch `cursor/fix-console-wiki-empty-7067`).\n\nLocal verification:\n- `cargo test --lib console_wiki`: 14 passed, including wiki root resolution when the store is the project directory\n- `cargo test --test wiki_service_tests`: 12 passed\n- Python behave `@console` wiki_panel: 16 scenarios passed\n- Rust cucumber new wiki-ui scenarios: 4 passed\n- `cargo clippy --lib -- -D warnings`: clean\n\nLeaving this bug in progress until the PR lands.",
       "created_at": "2026-09-07T19:13:43.860190Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -45,12 +39,9 @@
       "text": "Live follow-up: opening `/api/wiki/pages` in a tab returns 12 paths, but `fetch('/api/wiki/pages')` from the Wiki tab stays pending. SSE `/api/events` shows `ERR_INCOMPLETE_CHUNKED_ENCODING`; telemetry POST is `ERR_CONNECTION_REFUSED`.\n\nWorking hypothesis: Vite proxy + long-lived SSE is starving or wedging the HTTP/1.1 connection pool, so the in-page wiki list request never settles. Snapshot/telemetry errors do not call into WikiPanel, but they can block its fetch.\n\nNext: SSE keep-alives, Vite proxy timeouts/cleanup, and a wiki list request timeout so a hung fetch becomes a visible error instead of a false empty directory.",
       "created_at": "2026-09-07T19:16:14.548630Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -59,12 +50,9 @@
       "text": "Live follow-up: `/api/wiki/pages` returns 12 files in a new tab, but in-page `fetch('/api/wiki/pages')` stayed pending. That is HTTP/1.1 slot exhaustion, not an empty wiki.\n\nSSE `/api/events` dying with `ERR_INCOMPLETE_CHUNKED_ENCODING` (and telemetry `ERR_CONNECTION_REFUSED`) does not call into WikiPanel, but those long-lived streams occupy Chrome's 6 connections per origin. React also starts the child wiki fetch before parent SSE cleanup.\n\nFix in progress: close snapshot/realtime streams synchronously when opening Wiki, time out the pages request, split the Vite proxy so only SSE has no timeout, and show a visible error if the request never settles (`@wiki-ui-017`).\n",
       "created_at": "2026-09-07T19:21:33.249765Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -73,12 +61,9 @@
       "text": "Hung-fetch follow-up is on PR 222 (`507b3f6c`).\n\nLocal verification:\n- Python behave `@console` wiki_panel: 17 scenarios passed, including `@wiki-ui-017`\n- Rust cucumber `@wiki-ui-013` through `@wiki-ui-017`: 5 passed\n- `cargo test --lib console_wiki`: 14 passed\n- `cargo test --test wiki_service_tests`: 12 passed\n- `cargo clippy --lib -- -D warnings` and `rustfmt --check` on the new steps: clean\n",
       "created_at": "2026-09-07T19:23:47.228780Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -87,12 +72,9 @@
       "text": "CI on PR 222 was red. console-ui failed because pausing SSE on Wiki and replacing EventSource reconnect closed live snapshot sockets that board/Now specs need. Restoring always-on SSE and native EventSource. Wiki pages fetch still times out at 8s; delete now updates the remaining page list without a second list fetch.\n\nRust cucumber `Regenerating a right now summary updates a newer overlay snapshot` also fails locally and is unrelated to wiki. Develop CI rust is already red. Investigating whether that is a merge blocker.\n",
       "created_at": "2026-09-07T19:36:27.364872Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -101,12 +83,9 @@
       "text": "643a7424 still failed console-ui (same 14) and python (overlay now list + missing \"console board should be visible\").\n\nCause: the Vite proxy 15s JSON timeout and SSE destroy-on-close aborted snapshot/SSE, so tests saw a stale Chattic.us board. Reverting vite.config to develop's simple proxy. Overlay assertion now uses `kanbus now --status all --list` so a newer open overlay is still visible. Added the missing Python/Rust board-visible step.\n",
       "created_at": "2026-09-07T19:48:05.200212Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6-high-fast",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6-high-fast"
       }
     },
     {
@@ -115,25 +94,32 @@
       "text": "False-empty Wiki tab fix landed on develop in 0b808741 (PR #222 contained in #223).",
       "created_at": "2026-09-07T20:01:28.184644Z",
       "comment_type": "default",
-      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
+      }
+    },
+    {
+      "id": "bac7347a-5015-4f76-b13c-d7464646c859",
+      "author": "ubuntu",
+      "text": "PR #222 and #223 covered empty-wiki honesty and directory titles. Both are merged to develop (0b808741 / 1b5f09e8).",
+      "created_at": "2026-09-07T20:11:23.500093639Z",
+      "comment_type": "default",
       "agent": {
         "platform": "cursor",
         "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "name": "board-hygiene"
       }
     }
   ],
   "created_at": "2026-09-07T19:05:57.931381Z",
-  "updated_at": "2026-09-07T20:01:28.722134Z",
+  "updated_at": "2026-09-07T20:11:23.500118244Z",
   "closed_at": "2026-09-07T20:01:28.693982Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {},
   "agent": {
     "platform": "cursor",
-    "model": "cursor-grok-4.6-high-fast",
-    "name": null,
-    "settings": {}
-  }
+    "model": "cursor-grok-4.6-high-fast"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
 }

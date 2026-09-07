@@ -17,25 +17,32 @@
       "text": "Complete on develop 0b808741 via PR #223. Contains PR #222 false-empty fix.",
       "created_at": "2026-09-07T20:01:27.143109Z",
       "comment_type": "default",
-      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
+      }
+    },
+    {
+      "id": "6d8e98fc-76ca-43ad-a4ec-126d72aa22f9",
+      "author": "ubuntu",
+      "text": "PR #222 and #223 covered empty-wiki honesty and directory titles. Both are merged to develop (0b808741 / 1b5f09e8).",
+      "created_at": "2026-09-07T20:11:23.545998717Z",
+      "comment_type": "default",
       "agent": {
         "platform": "cursor",
         "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "name": "board-hygiene"
       }
     }
   ],
   "created_at": "2026-09-07T19:36:43.131031Z",
-  "updated_at": "2026-09-07T20:01:27.676472Z",
+  "updated_at": "2026-09-07T20:11:23.546015298Z",
   "closed_at": "2026-09-07T20:01:27.650331Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {},
   "agent": {
     "platform": "cursor",
-    "model": "cursor-grok-4.6",
-    "name": null,
-    "settings": {}
-  }
+    "model": "cursor-grok-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
 }
