@@ -24,10 +24,24 @@
         "name": "wiki-markus-pipeline",
         "settings": {}
       }
+    },
+    {
+      "id": "ec909795-14d6-4195-b6d6-4e7da296a789",
+      "author": "ubuntu",
+      "text": "Second pass after 9e87872a still failed console-ui (14 scenarios). API writes were visible to refresh=1 but the page kept fixture state: issue timestamps stayed 2026-02-11, comments/agent rows never appeared, Now feed did not take live right-now text. Also wiping virtual/project-local hid the Project source filter.\n\nChanges: snapshot SSE is no longer mixed with /events/realtime; a dead realtime client cannot block board broadcasts. Setup Givens reload after issue/wiki writes. Virtual-project setup creates a local issue so the source filter exists. Column 'Done' matches the exact title so Done (Legacy) does not count as a second Done column.",
+      "created_at": "2026-09-07T21:53:45.053499Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "wiki-markus-pipeline",
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T21:36:51.763642Z",
-  "updated_at": "2026-09-07T21:37:46.005822Z",
+  "updated_at": "2026-09-07T21:53:45.053576Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

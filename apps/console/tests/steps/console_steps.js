@@ -261,6 +261,13 @@ async function waitForIssueUpdate(issueId, predicate) {
   throw new Error(`Timed out waiting for issue update: ${issueId}`);
 }
 
+async function reloadConsoleAfterSetup(world) {
+  if (!world?.page) {
+    return;
+  }
+  await world.page.reload({ waitUntil: "domcontentloaded" });
+}
+
 function normalizeTimestamp(value) {
   if (!value) {
     return null;
@@ -380,6 +387,10 @@ Given("the console is open with virtual projects configured", async function () 
     path.join(alphaProject.projectDir, "issues"),
     buildIssue({ id: "alpha-shared-1", title: "Alpha shared issue" })
   );
+  await writeIssueInDir(
+    path.join(alphaProject.localDir, "issues"),
+    buildIssue({ id: "alpha-local-setup-1", title: "Alpha local setup issue" })
+  );
   await refreshConsoleSnapshot();
   await this.page.reload({ waitUntil: "domcontentloaded" });
   await this.page.getByRole("tab", { name: "Issues" }).click();
@@ -407,6 +418,10 @@ Given(
     await writeIssueInDir(
       path.join(alphaProject.projectDir, "issues"),
       buildIssue({ id: `${alpha}-shared-1`, title: `${alpha} shared issue` })
+    );
+    await writeIssueInDir(
+      path.join(alphaProject.localDir, "issues"),
+      buildIssue({ id: `${alpha}-local-setup-1`, title: `${alpha} local setup issue` })
     );
     await refreshConsoleSnapshot();
     await this.page.reload({ waitUntil: "domcontentloaded" });
@@ -665,7 +680,9 @@ When("I select the {string} type filter", async function (filterName) {
 });
 
 function boardColumnLocator(page, label) {
-  return page.locator(".kb-column").filter({ hasText: label });
+  return page.locator(".kb-column").filter({
+    has: page.getByText(label, { exact: true })
+  });
 }
 
 Then("the board should show the column {string}", async function (label) {
@@ -748,6 +765,7 @@ Given(
             === normalizeTimestamp(timestamp)
       )
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -770,6 +788,7 @@ Given(
         && normalizeTimestamp(entry.updated_at)
           === normalizeTimestamp(updatedAt)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -795,6 +814,7 @@ Given(
         && normalizeTimestamp(entry.closed_at)
           === normalizeTimestamp(closedAt)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -809,6 +829,7 @@ Given(
     issue.assignee = assignee;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => entry.assignee === assignee);
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -981,6 +1002,7 @@ Given(
       (entry) =>
         entry.agent?.platform === platform && entry.agent?.model === model
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -995,6 +1017,7 @@ Given(
     delete issue.agent;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => !entry.agent);
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -1026,6 +1049,7 @@ Given(
             && comment.agent?.model === model
         )
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -1051,6 +1075,7 @@ Given(
         Array.isArray(entry.comments)
         && entry.comments.some((comment) => comment.author === author)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 

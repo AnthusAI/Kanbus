@@ -99,6 +99,7 @@ async function restoreConsoleFixtures() {
     process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
   await fetch(`${consoleApiBase}/config?refresh=1`).catch(() => {});
   await waitForRestoredSnapshot(consoleApiBase, expectedIssueIds);
+  await new Promise((resolve) => setTimeout(resolve, 600));
 }
 
 Before(async function () {

@@ -136,14 +136,16 @@ After({ tags: "@wiki-markus" }, async function () {
 
 Given("the wiki storage is empty", async function () {
   await resetWiki();
-  this.wikiStale = true;
   this.wikiTouched = true;
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+  this.wikiStale = false;
 });
 
 Given("a wiki page {string} exists with content:", async function (relativePath, docString) {
   await writeWikiPage(relativePath, docString);
-  this.wikiStale = true;
   this.wikiTouched = true;
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+  this.wikiStale = false;
 });
 
 When("I select wiki page {string}", async function (relativePath) {
@@ -276,8 +278,9 @@ Then("the wiki view should be inactive", async function () {
 Given("the console wiki directory is missing", async function () {
   const root = requireWikiRoot();
   await rm(root, { recursive: true, force: true });
-  this.wikiStale = true;
   this.wikiTouched = true;
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+  this.wikiStale = false;
 });
 
 Given("the console wiki pages request fails", async function () {

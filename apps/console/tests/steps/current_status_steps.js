@@ -312,6 +312,9 @@ Given(
       issue.id,
       (entry) => entry.right_now_summary === summary
     );
+    if (this.page) {
+      await this.page.reload({ waitUntil: "domcontentloaded" });
+    }
   }
 );
 
