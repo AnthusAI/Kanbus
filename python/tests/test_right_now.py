@@ -71,7 +71,19 @@ def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
 
     issue = build_issue("kanbus-parent")
     lookup = SimpleNamespace(issue=issue)
-    monkeypatch.setattr("kanbus.right_now.load_issue_from_project", lambda *_a: lookup)
+    load_calls = 0
+
+    def load_with_vanish_after_regenerate(*_args: object) -> SimpleNamespace:
+        nonlocal load_calls
+        load_calls += 1
+        if load_calls == 1:
+            return lookup
+        raise IssueLookupError("vanished")
+
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        load_with_vanish_after_regenerate,
+    )
     monkeypatch.setattr(
         "kanbus.right_now.right_now_summary_is_missing_or_stale",
         lambda *_a: True,
@@ -79,10 +91,6 @@ def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
     monkeypatch.setattr(
         "kanbus.right_now.regenerate_right_now_for_issue",
         lambda *_a: None,
-    )
-    monkeypatch.setattr(
-        "kanbus.right_now.load_issue_from_project",
-        lambda *_a: (_ for _ in ()).throw(IssueLookupError("vanished")),
     )
     assert (
         ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
