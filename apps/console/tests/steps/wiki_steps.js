@@ -126,8 +126,8 @@ Before(function () {
   this.wikiTouched = false;
 });
 
-After(async function () {
-  if (!this.wikiTouched || !wikiRoot) {
+After({ tags: "@wiki-markus" }, async function () {
+  if (!wikiRoot) {
     return;
   }
   await resetWiki();
@@ -296,6 +296,10 @@ Given("the console wiki pages request hangs", async function () {
 
 Then("the wiki directory listing should show {string}", async function (text) {
   await reloadIfWikiStale(this);
+  const wikiToggle = this.page.getByTestId("view-toggle-wiki");
+  if ((await wikiToggle.count()) > 0 && (await wikiToggle.getAttribute("data-active")) !== "true") {
+    await wikiToggle.click();
+  }
   const button = this.page.locator(".wiki-directory-listing button").filter({ hasText: text }).first();
   await expect(button).toBeVisible({ timeout: 15000 });
 });

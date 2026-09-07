@@ -63,6 +63,12 @@ Given("a Kanbus project with default configuration", async function () {
     search_query: ""
   };
   await fs.writeFile(statePath, JSON.stringify(baselineState, null, 2), "utf-8");
+  const consolePort = process.env.CONSOLE_PORT ?? "5174";
+  const consoleApiBase = process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
+  const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
+  if (!configResponse.ok) {
+    throw new Error(`console config request failed: ${configResponse.status}`);
+  }
 });
 
 Given("an issue {string} exists with title {string}", async function (id, title) {

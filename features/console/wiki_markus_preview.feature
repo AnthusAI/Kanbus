@@ -1,4 +1,5 @@
 @console
+@wiki-markus
 Feature: Console wiki Markus preview
   The console wiki workspace requests backend-rendered HTML that already
   includes Markus semantic classes. The browser hosts preview chrome and
