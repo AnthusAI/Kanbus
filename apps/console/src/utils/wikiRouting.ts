@@ -25,9 +25,11 @@ export function resolveWikiRoute(pages: WikiPageListItem[], route: string): Wiki
     return { type: "file", path: normalizedRoute };
   }
 
-  const indexFallback = normalizedRoute ? `${normalizedRoute}/index.md` : "index.md";
-  if (pagePaths.includes(indexFallback)) {
-    return { type: "file", path: indexFallback };
+  if (normalizedRoute) {
+    const indexFallback = `${normalizedRoute}/index.md`;
+    if (pagePaths.includes(indexFallback)) {
+      return { type: "file", path: indexFallback };
+    }
   }
 
   const prefix = normalizedRoute ? `${normalizedRoute}/` : "";

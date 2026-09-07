@@ -1032,9 +1032,6 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
             wiki.selected_path = None;
             return;
         }
-        if wiki.selected_path.is_none() && wiki.pages.contains_key("index.md") {
-            select_wiki_page(wiki, "index.md");
-        }
         return;
     }
     if normalized == "now" || normalized == "current status" {

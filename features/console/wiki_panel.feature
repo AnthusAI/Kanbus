@@ -195,14 +195,23 @@ Feature: Console wiki workspace
     And the wiki empty state should not be visible
 
   @wiki-ui-014
-  Scenario: wiki home opens index.md when that page exists
+  Scenario: wiki home lists titled pages when index.md exists
     Given the console is open
     And a wiki page "index.md" exists with content:
       """
-      Wiki home
+      # Taskulus Wiki
+      Welcome.
+      """
+    And a wiki page "blocked_issues.md" exists with content:
+      """
+      # Blocked issues
+      Open items that cannot move.
       """
     When I switch to the "Wiki" view
-    Then the wiki editor path should be "index.md"
+    Then the wiki directory listing should show "Taskulus Wiki"
+    And the wiki directory listing should show "Blocked issues"
+    And the wiki directory listing should not show "index.md"
+    And the wiki directory listing should not show "blocked_issues.md"
     And the wiki empty state should not be visible
 
   @wiki-ui-015
@@ -279,3 +288,15 @@ Feature: Console wiki workspace
     When I switch to the "Wiki" view
     And I select the wiki page titled "Blocked issues"
     Then the wiki editor path should be "blocked_issues.md"
+
+  @wiki-ui-022
+  Scenario: clicking the index listing entry opens index.md
+    Given the console is open
+    And a wiki page "index.md" exists with content:
+      """
+      # Taskulus Wiki
+      Welcome.
+      """
+    When I switch to the "Wiki" view
+    And I select the wiki page titled "Taskulus Wiki"
+    Then the wiki editor path should be "index.md"
