@@ -60,4 +60,5 @@ export interface WikiRenderRequest {
 export interface WikiRenderResponse {
   path: string;
   rendered_markdown: string;
+  rendered_html: string;
 }

@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Dict, List
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markusmd import convert as convert_markus_source
+from markusmd.errors import MarkusError
 
 from kanbus.ai_summarize import make_ai_summarize
 from kanbus.console_snapshot import ConsoleSnapshotError, get_issues_for_root
@@ -534,6 +536,23 @@ def render_wiki_page(
     return rendered
 
 
+def convert_wiki_markdown_to_html(markdown: str) -> str:
+    """Convert Jinja-resolved wiki Markdown to Markus semantic HTML.
+
+    :param markdown: Post-Jinja Markdown source.
+    :type markdown: str
+    :return: HTML that includes Markus semantic classes.
+    :rtype: str
+    :raises WikiError: If Markus validation or conversion fails.
+    """
+    try:
+        return convert_markus_source(markdown, include_css=False, full_document=False)
+    except MarkusError as error:
+        raise WikiError(str(error)) from error
+    except Exception as error:
+        raise WikiError(str(error)) from error
+
+
 def _find_broken_wiki_links(
     location: WikiLocation,
     wiki_relative: str,
@@ -915,17 +934,23 @@ def format_wiki_search_json(query: str, pages: List[str]) -> str:
     return json.dumps(payload, indent=2, sort_keys=False)
 
 
-def format_wiki_render_json(page_path: str, rendered: str) -> str:
+def format_wiki_render_json(page_path: str, rendered: str, rendered_html: str) -> str:
     """Format wiki render output as JSON.
 
     :param page_path: Canonical wiki page path relative to repository root.
     :type page_path: str
-    :param rendered: Rendered markdown content.
+    :param rendered: Rendered markdown content after Jinja.
     :type rendered: str
+    :param rendered_html: Markus HTML converted from the Jinja markdown.
+    :type rendered_html: str
     :return: JSON payload string.
     :rtype: str
     """
-    payload = {"path": page_path, "rendered": rendered}
+    payload = {
+        "path": page_path,
+        "rendered": rendered,
+        "rendered_html": rendered_html,
+    }
     return json.dumps(payload, indent=2, sort_keys=False)
 
 

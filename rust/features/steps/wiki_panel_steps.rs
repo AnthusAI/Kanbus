@@ -1,5 +1,6 @@
 use cucumber::{gherkin::Step, given, then, when};
 use kanbus::wiki::wiki_page_display_title;
+use kanbus::wiki_markus::convert_wiki_markdown_to_html;
 
 use crate::step_definitions::console_ui_steps::{
     ensure_wiki_state, select_wiki_page, WikiWorkspaceState,
@@ -106,6 +107,20 @@ fn when_render_wiki_page(world: &mut KanbusWorld) {
     }
     wiki.preview_content = wiki.editor_content.clone();
     wiki.error_banner = None;
+}
+
+#[when("I render the wiki page through the backend")]
+fn when_render_wiki_page_through_backend(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    match convert_wiki_markdown_to_html(&wiki.editor_content) {
+        Ok(html) => {
+            wiki.preview_content = html;
+            wiki.error_banner = None;
+        }
+        Err(error) => {
+            wiki.error_banner = Some(error.to_string());
+        }
+    }
 }
 
 #[when(regex = r#"I rename the wiki page "(?P<old_path>[^"]+)" to "(?P<new_path>[^"]+)"$"#)]
@@ -348,6 +363,63 @@ fn then_wiki_editor_content_should_equal(world: &mut KanbusWorld, step: &Step) {
         actual, expected,
         "expected editor content {:?}, got {:?}",
         expected, wiki.editor_content
+    );
+}
+
+fn preview_html_contains_class(html: &str, css_class: &str) -> bool {
+    class_attribute_contains(html, css_class)
+}
+
+fn class_attribute_contains(html: &str, css_class: &str) -> bool {
+    for prefix in ["class=\"", "class='"] {
+        let quote = if prefix.ends_with('"') { '"' } else { '\'' };
+        let mut search = html;
+        while let Some(index) = search.find(prefix) {
+            let after = &search[index + prefix.len()..];
+            if let Some(end) = after.find(quote) {
+                if after[..end]
+                    .split_whitespace()
+                    .any(|token| token == css_class)
+                {
+                    return true;
+                }
+            }
+            search = &search[index + prefix.len()..];
+        }
+    }
+    false
+}
+
+#[then(expr = "the wiki preview HTML should contain element with class {string}")]
+fn then_wiki_preview_html_contains_class(world: &mut KanbusWorld, css_class: String) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        preview_html_contains_class(&wiki.preview_content, &css_class),
+        "expected preview HTML class {:?}, got {:?}",
+        css_class,
+        wiki.preview_content
+    );
+}
+
+#[then(expr = "the wiki preview HTML should contain {string}")]
+fn then_wiki_preview_html_contains(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        wiki.preview_content.contains(&text),
+        "expected wiki preview HTML to contain {:?}, got {:?}",
+        text,
+        wiki.preview_content
+    );
+}
+
+#[then(expr = "the wiki preview HTML should not contain {string}")]
+fn then_wiki_preview_html_not_contain(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        !wiki.preview_content.contains(&text),
+        "expected wiki preview HTML not to contain {:?}, got {:?}",
+        text,
+        wiki.preview_content
     );
 }
 

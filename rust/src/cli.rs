@@ -76,6 +76,7 @@ use crate::wiki::{
     format_wiki_render_json, format_wiki_search_json, init_wiki, lint_wiki, list_wiki_pages,
     render_wiki_page, resolve_wiki_page_path, search_wiki_pages, show_wiki_page, WikiRenderRequest,
 };
+use crate::wiki_markus::convert_wiki_markdown_to_html;
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
@@ -769,6 +770,9 @@ enum WikiCommands {
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Emit Markus HTML after Jinja evaluation.
+        #[arg(long)]
+        html: bool,
     },
     /// List wiki pages.
     List {
@@ -3127,7 +3131,7 @@ fn execute_command(
             Ok(None)
         }
         Commands::Wiki { command } => match command {
-            WikiCommands::Render { page, json } => {
+            WikiCommands::Render { page, json, html } => {
                 let link_problems = check_wiki_page_links(root, &page)?;
                 for problem in &link_problems {
                     crate::rich_text_signals::emit_stderr_line(&format_wiki_link_problem(
@@ -3139,12 +3143,20 @@ fn execute_command(
                     page_path: Path::new(&page).to_path_buf(),
                 };
                 let output = render_wiki_page(&request)?;
+                let rendered_html = if json || html {
+                    convert_wiki_markdown_to_html(&output)?
+                } else {
+                    String::new()
+                };
                 if json {
                     let resolved_page = resolve_wiki_page_path(root, &page)?;
                     Ok(Some(format_wiki_render_json(
                         &resolved_page.to_string_lossy(),
                         &output,
+                        &rendered_html,
                     )))
+                } else if html {
+                    Ok(Some(rendered_html))
                 } else {
                     Ok(Some(output))
                 }
