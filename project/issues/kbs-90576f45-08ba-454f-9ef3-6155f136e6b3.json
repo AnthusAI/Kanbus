@@ -3,7 +3,7 @@
   "title": "Now tree priority chips lose color from invalid CSS",
   "description": "## Bug\n\nRyan reports Now summary styling is broken. Live repro shows Now tree rows with washed-out or missing priority colors and low-contrast gray IDs/icons.\n\nBoard cards and Now rows both use `.issue-accent-priority` with `--issue-priority-bg` from `buildIssueColorStyle`. An invalid CSS block in `apps/console/src/styles/globals.css` mixes selectors with `@media`, so the dark-mode priority variable switch is dropped or applied at the wrong scope.\n\n## Invalid CSS\n\n```css\n.dark .issue-accent-priority,\n[data-theme='dark'] .issue-accent-priority,\n@media (prefers-color-scheme: dark) {\n  --issue-priority-bg: var(--issue-priority-bg-dark);\n}\n```\n\nThis was introduced when `html.light` / `html.dark` rules were rewritten. Theme switching now sets `html.dark` / `html.light` in `useAppearance`, matching `.issue-card` and `.status-tree-row`.\n\n```mermaid\nflowchart TD\n  row[\".status-tree-row sets --issue-priority-bg\"]\n  chip[\".issue-accent-priority uses background: var(--issue-priority-bg)\"]\n  bad[\"Invalid selector-plus-@media rule\"]\n  row --> chip\n  bad -->|\"parse error / wrong scope\"| chip\n```\n\n## Expected behavior\n\n```\nFeature: Console Now tree priority chips\n  Scenario: Priority chips use valid dark-mode CSS\n    Given the console globals stylesheet is loaded\n    When the Now tree renders an issue row\n    Then the priority chip uses --issue-priority-bg as its background\n    And dark mode switches --issue-priority-bg via .dark or data-theme=dark selectors\n    And those selectors are not mixed with an @media rule\n```\n\n## Definition of Done\n\n- Invalid `@media` mix is gone from `globals.css`\n- Dark-mode switch matches `.issue-card` / `.status-tree-row` (`.dark` and `[data-theme='dark']`)\n- Existing color-coding spec still passes\n- Embedded console assets rebuilt if the repo commits them\n- PR against develop",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -38,11 +38,25 @@
         "name": "Fix Now priority chip CSS",
         "settings": {}
       }
+    },
+    {
+      "id": "7b522c93-52f5-4bb8-b511-c52fdd467b3d",
+      "author": "ubuntu",
+      "text": "Merged to develop in https://github.com/AnthusAI/Kanbus/pull/225 (57404113604ca84f11d827527853557014ce090f). CSS hygiene only; live card kbs-20d557 was already closed.",
+      "created_at": "2026-09-07T20:25:37.999059Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": "Fix Now priority chip CSS",
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T20:18:09.554014Z",
-  "updated_at": "2026-09-07T20:23:46.390824Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:25:37.999141Z",
+  "closed_at": "2026-09-07T20:25:37.446064Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {},
