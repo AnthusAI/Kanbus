@@ -3,7 +3,7 @@
   "title": "Wiki Markus integration specs",
   "description": "Gherkin for the Jinja-first, Markus-second wiki render pipeline.\n\nSpecs PR: https://github.com/AnthusAI/Kanbus/pull/217",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -25,8 +25,8 @@
     }
   ],
   "created_at": "2026-09-07T20:15:51.985969413Z",
-  "updated_at": "2026-09-07T20:15:52.463544669Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:55:29.747632626Z",
+  "closed_at": "2026-09-07T20:55:29.741035259Z",
   "agent": {
     "platform": "cursor",
     "model": "cursor-grok-4.6",
