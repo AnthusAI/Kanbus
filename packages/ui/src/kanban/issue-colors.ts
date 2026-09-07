@@ -83,6 +83,20 @@ function buildRadixVariable(name: string, scale: string): string {
   return `var(--${name}-${scale})`;
 }
 
+export function resolveIssueAccentColorName(
+  config: KanbanConfig,
+  issue: KanbanIssue
+): string | null {
+  return resolveAccentColor(config, issue);
+}
+
+export function resolveStatusBadgeColorName(
+  config: KanbanConfig,
+  statusKey: string
+): string | null {
+  return resolveStatusColor(config, statusKey);
+}
+
 function resolveAccentColor(config: KanbanConfig, issue: KanbanIssue): string | null {
   const typeColor = config.type_colors[issue.type];
   const statusDef = config.statuses.find((status) => status.key === issue.status);

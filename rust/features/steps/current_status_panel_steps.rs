@@ -79,6 +79,12 @@ fn now_tree_identifiers(state: &ConsoleState) -> std::collections::HashSet<Strin
     if matching.len() == state.issues.len() {
         return matching.into_iter().collect();
     }
+    let issues_by_identifier: HashMap<String, usize> = state
+        .issues
+        .iter()
+        .enumerate()
+        .map(|(index, issue)| (issue_tree_identifier(issue), index))
+        .collect();
     let mut children_by_parent: HashMap<String, Vec<String>> = HashMap::new();
     for issue in &state.issues {
         if let Some(parent_identifier) = resolve_parent_identifier(state, issue) {
@@ -96,6 +102,13 @@ fn now_tree_identifiers(state: &ConsoleState) -> std::collections::HashSet<Strin
         }
         if let Some(children) = children_by_parent.get(&identifier) {
             pending.extend(children.iter().cloned());
+        }
+        if let Some(&issue_index) = issues_by_identifier.get(&identifier) {
+            if let Some(parent_identifier) =
+                resolve_parent_identifier(state, &state.issues[issue_index])
+            {
+                pending.push(parent_identifier);
+            }
         }
     }
     included
@@ -617,6 +630,58 @@ fn then_status_feed_row_summary(world: &mut KanbusWorld, title: String, expected
 #[then(expr = "the status tree row for {string} should show right-now summary {string}")]
 fn then_status_tree_row_summary(world: &mut KanbusWorld, title: String, expected: String) {
     then_status_feed_row_summary(world, title, expected);
+}
+
+#[then(expr = "the status tree row for {string} should show status {string}")]
+fn then_status_tree_row_status(world: &mut KanbusWorld, title: String, expected: String) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    assert_eq!(state.issues[index].status, expected);
+}
+
+fn default_type_accent_color(issue_type: &str) -> Option<&'static str> {
+    match issue_type {
+        "initiative" => Some("indigo"),
+        "epic" => Some("purple"),
+        "story" => Some("amber"),
+        "bug" => Some("red"),
+        "task" => Some("blue"),
+        "sub-task" => Some("teal"),
+        "chore" => Some("green"),
+        "event" => Some("indigo"),
+        _ => None,
+    }
+}
+
+fn default_status_badge_color(status: &str) -> Option<&'static str> {
+    match status {
+        "open" | "backlog" | "todo" | "Discovery" | "deferred" => Some("gray"),
+        "in_progress" | "blocked" | "copy_writing" => Some("blue"),
+        "closed" | "done" => Some("green"),
+        _ => None,
+    }
+}
+
+#[then(expr = "the status tree row for {string} should show type accent color {string}")]
+fn then_status_tree_row_type_accent_color(
+    world: &mut KanbusWorld,
+    title: String,
+    expected: String,
+) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    let issue = &state.issues[index];
+    let actual = default_type_accent_color(&issue.issue_type).expect("unknown type accent color");
+    assert_eq!(actual, expected);
+}
+
+#[then(expr = "the status tree row for {string} should show status color {string}")]
+fn then_status_tree_row_status_color(world: &mut KanbusWorld, title: String, expected: String) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    let issue = &state.issues[index];
+    let actual = default_status_badge_color(&issue.status).expect("unknown status color");
+    assert_eq!(actual, expected);
 }
 
 #[when(expr = "the right-now summary for {string} is updated to {string}")]

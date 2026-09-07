@@ -1042,16 +1042,39 @@ html[data-motion="reduced"] .sidebar-column {
   letter-spacing: 0.18em;
 }
 
-.status-tree-row {
-  display: grid;
-  gap: 0.35rem;
+.status-tree-entry {
   width: 100%;
+  box-sizing: border-box;
+}
+
+.status-tree-row {
+  --issue-accent-foreground: var(--text-foreground);
+  --issue-accent-light: var(--slate-4);
+  --issue-accent-muted-light: var(--slate-2);
+  --issue-accent-dark: var(--slate-11);
+  --issue-accent-muted-dark: var(--slate-6);
+  --issue-accent: var(--issue-accent-light);
+  --issue-accent-muted: var(--issue-accent-muted-light);
+  --issue-priority-bg-light: var(--slate-5);
+  --issue-priority-bg-dark: var(--slate-6);
+  --issue-priority-bg: var(--issue-priority-bg-light);
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
   text-align: left;
   background: var(--card);
   border-radius: 12px;
-  padding: 0.75rem 1rem;
   color: var(--text-foreground);
+  overflow: hidden;
   transition: background-color 0.2s ease;
+}
+
+.dark .status-tree-row,
+[data-theme='dark'] .status-tree-row {
+  --issue-accent: var(--issue-accent-dark);
+  --issue-accent-muted: var(--issue-accent-muted-dark);
+  --issue-priority-bg: var(--issue-priority-bg-dark);
 }
 
 .status-tree-row:hover {
@@ -1062,11 +1085,58 @@ html[data-motion="reduced"] .sidebar-column {
   background: var(--card-muted);
 }
 
-.status-tree-header {
+.status-tree-accent-stripe {
+  flex: 0 0 12px;
+  width: 12px;
+  background: var(--issue-accent);
+}
+
+.status-tree-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.85rem 0.75rem 0.65rem;
+}
+
+.status-tree-meta-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
+  min-width: 0;
+}
+
+.status-tree-accent-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: var(--issue-accent);
+  color: var(--issue-accent-foreground);
+}
+
+.status-tree-accent-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.status-tree-priority {
+  flex-shrink: 0;
+}
+
+.status-tree-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .status-tree-toggle {
@@ -1087,40 +1157,53 @@ html[data-motion="reduced"] .sidebar-column {
   height: 1rem;
 }
 
-.status-tree-toggle-spacer {
-  display: inline-block;
-  width: 1.75rem;
-  height: 1.75rem;
-  flex-shrink: 0;
-}
-
 .status-tree-type-icon {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
-  color: var(--text-foreground);
+  color: var(--issue-accent-foreground);
 }
 
 .status-tree-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-tree-status {
   flex-shrink: 0;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
 }
 
 .status-tree-title-button {
-  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
   text-align: left;
   background: transparent;
   padding: 0;
-  color: inherit;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.status-tree-title-button-selected {
+  color: var(--text-selected, var(--text-muted));
 }
 
 .status-tree-summary {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+  display: block;
+  width: 100%;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-foreground);
+  overflow-wrap: anywhere;
 }
 
 .status-feed {

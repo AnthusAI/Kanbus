@@ -115,6 +115,9 @@ def _now_tree_issues(state: ConsoleState) -> list[ConsoleIssue]:
     matching_issues = _now_visible_issues(state)
     if not matching_issues or len(matching_issues) == len(state.issues):
         return matching_issues
+    issues_by_identifier = {
+        _issue_tree_identifier(issue): issue for issue in state.issues
+    }
     children_by_parent: dict[str, list[ConsoleIssue]] = {}
     for issue in state.issues:
         parent_identifier = _resolve_parent_identifier(issue, state.issues)
@@ -130,6 +133,11 @@ def _now_tree_issues(state: ConsoleState) -> list[ConsoleIssue]:
         included.add(identifier)
         for child in children_by_parent.get(identifier, []):
             pending.append(_issue_tree_identifier(child))
+        parent_issue = issues_by_identifier.get(identifier)
+        if parent_issue is not None:
+            parent_identifier = _resolve_parent_identifier(parent_issue, state.issues)
+            if parent_identifier is not None:
+                pending.append(parent_identifier)
     return [
         issue for issue in state.issues if _issue_tree_identifier(issue) in included
     ]
@@ -477,6 +485,69 @@ def then_status_feed_row_summary(context: object, title: str, expected: str) -> 
 @then('the status tree row for "{title}" should show right-now summary "{expected}"')
 def then_status_tree_row_summary(context: object, title: str, expected: str) -> None:
     then_status_feed_row_summary(context, title, expected)
+
+
+@then('the status tree row for "{title}" should show status "{expected}"')
+def then_status_tree_row_status(context: object, title: str, expected: str) -> None:
+    state = _require_console_state(context)
+    issue = _find_issue_by_title(title, state.issues)
+    if issue is None:
+        raise AssertionError(f"issue not found: {title}")
+    if issue.status != expected:
+        raise AssertionError(f"expected status {expected}, got {issue.status}")
+
+
+def _default_type_accent_color(issue_type: str) -> str | None:
+    return {
+        "initiative": "indigo",
+        "epic": "purple",
+        "story": "amber",
+        "bug": "red",
+        "task": "blue",
+        "sub-task": "teal",
+        "chore": "green",
+        "event": "indigo",
+    }.get(issue_type)
+
+
+def _default_status_badge_color(status: str) -> str | None:
+    if status in {"open", "backlog", "todo", "Discovery", "deferred"}:
+        return "gray"
+    if status in {"in_progress", "blocked", "copy_writing"}:
+        return "blue"
+    if status in {"closed", "done"}:
+        return "green"
+    return None
+
+
+@then('the status tree row for "{title}" should show type accent color "{expected}"')
+def then_status_tree_row_type_accent_color(
+    context: object, title: str, expected: str
+) -> None:
+    state = _require_console_state(context)
+    issue = _find_issue_by_title(title, state.issues)
+    if issue is None:
+        raise AssertionError(f"issue not found: {title}")
+    actual = _default_type_accent_color(issue.issue_type)
+    if actual is None:
+        raise AssertionError(f"unknown type accent color for {issue.issue_type}")
+    if actual != expected:
+        raise AssertionError(f"expected type accent color {expected}, got {actual}")
+
+
+@then('the status tree row for "{title}" should show status color "{expected}"')
+def then_status_tree_row_status_color(
+    context: object, title: str, expected: str
+) -> None:
+    state = _require_console_state(context)
+    issue = _find_issue_by_title(title, state.issues)
+    if issue is None:
+        raise AssertionError(f"issue not found: {title}")
+    actual = _default_status_badge_color(issue.status)
+    if actual is None:
+        raise AssertionError(f"unknown status color for {issue.status}")
+    if actual != expected:
+        raise AssertionError(f"expected status color {expected}, got {actual}")
 
 
 @when('the right-now summary for "{title}" is updated to "{summary}"')
