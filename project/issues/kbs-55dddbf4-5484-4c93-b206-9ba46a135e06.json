@@ -1,0 +1,26 @@
+{
+  "id": "kbs-55dddbf4-5484-4c93-b206-9ba46a135e06",
+  "title": "Python: render wiki via Jinja then anthus-markus",
+  "description": "Implement Python wiki render: Jinja then anthus-markus. Add wiki render --html and extend --json with rendered_html. Wire the console/API path that serves rendered wiki HTML to this pipeline.\n\nRequested card id kbs-357e3d was not present on this develop board; this task continues that work.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-472c8199-14a0-44e6-8105-b5f0370f6d63",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-07T20:10:47.800594Z",
+  "updated_at": "2026-09-07T20:10:56.715073Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "wiki-markus-pipeline",
+    "settings": {}
+  }
+}
