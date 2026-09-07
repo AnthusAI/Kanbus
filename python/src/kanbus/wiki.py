@@ -126,9 +126,71 @@ class WikiContext:
         :return: Serialized issue or None if not found.
         :rtype: Dict[str, object] | None
         """
+        found = self._find_issue(identifier)
+        if found is None:
+            return None
+        return _serialize_issue(found)
+
+    def children(self, identifier: str) -> List[Dict[str, object]]:
+        """List direct children of an issue for wiki templates.
+
+        :param identifier: Parent issue identifier.
+        :type identifier: str
+        :return: Serialized child issues sorted by identifier.
+        :rtype: List[Dict[str, object]]
+        """
+        children = [issue for issue in self.issues if issue.parent == identifier]
+        children.sort(key=lambda issue: issue.identifier)
+        return [_serialize_issue(issue) for issue in children]
+
+    def blocked_by(self, identifier: str) -> List[Dict[str, object]]:
+        """List issues that block the given issue.
+
+        Returns the targets of the issue's ``blocked-by`` dependencies.
+
+        :param identifier: Blocked issue identifier.
+        :type identifier: str
+        :return: Serialized blocker issues sorted by identifier.
+        :rtype: List[Dict[str, object]]
+        """
+        source = self._find_issue(identifier)
+        if source is None:
+            return []
+        blocker_ids = [
+            dependency.target
+            for dependency in source.dependencies
+            if dependency.dependency_type == "blocked-by"
+        ]
+        blockers = [issue for issue in self.issues if issue.identifier in blocker_ids]
+        blockers.sort(key=lambda issue: issue.identifier)
+        return [_serialize_issue(issue) for issue in blockers]
+
+    def blocks(self, identifier: str) -> List[Dict[str, object]]:
+        """List issues that the given issue blocks.
+
+        Returns issues that declare a ``blocked-by`` dependency on the id.
+
+        :param identifier: Blocker issue identifier.
+        :type identifier: str
+        :return: Serialized blocked issues sorted by identifier.
+        :rtype: List[Dict[str, object]]
+        """
+        blocked = [
+            issue
+            for issue in self.issues
+            if any(
+                dependency.dependency_type == "blocked-by"
+                and dependency.target == identifier
+                for dependency in issue.dependencies
+            )
+        ]
+        blocked.sort(key=lambda issue: issue.identifier)
+        return [_serialize_issue(issue) for issue in blocked]
+
+    def _find_issue(self, identifier: str) -> IssueData | None:
         for issue in self.issues:
             if issue.identifier == identifier:
-                return _serialize_issue(issue)
+                return issue
         return None
 
     def references(self, **filters: object) -> List[Dict[str, object]]:
@@ -512,15 +574,8 @@ def render_wiki_page(
             default=False,
         ),
     )
-    environment.globals.update(
-        {
-            "query": context.query,
-            "count": context.count,
-            "issue": context.issue,
-            "references": context.references,
-            "ai_summarize": ai_summarize_fn,
-        }
-    )
+    environment.globals.update(_wiki_template_globals(context))
+    environment.globals["ai_summarize"] = ai_summarize_fn
     try:
         rendered = environment.get_template(full_page.name).render()
     except WikiError:
@@ -769,6 +824,25 @@ def _get_string(value: object) -> str | None:
     raise WikiError("invalid query parameter")
 
 
+def _wiki_template_globals(context: WikiContext) -> Dict[str, object]:
+    """Return the documented wiki Jinja helper map.
+
+    :param context: Wiki render context.
+    :type context: WikiContext
+    :return: Callable map registered on the Jinja environment.
+    :rtype: Dict[str, object]
+    """
+    return {
+        "query": context.query,
+        "count": context.count,
+        "issue": context.issue,
+        "children": context.children,
+        "blocked_by": context.blocked_by,
+        "blocks": context.blocks,
+        "references": context.references,
+    }
+
+
 def _serialize_issue(issue: IssueData) -> Dict[str, object]:
     payload = issue.model_dump(by_alias=True, mode="json")
     short_key = format_issue_key(issue.identifier, project_context=True)
@@ -858,7 +932,10 @@ def _extract_frontmatter_title(frontmatter: str) -> str | None:
 
 
 def render_template_string(text: str, issues: List[IssueData]) -> str:
-    """Render a template string with wiki context (query, count, issue).
+    """Render a template string with documented wiki helpers.
+
+    Helpers: ``query``, ``count``, ``issue``, ``children``, ``blocked_by``,
+    ``blocks``, and ``references``.
 
     :param text: Template string (may contain Jinja2).
     :type text: str
@@ -876,14 +953,7 @@ def render_template_string(text: str, issues: List[IssueData]) -> str:
             default=False,
         ),
     )
-    environment.globals.update(
-        {
-            "query": context.query,
-            "count": context.count,
-            "issue": context.issue,
-            "references": context.references,
-        }
-    )
+    environment.globals.update(_wiki_template_globals(context))
     try:
         template = environment.from_string(text)
         return template.render()
