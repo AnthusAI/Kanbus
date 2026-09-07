@@ -2067,6 +2067,7 @@ export default function App() {
                   <CurrentStatusPanel
                     issues={issues}
                     config={config}
+                    priorityLookup={priorityLookup}
                     boardTitle={config?.name ?? ""}
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}

@@ -31,6 +31,7 @@ interface StatusTreeNode {
 interface StatusTreeProps {
   issues: StatusTreeIssue[];
   config?: KanbanConfig;
+  priorityLookup?: Record<number, string>;
   defaultExpanded: boolean;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
@@ -124,6 +125,7 @@ interface StatusTreeRowProps {
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
   config?: KanbanConfig;
+  priorityLookup: Record<number, string>;
 }
 
 function StatusTreeRow({
@@ -134,7 +136,8 @@ function StatusTreeRow({
   onToggleExpanded,
   onSelectIssue,
   selectedIssueId = null,
-  config
+  config,
+  priorityLookup
 }: StatusTreeRowProps) {
   const { issue, children } = node;
   const hasChildren = children.length > 0;
@@ -147,6 +150,7 @@ function StatusTreeRow({
   const statusKey = kanbanIssue.status;
   const statusLabel =
     config?.statuses.find((status) => status.key === statusKey)?.name ?? statusKey;
+  const priorityName = priorityLookup[kanbanIssue.priority] ?? "medium";
   const issueStyle = config ? buildIssueColorStyle(config, kanbanIssue) : undefined;
   const statusBadgeStyle =
     config && statusKey ? buildStatusBadgeStyle(config, statusKey) : undefined;
@@ -200,30 +204,35 @@ function StatusTreeRow({
                 </button>
               ) : null}
               <div className="status-tree-accent-bar">
-                <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
-                <span className="status-tree-id" data-testid="status-tree-id">
-                  {formattedIssueId}
-                </span>
-                <button
-                  type="button"
-                  className="status-tree-title-button"
-                  data-testid="status-tree-title"
-                  onClick={() => onSelectIssue?.(issue)}
-                >
-                  {issue.title}
-                </button>
-                {statusKey ? (
-                  <span
-                    className="status-badge status-tree-status"
-                    data-testid="status-tree-status"
-                    data-issue-status={statusKey}
-                    data-status-color={statusColorName ?? undefined}
-                    style={statusBadgeStyle}
-                  >
-                    {statusLabel}
+                <div className="status-tree-accent-left">
+                  <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
+                  <span className="issue-accent-id status-tree-id" data-testid="status-tree-id">
+                    {formattedIssueId}
                   </span>
-                ) : null}
+                </div>
+                <div className="issue-accent-priority status-tree-priority">{priorityName}</div>
               </div>
+            </div>
+            <div className="status-tree-title-row">
+              <button
+                type="button"
+                className={`status-tree-title-button${isSelected ? " status-tree-title-button-selected" : ""}`}
+                data-testid="status-tree-title"
+                onClick={() => onSelectIssue?.(issue)}
+              >
+                {issue.title}
+              </button>
+              {statusKey ? (
+                <span
+                  className="status-badge status-tree-status"
+                  data-testid="status-tree-status"
+                  data-issue-status={statusKey}
+                  data-status-color={statusColorName ?? undefined}
+                  style={statusBadgeStyle}
+                >
+                  {statusLabel}
+                </span>
+              ) : null}
             </div>
             <div className="status-tree-summary" data-testid="status-tree-summary">
               {summaryText}
@@ -243,6 +252,7 @@ function StatusTreeRow({
               onSelectIssue={onSelectIssue}
               selectedIssueId={selectedIssueId}
               config={config}
+              priorityLookup={priorityLookup}
             />
           ))
         : null}
@@ -253,6 +263,7 @@ function StatusTreeRow({
 export function StatusTree({
   issues,
   config,
+  priorityLookup = {},
   defaultExpanded,
   onSelectIssue,
   selectedIssueId = null
@@ -288,6 +299,7 @@ export function StatusTree({
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
           config={config}
+          priorityLookup={priorityLookup}
         />
       ))}
     </div>
