@@ -375,20 +375,28 @@ Then("the wiki page list should include {string}", async function (relativePath)
   const leaf = pathLeaf(relativePath);
   const inDirectory = this.page.locator(`.wiki-directory-listing button[data-wiki-path="${relativePath}"]`).first();
   const inHeader = this.page.getByTestId(`wiki-path-${leaf}`).or(this.page.getByRole("button", { name: relativePath })).first();
-  await expect
-    .poll(
-      async () => {
-        const directoryVisible =
-          (await inDirectory.count()) > 0 && (await inDirectory.isVisible().catch(() => false));
-        const headerVisible =
-          (await inHeader.count()) > 0 && (await inHeader.isVisible().catch(() => false));
-        const currentPath = new URL(this.page.url()).pathname;
-        const urlVisible = currentPath.includes(`/wiki/${encodeWikiPath(relativePath)}`);
-        return directoryVisible || headerVisible || urlVisible;
-      },
-      { timeout: 15000 }
-    )
-    .toBe(true);
+  try {
+    await expect
+      .poll(
+        async () => {
+          const directoryVisible =
+            (await inDirectory.count()) > 0 && (await inDirectory.isVisible().catch(() => false));
+          const headerVisible =
+            (await inHeader.count()) > 0 && (await inHeader.isVisible().catch(() => false));
+          const currentPath = new URL(this.page.url()).pathname;
+          const urlVisible = currentPath.includes(`/wiki/${encodeWikiPath(relativePath)}`);
+          return directoryVisible || headerVisible || urlVisible;
+        },
+        { timeout: 15000 }
+      )
+      .toBe(true);
+  } catch (error) {
+    const pathname = new URL(this.page.url()).pathname;
+    const listing = await this.page.locator(".wiki-directory-listing").innerHTML().catch(() => "");
+    throw new Error(
+      `wiki page ${relativePath} not visible after wait (url=${pathname}, listing=${listing.slice(0, 400)})`
+    );
+  }
 });
 
 Then("the wiki page list should not include {string}", async function (relativePath) {

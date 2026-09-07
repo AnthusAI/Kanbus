@@ -320,22 +320,13 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
       null
     );
     try {
-      await deleteWikiPage(apiBase, deletedPath);
-      let leftoverPages = memoryPages;
-      let directoryExists = wikiDirectoryExists;
-      if (leftoverPages.length === 0) {
-        try {
-          const result = await fetchWikiPages(apiBase);
-          leftoverPages = leftoverWikiPagesAfterDelete(
-            deletedPath,
-            [...knownPagesRef.current, ...pagesRef.current],
-            result.pages
-          );
-          directoryExists = result.wiki_directory_exists;
-        } catch {
-          leftoverPages = memoryPages;
-        }
-      }
+      const deleted = await deleteWikiPage(apiBase, deletedPath);
+      const leftoverPages = leftoverWikiPagesAfterDelete(
+        deletedPath,
+        [...knownPagesRef.current, ...pagesRef.current],
+        deleted.pages
+      );
+      const directoryExists = deleted.wiki_directory_exists;
       knownPagesRef.current = leftoverPages;
       setPages(leftoverPages);
       setWikiDirectoryExists(directoryExists);

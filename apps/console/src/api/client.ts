@@ -690,7 +690,16 @@ export async function deleteWikiPage(
   if (!response.ok) {
     throw new Error(`wiki delete request failed: ${response.status}`);
   }
-  return (await response.json()) as WikiDeleteResponse;
+  const payload = (await response.json()) as WikiDeleteResponse;
+  if (!Array.isArray(payload.pages) || typeof payload.wiki_directory_exists !== "boolean") {
+    throw new Error("wiki delete response is invalid");
+  }
+  return {
+    path: payload.path,
+    deleted: payload.deleted,
+    pages: payload.pages.map(parseWikiPageListItem),
+    wiki_directory_exists: payload.wiki_directory_exists
+  };
 }
 
 export async function renderWikiPage(
