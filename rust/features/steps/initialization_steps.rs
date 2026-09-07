@@ -87,6 +87,7 @@ pub struct KanbusWorld {
     pub console_wiki_state: Option<WikiWorkspaceState>,
     pub console_sort_order: Option<BTreeMap<String, serde_json::Value>>,
     pub console_time_zone: Option<String>,
+    pub console_board_column_fixture_loaded: bool,
     pub metrics_issue_seeded: bool,
     pub metrics_project_filter: Option<String>,
     pub metrics_local_filter: Option<String>,

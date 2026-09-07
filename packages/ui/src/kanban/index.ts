@@ -4,6 +4,17 @@ export { StatusTree } from "./StatusTree";
 export { IssueCard } from "./IssueCard";
 export { TaskDetailPanel } from "./TaskDetailPanel";
 export { buildIssueColorStyle, buildStatusBadgeStyle } from "./issue-colors";
+export {
+  collectWorkflowStatuses,
+  getStatusColumnsForTypeFilter,
+  getWorkflowForIssueType,
+  issueTypesForBoardFilter
+} from "./workflow-columns";
+export type {
+  BoardTypeFilter,
+  WorkflowColumnConfig,
+  WorkflowDefinition
+} from "./workflow-columns";
 export { formatIssueId } from "./format-issue-id";
 export { getTypeIcon } from "./issue-icons";
 export { getIssueMotionStyle, normalizeMotionConfig } from "./motion";
