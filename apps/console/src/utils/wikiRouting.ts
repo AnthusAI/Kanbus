@@ -19,8 +19,8 @@ function wikiFileStem(name: string): string {
 /**
  * Remaining wiki pages after a delete.
  *
- * Prefer the server list when it still contains other pages. If that list is
- * empty or unavailable, keep the in-memory pages minus the deleted path.
+ * Prefer in-memory leftover pages. Use the server list only when memory has
+ * no remaining pages.
  */
 export function leftoverWikiPagesAfterDelete(
   deletedPath: string,
@@ -43,7 +43,7 @@ export function leftoverWikiPagesAfterDelete(
     .filter((candidate) => candidate.path !== deletedPath)
     .slice()
     .sort((left, right) => left.path.localeCompare(right.path));
-  return fromFetch.length > 0 ? fromFetch : fromMemory;
+  return fromMemory.length > 0 ? fromMemory : fromFetch;
 }
 
 export function resolveWikiRoute(pages: WikiPageListItem[], route: string): WikiRouteResult {

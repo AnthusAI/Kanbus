@@ -253,6 +253,49 @@ When("I render the wiki page", async function () {
   }
 });
 
+When("I render the wiki page through the backend", async function () {
+  await reloadIfWikiStale(this);
+  await expect(this.page.getByTestId("wiki-view")).toBeVisible({ timeout: 15000 });
+  const renderButton = this.page.getByRole("button", { name: /Render/ });
+  if ((await renderButton.count()) > 0 && (await renderButton.first().isVisible().catch(() => false))) {
+    await renderButton.first().click();
+  }
+  await expect
+    .poll(
+      async () => {
+        const html = this.page.locator(".wiki-preview-html");
+        const renderError = this.page.getByTestId("wiki-render-error");
+        const banner = this.page.locator(".wiki-error");
+        const htmlReady = (await html.count()) > 0 && (await html.innerHTML().catch(() => "")).trim().length > 0;
+        const errorReady =
+          ((await renderError.count()) > 0 && (await renderError.isVisible().catch(() => false)))
+          || ((await banner.count()) > 0 && (await banner.isVisible().catch(() => false)));
+        return htmlReady || errorReady;
+      },
+      { timeout: 20000 }
+    )
+    .toBe(true);
+});
+
+Then("the wiki preview HTML should contain element with class {string}", async function (className) {
+  const preview = this.page.locator(".wiki-preview-html");
+  await expect(preview).toBeVisible({ timeout: 15000 });
+  await expect(preview.locator(`.${className}`).first()).toBeVisible({ timeout: 15000 });
+});
+
+Then("the wiki preview HTML should contain {string}", async function (expected) {
+  const preview = this.page.locator(".wiki-preview-html");
+  await expect(preview).toBeVisible({ timeout: 15000 });
+  await expect(preview).toContainText(expected, { timeout: 15000 });
+});
+
+Then("the wiki preview HTML should not contain {string}", async function (unexpected) {
+  const preview = this.page.locator(".wiki-preview-html");
+  await expect(preview).toBeVisible({ timeout: 15000 });
+  const html = await preview.innerHTML();
+  expect(html.includes(unexpected)).toBe(false);
+});
+
 When("I attempt to select wiki page {string} without confirming", async function (relativePath) {
   await reloadIfWikiStale(this);
   this.page.once("dialog", (dialog) => dialog.dismiss());

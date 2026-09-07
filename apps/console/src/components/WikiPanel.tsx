@@ -70,6 +70,8 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
   const wikiSplitContainerRef = useRef<HTMLDivElement>(null);
   const fileRequestGenerationRef = useRef(0);
   const knownPagesRef = useRef<WikiPageListItem[]>([]);
+  const pagesRef = useRef<WikiPageListItem[]>(pages);
+  pagesRef.current = pages;
 
   const isDirty = useMemo(() => draftContent !== savedContent, [draftContent, savedContent]);
 
@@ -312,22 +314,28 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     const deletedPath = activePath;
     fileRequestGenerationRef.current += 1;
     setError(null);
+    const memoryPages = leftoverWikiPagesAfterDelete(
+      deletedPath,
+      [...knownPagesRef.current, ...pagesRef.current],
+      null
+    );
     try {
       await deleteWikiPage(apiBase, deletedPath);
-      let fetchedPages: WikiPageListItem[] | null = null;
+      let leftoverPages = memoryPages;
       let directoryExists = wikiDirectoryExists;
-      try {
-        const result = await fetchWikiPages(apiBase);
-        fetchedPages = result.pages;
-        directoryExists = result.wiki_directory_exists;
-      } catch {
-        fetchedPages = null;
+      if (leftoverPages.length === 0) {
+        try {
+          const result = await fetchWikiPages(apiBase);
+          leftoverPages = leftoverWikiPagesAfterDelete(
+            deletedPath,
+            [...knownPagesRef.current, ...pagesRef.current],
+            result.pages
+          );
+          directoryExists = result.wiki_directory_exists;
+        } catch {
+          leftoverPages = memoryPages;
+        }
       }
-      const leftoverPages = leftoverWikiPagesAfterDelete(
-        deletedPath,
-        [...knownPagesRef.current, ...pages],
-        fetchedPages
-      );
       knownPagesRef.current = leftoverPages;
       setPages(leftoverPages);
       setWikiDirectoryExists(directoryExists);

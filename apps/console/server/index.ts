@@ -498,7 +498,7 @@ async function wikiRenderPage(relativePagePath: string): Promise<WikiCliRenderRe
 
 const wikiRateLimit = rateLimit({
   windowMs: 60_000,
-  max: 120,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "rate limit exceeded" }
