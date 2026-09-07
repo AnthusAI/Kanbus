@@ -164,11 +164,18 @@ function StatusTreeRow({
     [expanded, issue.id, onToggleExpanded]
   );
 
+  const rowIndentRem = depth * 1.25;
+  const rowSurfaceStyle = {
+    ...issueStyle,
+    marginLeft: rowIndentRem > 0 ? `${rowIndentRem}rem` : undefined,
+    width: rowIndentRem > 0 ? `calc(100% - ${rowIndentRem}rem)` : "100%"
+  };
+
   return (
     <>
       <div
         className={`status-tree-row${isSelected ? " status-tree-row-selected" : ""}`}
-        style={issueStyle}
+        style={rowSurfaceStyle}
         data-testid="status-tree-row"
         data-issue-title={issue.title}
         data-issue-id={issue.id}
@@ -178,10 +185,7 @@ function StatusTreeRow({
         data-tree-depth={depth}
         data-tree-expanded={hasChildren ? String(expanded) : undefined}
       >
-        <div
-          className="status-tree-layout"
-          style={{ paddingLeft: `${depth * 1.25}rem` }}
-        >
+        <div className="status-tree-layout">
           <div className="status-tree-accent-rail" aria-hidden="true">
             <div className="status-tree-accent-stripe" />
             <div className="status-tree-accent-meta">
@@ -219,15 +223,15 @@ function StatusTreeRow({
                   {statusLabel}
                 </span>
               ) : null}
-              <button
-                type="button"
-                className="status-tree-title-button"
-                data-testid="status-tree-title"
-                onClick={() => onSelectIssue?.(issue)}
-              >
-                {issue.title}
-              </button>
             </div>
+            <button
+              type="button"
+              className="status-tree-title-button"
+              data-testid="status-tree-title"
+              onClick={() => onSelectIssue?.(issue)}
+            >
+              {issue.title}
+            </button>
             <div className="status-tree-summary" data-testid="status-tree-summary">
               {summaryText}
             </div>
