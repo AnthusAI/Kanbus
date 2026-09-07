@@ -38,10 +38,24 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "7b6ce452-3128-4636-995c-f1fd05c44262",
+      "author": "ubuntu",
+      "text": "Live verify for kbs-413afd: Wiki Home no longer auto-opens index.md. Empty route shows the titled directory listing; index.md stays reachable by clicking its title. Tracking kbs-413afd / kbs-bd41d7.",
+      "created_at": "2026-09-07T19:54:57.862132Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T19:36:49.392038Z",
-  "updated_at": "2026-09-07T19:47:11.766232Z",
+  "updated_at": "2026-09-07T19:54:57.862206Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
