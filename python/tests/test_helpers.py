@@ -91,6 +91,32 @@ def build_project_configuration(
                 4: {"name": "trivial", "color": "white"},
             },
             "default_priority": 2,
+            "statuses": [
+                {
+                    "key": "open",
+                    "name": "Open",
+                    "category": "To do",
+                    "semantic_category": "todo",
+                },
+                {
+                    "key": "in_progress",
+                    "name": "In Progress",
+                    "category": "In progress",
+                    "semantic_category": "in_progress",
+                },
+                {
+                    "key": "blocked",
+                    "name": "Blocked",
+                    "category": "In progress",
+                    "semantic_category": "in_progress",
+                },
+                {
+                    "key": "closed",
+                    "name": "Closed",
+                    "category": "Done",
+                    "semantic_category": "done",
+                },
+            ],
             "beads_compatibility": beads_compatibility,
             "sort_order": {},
             "type_colors": {},

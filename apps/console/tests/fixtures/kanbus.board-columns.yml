@@ -42,39 +42,49 @@ statuses:
   - key: backlog
     name: Backlog
     category: To do
+    semantic_category: todo
     collapsed: true
   - key: todo
     name: Todo (Legacy)
     category: To do
+    semantic_category: todo
     collapsed: true
   - key: Discovery
     name: Discovery
     category: To do
+    semantic_category: todo
     collapsed: false
   - key: open
     name: Ready
     category: To do
+    semantic_category: todo
   - key: copy_writing
     name: Copy Writing
     category: In progress
+    semantic_category: in_progress
   - key: in_progress
     name: In Progress
     category: In progress
+    semantic_category: in_progress
   - key: blocked
     name: Blocked
     category: In progress
+    semantic_category: in_progress
     collapsed: true
   - key: deferred
     name: Deferred (Legacy)
     category: To do
+    semantic_category: todo
     collapsed: true
   - key: closed
     name: Done
     category: Done
+    semantic_category: done
     collapsed: true
   - key: done
     name: Done (Legacy)
     category: Done
+    semantic_category: done
     collapsed: true
 
 categories:

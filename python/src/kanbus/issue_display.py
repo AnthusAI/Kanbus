@@ -10,6 +10,7 @@ import click
 
 from kanbus.ids import format_issue_key
 from kanbus.models import AgentMetadata, IssueData, ProjectConfiguration
+from kanbus.status_semantics import default_color_for_semantic_category
 from kanbus.comment_summary import get_comment_display_text
 from kanbus.agent_metadata import (
     format_agent_display_line,
@@ -176,6 +177,10 @@ def format_issue_for_display(
                 color = category_colors[status_def.category]
                 if color:
                     status_colors[status_def.key] = color
+            else:
+                status_colors[status_def.key] = default_color_for_semantic_category(
+                    status_def.semantic_category
+                )
     priority_colors: Dict[int, str] = DEFAULT_PRIORITY_COLORS
     if configuration:
         priority_colors = priority_colors.copy()

@@ -26,12 +26,12 @@ def _config():
                 }
             },
             "statuses": [
-                StatusDefinition(key="open", name="Open", category="To do"),
+                StatusDefinition(key="open", name="Open", category="To do", semantic_category="todo"),
                 StatusDefinition(
-                    key="in_progress", name="In progress", category="In progress"
+                    key="in_progress", name="In progress", category="In progress", semantic_category="in_progress"
                 ),
-                StatusDefinition(key="closed", name="Closed", category="Done"),
-                StatusDefinition(key="blocked", name="Blocked", category="In progress"),
+                StatusDefinition(key="closed", name="Closed", category="Done", semantic_category="done"),
+                StatusDefinition(key="blocked", name="Blocked", category="In progress", semantic_category="in_progress"),
             ],
             "priorities": {
                 0: PriorityDefinition(name="critical"),
