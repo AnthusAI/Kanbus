@@ -1,8 +1,6 @@
 project_directory: project
-ignore_paths:
-  - features/project
-console_port: 4242
-project_key: kbs
+project_key: kanbus
+console_port: 5174
 
 hierarchy:
   - initiative
@@ -31,6 +29,14 @@ workflows:
     in_progress: [open, closed, done]
     closed: [open]
     done: [open]
+  story:
+    backlog: [open, closed]
+    open: [copy_writing, in_progress, closed, backlog]
+    copy_writing: [open, in_progress, closed, backlog]
+    in_progress: [open, blocked, closed, copy_writing, backlog]
+    blocked: [in_progress, closed, backlog]
+    closed: [open, backlog]
+    Discovery: [open, backlog]
 
 statuses:
   - key: backlog
@@ -48,6 +54,9 @@ statuses:
   - key: open
     name: Ready
     category: To do
+  - key: copy_writing
+    name: Copy Writing
+    category: In progress
   - key: in_progress
     name: In Progress
     category: In progress
@@ -122,6 +131,36 @@ transition_labels:
       open: Reopen
     done:
       open: Reopen
+  story:
+    backlog:
+      open: Start
+      closed: Drop
+    open:
+      copy_writing: Start copy
+      in_progress: Start work
+      closed: Complete
+      backlog: Back to backlog
+    copy_writing:
+      open: Pause
+      in_progress: Send to production
+      closed: Complete
+      backlog: Back to backlog
+    in_progress:
+      open: Pause
+      blocked: Block
+      closed: Complete
+      copy_writing: Back to copy
+      backlog: Back to backlog
+    blocked:
+      in_progress: Unblock
+      closed: Drop
+      backlog: Back to backlog
+    closed:
+      open: Reopen
+      backlog: Back to backlog
+    Discovery:
+      open: Start work
+      backlog: Back to backlog
 
 initial_status: open
 priorities:
@@ -153,41 +192,3 @@ type_colors:
   event: bright_blue
 
 beads_compatibility: false
-
-# AI provider for summarization (full summaries and right-now summaries).
-# Right-now summaries use GPT 5.6 Luna, pinned via right_now.model.
-ai:
-  provider: litellm
-  model: gpt-5.6-luna
-
-# Right-now summary configuration. model is pinned to GPT 5.6 Luna so the
-# frequent right-now tier stays on Luna even if ai.model changes for full
-# summaries. Other fields use defaults (enabled, collapsed tree, 120 chars).
-right_now:
-  model: gpt-5.6-luna
-
-# Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
-# snyk:
-#   org_id: <uuid from app.snyk.io/org/<slug>/manage/settings>
-#   min_severity: high          # critical | high | medium | low (default: low)
-#   parent_epic: <kanbus-id>    # optional: attach imported bugs under this epic
-
-# GitHub security synchronization (optional). Secrets go in .env, not here.
-# github_security:
-#   repo: owner/repo            # optional: defaults from git remote origin
-#   dependabot:
-#     min_severity: high        # critical | high | medium | low (default: low)
-#     state: open               # open | fixed | dismissed | auto_dismissed (default: open)
-#     parent_epic: <kanbus-id>  # optional: attach imported findings under this epic
-
-# Jira synchronization (optional). Secrets go in .env, not here.
-jira:
-  url: https://equity.atlassian.net
-  project_key: AQA
-  sync_direction: pull          # pull | push | both
-  type_mappings:                # Jira issue type name → Kanbus issue type
-    Story: story
-    Bug: bug
-    Task: task
-    Workstream: epic
-    Sub-task: sub-task
