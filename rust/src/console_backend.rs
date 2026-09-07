@@ -1,5 +1,6 @@
 //! Console backend core helpers.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +16,7 @@ use crate::file_io::{
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::overlay::apply_overlay_to_issues;
-use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
+use crate::status_semantics::{status_keys_for_semantic_category, SEMANTIC_IN_PROGRESS};
 
 /// Snapshot payload for the console.
 #[derive(Debug, Clone, Serialize)]
@@ -146,9 +147,13 @@ impl FileStore {
     pub fn ensure_right_now_summaries(&self) -> Result<(), KanbusError> {
         let configuration = self.load_config()?;
         let issues = self.load_issues(&configuration)?;
+        let in_progress_statuses: HashSet<String> =
+            status_keys_for_semantic_category(&configuration, SEMANTIC_IN_PROGRESS)?
+                .into_iter()
+                .collect();
         let identifiers: Vec<String> = issues
             .iter()
-            .filter(|issue| issue.status == DEFAULT_RIGHT_NOW_STATUS)
+            .filter(|issue| in_progress_statuses.contains(&issue.status))
             .map(|issue| issue.identifier.clone())
             .collect();
         crate::right_now::ensure_right_now_summaries(self.root(), &identifiers);

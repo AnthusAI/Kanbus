@@ -9,13 +9,15 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
+use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::load_project_directory;
+use crate::file_io::{get_configuration_path, load_project_directory};
 use crate::ids::{generate_issue_identifier, IssueIdentifierRequest};
 use crate::issue_files::{
     issue_path_for_identifier, list_issue_identifiers, read_issue_from_file, write_issue_to_file,
 };
-use crate::models::{IssueComment, IssueData, JiraConfiguration};
+use crate::models::{IssueComment, IssueData, JiraConfiguration, ProjectConfiguration};
+use crate::status_semantics::map_jira_status_to_key;
 
 /*
 TODO(Epic 4): Route Jira sync issue writes through persist_issue_mutation.
@@ -54,6 +56,8 @@ pub fn pull_from_jira(
     })?;
 
     let project_dir = load_project_directory(root)?;
+    let configuration =
+        load_project_configuration(&get_configuration_path(project_dir.as_path())?)?;
     let issues_dir = project_dir.join("issues");
 
     if !issues_dir.exists() {
@@ -97,7 +101,8 @@ pub fn pull_from_jira(
 
     for jira_issue in &jira_issues {
         let jira_key = jira_issue_key(jira_issue);
-        let kanbus_issue = map_jira_to_kanbus(jira_issue, jira_config, &jira_key_to_kanbus_id)?;
+        let kanbus_issue =
+            map_jira_to_kanbus(jira_issue, jira_config, &configuration, &jira_key_to_kanbus_id)?;
 
         let existing_kanbus_id = jira_key_index.get(&jira_key);
         let (kanbus_id, action) = if let Some(id) = existing_kanbus_id {
@@ -232,6 +237,7 @@ fn jira_issue_summary(issue: &Value) -> String {
 fn map_jira_to_kanbus(
     jira_issue: &Value,
     jira_config: &JiraConfiguration,
+    configuration: &ProjectConfiguration,
     jira_key_to_kanbus_id: &BTreeMap<String, String>,
 ) -> Result<IssueData, KanbusError> {
     let fields = &jira_issue["fields"];
@@ -249,7 +255,7 @@ fn map_jira_to_kanbus(
         .unwrap_or_else(|| jira_type.to_lowercase());
 
     let jira_status = fields["status"]["name"].as_str().unwrap_or("open");
-    let status = map_jira_status(jira_status);
+    let status = map_jira_status_to_key(configuration, jira_status)?;
 
     let jira_priority = fields["priority"]["name"].as_str().unwrap_or("Medium");
     let priority = map_jira_priority(jira_priority);
@@ -390,17 +396,6 @@ fn extract_comments(comment_field: &Value) -> Vec<IssueComment> {
         .collect()
 }
 
-/// Map a Jira status name to a Kanbus status key.
-fn map_jira_status(jira_status: &str) -> String {
-    match jira_status.to_lowercase().as_str() {
-        "to do" | "open" | "new" | "backlog" => "open".to_string(),
-        "in progress" | "in review" | "in development" => "in_progress".to_string(),
-        "done" | "closed" | "resolved" | "complete" | "completed" => "closed".to_string(),
-        "blocked" | "impediment" => "blocked".to_string(),
-        _ => "open".to_string(),
-    }
-}
-
 /// Map a Jira priority name to a Kanbus priority integer.
 fn map_jira_priority(jira_priority: &str) -> i32 {
     match jira_priority.to_lowercase().as_str() {
@@ -475,10 +470,23 @@ mod tests {
 
     #[test]
     fn map_jira_status_and_priority_cover_known_and_unknown_values() {
-        assert_eq!(map_jira_status("In Progress"), "in_progress");
-        assert_eq!(map_jira_status("RESOLVED"), "closed");
-        assert_eq!(map_jira_status("Impediment"), "blocked");
-        assert_eq!(map_jira_status("Something Else"), "open");
+        let configuration = crate::config::default_project_configuration();
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "In Progress").expect("status"),
+            "in_progress"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "RESOLVED").expect("status"),
+            "closed"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "Impediment").expect("status"),
+            "blocked"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "Something Else").expect("status"),
+            "open"
+        );
 
         assert_eq!(map_jira_priority("critical"), 0);
         assert_eq!(map_jira_priority("high"), 1);

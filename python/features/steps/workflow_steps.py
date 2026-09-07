@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from pathlib import Path
+
 import copy
 
 import yaml
@@ -313,6 +315,7 @@ def given_epic_workflow_allows_transition(
                 "key": to_status,
                 "name": display_name,
                 "category": "To do",
+                "semantic_category": "todo",
                 "collapsed": False,
             }
         )
@@ -322,6 +325,52 @@ def given_epic_workflow_allows_transition(
     from_labels = epic_labels.setdefault(from_status, {})
     from_labels.setdefault(to_status, f"Move to {to_status.replace('_', ' ')}")
 
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+def _rename_status_key_in_configuration(
+    payload: dict[str, object], old_key: str, new_key: str
+) -> None:
+    for status in payload.get("statuses", []):
+        if isinstance(status, dict) and status.get("key") == old_key:
+            status["key"] = new_key
+            break
+    for workflow in payload.get("workflows", {}).values():
+        if not isinstance(workflow, dict):
+            continue
+        renamed_workflow: dict[str, list[str]] = {}
+        for from_status, targets in workflow.items():
+            next_from = new_key if from_status == old_key else from_status
+            renamed_targets = [
+                new_key if target == old_key else target for target in targets
+            ]
+            renamed_workflow[next_from] = renamed_targets
+        workflow.clear()
+        workflow.update(renamed_workflow)
+    for workflow_labels in payload.get("transition_labels", {}).values():
+        if not isinstance(workflow_labels, dict):
+            continue
+        renamed_labels: dict[str, dict[str, str]] = {}
+        for from_status, targets in workflow_labels.items():
+            next_from = new_key if from_status == old_key else from_status
+            renamed_targets = {
+                (new_key if target == old_key else target): label
+                for target, label in targets.items()
+            }
+            renamed_labels[next_from] = renamed_targets
+        workflow_labels.clear()
+        workflow_labels.update(renamed_labels)
+
+
+@given('the primary in_progress status key is configured as "{new_key}"')
+def given_primary_in_progress_status_key(context: object, new_key: str) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    _rename_status_key_in_configuration(payload, "in_progress", new_key)
     config_path.write_text(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",

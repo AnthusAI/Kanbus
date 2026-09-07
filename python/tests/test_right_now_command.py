@@ -11,7 +11,6 @@ from kanbus.right_now_command import (
     CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS,
     CANNOT_COMBINE_ALL_WITH_LIMIT,
     DEFAULT_RIGHT_NOW_LIMIT,
-    DEFAULT_RIGHT_NOW_STATUS,
     EMPTY_STATUS_FILTER,
     NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS,
     RightNowCommandError,
@@ -85,15 +84,19 @@ def test_validate_right_now_options_rejects_conflicts() -> None:
 
 
 def test_resolve_right_now_statuses_defaults_to_in_progress_for_board() -> None:
-    assert _resolve_right_now_statuses(None, False) == {DEFAULT_RIGHT_NOW_STATUS}
-    assert _resolve_right_now_statuses(None, True) is None
-    assert _resolve_right_now_statuses("all", False) is None
-    assert _resolve_right_now_statuses("in_progress,open", False) == {
+    configuration = build_project_configuration()
+    assert _resolve_right_now_statuses(None, False, configuration) == {
+        "in_progress",
+        "blocked",
+    }
+    assert _resolve_right_now_statuses(None, True, configuration) is None
+    assert _resolve_right_now_statuses("all", False, configuration) is None
+    assert _resolve_right_now_statuses("in_progress,open", False, configuration) == {
         "in_progress",
         "open",
     }
     with pytest.raises(RightNowCommandError, match=EMPTY_STATUS_FILTER):
-        _resolve_right_now_statuses(" , ", False)
+        _resolve_right_now_statuses(" , ", False, configuration)
 
 
 def test_effective_right_now_limit_uses_selection_policy() -> None:

@@ -15,6 +15,10 @@ from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.queries import sort_issues_by_recently_updated
 from kanbus.right_now import ensure_right_now_summaries, get_right_now_summary
+from kanbus.status_semantics import (
+    SEMANTIC_IN_PROGRESS,
+    status_keys_for_semantic_category,
+)
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 DEFAULT_RIGHT_NOW_LIMIT = 30
@@ -142,12 +146,16 @@ def _validate_right_now_options(options: RightNowCommandOptions) -> None:
         raise RightNowCommandError(CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS)
     if not options.recursive and not options.issue_ids:
         raise RightNowCommandError(NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS)
-    _resolve_right_now_statuses(options.status, bool(options.issue_ids))
+    if options.status is not None:
+        tokens = [part.strip() for part in options.status.split(",") if part.strip()]
+        if not tokens:
+            raise RightNowCommandError(EMPTY_STATUS_FILTER)
 
 
 def _resolve_right_now_statuses(
     status_option: Optional[str],
     has_issue_identifiers: bool,
+    configuration: ProjectConfiguration,
 ) -> Optional[set[str]]:
     """Return allowed statuses, or ``None`` to include every status.
 
@@ -162,7 +170,7 @@ def _resolve_right_now_statuses(
     if status_option is None:
         if has_issue_identifiers:
             return None
-        return {DEFAULT_RIGHT_NOW_STATUS}
+        return set(status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS))
     tokens = [part.strip() for part in status_option.split(",") if part.strip()]
     if not tokens:
         raise RightNowCommandError(EMPTY_STATUS_FILTER)
@@ -187,7 +195,7 @@ def _select_right_now_issues(
 ) -> List[IssueData]:
     issues = list_issues(root)
     if not options.issue_ids:
-        return _filter_right_now_issues_by_status(issues, options)
+        return _filter_right_now_issues_by_status(root, issues, options)
     issues_by_identifier: Dict[str, IssueData] = {
         issue.identifier: issue for issue in issues
     }
@@ -219,14 +227,18 @@ def _select_right_now_issues(
         for identifier in selected
         if identifier in issues_by_identifier
     ]
-    return _filter_right_now_issues_by_status(selected_issues, options)
+    return _filter_right_now_issues_by_status(root, selected_issues, options)
 
 
 def _filter_right_now_issues_by_status(
+    root: Path,
     issues: List[IssueData],
     options: RightNowCommandOptions,
 ) -> List[IssueData]:
-    allowed = _resolve_right_now_statuses(options.status, bool(options.issue_ids))
+    configuration = load_project_configuration(get_configuration_path(root))
+    allowed = _resolve_right_now_statuses(
+        options.status, bool(options.issue_ids), configuration
+    )
     if allowed is None:
         return issues
     return [issue for issue in issues if issue.status in allowed]

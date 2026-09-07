@@ -10,7 +10,7 @@ from kanbus import jira_sync
 from kanbus.jira_sync import JiraSyncError
 from kanbus.models import JiraConfiguration
 
-from test_helpers import build_issue
+from test_helpers import build_issue, build_project_configuration
 
 
 def _jira_config() -> JiraConfiguration:
@@ -61,10 +61,23 @@ def _jira_issue(key: str, *, summary: str = "S", parent: str | None = None):
     return {"key": key, "fields": fields}
 
 
+def _mock_project_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    configuration = build_project_configuration()
+    monkeypatch.setattr(
+        "kanbus.jira_sync.load_project_configuration",
+        lambda _path: configuration,
+    )
+    monkeypatch.setattr(
+        "kanbus.jira_sync.get_configuration_path",
+        lambda _root: Path("/tmp/.kanbus.yml"),
+    )
+
+
 def test_pull_from_jira_validates_env_and_project_structure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cfg = _jira_config()
+    _mock_project_configuration(monkeypatch)
 
     monkeypatch.delenv("JIRA_API_TOKEN", raising=False)
     monkeypatch.delenv("JIRA_USER_EMAIL", raising=False)
@@ -78,7 +91,7 @@ def test_pull_from_jira_validates_env_and_project_structure(
 
     monkeypatch.setenv("JIRA_USER_EMAIL", "u@example.com")
     monkeypatch.setattr(
-        "kanbus.project.load_project_directory",
+        "kanbus.jira_sync.load_project_directory",
         lambda _root: tmp_path / "project",
     )
     with pytest.raises(JiraSyncError, match="issues directory does not exist"):
@@ -89,6 +102,7 @@ def test_pull_from_jira_updates_and_pulls_with_dry_run_and_write_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cfg = _jira_config()
+    _mock_project_configuration(monkeypatch)
     monkeypatch.setenv("JIRA_API_TOKEN", "t")
     monkeypatch.setenv("JIRA_USER_EMAIL", "u@example.com")
 
@@ -97,7 +111,7 @@ def test_pull_from_jira_updates_and_pulls_with_dry_run_and_write_paths(
     issues_dir.mkdir(parents=True)
 
     monkeypatch.setattr(
-        "kanbus.project.load_project_directory", lambda _root: project_dir
+        "kanbus.jira_sync.load_project_directory", lambda _root: project_dir
     )
 
     issues = [
@@ -224,8 +238,11 @@ def test_jira_key_and_summary_extractors() -> None:
 
 def test_map_jira_to_kanbus_and_support_helpers() -> None:
     cfg = _jira_config()
+    configuration = build_project_configuration()
     issue = _jira_issue("KAN-1", summary="Story A")
-    mapped = jira_sync._map_jira_to_kanbus(issue, cfg, {"KAN-1": "kanbus-1"})
+    mapped = jira_sync._map_jira_to_kanbus(
+        issue, cfg, configuration, {"KAN-1": "kanbus-1"}
+    )
 
     assert mapped.title == "Story A"
     assert mapped.issue_type == "story"
@@ -263,11 +280,16 @@ def test_map_jira_to_kanbus_and_support_helpers() -> None:
     assert comments[0].author == "Unknown"
     assert comments[0].text == "(empty)"
 
-    assert jira_sync._map_jira_status("To Do") == "open"
-    assert jira_sync._map_jira_status("In Development") == "in_progress"
-    assert jira_sync._map_jira_status("Resolved") == "closed"
-    assert jira_sync._map_jira_status("Blocked") == "blocked"
-    assert jira_sync._map_jira_status("SomethingElse") == "open"
+    from kanbus.config import DEFAULT_CONFIGURATION
+    from kanbus.models import ProjectConfiguration
+    from kanbus.status_semantics import map_jira_status_to_key
+
+    configuration = ProjectConfiguration.model_validate(DEFAULT_CONFIGURATION)
+    assert map_jira_status_to_key(configuration, "To Do") == "open"
+    assert map_jira_status_to_key(configuration, "In Development") == "in_progress"
+    assert map_jira_status_to_key(configuration, "Resolved") == "closed"
+    assert map_jira_status_to_key(configuration, "Blocked") == "blocked"
+    assert map_jira_status_to_key(configuration, "SomethingElse") == "open"
 
     assert jira_sync._map_jira_priority("Highest") == 0
     assert jira_sync._map_jira_priority("High") == 1

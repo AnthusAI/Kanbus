@@ -14,13 +14,16 @@ from typing import Any, Dict, List, Optional, Set
 
 import requests
 
+from kanbus.config_loader import load_project_configuration
 from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
 from kanbus.issue_files import (
     list_issue_identifiers,
     read_issue_from_file,
     write_issue_to_file,
 )
-from kanbus.models import IssueComment, IssueData, JiraConfiguration
+from kanbus.models import IssueComment, IssueData, JiraConfiguration, ProjectConfiguration
+from kanbus.project import get_configuration_path, load_project_directory
+from kanbus.status_semantics import map_jira_status_to_key
 
 
 class JiraSyncError(RuntimeError):
@@ -57,9 +60,8 @@ def pull_from_jira(
     if not user_email:
         raise JiraSyncError("JIRA_USER_EMAIL environment variable is not set")
 
-    from kanbus.project import load_project_directory
-
     project_dir = load_project_directory(root)
+    configuration = load_project_configuration(get_configuration_path(project_dir))
     issues_dir = project_dir / "issues"
 
     if not issues_dir.exists():
@@ -93,7 +95,7 @@ def pull_from_jira(
     for jira_issue in jira_issues:
         jira_key = _jira_issue_key(jira_issue)
         kanbus_issue = _map_jira_to_kanbus(
-            jira_issue, jira_config, jira_key_to_kanbus_id
+            jira_issue, jira_config, configuration, jira_key_to_kanbus_id
         )
 
         existing_kanbus_id = jira_key_index.get(jira_key)
@@ -208,6 +210,7 @@ def _jira_issue_summary(issue: Dict[str, Any]) -> str:
 def _map_jira_to_kanbus(
     jira_issue: Dict[str, Any],
     jira_config: JiraConfiguration,
+    configuration: ProjectConfiguration,
     jira_key_to_kanbus_id: Dict[str, str],
 ) -> IssueData:
     """Map a Jira issue dict to a Kanbus IssueData."""
@@ -221,7 +224,7 @@ def _map_jira_to_kanbus(
     issue_type = jira_config.type_mappings.get(jira_type, jira_type.lower())
 
     jira_status = (fields.get("status") or {}).get("name", "open")
-    status = _map_jira_status(jira_status)
+    status = map_jira_status_to_key(configuration, jira_status)
 
     jira_priority = (fields.get("priority") or {}).get("name", "Medium")
     priority = _map_jira_priority(jira_priority)
@@ -324,26 +327,6 @@ def _extract_comments(comment_field: Dict[str, Any]) -> List[IssueComment]:
             )
         )
     return result
-
-
-def _map_jira_status(jira_status: str) -> str:
-    mapping = {
-        "to do": "open",
-        "open": "open",
-        "new": "open",
-        "backlog": "open",
-        "in progress": "in_progress",
-        "in review": "in_progress",
-        "in development": "in_progress",
-        "done": "closed",
-        "closed": "closed",
-        "resolved": "closed",
-        "complete": "closed",
-        "completed": "closed",
-        "blocked": "blocked",
-        "impediment": "blocked",
-    }
-    return mapping.get(jira_status.lower(), "open")
 
 
 def _map_jira_priority(jira_priority: str) -> int:

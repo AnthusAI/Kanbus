@@ -161,6 +161,7 @@ mod tests {
                 key: "open".to_string(),
                 name: "Open".to_string(),
                 category: "todo".to_string(),
+                semantic_category: "todo".to_string(),
                 color: None,
                 collapsed: false,
             }],
