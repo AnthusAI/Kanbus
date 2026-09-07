@@ -87,10 +87,21 @@
         "platform": "cursor",
         "model": "cursor-grok-4.6"
       }
+    },
+    {
+      "id": "5a527433-0da7-48e7-96ee-8da0f885d2d2",
+      "author": "ubuntu",
+      "text": "console-ui is green on bb6f24e9. Remaining CI failures were wiki-ui-023 in the Python/Rust wiki simulators: delete still opened page_order[0] (draft.md). Those now open the next remaining page, matching the console.",
+      "created_at": "2026-09-07T22:16:36.642341798Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
+      }
     }
   ],
   "created_at": "2026-09-07T20:18:30.163652Z",
-  "updated_at": "2026-09-07T22:03:30.317842921Z",
+  "updated_at": "2026-09-07T22:16:36.642403995Z",
   "closed_at": null,
   "agent": {
     "platform": "cursor",
