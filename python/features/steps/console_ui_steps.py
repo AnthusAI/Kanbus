@@ -888,6 +888,44 @@ def _assert_priority_pill_uses_background() -> None:
         raise AssertionError(
             "issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
         )
+    _assert_priority_pill_dark_mode_css_is_valid(globals_css)
+
+
+def _assert_priority_pill_dark_mode_css_is_valid(globals_css: str) -> None:
+    """
+    Require a valid dark-mode switch for priority chips.
+
+    :param globals_css: Contents of apps/console/src/styles/globals.css.
+    :type globals_css: str
+    :raises AssertionError: If the dark-mode rule is missing or mixes @media
+        into the selector list.
+    """
+    dark_marker = ".dark .issue-accent-priority"
+    dark_start = globals_css.find(dark_marker)
+    if dark_start == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is required for dark-mode priority chips"
+        )
+    opening_brace = globals_css.find("{", dark_start)
+    if opening_brace == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is missing a declaration block"
+        )
+    selector = globals_css[dark_start:opening_brace]
+    if "@media" in selector:
+        raise AssertionError(
+            "dark-mode .issue-accent-priority selectors must not mix in @media"
+        )
+    closing_brace = globals_css.find("}", opening_brace)
+    if closing_brace == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is missing a closing brace"
+        )
+    body = globals_css[opening_brace : closing_brace + 1]
+    if "--issue-priority-bg" not in body or "--issue-priority-bg-dark" not in body:
+        raise AssertionError(
+            ".dark .issue-accent-priority must set --issue-priority-bg to --issue-priority-bg-dark"
+        )
 
 
 def _assert_priority_pill_uses_foreground_text() -> None:
