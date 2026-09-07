@@ -80,10 +80,38 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "3b2070be-5ed0-4046-9976-5f32ca71b65f",
+      "author": "ubuntu",
+      "text": "CI on PR 222 was red. console-ui failed because pausing SSE on Wiki and replacing EventSource reconnect closed live snapshot sockets that board/Now specs need. Restoring always-on SSE and native EventSource. Wiki pages fetch still times out at 8s; delete now updates the remaining page list without a second list fetch.\n\nRust cucumber `Regenerating a right now summary updates a newer overlay snapshot` also fails locally and is unrelated to wiki. Develop CI rust is already red. Investigating whether that is a merge blocker.\n",
+      "created_at": "2026-09-07T19:36:27.364872Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": null,
+        "settings": {}
+      }
+    },
+    {
+      "id": "71cc9967-3ace-4396-a93f-1f2c56c4df80",
+      "author": "ubuntu",
+      "text": "643a7424 still failed console-ui (same 14) and python (overlay now list + missing \"console board should be visible\").\n\nCause: the Vite proxy 15s JSON timeout and SSE destroy-on-close aborted snapshot/SSE, so tests saw a stale Chattic.us board. Reverting vite.config to develop's simple proxy. Overlay assertion now uses `kanbus now --status all --list` so a newer open overlay is still visible. Added the missing Python/Rust board-visible step.\n",
+      "created_at": "2026-09-07T19:48:05.200212Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T19:05:57.931381Z",
-  "updated_at": "2026-09-07T19:23:47.228857Z",
+  "updated_at": "2026-09-07T19:48:05.200299Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

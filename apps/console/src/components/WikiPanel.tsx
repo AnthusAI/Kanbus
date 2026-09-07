@@ -298,19 +298,15 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     }
     setError(null);
     try {
-      const optimisticRemaining = pages
+      const remainingPages = pages
         .filter((candidate) => candidate.path !== activePath)
-        .map((candidate) => candidate.path);
+        .slice()
+        .sort((left, right) => left.path.localeCompare(right.path));
       await deleteWikiPage(apiBase, activePath);
-      const refreshedPages = await refreshPages();
-      const mergedCandidates = new Set<string>([
-        ...optimisticRemaining,
-        ...refreshedPages.map((page) => page.path)
-      ]);
-      const remainingPages = Array.from(mergedCandidates)
-        .filter((candidate) => candidate !== activePath)
-        .sort((a, b) => a.localeCompare(b));
-      const nextPath = remainingPages[0] ?? "";
+      setPages(remainingPages);
+      setPagesLoaded(true);
+      setError(null);
+      const nextPath = remainingPages[0]?.path ?? "";
       const normalized = nextPath.replace(/^\/+/, "").replace(/\/+$/, "");
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(normalized);
