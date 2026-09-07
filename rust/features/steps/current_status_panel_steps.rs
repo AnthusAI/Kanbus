@@ -12,6 +12,8 @@ use crate::step_definitions::console_ui_steps::{ConsoleIssue, ConsoleState};
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
+const RIGHT_NOW_LOADING_SUMMARY: &str = "Generating right-now summary...";
+const RIGHT_NOW_UNAVAILABLE_SUMMARY: &str = "Right-now summary unavailable";
 const STATUS_FEED_LIMIT: usize = 30;
 const NOW_STATUS_FILTER_ALL: &str = "all";
 
@@ -224,11 +226,36 @@ fn status_feed_issues<'a>(issues: Vec<&'a ConsoleIssue>) -> Vec<&'a ConsoleIssue
     sorted
 }
 
-fn resolve_feed_summary(issue: &ConsoleIssue) -> String {
-    match issue.right_now_summary.as_deref() {
-        None | Some("") => RIGHT_NOW_PLACEHOLDER.to_string(),
-        Some(summary) => summary.to_string(),
+fn resolve_feed_summary(state: &ConsoleState, issue: &ConsoleIssue) -> String {
+    if let Some(summary) = issue.right_now_summary.as_deref() {
+        if !summary.is_empty() {
+            return summary.to_string();
+        }
     }
+    match state.now_backfill_state.as_str() {
+        "loading" => RIGHT_NOW_LOADING_SUMMARY.to_string(),
+        "unavailable" => RIGHT_NOW_UNAVAILABLE_SUMMARY.to_string(),
+        _ => RIGHT_NOW_PLACEHOLDER.to_string(),
+    }
+}
+
+pub fn simulate_now_jit_backfill(state: &mut ConsoleState) {
+    state.now_backfill_state = "loading".to_string();
+    for issue in state.issues.iter_mut() {
+        if issue.status != "in_progress" {
+            continue;
+        }
+        if issue
+            .right_now_summary
+            .as_ref()
+            .is_some_and(|summary| !summary.is_empty())
+        {
+            continue;
+        }
+        let identifier = issue_tree_identifier(issue);
+        issue.right_now_summary = Some(format!("Mock right-now summary for {identifier}."));
+    }
+    state.now_backfill_state = "ready".to_string();
 }
 
 fn post_notification(world: &KanbusWorld, body: serde_json::Value) {
@@ -611,7 +638,7 @@ fn then_status_tree_row_title(world: &mut KanbusWorld, title: String, expected: 
 fn then_status_feed_row_summary(world: &mut KanbusWorld, title: String, expected: String) {
     let state = require_console_state(world);
     let index = find_issue_by_title(state, &title).expect("issue not found");
-    assert_eq!(resolve_feed_summary(&state.issues[index]), expected);
+    assert_eq!(resolve_feed_summary(state, &state.issues[index]), expected);
 }
 
 #[then(expr = "the status tree row for {string} should show right-now summary {string}")]
@@ -708,4 +735,46 @@ fn then_status_feed_row_count(world: &mut KanbusWorld, count: i32) {
     let state = require_console_state(world);
     let actual = status_feed_issues(now_visible_issues(state)).len();
     assert_eq!(actual, count as usize);
+}
+
+#[when("I request the console now snapshot")]
+fn when_request_console_now_snapshot(world: &mut KanbusWorld) {
+    let port = world.console_port.expect("console port not set");
+    let url = format!("http://127.0.0.1:{port}/api/now");
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("build http client");
+    let response = client.get(&url).send().expect("get console now snapshot");
+    let status = response.status();
+    let body = response.text().expect("read console now response");
+    assert_eq!(
+        status,
+        200,
+        "console now snapshot failed: {body}"
+    );
+    let issues: Vec<serde_json::Value> =
+        serde_json::from_str(&body).expect("parse console now issues");
+    world.console_now_issues = Some(issues);
+}
+
+#[then(expr = "the console now response should include issue {string} with right-now summary {string}")]
+fn then_console_now_response_includes_summary(
+    world: &mut KanbusWorld,
+    issue_id: String,
+    expected_summary: String,
+) {
+    let issues = world
+        .console_now_issues
+        .as_ref()
+        .expect("console now response not loaded");
+    let issue = issues
+        .iter()
+        .find(|entry| entry.get("id").and_then(|value| value.as_str()) == Some(issue_id.as_str()))
+        .unwrap_or_else(|| panic!("issue not found in now response: {issue_id}"));
+    let actual = issue
+        .get("right_now_summary")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    assert_eq!(actual, expected_summary);
 }

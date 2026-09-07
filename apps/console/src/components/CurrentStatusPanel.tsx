@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { StatusTree } from "@kanbus/ui";
+import {
+  StatusTree,
+  resolveRightNowSummaryText,
+  type RightNowSummaryDisplayMode
+} from "@kanbus/ui";
 import type { Issue, StatusDefinition } from "../types/issues";
 
-const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 const DEFAULT_STATUS_FEED_LIMIT = 30;
 const DEFAULT_NOW_STATUS_FILTER = "in_progress";
 const NOW_STATUS_FILTER_ALL = "all";
@@ -15,6 +18,7 @@ interface CurrentStatusPanelProps {
   defaultTreeExpanded?: boolean;
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
+  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
 }
 
 function parseTimestamp(value: string | undefined): number | null {
@@ -57,14 +61,6 @@ function formatUpdatedAt(value: string | undefined): string {
   return new Date(parsed).toISOString().replace(".000Z", "Z");
 }
 
-function resolveRightNowSummary(issue: Issue): string {
-  const summary = issue.right_now_summary;
-  if (summary == null || summary.trim().length === 0) {
-    return RIGHT_NOW_PLACEHOLDER;
-  }
-  return summary;
-}
-
 function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issue[] {
   if (matchingIssues.length === 0 || matchingIssues.length === allIssues.length) {
     return matchingIssues;
@@ -102,6 +98,7 @@ export function CurrentStatusPanel({
   defaultTreeExpanded = false,
   onSelectIssue,
   selectedIssueId = null,
+  rightNowSummaryDisplayMode = "loading",
 }: CurrentStatusPanelProps) {
   const [treeViewEnabled, setTreeViewEnabled] = useState(true);
   const [statusFilter, setStatusFilter] = useState(DEFAULT_NOW_STATUS_FILTER);
@@ -162,6 +159,7 @@ export function CurrentStatusPanel({
         <StatusTree
           issues={treeIssues}
           defaultExpanded={defaultTreeExpanded}
+          rightNowSummaryDisplayMode={rightNowSummaryDisplayMode}
           onSelectIssue={
             onSelectIssue
               ? (treeIssue) => {
@@ -183,7 +181,10 @@ export function CurrentStatusPanel({
           ) : (
             feedIssues.map((issue) => {
               const isSelected = selectedIssueId === issue.id;
-              const summaryText = resolveRightNowSummary(issue);
+              const summaryText = resolveRightNowSummaryText(
+                issue.right_now_summary,
+                rightNowSummaryDisplayMode
+              );
               return (
                 <button
                   key={issue.id}

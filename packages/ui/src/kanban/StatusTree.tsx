@@ -2,8 +2,10 @@ import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatIssueId } from "./format-issue-id";
 import { getTypeIcon } from "./issue-icons";
-
-const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
+import {
+  resolveRightNowSummaryText,
+  type RightNowSummaryDisplayMode
+} from "./right-now-summary-display";
 
 export interface StatusTreeIssue {
   id: string;
@@ -25,6 +27,7 @@ interface StatusTreeProps {
   defaultExpanded: boolean;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
+  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
 }
 
 function parseTimestamp(value: string | undefined): number | null {
@@ -54,14 +57,6 @@ function compareRecentlyUpdated(left: StatusTreeIssue, right: StatusTreeIssue): 
     return left.id.localeCompare(right.id);
   }
   return -order;
-}
-
-function resolveRightNowSummary(issue: StatusTreeIssue): string {
-  const summary = issue.right_now_summary;
-  if (summary == null || summary.trim().length === 0) {
-    return RIGHT_NOW_PLACEHOLDER;
-  }
-  return summary;
 }
 
 function buildStatusTree(issues: StatusTreeIssue[]): StatusTreeNode[] {
@@ -104,6 +99,7 @@ interface StatusTreeRowProps {
   onToggleExpanded: (issueId: string, expanded: boolean) => void;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
+  rightNowSummaryDisplayMode: RightNowSummaryDisplayMode;
 }
 
 function StatusTreeRow({
@@ -113,12 +109,16 @@ function StatusTreeRow({
   expandedOverrides,
   onToggleExpanded,
   onSelectIssue,
-  selectedIssueId = null
+  selectedIssueId = null,
+  rightNowSummaryDisplayMode
 }: StatusTreeRowProps) {
   const { issue, children } = node;
   const hasChildren = children.length > 0;
   const expanded = expandedOverrides[issue.id] ?? defaultExpanded;
-  const summaryText = resolveRightNowSummary(issue);
+  const summaryText = resolveRightNowSummaryText(
+    issue.right_now_summary,
+    rightNowSummaryDisplayMode
+  );
   const isSelected = selectedIssueId === issue.id;
   const IssueTypeIcon = getTypeIcon(issue.type ?? "task", issue.status);
   const ExpandIcon = expanded ? ChevronDown : ChevronRight;
@@ -190,6 +190,7 @@ function StatusTreeRow({
               onToggleExpanded={onToggleExpanded}
               onSelectIssue={onSelectIssue}
               selectedIssueId={selectedIssueId}
+              rightNowSummaryDisplayMode={rightNowSummaryDisplayMode}
             />
           ))
         : null}
@@ -201,7 +202,8 @@ export function StatusTree({
   issues,
   defaultExpanded,
   onSelectIssue,
-  selectedIssueId = null
+  selectedIssueId = null,
+  rightNowSummaryDisplayMode = "placeholder"
 }: StatusTreeProps) {
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const roots = useMemo(() => buildStatusTree(issues), [issues]);
@@ -233,6 +235,7 @@ export function StatusTree({
           onToggleExpanded={handleToggleExpanded}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
+          rightNowSummaryDisplayMode={rightNowSummaryDisplayMode}
         />
       ))}
     </div>

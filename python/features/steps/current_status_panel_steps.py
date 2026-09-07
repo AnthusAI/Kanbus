@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from functools import cmp_to_key
 from pathlib import Path
@@ -19,6 +20,8 @@ from features.steps.console_ui_steps import (
 )
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
+RIGHT_NOW_LOADING_SUMMARY = "Generating right-now summary..."
+RIGHT_NOW_UNAVAILABLE_SUMMARY = "Right-now summary unavailable"
 STATUS_FEED_LIMIT = 30
 NOW_STATUS_FILTER_ALL = "all"
 DEFAULT_NOW_STATUS_FILTER = "in_progress"
@@ -180,11 +183,27 @@ def _status_feed_issues(issues: list[ConsoleIssue]) -> list[ConsoleIssue]:
     return sorted_issues[:STATUS_FEED_LIMIT]
 
 
-def _resolve_feed_summary(issue: ConsoleIssue) -> str:
+def _resolve_feed_summary(state: ConsoleState, issue: ConsoleIssue) -> str:
     summary = issue.right_now_summary
-    if summary is None or summary.strip() == "":
-        return RIGHT_NOW_PLACEHOLDER
-    return summary
+    if summary is not None and summary.strip() != "":
+        return summary
+    if state.now_backfill_state == "loading":
+        return RIGHT_NOW_LOADING_SUMMARY
+    if state.now_backfill_state == "unavailable":
+        return RIGHT_NOW_UNAVAILABLE_SUMMARY
+    return RIGHT_NOW_PLACEHOLDER
+
+
+def _simulate_now_jit_backfill(state: ConsoleState) -> None:
+    state.now_backfill_state = "loading"
+    for issue in state.issues:
+        if issue.status != "in_progress":
+            continue
+        if issue.right_now_summary is not None and issue.right_now_summary.strip() != "":
+            continue
+        identifier = issue.identifier or issue.title
+        issue.right_now_summary = f"Mock right-now summary for {identifier}."
+    state.now_backfill_state = "ready"
 
 
 @when('I switch to the "Now" view')
@@ -192,6 +211,7 @@ def when_switch_current_status_view(context: object) -> None:
     state = _require_console_state(context)
     state.panel_mode = "now"
     _ensure_console_storage(context).panel_mode = "now"
+    _simulate_now_jit_backfill(state)
 
 
 @given('I switch to the "Now" view')
@@ -469,7 +489,7 @@ def then_status_feed_row_summary(context: object, title: str, expected: str) -> 
     issue = _find_issue_by_title(title, state.issues)
     if issue is None:
         raise AssertionError(f"issue not found: {title}")
-    actual = _resolve_feed_summary(issue)
+    actual = _resolve_feed_summary(state, issue)
     if actual != expected:
         raise AssertionError(f"expected summary {expected}, got {actual}")
 
@@ -548,3 +568,42 @@ def then_status_feed_row_count(context: object, count: int) -> None:
     actual = len(_status_feed_issues(_now_visible_issues(state)))
     if actual != count:
         raise AssertionError(f"expected {count} feed rows, got {actual}")
+
+
+@when("I request the console now snapshot")
+def when_request_console_now_snapshot(context: object) -> None:
+    import urllib.error
+    import urllib.request
+
+    port = getattr(context, "console_server_port", None) or getattr(
+        context, "console_port", None
+    )
+    if port is None:
+        raise AssertionError("console port not set")
+    url = f"http://127.0.0.1:{port}/api/now"
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise AssertionError(
+            f"console now snapshot failed: {error.code} {detail}"
+        ) from error
+    context.console_now_issues = json.loads(body)
+
+
+@then(
+    'the console now response should include issue "{issue_id}" with right-now summary "{expected}"'
+)
+def then_console_now_response_includes_summary(
+    context: object, issue_id: str, expected: str
+) -> None:
+    issues = getattr(context, "console_now_issues", None)
+    if issues is None:
+        raise AssertionError("console now response not loaded")
+    match = next((item for item in issues if item.get("id") == issue_id), None)
+    if match is None:
+        raise AssertionError(f"issue not found in now response: {issue_id}")
+    actual = match.get("right_now_summary") or ""
+    if actual != expected:
+        raise AssertionError(f"expected summary {expected}, got {actual}")

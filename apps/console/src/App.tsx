@@ -12,7 +12,7 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board, TaskDetailPanel, AnimatedSelector, getStatusColumnsForTypeFilter, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
+import { Board, TaskDetailPanel, AnimatedSelector, getStatusColumnsForTypeFilter, type BoardTypeFilter, type SelectorOption, type RightNowSummaryDisplayMode } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -61,6 +61,49 @@ type IssueSelectionContext = {
   parentIssue: Issue | null;
   error: string | null;
 };
+type NowBackfillState = "idle" | "loading" | "ready" | "unavailable";
+
+function snapshotHasMissingRightNowSummaries(issues: Issue[]): boolean {
+  return issues.some((issue) => !issue.right_now_summary?.trim());
+}
+
+function mergeSnapshotIssuesPreservingRightNowSummaries(
+  previousIssues: Issue[],
+  nextIssues: Issue[]
+): Issue[] {
+  const previousById = new Map(previousIssues.map((issue) => [issue.id, issue]));
+  return nextIssues.map((issue) => {
+    const previous = previousById.get(issue.id);
+    if (previous?.right_now_summary?.trim() && !issue.right_now_summary?.trim()) {
+      return {
+        ...issue,
+        right_now_summary: previous.right_now_summary,
+        right_now_updated_at: previous.right_now_updated_at ?? issue.right_now_updated_at
+      };
+    }
+    return issue;
+  });
+}
+
+function resolveNowSummaryDisplayMode(
+  panelMode: PanelMode,
+  backfillState: NowBackfillState,
+  issues: Issue[]
+): RightNowSummaryDisplayMode {
+  if (panelMode !== "now") {
+    return "placeholder";
+  }
+  if (backfillState === "loading") {
+    return "loading";
+  }
+  if (backfillState === "unavailable") {
+    return "unavailable";
+  }
+  if (snapshotHasMissingRightNowSummaries(issues)) {
+    return "unavailable";
+  }
+  return "loading";
+}
 
 const VIEW_MODE_STORAGE_KEY = "kanbus.console.viewMode";
 const DETAIL_WIDTH_STORAGE_KEY = "kanbus.console.detailWidth";
@@ -635,6 +678,7 @@ export default function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>(() =>
     loadStoredPanelMode()
   );
+  const [nowBackfillState, setNowBackfillState] = useState<NowBackfillState>("idle");
   const [wikiDirty, setWikiDirty] = useState(false);
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
@@ -678,6 +722,7 @@ export default function App() {
   const viewModeAutoCorrected = React.useRef(false);
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
+  const panelModeRef = React.useRef(panelMode);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
   useAppearance();
   const config = snapshot?.config;
@@ -703,21 +748,49 @@ export default function App() {
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
+  const rightNowSummaryDisplayMode = useMemo(
+    () => resolveNowSummaryDisplayMode(panelMode, nowBackfillState, issues),
+    [panelMode, nowBackfillState, issues]
+  );
 
   useEffect(() => {
-    if (panelMode !== "now" || !apiBase) {
+    panelModeRef.current = panelMode;
+  }, [panelMode]);
+
+  useEffect(() => {
+    if (panelMode !== "now" || !apiBase || !authReady) {
+      if (panelMode !== "now") {
+        setNowBackfillState("idle");
+      }
       return;
     }
+    let cancelled = false;
+    setNowBackfillState("loading");
     fetchNowIssues(apiBase)
       .then((nowIssues) => {
+        if (cancelled) {
+          return;
+        }
         setSnapshot((previous) =>
           previous
             ? { ...previous, issues: nowIssues, updated_at: new Date().toISOString() }
             : previous
         );
+        setNowBackfillState(
+          snapshotHasMissingRightNowSummaries(nowIssues) ? "unavailable" : "ready"
+        );
       })
-      .catch((err) => console.warn("[now] backfill failed", err));
-  }, [panelMode, apiBase]);
+      .catch((err) => {
+        if (cancelled) {
+          return;
+        }
+        console.warn("[now] backfill failed", err);
+        setNowBackfillState("unavailable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [panelMode, apiBase, authReady]);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -809,7 +882,18 @@ export default function App() {
           apiBase,
           (nextSnapshot) => {
             lastSnapshotSuccessAtRef.current = Date.now();
-            setSnapshot(nextSnapshot);
+            setSnapshot((previous) => {
+              if (!previous || panelModeRef.current !== "now") {
+                return nextSnapshot;
+              }
+              return {
+                ...nextSnapshot,
+                issues: mergeSnapshotIssuesPreservingRightNowSummaries(
+                  previous.issues,
+                  nextSnapshot.issues
+                )
+              };
+            });
             setError(null);
             setErrorTime(null);
           },
@@ -2071,6 +2155,7 @@ export default function App() {
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}
                     selectedIssueId={selectedTask?.id ?? null}
+                    rightNowSummaryDisplayMode={rightNowSummaryDisplayMode}
                   />
                 </div>
               </div>

@@ -98,7 +98,11 @@ from kanbus.text_editor import (
     edit_create,
     edit_insert,
 )
-from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_snapshot import (
+    ConsoleSnapshotError,
+    build_console_now_issues,
+    build_console_snapshot,
+)
 from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -2490,6 +2494,18 @@ def console_snapshot() -> None:
     except ConsoleSnapshotError as error:
         raise click.ClickException(str(error)) from error
     payload = json.dumps(snapshot, indent=2, sort_keys=False)
+    click.echo(payload)
+
+
+@console.command("now")
+def console_now() -> None:
+    """Backfill right-now summaries and emit issues for the Now view."""
+    root = Path.cwd()
+    try:
+        issues = build_console_now_issues(root)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    payload = json.dumps(issues, sort_keys=False)
     click.echo(payload)
 
 

@@ -1,6 +1,13 @@
 export { Board } from "./Board";
 export { BoardColumn } from "./BoardColumn";
 export { StatusTree } from "./StatusTree";
+export {
+  RIGHT_NOW_LOADING_SUMMARY,
+  RIGHT_NOW_PLACEHOLDER,
+  RIGHT_NOW_UNAVAILABLE_SUMMARY,
+  resolveRightNowSummaryText
+} from "./right-now-summary-display";
+export type { RightNowSummaryDisplayMode } from "./right-now-summary-display";
 export { IssueCard } from "./IssueCard";
 export { TaskDetailPanel } from "./TaskDetailPanel";
 export { buildIssueColorStyle, buildStatusBadgeStyle } from "./issue-colors";

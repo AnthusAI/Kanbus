@@ -90,6 +90,7 @@ pub struct ConsoleState {
     pub default_tree_expanded: bool,
     pub status_filter: String,
     pub board_name: String,
+    pub now_backfill_state: String,
 }
 
 #[derive(Debug, Clone)]
@@ -1033,6 +1034,7 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
     if normalized == "now" || normalized == "current status" {
         state.panel_mode = "now".to_string();
         world.console_local_storage.panel_mode = Some("now".to_string());
+        crate::step_definitions::current_status_panel_steps::simulate_now_jit_backfill(state);
         return;
     }
     state.panel_mode = "board".to_string();
@@ -1392,6 +1394,7 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         default_tree_expanded: false,
         status_filter: "in_progress".to_string(),
         board_name: console_board_name(world),
+        now_backfill_state: "idle".to_string(),
     }
 }
 

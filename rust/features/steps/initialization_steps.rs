@@ -93,6 +93,7 @@ pub struct KanbusWorld {
     pub metrics_local_filter: Option<String>,
     pub console_port: Option<u16>,
     pub console_server_child: Option<Child>,
+    pub console_now_issues: Option<Vec<serde_json::Value>>,
     pub fake_jira_port: Option<u16>,
     pub fake_jira_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
     pub fake_jira_issues: Vec<serde_json::Value>,

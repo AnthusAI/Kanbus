@@ -138,6 +138,39 @@ async function runSnapshot(): Promise<IssuesSnapshot> {
   return JSON.parse(stdout) as IssuesSnapshot;
 }
 
+async function runNowIssues(): Promise<Issue[]> {
+  const rustKbs = getRustKbsPath();
+  if (rustKbs) {
+    try {
+      const { stdout } = await execFileAsync(rustKbs, ["console", "now"], {
+        cwd: repoRoot,
+        env: { ...process.env, KANBUS_NO_DAEMON: "1" },
+        maxBuffer: 10 * 1024 * 1024
+      });
+      return JSON.parse(stdout) as Issue[];
+    } catch (rustError) {
+      const err = rustError as Error & { stderr?: string; stdout?: string };
+      const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim();
+      logConsoleEvent("now-backfill-rust-fallback", { detail });
+    }
+  }
+
+  const command = kanbusPython ?? "kanbus";
+  const args = kanbusPython
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "console", "now"]
+    : ["console", "now"];
+  const { stdout } = await execFileAsync(command, args, {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      KANBUS_NO_DAEMON: "1",
+      PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
+    },
+    maxBuffer: 10 * 1024 * 1024
+  });
+  return JSON.parse(stdout) as Issue[];
+}
+
 async function getSnapshot(): Promise<IssuesSnapshot> {
   if (cachedSnapshot) {
     return cachedSnapshot;
@@ -222,6 +255,21 @@ apiRouter.get("/issues", async (_req, res) => {
   try {
     const snapshot = await getSnapshotForRequest(_req.query.refresh);
     res.json(snapshot.issues);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.get("/now", async (_req, res) => {
+  try {
+    const issues = await runNowIssues();
+    cachedSnapshot = cachedSnapshot
+      ? { ...cachedSnapshot, issues, updated_at: new Date().toISOString() }
+      : null;
+    if (cachedSnapshot) {
+      broadcastSnapshot(cachedSnapshot);
+    }
+    res.json(issues);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

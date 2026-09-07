@@ -23,6 +23,7 @@ use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_to
 use crate::config_loader::load_project_configuration;
 use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
+use crate::console_snapshot::build_console_now_issues;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
 use crate::daemon_client::{request_shutdown, request_status};
@@ -894,6 +895,8 @@ enum CloudTokenCommands {
 enum ConsoleCommands {
     /// Emit a JSON snapshot for the console.
     Snapshot,
+    /// Backfill right-now summaries and emit issues for the Now view.
+    Now,
     /// Stream browser console logs to a local file.
     Log {
         /// Output file path.
@@ -3630,6 +3633,12 @@ fn execute_command(
             ConsoleCommands::Snapshot => {
                 let snapshot = build_console_snapshot(root)?;
                 let payload = serde_json::to_string_pretty(&snapshot)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(Some(payload))
+            }
+            ConsoleCommands::Now => {
+                let issues = build_console_now_issues(root)?;
+                let payload = serde_json::to_string(&issues)
                     .map_err(|error| KanbusError::Io(error.to_string()))?;
                 Ok(Some(payload))
             }
