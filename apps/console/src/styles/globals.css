@@ -1055,6 +1055,9 @@ html[data-motion="reduced"] .sidebar-column {
   --issue-accent-muted-dark: var(--slate-6);
   --issue-accent: var(--issue-accent-light);
   --issue-accent-muted: var(--issue-accent-muted-light);
+  --issue-priority-bg-light: var(--slate-5);
+  --issue-priority-bg-dark: var(--slate-6);
+  --issue-priority-bg: var(--issue-priority-bg-light);
   display: flex;
   align-items: stretch;
   width: 100%;
@@ -1071,6 +1074,7 @@ html[data-motion="reduced"] .sidebar-column {
 [data-theme='dark'] .status-tree-row {
   --issue-accent: var(--issue-accent-dark);
   --issue-accent-muted: var(--issue-accent-muted-dark);
+  --issue-priority-bg: var(--issue-priority-bg-dark);
 }
 
 .status-tree-row:hover {
