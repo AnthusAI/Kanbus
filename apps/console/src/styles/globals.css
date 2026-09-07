@@ -1181,27 +1181,28 @@ html[data-motion="reduced"] .sidebar-column {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   line-height: 1.35;
   text-align: left;
   background: transparent;
   padding: 0;
-  color: var(--text-foreground);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
 .status-tree-title-button-selected {
-  color: var(--text-selected, var(--text-foreground));
+  color: var(--text-selected, var(--text-muted));
 }
 
 .status-tree-summary {
   display: block;
   width: 100%;
   min-width: 0;
-  font-size: 0.82rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
   line-height: 1.4;
-  color: var(--text-muted);
+  color: var(--text-foreground);
   overflow-wrap: anywhere;
 }
 
