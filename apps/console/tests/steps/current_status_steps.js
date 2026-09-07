@@ -148,11 +148,15 @@ Then("the current status view should be active", async function () {
 });
 
 Then("the type filter selector should be hidden", async function () {
-  await expect(this.page.locator('[data-selector="view"]')).toHaveCount(0);
+  await expect(
+    this.page.locator('[data-selector="view"][role="tablist"]')
+  ).toHaveCount(0);
 });
 
 Then("the type filter selector should be visible", async function () {
-  await expect(this.page.locator('[data-selector="view"]')).toBeVisible();
+  await expect(
+    this.page.locator('[data-selector="view"][role="tablist"]')
+  ).toBeVisible();
 });
 
 Then("the status tree node for {string} should be expandable", async function (title) {
@@ -196,10 +200,6 @@ Then("the status tree view should be enabled", async function () {
 });
 
 When("I select the now status filter {string}", async function (status) {
-  await this.page.getByTestId("now-status-filter").selectOption(status);
-});
-
-Given("I select the now status filter {string}", async function (status) {
   await this.page.getByTestId("now-status-filter").selectOption(status);
 });
 
@@ -343,11 +343,6 @@ When("I disable the status tree view", async function () {
   await expect(this.page.getByTestId("status-feed")).toBeVisible();
 });
 
-Given("I disable the status tree view", async function () {
-  await this.page.getByTestId("status-tree-toggle").uncheck();
-  await expect(this.page.getByTestId("status-feed")).toBeVisible();
-});
-
 When("I collapse the status tree node for {string}", async function (title) {
   await treeRow(this.page, title).getByTestId("status-tree-node-toggle").click();
 });
@@ -388,6 +383,10 @@ When(
     issue.right_now_summary = summary;
     issue.right_now_updated_at = issue.updated_at ?? issue.created_at;
     await writeStatusIssue(issue);
+    await waitForIssueField(
+      issue.id,
+      (entry) => entry.right_now_summary === summary
+    );
     await expect
       .poll(async () => feedRow(this.page, title).getByTestId("status-feed-summary").textContent(), {
         timeout: 8000
@@ -485,6 +484,41 @@ Then(
     await expect(
       treeRow(this.page, title).getByTestId("status-tree-summary")
     ).toHaveText(expected);
+  }
+);
+
+Then(
+  "the status tree row for {string} should show status {string}",
+  async function (title, expected) {
+    await expect(treeRow(this.page, title).getByTestId("status-tree-status")).toHaveAttribute(
+      "data-issue-status",
+      expected
+    );
+  }
+);
+
+Then(
+  "the status tree row for {string} should show type accent color {string}",
+  async function (title, expected) {
+    await expect(treeRow(this.page, title)).toHaveAttribute("data-accent-color", expected);
+    const accentStyle = await treeRow(this.page, title).evaluate((element) => {
+      return element.style.getPropertyValue("--issue-accent-light");
+    });
+    expect(accentStyle).toContain(`var(--${expected}-`);
+  }
+);
+
+Then(
+  "the status tree row for {string} should show status color {string}",
+  async function (title, expected) {
+    await expect(treeRow(this.page, title).getByTestId("status-tree-status")).toHaveAttribute(
+      "data-status-color",
+      expected
+    );
+    const badgeStyle = await treeRow(this.page, title)
+      .getByTestId("status-tree-status")
+      .evaluate((element) => element.style.getPropertyValue("--status-badge-bg-light"));
+    expect(badgeStyle).toContain(`var(--${expected}-`);
   }
 );
 
