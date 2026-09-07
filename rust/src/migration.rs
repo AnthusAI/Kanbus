@@ -881,6 +881,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "BD".to_string(),
+        name: None,
         project_management_template: None,
         hierarchy: vec![
             "initiative".to_string(),

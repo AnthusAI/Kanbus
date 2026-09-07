@@ -14,6 +14,12 @@ Feature: Configuration loading
     And the project directory should be "project"
     And beads compatibility should be false
 
+  Scenario: Load configuration with a board name
+    Given a Kanbus repository with a .kanbus.yml file containing the default configuration
+    And the Kanbus configuration has name "Chattic.us"
+    When the configuration is loaded
+    Then the project name should be "Chattic.us"
+
   Scenario: Load configuration from an empty file
     Given a Kanbus repository with an empty .kanbus.yml file
     When the configuration is loaded

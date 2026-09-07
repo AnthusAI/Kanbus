@@ -1,4 +1,7 @@
 prefix: kanbus
+# Legacy Taskulus-era snapshot for local reference only. The console Playwright
+# suite loads apps/console/tests/fixtures/kanbus.board-columns.yml via
+# scripts/run_ui_tests.ts (merged at tempDir/.kanbus.yml for kbsc snapshots).
 hierarchy:
 - initiative
 - epic

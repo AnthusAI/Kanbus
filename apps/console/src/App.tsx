@@ -12,7 +12,7 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board, TaskDetailPanel, AnimatedSelector, type SelectorOption } from "@kanbus/ui";
+import { Board, TaskDetailPanel, AnimatedSelector, getStatusColumnsForTypeFilter, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -23,6 +23,7 @@ import { WikiPanel } from "./components/WikiPanel";
 import {
   fetchAuthBootstrap,
   fetchSnapshot,
+  fetchNowIssues,
   setAuthHeaderProvider,
   setMqttTokenProvider,
   setAuthQueryProvider,
@@ -557,8 +558,14 @@ function buildPriorityLookup(config: ProjectConfig): Record<number, string> {
   );
 }
 
-function getStatusColumns(config: ProjectConfig): string[] {
-  return config.statuses.map((s) => s.key);
+function resolveBoardTypeFilter(
+  showAllTypes: boolean,
+  viewMode: ViewMode | null
+): BoardTypeFilter {
+  if (showAllTypes) {
+    return "all";
+  }
+  return viewMode ?? "issues";
 }
 
 function getInitialCollapsedColumns(config: ProjectConfig): Set<string> {
@@ -696,6 +703,21 @@ export default function App() {
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
+
+  useEffect(() => {
+    if (panelMode !== "now" || !apiBase) {
+      return;
+    }
+    fetchNowIssues(apiBase)
+      .then((nowIssues) => {
+        setSnapshot((previous) =>
+          previous
+            ? { ...previous, issues: nowIssues, updated_at: new Date().toISOString() }
+            : previous
+        );
+      })
+      .catch((err) => console.warn("[now] backfill failed", err));
+  }, [panelMode, apiBase]);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -1158,16 +1180,6 @@ export default function App() {
     }
     return buildPriorityLookup(config);
   }, [config]);
-  const columns = useMemo(() => {
-    if (!config) {
-      return [];
-    }
-    return getStatusColumns(config);
-  }, [config]);
-  const columnError =
-    config && columns.length === 0
-      ? "default workflow is required to render columns"
-      : null;
 
   const routeContext = useMemo<IssueSelectionContext>(() => {
     if (route.basePath == null) {
@@ -1277,6 +1289,17 @@ export default function App() {
     ? null
     : routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
   const typeFilterValue = showAllTypes ? "all" : resolvedViewMode;
+  const boardTypeFilter = resolveBoardTypeFilter(showAllTypes, resolvedViewMode);
+  const columns = useMemo(() => {
+    if (!config) {
+      return [];
+    }
+    return getStatusColumnsForTypeFilter(config, boardTypeFilter);
+  }, [config, boardTypeFilter]);
+  const columnError =
+    config && columns.length === 0
+      ? "default workflow is required to render columns"
+      : null;
 
   useEffect(() => {
     if (showInitiativesInTypeFilter) {
@@ -1613,10 +1636,10 @@ export default function App() {
       )
     });
     return [
+      buildOption("now", "Now", Clock),
       buildOption("board", "Board", LayoutGrid),
       buildOption("wiki", "Wiki", FileText),
-      buildOption("metrics", "Metrics", BarChart3),
-      buildOption("now", "Current Status", Clock)
+      buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
 
@@ -1834,13 +1857,13 @@ export default function App() {
       : "transition-opacity duration-300";
 
   const viewTrackTransform = useMemo(() => {
-    if (panelMode === "wiki") {
+    if (panelMode === "board") {
       return "translateX(-25%)";
     }
-    if (panelMode === "metrics") {
+    if (panelMode === "wiki") {
       return "translateX(-50%)";
     }
-    if (panelMode === "now") {
+    if (panelMode === "metrics") {
       return "translateX(-75%)";
     }
     return "translateX(0)";
@@ -1961,7 +1984,7 @@ export default function App() {
             onClear={handleSearchClear}
             placeholder="Search issues..."
           />
-          {showTypeFilterToolbar ? (
+          {showTypeFilterToolbar && panelMode !== "now" ? (
             <AnimatedSelector
               name="view"
               value={typeFilterValue}
@@ -2031,6 +2054,26 @@ export default function App() {
             className={`view-track${sidebarReady ? " view-track-animate" : ""}`}
             style={{ transform: viewTrackTransform }}
           >
+              <div
+                className={`view-panel ${
+                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="current-status-view"
+                aria-hidden={panelMode !== "now"}
+              >
+                <div
+                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
+                >
+                  <CurrentStatusPanel
+                    issues={issues}
+                    statuses={config?.statuses ?? []}
+                    boardTitle={config?.name ?? ""}
+                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
+                    onSelectIssue={handleSelectIssue}
+                    selectedIssueId={selectedTask?.id ?? null}
+                  />
+                </div>
+              </div>
               <div
                 className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
@@ -2202,24 +2245,6 @@ export default function App() {
                       projectLabels={projectLabels}
                     />
                   ) : null}
-                </div>
-              </div>
-              <div
-                className={`view-panel ${
-                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
-                }`}
-                data-testid="current-status-view"
-                aria-hidden={panelMode !== "now"}
-              >
-                <div
-                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
-                >
-                  <CurrentStatusPanel
-                    issues={issues}
-                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
-                    onSelectIssue={handleSelectIssue}
-                    selectedIssueId={selectedTask?.id ?? null}
-                  />
                 </div>
               </div>
             </div>

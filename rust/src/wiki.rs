@@ -1192,6 +1192,43 @@ pub fn list_wiki_pages(root: &Path) -> Result<Vec<String>, KanbusError> {
     Ok(pages)
 }
 
+/// Return wiki page paths capped by limit when limit is positive.
+pub fn apply_wiki_page_limit(pages: Vec<String>, limit: usize) -> Vec<String> {
+    if limit > 0 {
+        pages.into_iter().take(limit).collect()
+    } else {
+        pages
+    }
+}
+
+/// Format wiki list output as JSON.
+pub fn format_wiki_list_json(pages: &[String]) -> String {
+    let payload = serde_json::json!({
+        "count": pages.len(),
+        "pages": pages,
+    });
+    serde_json::to_string_pretty(&payload).expect("serialize wiki list json")
+}
+
+/// Format wiki search output as JSON.
+pub fn format_wiki_search_json(query: &str, pages: &[String]) -> String {
+    let payload = serde_json::json!({
+        "query": query,
+        "count": pages.len(),
+        "pages": pages,
+    });
+    serde_json::to_string_pretty(&payload).expect("serialize wiki search json")
+}
+
+/// Format wiki render output as JSON.
+pub fn format_wiki_render_json(page_path: &str, rendered: &str) -> String {
+    let payload = serde_json::json!({
+        "path": page_path,
+        "rendered": rendered,
+    });
+    serde_json::to_string_pretty(&payload).expect("serialize wiki render json")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

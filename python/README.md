@@ -51,9 +51,9 @@ There are no per-seat licenses or hosted fees. If you have a git repository, you
 
 ---
 
-## Status: Planning Phase
+## Status
 
-This repository contains the complete vision, implementation plan, and task breakdown for building Kanbus. We are building it in public, using Kanbus to track itself.
+Kanbus is in production.
 
 ## Quick Start
 

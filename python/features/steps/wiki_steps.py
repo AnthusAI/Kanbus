@@ -9,6 +9,7 @@ from behave import given, use_step_matcher, when, then
 
 from kanbus.models import IssueComment
 
+from features.steps.output_steps import _strip_ansi
 from features.steps.shared import (
     build_issue,
     load_project_directory,
@@ -507,3 +508,59 @@ def then_project_issues_agents_matches_baseline(context: object) -> None:
     baseline = getattr(context, "project_issues_agents_baseline", None)
     assert baseline is not None, "baseline not saved"
     assert current == baseline, "project/issues/AGENTS.md changed after wiki init"
+
+
+def _load_stdout_json(context: object) -> dict[str, object]:
+    import json
+
+    stdout = _strip_ansi(context.result.stdout).strip()
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError as error:
+        raise AssertionError(f"stdout is not valid JSON: {stdout!r}") from error
+    assert isinstance(payload, dict), f"expected JSON object, got {type(payload)!r}"
+    return payload
+
+
+@then('JSON field "{field}" should equal "{expected}"')
+def then_json_field_equals_string(context: object, field: str, expected: str) -> None:
+    payload = _load_stdout_json(context)
+    assert field in payload, f"missing field {field!r} in {payload!r}"
+    assert (
+        payload[field] == expected
+    ), f"expected {field}={expected!r}, got {payload[field]!r}"
+
+
+@then('JSON field "{field}" should contain "{text}"')
+def then_json_field_contains(context: object, field: str, text: str) -> None:
+    payload = _load_stdout_json(context)
+    assert field in payload, f"missing field {field!r} in {payload!r}"
+    value = payload[field]
+    if isinstance(value, list):
+        assert any(
+            text in str(item) for item in value
+        ), f"expected {field} to contain {text!r}, got {value!r}"
+        return
+    assert text in str(value), f"expected {field} to contain {text!r}, got {value!r}"
+
+
+@then('JSON field "{field}" should not contain "{text}"')
+def then_json_field_not_contains(context: object, field: str, text: str) -> None:
+    payload = _load_stdout_json(context)
+    assert field in payload, f"missing field {field!r} in {payload!r}"
+    value = payload[field]
+    if isinstance(value, list):
+        assert not any(
+            text in str(item) for item in value
+        ), f"expected {field} not to contain {text!r}, got {value!r}"
+        return
+    assert text not in str(
+        value
+    ), f"expected {field} not to contain {text!r}, got {value!r}"
+
+
+@then('JSON field "{field}" should be empty')
+def then_json_field_is_empty(context: object, field: str) -> None:
+    payload = _load_stdout_json(context)
+    assert field in payload, f"missing field {field!r} in {payload!r}"
+    assert payload[field] == [], f"expected {field} to be empty, got {payload[field]!r}"

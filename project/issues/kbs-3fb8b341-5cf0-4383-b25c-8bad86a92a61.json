@@ -3,7 +3,7 @@
   "title": "Develop merge CI fails on duplicate Gherkin steps and pytest write path",
   "description": "As a Kanbus maintainer, I want CI green on develop after the right-now merge, so semantic-release can cut a version from main.\n\n## Symptom\n\nCI on `74c28509` failed python, rust, and python-console-parity:\nhttps://github.com/AnthusAI/Kanbus/actions/runs/33674596293\n\n## Causes\n\n- `@given(\"mock AI is enabled\")` is defined in both lifecycle and right-now steps (Python and Rust).\n- `@given('the Kanbus configuration uses AI provider ...')` is defined in both compaction and right-now steps.\n- `test_update_issue_matching_values_succeed_without_write` patches `write_issue_to_file`, which issue_update no longer exposes.\n- Rust cucumber does not skip feature-level `@slow` or `@cloud`, so embedded-assets and GitHub webhook specs fail in the default rust job.\n- `.kanbus.yml` has a duplicate `ai:` block from the merge.\n\n## Definition of Done\n\n- One definition of each shared Gherkin step; lifecycle/compaction keep the canonical copy; mock AI also clears `KANBUS_RIGHT_NOW_LITELLM_CALLED`.\n- Matching-values update test asserts persist was not called.\n- Default rust cucumber skips `@slow` (feature and scenario) and `@cloud`.\n- Duplicate `ai:` key removed from `.kanbus.yml`.\n- pytest, behave (CI tags), and targeted rust cucumber pass.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -22,10 +22,10 @@
     }
   ],
   "created_at": "2026-09-02T20:00:14.453459Z",
-  "updated_at": "2026-09-02T20:09:19.564580Z",
-  "closed_at": null,
-  "right_now_summary": "Local checks pass after removing duplicate Gherkin steps and fixing pytest, Rust tags, and configuration.",
-  "right_now_updated_at": "2026-09-02T20:09:23.319694Z",
+  "updated_at": "2026-09-02T20:17:41.080437Z",
+  "closed_at": "2026-09-02T20:17:41.051226Z",
+  "right_now_summary": "Local checks pass, duplicate steps are removed, and PR #207 is ready for review.",
+  "right_now_updated_at": "2026-09-02T20:17:44.490626Z",
   "custom": {},
   "agent": null
 }

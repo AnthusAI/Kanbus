@@ -72,8 +72,9 @@ use crate::users::get_current_user;
 const DEP_USAGE: &str = "usage: kanbus dep <identifier> blocked-by|relates-to <target>\n       kanbus dep <identifier> remove blocked-by|relates-to <target>\n       kanbus dep tree <identifier> [--depth N] [--format FORMAT]";
 
 use crate::wiki::{
-    check_wiki_page_links, format_wiki_link_problem, init_wiki, lint_wiki, list_wiki_pages,
-    render_wiki_page, search_wiki_pages, show_wiki_page, WikiRenderRequest,
+    apply_wiki_page_limit, check_wiki_page_links, format_wiki_link_problem, format_wiki_list_json,
+    format_wiki_render_json, format_wiki_search_json, init_wiki, lint_wiki, list_wiki_pages,
+    render_wiki_page, resolve_wiki_page_path, search_wiki_pages, show_wiki_page, WikiRenderRequest,
 };
 
 /// Kanbus CLI arguments.
@@ -429,7 +430,8 @@ kbs now kbs-abc                  issue and descendants as a tree\n  \
 kbs now kbs-abc --no-recursive   that issue only\n  \
 kbs now kbs-abc --list           descendants as a flat list\n  \
 kbs now --json                   machine-readable JSON for agents\n  \
-kbs now --raw                    titles only, no summaries"
+kbs now --raw                    titles only, no summaries\n  \
+kbs now --status all             every status, not just in-progress"
     )]
     RightNow {
         /// Maximum number of issues to show. Default: 30 when listing the board.
@@ -456,6 +458,9 @@ kbs now --raw                    titles only, no summaries"
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Status filter. Default: in_progress. Use all for every status.
+        #[arg(long)]
+        status: Option<String>,
         /// Issue identifiers to show. Default: recently-updated issues.
         #[arg(value_name = "ISSUE")]
         issue_ids: Vec<String>,
@@ -761,13 +766,29 @@ enum WikiCommands {
     Render {
         /// Wiki page path.
         page: String,
+        /// Emit machine-readable JSON output.
+        #[arg(long)]
+        json: bool,
     },
     /// List wiki pages.
-    List,
+    List {
+        /// Emit machine-readable JSON output.
+        #[arg(long)]
+        json: bool,
+        /// Maximum pages to display (0 for no limit).
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+    },
     /// Search wiki pages by path, title, and body.
     Search {
         /// Case-insensitive search string.
         query: String,
+        /// Emit machine-readable JSON output.
+        #[arg(long)]
+        json: bool,
+        /// Maximum pages to display (0 for no limit).
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
     },
     /// Create the wiki directory and a stub index page.
     Init,
@@ -2953,6 +2974,7 @@ fn execute_command(
             collapsed,
             raw,
             json,
+            status,
             issue_ids,
         } => {
             let options = RightNowCommandOptions {
@@ -2965,6 +2987,7 @@ fn execute_command(
                 show_all: all,
                 recursive: !no_recursive,
                 issue_ids,
+                status,
             };
             let output = run_right_now_command(root, &options)?;
             Ok(Some(output))
@@ -3104,7 +3127,7 @@ fn execute_command(
             Ok(None)
         }
         Commands::Wiki { command } => match command {
-            WikiCommands::Render { page } => {
+            WikiCommands::Render { page, json } => {
                 let link_problems = check_wiki_page_links(root, &page)?;
                 for problem in &link_problems {
                     crate::rich_text_signals::emit_stderr_line(&format_wiki_link_problem(
@@ -3116,16 +3139,29 @@ fn execute_command(
                     page_path: Path::new(&page).to_path_buf(),
                 };
                 let output = render_wiki_page(&request)?;
-                Ok(Some(output))
+                if json {
+                    let resolved_page = resolve_wiki_page_path(root, &page)?;
+                    Ok(Some(format_wiki_render_json(
+                        &resolved_page.to_string_lossy(),
+                        &output,
+                    )))
+                } else {
+                    Ok(Some(output))
+                }
             }
-            WikiCommands::List => {
-                let pages = list_wiki_pages(root)?;
-                let output = pages.join("\n");
-                Ok(Some(output))
+            WikiCommands::List { json, limit } => {
+                let pages = apply_wiki_page_limit(list_wiki_pages(root)?, limit);
+                if json {
+                    Ok(Some(format_wiki_list_json(&pages)))
+                } else {
+                    Ok(Some(pages.join("\n")))
+                }
             }
-            WikiCommands::Search { query } => {
-                let pages = search_wiki_pages(root, &query)?;
-                if pages.is_empty() {
+            WikiCommands::Search { query, json, limit } => {
+                let pages = apply_wiki_page_limit(search_wiki_pages(root, &query)?, limit);
+                if json {
+                    Ok(Some(format_wiki_search_json(&query, &pages)))
+                } else if pages.is_empty() {
                     Ok(Some("0 results".to_string()))
                 } else {
                     Ok(Some(pages.join("\n")))

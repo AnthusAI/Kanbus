@@ -174,11 +174,36 @@ Render a wiki page from the project root:
 kanbus wiki render project/wiki/index.md
 ```
 
+List wiki pages:
+
+```bash
+kanbus wiki list
+```
+
 Search wiki pages (prints `0 results` when nothing matches):
 
 ```bash
 kanbus wiki search <query>
 ```
+
+### Machine-readable output for agents
+
+Use `--json` on `wiki list`, `wiki search`, and `wiki render` when a script or agent needs structured output. Human text remains the default.
+
+```bash
+# List pages as JSON: {"count": N, "pages": ["project/wiki/..."]}
+kanbus wiki list --json
+
+# Search as JSON: {"query": "...", "count": N, "pages": [...]}
+# Zero matches: count 0 and pages [] (no "0 results" string)
+kanbus wiki search alpha --json
+
+# Render as JSON: {"path": "project/wiki/...", "rendered": "..."}
+# Warnings (broken links, skipped references) stay on stderr
+kanbus wiki render index.md --json
+```
+
+Use `--limit N` on `wiki list` and `wiki search` to cap results after sorting (`0` means no limit). `wiki render` does not support `--limit`.
 
 Initialize or refresh the wiki workspace (creates `project/wiki/index.md` when missing and refreshes `project/AGENTS.md` with the wiki edit exception):
 
