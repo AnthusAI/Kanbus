@@ -770,6 +770,11 @@ Given(
   }
 );
 
+Then("the console board should be visible", async function () {
+  await expect(this.page.getByTestId("open-settings")).toBeVisible();
+  await expect(this.page.getByTestId("board-view")).toBeVisible();
+});
+
 Then("I should see the issue {string}", async function (title) {
   await expect(issueCardLocator(this.page, title)).toBeVisible();
 });
