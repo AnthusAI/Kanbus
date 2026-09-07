@@ -4,18 +4,18 @@ Feature: Console current status panel
   I want a now feed in the web console
   So that I can review recently-updated issues and their right-now summaries
 
+  Scenario: Now panel falls back to the repository directory name
+    Given a Kanbus project with default configuration
+    And the console is open
+    When I switch to the "Now" view
+    Then the now panel board title should be the repository directory name
+
   Scenario: Now panel shows the configured board name
     Given a Kanbus project with default configuration
     And the Kanbus configuration has name "Chattic.us"
     And the console is open
     When I switch to the "Now" view
     Then the now panel board title should be "Chattic.us"
-
-  Scenario: Now panel falls back to the repository directory name
-    Given a Kanbus project with default configuration
-    And the console is open
-    When I switch to the "Now" view
-    Then the now panel board title should be the repository directory name
 
   Scenario: Now is the first panel mode
     Given the console is open

@@ -663,7 +663,7 @@ When("I select the {string} type filter", async function (filterName) {
 
 function boardColumnLocator(page, label) {
   return page.locator(".kb-column").filter({
-    has: page.locator(".kb-column-header").getByText(label, { exact: true })
+    has: page.getByText(label, { exact: true })
   });
 }
 

@@ -383,6 +383,10 @@ When(
     issue.right_now_summary = summary;
     issue.right_now_updated_at = issue.updated_at ?? issue.created_at;
     await writeStatusIssue(issue);
+    await waitForIssueField(
+      issue.id,
+      (entry) => entry.right_now_summary === summary
+    );
     await expect
       .poll(async () => feedRow(this.page, title).getByTestId("status-feed-summary").textContent(), {
         timeout: 8000

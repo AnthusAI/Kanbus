@@ -59,6 +59,10 @@ Given("a Kanbus project with default configuration", async function () {
   if (!configResponse.ok) {
     throw new Error(`console config refresh failed: ${configResponse.status}`);
   }
+  const issuesResponse = await fetch(`${consoleApiBase}/issues?refresh=1`);
+  if (!issuesResponse.ok) {
+    throw new Error(`console issues refresh failed: ${issuesResponse.status}`);
+  }
   if (this.page) {
     await this.page.reload({ waitUntil: "domcontentloaded" });
   }
