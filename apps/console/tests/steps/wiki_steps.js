@@ -137,7 +137,17 @@ Given("a wiki page {string} exists with content:", async function (relativePath,
 
 When("I select wiki page {string}", async function (relativePath) {
   await reloadIfWikiStale(this);
-  await navigateToWikiPage(this.page, relativePath);
+  await expect(
+    this.page
+      .locator(".wiki-directory-listing")
+      .or(this.page.getByTestId(`wiki-path-${pathLeaf(relativePath)}`))
+  ).toBeVisible({ timeout: 15000 });
+  const listingButton = wikiPageButton(this.page, relativePath);
+  if ((await listingButton.count()) > 0 && (await listingButton.isVisible().catch(() => false))) {
+    await listingButton.click();
+  } else {
+    await navigateToWikiPage(this.page, relativePath);
+  }
   await expect(this.page.getByTestId(`wiki-path-${pathLeaf(relativePath)}`)).toBeVisible({ timeout: 15000 });
 });
 

@@ -66,10 +66,24 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "bac48b8a-e490-4585-a17b-1857d46fbe3d",
+      "author": "ubuntu",
+      "text": "Coverage ratchet passed. Only wiki-ui-006 remains: after delete the UI was on Wiki Home without second.md because select used a full navigation remount and the in-memory list had only first.md. Select now clicks the listing entry; delete reloads leftover pages from GET /api/wiki/pages.",
+      "created_at": "2026-09-07T20:50:43.294213Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T20:18:30.163652Z",
-  "updated_at": "2026-09-07T20:37:20.651676Z",
+  "updated_at": "2026-09-07T20:50:43.294299Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
