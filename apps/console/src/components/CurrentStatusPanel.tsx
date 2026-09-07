@@ -11,6 +11,7 @@ const NOW_STATUS_FILTER_ALL = "all";
 interface CurrentStatusPanelProps {
   issues: Issue[];
   config?: ProjectConfig;
+  priorityLookup?: Record<number, string>;
   boardTitle?: string;
   limit?: number;
   defaultTreeExpanded?: boolean;
@@ -113,6 +114,7 @@ function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issu
 export function CurrentStatusPanel({
   issues,
   config,
+  priorityLookup = {},
   boardTitle = "",
   limit = DEFAULT_STATUS_FEED_LIMIT,
   defaultTreeExpanded = false,
@@ -183,6 +185,7 @@ export function CurrentStatusPanel({
         <StatusTree
           issues={treeIssues}
           config={kanbanConfig}
+          priorityLookup={priorityLookup}
           defaultExpanded={defaultTreeExpanded}
           onSelectIssue={
             onSelectIssue

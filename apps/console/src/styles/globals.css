@@ -1106,13 +1106,33 @@ html[data-motion="reduced"] .sidebar-column {
 .status-tree-accent-bar {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: space-between;
+  gap: 0.5rem;
   min-width: 0;
   flex: 1;
   padding: 0.35rem 0.55rem;
   border-radius: 8px;
   background: var(--issue-accent);
   color: var(--issue-accent-foreground);
+}
+
+.status-tree-accent-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.status-tree-priority {
+  flex-shrink: 0;
+}
+
+.status-tree-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .status-tree-toggle {
@@ -1141,19 +1161,14 @@ html[data-motion="reduced"] .sidebar-column {
 }
 
 .status-tree-id {
-  flex-shrink: 0;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--issue-accent-foreground);
 }
 
 .status-tree-status {
   flex-shrink: 0;
-  margin-left: auto;
   font-size: 0.68rem;
   line-height: 1.2;
 }
@@ -1162,16 +1177,18 @@ html[data-motion="reduced"] .sidebar-column {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 1rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.35;
   text-align: left;
   background: transparent;
   padding: 0;
-  color: var(--issue-accent-foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-foreground);
+  overflow-wrap: anywhere;
+}
+
+.status-tree-title-button-selected {
+  color: var(--text-selected, var(--text-foreground));
 }
 
 .status-tree-summary {
