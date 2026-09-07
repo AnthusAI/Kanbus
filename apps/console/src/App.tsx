@@ -12,7 +12,7 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board, TaskDetailPanel, AnimatedSelector, type SelectorOption } from "@kanbus/ui";
+import { Board, TaskDetailPanel, AnimatedSelector, getStatusColumnsForTypeFilter, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -558,8 +558,14 @@ function buildPriorityLookup(config: ProjectConfig): Record<number, string> {
   );
 }
 
-function getStatusColumns(config: ProjectConfig): string[] {
-  return config.statuses.map((s) => s.key);
+function resolveBoardTypeFilter(
+  showAllTypes: boolean,
+  viewMode: ViewMode | null
+): BoardTypeFilter {
+  if (showAllTypes) {
+    return "all";
+  }
+  return viewMode ?? "issues";
 }
 
 function getInitialCollapsedColumns(config: ProjectConfig): Set<string> {
@@ -1174,16 +1180,6 @@ export default function App() {
     }
     return buildPriorityLookup(config);
   }, [config]);
-  const columns = useMemo(() => {
-    if (!config) {
-      return [];
-    }
-    return getStatusColumns(config);
-  }, [config]);
-  const columnError =
-    config && columns.length === 0
-      ? "default workflow is required to render columns"
-      : null;
 
   const routeContext = useMemo<IssueSelectionContext>(() => {
     if (route.basePath == null) {
@@ -1293,6 +1289,17 @@ export default function App() {
     ? null
     : routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
   const typeFilterValue = showAllTypes ? "all" : resolvedViewMode;
+  const boardTypeFilter = resolveBoardTypeFilter(showAllTypes, resolvedViewMode);
+  const columns = useMemo(() => {
+    if (!config) {
+      return [];
+    }
+    return getStatusColumnsForTypeFilter(config, boardTypeFilter);
+  }, [config, boardTypeFilter]);
+  const columnError =
+    config && columns.length === 0
+      ? "default workflow is required to render columns"
+      : null;
 
   useEffect(() => {
     if (showInitiativesInTypeFilter) {

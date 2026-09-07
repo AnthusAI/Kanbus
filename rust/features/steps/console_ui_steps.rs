@@ -149,6 +149,144 @@ fn when_switch_tab(world: &mut KanbusWorld, tab: String) {
     world.console_local_storage.selected_tab = Some(tab);
 }
 
+#[when(expr = "I select the {string} type filter")]
+fn when_select_type_filter(world: &mut KanbusWorld, filter_name: String) {
+    let state = require_console_state(world);
+    state.selected_tab = filter_name.clone();
+    world.console_local_storage.selected_tab = Some(filter_name);
+}
+
+fn board_type_filter_from_selected_tab(selected: &str) -> &'static str {
+    match selected {
+        "All" => "all",
+        "Initiatives" => "initiatives",
+        "Epics" => "epics",
+        _ => "issues",
+    }
+}
+
+fn collect_workflow_statuses(workflow: &std::collections::BTreeMap<String, Vec<String>>) -> HashSet<String> {
+    let mut statuses: HashSet<String> = workflow.keys().cloned().collect();
+    for transitions in workflow.values() {
+        for target in transitions {
+            statuses.insert(target.clone());
+        }
+    }
+    statuses
+}
+
+fn issue_types_for_board_filter(
+    board_filter: &str,
+    hierarchy: &[String],
+    types: &[String],
+) -> Vec<String> {
+    match board_filter {
+        "all" => Vec::new(),
+        "initiatives" => vec!["initiative".to_string()],
+        "epics" => vec!["epic".to_string()],
+        _ => {
+            let hierarchy_set: HashSet<&str> = hierarchy.iter().map(String::as_str).collect();
+            let excluded: HashSet<&str> = ["initiative", "epic", "sub-task"].into_iter().collect();
+            let from_hierarchy = hierarchy
+                .iter()
+                .filter(|entry| !excluded.contains(entry.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            let from_types = types
+                .iter()
+                .filter(|entry| {
+                    !excluded.contains(entry.as_str()) && !hierarchy_set.contains(entry.as_str())
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            let mut combined = from_hierarchy;
+            for entry in from_types {
+                if !combined.contains(&entry) {
+                    combined.push(entry);
+                }
+            }
+            combined
+        }
+    }
+}
+
+fn board_column_fixture_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+        .join("tests")
+        .join("fixtures")
+        .join("kanbus.board-columns.yml")
+}
+
+#[given("the console uses the board column filter workflow configuration")]
+fn given_board_column_filter_workflow_configuration(world: &mut KanbusWorld) {
+    world.console_board_column_fixture_loaded = true;
+}
+
+fn board_column_labels(world: &mut KanbusWorld) -> Vec<String> {
+    use kanbus::config::default_project_configuration;
+    use kanbus::config_loader::load_project_configuration;
+    use kanbus::workflows::get_workflow_for_issue_type;
+
+    let fixture_loaded = world.console_board_column_fixture_loaded;
+    let state = require_console_state(world);
+    let configuration = if fixture_loaded {
+        load_project_configuration(&board_column_fixture_path())
+            .expect("board column fixture configuration should load")
+    } else {
+        default_project_configuration()
+    };
+    let board_filter = board_type_filter_from_selected_tab(&state.selected_tab);
+    if board_filter == "all" {
+        return configuration
+            .statuses
+            .iter()
+            .map(|status| status.name.clone())
+            .collect();
+    }
+    let issue_types = issue_types_for_board_filter(
+        board_filter,
+        &configuration.hierarchy,
+        &configuration.types,
+    );
+    let mut status_keys = HashSet::new();
+    for issue_type in issue_types {
+        let workflow = get_workflow_for_issue_type(&configuration, &issue_type)
+            .expect("default workflow should exist");
+        status_keys.extend(collect_workflow_statuses(workflow));
+    }
+    configuration
+        .statuses
+        .iter()
+        .filter(|status| status_keys.contains(&status.key))
+        .map(|status| status.name.clone())
+        .collect()
+}
+
+#[then(expr = "the board should show the column {string}")]
+fn then_board_shows_column(world: &mut KanbusWorld, label: String) {
+    let labels = board_column_labels(world);
+    assert!(
+        labels.iter().any(|entry| entry == &label),
+        "expected column {}, visible columns: {:?}",
+        label,
+        labels
+    );
+}
+
+#[then(expr = "the board should not show the column {string}")]
+fn then_board_does_not_show_column(world: &mut KanbusWorld, label: String) {
+    let labels = board_column_labels(world);
+    assert!(
+        !labels.iter().any(|entry| entry == &label),
+        "expected column {} to be hidden, visible: {:?}",
+        label,
+        labels
+    );
+}
+
 #[when(expr = "I open the task {string}")]
 fn when_open_task(world: &mut KanbusWorld, title: String) {
     let state = require_console_state(world);
