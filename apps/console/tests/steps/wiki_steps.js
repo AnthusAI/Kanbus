@@ -121,7 +121,12 @@ async function reloadIfWikiStale(world) {
   world.wikiStale = false;
 }
 
-Before(function () {
+Before(async function () {
+  if (wikiRoot) {
+    await resetWiki();
+    this.wikiStale = true;
+    return;
+  }
   this.wikiStale = false;
 });
 
@@ -390,7 +395,7 @@ Then("the wiki page list should include {string}", async function (relativePath)
         { timeout: 15000 }
       )
       .toBe(true);
-  } catch (error) {
+  } catch {
     const pathname = new URL(this.page.url()).pathname;
     const listing = await this.page.locator(".wiki-directory-listing").innerHTML().catch(() => "");
     throw new Error(

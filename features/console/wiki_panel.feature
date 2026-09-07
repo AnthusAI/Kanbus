@@ -80,6 +80,30 @@ Feature: Console wiki workspace
   @wiki-ui-006
   Scenario: delete selected page and recover selection
     Given the console is open
+    And the wiki storage is empty
+    And a wiki page "first.md" exists with content:
+      """
+      One
+      """
+    And a wiki page "second.md" exists with content:
+      """
+      Two
+      """
+    When I switch to the "Wiki" view
+    And I select wiki page "first.md"
+    And I delete the wiki page "first.md"
+    Then the wiki page list should include "second.md"
+    And the wiki page list should not include "first.md"
+    And the wiki editor path should be "second.md"
+
+  @wiki-ui-023
+  Scenario: delete selected page recovers the next remaining page
+    Given the console is open
+    And the wiki storage is empty
+    And a wiki page "draft.md" exists with content:
+      """
+      Leftover
+      """
     And a wiki page "first.md" exists with content:
       """
       One

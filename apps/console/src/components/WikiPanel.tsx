@@ -12,7 +12,11 @@ import { WikiEditor } from "./WikiEditor";
 import { WikiPreview } from "./WikiPreview";
 import { WikiHeader } from "./WikiHeader";
 import { WikiDirectoryListing } from "./WikiDirectoryListing";
-import { leftoverWikiPagesAfterDelete, resolveWikiRoute } from "../utils/wikiRouting";
+import {
+  leftoverWikiPagesAfterDelete,
+  resolveWikiRoute,
+  wikiPageToOpenAfterDelete
+} from "../utils/wikiRouting";
 import type { WikiPageListItem } from "../types/wiki";
 
 const WIKI_EDIT_SPLIT_STORAGE_KEY = "kanbus.console.wikiEditSplitPercent";
@@ -314,18 +318,9 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     const deletedPath = activePath;
     fileRequestGenerationRef.current += 1;
     setError(null);
-    const memoryPages = leftoverWikiPagesAfterDelete(
-      deletedPath,
-      [...knownPagesRef.current, ...pagesRef.current],
-      null
-    );
     try {
       const deleted = await deleteWikiPage(apiBase, deletedPath);
-      const leftoverPages = leftoverWikiPagesAfterDelete(
-        deletedPath,
-        [...knownPagesRef.current, ...pagesRef.current],
-        deleted.pages
-      );
+      const leftoverPages = leftoverWikiPagesAfterDelete(deletedPath, deleted.pages);
       const directoryExists = deleted.wiki_directory_exists;
       knownPagesRef.current = leftoverPages;
       setPages(leftoverPages);
@@ -334,7 +329,9 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
       setSavedContent("");
       setDraftContent("");
       setViewMode("read");
-      const normalized = (leftoverPages[0]?.path ?? "").replace(/^\/+/, "").replace(/\/+$/, "");
+      const normalized = wikiPageToOpenAfterDelete(deletedPath, leftoverPages)
+        .replace(/^\/+/, "")
+        .replace(/\/+$/, "");
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(normalized);
       setHistory(newHistory);

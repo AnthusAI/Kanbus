@@ -16,34 +16,50 @@ function wikiFileStem(name: string): string {
   return name.replace(/\.md$/i, "");
 }
 
-/**
- * Remaining wiki pages after a delete.
- *
- * Prefer in-memory leftover pages. Use the server list only when memory has
- * no remaining pages.
- */
-export function leftoverWikiPagesAfterDelete(
-  deletedPath: string,
-  knownPages: WikiPageListItem[],
-  fetchedPages: WikiPageListItem[] | null
-): WikiPageListItem[] {
-  const fromMemory = knownPages
+function uniqueWikiPagesSortedByPath(pages: WikiPageListItem[]): WikiPageListItem[] {
+  return pages
     .filter((candidate, index, all) => {
-      return (
-        candidate.path !== deletedPath
-        && all.findIndex((entry) => entry.path === candidate.path) === index
-      );
+      return all.findIndex((entry) => entry.path === candidate.path) === index;
     })
     .slice()
     .sort((left, right) => left.path.localeCompare(right.path));
-  if (!fetchedPages) {
-    return fromMemory;
+}
+
+/**
+ * Remaining wiki pages after a delete.
+ *
+ * Uses the remaining-page list returned by the delete response. The deleted
+ * path is excluded if it is still present in that list.
+ */
+export function leftoverWikiPagesAfterDelete(
+  deletedPath: string,
+  remainingPages: WikiPageListItem[]
+): WikiPageListItem[] {
+  return uniqueWikiPagesSortedByPath(remainingPages).filter((candidate) => {
+    return candidate.path !== deletedPath;
+  });
+}
+
+/**
+ * Wiki path to open after deleting a page.
+ *
+ * Opens the next remaining page after the deleted path. If the deleted page
+ * was last, opens the previous remaining page. If none remain, opens the
+ * wiki home directory.
+ */
+export function wikiPageToOpenAfterDelete(
+  deletedPath: string,
+  remainingPages: WikiPageListItem[]
+): string {
+  const leftoverPages = leftoverWikiPagesAfterDelete(deletedPath, remainingPages);
+  if (leftoverPages.length === 0) {
+    return "";
   }
-  const fromFetch = fetchedPages
-    .filter((candidate) => candidate.path !== deletedPath)
-    .slice()
-    .sort((left, right) => left.path.localeCompare(right.path));
-  return fromMemory.length > 0 ? fromMemory : fromFetch;
+  const nextPage = leftoverPages.find((page) => page.path > deletedPath);
+  if (nextPage) {
+    return nextPage.path;
+  }
+  return leftoverPages[leftoverPages.length - 1].path;
 }
 
 export function resolveWikiRoute(pages: WikiPageListItem[], route: string): WikiRouteResult {
