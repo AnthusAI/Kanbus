@@ -1050,15 +1050,12 @@ html[data-motion="reduced"] .sidebar-column {
   --issue-accent-muted-dark: var(--slate-6);
   --issue-accent: var(--issue-accent-light);
   --issue-accent-muted: var(--issue-accent-muted-light);
-  display: grid;
-  gap: 0.35rem;
   width: 100%;
   text-align: left;
   background: var(--card);
   border-radius: 12px;
-  border-left: 3px solid var(--issue-accent-light, var(--slate-4));
-  padding: 0.75rem 1rem;
   color: var(--text-foreground);
+  overflow: hidden;
   transition: background-color 0.2s ease;
 }
 
@@ -1066,7 +1063,6 @@ html[data-motion="reduced"] .sidebar-column {
 [data-theme='dark'] .status-tree-row {
   --issue-accent: var(--issue-accent-dark);
   --issue-accent-muted: var(--issue-accent-muted-dark);
-  border-left-color: var(--issue-accent-dark, var(--slate-11));
 }
 
 .status-tree-row:hover {
@@ -1075,6 +1071,44 @@ html[data-motion="reduced"] .sidebar-column {
 
 .status-tree-row-selected {
   background: var(--card-muted);
+}
+
+.status-tree-layout {
+  display: flex;
+  align-items: stretch;
+  min-height: 100%;
+}
+
+.status-tree-accent-rail {
+  display: flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 100%;
+}
+
+.status-tree-accent-stripe {
+  flex: 0 0 12px;
+  width: 12px;
+  background: var(--issue-accent);
+}
+
+.status-tree-accent-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  width: 2.75rem;
+  padding: 0.75rem 0.35rem;
+  background: var(--issue-accent-muted);
+}
+
+.status-tree-main {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.75rem 1rem 0.75rem 0.75rem;
 }
 
 .status-tree-header {
@@ -1110,14 +1144,17 @@ html[data-motion="reduced"] .sidebar-column {
 }
 
 .status-tree-type-icon {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
 }
 
 .status-tree-id {
   flex-shrink: 0;
-  font-size: 0.72rem;
+  font-size: 0.62rem;
+  line-height: 1.1;
+  text-align: center;
+  word-break: break-all;
 }
 
 .status-tree-status {

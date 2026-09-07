@@ -178,52 +178,60 @@ function StatusTreeRow({
         data-tree-depth={depth}
         data-tree-expanded={hasChildren ? String(expanded) : undefined}
       >
-        <div className="status-tree-header" style={{ paddingLeft: `${depth * 1.25}rem` }}>
-          {hasChildren ? (
-            <button
-              type="button"
-              className="status-tree-toggle"
-              data-testid="status-tree-node-toggle"
-              data-issue-title={issue.title}
-              aria-expanded={expanded}
-              aria-label={expanded ? "Collapse descendants" : "Expand descendants"}
-              onClick={handleToggle}
-            >
-              <ExpandIcon className="status-tree-toggle-icon" aria-hidden="true" />
-            </button>
-          ) : (
-            <span className="status-tree-toggle-spacer" aria-hidden="true" />
-          )}
-          <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
-          <span className="issue-accent-id status-tree-id" data-testid="status-tree-id">
-            {formatIssueId(issue.id)}
-          </span>
-          {statusKey ? (
-            <span
-              className="status-badge status-tree-status"
-              data-testid="status-tree-status"
-              data-issue-status={statusKey}
-              data-status-color={statusColorName ?? undefined}
-              style={statusBadgeStyle}
-            >
-              {statusLabel}
-            </span>
-          ) : null}
-          <button
-            type="button"
-            className="status-tree-title-button"
-            data-testid="status-tree-title"
-            onClick={() => onSelectIssue?.(issue)}
-          >
-            {issue.title}
-          </button>
-        </div>
         <div
-          className="status-tree-summary"
-          data-testid="status-tree-summary"
-          style={{ paddingLeft: `${depth * 1.25 + 1.75}rem` }}
+          className="status-tree-layout"
+          style={{ paddingLeft: `${depth * 1.25}rem` }}
         >
-          {summaryText}
+          <div className="status-tree-accent-rail" aria-hidden="true">
+            <div className="status-tree-accent-stripe" />
+            <div className="status-tree-accent-meta">
+              <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" />
+              <span className="issue-accent-id status-tree-id" data-testid="status-tree-id">
+                {formatIssueId(issue.id)}
+              </span>
+            </div>
+          </div>
+          <div className="status-tree-main">
+            <div className="status-tree-header">
+              {hasChildren ? (
+                <button
+                  type="button"
+                  className="status-tree-toggle"
+                  data-testid="status-tree-node-toggle"
+                  data-issue-title={issue.title}
+                  aria-expanded={expanded}
+                  aria-label={expanded ? "Collapse descendants" : "Expand descendants"}
+                  onClick={handleToggle}
+                >
+                  <ExpandIcon className="status-tree-toggle-icon" aria-hidden="true" />
+                </button>
+              ) : (
+                <span className="status-tree-toggle-spacer" aria-hidden="true" />
+              )}
+              {statusKey ? (
+                <span
+                  className="status-badge status-tree-status"
+                  data-testid="status-tree-status"
+                  data-issue-status={statusKey}
+                  data-status-color={statusColorName ?? undefined}
+                  style={statusBadgeStyle}
+                >
+                  {statusLabel}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="status-tree-title-button"
+                data-testid="status-tree-title"
+                onClick={() => onSelectIssue?.(issue)}
+              >
+                {issue.title}
+              </button>
+            </div>
+            <div className="status-tree-summary" data-testid="status-tree-summary">
+              {summaryText}
+            </div>
+          </div>
         </div>
       </div>
       {hasChildren && expanded
