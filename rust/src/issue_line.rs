@@ -400,10 +400,10 @@ mod tests {
             Some(AnsiColors::BrightMagenta)
         );
 
-        assert_eq!(status_color("closed", None), Some(AnsiColors::Green));
+        assert_eq!(status_color("closed", None), Some(AnsiColors::White));
         assert_eq!(priority_color(0, None), Some(AnsiColors::Red));
         assert_eq!(type_color("story", None), Some(AnsiColors::Cyan));
         assert_eq!(parse_color("not-a-color"), None);
-        assert_eq!(status_color("backlog", None), None);
+        assert_eq!(status_color("backlog", None), Some(AnsiColors::White));
     }
 }

@@ -969,6 +969,10 @@ fn given_repo_with_duplicate_status_names(world: &mut KanbusWorld) {
                         Value::String("category".to_string()),
                         Value::String("To do".to_string()),
                     ),
+                    (
+                        Value::String("semantic_category".to_string()),
+                        Value::String("todo".to_string()),
+                    ),
                     (Value::String("collapsed".to_string()), Value::Bool(false)),
                 ]
                 .into_iter()
@@ -987,6 +991,10 @@ fn given_repo_with_duplicate_status_names(world: &mut KanbusWorld) {
                     (
                         Value::String("category".to_string()),
                         Value::String("To do".to_string()),
+                    ),
+                    (
+                        Value::String("semantic_category".to_string()),
+                        Value::String("todo".to_string()),
                     ),
                     (Value::String("collapsed".to_string()), Value::Bool(false)),
                 ]
@@ -1020,6 +1028,10 @@ fn given_repo_with_workflow_statuses_not_in_list(world: &mut KanbusWorld) {
                 (
                     Value::String("category".to_string()),
                     Value::String("To do".to_string()),
+                ),
+                (
+                    Value::String("semantic_category".to_string()),
+                    Value::String("todo".to_string()),
                 ),
                 (Value::String("collapsed".to_string()), Value::Bool(false)),
             ]
