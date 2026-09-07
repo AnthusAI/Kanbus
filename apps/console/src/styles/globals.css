@@ -1042,6 +1042,11 @@ html[data-motion="reduced"] .sidebar-column {
   letter-spacing: 0.18em;
 }
 
+.status-tree-entry {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .status-tree-row {
   --issue-accent-foreground: var(--text-foreground);
   --issue-accent-light: var(--slate-4);
@@ -1050,7 +1055,10 @@ html[data-motion="reduced"] .sidebar-column {
   --issue-accent-muted-dark: var(--slate-6);
   --issue-accent: var(--issue-accent-light);
   --issue-accent-muted: var(--issue-accent-muted-light);
+  display: flex;
+  align-items: stretch;
   width: 100%;
+  box-sizing: border-box;
   text-align: left;
   background: var(--card);
   border-radius: 12px;
@@ -1073,52 +1081,38 @@ html[data-motion="reduced"] .sidebar-column {
   background: var(--card-muted);
 }
 
-.status-tree-layout {
-  display: flex;
-  align-items: stretch;
-  min-height: 100%;
-}
-
-.status-tree-accent-rail {
-  display: flex;
-  flex-shrink: 0;
-  align-self: stretch;
-  min-height: 100%;
-}
-
 .status-tree-accent-stripe {
   flex: 0 0 12px;
   width: 12px;
   background: var(--issue-accent);
 }
 
-.status-tree-accent-meta {
+.status-tree-content {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.35rem;
-  flex: 0 0 4.75rem;
-  width: 4.75rem;
-  padding: 0.75rem 0.5rem;
-  background: var(--issue-accent-muted);
-}
-
-.status-tree-main {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 0.35rem;
+  gap: 0.4rem;
   flex: 1;
   min-width: 0;
-  padding: 0.75rem 1rem 0.75rem 0.75rem;
+  padding: 0.65rem 0.85rem 0.75rem 0.65rem;
 }
 
-.status-tree-header {
+.status-tree-meta-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
   min-width: 0;
+}
+
+.status-tree-accent-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+  background: var(--issue-accent);
+  color: var(--issue-accent-foreground);
 }
 
 .status-tree-toggle {
@@ -1150,16 +1144,21 @@ html[data-motion="reduced"] .sidebar-column {
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
+  color: var(--issue-accent-foreground);
 }
 
 .status-tree-id {
-  flex-shrink: 0;
-  width: 100%;
-  font-size: 0.68rem;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.72rem;
+  font-weight: 600;
   line-height: 1.2;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--issue-accent-foreground);
 }
 
 .status-tree-status {
@@ -1172,8 +1171,9 @@ html[data-motion="reduced"] .sidebar-column {
   display: block;
   width: 100%;
   min-width: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
   line-height: 1.35;
   text-align: left;
   background: transparent;
@@ -1183,8 +1183,13 @@ html[data-motion="reduced"] .sidebar-column {
 }
 
 .status-tree-summary {
-  font-size: 0.85rem;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .status-feed {

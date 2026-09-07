@@ -155,6 +155,7 @@ function StatusTreeRow({
     : null;
   const statusColorName =
     config && statusKey ? resolveStatusBadgeColorName(config, statusKey) : null;
+  const formattedIssueId = formatIssueId(issue.id);
 
   const handleToggle = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -164,39 +165,27 @@ function StatusTreeRow({
     [expanded, issue.id, onToggleExpanded]
   );
 
-  const rowIndentRem = depth * 1.25;
-  const rowSurfaceStyle = {
-    ...issueStyle,
-    marginLeft: rowIndentRem > 0 ? `${rowIndentRem}rem` : undefined,
-    width: rowIndentRem > 0 ? `calc(100% - ${rowIndentRem}rem)` : "100%"
-  };
-
   return (
     <>
       <div
-        className={`status-tree-row${isSelected ? " status-tree-row-selected" : ""}`}
-        style={rowSurfaceStyle}
-        data-testid="status-tree-row"
-        data-issue-title={issue.title}
-        data-issue-id={issue.id}
-        data-issue-type={kanbanIssue.type}
-        data-issue-status={statusKey || undefined}
-        data-accent-color={accentColorName ?? undefined}
+        className="status-tree-entry"
+        style={{ paddingLeft: `${depth * 1.25}rem` }}
         data-tree-depth={depth}
-        data-tree-expanded={hasChildren ? String(expanded) : undefined}
       >
-        <div className="status-tree-layout">
-          <div className="status-tree-accent-rail" aria-hidden="true">
-            <div className="status-tree-accent-stripe" />
-            <div className="status-tree-accent-meta">
-              <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" />
-              <span className="issue-accent-id status-tree-id" data-testid="status-tree-id">
-                {formatIssueId(issue.id)}
-              </span>
-            </div>
-          </div>
-          <div className="status-tree-main">
-            <div className="status-tree-header">
+        <div
+          className={`status-tree-row${isSelected ? " status-tree-row-selected" : ""}`}
+          style={issueStyle}
+          data-testid="status-tree-row"
+          data-issue-title={issue.title}
+          data-issue-id={issue.id}
+          data-issue-type={kanbanIssue.type}
+          data-issue-status={statusKey || undefined}
+          data-accent-color={accentColorName ?? undefined}
+          data-tree-expanded={hasChildren ? String(expanded) : undefined}
+        >
+          <div className="status-tree-accent-stripe" aria-hidden="true" />
+          <div className="status-tree-content">
+            <div className="status-tree-meta-row">
               {hasChildren ? (
                 <button
                   type="button"
@@ -212,6 +201,12 @@ function StatusTreeRow({
               ) : (
                 <span className="status-tree-toggle-spacer" aria-hidden="true" />
               )}
+              <div className="status-tree-accent-bar">
+                <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
+                <span className="status-tree-id" data-testid="status-tree-id">
+                  {formattedIssueId}
+                </span>
+              </div>
               {statusKey ? (
                 <span
                   className="status-badge status-tree-status"
