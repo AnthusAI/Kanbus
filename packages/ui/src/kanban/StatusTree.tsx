@@ -184,6 +184,7 @@ function StatusTreeRow({
           data-issue-id={issue.id}
           data-issue-type={kanbanIssue.type}
           data-issue-status={statusKey || undefined}
+          data-priority={priorityName}
           data-accent-color={accentColorName ?? undefined}
           data-tree-expanded={hasChildren ? String(expanded) : undefined}
         >
