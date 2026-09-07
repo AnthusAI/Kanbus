@@ -57,11 +57,11 @@ priorities:
   4: { name: trivial }
 default_priority: 2
 statuses:
-  - { key: open, name: Open, category: todo }
-  - { key: in_progress, name: In Progress, category: doing }
-  - { key: blocked, name: Blocked, category: todo }
-  - { key: closed, name: Closed, category: done }
-  - { key: backlog, name: Backlog, category: todo }
+  - { key: open, name: Open, category: todo, semantic_category: todo }
+  - { key: in_progress, name: In Progress, category: doing, semantic_category: in_progress }
+  - { key: blocked, name: Blocked, category: todo, semantic_category: in_progress }
+  - { key: closed, name: Closed, category: done, semantic_category: done }
+  - { key: backlog, name: Backlog, category: todo, semantic_category: todo }
 categories:
   - { name: todo }
   - { name: doing }
@@ -287,11 +287,11 @@ priorities:
   4: { name: trivial }
 default_priority: 2
 statuses:
-  - { key: open, name: Open, category: todo }
-  - { key: in_progress, name: In Progress, category: doing }
-  - { key: blocked, name: Blocked, category: todo }
-  - { key: closed, name: Closed, category: done }
-  - { key: backlog, name: Backlog, category: todo }
+  - { key: open, name: Open, category: todo, semantic_category: todo }
+  - { key: in_progress, name: In Progress, category: doing, semantic_category: in_progress }
+  - { key: blocked, name: Blocked, category: todo, semantic_category: in_progress }
+  - { key: closed, name: Closed, category: done, semantic_category: done }
+  - { key: backlog, name: Backlog, category: todo, semantic_category: todo }
 categories:
   - { name: todo }
   - { name: doing }
