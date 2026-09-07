@@ -7,7 +7,12 @@ from types import SimpleNamespace
 import pytest
 
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
-from kanbus.models import AiConfiguration, IssueComment, RightNowConfiguration
+from kanbus.models import (
+    AiConfiguration,
+    IssueComment,
+    IssueData,
+    RightNowConfiguration,
+)
 from kanbus.overlay import load_overlay_issue, write_overlay_issue
 from kanbus.right_now import (
     AI_PROVIDER_NOT_CONFIGURED_MESSAGE,
@@ -20,6 +25,8 @@ from kanbus.right_now import (
     _truncate_to_max_length,
     build_bounded_raw_child_summary,
     build_right_now_context,
+    ensure_right_now_subtree,
+    ensure_right_now_summaries,
     generate_right_now_summary,
     get_child_full_summary,
     get_right_now_summary,
@@ -372,6 +379,114 @@ def test_regenerate_skips_when_persist_fails(
     )
     regenerate_right_now_for_issue(tmp_path, "kanbus-persist")
     assert issue.right_now_summary == "Previous summary."
+
+
+def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from kanbus.issue_listing import IssueListingError
+    from kanbus.issue_lookup import IssueLookupError
+
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_a: (_ for _ in ()).throw(
+            IssueListingError("daemon connection failed")
+        ),
+    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-root", {"kanbus-root"}) is False
+
+    child = build_issue("kanbus-child", parent="kanbus-root")
+
+    def load_children(_root: Path, issue_identifier: str) -> list[IssueData]:
+        if issue_identifier == "kanbus-root":
+            return [child]
+        return []
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", load_children)
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
+    )
+    assert (
+        ensure_right_now_subtree(
+            tmp_path,
+            "kanbus-root",
+            {"kanbus-root", "kanbus-child"},
+        )
+        is False
+    )
+
+
+def test_ensure_right_now_subtree_uses_memo_and_post_regenerate_lookup_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from kanbus.issue_lookup import IssueLookupError
+
+    issue = build_issue("kanbus-memo")
+    issue.right_now_summary = "Stale summary."
+    issue.right_now_updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    issue.updated_at = datetime(2026, 3, 6, tzinfo=timezone.utc)
+    lookup = SimpleNamespace(
+        issue=issue,
+        issue_path=tmp_path / "project" / "issues" / "kanbus-memo.json",
+        project_dir=tmp_path / "project",
+    )
+    load_calls = {"count": 0}
+
+    def load_issue_from_project(_root: Path, identifier: str) -> SimpleNamespace:
+        load_calls["count"] += 1
+        if load_calls["count"] == 1:
+            return lookup
+        raise IssueLookupError("vanished after regenerate")
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project", load_issue_from_project
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.regenerate_right_now_for_issue", lambda *_a: None
+    )
+    memo: dict[str, bool] = {}
+    assert (
+        ensure_right_now_subtree(
+            tmp_path,
+            "kanbus-memo",
+            {"kanbus-memo"},
+            memo,
+        )
+        is False
+    )
+    assert memo["kanbus-memo"] is False
+    assert (
+        ensure_right_now_subtree(
+            tmp_path,
+            "kanbus-memo",
+            {"kanbus-memo"},
+            memo,
+        )
+        is False
+    )
+
+
+def test_ensure_right_now_summaries_visits_selected_identifiers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    visited: list[str] = []
+
+    def record_visit(
+        _root: Path,
+        issue_identifier: str,
+        _selected: set[str],
+        memo: dict[str, bool] | None = None,
+    ) -> bool:
+        visited.append(issue_identifier)
+        if memo is not None:
+            memo[issue_identifier] = False
+        return False
+
+    monkeypatch.setattr("kanbus.right_now.ensure_right_now_subtree", record_visit)
+    ensure_right_now_summaries(tmp_path, ["kanbus-a", "kanbus-b"])
+    assert visited == ["kanbus-a", "kanbus-b"]
 
 
 def test_completion_requires_litellm_and_handles_empty_and_usage(
