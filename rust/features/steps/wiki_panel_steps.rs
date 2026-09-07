@@ -11,6 +11,28 @@ fn is_invalid_wiki_path(path: &str) -> bool {
     path.split('/').any(|segment| segment == "..")
 }
 
+/// Choose the wiki path to open after deleting a page.
+///
+/// Opens the next remaining page after the deleted path. If the deleted
+/// page was last, opens the previous remaining page.
+fn wiki_page_to_open_after_delete(
+    deleted_path: &str,
+    remaining_paths: &[String],
+) -> Option<String> {
+    let mut leftover_paths: Vec<String> = remaining_paths
+        .iter()
+        .filter(|page_path| page_path.as_str() != deleted_path)
+        .cloned()
+        .collect();
+    leftover_paths.sort();
+    leftover_paths.dedup();
+    leftover_paths
+        .iter()
+        .find(|page_path| page_path.as_str() > deleted_path)
+        .cloned()
+        .or_else(|| leftover_paths.last().cloned())
+}
+
 #[given("the wiki storage is empty")]
 fn given_wiki_storage_empty(world: &mut KanbusWorld) {
     world.console_wiki_state = Some(kanbus_wiki_workspace_state());
@@ -152,7 +174,7 @@ fn when_delete_wiki_page(world: &mut KanbusWorld, path: String) {
     wiki.pages.remove(&path);
     wiki.page_order.retain(|p| p != &path);
     if wiki.selected_path.as_deref() == Some(path.as_str()) {
-        wiki.selected_path = wiki.page_order.first().cloned();
+        wiki.selected_path = wiki_page_to_open_after_delete(&path, &wiki.page_order);
         wiki.editor_content = wiki
             .selected_path
             .as_ref()

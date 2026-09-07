@@ -53,6 +53,31 @@ def _is_invalid_wiki_path(path: str) -> bool:
     return ".." in path.split("/")
 
 
+def _wiki_page_to_open_after_delete(
+    deleted_path: str, remaining_paths: list[str]
+) -> str | None:
+    """
+    Choose the wiki path to open after deleting a page.
+
+    :param deleted_path: Path that was deleted.
+    :type deleted_path: str
+    :param remaining_paths: Remaining page paths.
+    :type remaining_paths: list[str]
+    :return: Next remaining path after the deleted path, the previous
+        remaining path if the deleted page was last, or None if none remain.
+    :rtype: str | None
+    """
+    leftover_paths = sorted(
+        {page_path for page_path in remaining_paths if page_path != deleted_path}
+    )
+    if not leftover_paths:
+        return None
+    for page_path in leftover_paths:
+        if page_path > deleted_path:
+            return page_path
+    return leftover_paths[-1]
+
+
 @given("the wiki storage is empty")
 def given_wiki_storage_empty(context: object) -> None:
     context.console_wiki_state = WikiWorkspaceState()
@@ -197,7 +222,7 @@ def when_delete_wiki_page(context: object, path: str) -> None:
     wiki.pages.pop(path)
     wiki.page_order = [item for item in wiki.page_order if item != path]
     if wiki.selected_path == path:
-        wiki.selected_path = wiki.page_order[0] if wiki.page_order else None
+        wiki.selected_path = _wiki_page_to_open_after_delete(path, wiki.page_order)
         wiki.editor_content = (
             wiki.pages[wiki.selected_path] if wiki.selected_path is not None else ""
         )
