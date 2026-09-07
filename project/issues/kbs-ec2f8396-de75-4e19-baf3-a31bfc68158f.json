@@ -98,10 +98,21 @@
         "platform": "cursor",
         "model": "cursor-grok-4.6"
       }
+    },
+    {
+      "id": "238ba225-8531-4e88-8dbb-1ec2dff0752d",
+      "author": "ubuntu",
+      "text": "CI on 1d02583c: console-ui, python, rust, both parities, coverage-ratchet, and binary-smoke passed.\n\nOnly performance failed, during Set up Rust (toolchain 1.88.0 reported rustc not installed). That is an infra flake, not the wiki change. Retriggering CI.",
+      "created_at": "2026-09-07T22:31:13.110457595Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
+      }
     }
   ],
   "created_at": "2026-09-07T20:18:30.163652Z",
-  "updated_at": "2026-09-07T22:16:36.642403995Z",
+  "updated_at": "2026-09-07T22:31:13.110597096Z",
   "closed_at": null,
   "agent": {
     "platform": "cursor",
