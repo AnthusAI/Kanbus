@@ -2,8 +2,21 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
 import { readFile, readdir, writeFile } from "fs/promises";
 import path from "path";
+import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 import { rm, mkdir } from "fs/promises";
+
+const consoleRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".."
+);
+const boardColumnsConfigFixture = path.join(
+  consoleRoot,
+  "tests",
+  "fixtures",
+  "kanbus.board-columns.yml"
+);
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const projectIssuesRoot = projectRoot ? path.join(projectRoot, "issues") : null;
@@ -261,6 +274,14 @@ function normalizeTimestamp(value) {
 
 Given("the console is open", async function () {
   await expect(this.page.getByTestId("open-settings")).toBeVisible();
+});
+
+Given("the console uses the board column filter workflow configuration", async function () {
+  const contents = await readFile(boardColumnsConfigFixture, "utf-8");
+  const config = yaml.load(contents) ?? {};
+  await saveKanbusConfig(config);
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
 Given("the Kanbus configuration has no sort_order rules", async function () {
@@ -634,6 +655,22 @@ When("I open the console route {string}", async function (routePath) {
 When("I switch to the {string} tab", async function (tabName) {
   const resolved = tabName === "Tasks" ? "Issues" : tabName;
   await this.page.getByRole("tab", { name: resolved }).click();
+});
+
+When("I select the {string} type filter", async function (filterName) {
+  await this.page.getByRole("tab", { name: filterName }).click();
+});
+
+function boardColumnLocator(page, label) {
+  return page.locator(".kb-column").filter({ hasText: label });
+}
+
+Then("the board should show the column {string}", async function (label) {
+  await expect(boardColumnLocator(this.page, label)).toHaveCount(1);
+});
+
+Then("the board should not show the column {string}", async function (label) {
+  await expect(boardColumnLocator(this.page, label)).toHaveCount(0);
 });
 
 When("I open the task {string}", async function (title) {
