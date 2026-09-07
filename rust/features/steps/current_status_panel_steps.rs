@@ -639,6 +639,51 @@ fn then_status_tree_row_status(world: &mut KanbusWorld, title: String, expected:
     assert_eq!(state.issues[index].status, expected);
 }
 
+fn default_type_accent_color(issue_type: &str) -> Option<&'static str> {
+    match issue_type {
+        "initiative" => Some("indigo"),
+        "epic" => Some("purple"),
+        "story" => Some("amber"),
+        "bug" => Some("red"),
+        "task" => Some("blue"),
+        "sub-task" => Some("teal"),
+        "chore" => Some("green"),
+        "event" => Some("indigo"),
+        _ => None,
+    }
+}
+
+fn default_status_badge_color(status: &str) -> Option<&'static str> {
+    match status {
+        "open" | "backlog" | "todo" | "Discovery" | "deferred" => Some("gray"),
+        "in_progress" | "blocked" | "copy_writing" => Some("blue"),
+        "closed" | "done" => Some("green"),
+        _ => None,
+    }
+}
+
+#[then(expr = "the status tree row for {string} should show type accent color {string}")]
+fn then_status_tree_row_type_accent_color(
+    world: &mut KanbusWorld,
+    title: String,
+    expected: String,
+) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    let issue = &state.issues[index];
+    let actual = default_type_accent_color(&issue.issue_type).expect("unknown type accent color");
+    assert_eq!(actual, expected);
+}
+
+#[then(expr = "the status tree row for {string} should show status color {string}")]
+fn then_status_tree_row_status_color(world: &mut KanbusWorld, title: String, expected: String) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    let issue = &state.issues[index];
+    let actual = default_status_badge_color(&issue.status).expect("unknown status color");
+    assert_eq!(actual, expected);
+}
+
 #[when(expr = "the right-now summary for {string} is updated to {string}")]
 fn when_right_now_summary_updated(world: &mut KanbusWorld, title: String, summary: String) {
     let state = require_console_state(world);

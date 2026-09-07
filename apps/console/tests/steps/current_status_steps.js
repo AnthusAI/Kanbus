@@ -498,6 +498,31 @@ Then(
   }
 );
 
+Then(
+  "the status tree row for {string} should show type accent color {string}",
+  async function (title, expected) {
+    await expect(treeRow(this.page, title)).toHaveAttribute("data-accent-color", expected);
+    const accentStyle = await treeRow(this.page, title).evaluate((element) => {
+      return element.style.getPropertyValue("--issue-accent-light");
+    });
+    expect(accentStyle).toContain(`var(--${expected}-`);
+  }
+);
+
+Then(
+  "the status tree row for {string} should show status color {string}",
+  async function (title, expected) {
+    await expect(treeRow(this.page, title).getByTestId("status-tree-status")).toHaveAttribute(
+      "data-status-color",
+      expected
+    );
+    const badgeStyle = await treeRow(this.page, title)
+      .getByTestId("status-tree-status")
+      .evaluate((element) => element.style.getPropertyValue("--status-badge-bg-light"));
+    expect(badgeStyle).toContain(`var(--${expected}-`);
+  }
+);
+
 Then("the status feed should contain {int} rows", async function (count) {
   await expect(this.page.getByTestId("status-feed-row")).toHaveCount(count);
 });

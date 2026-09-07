@@ -2066,7 +2066,7 @@ export default function App() {
                 >
                   <CurrentStatusPanel
                     issues={issues}
-                    statuses={config?.statuses ?? []}
+                    config={config}
                     boardTitle={config?.name ?? ""}
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}

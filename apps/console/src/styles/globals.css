@@ -1043,15 +1043,30 @@ html[data-motion="reduced"] .sidebar-column {
 }
 
 .status-tree-row {
+  --issue-accent-foreground: var(--text-foreground);
+  --issue-accent-light: var(--slate-4);
+  --issue-accent-muted-light: var(--slate-2);
+  --issue-accent-dark: var(--slate-11);
+  --issue-accent-muted-dark: var(--slate-6);
+  --issue-accent: var(--issue-accent-light);
+  --issue-accent-muted: var(--issue-accent-muted-light);
   display: grid;
   gap: 0.35rem;
   width: 100%;
   text-align: left;
   background: var(--card);
   border-radius: 12px;
+  border-left: 3px solid var(--issue-accent-light, var(--slate-4));
   padding: 0.75rem 1rem;
   color: var(--text-foreground);
   transition: background-color 0.2s ease;
+}
+
+.dark .status-tree-row,
+[data-theme='dark'] .status-tree-row {
+  --issue-accent: var(--issue-accent-dark);
+  --issue-accent-muted: var(--issue-accent-muted-dark);
+  border-left-color: var(--issue-accent-dark, var(--slate-11));
 }
 
 .status-tree-row:hover {
@@ -1098,16 +1113,11 @@ html[data-motion="reduced"] .sidebar-column {
   width: 0.95rem;
   height: 0.95rem;
   flex-shrink: 0;
-  color: var(--text-foreground);
 }
 
 .status-tree-id {
   flex-shrink: 0;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
 }
 
 .status-tree-status {

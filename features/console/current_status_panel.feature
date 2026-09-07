@@ -239,6 +239,12 @@ Feature: Console current status panel
     And the status tree row for "Initiative Alpha" should show status "open"
     And the status tree row for "Epic Beta" should show status "closed"
     And the status tree row for "Task Gamma" should show status "in_progress"
+    And the status tree row for "Initiative Alpha" should show type accent color "indigo"
+    And the status tree row for "Epic Beta" should show type accent color "purple"
+    And the status tree row for "Task Gamma" should show type accent color "blue"
+    And the status tree row for "Initiative Alpha" should show status color "gray"
+    And the status tree row for "Epic Beta" should show status color "green"
+    And the status tree row for "Task Gamma" should show status color "blue"
 
   Scenario: Rootless matching issue stays a tree root under status filter
     Given the console is open
