@@ -17,12 +17,9 @@
       "text": "Diagnosed PR #223 CI: local SSE never starts because basePath is empty string; wiki-ui-006 delete recovery; python coverage 98.38 vs 98.59 from right_now subtree misses and wiki title edge cases.",
       "created_at": "2026-09-07T20:18:37.870882Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -31,12 +28,9 @@
       "text": "SSE subscribe now treats empty local basePath as valid. Wiki delete refreshes the server list then opens the first remaining page. Added wiki title edge-case tests and right-now subtree error-path tests.",
       "created_at": "2026-09-07T20:20:22.913039Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -45,12 +39,9 @@
       "text": "Opened draft PR https://github.com/AnthusAI/Kanbus/pull/224 against develop. Waiting on coverage-ratchet and console-ui.",
       "created_at": "2026-09-07T20:21:14.124553Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -59,12 +50,9 @@
       "text": "CI after first fix: SSE scenarios passed. Remaining: wiki-ui-006 still did not leave first.md; Done column locator matched Done (Legacy). Coverage 98.50, need 9 more hits. Next: local remaining-page navigation after delete, exact column title match, more unit tests.",
       "created_at": "2026-09-07T20:37:20.651600Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -73,12 +61,9 @@
       "text": "Coverage ratchet passed. Only wiki-ui-006 remains: after delete the UI was on Wiki Home without second.md because select used a full navigation remount and the in-memory list had only first.md. Select now clicks the listing entry; delete reloads leftover pages from GET /api/wiki/pages.",
       "created_at": "2026-09-07T20:50:43.294213Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
       }
     },
     {
@@ -87,25 +72,31 @@
       "text": "wiki-ui-006 still failed after leftover fetch: Then never saw second.md.\n\nRoot cause:\n- Board view-mode auto-correct can steal the URL on wiki because route.viewMode is null, now that local SSE loads a snapshot.\n- A stale first.md 404 sets error and hides the Home listing.\n- An empty or failed GET /api/wiki/pages after delete dropped the known remaining page.\n\nFix:\n- Skip board redirects when wikiPath is set.\n- Keep leftover pages from memory if the list is empty.\n- Ignore stale file loads after delete.\n",
       "created_at": "2026-09-07T21:13:36.667326Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
-        "model": "cursor-grok-4.6",
-        "name": null,
-        "settings": {}
+        "model": "cursor-grok-4.6"
+      }
+    },
+    {
+      "id": "70e275d7-f42f-45f0-b10b-728653141727",
+      "author": "ubuntu",
+      "text": "console-ui on edadecf2 still failed wiki-ui-006 only. Diagnostic: url=/wiki/draft.md.\n\ndraft.md is leftover from wiki-ui-004. Delete recovered leftover[0] alphabetically, so it opened draft.md instead of second.md.\n\nFix on bb6f24e9:\n- Open the next remaining page after the deleted path\n- Reset wiki storage at the start of each console-ui scenario\n- wiki-ui-006 starts empty; wiki-ui-023 locks next-page recovery when draft.md also exists",
+      "created_at": "2026-09-07T22:03:30.317744329Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6"
       }
     }
   ],
   "created_at": "2026-09-07T20:18:30.163652Z",
-  "updated_at": "2026-09-07T21:13:36.667402Z",
+  "updated_at": "2026-09-07T22:03:30.317842921Z",
   "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {},
   "agent": {
     "platform": "cursor",
-    "model": "cursor-grok-4.6",
-    "name": null,
-    "settings": {}
-  }
+    "model": "cursor-grok-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
 }
