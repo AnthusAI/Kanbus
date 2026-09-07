@@ -24,10 +24,24 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "01fd938d-0093-455b-ad1d-b647fecf48d9",
+      "author": "ubuntu",
+      "text": "Implementation is on PR https://github.com/AnthusAI/Kanbus/pull/222 (branch `cursor/fix-console-wiki-empty-7067`).\n\nLocal verification:\n- `cargo test --lib console_wiki`: 14 passed, including wiki root resolution when the store is the project directory\n- `cargo test --test wiki_service_tests`: 12 passed\n- Python behave `@console` wiki_panel: 16 scenarios passed\n- Rust cucumber new wiki-ui scenarios: 4 passed\n- `cargo clippy --lib -- -D warnings`: clean\n\nLeaving this bug in progress until the PR lands.",
+      "created_at": "2026-09-07T19:13:43.860190Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6-high-fast",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T19:05:57.931381Z",
-  "updated_at": "2026-09-07T19:06:07.345776Z",
+  "updated_at": "2026-09-07T19:13:43.860277Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
