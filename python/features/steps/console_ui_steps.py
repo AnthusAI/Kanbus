@@ -17,6 +17,17 @@ from zoneinfo import ZoneInfo
 
 from behave import given, then, when
 
+import yaml
+
+BOARD_COLUMN_FILTER_FIXTURE = (
+    Path(__file__).resolve().parents[3]
+    / "apps"
+    / "console"
+    / "tests"
+    / "fixtures"
+    / "kanbus.board-columns.yml"
+)
+
 # ---------------------------------------------------------------------------
 # kbsc server lifecycle helpers
 # ---------------------------------------------------------------------------
@@ -331,6 +342,13 @@ def when_switch_tab(context: object, tab: str) -> None:
     state.selected_tab = tab
     storage.selected_tab = tab
     context.last_tab_click = tab
+
+
+@given("the console uses the board column filter workflow configuration")
+def given_board_column_filter_workflow_configuration(context: object) -> None:
+    context.console_kanbus_config = yaml.safe_load(
+        BOARD_COLUMN_FILTER_FIXTURE.read_text(encoding="utf-8")
+    )
 
 
 @when('I select the "{filter_name}" type filter')

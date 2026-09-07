@@ -111,21 +111,28 @@ Feature: Console kanban board
 
   Scenario: Epics type filter shows only epic workflow columns
     Given the console is open
+    And the console uses the board column filter workflow configuration
     When I switch to the "Epics" tab
-    Then the board should show the column "Discovery"
+    Then the board should show the column "Ready"
     And the board should show the column "In Progress"
     And the board should show the column "Done"
     And the board should not show the column "Backlog"
+    And the board should not show the column "Discovery"
     And the board should not show the column "Blocked"
+    And the board should not show the column "Copy Writing"
 
-  Scenario: Issues type filter shows default workflow columns
+  Scenario: Issues type filter shows default and story workflow columns
     Given the console is open
+    And the console uses the board column filter workflow configuration
     When I switch to the "Tasks" tab
     Then the board should show the column "Backlog"
     And the board should show the column "Blocked"
+    And the board should show the column "Copy Writing"
 
   Scenario: All type filter shows every configured status column
     Given the console is open
+    And the console uses the board column filter workflow configuration
     When I select the "All" type filter
     Then the board should show the column "Backlog"
-    And the board should show the column "Blocked"
+    And the board should show the column "Discovery"
+    And the board should show the column "Copy Writing"
