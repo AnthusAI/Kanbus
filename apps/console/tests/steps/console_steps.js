@@ -268,6 +268,15 @@ async function reloadConsoleAfterSetup(world) {
   await world.page.reload({ waitUntil: "domcontentloaded" });
 }
 
+async function applyServerSnapshotToPage(page) {
+  await page.evaluate(async () => {
+    const refreshHandle = window;
+    if (typeof refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ === "function") {
+      refreshHandle.__KANBUS_REFRESH_SNAPSHOT__();
+    }
+  });
+}
+
 function normalizeTimestamp(value) {
   if (!value) {
     return null;
@@ -722,6 +731,7 @@ When("a new task issue named {string} is added", async function (title) {
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
   await waitForIssueUpdate(issueId, (entry) => entry.title === title);
+  await applyServerSnapshotToPage(this.page);
 });
 
 Given(

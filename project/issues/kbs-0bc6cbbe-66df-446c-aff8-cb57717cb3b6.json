@@ -38,10 +38,24 @@
         "name": "wiki-markus-pipeline",
         "settings": {}
       }
+    },
+    {
+      "id": "6f8d98bb-0b85-44ec-b07c-220d402e420f",
+      "author": "ubuntu",
+      "text": "Third pass: 106/109 passed. Remaining three are live file-watch updates (Now right-now text and Ship trace headers). Vite was buffering /api/events so the page never saw SSE after the first snapshot. Unbuffer that proxy, add X-Accel-Buffering on the SSE stream, and after the server snapshot has the write, apply it through the page refresh hook.",
+      "created_at": "2026-09-07T22:08:02.670592Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "wiki-markus-pipeline",
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T21:36:51.763642Z",
-  "updated_at": "2026-09-07T21:53:45.053576Z",
+  "updated_at": "2026-09-07T22:08:02.670666Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
