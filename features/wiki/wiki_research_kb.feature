@@ -94,6 +94,19 @@ Feature: Wiki research knowledge base
     And stdout should contain "project/wiki/concepts/alpha.md"
     And stdout should not contain "project/wiki/notes/beta.md"
 
+  Scenario: Search wiki pages by YAML frontmatter title
+    Given a Kanbus project with default configuration
+    And a wiki page "status.md" with content:
+      """
+      ---
+      title: Epic progress
+      ---
+      Body without the query word.
+      """
+    When I run "kanbus wiki search \"Epic progress\""
+    Then the command should succeed
+    And stdout should contain "project/wiki/status.md"
+
   Scenario: Wiki search with empty query lists all pages
     Given a Kanbus project with default configuration
     And a wiki page "listed.md" with content "Listed in empty search"

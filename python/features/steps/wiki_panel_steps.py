@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 
 from behave import given, then, when
 
+from kanbus.wiki import wiki_page_display_title
+
 from features.steps.console_ui_steps import (
     _ensure_console_storage,
     _require_console_state,
@@ -21,6 +23,8 @@ class WikiWorkspaceState:
     preview_content: str = "No preview yet"
     status: str = "Saved"
     error_banner: str | None = None
+    wiki_directory_exists: bool = True
+    pages_request_failed: bool = False
 
 
 def _ensure_wiki_state(context: object) -> WikiWorkspaceState:
@@ -64,8 +68,10 @@ def when_switch_to_wiki_view(context: object) -> None:
     state.panel_mode = "wiki"
     _ensure_console_storage(context).panel_mode = "wiki"
     wiki = _ensure_wiki_state(context)
-    if wiki.selected_path is None and wiki.page_order:
-        _select_page(wiki, wiki.page_order[0])
+    if wiki.pages_request_failed:
+        wiki.error_banner = "wiki pages request failed"
+        wiki.selected_path = None
+        return
 
 
 @when('I create a wiki page named "{path}"')
@@ -94,6 +100,27 @@ def when_try_create_wiki_page_named(context: object, path: str) -> None:
 def when_select_wiki_page(context: object, path: str) -> None:
     wiki = _ensure_wiki_state(context)
     _select_page(wiki, path)
+
+
+@when('I select the wiki page titled "{title}"')
+def when_select_wiki_page_titled(context: object, title: str) -> None:
+    """Select a wiki page whose resolved display title matches.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :param title: Display title from frontmatter, H1, or file stem.
+    :type title: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If no page resolves to the given title.
+    """
+    wiki = _ensure_wiki_state(context)
+    for path in wiki.page_order:
+        content = wiki.pages.get(path, "")
+        if wiki_page_display_title(content, path) == title:
+            _select_page(wiki, path)
+            return
+    raise AssertionError(f"no wiki page titled {title}")
 
 
 @when("I type wiki content:")
@@ -190,11 +217,130 @@ def then_wiki_view_inactive(context: object) -> None:
         raise AssertionError("expected wiki view to be inactive")
 
 
+@given("the console wiki directory is missing")
+def given_console_wiki_directory_is_missing(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    wiki.pages = {}
+    wiki.page_order = []
+    wiki.selected_path = None
+    wiki.wiki_directory_exists = False
+    wiki.pages_request_failed = False
+    wiki.error_banner = None
+
+
+@given("the console wiki pages request fails")
+def given_console_wiki_pages_request_fails(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    wiki.pages = {}
+    wiki.page_order = []
+    wiki.selected_path = None
+    wiki.pages_request_failed = True
+    wiki.error_banner = None
+
+
+@given("the console wiki pages request hangs")
+def given_console_wiki_pages_request_hangs(context: object) -> None:
+    """Record a hung wiki pages request as a visible load failure.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :return: None
+    :rtype: None
+    """
+    wiki = _ensure_wiki_state(context)
+    wiki.pages = {}
+    wiki.page_order = []
+    wiki.selected_path = None
+    wiki.pages_request_failed = True
+    wiki.error_banner = None
+
+
 @then("the wiki empty state should be visible")
 def then_wiki_empty_state_visible(context: object) -> None:
     wiki = _ensure_wiki_state(context)
-    if wiki.page_order:
+    if (
+        wiki.page_order
+        or not wiki.wiki_directory_exists
+        or wiki.pages_request_failed
+        or wiki.error_banner
+    ):
         raise AssertionError("expected wiki empty state with no pages")
+
+
+@then("the wiki empty state should not be visible")
+def then_wiki_empty_state_should_not_be_visible(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    is_true_empty = (
+        wiki.wiki_directory_exists
+        and not wiki.page_order
+        and not wiki.pages_request_failed
+        and wiki.error_banner is None
+    )
+    if is_true_empty:
+        raise AssertionError("wiki empty state should not be visible")
+
+
+@then("the wiki missing-directory state should be visible")
+def then_wiki_missing_directory_state_should_be_visible(context: object) -> None:
+    wiki = _ensure_wiki_state(context)
+    if wiki.wiki_directory_exists or wiki.page_order or wiki.pages_request_failed:
+        raise AssertionError("expected wiki missing-directory state")
+
+
+def _wiki_directory_listing_labels(wiki: WikiWorkspaceState) -> list[str]:
+    labels: dict[str, str] = {}
+    for path in wiki.page_order:
+        parts = path.split("/")
+        name = parts[0]
+        is_dir = len(parts) > 1
+        if name not in labels:
+            if is_dir:
+                labels[name] = name
+            else:
+                labels[name] = wiki_page_display_title(wiki.pages[path], path)
+        elif is_dir:
+            labels[name] = name
+    return list(labels.values())
+
+
+@then('the wiki directory listing should show "{text}"')
+def then_wiki_directory_listing_should_show(context: object, text: str) -> None:
+    """Assert the Wiki Home directory listing includes a visible label.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :param text: Expected listing label.
+    :type text: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the label is not present.
+    """
+    wiki = _ensure_wiki_state(context)
+    labels = _wiki_directory_listing_labels(wiki)
+    if text not in labels:
+        raise AssertionError(
+            f"expected directory listing to show {text!r}, got {labels!r}"
+        )
+
+
+@then('the wiki directory listing should not show "{text}"')
+def then_wiki_directory_listing_should_not_show(context: object, text: str) -> None:
+    """Assert the Wiki Home directory listing does not include a label.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :param text: Label that must not appear.
+    :type text: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the label is present.
+    """
+    wiki = _ensure_wiki_state(context)
+    labels = _wiki_directory_listing_labels(wiki)
+    if text in labels:
+        raise AssertionError(
+            f"expected directory listing not to show {text!r}, got {labels!r}"
+        )
 
 
 @then('the wiki page list should include "{path}"')

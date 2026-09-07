@@ -8,6 +8,8 @@ import chokidar from "chokidar";
 import rateLimit from "express-rate-limit";
 import { resolvePortOrExit } from "../scripts/resolvePort";
 import type { IssuesSnapshot } from "../src/types/issues";
+import type { WikiPageListItem } from "../src/types/wiki";
+import { wikiPageDisplayTitle } from "./wikiTitle";
 
 const fsPromises = fs.promises;
 
@@ -244,14 +246,33 @@ apiRouter.get("/issues/:id", async (req, res) => {
 const sseClients = new Set<express.Response>();
 const telemetryClients = new Set<express.Response>();
 
-apiRouter.get("/events", async (req, res) => {
+function openSseStream(
+  req: express.Request,
+  res: express.Response,
+  onClose: () => void
+): void {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
-  res.write("retry: 1000\n\n");
+  res.write("retry: 3000\n\n");
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) {
+      res.write(": keep-alive\n\n");
+    }
+  }, 15000);
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    onClose();
+  });
+}
 
+apiRouter.get("/events", async (req, res) => {
   sseClients.add(res);
+  openSseStream(req, res, () => {
+    sseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
+  });
   logConsoleEvent("sse-client-connected", { clients: sseClients.size });
 
   try {
@@ -265,22 +286,18 @@ apiRouter.get("/events", async (req, res) => {
       })}\n\n`
     );
   }
-
-  req.on("close", () => {
-    sseClients.delete(res);
-    logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
-  });
 });
 
 // Realtime stream alias used by the web client.
 apiRouter.get("/events/realtime", async (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
-
   sseClients.add(res);
+  openSseStream(req, res, () => {
+    sseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", {
+      clients: sseClients.size,
+      stream: "realtime"
+    });
+  });
   logConsoleEvent("sse-client-connected", {
     clients: sseClients.size,
     stream: "realtime"
@@ -297,30 +314,15 @@ apiRouter.get("/events/realtime", async (req, res) => {
       })}\n\n`
     );
   }
-
-  req.on("close", () => {
-    sseClients.delete(res);
-    logConsoleEvent("sse-client-disconnected", {
-      clients: sseClients.size,
-      stream: "realtime"
-    });
-  });
 });
 
 apiRouter.get("/telemetry/console/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
-
   telemetryClients.add(res);
-  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
-
-  req.on("close", () => {
+  openSseStream(req, res, () => {
     telemetryClients.delete(res);
     logConsoleEvent("telemetry-client-disconnected", { clients: telemetryClients.size });
   });
+  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
 });
 
 apiRouter.post(
@@ -415,7 +417,7 @@ function absoluteWikiPath(normalizedPath: string): string {
 async function collectMarkdownPages(
   dirPath: string,
   relativePrefix: string,
-  pages: string[]
+  pages: WikiPageListItem[]
 ): Promise<void> {
   const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -424,19 +426,24 @@ async function collectMarkdownPages(
     if (entry.isDirectory()) {
       await collectMarkdownPages(full, relative, pages);
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      pages.push(relative.replace(/\\/g, "/"));
+      const normalized = relative.replace(/\\/g, "/");
+      const content = await fsPromises.readFile(full, "utf-8");
+      pages.push({
+        path: normalized,
+        title: wikiPageDisplayTitle(content, normalized)
+      });
     }
   }
 }
 
-async function listWikiPages(): Promise<{ pages: string[] }> {
+async function listWikiPages(): Promise<{ pages: WikiPageListItem[]; wiki_directory_exists: boolean }> {
   if (!fs.existsSync(wikiRoot)) {
-    return { pages: [] };
+    return { pages: [], wiki_directory_exists: false };
   }
-  const pages: string[] = [];
+  const pages: WikiPageListItem[] = [];
   await collectMarkdownPages(wikiRoot, "", pages);
-  pages.sort();
-  return { pages };
+  pages.sort((left, right) => left.path.localeCompare(right.path));
+  return { pages, wiki_directory_exists: true };
 }
 
 async function wikiRenderPage(relativePagePath: string): Promise<string> {
