@@ -297,15 +297,25 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
       return;
     }
     const deletedPath = activePath;
+    const remainingPages = pages
+      .filter((candidate) => candidate.path !== deletedPath)
+      .slice()
+      .sort((left, right) => left.path.localeCompare(right.path));
     setError(null);
     try {
       await deleteWikiPage(apiBase, deletedPath);
-      const refreshedPages = await refreshPages();
-      const remainingPages = refreshedPages
-        .filter((candidate) => candidate.path !== deletedPath)
-        .slice()
-        .sort((left, right) => left.path.localeCompare(right.path));
-      navigate(remainingPages[0]?.path ?? "");
+      setPages(remainingPages);
+      setPagesLoaded(true);
+      setSavedContent("");
+      setDraftContent("");
+      setViewMode("read");
+      const nextPath = remainingPages[0]?.path ?? "";
+      const normalized = nextPath.replace(/^\/+/, "").replace(/\/+$/, "");
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push(normalized);
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+      onRouteChange(normalized);
     } catch (err) {
       setError((err as Error).message);
     }

@@ -185,23 +185,39 @@ When("I rename the wiki page {string} to {string}", async function (fromPath, to
 
 When("I delete the wiki page {string}", async function (relativePath) {
   await reloadIfWikiStale(this);
-  this.page.once("dialog", (dialog) => dialog.accept());
-  await this.page.getByRole("button", { name: "Actions" }).click();
-  await this.page.getByRole("menuitem", { name: "Delete page" }).click();
-  const candidate = path.join(requireWikiRoot(), relativePath);
-  await expect
-    .poll(
-      async () => {
-        try {
-          await access(candidate);
-          return true;
-        } catch {
-          return false;
-        }
-      },
-      { timeout: 15000 }
-    )
-    .toBe(false);
+  const acceptDialog = (dialog) => {
+    void dialog.accept();
+  };
+  this.page.on("dialog", acceptDialog);
+  try {
+    await this.page.getByRole("button", { name: "Actions" }).click();
+    await this.page.getByRole("menuitem", { name: "Delete page" }).click();
+    const candidate = path.join(requireWikiRoot(), relativePath);
+    await expect
+      .poll(
+        async () => {
+          try {
+            await access(candidate);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { timeout: 15000 }
+      )
+      .toBe(false);
+    await expect
+      .poll(
+        async () => {
+          const pathname = new URL(this.page.url()).pathname;
+          return pathname.includes(`/wiki/${encodeWikiPath(relativePath)}`);
+        },
+        { timeout: 15000 }
+      )
+      .toBe(false);
+  } finally {
+    this.page.off("dialog", acceptDialog);
+  }
 });
 
 When("I type wiki content:", async function (docString) {

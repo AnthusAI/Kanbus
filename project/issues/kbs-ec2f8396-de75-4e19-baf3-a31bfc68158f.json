@@ -52,10 +52,24 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "0a93cea9-3d0d-4d33-9bd5-5a1b69543796",
+      "author": "ubuntu",
+      "text": "CI after first fix: SSE scenarios passed. Remaining: wiki-ui-006 still did not leave first.md; Done column locator matched Done (Legacy). Coverage 98.50, need 9 more hits. Next: local remaining-page navigation after delete, exact column title match, more unit tests.",
+      "created_at": "2026-09-07T20:37:20.651600Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T20:18:30.163652Z",
-  "updated_at": "2026-09-07T20:21:14.124629Z",
+  "updated_at": "2026-09-07T20:37:20.651676Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

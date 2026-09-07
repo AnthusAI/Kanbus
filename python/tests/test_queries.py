@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from kanbus import queries
@@ -62,6 +64,13 @@ def test_sort_issues_none_returns_input_order() -> None:
     issues = [build_issue("kanbus-1"), build_issue("kanbus-2")]
     result = queries.sort_issues(issues, None)
     assert [issue.identifier for issue in result] == ["kanbus-1", "kanbus-2"]
+
+
+def test_sort_issues_by_recently_updated_accepts_naive_timestamp() -> None:
+    naive = build_issue("kanbus-naive")
+    naive.updated_at = datetime(2026, 1, 1, 12, 0, 0)
+    ordered = queries.sort_issues_by_recently_updated([naive])
+    assert [issue.identifier for issue in ordered] == ["kanbus-naive"]
 
 
 def test_search_issues_title_description_and_comments_with_dedupe() -> None:

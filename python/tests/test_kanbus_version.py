@@ -23,6 +23,7 @@ from kanbus.kanbus_version import (
         ("0.20.0", "0.19.1", True),
         ("0.19.0", "0.19.1", False),
         ("0.19.1", "0.19.0", True),
+        ("not-a-version", "0.19.1", False),
     ],
 )
 def test_compare_semver_cores(running: str, required: str, expected: bool) -> None:

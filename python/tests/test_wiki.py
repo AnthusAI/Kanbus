@@ -514,6 +514,10 @@ def test_resolve_wiki_internal_link_ignores_parent_above_root() -> None:
     assert wiki._resolve_wiki_internal_link("index.md", "../outside.md") == "outside.md"
 
 
+def test_resolve_wiki_internal_link_skips_dot_segments() -> None:
+    assert wiki._resolve_wiki_internal_link("dir/page.md", "./sib.md") == "dir/sib.md"
+
+
 def test_search_wiki_pages_matches_display_title(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

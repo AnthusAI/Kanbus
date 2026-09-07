@@ -665,7 +665,7 @@ When("I select the {string} type filter", async function (filterName) {
 });
 
 function boardColumnLocator(page, label) {
-  return page.locator(".kb-column").filter({ hasText: label });
+  return page.locator(".kb-column").filter({ has: page.getByText(label, { exact: true }) });
 }
 
 Then("the board should show the column {string}", async function (label) {
