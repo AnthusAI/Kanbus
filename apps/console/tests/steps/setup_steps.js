@@ -2,6 +2,10 @@ import { Given } from "@cucumber/cucumber";
 import { promises as fs } from "fs";
 import path from "path";
 
+const consolePort = process.env.CONSOLE_PORT ?? "5174";
+const consoleApiBase =
+  process.env.CONSOLE_API_BASE ?? `http://localhost:${consolePort}/api`;
+
 function projectRoot() {
   const root = process.env.CONSOLE_PROJECT_ROOT;
   if (!root) {
@@ -51,7 +55,13 @@ Given("a Kanbus project with default configuration", async function () {
     "beads_compatibility: false"
   ].join("\n");
   await fs.writeFile(configPath, config, "utf-8");
-  // Ensure issues dir exists
+  const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
+  if (!configResponse.ok) {
+    throw new Error(`console config refresh failed: ${configResponse.status}`);
+  }
+  if (this.page) {
+    await this.page.reload({ waitUntil: "domcontentloaded" });
+  }
   await fs.mkdir(projectDir, { recursive: true });
   // Reset console state to a clean baseline (server running, no focus/view/search)
   const statePath = path.join(root, "..", ".cache", "console_state.json");
