@@ -984,6 +984,9 @@ export default function App() {
     // Reset auto-correction flag on new snapshot to allow re-evaluation
     viewModeAutoCorrected.current = false;
 
+    if (route.wikiPath !== null) {
+      return;
+    }
     if (route.viewMode) {
       return;
     }
@@ -1008,7 +1011,7 @@ export default function App() {
     } else {
       viewModeAutoCorrected.current = true;
     }
-  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, searchQuery, viewMode, showAllTypes]);
+  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, route.wikiPath, searchQuery, viewMode, showAllTypes]);
 
   useEffect(() => {
     if (route.viewMode) {
@@ -1311,6 +1314,9 @@ export default function App() {
     if (!snapshot || route.basePath == null) {
       return;
     }
+    if (route.wikiPath !== null) {
+      return;
+    }
     if (showAllTypes) {
       return;
     }
@@ -1327,6 +1333,7 @@ export default function App() {
     showInitiativesInTypeFilter,
     snapshot,
     route.basePath,
+    route.wikiPath,
     route.parentId,
     focusedIssueId,
     searchQuery,

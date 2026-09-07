@@ -16,6 +16,36 @@ function wikiFileStem(name: string): string {
   return name.replace(/\.md$/i, "");
 }
 
+/**
+ * Remaining wiki pages after a delete.
+ *
+ * Prefer the server list when it still contains other pages. If that list is
+ * empty or unavailable, keep the in-memory pages minus the deleted path.
+ */
+export function leftoverWikiPagesAfterDelete(
+  deletedPath: string,
+  knownPages: WikiPageListItem[],
+  fetchedPages: WikiPageListItem[] | null
+): WikiPageListItem[] {
+  const fromMemory = knownPages
+    .filter((candidate, index, all) => {
+      return (
+        candidate.path !== deletedPath
+        && all.findIndex((entry) => entry.path === candidate.path) === index
+      );
+    })
+    .slice()
+    .sort((left, right) => left.path.localeCompare(right.path));
+  if (!fetchedPages) {
+    return fromMemory;
+  }
+  const fromFetch = fetchedPages
+    .filter((candidate) => candidate.path !== deletedPath)
+    .slice()
+    .sort((left, right) => left.path.localeCompare(right.path));
+  return fromFetch.length > 0 ? fromFetch : fromMemory;
+}
+
 export function resolveWikiRoute(pages: WikiPageListItem[], route: string): WikiRouteResult {
   const normalizedRoute = route.replace(/^\/+/, "").replace(/\/+$/, "");
   const pagePaths = pages.map((page) => page.path);

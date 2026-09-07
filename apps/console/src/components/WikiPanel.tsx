@@ -12,7 +12,7 @@ import { WikiEditor } from "./WikiEditor";
 import { WikiPreview } from "./WikiPreview";
 import { WikiHeader } from "./WikiHeader";
 import { WikiDirectoryListing } from "./WikiDirectoryListing";
-import { resolveWikiRoute } from "../utils/wikiRouting";
+import { leftoverWikiPagesAfterDelete, resolveWikiRoute } from "../utils/wikiRouting";
 import type { WikiPageListItem } from "../types/wiki";
 
 const WIKI_EDIT_SPLIT_STORAGE_KEY = "kanbus.console.wikiEditSplitPercent";
@@ -68,6 +68,8 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
   
   const autoRenderTimerRef = useRef<number | null>(null);
   const wikiSplitContainerRef = useRef<HTMLDivElement>(null);
+  const fileRequestGenerationRef = useRef(0);
+  const knownPagesRef = useRef<WikiPageListItem[]>([]);
 
   const isDirty = useMemo(() => draftContent !== savedContent, [draftContent, savedContent]);
 
@@ -103,6 +105,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
   }, [initialRoutePath]);
 
   useEffect(() => {
+    fileRequestGenerationRef.current += 1;
     if (isFile && activePath) {
       setIsLoadingFile(true);
       setSavedContent("");
@@ -168,15 +171,18 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     setError(null);
     try {
       const result = await fetchWikiPages(apiBase);
+      knownPagesRef.current = result.pages;
       setPages(result.pages);
       setWikiDirectoryExists(result.wiki_directory_exists);
       setPagesLoaded(true);
       return result.pages;
     } catch (err) {
       setError((err as Error).message);
-      setPages([]);
+      if (knownPagesRef.current.length === 0) {
+        setPages([]);
+      }
       setPagesLoaded(true);
-      return [];
+      return knownPagesRef.current;
     } finally {
       setIsLoadingPages(false);
     }
@@ -240,13 +246,20 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
   }, [editPaneWidthPercent]);
 
   async function loadFile(path: string) {
+    const requestGeneration = fileRequestGenerationRef.current;
     try {
       const page = await fetchWikiPage(apiBase, path);
+      if (requestGeneration !== fileRequestGenerationRef.current) {
+        return;
+      }
       setSavedContent(page.content);
       setDraftContent(page.content);
       setRenderError(null);
-      // We don't render here directly, the useEffect handles it
+      setError(null);
     } catch (err) {
+      if (requestGeneration !== fileRequestGenerationRef.current) {
+        return;
+      }
       setError((err as Error).message);
     }
   }
@@ -297,16 +310,27 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
       return;
     }
     const deletedPath = activePath;
+    fileRequestGenerationRef.current += 1;
     setError(null);
     try {
       await deleteWikiPage(apiBase, deletedPath);
-      const result = await fetchWikiPages(apiBase);
-      const leftoverPages = result.pages
-        .filter((candidate) => candidate.path !== deletedPath)
-        .slice()
-        .sort((left, right) => left.path.localeCompare(right.path));
+      let fetchedPages: WikiPageListItem[] | null = null;
+      let directoryExists = wikiDirectoryExists;
+      try {
+        const result = await fetchWikiPages(apiBase);
+        fetchedPages = result.pages;
+        directoryExists = result.wiki_directory_exists;
+      } catch {
+        fetchedPages = null;
+      }
+      const leftoverPages = leftoverWikiPagesAfterDelete(
+        deletedPath,
+        [...knownPagesRef.current, ...pages],
+        fetchedPages
+      );
+      knownPagesRef.current = leftoverPages;
       setPages(leftoverPages);
-      setWikiDirectoryExists(result.wiki_directory_exists);
+      setWikiDirectoryExists(directoryExists);
       setPagesLoaded(true);
       setSavedContent("");
       setDraftContent("");
@@ -347,19 +371,29 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
     if (!activePath) {
       return;
     }
+    const requestGeneration = fileRequestGenerationRef.current;
+    const renderPath = activePath;
     setIsRendering(true);
     setRenderError(null);
     try {
       const payload =
         draftContent !== savedContent
-          ? { path: activePath, content: draftContent }
-          : { path: activePath };
+          ? { path: renderPath, content: draftContent }
+          : { path: renderPath };
       const rendered = await renderWikiPage(apiBase, payload);
+      if (requestGeneration !== fileRequestGenerationRef.current) {
+        return;
+      }
       setRenderedHtml(rendered.rendered_html);
     } catch (err) {
+      if (requestGeneration !== fileRequestGenerationRef.current) {
+        return;
+      }
       setRenderError((err as Error).message);
     } finally {
-      setIsRendering(false);
+      if (requestGeneration === fileRequestGenerationRef.current) {
+        setIsRendering(false);
+      }
     }
   }
 
@@ -408,7 +442,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
                 <span>Loading wiki...</span>
               </div>
             </div>
-          ) : error ? (
+          ) : error && pages.length === 0 ? (
             <div className="wiki-directory-listing" data-testid="wiki-load-error">
               <div className="text-xl font-bold mb-6 text-foreground">Wiki Home</div>
               <p>The wiki page list could not be loaded.</p>
