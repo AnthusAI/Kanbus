@@ -41,14 +41,15 @@ function buildStatusIssue({
   type = "task",
   updatedAt,
   parent = null,
-  rightNowSummary = null
+  rightNowSummary = null,
+  status = "in_progress"
 }) {
   return {
     id,
     title,
     description: "",
     type,
-    status: "open",
+    status,
     priority: 2,
     assignee: null,
     creator: "fixture",
@@ -146,6 +147,62 @@ Then("the current status view should be active", async function () {
   await expect(this.page.getByTestId("current-status-view")).toBeVisible();
 });
 
+Then("the type filter selector should be hidden", async function () {
+  await expect(this.page.locator('[data-selector="view"]')).toHaveCount(0);
+});
+
+Then("the type filter selector should be visible", async function () {
+  await expect(this.page.locator('[data-selector="view"]')).toBeVisible();
+});
+
+Then("the status tree node for {string} should be expandable", async function (title) {
+  await expect(treeRow(this.page, title)).toHaveAttribute("data-tree-expanded", /^(true|false)$/);
+});
+
+Given("the Kanbus configuration has name {string}", async function (name) {
+  const config = await loadKanbusConfigFile();
+  config.name = name;
+  await saveKanbusConfigFile(config);
+  const configResponse = await fetch(`${consoleApiBase}/config?refresh=1`);
+  if (!configResponse.ok) {
+    throw new Error(`console config request failed: ${configResponse.status}`);
+  }
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+Then("the now panel board title should be {string}", async function (title) {
+  await expect(this.page.getByTestId("now-board-title")).toHaveText(title);
+});
+
+Then("the now panel board title should be the repository directory name", async function () {
+  const repoRoot = path.dirname(requireProjectRoot());
+  const expected = path.basename(path.resolve(repoRoot));
+  await expect(this.page.getByTestId("now-board-title")).toHaveText(expected);
+});
+
+Then("the panel mode selector labels should be {string}", async function (labels) {
+  const expected = labels.split(",").map((label) => label.trim());
+  const actual = await this.page
+    .locator('[data-selector="panel-mode"] .selector-label')
+    .allTextContents();
+  expect(actual.map((label) => label.trim())).toEqual(expected);
+});
+
+Then("the status tree view should be enabled", async function () {
+  await expect(this.page.getByTestId("status-tree-toggle")).toBeChecked();
+  await expect(
+    this.page.getByTestId("status-tree").or(this.page.getByTestId("status-tree-empty"))
+  ).toBeVisible();
+});
+
+When("I select the now status filter {string}", async function (status) {
+  await this.page.getByTestId("now-status-filter").selectOption(status);
+});
+
+Given("I select the now status filter {string}", async function (status) {
+  await this.page.getByTestId("now-status-filter").selectOption(status);
+});
+
 Given(
   "a status issue {string} updated at {string}",
   async function (title, timestamp) {
@@ -155,6 +212,20 @@ Given(
     await writeStatusIssue(
       buildStatusIssue({ id, title, updatedAt: timestamp })
     );
+  }
+);
+
+Given(
+  "the status issue {string} has status {string}",
+  async function (title, status) {
+    markConsoleDirty(this);
+    const issue = await loadIssueByTitle(title);
+    if (!issue) {
+      throw new Error(`issue not found: ${title}`);
+    }
+    issue.status = status;
+    statusIndex(this)[title] = issue.id;
+    await writeStatusIssue(issue);
   }
 );
 
@@ -268,6 +339,11 @@ When("I enable the status tree view", async function () {
 });
 
 When("I disable the status tree view", async function () {
+  await this.page.getByTestId("status-tree-toggle").uncheck();
+  await expect(this.page.getByTestId("status-feed")).toBeVisible();
+});
+
+Given("I disable the status tree view", async function () {
   await this.page.getByTestId("status-tree-toggle").uncheck();
   await expect(this.page.getByTestId("status-feed")).toBeVisible();
 });

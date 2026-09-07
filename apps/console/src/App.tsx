@@ -23,6 +23,7 @@ import { WikiPanel } from "./components/WikiPanel";
 import {
   fetchAuthBootstrap,
   fetchSnapshot,
+  fetchNowIssues,
   setAuthHeaderProvider,
   setMqttTokenProvider,
   setAuthQueryProvider,
@@ -702,6 +703,21 @@ export default function App() {
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
   const showAllTypes = route.typeFilter === "all";
+
+  useEffect(() => {
+    if (panelMode !== "now" || !apiBase) {
+      return;
+    }
+    fetchNowIssues(apiBase)
+      .then((nowIssues) => {
+        setSnapshot((previous) =>
+          previous
+            ? { ...previous, issues: nowIssues, updated_at: new Date().toISOString() }
+            : previous
+        );
+      })
+      .catch((err) => console.warn("[now] backfill failed", err));
+  }, [panelMode, apiBase]);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -1620,10 +1636,10 @@ export default function App() {
       )
     });
     return [
+      buildOption("now", "Now", Clock),
       buildOption("board", "Board", LayoutGrid),
       buildOption("wiki", "Wiki", FileText),
-      buildOption("metrics", "Metrics", BarChart3),
-      buildOption("now", "Current Status", Clock)
+      buildOption("metrics", "Metrics", BarChart3)
     ];
   }, [panelMode]);
 
@@ -1841,13 +1857,13 @@ export default function App() {
       : "transition-opacity duration-300";
 
   const viewTrackTransform = useMemo(() => {
-    if (panelMode === "wiki") {
+    if (panelMode === "board") {
       return "translateX(-25%)";
     }
-    if (panelMode === "metrics") {
+    if (panelMode === "wiki") {
       return "translateX(-50%)";
     }
-    if (panelMode === "now") {
+    if (panelMode === "metrics") {
       return "translateX(-75%)";
     }
     return "translateX(0)";
@@ -1968,7 +1984,7 @@ export default function App() {
             onClear={handleSearchClear}
             placeholder="Search issues..."
           />
-          {showTypeFilterToolbar ? (
+          {showTypeFilterToolbar && panelMode !== "now" ? (
             <AnimatedSelector
               name="view"
               value={typeFilterValue}
@@ -2038,6 +2054,26 @@ export default function App() {
             className={`view-track${sidebarReady ? " view-track-animate" : ""}`}
             style={{ transform: viewTrackTransform }}
           >
+              <div
+                className={`view-panel ${
+                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
+                }`}
+                data-testid="current-status-view"
+                aria-hidden={panelMode !== "now"}
+              >
+                <div
+                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
+                >
+                  <CurrentStatusPanel
+                    issues={issues}
+                    statuses={config?.statuses ?? []}
+                    boardTitle={config?.name ?? ""}
+                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
+                    onSelectIssue={handleSelectIssue}
+                    selectedIssueId={selectedTask?.id ?? null}
+                  />
+                </div>
+              </div>
               <div
                 className={`view-panel ${
                   panelMode === "board" ? "view-panel-active" : "view-panel-inactive"
@@ -2209,24 +2245,6 @@ export default function App() {
                       projectLabels={projectLabels}
                     />
                   ) : null}
-                </div>
-              </div>
-              <div
-                className={`view-panel ${
-                  panelMode === "now" ? "view-panel-active" : "view-panel-inactive"
-                }`}
-                data-testid="current-status-view"
-                aria-hidden={panelMode !== "now"}
-              >
-                <div
-                  className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
-                >
-                  <CurrentStatusPanel
-                    issues={issues}
-                    defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
-                    onSelectIssue={handleSelectIssue}
-                    selectedIssueId={selectedTask?.id ?? null}
-                  />
                 </div>
               </div>
             </div>

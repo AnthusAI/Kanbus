@@ -1,0 +1,28 @@
+{
+  "id": "kbs-f8cee667-a0c8-476a-bf91-10770fbec16d",
+  "title": "Now defaults to in-progress work",
+  "description": "Now is a look at work that is happening. By default it shows only in-progress issues.\n\nOperators can choose other statuses with `--status` (CLI) or the Now status filter (console). `--status all` shows every status. Named issue IDs still show those issues even when they are not in progress.\n\n## Gherkin\n\n```gherkin\nFeature: Now status filter\n  Scenario: Now lists only in-progress issues by default\n    Given an in-progress issue and an open issue\n    When I run \"kanbus now --list\"\n    Then stdout contains only the in-progress issue\n\n  Scenario: Now --status all lists every status\n    When I run \"kanbus now --list --status all\"\n    Then stdout contains both issues\n\n  Scenario: Now panel defaults to in-progress issues\n    When I switch to the \"Now\" view\n    Then only in-progress issues are listed\n```",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1addafc9-8149-4f9b-8974-05e15f6f73e5",
+      "author": "home",
+      "text": "Now defaults to in-progress on both CLI and console.\n\nCLI: `kbs now` lists only in_progress. `--status all` shows every status. Comma-separated values work. Named issue IDs skip the default filter.\n\nConsole: Status select on the Now panel defaults to In Progress. Chattic.us Now shows the two in-progress items by default; All reveals the rest of the tree.\n",
+      "created_at": "2026-09-02T22:59:43.575099Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-02T22:22:37.032496Z",
+  "updated_at": "2026-09-02T22:59:43.575135Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

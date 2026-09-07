@@ -185,6 +185,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
         project_key: "kanbus".to_string(),
+        name: None,
         project_management_template: None,
         hierarchy: vec![
             "initiative".to_string(),
@@ -260,6 +261,37 @@ pub fn default_project_configuration() -> ProjectConfiguration {
     }
 }
 
+/// Return the board title for console display.
+///
+/// # Arguments
+/// * `configured_name` - Optional `name` from `.kanbus.yml`.
+/// * `repository_root` - Repository root path.
+/// * `project_key` - Issue ID project key used when the folder name is empty.
+///
+/// # Returns
+/// Configured name, repository folder name, or project key.
+pub fn resolve_board_name(
+    configured_name: Option<&str>,
+    repository_root: &Path,
+    project_key: &str,
+) -> String {
+    if let Some(configured_name) = configured_name {
+        let trimmed = configured_name.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    let folder_name = repository_root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("")
+        .trim();
+    if folder_name.is_empty() || folder_name == "." {
+        return project_key.to_string();
+    }
+    folder_name.to_string()
+}
+
 /// Write the default configuration to disk.
 ///
 /// # Arguments
@@ -274,4 +306,39 @@ pub fn write_default_configuration(path: &Path) -> Result<(), KanbusError> {
     let contents = serde_yaml::to_string(&configuration)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
     std::fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_board_name;
+    use std::path::Path;
+
+    #[test]
+    fn resolve_board_name_prefers_configured_name() {
+        assert_eq!(
+            resolve_board_name(Some("Chattic.us"), Path::new("/tmp/other"), "kbs"),
+            "Chattic.us"
+        );
+    }
+
+    #[test]
+    fn resolve_board_name_trims_configured_name() {
+        assert_eq!(
+            resolve_board_name(Some("  Kanbus  "), Path::new("/tmp/other"), "kbs"),
+            "Kanbus"
+        );
+    }
+
+    #[test]
+    fn resolve_board_name_uses_folder_when_name_blank() {
+        assert_eq!(
+            resolve_board_name(Some("  "), Path::new("/repos/Chattic.us"), "chatticus"),
+            "Chattic.us"
+        );
+    }
+
+    #[test]
+    fn resolve_board_name_uses_project_key_when_folder_empty() {
+        assert_eq!(resolve_board_name(None, Path::new("/"), "kanbus"), "kanbus");
+    }
 }

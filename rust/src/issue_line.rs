@@ -291,6 +291,7 @@ mod tests {
             ignore_paths: Vec::new(),
             console_port: None,
             project_key: "kanbus".to_string(),
+            name: None,
             project_management_template: None,
             hierarchy: vec!["task".to_string()],
             types: vec!["task".to_string()],

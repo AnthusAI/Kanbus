@@ -331,6 +331,9 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub console_port: Option<u16>,
     pub project_key: String,
+    /// Human-readable board title. When unset, the console uses the repository folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(default)]
     pub project_management_template: Option<String>,
     pub hierarchy: Vec<String>,

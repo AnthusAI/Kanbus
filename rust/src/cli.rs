@@ -430,7 +430,8 @@ kbs now kbs-abc                  issue and descendants as a tree\n  \
 kbs now kbs-abc --no-recursive   that issue only\n  \
 kbs now kbs-abc --list           descendants as a flat list\n  \
 kbs now --json                   machine-readable JSON for agents\n  \
-kbs now --raw                    titles only, no summaries"
+kbs now --raw                    titles only, no summaries\n  \
+kbs now --status all             every status, not just in-progress"
     )]
     RightNow {
         /// Maximum number of issues to show. Default: 30 when listing the board.
@@ -457,6 +458,9 @@ kbs now --raw                    titles only, no summaries"
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Status filter. Default: in_progress. Use all for every status.
+        #[arg(long)]
+        status: Option<String>,
         /// Issue identifiers to show. Default: recently-updated issues.
         #[arg(value_name = "ISSUE")]
         issue_ids: Vec<String>,
@@ -2970,6 +2974,7 @@ fn execute_command(
             collapsed,
             raw,
             json,
+            status,
             issue_ids,
         } => {
             let options = RightNowCommandOptions {
@@ -2982,6 +2987,7 @@ fn execute_command(
                 show_all: all,
                 recursive: !no_recursive,
                 issue_ids,
+                status,
             };
             let output = run_right_now_command(root, &options)?;
             Ok(Some(output))

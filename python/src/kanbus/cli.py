@@ -2968,6 +2968,11 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
 @click.option("--collapsed", is_flag=True, default=False)
 @click.option("--raw", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False)
+@click.option(
+    "--status",
+    default=None,
+    help="Status filter. Default: in_progress. Use all for every status.",
+)
 def right_now_command(
     issue_ids: tuple[str, ...],
     limit: int | None,
@@ -2978,6 +2983,7 @@ def right_now_command(
     collapsed: bool,
     raw: bool,
     as_json: bool,
+    status: str | None,
 ) -> None:
     """List recently-updated issues with right-now summaries.
 
@@ -2993,6 +2999,7 @@ def right_now_command(
       kbs now kbs-abc --list           descendants as a flat list
       kbs now --json                   machine-readable JSON for agents
       kbs now --raw                    titles only, no summaries
+      kbs now --status all             every status, not just in-progress
     """
     root = Path.cwd()
     options = RightNowCommandOptions(
@@ -3005,6 +3012,7 @@ def right_now_command(
         show_all=show_all,
         recursive=not no_recursive,
         issue_ids=issue_ids,
+        status=status,
     )
     try:
         output = run_right_now_command(root, options)

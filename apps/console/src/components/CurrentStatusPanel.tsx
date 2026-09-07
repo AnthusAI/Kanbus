@@ -1,12 +1,16 @@
 import React, { useMemo, useState } from "react";
 import { StatusTree } from "@kanbus/ui";
-import type { Issue } from "../types/issues";
+import type { Issue, StatusDefinition } from "../types/issues";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 const DEFAULT_STATUS_FEED_LIMIT = 30;
+const DEFAULT_NOW_STATUS_FILTER = "in_progress";
+const NOW_STATUS_FILTER_ALL = "all";
 
 interface CurrentStatusPanelProps {
   issues: Issue[];
+  statuses?: StatusDefinition[];
+  boardTitle?: string;
   limit?: number;
   defaultTreeExpanded?: boolean;
   onSelectIssue?: (issue: Issue) => void;
@@ -61,25 +65,88 @@ function resolveRightNowSummary(issue: Issue): string {
   return summary;
 }
 
+function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issue[] {
+  if (matchingIssues.length === 0 || matchingIssues.length === allIssues.length) {
+    return matchingIssues;
+  }
+  const childrenByParent = new Map<string, Issue[]>();
+  for (const issue of allIssues) {
+    if (!issue.parent) {
+      continue;
+    }
+    const siblings = childrenByParent.get(issue.parent) ?? [];
+    siblings.push(issue);
+    childrenByParent.set(issue.parent, siblings);
+  }
+  const included = new Set<string>();
+  const pending = matchingIssues.map((issue) => issue.id);
+  while (pending.length > 0) {
+    const identifier = pending.pop();
+    if (!identifier || included.has(identifier)) {
+      continue;
+    }
+    included.add(identifier);
+    const children = childrenByParent.get(identifier) ?? [];
+    for (const child of children) {
+      pending.push(child.id);
+    }
+  }
+  return allIssues.filter((issue) => included.has(issue.id));
+}
+
 export function CurrentStatusPanel({
   issues,
+  statuses = [],
+  boardTitle = "",
   limit = DEFAULT_STATUS_FEED_LIMIT,
   defaultTreeExpanded = false,
   onSelectIssue,
   selectedIssueId = null,
 }: CurrentStatusPanelProps) {
-  const [treeViewEnabled, setTreeViewEnabled] = useState(false);
+  const [treeViewEnabled, setTreeViewEnabled] = useState(true);
+  const [statusFilter, setStatusFilter] = useState(DEFAULT_NOW_STATUS_FILTER);
+  const visibleIssues = useMemo(() => {
+    if (statusFilter === NOW_STATUS_FILTER_ALL) {
+      return issues;
+    }
+    return issues.filter((issue) => issue.status === statusFilter);
+  }, [issues, statusFilter]);
+  const treeIssues = useMemo(
+    () => collectNowTreeIssues(issues, visibleIssues),
+    [issues, visibleIssues]
+  );
   const feedIssues = useMemo(() => {
-    const sorted = [...issues].sort(compareRecentlyUpdated);
+    const sorted = [...visibleIssues].sort(compareRecentlyUpdated);
     if (limit <= 0) {
       return sorted;
     }
     return sorted.slice(0, limit);
-  }, [issues, limit]);
+  }, [visibleIssues, limit]);
 
   return (
     <div className="status-panel" data-testid="current-status-panel">
       <div className="status-panel-toolbar">
+        {boardTitle ? (
+          <h1 className="status-board-title" data-testid="now-board-title">
+            {boardTitle}
+          </h1>
+        ) : null}
+        <div className="status-panel-toolbar-actions">
+        <label className="status-status-filter">
+          <span>Status</span>
+          <select
+            data-testid="now-status-filter"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value={NOW_STATUS_FILTER_ALL}>All</option>
+            {statuses.map((status) => (
+              <option key={status.key} value={status.key}>
+                {status.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="status-tree-view-toggle">
           <input
             type="checkbox"
@@ -89,10 +156,11 @@ export function CurrentStatusPanel({
           />
           <span>Tree</span>
         </label>
+        </div>
       </div>
       {treeViewEnabled ? (
         <StatusTree
-          issues={issues}
+          issues={treeIssues}
           defaultExpanded={defaultTreeExpanded}
           onSelectIssue={
             onSelectIssue
