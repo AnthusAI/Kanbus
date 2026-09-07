@@ -1,6 +1,6 @@
 //! Right-now summary helpers.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -26,6 +26,8 @@ const MOCK_COST: f64 = 0.0;
 const MAX_RECENT_COMMENTS: usize = 5;
 const MAX_RECENT_ACTIVITY_CHARACTERS: usize = 2000;
 const STATUS_KEYWORDS: [&str; 5] = ["done", "in progress", "blocked", "closed", "open"];
+/// Status used when Now lists the board without an explicit `--status` filter.
+pub const DEFAULT_RIGHT_NOW_STATUS: &str = "in_progress";
 
 /// LLM usage details for right-now summary generation.
 #[derive(Debug, Clone, Copy)]
@@ -390,16 +392,21 @@ pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
     let context = build_right_now_context(&lookup.issue, &children);
     let summary = match generate_right_now_summary(root, &lookup.issue, &context) {
         Ok(summary) => summary,
-        Err(_) => return,
+        Err(error) => {
+            eprintln!("warning: right-now generation failed for {issue_identifier}: {error}");
+            return;
+        }
     };
     let current_time = Utc::now();
-    let _ = persist_right_now_summary(
+    if let Err(error) = persist_right_now_summary(
         &lookup.project_dir,
         &lookup.issue_path,
         issue_identifier,
         &summary,
         current_time,
-    );
+    ) {
+        eprintln!("warning: right-now persist failed for {issue_identifier}: {error}");
+    }
 }
 
 /// Return whether an issue needs a just-in-time right-now summary.
@@ -422,12 +429,16 @@ pub fn right_now_summary_is_missing_or_stale(issue: &IssueData) -> bool {
     }
 }
 
-/// Backfill right-now summaries for an issue after its descendants.
+/// Backfill right-now summaries for an issue after selected descendants.
+///
+/// Only children in `selected_identifiers` are visited. Unlisted descendants
+/// are left unchanged so a large closed subtree cannot block the parent.
 ///
 /// # Arguments
 ///
 /// * `root` - Repository root path.
 /// * `issue_identifier` - Issue identifier to ensure.
+/// * `selected_identifiers` - Issue identifiers in the current Now view.
 /// * `memo` - Per-walk cache of whether a subtree generated a summary.
 ///
 /// # Returns
@@ -436,6 +447,7 @@ pub fn right_now_summary_is_missing_or_stale(issue: &IssueData) -> bool {
 pub fn ensure_right_now_subtree(
     root: &Path,
     issue_identifier: &str,
+    selected_identifiers: &HashSet<String>,
     memo: &mut HashMap<String, bool>,
 ) -> bool {
     if let Some(generated) = memo.get(issue_identifier) {
@@ -450,7 +462,10 @@ pub fn ensure_right_now_subtree(
     };
     let mut descendant_generated = false;
     for child in &children {
-        if ensure_right_now_subtree(root, &child.identifier, memo) {
+        if !selected_identifiers.contains(&child.identifier) {
+            continue;
+        }
+        if ensure_right_now_subtree(root, &child.identifier, selected_identifiers, memo) {
             descendant_generated = true;
         }
     }
@@ -478,16 +493,19 @@ pub fn ensure_right_now_subtree(
     result
 }
 
-/// Backfill right-now summaries for issues and their descendants.
+/// Backfill right-now summaries for the issues in the current Now view.
+///
+/// Descendants that are not in `issue_identifiers` are not generated.
 ///
 /// # Arguments
 ///
 /// * `root` - Repository root path.
 /// * `issue_identifiers` - Issue identifiers in the current Now view.
 pub fn ensure_right_now_summaries(root: &Path, issue_identifiers: &[String]) {
+    let selected_identifiers: HashSet<String> = issue_identifiers.iter().cloned().collect();
     let mut memo = HashMap::new();
     for identifier in issue_identifiers {
-        ensure_right_now_subtree(root, identifier, &mut memo);
+        ensure_right_now_subtree(root, identifier, &selected_identifiers, &mut memo);
     }
 }
 
@@ -643,13 +661,8 @@ fn delegate_right_now_summary_to_python(
     root: &Path,
     issue_identifier: &str,
 ) -> Result<String, KanbusError> {
-    let output = Command::new("python3")
-        .args([
-            "-m",
-            "kanbus.cli",
-            "now-generate-internal",
-            issue_identifier,
-        ])
+    let output = Command::new("kanbus")
+        .args(["now-generate-internal", issue_identifier])
         .current_dir(root)
         .output()
         .map_err(|error| KanbusError::Io(format!("invoke python right-now generator: {error}")))?;

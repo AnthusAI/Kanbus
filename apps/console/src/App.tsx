@@ -1977,7 +1977,7 @@ export default function App() {
             onClear={handleSearchClear}
             placeholder="Search issues..."
           />
-          {showTypeFilterToolbar ? (
+          {showTypeFilterToolbar && panelMode !== "now" ? (
             <AnimatedSelector
               name="view"
               value={typeFilterValue}
@@ -2059,6 +2059,8 @@ export default function App() {
                 >
                   <CurrentStatusPanel
                     issues={issues}
+                    statuses={config?.statuses ?? []}
+                    boardTitle={config?.name ?? ""}
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}
                     selectedIssueId={selectedTask?.id ?? null}

@@ -18,6 +18,9 @@ from kanbus.right_now import ensure_right_now_summaries, get_right_now_summary
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 DEFAULT_RIGHT_NOW_LIMIT = 30
+DEFAULT_RIGHT_NOW_STATUS = "in_progress"
+RIGHT_NOW_STATUS_ALL = "all"
+EMPTY_STATUS_FILTER = "status filter must not be empty"
 CANNOT_COMBINE_ALL_WITH_LIMIT = "cannot combine --all with --limit"
 CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS = (
     "cannot combine --all with issue identifiers"
@@ -54,6 +57,10 @@ class RightNowCommandOptions:
     :type recursive: bool
     :param issue_ids: Optional issue identifiers to select.
     :type issue_ids: tuple[str, ...]
+    :param status: Status filter. ``None`` defaults to in-progress for board
+        listings and to every status when issue identifiers are named.
+        ``all`` includes every status. Comma-separated values select several.
+    :type status: Optional[str]
     """
 
     limit: Optional[int] = None
@@ -65,6 +72,7 @@ class RightNowCommandOptions:
     show_all: bool = False
     recursive: bool = True
     issue_ids: tuple[str, ...] = ()
+    status: Optional[str] = None
 
 
 def run_right_now_command(
@@ -134,6 +142,33 @@ def _validate_right_now_options(options: RightNowCommandOptions) -> None:
         raise RightNowCommandError(CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS)
     if not options.recursive and not options.issue_ids:
         raise RightNowCommandError(NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS)
+    _resolve_right_now_statuses(options.status, bool(options.issue_ids))
+
+
+def _resolve_right_now_statuses(
+    status_option: Optional[str],
+    has_issue_identifiers: bool,
+) -> Optional[set[str]]:
+    """Return allowed statuses, or ``None`` to include every status.
+
+    :param status_option: Raw ``--status`` value.
+    :type status_option: Optional[str]
+    :param has_issue_identifiers: Whether the command named issue IDs.
+    :type has_issue_identifiers: bool
+    :return: Allowed status keys, or ``None`` for no filter.
+    :rtype: Optional[set[str]]
+    :raises RightNowCommandError: When the status filter is empty.
+    """
+    if status_option is None:
+        if has_issue_identifiers:
+            return None
+        return {DEFAULT_RIGHT_NOW_STATUS}
+    tokens = [part.strip() for part in status_option.split(",") if part.strip()]
+    if not tokens:
+        raise RightNowCommandError(EMPTY_STATUS_FILTER)
+    if RIGHT_NOW_STATUS_ALL in tokens:
+        return None
+    return set(tokens)
 
 
 def _effective_right_now_limit(options: RightNowCommandOptions) -> int:
@@ -152,7 +187,7 @@ def _select_right_now_issues(
 ) -> List[IssueData]:
     issues = list_issues(root)
     if not options.issue_ids:
-        return issues
+        return _filter_right_now_issues_by_status(issues, options)
     issues_by_identifier: Dict[str, IssueData] = {
         issue.identifier: issue for issue in issues
     }
@@ -179,11 +214,22 @@ def _select_right_now_issues(
                 if child_identifier not in selected:
                     selected.add(child_identifier)
                     queue.append(child_identifier)
-    return [
+    selected_issues = [
         issues_by_identifier[identifier]
         for identifier in selected
         if identifier in issues_by_identifier
     ]
+    return _filter_right_now_issues_by_status(selected_issues, options)
+
+
+def _filter_right_now_issues_by_status(
+    issues: List[IssueData],
+    options: RightNowCommandOptions,
+) -> List[IssueData]:
+    allowed = _resolve_right_now_statuses(options.status, bool(options.issue_ids))
+    if allowed is None:
+        return issues
+    return [issue for issue in issues if issue.status in allowed]
 
 
 def _load_configuration(root: Path) -> Optional[ProjectConfiguration]:

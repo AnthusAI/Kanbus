@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 
+use crate::config::resolve_board_name;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{
@@ -14,6 +15,7 @@ use crate::file_io::{
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::overlay::apply_overlay_to_issues;
+use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
 
 /// Snapshot payload for the console.
 #[derive(Debug, Clone, Serialize)]
@@ -116,7 +118,12 @@ impl FileStore {
 
     /// Build a snapshot payload for this store.
     pub fn build_snapshot(&self) -> Result<ConsoleSnapshot, KanbusError> {
-        let configuration = self.load_config()?;
+        let mut configuration = self.load_config()?;
+        configuration.name = Some(resolve_board_name(
+            configuration.name.as_deref(),
+            self.root(),
+            &configuration.project_key,
+        ));
         let mut issues = self.load_issues(&configuration)?;
         issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
         let updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -127,7 +134,11 @@ impl FileStore {
         })
     }
 
-    /// Backfill right-now summaries for every issue in this store.
+    /// Backfill right-now summaries for in-progress issues in this store.
+    ///
+    /// Closed and other out-of-view descendants are not generated, so a large
+    /// initiative cannot block the Now feed. The full snapshot is still returned
+    /// to the console for the Status filter.
     ///
     /// # Errors
     ///
@@ -137,6 +148,7 @@ impl FileStore {
         let issues = self.load_issues(&configuration)?;
         let identifiers: Vec<String> = issues
             .iter()
+            .filter(|issue| issue.status == DEFAULT_RIGHT_NOW_STATUS)
             .map(|issue| issue.identifier.clone())
             .collect();
         crate::right_now::ensure_right_now_summaries(self.root(), &identifiers);

@@ -13,6 +13,7 @@ use crate::step_definitions::initialization_steps::KanbusWorld;
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const STATUS_FEED_LIMIT: usize = 30;
+const NOW_STATUS_FILTER_ALL: &str = "all";
 
 struct StatusTreeNode {
     issue_index: usize,
@@ -49,14 +50,64 @@ fn compare_recently_updated(left: &ConsoleIssue, right: &ConsoleIssue) -> std::c
     })
 }
 
-fn build_status_tree(state: &ConsoleState) -> Vec<StatusTreeNode> {
-    let identifiers: std::collections::HashSet<String> = state
+fn issue_matches_status_filter(state: &ConsoleState, issue: &ConsoleIssue) -> bool {
+    state.status_filter == NOW_STATUS_FILTER_ALL || issue.status == state.status_filter
+}
+
+fn now_visible_issues(state: &ConsoleState) -> Vec<&ConsoleIssue> {
+    state
         .issues
         .iter()
-        .filter_map(|issue| issue.identifier.clone())
+        .filter(|issue| issue_matches_status_filter(state, issue))
+        .collect()
+}
+
+fn issue_tree_identifier(issue: &ConsoleIssue) -> String {
+    issue
+        .identifier
+        .clone()
+        .unwrap_or_else(|| issue.title.clone())
+}
+
+fn now_tree_identifiers(state: &ConsoleState) -> std::collections::HashSet<String> {
+    let matching: Vec<String> = state
+        .issues
+        .iter()
+        .filter(|issue| issue_matches_status_filter(state, issue))
+        .map(issue_tree_identifier)
         .collect();
+    if matching.len() == state.issues.len() {
+        return matching.into_iter().collect();
+    }
+    let mut children_by_parent: HashMap<String, Vec<String>> = HashMap::new();
+    for issue in &state.issues {
+        if let Some(parent_identifier) = resolve_parent_identifier(state, issue) {
+            children_by_parent
+                .entry(parent_identifier)
+                .or_default()
+                .push(issue_tree_identifier(issue));
+        }
+    }
+    let mut included = std::collections::HashSet::new();
+    let mut pending = matching;
+    while let Some(identifier) = pending.pop() {
+        if !included.insert(identifier.clone()) {
+            continue;
+        }
+        if let Some(children) = children_by_parent.get(&identifier) {
+            pending.extend(children.iter().cloned());
+        }
+    }
+    included
+}
+
+fn build_status_tree(state: &ConsoleState) -> Vec<StatusTreeNode> {
+    let identifiers = now_tree_identifiers(state);
     let mut children_by_parent: HashMap<String, Vec<usize>> = HashMap::new();
     for (index, issue) in state.issues.iter().enumerate() {
+        if !identifiers.contains(&issue_tree_identifier(issue)) {
+            continue;
+        }
         let Some(parent_identifier) = resolve_parent_identifier(state, issue) else {
             continue;
         };
@@ -73,6 +124,9 @@ fn build_status_tree(state: &ConsoleState) -> Vec<StatusTreeNode> {
 
     let mut roots = Vec::new();
     for (index, issue) in state.issues.iter().enumerate() {
+        if !identifiers.contains(&issue_tree_identifier(issue)) {
+            continue;
+        }
         match resolve_parent_identifier(state, issue) {
             None => roots.push(index),
             Some(parent_identifier) if !identifiers.contains(&parent_identifier) => {
@@ -114,12 +168,12 @@ fn build_status_tree(state: &ConsoleState) -> Vec<StatusTreeNode> {
 }
 
 fn status_tree_has_children(state: &ConsoleState, issue: &ConsoleIssue) -> bool {
-    let issue_identifier = issue
-        .identifier
-        .clone()
-        .unwrap_or_else(|| issue.title.clone());
+    let identifiers = now_tree_identifiers(state);
+    let issue_identifier = issue_tree_identifier(issue);
     state.issues.iter().any(|candidate| {
-        resolve_parent_identifier(state, candidate).as_deref() == Some(issue_identifier.as_str())
+        identifiers.contains(&issue_tree_identifier(candidate))
+            && resolve_parent_identifier(state, candidate).as_deref()
+                == Some(issue_identifier.as_str())
     })
 }
 
@@ -157,8 +211,8 @@ fn status_tree_visible_titles(state: &ConsoleState) -> Vec<String> {
     visible_titles
 }
 
-fn status_feed_issues(issues: &[ConsoleIssue]) -> Vec<&ConsoleIssue> {
-    let mut sorted: Vec<&ConsoleIssue> = issues.iter().collect();
+fn status_feed_issues<'a>(issues: Vec<&'a ConsoleIssue>) -> Vec<&'a ConsoleIssue> {
+    let mut sorted = issues;
     sorted.sort_by(|left, right| {
         let left_key = left.updated_at.as_deref().unwrap_or("");
         let right_key = right.updated_at.as_deref().unwrap_or("");
@@ -199,6 +253,59 @@ fn post_notification(world: &KanbusWorld, body: serde_json::Value) {
 fn then_current_status_view_active(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert_eq!(state.panel_mode, "now");
+}
+
+#[then("the type filter selector should be hidden")]
+fn then_type_filter_selector_hidden(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "now");
+    let app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+        .join("src")
+        .join("App.tsx");
+    let app_source = fs::read_to_string(app_path).expect("read App.tsx");
+    assert!(
+        app_source.contains("panelMode !== \"now\""),
+        "App.tsx does not hide the type filter on Now"
+    );
+}
+
+#[then("the type filter selector should be visible")]
+fn then_type_filter_selector_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_ne!(state.panel_mode, "now");
+}
+
+#[then(expr = "the status tree node for {string} should be expandable")]
+fn then_status_tree_node_expandable(world: &mut KanbusWorld, title: String) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    let issue = &state.issues[index];
+    assert!(
+        status_tree_has_children(state, issue),
+        "expected expandable tree node: {title}"
+    );
+}
+
+#[then(expr = "the now panel board title should be {string}")]
+fn then_now_panel_board_title(world: &mut KanbusWorld, title: String) {
+    let state = require_console_state(world);
+    assert_eq!(state.board_name, title);
+}
+
+#[then("the now panel board title should be the repository directory name")]
+fn then_now_panel_board_title_is_repository_directory(world: &mut KanbusWorld) {
+    let expected = world
+        .working_directory
+        .as_ref()
+        .expect("working directory")
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("directory name")
+        .to_string();
+    then_now_panel_board_title(world, expected);
 }
 
 #[then(expr = "the panel mode selector labels should be {string}")]
@@ -249,19 +356,41 @@ fn panel_mode_selector_labels() -> Vec<String> {
 
 #[given(expr = "a status issue {string} updated at {string}")]
 fn given_status_issue(world: &mut KanbusWorld, title: String, timestamp: String) {
+    push_status_issue(world, title, "task", timestamp, "in_progress", None);
+}
+
+#[given(expr = "the status issue {string} has status {string}")]
+fn given_status_issue_has_status(world: &mut KanbusWorld, title: String, status: String) {
+    let state = require_console_state(world);
+    let issue = state
+        .issues
+        .iter_mut()
+        .find(|issue| issue.title == title)
+        .expect("issue not found");
+    issue.status = status;
+}
+
+fn push_status_issue(
+    world: &mut KanbusWorld,
+    title: String,
+    issue_type: &str,
+    timestamp: String,
+    status: &str,
+    parent_title: Option<String>,
+) {
     let state = require_console_state(world);
     let index = state.issues.len() + 1;
     state.issues.push(ConsoleIssue {
         identifier: Some(format!("kanbus-status-{index}")),
         title,
-        issue_type: "task".to_string(),
-        parent_title: None,
+        issue_type: issue_type.to_string(),
+        parent_title,
         comments: Vec::new(),
         assignee: None,
         created_at: None,
         updated_at: Some(timestamp),
         closed_at: None,
-        status: "open".to_string(),
+        status: status.to_string(),
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
@@ -289,7 +418,7 @@ fn given_status_hierarchy_root(
         created_at: None,
         updated_at: Some(timestamp),
         closed_at: None,
-        status: "open".to_string(),
+        status: "in_progress".to_string(),
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
@@ -320,7 +449,7 @@ fn given_status_hierarchy_child(
         created_at: None,
         updated_at: Some(timestamp),
         closed_at: None,
-        status: "open".to_string(),
+        status: "in_progress".to_string(),
         priority: 2,
         project_label: "kbs".to_string(),
         location: "shared".to_string(),
@@ -361,7 +490,7 @@ fn given_thirty_five_status_issues(world: &mut KanbusWorld) {
             created_at: None,
             updated_at: Some(format!("2026-01-{day:02}T10:00:00.000Z")),
             closed_at: None,
-            status: "open".to_string(),
+            status: "in_progress".to_string(),
             priority: 2,
             project_label: "kbs".to_string(),
             location: "shared".to_string(),
@@ -382,6 +511,13 @@ fn when_enable_status_tree_view(world: &mut KanbusWorld) {
 fn when_disable_status_tree_view(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     state.status_tree_mode = false;
+}
+
+#[when(expr = "I select the now status filter {string}")]
+#[given(expr = "I select the now status filter {string}")]
+fn when_select_now_status_filter(world: &mut KanbusWorld, status: String) {
+    let state = require_console_state(world);
+    state.status_filter = status;
 }
 
 #[when(expr = "I collapse the status tree node for {string}")]
@@ -411,7 +547,7 @@ fn then_status_feed_order(world: &mut KanbusWorld, order: String) {
         .split(',')
         .map(|title| title.trim().to_string())
         .collect();
-    let actual: Vec<String> = status_feed_issues(&state.issues)
+    let actual: Vec<String> = status_feed_issues(now_visible_issues(state))
         .iter()
         .map(|issue| issue.title.clone())
         .collect();
@@ -570,6 +706,6 @@ fn when_console_receives_issue_update(world: &mut KanbusWorld, title: String, su
 #[then(expr = "the status feed should contain {int} rows")]
 fn then_status_feed_row_count(world: &mut KanbusWorld, count: i32) {
     let state = require_console_state(world);
-    let actual = status_feed_issues(&state.issues).len();
+    let actual = status_feed_issues(now_visible_issues(state)).len();
     assert_eq!(actual, count as usize);
 }

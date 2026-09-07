@@ -1,10 +1,15 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { formatIssueId } from "./format-issue-id";
+import { getTypeIcon } from "./issue-icons";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 
 export interface StatusTreeIssue {
   id: string;
   title: string;
+  type?: string;
+  status?: string;
   parent?: string;
   updated_at?: string;
   right_now_summary?: string | null;
@@ -57,10 +62,6 @@ function resolveRightNowSummary(issue: StatusTreeIssue): string {
     return RIGHT_NOW_PLACEHOLDER;
   }
   return summary;
-}
-
-function collapseMarker(expanded: boolean): string {
-  return expanded ? "[-]" : "[+]";
 }
 
 function buildStatusTree(issues: StatusTreeIssue[]): StatusTreeNode[] {
@@ -119,6 +120,8 @@ function StatusTreeRow({
   const expanded = expandedOverrides[issue.id] ?? defaultExpanded;
   const summaryText = resolveRightNowSummary(issue);
   const isSelected = selectedIssueId === issue.id;
+  const IssueTypeIcon = getTypeIcon(issue.type ?? "task", issue.status);
+  const ExpandIcon = expanded ? ChevronDown : ChevronRight;
 
   const handleToggle = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -135,6 +138,7 @@ function StatusTreeRow({
         data-testid="status-tree-row"
         data-issue-title={issue.title}
         data-issue-id={issue.id}
+        data-issue-type={issue.type}
         data-tree-depth={depth}
         data-tree-expanded={hasChildren ? String(expanded) : undefined}
       >
@@ -146,13 +150,18 @@ function StatusTreeRow({
               data-testid="status-tree-node-toggle"
               data-issue-title={issue.title}
               aria-expanded={expanded}
+              aria-label={expanded ? "Collapse descendants" : "Expand descendants"}
               onClick={handleToggle}
             >
-              {collapseMarker(expanded)}
+              <ExpandIcon className="status-tree-toggle-icon" aria-hidden="true" />
             </button>
           ) : (
             <span className="status-tree-toggle-spacer" aria-hidden="true" />
           )}
+          <IssueTypeIcon className="status-tree-type-icon" aria-hidden="true" />
+          <span className="status-tree-id" data-testid="status-tree-id">
+            {formatIssueId(issue.id)}
+          </span>
           <button
             type="button"
             className="status-tree-title-button"
