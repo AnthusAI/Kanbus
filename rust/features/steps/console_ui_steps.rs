@@ -205,12 +205,34 @@ fn issue_types_for_board_filter(
     }
 }
 
+fn board_column_fixture_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("apps")
+        .join("console")
+        .join("tests")
+        .join("fixtures")
+        .join("kanbus.board-columns.yml")
+}
+
+#[given("the console uses the board column filter workflow configuration")]
+fn given_board_column_filter_workflow_configuration(world: &mut KanbusWorld) {
+    world.console_board_column_fixture_loaded = true;
+}
+
 fn board_column_labels(world: &mut KanbusWorld) -> Vec<String> {
     use kanbus::config::default_project_configuration;
+    use kanbus::config_loader::load_project_configuration;
     use kanbus::workflows::get_workflow_for_issue_type;
 
+    let fixture_loaded = world.console_board_column_fixture_loaded;
     let state = require_console_state(world);
-    let configuration = default_project_configuration();
+    let configuration = if fixture_loaded {
+        load_project_configuration(&board_column_fixture_path())
+            .expect("board column fixture configuration should load")
+    } else {
+        default_project_configuration()
+    };
     let board_filter = board_type_filter_from_selected_tab(&state.selected_tab);
     if board_filter == "all" {
         return configuration

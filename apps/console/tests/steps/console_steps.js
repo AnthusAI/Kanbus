@@ -2,8 +2,21 @@ import { Given, When, Then } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
 import { readFile, readdir, writeFile } from "fs/promises";
 import path from "path";
+import { fileURLToPath } from "url";
 import yaml from "js-yaml";
 import { rm, mkdir } from "fs/promises";
+
+const consoleRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".."
+);
+const boardColumnsConfigFixture = path.join(
+  consoleRoot,
+  "tests",
+  "fixtures",
+  "kanbus.board-columns.yml"
+);
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 const projectIssuesRoot = projectRoot ? path.join(projectRoot, "issues") : null;
@@ -261,6 +274,14 @@ function normalizeTimestamp(value) {
 
 Given("the console is open", async function () {
   await expect(this.page.getByTestId("open-settings")).toBeVisible();
+});
+
+Given("the console uses the board column filter workflow configuration", async function () {
+  const contents = await readFile(boardColumnsConfigFixture, "utf-8");
+  const config = yaml.load(contents) ?? {};
+  await saveKanbusConfig(config);
+  await refreshConsoleSnapshot();
+  await this.page.reload({ waitUntil: "domcontentloaded" });
 });
 
 Given("the Kanbus configuration has no sort_order rules", async function () {

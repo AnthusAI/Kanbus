@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { mkdtemp, cp, rm, writeFile, access } from "fs/promises";
+import { mkdtemp, cp, rm, readFile, writeFile, access } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,6 +11,12 @@ const consoleRoot = path.resolve(
 const repoRoot = path.resolve(consoleRoot, "../..");
 const pythonPath = path.join(repoRoot, "python", "src");
 const fixtureSource = path.resolve(consoleRoot, "tests", "fixtures", "project");
+const boardColumnsConfigFixture = path.resolve(
+  consoleRoot,
+  "tests",
+  "fixtures",
+  "kanbus.board-columns.yml"
+);
 
 function runCommand(
   command: string,
@@ -53,11 +59,8 @@ async function main() {
   const projectDir = path.join(tempDir, "project");
   await cp(fixtureSource, projectDir, { recursive: true });
   const configurationPath = path.join(tempDir, ".kanbus.yml");
-  await writeFile(
-    configurationPath,
-    "project_directory: project\nproject_key: kanbus\n",
-    "utf-8"
-  );
+  const configurationContents = await readFile(boardColumnsConfigFixture, "utf-8");
+  await writeFile(configurationPath, configurationContents, "utf-8");
 
   const kanbusPython = process.env.KANBUS_PYTHON ?? "python3";
   const kanbusPythonArgs =
