@@ -151,6 +151,10 @@ def test_format_agent_settings_display() -> None:
             "temperature": 0.5,
             "speed": "fast",
             "reasoning_effort": "turbo",
+            "flags": {"nested": True},
+            "enabled": True,
+            "disabled": False,
+            "optional": None,
         },
     )
     display = format_agent_settings_display(with_settings)
@@ -159,3 +163,7 @@ def test_format_agent_settings_display() -> None:
     assert "temperature=0.5" in display
     assert "speed=fast" in display
     assert "reasoning_effort=turbo" in display
+    assert "flags=" in display
+    assert "enabled=true" in display
+    assert "disabled=false" in display
+    assert "optional=null" in display

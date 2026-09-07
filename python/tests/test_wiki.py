@@ -474,6 +474,31 @@ def test_convert_wiki_markdown_to_html_rejects_unknown_directive() -> None:
         wiki.convert_wiki_markdown_to_html(source)
 
 
+def test_convert_wiki_markdown_to_html_wraps_unexpected_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_runtime_error(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("markus exploded")
+
+    monkeypatch.setattr(wiki, "convert_markus_source", raise_runtime_error)
+    with pytest.raises(wiki.WikiError, match="markus exploded"):
+        wiki.convert_wiki_markdown_to_html("plain")
+
+
+def test_wiki_internal_link_normalizes_dot_segments() -> None:
+    assert (
+        wiki._resolve_wiki_internal_link("guides/intro.md", "./sibling.md")
+        == "guides/sibling.md"
+    )
+
+
+def test_extract_wiki_title_alias_and_unclosed_frontmatter() -> None:
+    assert wiki._extract_wiki_title("# Heading title") == "Heading title"
+    frontmatter, body = wiki._split_wiki_frontmatter("---\ntitle: Dangling\n# Body\n")
+    assert frontmatter is None
+    assert "Dangling" in body
+
+
 def test_format_wiki_render_json_includes_rendered_html() -> None:
     payload = wiki.format_wiki_render_json(
         "project/wiki/status.md",

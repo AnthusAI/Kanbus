@@ -80,6 +80,62 @@ def test_wiki_render_and_list_commands(
     assert "wiki fail" in result_render_fail.output
 
     monkeypatch.setattr(
+        cli, "render_wiki_page", lambda _req, reference_warnings=None: "Open: 3"
+    )
+    monkeypatch.setattr(
+        cli,
+        "convert_wiki_markdown_to_html",
+        lambda _markdown: '<article class="markus-document"><p>Open: 3</p></article>',
+    )
+    monkeypatch.setattr(
+        cli, "resolve_wiki_page_path", lambda _root, _page: Path("project/wiki/page.md")
+    )
+    result_html = _run(["wiki", "render", "project/wiki/page.md", "--html"])
+    assert result_html.exit_code == 0
+    assert "markus-document" in result_html.output
+
+    result_json = _run(["wiki", "render", "project/wiki/page.md", "--json"])
+    assert result_json.exit_code == 0
+    assert "rendered_html" in result_json.output
+    assert "Open: 3" in result_json.output
+
+    monkeypatch.setattr(
+        cli,
+        "convert_wiki_markdown_to_html",
+        lambda _markdown: (_ for _ in ()).throw(cli.WikiError("Unknown directive")),
+    )
+    result_html_fail = _run(["wiki", "render", "project/wiki/page.md", "--html"])
+    assert result_html_fail.exit_code != 0
+    assert "Unknown directive" in result_html_fail.output
+
+    monkeypatch.setattr(
+        cli,
+        "convert_wiki_markdown_to_html",
+        lambda _markdown: '<article class="markus-document"><p>Open: 3</p></article>',
+    )
+    monkeypatch.setattr(
+        cli,
+        "resolve_wiki_page_path",
+        lambda _root, _page: (_ for _ in ()).throw(
+            cli.WikiError("wiki page not found")
+        ),
+    )
+    result_json_resolve_fail = _run(
+        ["wiki", "render", "project/wiki/page.md", "--json"]
+    )
+    assert result_json_resolve_fail.exit_code != 0
+    assert "wiki page not found" in result_json_resolve_fail.output
+
+    monkeypatch.setattr(
+        cli,
+        "init_wiki",
+        lambda _root: (_ for _ in ()).throw(cli.WikiError("wiki init fail")),
+    )
+    result_init_fail = _run(["wiki", "init"])
+    assert result_init_fail.exit_code != 0
+    assert "wiki init fail" in result_init_fail.output
+
+    monkeypatch.setattr(
         cli, "list_wiki_pages", lambda _root: ["project/wiki/a.md", "project/wiki/b.md"]
     )
     result_list = _run(["wiki", "list"])

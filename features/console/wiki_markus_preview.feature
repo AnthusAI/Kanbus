@@ -8,6 +8,7 @@ Feature: Console wiki Markus preview
 
   Scenario: Wiki preview shows backend-rendered Markus HTML
     Given the console is open
+    And the wiki storage is empty
     And a wiki page "quote.md" exists with content:
       """
       :::pull-quote
@@ -23,6 +24,7 @@ Feature: Console wiki Markus preview
 
   Scenario: Wiki preview renders Markus card-grid from backend HTML
     Given the console is open
+    And the wiki storage is empty
     And a wiki page "cards.md" exists with content:
       """
       :::card-grid
@@ -43,6 +45,7 @@ Feature: Console wiki Markus preview
 
   Scenario: Unknown Markus directive shows render error in console
     Given the console is open
+    And the wiki storage is empty
     And a wiki page "bad.md" exists with content:
       """
       :::unknown-directive
@@ -56,6 +59,7 @@ Feature: Console wiki Markus preview
 
   Scenario: Markus render error preserves last successful preview
     Given the console is open
+    And the wiki storage is empty
     And a wiki page "baseline.md" exists with content:
       """
       :::pull-quote
