@@ -108,3 +108,31 @@ Feature: Console kanban board
       | kanbus-open-p0 | Priority 1      | open   | 1        | 2026-01-02T00:00:00.000Z | 2026-01-03T00:00:00.000Z |
     When I switch to the "Tasks" tab
     Then the "open" column should list issues in order "Priority 1, Priority 1 late, Priority 2"
+
+  Scenario: Epics type filter shows only epic workflow columns
+    Given the console is open
+    And the console uses the board column filter workflow configuration
+    When I switch to the "Epics" tab
+    Then the board should show the column "Ready"
+    And the board should show the column "In Progress"
+    And the board should show the column "Done"
+    And the board should not show the column "Backlog"
+    And the board should not show the column "Discovery"
+    And the board should not show the column "Blocked"
+    And the board should not show the column "Copy Writing"
+
+  Scenario: Issues type filter shows default and story workflow columns
+    Given the console is open
+    And the console uses the board column filter workflow configuration
+    When I switch to the "Tasks" tab
+    Then the board should show the column "Backlog"
+    And the board should show the column "Blocked"
+    And the board should show the column "Copy Writing"
+
+  Scenario: All type filter shows every configured status column
+    Given the console is open
+    And the console uses the board column filter workflow configuration
+    When I select the "All" type filter
+    Then the board should show the column "Backlog"
+    And the board should show the column "Discovery"
+    And the board should show the column "Copy Writing"

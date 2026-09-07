@@ -507,6 +507,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "kanbus".to_string(),
+        name: None,
         project_management_template: None,
         hierarchy: vec!["initiative".to_string(), "epic".to_string()],
         types: vec!["bug".to_string()],

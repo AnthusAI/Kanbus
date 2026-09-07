@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import yaml
 from pydantic import ValidationError
@@ -513,3 +513,29 @@ def _reject_legacy_fields(data: dict) -> None:
 
 def _has_unknown_fields(error: ValidationError) -> bool:
     return any(item.get("type") == "extra_forbidden" for item in error.errors())
+
+
+def resolve_board_name(
+    configured_name: Optional[str],
+    repository_root: Path,
+    project_key: str,
+) -> str:
+    """Return the board title for console display.
+
+    :param configured_name: Optional ``name`` from ``.kanbus.yml``.
+    :type configured_name: Optional[str]
+    :param repository_root: Repository root path.
+    :type repository_root: Path
+    :param project_key: Issue ID project key used when the folder name is empty.
+    :type project_key: str
+    :return: Configured name, repository folder name, or project key.
+    :rtype: str
+    """
+    if configured_name is not None:
+        trimmed = configured_name.strip()
+        if trimmed:
+            return trimmed
+    folder_name = repository_root.resolve().name
+    if folder_name and folder_name != ".":
+        return folder_name
+    return project_key

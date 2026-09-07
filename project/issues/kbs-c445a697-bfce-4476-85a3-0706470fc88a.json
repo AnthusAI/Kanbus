@@ -3,7 +3,7 @@
   "title": "Wiki list/search/render --json and --limit flags",
   "description": "P2 follow-up (not in PR #172): add --json and --limit to kbs wiki list, search, and render for agent/script consumption. Researcher and Papyrus AT agreed; defer until after current wiki KB epic lands. Spec-first, dual runtime when implemented.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 3,
   "assignee": null,
   "creator": null,
@@ -16,18 +16,34 @@
       "author": "home",
       "text": "Planning: Composer 2.5. Wiki --json/--limit leftover of fbaf62. Worktree /tmp/kanbus-c445a6-wiki-json from origin/develop, branch cursor/wiki-json-c445a6-4a21. Plan only this turn.",
       "created_at": "2026-09-02T19:30:10.088205Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     },
     {
       "id": "08e93073-608e-4a26-be45-f03170c57402",
       "author": "home",
-      "text": "Plan correction: --json on list, search, and render. --limit only on list and search (not on render — do not add a flag that only errors). Do not edit CONTRIBUTING_AGENT.md this cycle (17b4a4 owns it). Document flags in WIKI_GUIDE.md. Worktree not created yet.",
+      "text": "Plan correction: --json on list, search, and render. --limit only on list and search (not on render \u2014 do not add a flag that only errors). Do not edit CONTRIBUTING_AGENT.md this cycle (17b4a4 owns it). Document flags in WIKI_GUIDE.md. Worktree not created yet.",
       "created_at": "2026-09-02T19:33:29.198800Z",
-      "comment_type": "default"
+      "comment_type": "default",
+      "data": {},
+      "agent": null
+    },
+    {
+      "id": "91703749-4264-41a0-b0cc-4a522cfb6347",
+      "author": "home",
+      "text": "Squash-merged PR 205 to develop (554f2352). Worktrees removed.",
+      "created_at": "2026-09-02T20:21:53.877442Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
     }
   ],
-  "created_at": "2026-08-29T00:19:48.746149925Z",
-  "updated_at": "2026-09-02T19:33:29.198800Z",
-  "closed_at": null,
-  "custom": {}
+  "created_at": "2026-08-29T00:19:48.746149Z",
+  "updated_at": "2026-09-02T20:21:55.172211Z",
+  "closed_at": "2026-09-02T20:21:55.126597Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": null
 }

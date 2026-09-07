@@ -17,6 +17,17 @@ from zoneinfo import ZoneInfo
 
 from behave import given, then, when
 
+import yaml
+
+BOARD_COLUMN_FILTER_FIXTURE = (
+    Path(__file__).resolve().parents[3]
+    / "apps"
+    / "console"
+    / "tests"
+    / "fixtures"
+    / "kanbus.board-columns.yml"
+)
+
 # ---------------------------------------------------------------------------
 # kbsc server lifecycle helpers
 # ---------------------------------------------------------------------------
@@ -204,9 +215,11 @@ class ConsoleState:
     time_zone: str | None
     panel_mode: str = "board"
     metrics_project_filter: str | None = None
-    status_tree_mode: bool = False
+    status_tree_mode: bool = True
     status_tree_expanded_overrides: dict[str, bool] = field(default_factory=dict)
     default_tree_expanded: bool = False
+    status_filter: str = "in_progress"
+    board_name: str = "kanbus"
 
 
 @given("the console is open")
@@ -331,6 +344,116 @@ def when_switch_tab(context: object, tab: str) -> None:
     state.selected_tab = tab
     storage.selected_tab = tab
     context.last_tab_click = tab
+
+
+@given("the console uses the board column filter workflow configuration")
+def given_board_column_filter_workflow_configuration(context: object) -> None:
+    context.console_kanbus_config = yaml.safe_load(
+        BOARD_COLUMN_FILTER_FIXTURE.read_text(encoding="utf-8")
+    )
+
+
+@when('I select the "{filter_name}" type filter')
+def when_select_type_filter(context: object, filter_name: str) -> None:
+    state = _require_console_state(context)
+    storage = _ensure_console_storage(context)
+    state.selected_tab = filter_name
+    storage.selected_tab = filter_name
+    context.last_tab_click = filter_name
+
+
+def _collect_workflow_statuses(workflow: dict[str, list[str]]) -> set[str]:
+    statuses = set(workflow.keys())
+    for transitions in workflow.values():
+        statuses.update(transitions)
+    return statuses
+
+
+def _get_workflow_for_issue_type(
+    workflows: dict[str, dict[str, list[str]]], issue_type: str
+) -> dict[str, list[str]]:
+    if issue_type in workflows:
+        return workflows[issue_type]
+    if "default" not in workflows:
+        raise ValueError("default workflow not defined")
+    return workflows["default"]
+
+
+def _board_type_filter_from_selected_tab(selected: str) -> str:
+    if selected == "All":
+        return "all"
+    if selected == "Initiatives":
+        return "initiatives"
+    if selected == "Epics":
+        return "epics"
+    return "issues"
+
+
+def _issue_types_for_board_filter_key(
+    board_filter: str, hierarchy: list[str], types: list[str]
+) -> list[str]:
+    if board_filter == "all":
+        return []
+    if board_filter == "initiatives":
+        return ["initiative"]
+    if board_filter == "epics":
+        return ["epic"]
+    hierarchy_set = set(hierarchy)
+    excluded = {"initiative", "epic", "sub-task"}
+    from_hierarchy = [entry for entry in hierarchy if entry not in excluded]
+    from_types = [
+        entry
+        for entry in types
+        if entry not in excluded and entry not in hierarchy_set
+    ]
+    return list(dict.fromkeys([*from_hierarchy, *from_types]))
+
+
+def _default_console_kanbus_config() -> dict:
+    from kanbus.config import DEFAULT_CONFIGURATION
+
+    return {
+        "statuses": DEFAULT_CONFIGURATION["statuses"],
+        "workflows": DEFAULT_CONFIGURATION["workflows"],
+        "hierarchy": DEFAULT_CONFIGURATION["hierarchy"],
+        "types": DEFAULT_CONFIGURATION["types"],
+    }
+
+
+def _board_column_labels(context: object) -> list[str]:
+    state = _require_console_state(context)
+    config = getattr(context, "console_kanbus_config", None)
+    if config is None:
+        config = _default_console_kanbus_config()
+    board_filter = _board_type_filter_from_selected_tab(state.selected_tab or "Epics")
+    if board_filter == "all":
+        return [status["name"] for status in config["statuses"]]
+    issue_types = _issue_types_for_board_filter_key(
+        board_filter, config["hierarchy"], config["types"]
+    )
+    status_keys: set[str] = set()
+    for issue_type in issue_types:
+        workflow = _get_workflow_for_issue_type(config["workflows"], issue_type)
+        status_keys.update(_collect_workflow_statuses(workflow))
+    labels = []
+    for status in config["statuses"]:
+        if status["key"] in status_keys:
+            labels.append(status["name"])
+    return labels
+
+
+@then('the board should show the column "{label}"')
+def then_board_shows_column(context: object, label: str) -> None:
+    labels = _board_column_labels(context)
+    if label not in labels:
+        raise AssertionError(f"expected column {label}, visible columns: {labels}")
+
+
+@then('the board should not show the column "{label}"')
+def then_board_does_not_show_column(context: object, label: str) -> None:
+    labels = _board_column_labels(context)
+    if label in labels:
+        raise AssertionError(f"expected column {label} to be hidden, visible: {labels}")
 
 
 @when('I open the task "{title}"')
@@ -799,7 +922,27 @@ def _open_console(context: object) -> ConsoleState:
         settings=settings,
         time_zone=time_zone,
         panel_mode=storage.panel_mode or "board",
+        board_name=_console_board_name(context),
     )
+
+
+def _console_board_name(context: object) -> str:
+    working = getattr(context, "working_directory", None)
+    if working is None:
+        return "kanbus"
+    root = Path(working)
+    from kanbus.config_loader import (
+        ConfigurationError,
+        load_project_configuration,
+        resolve_board_name,
+    )
+    from kanbus.project import ProjectMarkerError, get_configuration_path
+
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except (ConfigurationError, ProjectMarkerError, FileNotFoundError, OSError):
+        return resolve_board_name(None, root, "kanbus")
+    return resolve_board_name(configuration.name, root, configuration.project_key)
 
 
 def _require_console_state(context: object) -> ConsoleState:

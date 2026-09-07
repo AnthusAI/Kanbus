@@ -13,10 +13,14 @@ use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
-use crate::right_now::get_right_now_summary;
+use crate::right_now::{
+    ensure_right_now_summaries, get_right_now_summary, DEFAULT_RIGHT_NOW_STATUS,
+};
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
+const RIGHT_NOW_STATUS_ALL: &str = "all";
+const EMPTY_STATUS_FILTER: &str = "status filter must not be empty";
 const CANNOT_COMBINE_ALL_WITH_LIMIT: &str = "cannot combine --all with --limit";
 const CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS: &str =
     "cannot combine --all with issue identifiers";
@@ -44,6 +48,8 @@ pub struct RightNowCommandOptions {
     pub recursive: bool,
     /// Optional issue identifiers to select.
     pub issue_ids: Vec<String>,
+    /// Status filter. `None` defaults to in-progress for board listings.
+    pub status: Option<String>,
 }
 
 /// Default right-now command options: hierarchical tree with recursive descendants.
@@ -59,6 +65,7 @@ impl Default for RightNowCommandOptions {
             show_all: false,
             recursive: true,
             issue_ids: Vec::new(),
+            status: None,
         }
     }
 }
@@ -81,6 +88,21 @@ pub fn run_right_now_command(
     let effective_limit = effective_right_now_limit(options);
     if effective_limit > 0 {
         issues.truncate(effective_limit);
+    }
+    if !options.raw {
+        let identifiers: Vec<String> = issues
+            .iter()
+            .map(|issue| issue.identifier.clone())
+            .collect();
+        ensure_right_now_summaries(root, &identifiers);
+        let mut reloaded = Vec::new();
+        for issue in issues {
+            match load_issue_from_project(root, &issue.identifier) {
+                Ok(lookup) => reloaded.push(lookup.issue),
+                Err(_) => reloaded.push(issue),
+            }
+        }
+        issues = reloaded;
     }
     let configuration = load_configuration(root);
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());
@@ -142,7 +164,63 @@ fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), Ka
             NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS.to_string(),
         ));
     }
+    resolve_right_now_statuses(options.status.as_deref(), !options.issue_ids.is_empty())?;
     Ok(())
+}
+
+/// Return allowed statuses, or `None` to include every status.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when the status filter is empty.
+fn resolve_right_now_statuses(
+    status_option: Option<&str>,
+    has_issue_identifiers: bool,
+) -> Result<Option<HashSet<String>>, KanbusError> {
+    match status_option {
+        None => {
+            if has_issue_identifiers {
+                Ok(None)
+            } else {
+                Ok(Some(HashSet::from([DEFAULT_RIGHT_NOW_STATUS.to_string()])))
+            }
+        }
+        Some(raw) => {
+            let tokens: Vec<String> = raw
+                .split(',')
+                .map(str::trim)
+                .filter(|token| !token.is_empty())
+                .map(str::to_string)
+                .collect();
+            if tokens.is_empty() {
+                return Err(KanbusError::IssueOperation(EMPTY_STATUS_FILTER.to_string()));
+            }
+            if tokens.iter().any(|token| token == RIGHT_NOW_STATUS_ALL) {
+                return Ok(None);
+            }
+            Ok(Some(tokens.into_iter().collect()))
+        }
+    }
+}
+
+/// Filter issues by the resolved Now status set.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when the status filter is empty.
+fn filter_right_now_issues_by_status(
+    issues: Vec<IssueData>,
+    options: &RightNowCommandOptions,
+) -> Result<Vec<IssueData>, KanbusError> {
+    let allowed =
+        resolve_right_now_statuses(options.status.as_deref(), !options.issue_ids.is_empty())?;
+    Ok(match allowed {
+        None => issues,
+        Some(statuses) => issues
+            .into_iter()
+            .filter(|issue| statuses.contains(&issue.status))
+            .collect(),
+    })
 }
 
 fn effective_right_now_limit(options: &RightNowCommandOptions) -> usize {
@@ -173,7 +251,7 @@ fn select_right_now_issues(
         false,
     )?;
     if options.issue_ids.is_empty() {
-        return Ok(issues);
+        return filter_right_now_issues_by_status(issues, options);
     }
     let mut issues_by_identifier: HashMap<String, IssueData> = issues
         .into_iter()
@@ -209,11 +287,14 @@ fn select_right_now_issues(
             }
         }
     }
-    Ok(issues_by_identifier
-        .into_iter()
-        .filter(|(identifier, _)| selected.contains(identifier))
-        .map(|(_, issue)| issue)
-        .collect())
+    filter_right_now_issues_by_status(
+        issues_by_identifier
+            .into_iter()
+            .filter(|(identifier, _)| selected.contains(identifier))
+            .map(|(_, issue)| issue)
+            .collect(),
+        options,
+    )
 }
 
 fn load_configuration(root: &Path) -> Option<ProjectConfiguration> {
@@ -516,6 +597,28 @@ mod tests {
         let error = validate_right_now_options(&no_recursive).expect_err("no-recursive");
         assert_eq!(error.to_string(), NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS);
         validate_right_now_options(&RightNowCommandOptions::default()).expect("ok");
+    }
+
+    #[test]
+    fn resolve_right_now_statuses_defaults_to_in_progress_for_board() {
+        let statuses = resolve_right_now_statuses(None, false).expect("ok");
+        assert_eq!(
+            statuses,
+            Some(HashSet::from([DEFAULT_RIGHT_NOW_STATUS.to_string()]))
+        );
+        assert!(resolve_right_now_statuses(None, true)
+            .expect("named")
+            .is_none());
+        assert!(resolve_right_now_statuses(Some("all"), false)
+            .expect("all")
+            .is_none());
+        let selected = resolve_right_now_statuses(Some("in_progress,open"), false)
+            .expect("csv")
+            .expect("set");
+        assert!(selected.contains("in_progress"));
+        assert!(selected.contains("open"));
+        let error = resolve_right_now_statuses(Some(" , "), false).expect_err("empty");
+        assert_eq!(error.to_string(), EMPTY_STATUS_FILTER);
     }
 
     #[test]

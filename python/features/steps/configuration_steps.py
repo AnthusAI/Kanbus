@@ -635,9 +635,26 @@ def when_configuration_loaded(context: object) -> None:
         context.result = SimpleNamespace(exit_code=1, stdout="", stderr=str(error))
 
 
-@then('the project key should be "kanbus"')
-def then_project_key_should_be_tsk(context: object) -> None:
-    assert context.configuration.project_key == "kanbus"
+@given('the Kanbus configuration has name "{name}"')
+def given_kanbus_configuration_has_name(context: object, name: str) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload["name"] = name
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@then('the project name should be "{expected}"')
+def then_project_name_should_be(context: object, expected: str) -> None:
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+    assert (
+        configuration.name == expected
+    ), f"Expected project name '{expected}', got '{configuration.name}'"
 
 
 @then('the hierarchy should be "initiative, epic, task, sub-task"')

@@ -9,7 +9,6 @@ use tempfile::TempDir;
 use kanbus::cli::run_from_args_with_output;
 use kanbus::config::{default_project_configuration, write_default_configuration};
 use kanbus::config_loader::load_project_configuration;
-use kanbus::file_io::get_configuration_path;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -1279,6 +1278,23 @@ fn then_project_key_should_match_param(world: &mut KanbusWorld, expected: String
     }
     let configuration = world.configuration.as_ref().expect("configuration");
     assert_eq!(configuration.project_key, expected);
+}
+
+#[given(expr = "the Kanbus configuration has name {string}")]
+fn given_kanbus_configuration_has_name(world: &mut KanbusWorld, name: String) {
+    let cwd = world.working_directory.as_ref().expect("working dir");
+    let config_path = cwd.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
+    mapping.insert(Value::String("name".to_string()), Value::String(name));
+    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
+    fs::write(config_path, yaml).expect("write config");
+}
+
+#[then(expr = "the project name should be {string}")]
+fn then_project_name_should_be(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert_eq!(configuration.name.as_deref(), Some(expected.as_str()));
 }
 
 #[then(expr = "the hierarchy should be {string}")]

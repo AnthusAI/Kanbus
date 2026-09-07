@@ -802,6 +802,61 @@ def render_template_string(text: str, issues: List[IssueData]) -> str:
         raise WikiError(str(error)) from error
 
 
+def apply_wiki_page_limit(pages: List[str], limit: int) -> List[str]:
+    """Return wiki page paths capped by limit when limit is positive.
+
+    :param pages: Sorted wiki page paths.
+    :type pages: List[str]
+    :param limit: Maximum pages to return (0 for no limit).
+    :type limit: int
+    :return: Possibly truncated page paths.
+    :rtype: List[str]
+    """
+    if limit > 0:
+        return pages[:limit]
+    return pages
+
+
+def format_wiki_list_json(pages: List[str]) -> str:
+    """Format wiki list output as JSON.
+
+    :param pages: Wiki page paths relative to repository root.
+    :type pages: List[str]
+    :return: JSON payload string.
+    :rtype: str
+    """
+    payload = {"count": len(pages), "pages": pages}
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
+def format_wiki_search_json(query: str, pages: List[str]) -> str:
+    """Format wiki search output as JSON.
+
+    :param query: Search query string.
+    :type query: str
+    :param pages: Matching wiki page paths relative to repository root.
+    :type pages: List[str]
+    :return: JSON payload string.
+    :rtype: str
+    """
+    payload = {"query": query, "count": len(pages), "pages": pages}
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
+def format_wiki_render_json(page_path: str, rendered: str) -> str:
+    """Format wiki render output as JSON.
+
+    :param page_path: Canonical wiki page path relative to repository root.
+    :type page_path: str
+    :param rendered: Rendered markdown content.
+    :type rendered: str
+    :return: JSON payload string.
+    :rtype: str
+    """
+    payload = {"path": page_path, "rendered": rendered}
+    return json.dumps(payload, indent=2, sort_keys=False)
+
+
 def list_wiki_pages(root: Path) -> List[str]:
     """List wiki page paths relative to repository root.
 

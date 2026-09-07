@@ -161,4 +161,30 @@ Render a wiki page from the project root:
 kanbus wiki render project/wiki/index.md
 ```
 
+List wiki pages:
+
+```bash
+kanbus wiki list
+```
+
+Search wiki pages (prints `0 results` when nothing matches):
+
+```bash
+kanbus wiki search <query>
+```
+
+### Machine-readable output for agents
+
+Use `--json` on `wiki list`, `wiki search`, and `wiki render` when a script or agent needs structured output. Human text remains the default.
+
+```bash
+kanbus wiki list --json
+kanbus wiki search alpha --json
+kanbus wiki render index.md --json
+```
+
+JSON search with zero matches returns `"count": 0` and `"pages": []` (not the human `0 results` line). Render warnings stay on stderr.
+
+Use `--limit N` on `wiki list` and `wiki search` to cap results after sorting (`0` means no limit). `wiki render` does not support `--limit`.
+
 For more CLI details, see [CLI_REFERENCE.md](CLI_REFERENCE.md).
