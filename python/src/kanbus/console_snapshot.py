@@ -6,7 +6,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import (
+    ConfigurationError,
+    load_project_configuration,
+    resolve_board_name,
+)
 from kanbus.issue_files import read_issue_from_file
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.models import IssueData, ProjectConfiguration
@@ -35,6 +39,8 @@ def build_console_snapshot(root: Path) -> Dict[str, object]:
     project_dir, config = _load_project_context(root)
     issues = _load_console_issues(root, project_dir, config)
     updated_at = _format_timestamp(datetime.now(timezone.utc))
+    resolved_name = resolve_board_name(config.name, root, config.project_key)
+    config = config.model_copy(update={"name": resolved_name})
     return {
         "config": config.model_dump(),
         "issues": [issue.model_dump(by_alias=True, mode="json") for issue in issues],
