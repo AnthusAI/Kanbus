@@ -3,17 +3,32 @@
   "title": "Console wiki directory listings show page titles",
   "description": "## Intent\nAs a Kanbus console user, I want Wiki Home and directory listings to show human page titles instead of markdown filenames, so I can recognize pages like \"Blocked issues\" without reading `blocked_issues.md`.\n\nRequested parent Markus epic kbs-bd41d7 is not on this board; this epic tracks the work in Kanbus.\n\n## Title resolution (one order)\n1. YAML frontmatter `title:` when present\n2. Else first markdown H1\n3. Else file stem\n\nReuse `extract_wiki_title` / `_extract_wiki_title`. Do not evaluate Markus `:::directives` in the browser.\n\n## Definition of Done\n- Wiki Home lists titles, not filenames\n- Clicking still navigates by path\n- Pages with no H1/frontmatter fall back to stem\n- Specs cover title-from-H1 and title-from-frontmatter",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f4c8dada-9740-4136-b88e-5fb2df140f13",
+      "author": "ubuntu",
+      "text": "Complete on develop 0b808741 via PR #223. Contains PR #222 false-empty fix.",
+      "created_at": "2026-09-07T20:01:27.143109Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
+    }
+  ],
   "created_at": "2026-09-07T19:36:43.131031Z",
-  "updated_at": "2026-09-07T19:36:56.790327Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:01:27.676472Z",
+  "closed_at": "2026-09-07T20:01:27.650331Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {},

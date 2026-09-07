@@ -3,7 +3,7 @@
   "title": "Console Wiki tab shows empty when pages exist",
   "description": "## Symptom\nThe console Wiki tab shows **Wiki Home** and *This directory is empty.* even when `GET /api/wiki/pages` returns markdown paths and files exist under `project/wiki/`.\n\nRelated cards referenced by the report: kbs-e77e32 (serve data root / wiki path) and kbs-177741 (empty-state honesty). Those IDs are not on this board; this bug covers both the false-empty listing and honest empty/missing/error states.\n\n## Intent\nAs a console user, I want the Wiki tab to show existing pages (or open `index.md`) and to distinguish a missing wiki folder, a truly empty wiki, and a failed pages request, so I am not told the directory is empty when it is not.\n\n## Definition of Done\n- With `project/wiki/*.md`, the Wiki tab lists those pages or auto-opens `index.md`.\n- If the wiki directory is missing, the UI says the wiki folder is missing (not the empty-directory copy).\n- If `/api/wiki/pages` fails, a visible error is shown (not a silent empty directory).\n- Console Gherkin covers the false-empty and missing-directory cases.\n- Python and Rust step definitions stay in parity.\n\n```mermaid\nflowchart TD\n  openWiki[Open Wiki tab] --> fetchPages[GET /api/wiki/pages]\n  fetchPages -->|invalid or HTTP error| showError[Show visible load error]\n  fetchPages -->|wiki_directory_exists false| showMissing[Show wiki folder is missing]\n  fetchPages -->|pages include index.md| openIndex[Open index.md]\n  fetchPages -->|pages exist without index| showListing[Show directory listing]\n  fetchPages -->|directory exists and pages empty| showEmpty[Show this directory is empty]\n```",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -108,11 +108,25 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "e69de17d-e560-415a-ad5d-746e27a56770",
+      "author": "ubuntu",
+      "text": "False-empty Wiki tab fix landed on develop in 0b808741 (PR #222 contained in #223).",
+      "created_at": "2026-09-07T20:01:28.184644Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T19:05:57.931381Z",
-  "updated_at": "2026-09-07T19:48:05.200299Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:01:28.722134Z",
+  "closed_at": "2026-09-07T20:01:28.693982Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {},

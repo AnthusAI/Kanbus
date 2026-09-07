@@ -3,17 +3,32 @@
   "title": "Return titles from wiki pages API and show them in directory listing",
   "description": "Implement the story: extend GET /api/wiki/pages to return {path, title} objects, reuse wiki title extraction (frontmatter, H1, stem), and render titles in WikiDirectoryListing while navigating by path.\n\nPython and Rust title extraction must stay in parity. Console TS server must return the same payload shape.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": "kbs-e5b9cba7-a92b-427c-b388-56bfd41b1cff",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "3363ff8c-785e-48c3-ab68-f24958842b60",
+      "author": "ubuntu",
+      "text": "Landed on develop in 0b808741 (PR #223).",
+      "created_at": "2026-09-07T20:01:24.449699Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
+    }
+  ],
   "created_at": "2026-09-07T19:36:50.099455Z",
-  "updated_at": "2026-09-07T19:36:58.064789Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:01:25.157407Z",
+  "closed_at": "2026-09-07T20:01:25.133098Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {},

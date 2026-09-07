@@ -3,7 +3,7 @@
   "title": "Wiki directory list shows page titles not filenames",
   "description": "## Intent\nAs a console user, I want directory listings to show page titles, so I can scan Wiki Home by meaning rather than by filename.\n\n## Title resolution\n1. YAML frontmatter `title:`\n2. Else first markdown H1\n3. Else file stem\n\n## Gherkin\n\nFeature: Console wiki workspace\n\n  Scenario: wiki directory listing shows H1 title instead of filename\n    Given the console is open\n    And a wiki page \"blocked_issues.md\" exists with content:\n      \"\"\"\n      # Blocked issues\n      Open items that cannot move.\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki directory listing should show \"Blocked issues\"\n    And the wiki directory listing should not show \"blocked_issues.md\"\n\n  Scenario: wiki directory listing shows frontmatter title instead of H1\n    Given the console is open\n    And a wiki page \"epic_progress.md\" exists with content:\n      \"\"\"\n      ---\n      title: Epic progress\n      ---\n      # Ignored heading\n      Status body\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki directory listing should show \"Epic progress\"\n    And the wiki directory listing should not show \"epic_progress.md\"\n    And the wiki directory listing should not show \"Ignored heading\"\n\n  Scenario: wiki directory listing falls back to file stem without title\n    Given the console is open\n    And a wiki page \"untitled_notes.md\" exists with content:\n      \"\"\"\n      Just a paragraph with no heading.\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    Then the wiki directory listing should show \"untitled_notes\"\n    And the wiki directory listing should not show \"untitled_notes.md\"\n\n  Scenario: clicking a titled wiki page still navigates by path\n    Given the console is open\n    And a wiki page \"blocked_issues.md\" exists with content:\n      \"\"\"\n      # Blocked issues\n      Open items that cannot move.\n      \"\"\"\n    When I switch to the \"Wiki\" view\n    And I select the wiki page titled \"Blocked issues\"\n    Then the wiki editor path should be \"blocked_issues.md\"",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -52,11 +52,25 @@
         "name": null,
         "settings": {}
       }
+    },
+    {
+      "id": "42931aed-2311-4ea9-bc13-05d82b1e4cfa",
+      "author": "ubuntu",
+      "text": "Landed on develop in 0b808741. Canonical story kbs-413afd / epic kbs-bd41d7.",
+      "created_at": "2026-09-07T20:01:25.806702Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": null,
+        "settings": {}
+      }
     }
   ],
   "created_at": "2026-09-07T19:36:49.392038Z",
-  "updated_at": "2026-09-07T19:54:57.862206Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:01:26.487626Z",
+  "closed_at": "2026-09-07T20:01:26.463351Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {},
