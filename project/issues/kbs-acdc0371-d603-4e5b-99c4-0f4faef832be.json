@@ -1,0 +1,20 @@
+{
+  "id": "kbs-acdc0371-d603-4e5b-99c4-0f4faef832be",
+  "title": "Fix main CI after develop merge (8ed07d6b)",
+  "description": "Fix 4 failing CI checks: performance (clippy toolchain), python (black), rust (fmt), console-ui (Playwright selectors and ambiguous steps).",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-07T14:58:47.088315074Z",
+  "updated_at": "2026-09-07T14:58:55.187556217Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
