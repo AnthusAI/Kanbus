@@ -22,6 +22,13 @@ Feature: Console route navigation
     Then the "Epics" tab should be selected
     And the detail panel should show issue "Observability overhaul"
 
+  Scenario: Issue deep link reload keeps the console rendered
+    Given the console is open
+    When I open the console route "/issues/kanbus-epic-1"
+    And the console is reloaded
+    Then the "Epics" tab should be selected
+    And the console board should be visible
+
   Scenario: Context route leaves view tab unselected
     Given the console is open
     When I open the console route "/issues/kanbus-epic-1/kanbus-task-1"
