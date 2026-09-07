@@ -1751,6 +1751,32 @@ fn assert_priority_pill_uses_background() {
     {
         panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
     }
+    assert_priority_pill_dark_mode_css_is_valid(&globals_css);
+}
+
+fn assert_priority_pill_dark_mode_css_is_valid(globals_css: &str) {
+    let dark_marker = ".dark .issue-accent-priority";
+    let dark_start = globals_css
+        .find(dark_marker)
+        .expect(".dark .issue-accent-priority rule is required for dark-mode priority chips");
+    let opening_brace = globals_css[dark_start..]
+        .find('{')
+        .map(|offset| dark_start + offset)
+        .expect(".dark .issue-accent-priority rule is missing a declaration block");
+    let selector = &globals_css[dark_start..opening_brace];
+    if selector.contains("@media") {
+        panic!("dark-mode .issue-accent-priority selectors must not mix in @media");
+    }
+    let closing_brace = globals_css[opening_brace..]
+        .find('}')
+        .map(|offset| opening_brace + offset)
+        .expect(".dark .issue-accent-priority rule is missing a closing brace");
+    let body = &globals_css[opening_brace..=closing_brace];
+    if !body.contains("--issue-priority-bg") || !body.contains("--issue-priority-bg-dark") {
+        panic!(
+            ".dark .issue-accent-priority must set --issue-priority-bg to --issue-priority-bg-dark"
+        );
+    }
 }
 
 fn assert_priority_pill_uses_foreground_text() {
