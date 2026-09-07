@@ -128,7 +128,9 @@ def test_run_right_now_command_keeps_issue_when_reload_fails(
         "kanbus.right_now_command._select_right_now_issues",
         lambda *_args: [issue],
     )
-    monkeypatch.setattr("kanbus.right_now_command.ensure_right_now_summaries", lambda *_a: None)
+    monkeypatch.setattr(
+        "kanbus.right_now_command.ensure_right_now_summaries", lambda *_a: None
+    )
     monkeypatch.setattr(
         "kanbus.right_now_command.load_issue_from_project",
         lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),

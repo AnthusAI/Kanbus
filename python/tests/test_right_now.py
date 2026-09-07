@@ -56,18 +56,14 @@ def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
         "kanbus.right_now.load_child_issues",
         lambda *_a: (_ for _ in ()).throw(IssueListingError("listing failed")),
     )
-    assert (
-        ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
-    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
 
     monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
     monkeypatch.setattr(
         "kanbus.right_now.load_issue_from_project",
         lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
     )
-    assert (
-        ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
-    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
 
     issue = build_issue("kanbus-parent")
     lookup = SimpleNamespace(issue=issue)
@@ -92,9 +88,7 @@ def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
         "kanbus.right_now.regenerate_right_now_for_issue",
         lambda *_a: None,
     )
-    assert (
-        ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
-    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
 
 
 def test_ensure_right_now_subtree_uses_memo_cache(
