@@ -223,3 +223,27 @@ Feature: Console current status panel
     And I select the now status filter "all"
     And I disable the status tree view
     Then the status feed should list issues in order "Ready task, Active task"
+
+  Scenario: Tree includes ancestors when status filter excludes them
+    Given the console is open
+    And no issues exist in the console
+    And the console right now configuration has default_tree_expanded true
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Task Gamma" of type "task" under "Epic Beta" updated at "2026-01-03T10:00:00.000Z"
+    And the status issue "Initiative Alpha" has status "open"
+    And the status issue "Epic Beta" has status "closed"
+    And the status issue "Task Gamma" has status "in_progress"
+    When I switch to the "Now" view
+    Then the status tree should list issues in order "Initiative Alpha, Epic Beta, Task Gamma"
+    And the status tree row for "Initiative Alpha" should show status "open"
+    And the status tree row for "Epic Beta" should show status "closed"
+    And the status tree row for "Task Gamma" should show status "in_progress"
+
+  Scenario: Rootless matching issue stays a tree root under status filter
+    Given the console is open
+    And no issues exist in the console
+    And a status issue "Rootless task" updated at "2026-01-02T10:00:00.000Z"
+    And the status issue "Rootless task" has status "in_progress"
+    When I switch to the "Now" view
+    Then the status tree should list issues in order "Rootless task"

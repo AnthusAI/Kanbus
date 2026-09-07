@@ -69,6 +69,7 @@ function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issu
   if (matchingIssues.length === 0 || matchingIssues.length === allIssues.length) {
     return matchingIssues;
   }
+  const issuesById = new Map(allIssues.map((issue) => [issue.id, issue]));
   const childrenByParent = new Map<string, Issue[]>();
   for (const issue of allIssues) {
     if (!issue.parent) {
@@ -89,6 +90,10 @@ function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issu
     const children = childrenByParent.get(identifier) ?? [];
     for (const child of children) {
       pending.push(child.id);
+    }
+    const parentIdentifier = issuesById.get(identifier)?.parent;
+    if (parentIdentifier) {
+      pending.push(parentIdentifier);
     }
   }
   return allIssues.filter((issue) => included.has(issue.id));
@@ -161,6 +166,7 @@ export function CurrentStatusPanel({
       {treeViewEnabled ? (
         <StatusTree
           issues={treeIssues}
+          statuses={statuses}
           defaultExpanded={defaultTreeExpanded}
           onSelectIssue={
             onSelectIssue

@@ -488,6 +488,16 @@ Then(
   }
 );
 
+Then(
+  "the status tree row for {string} should show status {string}",
+  async function (title, expected) {
+    await expect(treeRow(this.page, title).getByTestId("status-tree-status")).toHaveAttribute(
+      "data-issue-status",
+      expected
+    );
+  }
+);
+
 Then("the status feed should contain {int} rows", async function (count) {
   await expect(this.page.getByTestId("status-feed-row")).toHaveCount(count);
 });

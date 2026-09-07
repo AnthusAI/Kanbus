@@ -79,6 +79,12 @@ fn now_tree_identifiers(state: &ConsoleState) -> std::collections::HashSet<Strin
     if matching.len() == state.issues.len() {
         return matching.into_iter().collect();
     }
+    let issues_by_identifier: HashMap<String, usize> = state
+        .issues
+        .iter()
+        .enumerate()
+        .map(|(index, issue)| (issue_tree_identifier(issue), index))
+        .collect();
     let mut children_by_parent: HashMap<String, Vec<String>> = HashMap::new();
     for issue in &state.issues {
         if let Some(parent_identifier) = resolve_parent_identifier(state, issue) {
@@ -96,6 +102,13 @@ fn now_tree_identifiers(state: &ConsoleState) -> std::collections::HashSet<Strin
         }
         if let Some(children) = children_by_parent.get(&identifier) {
             pending.extend(children.iter().cloned());
+        }
+        if let Some(&issue_index) = issues_by_identifier.get(&identifier) {
+            if let Some(parent_identifier) =
+                resolve_parent_identifier(state, &state.issues[issue_index])
+            {
+                pending.push(parent_identifier);
+            }
         }
     }
     included
@@ -617,6 +630,13 @@ fn then_status_feed_row_summary(world: &mut KanbusWorld, title: String, expected
 #[then(expr = "the status tree row for {string} should show right-now summary {string}")]
 fn then_status_tree_row_summary(world: &mut KanbusWorld, title: String, expected: String) {
     then_status_feed_row_summary(world, title, expected);
+}
+
+#[then(expr = "the status tree row for {string} should show status {string}")]
+fn then_status_tree_row_status(world: &mut KanbusWorld, title: String, expected: String) {
+    let state = require_console_state(world);
+    let index = find_issue_by_title(state, &title).expect("issue not found");
+    assert_eq!(state.issues[index].status, expected);
 }
 
 #[when(expr = "the right-now summary for {string} is updated to {string}")]

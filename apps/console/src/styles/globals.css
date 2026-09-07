@@ -1110,6 +1110,12 @@ html[data-motion="reduced"] .sidebar-column {
   color: var(--text-muted);
 }
 
+.status-tree-status {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
 .status-tree-title-button {
   font-weight: 600;
   text-align: left;
