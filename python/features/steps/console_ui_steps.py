@@ -215,9 +215,11 @@ class ConsoleState:
     time_zone: str | None
     panel_mode: str = "board"
     metrics_project_filter: str | None = None
-    status_tree_mode: bool = False
+    status_tree_mode: bool = True
     status_tree_expanded_overrides: dict[str, bool] = field(default_factory=dict)
     default_tree_expanded: bool = False
+    status_filter: str = "in_progress"
+    board_name: str = "kanbus"
 
 
 @given("the console is open")
@@ -920,7 +922,27 @@ def _open_console(context: object) -> ConsoleState:
         settings=settings,
         time_zone=time_zone,
         panel_mode=storage.panel_mode or "board",
+        board_name=_console_board_name(context),
     )
+
+
+def _console_board_name(context: object) -> str:
+    working = getattr(context, "working_directory", None)
+    if working is None:
+        return "kanbus"
+    root = Path(working)
+    from kanbus.config_loader import (
+        ConfigurationError,
+        load_project_configuration,
+        resolve_board_name,
+    )
+    from kanbus.project import ProjectMarkerError, get_configuration_path
+
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except (ConfigurationError, ProjectMarkerError, FileNotFoundError, OSError):
+        return resolve_board_name(None, root, "kanbus")
+    return resolve_board_name(configuration.name, root, configuration.project_key)
 
 
 def _require_console_state(context: object) -> ConsoleState:

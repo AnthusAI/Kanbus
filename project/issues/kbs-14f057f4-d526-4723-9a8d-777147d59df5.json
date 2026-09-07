@@ -1,0 +1,28 @@
+{
+  "id": "kbs-14f057f4-d526-4723-9a8d-777147d59df5",
+  "title": "Now tree expands the full descendant hierarchy",
+  "description": "Now tree view must let operators expand and collapse nodes that have descendants, including children that do not match the current Status filter.\n\nDefault Status is in_progress. An in-progress epic must still show an expand control when it has open, blocked, or closed children. Expanding drills into the full descendant tree; collapsing hides those children again.\n\nFlat feed (Tree off) stays status-filtered. Generation still does not backfill closed descendants; this is display only.\n\n```mermaid\nflowchart TD\n  filter[\"Status filter\"] --> roots[\"matching issues as roots\"]\n  roots --> expand[\"expand control if descendants exist\"]\n  expand --> children[\"all descendants any status\"]\n```",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 0,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "111c344a-de35-44f4-a78e-0891bbb9c83d",
+      "author": "home",
+      "text": "Now tree includes descendants outside the Status filter. Matching issues stay collapsed by default and show an expand control when they have children. Expanding drills one level at a time through the full descendant tree. Type filter is hidden on Now.",
+      "created_at": "2026-09-03T02:25:17.397672Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-03T02:20:40.113255Z",
+  "updated_at": "2026-09-03T02:25:17.397690Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -7,6 +7,9 @@ use cucumber::{gherkin::Step, given, then, when};
 use std::collections::HashSet;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
+use kanbus::config::resolve_board_name;
+use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::get_configuration_path;
 
 #[derive(Debug, Clone)]
 pub struct ConsoleAgentMetadata {
@@ -85,6 +88,8 @@ pub struct ConsoleState {
     pub status_tree_mode: bool,
     pub status_tree_expanded_overrides: std::collections::HashMap<String, bool>,
     pub default_tree_expanded: bool,
+    pub status_filter: String,
+    pub board_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -1025,7 +1030,7 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
         }
         return;
     }
-    if normalized == "current status" {
+    if normalized == "now" || normalized == "current status" {
         state.panel_mode = "now".to_string();
         world.console_local_storage.panel_mode = Some("now".to_string());
         return;
@@ -1382,9 +1387,25 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         local_filter_visible: false,
         selected_project_filter,
         selected_local_filter,
-        status_tree_mode: false,
+        status_tree_mode: true,
         status_tree_expanded_overrides: std::collections::HashMap::new(),
         default_tree_expanded: false,
+        status_filter: "in_progress".to_string(),
+        board_name: console_board_name(world),
+    }
+}
+
+fn console_board_name(world: &KanbusWorld) -> String {
+    let Some(root) = world.working_directory.as_ref() else {
+        return "kanbus".to_string();
+    };
+    match get_configuration_path(root).and_then(|path| load_project_configuration(&path)) {
+        Ok(configuration) => resolve_board_name(
+            configuration.name.as_deref(),
+            root,
+            &configuration.project_key,
+        ),
+        Err(_) => resolve_board_name(None, root, "kanbus"),
     }
 }
 

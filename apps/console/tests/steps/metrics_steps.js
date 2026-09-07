@@ -197,7 +197,8 @@ async function ensureVirtualProjectConfig(label) {
 
 When("I switch to the {string} view", async function (viewName) {
   const aliases = {
-    "current status": "now"
+    "current status": "now",
+    now: "now"
   };
   const normalized = aliases[viewName.toLowerCase()] ?? viewName.toLowerCase();
   await reloadConsoleIfStale(this);

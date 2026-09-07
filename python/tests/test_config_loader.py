@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kanbus.config_loader import load_project_configuration
+from kanbus.config_loader import load_project_configuration, resolve_board_name
 
 
 def _write_minimal_config(path: Path) -> None:
@@ -42,3 +42,21 @@ def test_load_configuration_applies_mqtt_environment_overrides(
 
     assert configuration.realtime.mqtt_custom_authorizer_name == "env-auth"
     assert configuration.realtime.mqtt_api_token == "env-token"
+
+
+def test_resolve_board_name_prefers_configured_name(tmp_path: Path) -> None:
+    assert resolve_board_name("Chattic.us", tmp_path, "kbs") == "Chattic.us"
+
+
+def test_resolve_board_name_trims_configured_name(tmp_path: Path) -> None:
+    assert resolve_board_name("  Kanbus  ", tmp_path, "kbs") == "Kanbus"
+
+
+def test_resolve_board_name_uses_folder_when_name_blank(tmp_path: Path) -> None:
+    board_root = tmp_path / "Chattic.us"
+    board_root.mkdir()
+    assert resolve_board_name("  ", board_root, "chatticus") == "Chattic.us"
+
+
+def test_resolve_board_name_uses_project_key_when_folder_empty() -> None:
+    assert resolve_board_name(None, Path("/"), "kanbus") == "kanbus"

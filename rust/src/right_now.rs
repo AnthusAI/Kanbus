@@ -1,5 +1,6 @@
 //! Right-now summary helpers.
 
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -25,6 +26,8 @@ const MOCK_COST: f64 = 0.0;
 const MAX_RECENT_COMMENTS: usize = 5;
 const MAX_RECENT_ACTIVITY_CHARACTERS: usize = 2000;
 const STATUS_KEYWORDS: [&str; 5] = ["done", "in progress", "blocked", "closed", "open"];
+/// Status used when Now lists the board without an explicit `--status` filter.
+pub const DEFAULT_RIGHT_NOW_STATUS: &str = "in_progress";
 
 /// LLM usage details for right-now summary generation.
 #[derive(Debug, Clone, Copy)]
@@ -389,16 +392,121 @@ pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
     let context = build_right_now_context(&lookup.issue, &children);
     let summary = match generate_right_now_summary(root, &lookup.issue, &context) {
         Ok(summary) => summary,
-        Err(_) => return,
+        Err(error) => {
+            eprintln!("warning: right-now generation failed for {issue_identifier}: {error}");
+            return;
+        }
     };
     let current_time = Utc::now();
-    let _ = persist_right_now_summary(
+    if let Err(error) = persist_right_now_summary(
         &lookup.project_dir,
         &lookup.issue_path,
         issue_identifier,
         &summary,
         current_time,
-    );
+    ) {
+        eprintln!("warning: right-now persist failed for {issue_identifier}: {error}");
+    }
+}
+
+/// Return whether an issue needs a just-in-time right-now summary.
+///
+/// # Arguments
+///
+/// * `issue` - Issue to inspect.
+///
+/// # Returns
+///
+/// `true` when the summary is absent or older than the issue.
+pub fn right_now_summary_is_missing_or_stale(issue: &IssueData) -> bool {
+    match issue.right_now_summary.as_deref() {
+        None => true,
+        Some(summary) if summary.trim().is_empty() => true,
+        Some(_) => match issue.right_now_updated_at {
+            None => false,
+            Some(updated) => issue.updated_at > updated,
+        },
+    }
+}
+
+/// Backfill right-now summaries for an issue after selected descendants.
+///
+/// Only children in `selected_identifiers` are visited. Unlisted descendants
+/// are left unchanged so a large closed subtree cannot block the parent.
+///
+/// # Arguments
+///
+/// * `root` - Repository root path.
+/// * `issue_identifier` - Issue identifier to ensure.
+/// * `selected_identifiers` - Issue identifiers in the current Now view.
+/// * `memo` - Per-walk cache of whether a subtree generated a summary.
+///
+/// # Returns
+///
+/// `true` when this subtree generated or refreshed a summary.
+pub fn ensure_right_now_subtree(
+    root: &Path,
+    issue_identifier: &str,
+    selected_identifiers: &HashSet<String>,
+    memo: &mut HashMap<String, bool>,
+) -> bool {
+    if let Some(generated) = memo.get(issue_identifier) {
+        return *generated;
+    }
+    let children = match load_child_issues(root, issue_identifier) {
+        Ok(children) => children,
+        Err(_) => {
+            memo.insert(issue_identifier.to_string(), false);
+            return false;
+        }
+    };
+    let mut descendant_generated = false;
+    for child in &children {
+        if !selected_identifiers.contains(&child.identifier) {
+            continue;
+        }
+        if ensure_right_now_subtree(root, &child.identifier, selected_identifiers, memo) {
+            descendant_generated = true;
+        }
+    }
+    let lookup = match load_issue_from_project(root, issue_identifier) {
+        Ok(lookup) => lookup,
+        Err(_) => {
+            memo.insert(issue_identifier.to_string(), false);
+            return false;
+        }
+    };
+    let should_generate =
+        descendant_generated || right_now_summary_is_missing_or_stale(&lookup.issue);
+    let mut generated = false;
+    if should_generate {
+        let previous_summary = lookup.issue.right_now_summary.clone();
+        let previous_updated = lookup.issue.right_now_updated_at;
+        regenerate_right_now_for_issue(root, issue_identifier);
+        if let Ok(after) = load_issue_from_project(root, issue_identifier) {
+            generated = after.issue.right_now_summary != previous_summary
+                || after.issue.right_now_updated_at != previous_updated;
+        }
+    }
+    let result = generated || descendant_generated;
+    memo.insert(issue_identifier.to_string(), result);
+    result
+}
+
+/// Backfill right-now summaries for the issues in the current Now view.
+///
+/// Descendants that are not in `issue_identifiers` are not generated.
+///
+/// # Arguments
+///
+/// * `root` - Repository root path.
+/// * `issue_identifiers` - Issue identifiers in the current Now view.
+pub fn ensure_right_now_summaries(root: &Path, issue_identifiers: &[String]) {
+    let selected_identifiers: HashSet<String> = issue_identifiers.iter().cloned().collect();
+    let mut memo = HashMap::new();
+    for identifier in issue_identifiers {
+        ensure_right_now_subtree(root, identifier, &selected_identifiers, &mut memo);
+    }
 }
 
 /// Regenerate right-now summaries for an issue and each ancestor.
@@ -553,13 +661,8 @@ fn delegate_right_now_summary_to_python(
     root: &Path,
     issue_identifier: &str,
 ) -> Result<String, KanbusError> {
-    let output = Command::new("python3")
-        .args([
-            "-m",
-            "kanbus.cli",
-            "now-generate-internal",
-            issue_identifier,
-        ])
+    let output = Command::new("kanbus")
+        .args(["now-generate-internal", issue_identifier])
         .current_dir(root)
         .output()
         .map_err(|error| KanbusError::Io(format!("invoke python right-now generator: {error}")))?;
