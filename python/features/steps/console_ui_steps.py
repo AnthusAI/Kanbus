@@ -402,9 +402,7 @@ def _issue_types_for_board_filter_key(
     excluded = {"initiative", "epic", "sub-task"}
     from_hierarchy = [entry for entry in hierarchy if entry not in excluded]
     from_types = [
-        entry
-        for entry in types
-        if entry not in excluded and entry not in hierarchy_set
+        entry for entry in types if entry not in excluded and entry not in hierarchy_set
     ]
     return list(dict.fromkeys([*from_hierarchy, *from_types]))
 
