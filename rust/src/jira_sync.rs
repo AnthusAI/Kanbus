@@ -101,8 +101,12 @@ pub fn pull_from_jira(
 
     for jira_issue in &jira_issues {
         let jira_key = jira_issue_key(jira_issue);
-        let kanbus_issue =
-            map_jira_to_kanbus(jira_issue, jira_config, &configuration, &jira_key_to_kanbus_id)?;
+        let kanbus_issue = map_jira_to_kanbus(
+            jira_issue,
+            jira_config,
+            &configuration,
+            &jira_key_to_kanbus_id,
+        )?;
 
         let existing_kanbus_id = jira_key_index.get(&jira_key);
         let (kanbus_id, action) = if let Some(id) = existing_kanbus_id {

@@ -81,18 +81,14 @@ pub fn update_issue(
     let current_time = Utc::now();
 
     let claim_status = if claim {
-        Some(
-            resolve_primary_status_key_for_semantic_category(
-                &configuration,
-                SEMANTIC_IN_PROGRESS,
-            )?,
-        )
+        Some(resolve_primary_status_key_for_semantic_category(
+            &configuration,
+            SEMANTIC_IN_PROGRESS,
+        )?)
     } else {
         None
     };
-    let mut resolved_status = claim_status
-        .as_deref()
-        .or(status);
+    let mut resolved_status = claim_status.as_deref().or(status);
     let mut resolved_type = issue_type.map(str::trim).filter(|value| !value.is_empty());
     if resolved_type == Some(updated_issue.issue_type.as_str()) {
         resolved_type = None;

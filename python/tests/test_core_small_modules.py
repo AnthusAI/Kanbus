@@ -187,11 +187,18 @@ def test_validate_status_transition_rejects_invalid_target() -> None:
 def test_validate_status_value_checks_known_and_allowed_statuses() -> None:
     configuration = build_project_configuration()
     configuration.statuses = [
-        StatusDefinition(key="open", name="Open", category="Backlog", semantic_category="todo"),
         StatusDefinition(
-            key="in_progress", name="In Progress", category="In Progress", semantic_category="in_progress"
+            key="open", name="Open", category="Backlog", semantic_category="todo"
         ),
-        StatusDefinition(key="closed", name="Closed", category="Done", semantic_category="done"),
+        StatusDefinition(
+            key="in_progress",
+            name="In Progress",
+            category="In Progress",
+            semantic_category="in_progress",
+        ),
+        StatusDefinition(
+            key="closed", name="Closed", category="Done", semantic_category="done"
+        ),
     ]
 
     with pytest.raises(workflows.InvalidTransitionError, match="unknown status"):

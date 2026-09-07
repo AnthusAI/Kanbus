@@ -21,7 +21,12 @@ from kanbus.issue_files import (
     read_issue_from_file,
     write_issue_to_file,
 )
-from kanbus.models import IssueComment, IssueData, JiraConfiguration, ProjectConfiguration
+from kanbus.models import (
+    IssueComment,
+    IssueData,
+    JiraConfiguration,
+    ProjectConfiguration,
+)
 from kanbus.project import get_configuration_path, load_project_directory
 from kanbus.status_semantics import map_jira_status_to_key
 
