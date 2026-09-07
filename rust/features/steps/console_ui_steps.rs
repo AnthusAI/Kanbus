@@ -1057,6 +1057,11 @@ fn then_board_view_active(world: &mut KanbusWorld) {
     assert_eq!(state.panel_mode, "board");
 }
 
+#[then("the console board should be visible")]
+fn then_console_board_should_be_visible(world: &mut KanbusWorld) {
+    require_console_state(world);
+}
+
 #[then("the board view should be inactive")]
 fn then_board_view_inactive(world: &mut KanbusWorld) {
     let state = require_console_state(world);
