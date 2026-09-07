@@ -2,6 +2,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatIssueId } from "./format-issue-id";
 import { getTypeIcon } from "./issue-icons";
+import { buildStatusBadgeStyle } from "./issue-colors";
+import type { KanbanStatusDefinition } from "./types";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 
@@ -22,6 +24,7 @@ interface StatusTreeNode {
 
 interface StatusTreeProps {
   issues: StatusTreeIssue[];
+  statuses?: KanbanStatusDefinition[];
   defaultExpanded: boolean;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
@@ -104,6 +107,7 @@ interface StatusTreeRowProps {
   onToggleExpanded: (issueId: string, expanded: boolean) => void;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
+  statuses?: KanbanStatusDefinition[];
 }
 
 function StatusTreeRow({
@@ -113,7 +117,8 @@ function StatusTreeRow({
   expandedOverrides,
   onToggleExpanded,
   onSelectIssue,
-  selectedIssueId = null
+  selectedIssueId = null,
+  statuses = []
 }: StatusTreeRowProps) {
   const { issue, children } = node;
   const hasChildren = children.length > 0;
@@ -122,6 +127,13 @@ function StatusTreeRow({
   const isSelected = selectedIssueId === issue.id;
   const IssueTypeIcon = getTypeIcon(issue.type ?? "task", issue.status);
   const ExpandIcon = expanded ? ChevronDown : ChevronRight;
+  const statusKey = issue.status ?? "";
+  const statusLabel =
+    statuses.find((status) => status.key === statusKey)?.name ?? statusKey;
+  const statusBadgeStyle =
+    statusKey.length > 0
+      ? buildStatusBadgeStyle({ statuses, categories: [], priorities: {}, type_colors: {} }, statusKey)
+      : undefined;
 
   const handleToggle = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -139,6 +151,7 @@ function StatusTreeRow({
         data-issue-title={issue.title}
         data-issue-id={issue.id}
         data-issue-type={issue.type}
+        data-issue-status={statusKey || undefined}
         data-tree-depth={depth}
         data-tree-expanded={hasChildren ? String(expanded) : undefined}
       >
@@ -162,6 +175,16 @@ function StatusTreeRow({
           <span className="status-tree-id" data-testid="status-tree-id">
             {formatIssueId(issue.id)}
           </span>
+          {statusKey ? (
+            <span
+              className="status-badge status-tree-status"
+              data-testid="status-tree-status"
+              data-issue-status={statusKey}
+              style={statusBadgeStyle}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
           <button
             type="button"
             className="status-tree-title-button"
@@ -190,6 +213,7 @@ function StatusTreeRow({
               onToggleExpanded={onToggleExpanded}
               onSelectIssue={onSelectIssue}
               selectedIssueId={selectedIssueId}
+              statuses={statuses}
             />
           ))
         : null}
@@ -199,6 +223,7 @@ function StatusTreeRow({
 
 export function StatusTree({
   issues,
+  statuses = [],
   defaultExpanded,
   onSelectIssue,
   selectedIssueId = null
@@ -233,6 +258,7 @@ export function StatusTree({
           onToggleExpanded={handleToggleExpanded}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
+          statuses={statuses}
         />
       ))}
     </div>
