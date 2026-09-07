@@ -4,12 +4,31 @@ Feature: Console current status panel
   I want a now feed in the web console
   So that I can review recently-updated issues and their right-now summaries
 
+  Scenario: Now panel shows the configured board name
+    Given a Kanbus project with default configuration
+    And the Kanbus configuration has name "Chattic.us"
+    And the console is open
+    When I switch to the "Now" view
+    Then the now panel board title should be "Chattic.us"
+
+  Scenario: Now panel falls back to the repository directory name
+    Given a Kanbus project with default configuration
+    And the console is open
+    When I switch to the "Now" view
+    Then the now panel board title should be the repository directory name
+
   Scenario: Now is the first panel mode
     Given the console is open
     Then the panel mode selector labels should be "Now, Board, Wiki, Metrics"
     When I switch to the "Now" view
     Then the current status view should be active
     And the board view should be inactive
+    And the type filter selector should be hidden
+
+  Scenario: Board view shows the type filter
+    Given the console is open
+    When I switch to the "Board" view
+    Then the type filter selector should be visible
 
   Scenario: Now panel defaults to tree view
     Given the console is open
@@ -154,3 +173,53 @@ Feature: Console current status panel
     When I switch to the "Now" view
     And I disable the status tree view
     Then the status feed should list issues in order "Newer task, Older task"
+
+  Scenario: Tree expands descendants that are outside the status filter
+    Given the console is open
+    And no issues exist in the console
+    And a status hierarchy root "Phase Epic" of type "epic" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Child task" of type "task" under "Phase Epic" updated at "2026-01-03T10:00:00.000Z"
+    And the status issue "Child task" has status "open"
+    When I switch to the "Now" view
+    Then the status tree node for "Phase Epic" should be expandable
+    And the status tree node for "Phase Epic" should be collapsed
+    And the status tree should list issues in order "Phase Epic"
+    When I expand the status tree node for "Phase Epic"
+    Then the status tree should list issues in order "Phase Epic, Child task"
+
+  Scenario: Nested descendants stay expandable after a parent is expanded
+    Given the console is open
+    And no issues exist in the console
+    And a status hierarchy root "Initiative Alpha" of type "initiative" updated at "2026-01-01T10:00:00.000Z"
+    And a status hierarchy child "Epic Beta" of type "epic" under "Initiative Alpha" updated at "2026-01-02T10:00:00.000Z"
+    And a status hierarchy child "Task Gamma" of type "task" under "Epic Beta" updated at "2026-01-03T10:00:00.000Z"
+    And the status issue "Epic Beta" has status "open"
+    And the status issue "Task Gamma" has status "open"
+    When I switch to the "Now" view
+    And I expand the status tree node for "Initiative Alpha"
+    Then the status tree should list issues in order "Initiative Alpha, Epic Beta"
+    And the status tree node for "Epic Beta" should be expandable
+    And the status tree node for "Epic Beta" should be collapsed
+    When I expand the status tree node for "Epic Beta"
+    Then the status tree should list issues in order "Initiative Alpha, Epic Beta, Task Gamma"
+
+  Scenario: Now panel defaults to in-progress issues
+    Given the console is open
+    And no issues exist in the console
+    And a status issue "Active task" updated at "2026-01-02T10:00:00.000Z"
+    And a status issue "Ready task" updated at "2026-01-03T10:00:00.000Z"
+    And the status issue "Ready task" has status "open"
+    When I switch to the "Now" view
+    And I disable the status tree view
+    Then the status feed should list issues in order "Active task"
+
+  Scenario: Now panel status filter can show all statuses
+    Given the console is open
+    And no issues exist in the console
+    And a status issue "Active task" updated at "2026-01-02T10:00:00.000Z"
+    And a status issue "Ready task" updated at "2026-01-03T10:00:00.000Z"
+    And the status issue "Ready task" has status "open"
+    When I switch to the "Now" view
+    And I select the now status filter "all"
+    And I disable the status tree view
+    Then the status feed should list issues in order "Ready task, Active task"

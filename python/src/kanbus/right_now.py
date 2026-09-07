@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
@@ -384,14 +384,20 @@ def right_now_summary_is_missing_or_stale(issue: IssueData) -> bool:
 def ensure_right_now_subtree(
     root: Path,
     issue_identifier: str,
+    selected_identifiers: Set[str],
     memo: Optional[Dict[str, bool]] = None,
 ) -> bool:
-    """Backfill right-now summaries for an issue after its descendants.
+    """Backfill right-now summaries for an issue after selected descendants.
+
+    Only children in ``selected_identifiers`` are visited. Unlisted descendants
+    are left unchanged so a large closed subtree cannot block the parent.
 
     :param root: Repository root path.
     :type root: Path
     :param issue_identifier: Issue identifier to ensure.
     :type issue_identifier: str
+    :param selected_identifiers: Issue identifiers in the current Now view.
+    :type selected_identifiers: Set[str]
     :param memo: Per-walk cache of whether a subtree generated a summary.
     :type memo: Optional[Dict[str, bool]]
     :return: True when this subtree generated or refreshed a summary.
@@ -408,7 +414,9 @@ def ensure_right_now_subtree(
         return False
     descendant_generated = False
     for child in children:
-        if ensure_right_now_subtree(root, child.identifier, memo):
+        if child.identifier not in selected_identifiers:
+            continue
+        if ensure_right_now_subtree(root, child.identifier, selected_identifiers, memo):
             descendant_generated = True
     try:
         lookup = load_issue_from_project(root, issue_identifier)
@@ -436,16 +444,19 @@ def ensure_right_now_subtree(
 
 
 def ensure_right_now_summaries(root: Path, issue_identifiers: List[str]) -> None:
-    """Backfill right-now summaries for issues and their descendants.
+    """Backfill right-now summaries for the issues in the current Now view.
+
+    Descendants that are not in ``issue_identifiers`` are not generated.
 
     :param root: Repository root path.
     :type root: Path
     :param issue_identifiers: Issue identifiers in the current Now view.
     :type issue_identifiers: List[str]
     """
+    selected_identifiers = set(issue_identifiers)
     memo: Dict[str, bool] = {}
     for identifier in issue_identifiers:
-        ensure_right_now_subtree(root, identifier, memo)
+        ensure_right_now_subtree(root, identifier, selected_identifiers, memo)
 
 
 def regenerate_right_now_for_issue_and_ancestors(

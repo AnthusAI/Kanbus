@@ -3,6 +3,7 @@ ignore_paths:
   - features/project
 console_port: 4242
 project_key: kbs
+name: Kanbus
 
 hierarchy:
   - initiative

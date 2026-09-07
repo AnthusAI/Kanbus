@@ -11,7 +11,7 @@ Feature: Right now just-in-time backfill
 
   Scenario: Now backfills a missing summary
     Given an issue "kanbus-jit1" exists with title "Needs a summary"
-    When I run "kanbus now --list"
+    When I run "kanbus now --status all --list"
     Then the command should succeed
     And stdout should contain "Mock right-now summary for kanbus-jit1."
     And issue "kanbus-jit1" should have a mock right now summary
@@ -29,7 +29,7 @@ Feature: Right now just-in-time backfill
   Scenario: Now leaves a fresh cached summary in place
     Given an issue "kanbus-jit-cached" exists with title "Cached issue"
     And issue "kanbus-jit-cached" has right now summary "Cached summary."
-    When I run "kanbus now --list"
+    When I run "kanbus now --status all --list"
     Then the command should succeed
     And stdout should contain "Cached summary."
     And issue "kanbus-jit-cached" should have right now summary "Cached summary."
@@ -37,14 +37,24 @@ Feature: Right now just-in-time backfill
   Scenario: Now skips generation when AI is unconfigured
     Given the Kanbus project has no AI configuration
     And an issue "kanbus-jit-offline" exists with title "Offline issue"
-    When I run "kanbus now --list"
+    When I run "kanbus now --status all --list"
     Then the command should succeed
     And stdout should contain "(no right-now summary)"
 
   Scenario: Raw Now output does not backfill summaries
     Given an issue "kanbus-jit-raw" exists with title "Raw issue"
-    When I run "kanbus now --list --raw"
+    When I run "kanbus now --status all --list --raw"
     Then the command should succeed
     And stdout should contain "Raw issue"
     And stdout should not contain "Mock right-now summary for kanbus-jit-raw."
     And issue "kanbus-jit-raw" should have no right now summary
+
+  Scenario: Now listing does not backfill closed descendants
+    Given an issue "kanbus-jit-live-parent" exists with status "in_progress"
+    And an issue "kanbus-jit-live-child" of type "task" with status "closed" and parent "kanbus-jit-live-parent"
+    When I run "kanbus now --list"
+    Then the command should succeed
+    And issue "kanbus-jit-live-parent" should have a mock right now summary
+    And issue "kanbus-jit-live-child" should have no right now summary
+    And stdout should contain "Mock right-now summary for kanbus-jit-live-parent."
+    And stdout should not contain "Mock right-now summary for kanbus-jit-live-child."

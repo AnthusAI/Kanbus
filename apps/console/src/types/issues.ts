@@ -55,6 +55,7 @@ export interface ProjectConfig {
   project_directory: string;
   virtual_projects: Record<string, { path: string }>;
   project_key: string;
+  name?: string | null;
   hierarchy: string[];
   types: string[];
   workflows: Record<string, WorkflowDefinition>;
