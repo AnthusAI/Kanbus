@@ -1,0 +1,41 @@
+{
+  "id": "kbs-47eb9b5b-d1ed-4ad7-8cf9-795c0c722ee1",
+  "title": "Console: style Markus classes + preview chrome only",
+  "description": "Console CSS for Markus class names plus light preview chrome only. No redesign of wiki chrome beyond what is needed to show Markus output correctly. The browser must not parse :::directives.\n\nRequested card id kbs-82fcbb was not present on this develop board; this task continues that work.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-472c8199-14a0-44e6-8105-b5f0370f6d63",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1b1ec3c3-99cd-48c5-8cd2-e1e86fe6432a",
+      "author": "ubuntu",
+      "text": "In progress on https://github.com/AnthusAI/Kanbus/pull/226\n\nConsole wiki preview consumes backend `rendered_html` (no client-side `:::directive` parsing). Added Markus class styles (`markus-document`, `markus-pull-quote`, `markus-card-grid`, `markus-card`, and related) plus light preview chrome. Do not close until #226 merges. Requested id kbs-82fcbb was not on this board snapshot.",
+      "created_at": "2026-09-07T20:21:16.786103Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "wiki-markus-pipeline",
+        "settings": {}
+      }
+    }
+  ],
+  "created_at": "2026-09-07T20:10:48.498953Z",
+  "updated_at": "2026-09-07T20:21:16.786178Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "wiki-markus-pipeline",
+    "settings": {}
+  }
+}

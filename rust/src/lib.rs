@@ -68,5 +68,6 @@ pub mod summarize;
 pub mod text_editor;
 pub mod users;
 pub mod wiki;
+pub mod wiki_markus;
 pub mod wiki_templates;
 pub mod workflows;

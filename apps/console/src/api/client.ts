@@ -714,5 +714,9 @@ export async function renderWikiPage(
     }
     throw new Error(message);
   }
-  return (await response.json()) as WikiRenderResponse;
+  const body = (await response.json()) as WikiRenderResponse;
+  if (typeof body.rendered_html !== "string") {
+    throw new Error("wiki render did not return rendered_html");
+  }
+  return body;
 }

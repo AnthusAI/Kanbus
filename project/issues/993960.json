@@ -1,0 +1,31 @@
+{
+  "id": "993960",
+  "title": "Wiki Jinja: register blocked_by, children, blocks",
+  "description": "Priority fix for blocked_issues.md: unknown function blocked_by. Resolved on PR #226 by registering children, blocked_by, and blocks in Python and Rust wiki Jinja contexts.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-472c8199-14a0-44e6-8105-b5f0370f6d63",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "dcfe35d0-835d-47ee-9655-2c04ae82168d",
+      "author": "ubuntu",
+      "text": "PR #226 (bdf4c30e) registers blocked_by, children, and blocks in Python WikiContext/_wiki_template_globals and Rust add_wiki_relationship_functions. Gherkin coverage in features/wiki/wiki_rendering.feature scenarios for blocked_issues.md, children, blocks, and --json rendered_html. Verified: behave wiki_rendering blocked_by scenarios pass.",
+      "created_at": "2026-09-07T20:43:48.399701841Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-07T20:43:45.156605626Z",
+  "updated_at": "2026-09-07T20:43:48.484230870Z",
+  "closed_at": "2026-09-07T20:43:48.477252338Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

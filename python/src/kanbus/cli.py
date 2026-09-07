@@ -79,6 +79,7 @@ from kanbus.wiki import (
     WikiRenderRequest,
     apply_wiki_page_limit,
     check_wiki_page_links,
+    convert_wiki_markdown_to_html,
     format_wiki_link_problem,
     format_wiki_list_json,
     format_wiki_render_json,
@@ -1988,13 +1989,16 @@ def wiki() -> None:
 @wiki.command("render")
 @click.argument("page")
 @click.option("--json", "as_json", is_flag=True)
-def render_wiki(page: str, as_json: bool) -> None:
+@click.option("--html", "as_html", is_flag=True)
+def render_wiki(page: str, as_json: bool, as_html: bool) -> None:
     """Render a wiki page.
 
     :param page: Wiki page path.
     :type page: str
     :param as_json: Emit JSON output when set.
     :type as_json: bool
+    :param as_html: Emit Markus HTML after Jinja when set.
+    :type as_html: bool
     """
     root = Path.cwd()
     request = WikiRenderRequest(root=root, page_path=Path(page))
@@ -2002,6 +2006,9 @@ def render_wiki(page: str, as_json: bool) -> None:
         link_problems = check_wiki_page_links(root, page)
         reference_warnings: list[str] = []
         output = render_wiki_page(request, reference_warnings=reference_warnings)
+        rendered_html = ""
+        if as_json or as_html:
+            rendered_html = convert_wiki_markdown_to_html(output)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     for problem in link_problems:
@@ -2013,7 +2020,12 @@ def render_wiki(page: str, as_json: bool) -> None:
             resolved_page = resolve_wiki_page_path(root, page)
         except WikiError as error:
             raise click.ClickException(str(error)) from error
-        click.echo(format_wiki_render_json(resolved_page.as_posix(), output))
+        click.echo(
+            format_wiki_render_json(resolved_page.as_posix(), output, rendered_html)
+        )
+        return
+    if as_html:
+        click.echo(rendered_html)
         return
     click.echo(output)
 
