@@ -574,17 +574,36 @@ export async function fetchAuthBootstrap(apiBase: string): Promise<AuthBootstrap
   return (await response.json()) as AuthBootstrap;
 }
 
+function parseWikiPagesResponse(payload: unknown): WikiPagesResponse {
+  if (
+    payload == null
+    || typeof payload !== "object"
+    || !Array.isArray((payload as WikiPagesResponse).pages)
+    || typeof (payload as WikiPagesResponse).wiki_directory_exists !== "boolean"
+  ) {
+    throw new Error("wiki pages response is invalid");
+  }
+  const pages = (payload as WikiPagesResponse).pages;
+  if (!pages.every((page) => typeof page === "string")) {
+    throw new Error("wiki pages response is invalid");
+  }
+  return {
+    pages,
+    wiki_directory_exists: (payload as WikiPagesResponse).wiki_directory_exists
+  };
+}
+
 export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
-  const response = await fetch(`${apiBase}/wiki/pages`);
+  const response = await fetchWithAuth(`${apiBase}/wiki/pages`);
   if (!response.ok) {
     throw new Error(`wiki pages request failed: ${response.status}`);
   }
-  return (await response.json()) as WikiPagesResponse;
+  return parseWikiPagesResponse(await response.json());
 }
 
 export async function fetchWikiPage(apiBase: string, path: string): Promise<WikiPageResponse> {
   const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
-  const response = await fetch(url);
+  const response = await fetchWithAuth(url);
   if (!response.ok) {
     throw new Error(`wiki page request failed: ${response.status}`);
   }
@@ -595,7 +614,7 @@ export async function createWikiPage(
   apiBase: string,
   payload: WikiCreateRequest
 ): Promise<WikiCreateResponse> {
-  const response = await fetch(`${apiBase}/wiki/page`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/page`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -610,7 +629,7 @@ export async function updateWikiPage(
   apiBase: string,
   payload: WikiUpdateRequest
 ): Promise<WikiUpdateResponse> {
-  const response = await fetch(`${apiBase}/wiki/page`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/page`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -625,7 +644,7 @@ export async function renameWikiPage(
   apiBase: string,
   payload: WikiRenameRequest
 ): Promise<WikiRenameResponse> {
-  const response = await fetch(`${apiBase}/wiki/rename`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/rename`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -641,7 +660,7 @@ export async function deleteWikiPage(
   path: string
 ): Promise<WikiDeleteResponse> {
   const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
-  const response = await fetch(url, { method: "DELETE" });
+  const response = await fetchWithAuth(url, { method: "DELETE" });
   if (!response.ok) {
     throw new Error(`wiki delete request failed: ${response.status}`);
   }
@@ -652,7 +671,7 @@ export async function renderWikiPage(
   apiBase: string,
   payload: WikiRenderRequest
 ): Promise<WikiRenderResponse> {
-  const response = await fetch(`${apiBase}/wiki/render`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/render`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)

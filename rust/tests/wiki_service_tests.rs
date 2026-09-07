@@ -226,6 +226,7 @@ fn wiki_list_pages_only_markdown() {
     fs::write(wiki_root.join("b.txt"), "b").expect("write b");
     let list = list_pages(&store).expect("list pages");
     assert_eq!(list.pages, vec!["a.md"]);
+    assert!(list.wiki_directory_exists);
 }
 
 #[test]
@@ -234,6 +235,7 @@ fn wiki_list_pages_empty_when_wiki_root_missing() {
     write_config(&store.root().to_path_buf());
     let list = list_pages(&store).expect("list pages");
     assert!(list.pages.is_empty());
+    assert!(!list.wiki_directory_exists);
 }
 
 #[test]

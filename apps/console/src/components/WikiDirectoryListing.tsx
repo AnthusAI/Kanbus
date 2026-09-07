@@ -19,7 +19,9 @@ export function WikiDirectoryListing({
       </div>
       
       {entries.length === 0 ? (
-        <div className="text-muted text-sm italic">This directory is empty.</div>
+        <div className="text-muted text-sm italic" data-testid="wiki-empty-directory">
+          This directory is empty.
+        </div>
       ) : (
         <div className="grid gap-2">
           {entries.map((entry) => (

@@ -237,24 +237,53 @@ Then("the wiki view should be inactive", async function () {
   await expect(this.page.getByTestId("wiki-view")).not.toBeVisible();
 });
 
+Given("the console wiki directory is missing", async function () {
+  const root = requireWikiRoot();
+  await rm(root, { recursive: true, force: true });
+  this.wikiStale = true;
+});
+
+Given("the console wiki pages request fails", async function () {
+  await this.page.route("**/api/wiki/pages", async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "wiki pages request failed" })
+    });
+  });
+});
+
 Then("the wiki empty state should be visible", async function () {
-  await expect(this.page.getByText("This directory is empty.")).toBeVisible();
+  await expect(this.page.getByTestId("wiki-empty-directory")).toBeVisible();
+  await expect(this.page.getByTestId("wiki-missing-directory")).toHaveCount(0);
+});
+
+Then("the wiki empty state should not be visible", async function () {
+  await expect(this.page.getByTestId("wiki-empty-directory")).toHaveCount(0);
+});
+
+Then("the wiki missing-directory state should be visible", async function () {
+  await expect(this.page.getByTestId("wiki-missing-directory")).toBeVisible();
+  await expect(this.page.getByText("The wiki folder is missing.")).toBeVisible();
+  await expect(this.page.getByTestId("wiki-empty-directory")).toHaveCount(0);
 });
 
 Then("the wiki page list should include {string}", async function (relativePath) {
   const leaf = pathLeaf(relativePath);
   const inDirectory = this.page.locator(".wiki-directory-listing button").filter({ hasText: leaf }).first();
   const inHeader = this.page.getByTestId(`wiki-path-${leaf}`).or(this.page.getByRole("button", { name: relativePath })).first();
-  const total = (await inDirectory.count()) + (await inHeader.count());
-  if (total > 0) {
-    return;
-  }
-  const currentPath = new URL(this.page.url()).pathname;
-  if (currentPath.includes(`/wiki/${encodeWikiPath(relativePath)}`)) {
-    return;
-  }
-  const candidate = path.join(requireWikiRoot(), relativePath);
-  await access(candidate);
+  await expect
+    .poll(
+      async () => {
+        const directoryVisible =
+          (await inDirectory.count()) > 0 && (await inDirectory.isVisible().catch(() => false));
+        const headerVisible =
+          (await inHeader.count()) > 0 && (await inHeader.isVisible().catch(() => false));
+        return directoryVisible || headerVisible;
+      },
+      { timeout: 15000 }
+    )
+    .toBe(true);
 });
 
 Then("the wiki page list should not include {string}", async function (relativePath) {

@@ -1,5 +1,6 @@
 export interface WikiPagesResponse {
   pages: string[];
+  wiki_directory_exists: boolean;
 }
 
 export interface WikiPageResponse {
