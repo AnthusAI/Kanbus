@@ -25,7 +25,10 @@ from kanbus.models import (
     StatusDefinition,
 )
 from kanbus.project import discover_project_directories, get_configuration_path
-from kanbus.status_semantics import map_beads_status, semantic_category_for_beads_status_key
+from kanbus.status_semantics import (
+    map_beads_status,
+    semantic_category_for_beads_status_key,
+)
 from kanbus.workflows import get_workflow_for_issue_type
 
 BEADS_ISSUE_TYPE_MAP = {"feature": "story", "message": "task"}

@@ -230,11 +230,9 @@ mod tests {
     #[test]
     fn resolve_primary_status_key_returns_first_match() {
         let configuration = default_project_configuration();
-        let key = resolve_primary_status_key_for_semantic_category(
-            &configuration,
-            SEMANTIC_IN_PROGRESS,
-        )
-        .expect("key");
+        let key =
+            resolve_primary_status_key_for_semantic_category(&configuration, SEMANTIC_IN_PROGRESS)
+                .expect("key");
         assert_eq!(key, "in_progress");
     }
 

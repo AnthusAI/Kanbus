@@ -13,9 +13,7 @@ use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
-use crate::right_now::{
-    ensure_right_now_summaries, get_right_now_summary,
-};
+use crate::right_now::{ensure_right_now_summaries, get_right_now_summary};
 use crate::status_semantics::{status_keys_for_semantic_category, SEMANTIC_IN_PROGRESS};
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
@@ -194,8 +192,7 @@ fn resolve_right_now_statuses(
             if has_issue_identifiers {
                 Ok(None)
             } else {
-                let keys =
-                    status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)?;
+                let keys = status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)?;
                 Ok(Some(keys.into_iter().collect()))
             }
         }
@@ -625,8 +622,7 @@ mod tests {
     #[test]
     fn resolve_right_now_statuses_defaults_to_in_progress_for_board() {
         let configuration = crate::config::default_project_configuration();
-        let statuses =
-            resolve_right_now_statuses(None, false, &configuration).expect("ok");
+        let statuses = resolve_right_now_statuses(None, false, &configuration).expect("ok");
         assert_eq!(
             statuses,
             Some(HashSet::from([
@@ -637,16 +633,18 @@ mod tests {
         assert!(resolve_right_now_statuses(None, true, &configuration)
             .expect("named")
             .is_none());
-        assert!(resolve_right_now_statuses(Some("all"), false, &configuration)
-            .expect("all")
-            .is_none());
+        assert!(
+            resolve_right_now_statuses(Some("all"), false, &configuration)
+                .expect("all")
+                .is_none()
+        );
         let selected = resolve_right_now_statuses(Some("in_progress,open"), false, &configuration)
             .expect("csv")
             .expect("set");
         assert!(selected.contains("in_progress"));
         assert!(selected.contains("open"));
-        let error = resolve_right_now_statuses(Some(" , "), false, &configuration)
-            .expect_err("empty");
+        let error =
+            resolve_right_now_statuses(Some(" , "), false, &configuration).expect_err("empty");
         assert_eq!(error.to_string(), EMPTY_STATUS_FILTER);
     }
 

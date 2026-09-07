@@ -170,7 +170,9 @@ def _resolve_right_now_statuses(
     if status_option is None:
         if has_issue_identifiers:
             return None
-        return set(status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS))
+        return set(
+            status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)
+        )
     tokens = [part.strip() for part in status_option.split(",") if part.strip()]
     if not tokens:
         raise RightNowCommandError(EMPTY_STATUS_FILTER)

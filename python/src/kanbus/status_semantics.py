@@ -183,7 +183,9 @@ def resolve_preferred_status_key_for_semantic_category(
     )
 
 
-def map_jira_status_to_key(configuration: ProjectConfiguration, jira_status: str) -> str:
+def map_jira_status_to_key(
+    configuration: ProjectConfiguration, jira_status: str
+) -> str:
     """
     Map a Jira status name to a Kanbus status key using semantic categories.
 
