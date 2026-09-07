@@ -251,54 +251,87 @@ export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
   return (await response.json()) as Issue[];
 }
 
+const SSE_RECONNECT_DELAY_MS = 3000;
+
+function openReconnectingEventSource(
+  url: string,
+  handlers: {
+    onmessage: (event: MessageEvent) => void;
+    onerror: (event: Event) => void;
+  }
+): () => void {
+  let disposed = false;
+  let source: EventSource | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (disposed) {
+      return;
+    }
+    source = new EventSource(url);
+    source.onmessage = handlers.onmessage;
+    source.onerror = (event) => {
+      handlers.onerror(event);
+      source?.close();
+      source = null;
+      if (disposed || reconnectTimer != null) {
+        return;
+      }
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, SSE_RECONNECT_DELAY_MS);
+    };
+  };
+  connect();
+
+  return () => {
+    disposed = true;
+    if (reconnectTimer != null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    source?.close();
+    source = null;
+  };
+}
+
 export function subscribeToSnapshots(
   apiBase: string,
   onSnapshot: (snapshot: IssuesSnapshot) => void,
   onError: (error: Event) => void
 ): () => void {
-  const source = new EventSource(withAuthQuery(`${apiBase}/events`));
-  let openCount = 0;
-  let lastErrorAt: number | null = null;
   let lastMessageAt: number | null = null;
 
-  source.onopen = () => {
-    openCount += 1;
-    lastMessageAt = null;
-  };
-
-  source.onmessage = (event) => {
-    try {
-      const snapshot = JSON.parse(event.data) as Partial<IssuesSnapshot> & {
-        error?: string;
-      };
-      if (snapshot.error) {
-        onError(new Event(snapshot.error));
-        return;
+  return openReconnectingEventSource(withAuthQuery(`${apiBase}/events`), {
+    onmessage: (event) => {
+      try {
+        const snapshot = JSON.parse(event.data) as Partial<IssuesSnapshot> & {
+          error?: string;
+        };
+        if (snapshot.error) {
+          onError(new Event(snapshot.error));
+          return;
+        }
+        if (snapshot.config && snapshot.issues) {
+          lastMessageAt = Date.now();
+          onSnapshot(snapshot as IssuesSnapshot);
+          return;
+        }
+        onError(new Event("invalid-snapshot"));
+      } catch {
+        onError(new Event("parse-error"));
       }
-      if (snapshot.config && snapshot.issues) {
-        lastMessageAt = Date.now();
-        onSnapshot(snapshot as IssuesSnapshot);
-        return;
-      }
-      onError(new Event("invalid-snapshot"));
-    } catch {
-      onError(new Event("parse-error"));
+    },
+    onerror: (event) => {
+      const now = Date.now();
+      console.warn("[sse] error", {
+        errorAt: new Date(now).toISOString(),
+        sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
+      });
+      onError(event);
     }
-  };
-
-  source.onerror = (event) => {
-    const now = Date.now();
-    lastErrorAt = now;
-    console.warn("[sse] error", {
-      errorAt: new Date(now).toISOString(),
-      sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
-    });
-    onError(event);
-  };
-
-  return () => {
-    source.close();
-  };
+  });
 }
 
 export function subscribeToNotifications(
@@ -306,30 +339,23 @@ export function subscribeToNotifications(
   onNotification: (event: NotificationEvent) => void,
   onError?: (error: Event) => void
 ): () => void {
-  const source = new EventSource(withAuthQuery(`${apiBase}/events/realtime`));
-
-  source.onopen = () => {};
-
-  source.onmessage = (event) => {
-    try {
-      const notification = JSON.parse(event.data) as NotificationEvent;
-      onNotification(notification);
-    } catch (error) {
-      console.error("[notifications] parse error", error);
-      onError?.(new Event("parse-error"));
+  return openReconnectingEventSource(withAuthQuery(`${apiBase}/events/realtime`), {
+    onmessage: (event) => {
+      try {
+        const notification = JSON.parse(event.data) as NotificationEvent;
+        onNotification(notification);
+      } catch (error) {
+        console.error("[notifications] parse error", error);
+        onError?.(new Event("parse-error"));
+      }
+    },
+    onerror: (event) => {
+      console.warn("[notifications] error", {
+        errorAt: new Date().toISOString()
+      });
+      onError?.(event);
     }
-  };
-
-  source.onerror = (event) => {
-    console.warn("[notifications] error", {
-      errorAt: new Date().toISOString()
-    });
-    onError?.(event);
-  };
-
-  return () => {
-    source.close();
-  };
+  });
 }
 
 export function subscribeToRealtimeFeed(
@@ -593,12 +619,35 @@ function parseWikiPagesResponse(payload: unknown): WikiPagesResponse {
   };
 }
 
-export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
-  const response = await fetchWithAuth(`${apiBase}/wiki/pages`);
-  if (!response.ok) {
-    throw new Error(`wiki pages request failed: ${response.status}`);
+const WIKI_PAGES_REQUEST_TIMEOUT_MS = 8000;
+
+function wikiPagesRequestFailedMessage(error: unknown): Error {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return new Error("wiki pages request failed: timed out");
   }
-  return parseWikiPagesResponse(await response.json());
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error("wiki pages request failed");
+}
+
+export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), WIKI_PAGES_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetchWithAuth(`${apiBase}/wiki/pages`, {
+      signal: controller.signal,
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      throw new Error(`wiki pages request failed: ${response.status}`);
+    }
+    return parseWikiPagesResponse(await response.json());
+  } catch (error) {
+    throw wikiPagesRequestFailedMessage(error);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function fetchWikiPage(apiBase: string, path: string): Promise<WikiPageResponse> {

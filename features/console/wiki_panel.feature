@@ -220,3 +220,11 @@ Feature: Console wiki workspace
     When I switch to the "Wiki" view
     Then the wiki error banner should contain "wiki pages request failed"
     And the wiki empty state should not be visible
+
+  @wiki-ui-017
+  Scenario: hung wiki pages request shows a visible error
+    Given the console is open
+    And the console wiki pages request hangs
+    When I switch to the "Wiki" view
+    Then the wiki error banner should contain "wiki pages request failed"
+    And the wiki empty state should not be visible

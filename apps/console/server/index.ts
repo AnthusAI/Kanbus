@@ -244,14 +244,33 @@ apiRouter.get("/issues/:id", async (req, res) => {
 const sseClients = new Set<express.Response>();
 const telemetryClients = new Set<express.Response>();
 
-apiRouter.get("/events", async (req, res) => {
+function openSseStream(
+  req: express.Request,
+  res: express.Response,
+  onClose: () => void
+): void {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
-  res.write("retry: 1000\n\n");
+  res.write("retry: 3000\n\n");
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) {
+      res.write(": keep-alive\n\n");
+    }
+  }, 15000);
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    onClose();
+  });
+}
 
+apiRouter.get("/events", async (req, res) => {
   sseClients.add(res);
+  openSseStream(req, res, () => {
+    sseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
+  });
   logConsoleEvent("sse-client-connected", { clients: sseClients.size });
 
   try {
@@ -265,22 +284,18 @@ apiRouter.get("/events", async (req, res) => {
       })}\n\n`
     );
   }
-
-  req.on("close", () => {
-    sseClients.delete(res);
-    logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
-  });
 });
 
 // Realtime stream alias used by the web client.
 apiRouter.get("/events/realtime", async (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
-
   sseClients.add(res);
+  openSseStream(req, res, () => {
+    sseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", {
+      clients: sseClients.size,
+      stream: "realtime"
+    });
+  });
   logConsoleEvent("sse-client-connected", {
     clients: sseClients.size,
     stream: "realtime"
@@ -297,30 +312,15 @@ apiRouter.get("/events/realtime", async (req, res) => {
       })}\n\n`
     );
   }
-
-  req.on("close", () => {
-    sseClients.delete(res);
-    logConsoleEvent("sse-client-disconnected", {
-      clients: sseClients.size,
-      stream: "realtime"
-    });
-  });
 });
 
 apiRouter.get("/telemetry/console/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
-
   telemetryClients.add(res);
-  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
-
-  req.on("close", () => {
+  openSseStream(req, res, () => {
     telemetryClients.delete(res);
     logConsoleEvent("telemetry-client-disconnected", { clients: telemetryClients.size });
   });
+  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
 });
 
 apiRouter.post(

@@ -200,6 +200,17 @@ fn given_console_wiki_pages_request_fails(world: &mut KanbusWorld) {
     wiki.error_banner = None;
 }
 
+/// Record a hung wiki pages request as a visible load failure.
+#[given("the console wiki pages request hangs")]
+fn given_console_wiki_pages_request_hangs(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    wiki.pages.clear();
+    wiki.page_order.clear();
+    wiki.selected_path = None;
+    wiki.pages_request_failed = true;
+    wiki.error_banner = None;
+}
+
 #[then("the wiki empty state should be visible")]
 fn then_wiki_empty_state_visible(world: &mut KanbusWorld) {
     let wiki = ensure_wiki_state(world);

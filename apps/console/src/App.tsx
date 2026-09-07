@@ -679,6 +679,15 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
+  const snapshotUnsubscribeRef = React.useRef<(() => void) | null>(null);
+  const realtimeUnsubscribeRef = React.useRef<(() => void) | null>(null);
+
+  const pauseRealtimeFeeds = useCallback(() => {
+    snapshotUnsubscribeRef.current?.();
+    snapshotUnsubscribeRef.current = null;
+    realtimeUnsubscribeRef.current?.();
+    realtimeUnsubscribeRef.current = null;
+  }, []);
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -760,13 +769,13 @@ export default function App() {
 
   useEffect(() => {
     if (route.wikiPath !== null) {
+      pauseRealtimeFeeds();
       setPanelMode("wiki");
     }
-  }, [route.wikiPath]);
+  }, [route.wikiPath, pauseRealtimeFeeds]);
 
   useEffect(() => {
     let isMounted = true;
-    let unsubscribe: (() => void) | null = null;
     setAuthReady(false);
     setLoading(true);
     if (route.basePath == null) {
@@ -805,25 +814,6 @@ export default function App() {
         setError(null);
         setAuthReady(true);
         setLoading(false);
-        unsubscribe = subscribeToSnapshots(
-          apiBase,
-          (nextSnapshot) => {
-            lastSnapshotSuccessAtRef.current = Date.now();
-            setSnapshot(nextSnapshot);
-            setError(null);
-            setErrorTime(null);
-          },
-          () => {
-            const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
-            // EventSource reconnects are expected in some gateway paths.
-            // Only surface a hard outage when snapshots have actually gone stale.
-            if (staleMs < 15_000) {
-              return;
-            }
-            setError("SSE connection issue. Attempting to reconnect.");
-            setErrorTime(Date.now());
-          }
-        );
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize auth";
         // Redirect flow intentionally throws after assigning location.
@@ -841,19 +831,50 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      unsubscribe?.();
       setAuthHeaderProvider(null);
       setAuthQueryProvider(null);
       setMqttTokenProvider(null);
     };
   }, [route.basePath]);
 
+  useEffect(() => {
+    if (!route.basePath || !authReady || panelMode === "wiki") {
+      pauseRealtimeFeeds();
+      return;
+    }
+    const snapshotApiBase = `${route.basePath}/api`;
+    snapshotUnsubscribeRef.current?.();
+    snapshotUnsubscribeRef.current = subscribeToSnapshots(
+      snapshotApiBase,
+      (nextSnapshot) => {
+        lastSnapshotSuccessAtRef.current = Date.now();
+        setSnapshot(nextSnapshot);
+        setError(null);
+        setErrorTime(null);
+      },
+      () => {
+        const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
+        if (staleMs < 15_000) {
+          return;
+        }
+        setError("SSE connection issue. Attempting to reconnect.");
+        setErrorTime(Date.now());
+      }
+    );
+    return () => {
+      snapshotUnsubscribeRef.current?.();
+      snapshotUnsubscribeRef.current = null;
+    };
+  }, [route.basePath, authReady, panelMode, pauseRealtimeFeeds]);
+
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (!route.basePath || !authReady || panelMode === "wiki") {
+      pauseRealtimeFeeds();
       return;
     }
     const apiBase = `${route.basePath}/api`;
+    realtimeUnsubscribeRef.current?.();
     const unsubscribe = subscribeToRealtimeFeed(
       apiBase,
       (event: NotificationEvent) => {
@@ -918,10 +939,12 @@ export default function App() {
       }
     );
 
+    realtimeUnsubscribeRef.current = unsubscribe;
     return () => {
-      unsubscribe();
+      realtimeUnsubscribeRef.current?.();
+      realtimeUnsubscribeRef.current = null;
     };
-  }, [route.basePath, authReady]);
+  }, [route.basePath, authReady, panelMode, pauseRealtimeFeeds]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {
@@ -1456,6 +1479,11 @@ export default function App() {
       if (!proceed) {
         return;
       }
+    }
+    if (nextMode === "wiki") {
+      pauseRealtimeFeeds();
+      setPanelMode(nextMode);
+      return;
     }
     refreshSnapshot();
     setPanelMode(nextMode);
