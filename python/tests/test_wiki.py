@@ -367,3 +367,29 @@ def test_list_wiki_pages_success_absolute_relative_and_errors(
     )
     with pytest.raises(wiki.WikiError, match="bad config"):
         wiki.list_wiki_pages(tmp_path)
+
+
+def test_extract_wiki_title_reads_h1() -> None:
+    assert wiki.extract_wiki_title("# Blocked issues\nOpen items.") == "Blocked issues"
+
+
+def test_extract_wiki_title_prefers_frontmatter_over_h1() -> None:
+    content = "---\ntitle: Epic progress\n---\n# Ignored heading\nStatus body\n"
+    assert wiki.extract_wiki_title(content) == "Epic progress"
+
+
+def test_extract_wiki_title_unquotes_frontmatter_title() -> None:
+    content = '---\ntitle: "Quoted title"\n---\n# Heading\n'
+    assert wiki.extract_wiki_title(content) == "Quoted title"
+
+
+def test_extract_wiki_title_uses_h1_when_frontmatter_has_no_title() -> None:
+    content = "---\nstatus: draft\n---\n# Heading title\n"
+    assert wiki.extract_wiki_title(content) == "Heading title"
+
+
+def test_wiki_page_display_title_falls_back_to_stem() -> None:
+    assert (
+        wiki.wiki_page_display_title("Just a paragraph.", "untitled_notes.md")
+        == "untitled_notes"
+    )

@@ -1,6 +1,9 @@
 use cucumber::{gherkin::Step, given, then, when};
+use kanbus::wiki::wiki_page_display_title;
 
-use crate::step_definitions::console_ui_steps::{ensure_wiki_state, select_wiki_page};
+use crate::step_definitions::console_ui_steps::{
+    ensure_wiki_state, select_wiki_page, WikiWorkspaceState,
+};
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 fn is_invalid_wiki_path(path: &str) -> bool {
@@ -53,6 +56,21 @@ fn when_try_create_wiki_page_named(world: &mut KanbusWorld, path: String) {
 #[when(regex = r#"I select wiki page "(?P<path>[^"]+)"$"#)]
 fn when_select_wiki_page(world: &mut KanbusWorld, path: String) {
     let wiki = ensure_wiki_state(world);
+    select_wiki_page(wiki, &path);
+}
+
+#[when(regex = r#"I select the wiki page titled "(?P<title>[^"]+)"$"#)]
+fn when_select_wiki_page_titled(world: &mut KanbusWorld, title: String) {
+    let wiki = ensure_wiki_state(world);
+    let matching = wiki.page_order.iter().find(|path| {
+        wiki.pages
+            .get(*path)
+            .map(|content| wiki_page_display_title(content, path) == title)
+            .unwrap_or(false)
+    });
+    let path = matching
+        .cloned()
+        .unwrap_or_else(|| panic!("no wiki page titled {}", title));
     select_wiki_page(wiki, &path);
 }
 
@@ -239,6 +257,53 @@ fn then_wiki_missing_directory_state_should_be_visible(world: &mut KanbusWorld) 
     assert!(
         !wiki.wiki_directory_exists && wiki.page_order.is_empty() && !wiki.pages_request_failed,
         "expected wiki missing-directory state"
+    );
+}
+
+fn wiki_directory_listing_labels(wiki: &WikiWorkspaceState) -> Vec<String> {
+    let mut labels = std::collections::BTreeMap::new();
+    for path in &wiki.page_order {
+        let parts: Vec<&str> = path.split('/').collect();
+        let name = parts[0];
+        let is_dir = parts.len() > 1;
+        if !labels.contains_key(name) {
+            let label = if is_dir {
+                name.to_string()
+            } else {
+                wiki_page_display_title(
+                    wiki.pages.get(path).map(String::as_str).unwrap_or(""),
+                    path,
+                )
+            };
+            labels.insert(name.to_string(), label);
+        } else if is_dir {
+            labels.insert(name.to_string(), name.to_string());
+        }
+    }
+    labels.into_values().collect()
+}
+
+#[then(regex = r#"the wiki directory listing should show "(?P<text>[^"]+)"$"#)]
+fn then_wiki_directory_listing_should_show(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    let labels = wiki_directory_listing_labels(wiki);
+    assert!(
+        labels.iter().any(|label| label == &text),
+        "expected directory listing to show {:?}, got {:?}",
+        text,
+        labels
+    );
+}
+
+#[then(regex = r#"the wiki directory listing should not show "(?P<text>[^"]+)"$"#)]
+fn then_wiki_directory_listing_should_not_show(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    let labels = wiki_directory_listing_labels(wiki);
+    assert!(
+        labels.iter().all(|label| label != &text),
+        "expected directory listing not to show {:?}, got {:?}",
+        text,
+        labels
     );
 }
 
