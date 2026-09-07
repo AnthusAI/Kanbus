@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from behave import given, then, when
 
-from kanbus.wiki import wiki_page_display_title
+from kanbus.wiki import (
+    WikiError,
+    convert_wiki_markdown_to_html,
+    wiki_page_display_title,
+)
 
 from features.steps.console_ui_steps import (
     _ensure_console_storage,
@@ -149,6 +154,23 @@ def when_render_wiki_page(context: object) -> None:
         return
     wiki.preview_content = wiki.editor_content
     wiki.error_banner = None
+
+
+@when("I render the wiki page through the backend")
+def when_render_wiki_page_through_backend(context: object) -> None:
+    """Render the current editor draft through Jinja then Markus.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :return: None
+    :rtype: None
+    """
+    wiki = _ensure_wiki_state(context)
+    try:
+        wiki.preview_content = convert_wiki_markdown_to_html(wiki.editor_content)
+        wiki.error_banner = None
+    except WikiError as error:
+        wiki.error_banner = str(error)
 
 
 @when('I rename the wiki page "{old_path}" to "{new_path}"')
@@ -373,6 +395,80 @@ def then_wiki_editor_content_should_equal(context: object) -> None:
     if wiki.editor_content != expected:
         raise AssertionError(
             f"expected editor content {expected!r}, got {wiki.editor_content!r}"
+        )
+
+
+def _preview_html_contains_class(html: str, css_class: str) -> bool:
+    """Return whether preview HTML includes an element with the given class.
+
+    :param html: Preview HTML fragment.
+    :type html: str
+    :param css_class: Class token to find.
+    :type css_class: str
+    :return: True when the class token is present.
+    :rtype: bool
+    """
+    pattern = re.compile(r'class=(["\'])([^"\']*)\1')
+    for match in pattern.finditer(html):
+        if css_class in match.group(2).split():
+            return True
+    return False
+
+
+@then('the wiki preview HTML should contain element with class "{css_class}"')
+def then_wiki_preview_html_contains_class(context: object, css_class: str) -> None:
+    """Assert preview HTML includes an element with a Markus class.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :param css_class: Expected class token.
+    :type css_class: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the class is missing from the preview HTML.
+    """
+    wiki = _ensure_wiki_state(context)
+    if not _preview_html_contains_class(wiki.preview_content, css_class):
+        raise AssertionError(
+            f"expected preview HTML class {css_class!r}, got {wiki.preview_content!r}"
+        )
+
+
+@then('the wiki preview HTML should contain "{text}"')
+def then_wiki_preview_html_contains(context: object, text: str) -> None:
+    """Assert preview HTML includes the given text.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :param text: Expected substring.
+    :type text: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the text is missing.
+    """
+    wiki = _ensure_wiki_state(context)
+    if text not in wiki.preview_content:
+        raise AssertionError(
+            f"expected wiki preview HTML to contain {text!r}, got {wiki.preview_content!r}"
+        )
+
+
+@then('the wiki preview HTML should not contain "{text}"')
+def then_wiki_preview_html_not_contain(context: object, text: str) -> None:
+    """Assert preview HTML does not include the given text.
+
+    :param context: Behave context holding console wiki workspace state.
+    :type context: object
+    :param text: Forbidden substring.
+    :type text: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the text is present.
+    """
+    wiki = _ensure_wiki_state(context)
+    if text in wiki.preview_content:
+        raise AssertionError(
+            f"expected wiki preview HTML not to contain {text!r}, got {wiki.preview_content!r}"
         )
 
 

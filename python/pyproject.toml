@@ -12,6 +12,7 @@ license = "MIT"
 dependencies = [
     "click==8.4.2",
     "jinja2",
+    "anthus-markus @ git+https://github.com/AnthusAI/Markus.git@v0.5.1",
     "pydantic",
     "pyyaml",
     "pydantic-settings",

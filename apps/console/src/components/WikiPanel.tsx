@@ -53,7 +53,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
   // File state
   const [savedContent, setSavedContent] = useState("");
   const [draftContent, setDraftContent] = useState("");
-  const [renderedMarkdown, setRenderedMarkdown] = useState("");
+  const [renderedHtml, setRenderedHtml] = useState("");
   
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isLoadingPages, setIsLoadingPages] = useState(false);
@@ -107,14 +107,14 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
       setIsLoadingFile(true);
       setSavedContent("");
       setDraftContent("");
-      setRenderedMarkdown("");
+      setRenderedHtml("");
       setRenderError(null);
       loadFile(activePath).finally(() => setIsLoadingFile(false));
     } else {
       setIsLoadingFile(false);
       setSavedContent("");
       setDraftContent("");
-      setRenderedMarkdown("");
+      setRenderedHtml("");
       setRenderError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,7 +352,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
           ? { path: activePath, content: draftContent }
           : { path: activePath };
       const rendered = await renderWikiPage(apiBase, payload);
-      setRenderedMarkdown(rendered.rendered_markdown);
+      setRenderedHtml(rendered.rendered_html);
     } catch (err) {
       setRenderError((err as Error).message);
     } finally {
@@ -434,7 +434,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
             <div className="h-full bg-[var(--card)] rounded-xl overflow-hidden">
               <WikiPreview
                 path={activePath}
-                renderedMarkdown={renderedMarkdown}
+                renderedHtml={renderedHtml}
                 renderError={renderError}
                 isRendering={isRendering}
                 onRender={handleRender}
@@ -534,7 +534,7 @@ export function WikiPanel({ apiBase, isActive, onDirtyChange, initialRoutePath, 
               >
                 <WikiPreview
                   path={activePath}
-                  renderedMarkdown={renderedMarkdown}
+                  renderedHtml={renderedHtml}
                   renderError={renderError}
                   isRendering={isRendering}
                   onRender={handleRender}

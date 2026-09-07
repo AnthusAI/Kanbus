@@ -1,0 +1,41 @@
+{
+  "id": "kbs-4685fd81-1c95-4f7a-9303-31030e94070a",
+  "title": "Spec: Markus after Jinja wiki render pipeline",
+  "description": "Acceptance specs for the wiki rendering architecture:\n\n1. Jinja first \u2014 live issue-index helpers evaluate templates.\n2. Markus second \u2014 anthus-markus / markusmd.convert converts Jinja-resolved Markdown to semantic HTML.\n3. Console preview consumes backend-rendered HTML with Markus classes; browser styles only.\n4. Unknown directives fail validation.\n\nRequested card id kbs-5d88eb was not present on this develop board; this story continues that work. Specs originated in PR 217.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-472c8199-14a0-44e6-8105-b5f0370f6d63",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "40e6ff86-c711-4a59-8d0f-2c72ead06da9",
+      "author": "ubuntu",
+      "text": "Specs from PR 217 are on branch `cursor/wiki-markus-pipeline-fb6e` in this implementation PR (not yet on develop):\n\nhttps://github.com/AnthusAI/Kanbus/pull/226\n\nCLI scenarios in `features/wiki/wiki_markus.feature` are no longer `@wip` and pass in Python. Console preview scenarios remain `@console` in `features/console/wiki_markus_preview.feature`. Close this card after #226 merges to develop. Requested id kbs-5d88eb was not on this board snapshot.",
+      "created_at": "2026-09-07T20:21:15.396188Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "wiki-markus-pipeline",
+        "settings": {}
+      }
+    }
+  ],
+  "created_at": "2026-09-07T20:10:47.093091Z",
+  "updated_at": "2026-09-07T20:21:15.396269Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "wiki-markus-pipeline",
+    "settings": {}
+  }
+}

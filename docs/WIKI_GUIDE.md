@@ -1,6 +1,11 @@
 # Wiki Guide
 
-Kanbus wiki pages are Markdown files with Jinja2-style templates. At render time, Kanbus evaluates the template against the live issue index and outputs a fully rendered Markdown document.
+Kanbus wiki pages are Markdown files with Jinja2-style templates. Rendering is a two-stage pipeline:
+
+1. **Jinja first** — evaluate the template against the live issue index (queries, counts, references, `ai_summarize`, and related helpers).
+2. **Markus second** — convert the Jinja-resolved Markdown with [Markus](https://anthusai.github.io/Markus) (`anthus-markus` / `markusmd.convert`) into semantic HTML. Markus extends GitHub Flavored Markdown with colon-fenced directives such as `pull-quote`, `card-grid`, and `two-up`. Unknown directives fail validation.
+
+The console wiki preview consumes backend-rendered HTML that already includes Markus semantic classes (for example `markus-pull-quote`, `markus-card-grid`). The browser applies console styling only; it does not parse `:::directives` client-side.
 
 ## Where wiki pages live
 
@@ -155,10 +160,20 @@ Assignee: {{ item.assignee or "unassigned" }}
 
 ## Rendering
 
-Render a wiki page from the project root:
+Render a wiki page from the project root. By default, `wiki render` prints the post-Jinja Markdown (backward compatible with scripts and agents). Use `--html` to print Markus semantic HTML, or `--json` to receive both `rendered` (Markdown) and `rendered_html` (HTML) fields.
 
 ```bash
 kanbus wiki render project/wiki/index.md
+kanbus wiki render project/wiki/index.md --html
+```
+
+Markus layout directives are valid in wiki source after Jinja evaluation. Example pull quote:
+
+```markdown
+:::pull-quote
+> Measure what matters.
+{: attribution="Editorial principle" }
+:::
 ```
 
 List wiki pages:

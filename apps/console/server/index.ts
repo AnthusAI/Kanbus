@@ -446,16 +446,33 @@ async function listWikiPages(): Promise<{ pages: WikiPageListItem[]; wiki_direct
   return { pages, wiki_directory_exists: true };
 }
 
-async function wikiRenderPage(relativePagePath: string): Promise<string> {
+type WikiCliRenderResult = {
+  rendered_markdown: string;
+  rendered_html: string;
+};
+
+function parseWikiRenderJson(stdout: string): WikiCliRenderResult {
+  const payload = JSON.parse(stdout) as { rendered?: unknown; rendered_html?: unknown };
+  if (typeof payload.rendered !== "string" || typeof payload.rendered_html !== "string") {
+    throw new Error("wiki render did not return rendered_html");
+  }
+  return { rendered_markdown: payload.rendered, rendered_html: payload.rendered_html };
+}
+
+async function wikiRenderPage(relativePagePath: string): Promise<WikiCliRenderResult> {
   const rustKbs = getRustKbsPath();
   if (rustKbs) {
     try {
-      const { stdout } = await execFileAsync(rustKbs, ["wiki", "render", relativePagePath], {
-        cwd: repoRoot,
-        env: { ...process.env },
-        maxBuffer: 2 * 1024 * 1024
-      });
-      return stdout.trimEnd();
+      const { stdout } = await execFileAsync(
+        rustKbs,
+        ["wiki", "render", relativePagePath, "--json"],
+        {
+          cwd: repoRoot,
+          env: { ...process.env },
+          maxBuffer: 2 * 1024 * 1024
+        }
+      );
+      return parseWikiRenderJson(stdout.trimEnd());
     } catch (rustError) {
       const err = rustError as Error & { stderr?: string; stdout?: string };
       const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim();
@@ -465,8 +482,8 @@ async function wikiRenderPage(relativePagePath: string): Promise<string> {
 
   const command = kanbusPython ?? "kanbus";
   const args = kanbusPython
-    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "wiki", "render", relativePagePath]
-    : ["wiki", "render", relativePagePath];
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "wiki", "render", relativePagePath, "--json"]
+    : ["wiki", "render", relativePagePath, "--json"];
   const { stdout } = await execFileAsync(command, args, {
     cwd: repoRoot,
     env: {
@@ -476,7 +493,7 @@ async function wikiRenderPage(relativePagePath: string): Promise<string> {
     },
     maxBuffer: 2 * 1024 * 1024
   });
-  return stdout.trimEnd();
+  return parseWikiRenderJson(stdout.trimEnd());
 }
 
 const wikiRateLimit = rateLimit({
@@ -689,7 +706,11 @@ apiRouter.post(
 
       try {
         const rendered = await wikiRenderPage(renderPath);
-        res.json({ path: normalized, rendered_markdown: rendered });
+        res.json({
+          path: normalized,
+          rendered_markdown: rendered.rendered_markdown,
+          rendered_html: rendered.rendered_html
+        });
       } catch (renderError) {
         const err = renderError as Error & { stderr?: string; stdout?: string };
         const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim() || err.message;

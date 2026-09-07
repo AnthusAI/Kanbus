@@ -8,6 +8,7 @@ from kanbus import wiki
 from kanbus import config_loader, project
 from kanbus.console_snapshot import ConsoleSnapshotError
 from kanbus.config_loader import ConfigurationError
+from kanbus.models import DependencyLink
 from kanbus.project import ProjectMarkerError
 
 from test_helpers import build_issue, build_project_configuration
@@ -62,6 +63,60 @@ def test_wiki_context_query_count_issue_and_invalid_sort() -> None:
 
     with pytest.raises(wiki.WikiError, match="invalid sort key"):
         context.query(sort="bad")
+
+
+def test_wiki_context_children_blocked_by_and_blocks() -> None:
+    parent = build_issue("kanbus-epic01", title="Epic", issue_type="epic")
+    child = build_issue("kanbus-child", title="Child", parent="kanbus-epic01")
+    blocker = build_issue("kanbus-blocker", title="Blocker")
+    blocked = build_issue("kanbus-blocked01", title="Blocked", status="blocked")
+    blocked = blocked.model_copy(
+        update={
+            "dependencies": [
+                DependencyLink(target="kanbus-blocker", type="blocked-by"),
+                DependencyLink(target="kanbus-epic01", type="relates-to"),
+            ]
+        }
+    )
+    context = wiki.WikiContext([parent, child, blocker, blocked], root=Path.cwd())
+
+    assert [row["id"] for row in context.children("kanbus-epic01")] == ["kanbus-child"]
+    assert context.children("missing") == []
+
+    blockers = context.blocked_by("kanbus-blocked01")
+    assert [row["id"] for row in blockers] == ["kanbus-blocker"]
+    assert context.blocked_by("kanbus-blocker") == []
+    assert context.blocked_by("missing") == []
+
+    blocked_rows = context.blocks("kanbus-blocker")
+    assert [row["id"] for row in blocked_rows] == ["kanbus-blocked01"]
+    assert context.blocks("kanbus-blocked01") == []
+
+
+def test_render_template_string_blocked_by_helper() -> None:
+    blocker = build_issue("kanbus-blocker", title="Blocker")
+    blocked = build_issue("kanbus-blocked01", title="Blocked", status="blocked")
+    blocked = blocked.model_copy(
+        update={
+            "dependencies": [DependencyLink(target="kanbus-blocker", type="blocked-by")]
+        }
+    )
+    rendered = wiki.render_template_string(
+        "{% for blocker in blocked_by('kanbus-blocked01') %}{{ blocker.id }}{% endfor %}",
+        [blocker, blocked],
+    )
+    assert rendered == "kanbus-blocker"
+
+    combined = wiki.render_template_string(
+        (
+            "{% for issue in query(status='blocked') %}"
+            "{{ issue.id }}:"
+            "{% for blocker in blocked_by(issue.id) %}{{ blocker.id }}{% endfor %}"
+            "{% endfor %}"
+        ),
+        [blocker, blocked],
+    )
+    assert combined == "kanbus-blocked01:kanbus-blocker"
 
 
 def test_wiki_render_cache_helpers(
@@ -398,3 +453,34 @@ def test_wiki_page_display_title_falls_back_to_stem() -> None:
         wiki.wiki_page_display_title("Just a paragraph.", "untitled_notes.md")
         == "untitled_notes"
     )
+
+
+def test_convert_wiki_markdown_to_html_wraps_gfm_in_markus_document() -> None:
+    html = wiki.convert_wiki_markdown_to_html("Plain paragraph with **bold** text.")
+    assert "markus-document" in html
+    assert "Plain paragraph with" in html
+
+
+def test_convert_wiki_markdown_to_html_renders_pull_quote() -> None:
+    source = ":::pull-quote\n> Measure what matters.\n:::\n"
+    html = wiki.convert_wiki_markdown_to_html(source)
+    assert "markus-pull-quote" in html
+    assert "Measure what matters." in html
+
+
+def test_convert_wiki_markdown_to_html_rejects_unknown_directive() -> None:
+    source = ":::unknown-directive\nInvalid block.\n:::\n"
+    with pytest.raises(wiki.WikiError, match="Unknown directive"):
+        wiki.convert_wiki_markdown_to_html(source)
+
+
+def test_format_wiki_render_json_includes_rendered_html() -> None:
+    payload = wiki.format_wiki_render_json(
+        "project/wiki/status.md",
+        "Open: 3",
+        '<article class="markus-document"><p>Open: 3</p></article>',
+    )
+    assert '"path": "project/wiki/status.md"' in payload
+    assert '"rendered": "Open: 3"' in payload
+    assert "rendered_html" in payload
+    assert "markus-document" in payload

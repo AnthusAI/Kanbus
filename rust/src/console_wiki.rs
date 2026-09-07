@@ -10,6 +10,7 @@ use crate::console_backend::FileStore;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::wiki::{render_wiki_page, wiki_page_display_title, WikiRenderRequest};
+use crate::wiki_markus::convert_wiki_markdown_to_html;
 
 /// A wiki page listed by the console API.
 ///
@@ -105,10 +106,16 @@ pub struct WikiRenderRequestPayload {
 }
 
 /// Response for rendering a wiki page.
+///
+/// # Fields
+/// * `path` - Wiki-relative markdown path
+/// * `rendered_markdown` - Post-Jinja Markdown
+/// * `rendered_html` - Markus HTML converted from the Jinja Markdown
 #[derive(Debug, Clone, Serialize)]
 pub struct WikiRenderResponse {
     pub path: String,
     pub rendered_markdown: String,
+    pub rendered_html: String,
 }
 
 /// Service error types for wiki operations.
@@ -398,9 +405,14 @@ pub fn render_page(
         })
         .map_err(|error| WikiServiceError::Render(error.to_string()));
         let _ = fs::remove_file(&temp_path);
-        return result.map(|rendered| WikiRenderResponse {
-            path: normalized,
-            rendered_markdown: rendered,
+        return result.and_then(|rendered| {
+            let rendered_html = convert_wiki_markdown_to_html(&rendered)
+                .map_err(|error| WikiServiceError::Render(error.to_string()))?;
+            Ok(WikiRenderResponse {
+                path: normalized,
+                rendered_markdown: rendered,
+                rendered_html,
+            })
         });
     }
 
@@ -415,9 +427,12 @@ pub fn render_page(
         page_path: relative_for_render,
     })
     .map_err(|error| WikiServiceError::Render(error.to_string()))?;
+    let rendered_html = convert_wiki_markdown_to_html(&rendered)
+        .map_err(|error| WikiServiceError::Render(error.to_string()))?;
     Ok(WikiRenderResponse {
         path: normalized,
         rendered_markdown: rendered,
+        rendered_html,
     })
 }
 
