@@ -49,14 +49,18 @@ def test_resolve_primary_status_key_raises_when_category_missing() -> None:
 
 def test_status_keys_for_semantic_category_returns_all_matches() -> None:
     configuration = build_project_configuration()
-    assert status_keys_for_semantic_category(
-        configuration, SEMANTIC_IN_PROGRESS
-    ) == ["in_progress", "blocked"]
+    assert status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS) == [
+        "in_progress",
+        "blocked",
+    ]
 
 
 def test_semantic_category_for_status_key() -> None:
     configuration = build_project_configuration()
-    assert semantic_category_for_status_key(configuration, "blocked") == SEMANTIC_IN_PROGRESS
+    assert (
+        semantic_category_for_status_key(configuration, "blocked")
+        == SEMANTIC_IN_PROGRESS
+    )
     assert semantic_category_for_status_key(configuration, "missing") is None
 
 

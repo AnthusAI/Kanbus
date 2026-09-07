@@ -107,4 +107,7 @@ def test_sort_issues_by_recently_updated_handles_naive_timestamps() -> None:
     aware = build_issue("kanbus-aware")
     aware.updated_at = datetime(2026, 3, 10, 12, 0, 0, tzinfo=timezone.utc)
     sorted_issues = queries.sort_issues_by_recently_updated([naive, aware])
-    assert [issue.identifier for issue in sorted_issues] == ["kanbus-aware", "kanbus-naive"]
+    assert [issue.identifier for issue in sorted_issues] == [
+        "kanbus-aware",
+        "kanbus-naive",
+    ]
