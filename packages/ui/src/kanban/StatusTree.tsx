@@ -84,6 +84,26 @@ function toKanbanIssue(issue: StatusTreeIssue): KanbanIssue {
   };
 }
 
+function getTreeLatestUpdate(node: StatusTreeNode): number {
+  let max = parseTimestamp(node.issue.updated_at) ?? 0;
+  for (const child of node.children) {
+    const childMax = getTreeLatestUpdate(child);
+    if (childMax > max) {
+      max = childMax;
+    }
+  }
+  return max;
+}
+
+function compareNodesRecentlyUpdated(left: StatusTreeNode, right: StatusTreeNode): number {
+  const leftMax = getTreeLatestUpdate(left);
+  const rightMax = getTreeLatestUpdate(right);
+  if (leftMax !== rightMax) {
+    return rightMax - leftMax;
+  }
+  return left.issue.id.localeCompare(right.issue.id);
+}
+
 function buildStatusTree(issues: StatusTreeIssue[]): StatusTreeNode[] {
   const identifiers = new Set(issues.map((issue) => issue.id));
   const childrenByParent = new Map<string, StatusTreeIssue[]>();
@@ -97,23 +117,19 @@ function buildStatusTree(issues: StatusTreeIssue[]): StatusTreeNode[] {
     childrenByParent.set(issue.parent, siblings);
   }
 
-  for (const [parentId, children] of childrenByParent.entries()) {
-    childrenByParent.set(
-      parentId,
-      [...children].sort(compareRecentlyUpdated)
-    );
-  }
+  const buildNode = (issue: StatusTreeIssue): StatusTreeNode => {
+    const children = (childrenByParent.get(issue.id) ?? []).map(buildNode);
+    children.sort(compareNodesRecentlyUpdated);
+    return { issue, children };
+  };
 
   const roots = issues
     .filter((issue) => !issue.parent || !identifiers.has(issue.parent))
-    .sort(compareRecentlyUpdated);
+    .map(buildNode);
+  
+  roots.sort(compareNodesRecentlyUpdated);
 
-  const buildNode = (issue: StatusTreeIssue): StatusTreeNode => ({
-    issue,
-    children: (childrenByParent.get(issue.id) ?? []).map(buildNode)
-  });
-
-  return roots.map(buildNode);
+  return roots;
 }
 
 interface StatusTreeRowProps {

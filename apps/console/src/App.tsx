@@ -2068,7 +2068,7 @@ export default function App() {
                   className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
                 >
                   <CurrentStatusPanel
-                    issues={issues}
+                    issues={filteredIssues}
                     config={config}
                     priorityLookup={priorityLookup}
                     boardTitle={config?.name ?? ""}

@@ -14,8 +14,8 @@
   "created_at": "2026-02-20T03:40:01.270802Z",
   "updated_at": "2026-09-07T21:03:01.755311639Z",
   "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "Mock right-now summary for tskl-cpg.",
+  "right_now_updated_at": "2026-09-08T15:29:01.092476Z",
   "custom": {
     "beads_owner": "ryan.porter",
     "project_label": "kbs",
