@@ -1,0 +1,20 @@
+{
+  "id": "kbs-01002499-7b06-4309-bb52-47a553a8843f",
+  "title": "Plexus project issues persist in 'now' view after filter removal",
+  "description": "I removed the Plexus project in the current list of project filters and it removed the Plexus issues from the board but it did not remove them from the 'now' view. This fix needs to work for the CLI also.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-08T15:08:11.570827Z",
+  "updated_at": "2026-09-08T15:08:11.586106Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

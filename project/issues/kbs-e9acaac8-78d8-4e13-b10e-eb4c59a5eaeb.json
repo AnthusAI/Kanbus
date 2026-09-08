@@ -1,0 +1,20 @@
+{
+  "id": "kbs-e9acaac8-78d8-4e13-b10e-eb4c59a5eaeb",
+  "title": "The 'now' view needs to enable selecting an issue and showing the issue detail on the right, like the board does.",
+  "description": "We need this to be the same DRY mecanism for showing the issue detail between both 'now' and the normal board.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-08T15:08:03.479202Z",
+  "updated_at": "2026-09-08T15:08:03.501998Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

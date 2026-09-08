@@ -14,8 +14,8 @@
   "created_at": "2026-09-07T14:56:47.061484668Z",
   "updated_at": "2026-09-07T14:57:28.742018374Z",
   "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "Mock right-now summary for kbs-c513ca86-384f-431c-a056-b428c9c52884.",
+  "right_now_updated_at": "2026-09-08T15:54:40.051929Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

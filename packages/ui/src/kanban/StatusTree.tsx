@@ -35,7 +35,7 @@ interface StatusTreeProps {
   defaultExpanded: boolean;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
-  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
+  rightNowSummaryDisplayMode: RightNowSummaryDisplayMode;
 }
 
 function parseTimestamp(value: string | undefined): number | null {
@@ -67,13 +67,6 @@ function compareRecentlyUpdated(left: StatusTreeIssue, right: StatusTreeIssue): 
   return -order;
 }
 
-function resolveRightNowSummary(issue: StatusTreeIssue): string {
-  const summary = issue.right_now_summary;
-  if (summary == null || summary.trim().length === 0) {
-    return RIGHT_NOW_PLACEHOLDER;
-  }
-  return summary;
-}
 
 function toKanbanIssue(issue: StatusTreeIssue): KanbanIssue {
   return {
@@ -141,8 +134,7 @@ interface StatusTreeRowProps {
   onToggleExpanded: (issueId: string, expanded: boolean) => void;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
-  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
-  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
+  rightNowSummaryDisplayMode: RightNowSummaryDisplayMode;
   config?: KanbanConfig;
   priorityLookup: Record<number, string>;
 }
@@ -272,6 +264,7 @@ function StatusTreeRow({
               onToggleExpanded={onToggleExpanded}
               onSelectIssue={onSelectIssue}
               selectedIssueId={selectedIssueId}
+              rightNowSummaryDisplayMode={rightNowSummaryDisplayMode}
               config={config}
               priorityLookup={priorityLookup}
             />
@@ -320,6 +313,7 @@ export function StatusTree({
           onToggleExpanded={handleToggleExpanded}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
+          rightNowSummaryDisplayMode={rightNowSummaryDisplayMode}
           config={config}
           priorityLookup={priorityLookup}
         />
