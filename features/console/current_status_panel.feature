@@ -57,13 +57,13 @@ Feature: Console current status panel
     Then the status feed row for "Alpha task" should show title "Alpha task"
     And the status feed row for "Alpha task" should show right-now summary "Working on alpha"
 
-  Scenario: Missing right-now summary shows placeholder
+  Scenario: Now view JIT backfills missing right-now summary
     Given the console is open
     And no issues exist in the console
     And a status issue "Beta task" updated at "2026-01-01T10:00:00.000Z"
     When I switch to the "Now" view
     And I disable the status tree view
-    Then the status feed row for "Beta task" should show right-now summary "(no right-now summary)"
+    Then the status feed row for "Beta task" should show right-now summary "Mock right-now summary for kanbus-status-1."
 
   Scenario: Live update refreshes feed row
     Given the console is open
@@ -158,12 +158,22 @@ Feature: Console current status panel
     Then the status tree row for "Task Gamma" should show title "Task Gamma"
     And the status tree row for "Task Gamma" should show right-now summary "Working on gamma"
 
-  Scenario: Missing right-now summary shows placeholder in tree
+  Scenario: Now view JIT backfills missing right-now summary in tree
     Given the console is open
     And no issues exist in the console
     And a status hierarchy root "Task Delta" of type "task" updated at "2026-01-01T10:00:00.000Z"
     When I switch to the "Now" view
-    Then the status tree row for "Task Delta" should show right-now summary "(no right-now summary)"
+    Then the status tree row for "Task Delta" should show right-now summary "Mock right-now summary for kanbus-status-1."
+
+  @console-server
+  Scenario: Console Now API backfills missing right-now summaries
+    Given a Kanbus project with default configuration
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
+    And the console server is running
+    And an issue "kanbus-now-api" of type "task" with status "in_progress" and title "Now API task"
+    When I request the console now snapshot
+    Then the console now response should include issue "kanbus-now-api" with right-now summary "Mock right-now summary for kanbus-now-api."
 
   Scenario: Disabling tree toggle returns to flat feed
     Given the console is open

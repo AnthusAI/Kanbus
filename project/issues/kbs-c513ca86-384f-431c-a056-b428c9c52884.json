@@ -1,0 +1,23 @@
+{
+  "id": "kbs-c513ca86-384f-431c-a056-b428c9c52884",
+  "title": "Now view must JIT-backfill right-now summaries",
+  "description": "Console Now view shows placeholder instead of JIT recursive backfill. Tracked dogfood bug kbs-c8a09e.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-07T14:56:47.061484668Z",
+  "updated_at": "2026-09-07T14:57:28.742018374Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

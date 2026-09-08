@@ -220,6 +220,7 @@ class ConsoleState:
     default_tree_expanded: bool = False
     status_filter: str = "in_progress"
     board_name: str = "kanbus"
+    now_backfill_state: str = "idle"
 
 
 @given("the console is open")

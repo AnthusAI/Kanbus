@@ -2158,6 +2158,94 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_now_root_backfills_and_returns_issues() {
+        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        std::fs::create_dir_all(root.join("project").join("issues")).expect("create issues");
+        std::fs::create_dir_all(root.join("project").join("events")).expect("create events");
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            r#"project_key: kbs
+project_directory: project
+ai:
+  provider: litellm
+  model: gpt-4o-mini
+right_now:
+  enabled: true
+"#,
+        )
+        .expect("write config");
+        let issue = kanbus::models::IssueData {
+            identifier: "kbs-now1".to_string(),
+            title: "Now API issue".to_string(),
+            description: "desc".to_string(),
+            issue_type: "task".to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: Some("tester".to_string()),
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: std::collections::BTreeMap::new(),
+        };
+        let issue_path = root
+            .join("project")
+            .join("issues")
+            .join("kbs-now1.json");
+        let payload = serde_json::to_string_pretty(&issue).expect("serialize issue");
+        std::fs::write(issue_path, payload).expect("write issue");
+
+        let state = test_state(root.clone(), root.clone(), false);
+        let response = get_now_root(State(state)).await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let issues: Vec<kanbus::models::IssueData> =
+            serde_json::from_slice(&body).expect("parse issues");
+        let loaded = issues
+            .iter()
+            .find(|entry| entry.identifier == "kbs-now1")
+            .expect("now issue");
+        assert_eq!(loaded.status, "in_progress");
+
+        match previous_mock {
+            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
+            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_asset_root_returns_asset_not_found_for_api_now_path() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let assets_root = temp.path().join("assets");
+        std::fs::create_dir_all(&assets_root).expect("create assets");
+        let state = test_state(temp.path().to_path_buf(), assets_root, false);
+        let response = get_asset_root(
+            State(state),
+            axum::extract::OriginalUri(axum::http::Uri::from_static("/api/now")),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("parse body");
+        assert_eq!(payload.get("error").and_then(|value| value.as_str()), Some("asset not found"));
+    }
+
+    #[tokio::test]
     async fn update_ui_state_persists_focus_and_clear_events() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");

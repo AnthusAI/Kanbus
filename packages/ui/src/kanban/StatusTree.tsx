@@ -9,8 +9,8 @@ import {
   resolveStatusBadgeColorName
 } from "./issue-colors";
 import type { KanbanConfig, KanbanIssue } from "./types";
+import { resolveRightNowSummaryText, type RightNowSummaryDisplayMode } from "./right-now-summary-display";
 
-const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 
 export interface StatusTreeIssue {
   id: string;
@@ -35,6 +35,7 @@ interface StatusTreeProps {
   defaultExpanded: boolean;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
+  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
 }
 
 function parseTimestamp(value: string | undefined): number | null {
@@ -140,6 +141,8 @@ interface StatusTreeRowProps {
   onToggleExpanded: (issueId: string, expanded: boolean) => void;
   onSelectIssue?: (issue: StatusTreeIssue) => void;
   selectedIssueId?: string | null;
+  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
+  rightNowSummaryDisplayMode?: RightNowSummaryDisplayMode;
   config?: KanbanConfig;
   priorityLookup: Record<number, string>;
 }
@@ -152,13 +155,14 @@ function StatusTreeRow({
   onToggleExpanded,
   onSelectIssue,
   selectedIssueId = null,
+  rightNowSummaryDisplayMode,
   config,
   priorityLookup
 }: StatusTreeRowProps) {
   const { issue, children } = node;
   const hasChildren = children.length > 0;
   const expanded = expandedOverrides[issue.id] ?? defaultExpanded;
-  const summaryText = resolveRightNowSummary(issue);
+  const summaryText = resolveRightNowSummaryText(issue.right_now_summary, rightNowSummaryDisplayMode);
   const isSelected = selectedIssueId === issue.id;
   const kanbanIssue = toKanbanIssue(issue);
   const IssueTypeIcon = getTypeIcon(kanbanIssue.type, kanbanIssue.status);
@@ -283,7 +287,8 @@ export function StatusTree({
   priorityLookup = {},
   defaultExpanded,
   onSelectIssue,
-  selectedIssueId = null
+  selectedIssueId = null,
+  rightNowSummaryDisplayMode = "placeholder"
 }: StatusTreeProps) {
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
   const roots = useMemo(() => buildStatusTree(issues), [issues]);
