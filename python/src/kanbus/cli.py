@@ -103,7 +103,11 @@ from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
 from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import (
+    ConfigurationError,
+    load_project_configuration,
+    load_repository_environment,
+)
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
 from kanbus.agent_metadata import (
     AgentMetadataRequest,
@@ -253,6 +257,7 @@ def cli(
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
     _enforce_kanbus_version(context)
+    _preload_repository_environment()
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {
         "beads_mode": resolved,
@@ -261,6 +266,14 @@ def cli(
         "no_hooks": no_hooks,
     }
     _maybe_prompt_project_repair(context)
+
+
+def _preload_repository_environment() -> None:
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+    except (ProjectMarkerError, ConfigurationError):
+        return
+    load_repository_environment(configuration_path.parent)
 
 
 def _should_check_project_structure(context: click.Context) -> bool:
@@ -3581,6 +3594,7 @@ def bugs_alias(context: click.Context) -> None:
 def right_now_generate_internal(issue_id: str) -> None:
     """Generate a right-now summary for internal runtime delegation."""
     root = Path.cwd()
+    load_repository_environment(root)
     try:
         lookup = load_issue_from_project(root, issue_id)
     except IssueLookupError as error:

@@ -13,6 +13,7 @@ import yaml
 from behave import given, then, when
 
 from kanbus.config import DEFAULT_CONFIGURATION
+from kanbus.config_loader import CONGREGATION_ENV_FILENAME
 from kanbus.overlay import write_overlay_issue
 from kanbus.right_now import (
     LLM_USAGE_LOG,
@@ -32,6 +33,9 @@ from features.steps.shared import (
     read_issue_file,
     write_issue_file,
 )
+
+TEST_OPENAI_API_KEY_DOTENV = "test-openai-key-from-dotenv"
+TEST_OPENAI_API_KEY_CONGREGATION = "test-openai-key-from-congregation"
 
 
 @given('issue "{identifier}" has right now summary "{summary}"')
@@ -283,6 +287,66 @@ def then_right_now_summary_result_unset(context: object) -> None:
     :type context: object
     """
     assert context.right_now_summary_result is None
+
+
+@given("OPENAI_API_KEY is provided via project .env file only")
+def given_openai_api_key_via_project_dotenv(context: object) -> None:
+    """Create project .env with OpenAI credentials and remove them from process env.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    repository = Path(context.working_directory)
+    (repository / ".env").write_text(
+        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_DOTENV}\n",
+        encoding="utf-8",
+    )
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is not None:
+        overrides.pop("OPENAI_API_KEY", None)
+    os.environ.pop("OPENAI_API_KEY", None)
+
+
+@given("OPENAI_API_KEY is provided via congregation file only")
+def given_openai_api_key_via_congregation_file(context: object) -> None:
+    """Create congregation env file with OpenAI credentials and remove process env.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    repository = Path(context.working_directory)
+    congregation_home = repository / ".test-congregation-home"
+    congregation_home.mkdir(exist_ok=True)
+    (congregation_home / CONGREGATION_ENV_FILENAME).write_text(
+        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_CONGREGATION}\n",
+        encoding="utf-8",
+    )
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    overrides["HOME"] = str(congregation_home)
+    overrides.pop("OPENAI_API_KEY", None)
+    os.environ.pop("OPENAI_API_KEY", None)
+    project_dotenv = repository / ".env"
+    if project_dotenv.exists():
+        project_dotenv.unlink()
+
+
+@given("right now generation requires loaded OpenAI credentials")
+def given_right_now_generation_requires_loaded_openai_credentials(
+    context: object,
+) -> None:
+    """Require repository env loading to populate OPENAI_API_KEY before mock AI runs.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    overrides["KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS"] = "1"
 
 
 @given("right now litellm call tracking is reset")

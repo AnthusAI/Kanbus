@@ -6,6 +6,7 @@ use cucumber::{given, then, when};
 use serde_yaml::{Mapping, Value};
 
 use kanbus::config::default_project_configuration;
+use kanbus::config_loader::CONGREGATION_ENV_FILENAME;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 use kanbus::right_now::{
@@ -177,6 +178,51 @@ fn then_right_now_summary_result_unset(world: &mut KanbusWorld) {
         .as_ref()
         .expect("right now summary result not set");
     assert!(result.is_none());
+}
+
+const TEST_OPENAI_API_KEY_DOTENV: &str = "test-openai-key-from-dotenv";
+const TEST_OPENAI_API_KEY_CONGREGATION: &str = "test-openai-key-from-congregation";
+
+#[given("OPENAI_API_KEY is provided via project .env file only")]
+fn given_openai_api_key_via_project_dotenv(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    fs::write(
+        root.join(".env"),
+        format!("OPENAI_API_KEY={TEST_OPENAI_API_KEY_DOTENV}\n"),
+    )
+    .expect("write project .env");
+    world.environment_overrides.remove("OPENAI_API_KEY");
+    std::env::remove_var("OPENAI_API_KEY");
+}
+
+#[given("OPENAI_API_KEY is provided via congregation file only")]
+fn given_openai_api_key_via_congregation_file(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let congregation_home = root.join(".test-congregation-home");
+    fs::create_dir_all(&congregation_home).expect("create congregation home");
+    fs::write(
+        congregation_home.join(CONGREGATION_ENV_FILENAME),
+        format!("OPENAI_API_KEY={TEST_OPENAI_API_KEY_CONGREGATION}\n"),
+    )
+    .expect("write congregation env");
+    world.environment_overrides.insert(
+        "HOME".to_string(),
+        congregation_home.to_string_lossy().to_string(),
+    );
+    world.environment_overrides.remove("OPENAI_API_KEY");
+    std::env::remove_var("OPENAI_API_KEY");
+    let project_dotenv = root.join(".env");
+    if project_dotenv.exists() {
+        fs::remove_file(project_dotenv).expect("remove project .env");
+    }
+}
+
+#[given("right now generation requires loaded OpenAI credentials")]
+fn given_right_now_generation_requires_loaded_openai_credentials(world: &mut KanbusWorld) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS".to_string(),
+        "1".to_string(),
+    );
 }
 
 #[given("right now litellm call tracking is reset")]

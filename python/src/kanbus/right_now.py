@@ -10,7 +10,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import (
+    ConfigurationError,
+    load_project_configuration,
+    load_repository_environment,
+)
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
 from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
@@ -29,6 +33,9 @@ MAX_RECENT_ACTIVITY_CHARACTERS = 2000
 STATUS_KEYWORDS = ("done", "in progress", "blocked", "closed", "open")
 AI_PROVIDER_NOT_CONFIGURED_MESSAGE = (
     "Right-now summary generation requires ai.provider litellm in .kanbus.yml"
+)
+OPENAI_API_KEY_NOT_LOADED_MESSAGE = (
+    "OPENAI_API_KEY was not loaded from repository environment files"
 )
 
 
@@ -244,10 +251,12 @@ def generate_right_now_summary(
     :rtype: str
     :raises RightNowError: When AI is not configured or generation fails.
     """
+    load_repository_environment(root)
     configuration = _load_configuration(root)
     _ensure_litellm_provider(configuration)
     max_length = configuration.right_now.max_length
     model = _resolve_right_now_model(configuration)
+    _ensure_openai_credentials_when_required()
 
     if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
         summary = mock_right_now_summary_text(issue.identifier)
@@ -332,6 +341,7 @@ def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
     :param issue_identifier: Issue identifier to regenerate.
     :type issue_identifier: str
     """
+    load_repository_environment(root)
     try:
         configuration = _load_configuration(root)
     except RightNowError:
@@ -522,6 +532,14 @@ def _load_configuration(root: Path) -> ProjectConfiguration:
 def _ensure_litellm_provider(configuration: ProjectConfiguration) -> None:
     if configuration.ai is None or configuration.ai.provider != "litellm":
         raise RightNowError(AI_PROVIDER_NOT_CONFIGURED_MESSAGE)
+
+
+def _ensure_openai_credentials_when_required() -> None:
+    if os.environ.get("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS") != "1":
+        return
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key is None or not api_key.strip():
+        raise RightNowError(OPENAI_API_KEY_NOT_LOADED_MESSAGE)
 
 
 def _resolve_right_now_model(configuration: ProjectConfiguration) -> str:

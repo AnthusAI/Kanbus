@@ -9,7 +9,7 @@ use std::process::Command;
 use chrono::Utc;
 use serde_json::{json, Value};
 
-use crate::config_loader::load_project_configuration;
+use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
@@ -47,6 +47,10 @@ struct RightNowLlmUsageRecord {
 /// Error message when AI provider is not configured for right-now generation.
 pub const AI_PROVIDER_NOT_CONFIGURED_MESSAGE: &str =
     "Right-now summary generation requires ai.provider litellm in .kanbus.yml";
+
+/// Error message when OpenAI credentials were not loaded from env files.
+pub const OPENAI_API_KEY_NOT_LOADED_MESSAGE: &str =
+    "OPENAI_API_KEY was not loaded from repository environment files";
 
 /// Child issue summary for parent context assembly.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -293,10 +297,12 @@ pub fn generate_right_now_summary(
     issue: &IssueData,
     _context: &RightNowContext,
 ) -> Result<String, KanbusError> {
+    load_repository_environment(root);
     let configuration = load_configuration(root)?;
     ensure_litellm_provider(&configuration)?;
     let max_length = configuration.right_now.max_length;
     let model = resolve_right_now_model(&configuration)?;
+    ensure_openai_credentials_when_required()?;
 
     if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
         let summary = mock_right_now_summary_text(&issue.identifier);
@@ -374,6 +380,7 @@ pub fn persist_right_now_summary(
 /// * `root` - Repository root path.
 /// * `issue_identifier` - Issue identifier to regenerate.
 pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
+    load_repository_environment(root);
     let configuration = match load_configuration(root) {
         Ok(configuration) => configuration,
         Err(_) => return,
@@ -569,6 +576,18 @@ fn ensure_litellm_provider(configuration: &ProjectConfiguration) -> Result<(), K
         Some(ai_configuration) if ai_configuration.provider == "litellm" => Ok(()),
         _ => Err(KanbusError::IssueOperation(
             AI_PROVIDER_NOT_CONFIGURED_MESSAGE.to_string(),
+        )),
+    }
+}
+
+fn ensure_openai_credentials_when_required() -> Result<(), KanbusError> {
+    if std::env::var("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS").as_deref() != Ok("1") {
+        return Ok(());
+    }
+    match std::env::var("OPENAI_API_KEY") {
+        Ok(value) if !value.trim().is_empty() => Ok(()),
+        _ => Err(KanbusError::IssueOperation(
+            OPENAI_API_KEY_NOT_LOADED_MESSAGE.to_string(),
         )),
     }
 }

@@ -6,7 +6,7 @@ use std::path::Path;
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 
-use crate::config_loader::load_project_configuration;
+use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_listing::list_issues;
@@ -82,6 +82,7 @@ pub fn run_right_now_command(
     options: &RightNowCommandOptions,
 ) -> Result<String, KanbusError> {
     validate_right_now_options(options)?;
+    load_repository_environment(root);
     let mut issues = select_right_now_issues(root, options)?;
     issues = sort_issues_by_recently_updated(issues);
     let effective_limit = effective_right_now_limit(options);
