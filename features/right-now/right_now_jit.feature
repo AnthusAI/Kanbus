@@ -49,12 +49,12 @@ Feature: Right now just-in-time backfill
     And stdout should not contain "Mock right-now summary for kanbus-jit-raw."
     And issue "kanbus-jit-raw" should have no right now summary
 
-  Scenario: Now listing does not backfill closed descendants
+  Scenario: Now backfills every active-tree descendant regardless of status
     Given an issue "kanbus-jit-live-parent" exists with status "in_progress"
     And an issue "kanbus-jit-live-child" of type "task" with status "closed" and parent "kanbus-jit-live-parent"
     When I run "kanbus now --list"
     Then the command should succeed
     And issue "kanbus-jit-live-parent" should have a mock right now summary
-    And issue "kanbus-jit-live-child" should have no right now summary
+    And issue "kanbus-jit-live-child" should have a mock right now summary
     And stdout should contain "Mock right-now summary for kanbus-jit-live-parent."
-    And stdout should not contain "Mock right-now summary for kanbus-jit-live-child."
+    And stdout should contain "Mock right-now summary for kanbus-jit-live-child."

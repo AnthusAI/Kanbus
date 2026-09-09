@@ -228,19 +228,17 @@ pub fn load_child_issues(
     root: &Path,
     issue_identifier: &str,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    crate::issue_listing::list_issues(
-        root,
-        None,
-        None,
-        None,
-        None,
-        Some(issue_identifier),
-        None,
-        None,
-        &[],
-        true,
-        false,
-    )
+    // JIT summary backfill must use the same file-backed data that the
+    // console response renders. The general issue-listing path may query a
+    // daemon index, which can be stale or unavailable and previously caused
+    // visible descendant branches to be silently skipped.
+    let store = crate::console_backend::FileStore::new(root);
+    let configuration = store.load_config()?;
+    Ok(store
+        .load_issues(&configuration)?
+        .into_iter()
+        .filter(|issue| issue.parent.as_deref() == Some(issue_identifier))
+        .collect())
 }
 
 /// Assemble leaf-issue context from title, description, and recent comments.
@@ -503,8 +501,20 @@ pub fn ensure_right_now_subtree(
 /// * `issue_identifiers` - Issue identifiers in the current Now view.
 pub fn ensure_right_now_summaries(root: &Path, issue_identifiers: &[String]) {
     let selected_identifiers: HashSet<String> = issue_identifiers.iter().cloned().collect();
+    ensure_right_now_summary_subtrees(root, issue_identifiers, &selected_identifiers);
+}
+
+/// Backfill selected right-now subtrees from their actual roots.
+///
+/// `root_identifiers` may be ancestors of the active issues. Every node that
+/// may be visited must also be included in `selected_identifiers`.
+pub fn ensure_right_now_summary_subtrees(
+    root: &Path,
+    root_identifiers: &[String],
+    selected_identifiers: &HashSet<String>,
+) {
     let mut memo = HashMap::new();
-    for identifier in issue_identifiers {
+    for identifier in root_identifiers {
         ensure_right_now_subtree(root, identifier, &selected_identifiers, &mut memo);
     }
 }
