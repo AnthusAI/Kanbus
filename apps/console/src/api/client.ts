@@ -252,6 +252,45 @@ export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
   return (await response.json()) as Issue[];
 }
 
+export type StandupProfile = "meeting-script" | "director-brief";
+
+export type StandupSectionResponse = {
+  name: string;
+  bullets: string[];
+};
+
+export type StandupGenerateResponse = {
+  profile: StandupProfile;
+  sections: StandupSectionResponse[];
+  text: string;
+  source_issues: string[];
+  right_now_texts: Record<string, string>;
+};
+
+export async function generateStandupReport(
+  apiBase: string,
+  profile: StandupProfile
+): Promise<StandupGenerateResponse> {
+  const response = await fetchWithAuth(`${apiBase}/standup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile }),
+  });
+  if (!response.ok) {
+    let message = `standup request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (typeof body?.error === "string" && body.error.length > 0) {
+        message = body.error;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as StandupGenerateResponse;
+}
+
 export function subscribeToSnapshots(
   apiBase: string,
   onSnapshot: (snapshot: IssuesSnapshot) => void,
