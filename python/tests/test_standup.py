@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from kanbus.issue_lookup import IssueLookupError
-from kanbus.models import IssueData, StandupConfiguration
+from kanbus.models import StandupConfiguration
 from kanbus.project import ProjectMarkerError
 from kanbus.right_now import RightNowError
 from kanbus.standup import (
@@ -18,7 +18,6 @@ from kanbus.standup import (
     collect_right_now_texts,
     ensure_standup_summaries,
     extract_section_text,
-    is_within_lookback,
     load_issue_event_records,
     load_standup_configuration,
     parse_rfc3339_timestamp,
