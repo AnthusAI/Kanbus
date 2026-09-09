@@ -200,9 +200,7 @@ def resolve_standup_report_time() -> datetime:
     if override:
         parsed = parse_rfc3339_timestamp(override)
         if parsed is None:
-            raise StandupWindowError(
-                f"invalid {STANDUP_REPORT_TIME_ENV}: {override}"
-            )
+            raise StandupWindowError(f"invalid {STANDUP_REPORT_TIME_ENV}: {override}")
         return parsed
     return datetime.now(timezone.utc)
 
