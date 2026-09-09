@@ -3086,11 +3086,28 @@ def right_now_command(
     default=None,
     help="Standup profile: meeting-script or director-brief (default: meeting-script).",
 )
+@click.option(
+    "--window",
+    default=None,
+    type=click.Choice(["rolling", "calendar"]),
+    help="Standup window mode: rolling or calendar.",
+)
+@click.option(
+    "--lookback",
+    default=None,
+    help="Rolling lookback duration (for example 24h or 1d).",
+)
+@click.option("--skip-weekends", is_flag=True, default=False)
+@click.option("--no-skip-weekends", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False)
 @click.option("--no-recursive", is_flag=True, default=False)
 def standup_command(
     issue_ids: tuple[str, ...],
     profile: str | None,
+    window: str | None,
+    lookback: str | None,
+    skip_weekends: bool,
+    no_skip_weekends: bool,
     as_json: bool,
     no_recursive: bool,
 ) -> None:
@@ -3106,11 +3123,21 @@ def standup_command(
       kbs standup kbs-abc --json               machine-readable JSON
     """
     root = Path.cwd()
+    skip_weekends_override = None
+    if skip_weekends and no_skip_weekends:
+        raise click.ClickException("cannot use both --skip-weekends and --no-skip-weekends")
+    if skip_weekends:
+        skip_weekends_override = True
+    elif no_skip_weekends:
+        skip_weekends_override = False
     options = StandupCommandOptions(
         issue_ids=issue_ids,
         profile=profile,
         as_json=as_json,
         recursive=not no_recursive,
+        window=window,
+        lookback=lookback,
+        skip_weekends=skip_weekends_override,
     )
     try:
         output = run_standup_command(root, options)

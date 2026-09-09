@@ -14,6 +14,8 @@ use kanbus::standup::{
     MEETING_SCRIPT_PROFILE,
 };
 use kanbus::standup_command::STANDUP_DEFAULT_STATUS_FILTER;
+use kanbus::standup_window::{DEFAULT_STANDUP_LOOKBACK, ROLLING_WINDOW, StandupWindowSettings};
+use chrono_tz::UTC;
 
 use crate::step_definitions::console_ui_steps::{ConsoleIssue, ConsoleState};
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -118,13 +120,20 @@ fn generate_from_console_state(
     let profile = resolve_standup_profile(Some(profile_name)).map_err(|error| error.to_string())?;
     let issues = standup_fact_feed_issues(console_state);
     let right_now_texts = collect_right_now_texts(&issues).map_err(|error| error.to_string())?;
+    let window_settings = StandupWindowSettings {
+        window: ROLLING_WINDOW.to_string(),
+        lookback: DEFAULT_STANDUP_LOOKBACK.to_string(),
+        lookback_hours: 24,
+        skip_weekends: false,
+        timezone: UTC,
+    };
     let report = build_standup_report(
         &profile,
         &issues,
         &right_now_texts,
         &HashMap::new(),
         Utc::now(),
-        24,
+        &window_settings,
         false,
     );
     let section_names = report

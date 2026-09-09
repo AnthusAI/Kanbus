@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -16,11 +15,14 @@ from kanbus.standup import (
     format_standup_text,
     load_issue_event_records,
     load_standup_configuration,
-    resolve_standup_lookback_hours,
     resolve_standup_profile,
-    DEFAULT_STANDUP_LOOKBACK_HOURS,
 )
 from kanbus.standup_command import StandupCommandOptions, select_standup_fact_feed
+from kanbus.standup_window import (
+    StandupWindowOverrides,
+    resolve_standup_report_time,
+    resolve_standup_window_settings,
+)
 
 
 class StandupGenerateRequest(BaseModel):
@@ -28,9 +30,18 @@ class StandupGenerateRequest(BaseModel):
 
     :param profile: Optional standup profile identifier.
     :type profile: Optional[str]
+    :param window: Optional standup window mode override.
+    :type window: Optional[str]
+    :param lookback: Optional rolling lookback duration override.
+    :type lookback: Optional[str]
+    :param skip_weekends: Optional skip-weekends override.
+    :type skip_weekends: Optional[bool]
     """
 
     profile: Optional[str] = None
+    window: Optional[str] = None
+    lookback: Optional[str] = None
+    skip_weekends: Optional[bool] = None
 
 
 @dataclass(frozen=True)
@@ -108,9 +119,16 @@ def generate_standup_report(
     """
     profile = resolve_standup_profile(request.profile)
     configuration = load_standup_configuration(root)
-    lookback_hours = resolve_standup_lookback_hours(configuration)
-    if lookback_hours <= 0:
-        lookback_hours = DEFAULT_STANDUP_LOOKBACK_HOURS
+    window_overrides = StandupWindowOverrides(
+        window=request.window,
+        lookback=request.lookback,
+        skip_weekends=request.skip_weekends,
+    )
+    window_settings = resolve_standup_window_settings(
+        configuration,
+        profile,
+        window_overrides,
+    )
     options = StandupCommandOptions()
     issues = select_standup_fact_feed(root, options)
     issues = ensure_standup_summaries(root, issues)
@@ -119,14 +137,14 @@ def generate_standup_report(
         issue.identifier: load_issue_event_records(root, issue.identifier)
         for issue in issues
     }
-    report_time = datetime.now(timezone.utc)
+    report_time = resolve_standup_report_time()
     report = build_standup_report(
         profile,
         issues,
         right_now_texts,
         events_by_issue,
         report_time,
-        lookback_hours,
+        window_settings,
         False,
     )
     text = format_standup_text(report)

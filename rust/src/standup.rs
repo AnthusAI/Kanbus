@@ -18,6 +18,10 @@ use crate::right_now::{
     ensure_right_now_summaries, is_persisted_mock_right_now_summary,
     require_display_right_now_summary,
 };
+use crate::standup_window::{
+    CALENDAR_WINDOW, StandupWindowSettings, is_on_completed_calendar_day,
+    parse_standup_lookback_hours, start_of_report_calendar_day,
+};
 
 pub const MEETING_SCRIPT_PROFILE: &str = "meeting-script";
 pub const DIRECTOR_BRIEF_PROFILE: &str = "director-brief";
@@ -91,8 +95,14 @@ pub fn load_standup_configuration(root: &Path) -> Result<ProjectConfiguration, K
 }
 
 /// Return configured standup lookback hours.
-pub fn resolve_standup_lookback_hours(configuration: &ProjectConfiguration) -> u32 {
-    configuration.standup.lookback_hours
+///
+/// # Errors
+///
+/// Returns `KanbusError::IssueOperation` when lookback is invalid.
+pub fn resolve_standup_lookback_hours(
+    configuration: &ProjectConfiguration,
+) -> Result<u32, KanbusError> {
+    parse_standup_lookback_hours(&configuration.standup.lookback)
 }
 
 /// Load event history records for an issue.
@@ -231,24 +241,64 @@ pub fn qualifies_for_yesterday(
     issue: &IssueData,
     events: &[Value],
     report_time: DateTime<Utc>,
-    lookback_hours: u32,
+    window_settings: &StandupWindowSettings,
 ) -> bool {
+    if window_settings.window == CALENDAR_WINDOW {
+        if is_on_completed_calendar_day(issue.closed_at.as_ref(), report_time, window_settings) {
+            return true;
+        }
+        for event in events {
+            if event.get("event_type").and_then(Value::as_str) != Some("state_transition") {
+                continue;
+            }
+            let payload = event.get("payload").and_then(Value::as_object);
+            let Some(payload) = payload else {
+                continue;
+            };
+            let to_status = payload.get("to_status").and_then(Value::as_str);
+            if !done_statuses().contains(to_status.unwrap_or("")) {
+                continue;
+            }
+            if is_event_on_completed_calendar_day(event, report_time, window_settings) {
+                return true;
+            }
+        }
+        return false;
+    }
+    let lookback_hours = window_settings.lookback_hours;
     if is_within_lookback(issue.closed_at.as_ref(), report_time, lookback_hours) {
         return true;
     }
     had_state_transition_within_lookback(events, &done_statuses(), report_time, lookback_hours)
 }
 
+fn is_event_on_completed_calendar_day(
+    event: &Value,
+    report_time: DateTime<Utc>,
+    window_settings: &StandupWindowSettings,
+) -> bool {
+    let timestamp = parse_rfc3339_timestamp_from_value(event.get("occurred_at"));
+    is_on_completed_calendar_day(timestamp.as_ref(), report_time, window_settings)
+}
+
 /// Return whether an in-progress issue is stale relative to lookback.
 pub fn is_stale_in_progress(
     issue: &IssueData,
     report_time: DateTime<Utc>,
-    lookback_hours: u32,
+    window_settings: &StandupWindowSettings,
 ) -> bool {
     if issue.status != "in_progress" {
         return false;
     }
-    !is_within_lookback(Some(&issue.updated_at), report_time, lookback_hours)
+    if window_settings.window == CALENDAR_WINDOW {
+        let report_day_start = start_of_report_calendar_day(report_time, window_settings);
+        return issue.updated_at < report_day_start;
+    }
+    !is_within_lookback(
+        Some(&issue.updated_at),
+        report_time,
+        window_settings.lookback_hours,
+    )
 }
 
 /// Return whether an issue belongs in the Momentum section.
@@ -256,8 +306,9 @@ pub fn qualifies_for_momentum(
     issue: &IssueData,
     events: &[Value],
     report_time: DateTime<Utc>,
-    lookback_hours: u32,
+    window_settings: &StandupWindowSettings,
 ) -> bool {
+    let lookback_hours = window_settings.lookback_hours;
     let in_progress = HashSet::from([String::from("in_progress")]);
     if had_state_transition_within_lookback(events, &in_progress, report_time, lookback_hours) {
         return true;
@@ -313,7 +364,7 @@ pub fn build_meeting_script_sections(
     right_now_texts: &HashMap<String, String>,
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
-    lookback_hours: u32,
+    window_settings: &StandupWindowSettings,
     explicit_scope: bool,
 ) -> Vec<StandupSection> {
     let mut yesterday_identifiers = HashSet::new();
@@ -331,7 +382,7 @@ pub fn build_meeting_script_sections(
             .get(&issue.identifier)
             .map(String::as_str)
             .unwrap_or("");
-        if qualifies_for_yesterday(issue, events, report_time, lookback_hours) {
+        if qualifies_for_yesterday(issue, events, report_time, window_settings) {
             yesterday_identifiers.insert(issue.identifier.clone());
             yesterday_bullets.push(truncate_bullet(summary));
         }
@@ -339,7 +390,7 @@ pub fn build_meeting_script_sections(
             blocker_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
             question_bullets.push(derive_blocked_question(summary));
         }
-        if is_stale_in_progress(issue, report_time, lookback_hours) {
+        if is_stale_in_progress(issue, report_time, window_settings) {
             question_bullets.push(derive_stale_question(&issue.identifier));
         }
     }
@@ -386,7 +437,7 @@ pub fn build_director_brief_sections(
     right_now_texts: &HashMap<String, String>,
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
-    lookback_hours: u32,
+    window_settings: &StandupWindowSettings,
 ) -> Vec<StandupSection> {
     let in_progress_count = issues
         .iter()
@@ -414,13 +465,13 @@ pub fn build_director_brief_sections(
             .get(&issue.identifier)
             .map(String::as_str)
             .unwrap_or("");
-        if qualifies_for_momentum(issue, events, report_time, lookback_hours) {
+        if qualifies_for_momentum(issue, events, report_time, window_settings) {
             momentum_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
         }
         if issue.status == "blocked" {
             risk_bullets.push(truncate_bullet(&issue.identifier));
             blocker_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
-        } else if is_stale_in_progress(issue, report_time, lookback_hours) {
+        } else if is_stale_in_progress(issue, report_time, window_settings) {
             risk_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
         }
     }
@@ -452,7 +503,7 @@ pub fn build_standup_report(
     right_now_texts: &HashMap<String, String>,
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
-    lookback_hours: u32,
+    window_settings: &StandupWindowSettings,
     explicit_scope: bool,
 ) -> StandupReport {
     let sections = if profile == DIRECTOR_BRIEF_PROFILE {
@@ -461,7 +512,7 @@ pub fn build_standup_report(
             right_now_texts,
             events_by_issue,
             report_time,
-            lookback_hours,
+            window_settings,
         )
     } else {
         build_meeting_script_sections(
@@ -469,7 +520,7 @@ pub fn build_standup_report(
             right_now_texts,
             events_by_issue,
             report_time,
-            lookback_hours,
+            window_settings,
             explicit_scope,
         )
     };
