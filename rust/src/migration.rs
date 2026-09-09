@@ -20,7 +20,7 @@ use crate::issue_files::write_issue_to_file;
 use crate::models::{
     CategoryDefinition, DependencyLink, HooksConfiguration, IssueComment, IssueData, OverlayConfig,
     PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
-    StatusDefinition,
+    StandupConfiguration, StatusDefinition,
 };
 use crate::status_semantics::{map_beads_status, semantic_category_for_beads_status_key};
 use crate::workflows::get_workflow_for_issue_type;
@@ -912,6 +912,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         wiki_directory: None,
         ai: None,
         right_now: RightNowConfiguration::default(),
+        standup: StandupConfiguration::default(),
         github_security: None,
     }
 }
