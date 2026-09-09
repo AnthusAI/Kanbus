@@ -69,7 +69,10 @@ def given_issue_has_labels(context: object, identifier: str, label_text: str) ->
 @given('issue "{identifier}" has priority {priority}')
 def given_issue_has_priority(context: object, identifier: str, priority: str) -> None:
     project_dir = load_project_directory(context)
-    issue = build_issue(identifier, "Title", "task", "open", None, [])
+    try:
+        issue = read_issue_file(project_dir, identifier)
+    except FileNotFoundError:
+        issue = build_issue(identifier, "Title", "task", "open", None, [])
     issue = issue.model_copy(update={"priority": int(priority)})
     write_issue_file(project_dir, issue)
 
