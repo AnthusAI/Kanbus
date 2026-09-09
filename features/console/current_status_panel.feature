@@ -165,6 +165,20 @@ Feature: Console current status panel
     When I switch to the "Now" view
     Then the status tree row for "Task Delta" should show right-now summary "(no right-now summary)"
 
+  @console-server
+  Scenario: Console Now API backfills visible associated issues regardless of status
+    Given a Kanbus project with default configuration
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
+    And the console server is running
+    And an issue "kanbus-now-parent" of type "epic" with status "discovery" and title "Now parent"
+    And an issue "kanbus-now-active" of type "task" with status "in_progress" and parent "kanbus-now-parent"
+    And an issue "kanbus-now-discovery" of type "task" with status "discovery" and parent "kanbus-now-parent"
+    When I request the console now snapshot
+    Then the console now response should include issue "kanbus-now-parent" with right-now summary "Mock right-now summary for kanbus-now-parent."
+    And the console now response should include issue "kanbus-now-active" with right-now summary "Mock right-now summary for kanbus-now-active."
+    And the console now response should include issue "kanbus-now-discovery" with right-now summary "Mock right-now summary for kanbus-now-discovery."
+
   Scenario: Disabling tree toggle returns to flat feed
     Given the console is open
     And no issues exist in the console

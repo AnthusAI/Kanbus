@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Set
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
-from kanbus.issue_listing import IssueListingError, list_issues
+from kanbus.issue_listing import IssueListingError
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
 from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay_issue
@@ -203,7 +203,16 @@ def load_child_issues(root: Path, issue_identifier: str) -> List[IssueData]:
     :rtype: List[IssueData]
     :raises IssueListingError: When issue listing fails.
     """
-    return list_issues(root, parent=issue_identifier)
+    # Use the same file-backed source as the console snapshot. The general
+    # issue listing path can use a stale daemon index and omit children from
+    # virtual projects, leaving visible Now-tree cards unresolved.
+    from kanbus.console_snapshot import get_issues_for_root
+
+    return [
+        issue
+        for issue in get_issues_for_root(root)
+        if issue.parent == issue_identifier
+    ]
 
 
 def build_leaf_right_now_context(issue: IssueData) -> RightNowContext:
@@ -454,8 +463,25 @@ def ensure_right_now_summaries(root: Path, issue_identifiers: List[str]) -> None
     :type issue_identifiers: List[str]
     """
     selected_identifiers = set(issue_identifiers)
+    ensure_right_now_summary_subtrees(root, issue_identifiers, selected_identifiers)
+
+
+def ensure_right_now_summary_subtrees(
+    root: Path,
+    root_identifiers: List[str],
+    selected_identifiers: Set[str],
+) -> None:
+    """Backfill selected right-now subtrees from their actual roots.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param root_identifiers: Roots of the selected Now trees.
+    :type root_identifiers: List[str]
+    :param selected_identifiers: Every issue in those trees.
+    :type selected_identifiers: Set[str]
+    """
     memo: Dict[str, bool] = {}
-    for identifier in issue_identifiers:
+    for identifier in root_identifiers:
         ensure_right_now_subtree(root, identifier, selected_identifiers, memo)
 
 
