@@ -409,6 +409,7 @@ fn when_publish_two_without_broker(world: &mut KanbusWorld) {
         wiki_directory: None,
         ai: None,
         right_now: kanbus::models::RightNowConfiguration::default(),
+        standup: kanbus::models::StandupConfiguration::default(),
         jira: None,
         snyk: None,
         github_security: None,

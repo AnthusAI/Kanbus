@@ -141,6 +141,25 @@ impl Default for RightNowConfiguration {
     }
 }
 
+fn default_standup_lookback_hours() -> u32 {
+    24
+}
+
+/// On-demand standup report configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StandupConfiguration {
+    #[serde(default = "default_standup_lookback_hours")]
+    pub lookback_hours: u32,
+}
+
+impl Default for StandupConfiguration {
+    fn default() -> Self {
+        Self {
+            lookback_hours: default_standup_lookback_hours(),
+        }
+    }
+}
+
 /// Snyk vulnerability synchronization configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnykConfiguration {
@@ -367,6 +386,8 @@ pub struct ProjectConfiguration {
     pub ai: Option<AiConfiguration>,
     #[serde(default)]
     pub right_now: RightNowConfiguration,
+    #[serde(default)]
+    pub standup: StandupConfiguration,
     #[serde(default)]
     pub jira: Option<JiraConfiguration>,
     #[serde(default)]

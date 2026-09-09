@@ -1,4 +1,3 @@
-@wip
 Feature: Standup CLI command
   As a Kanbus user
   I want to generate on-demand standup reports from the terminal

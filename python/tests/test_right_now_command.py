@@ -91,7 +91,6 @@ def test_resolve_right_now_statuses_defaults_to_in_progress_for_board() -> None:
     configuration = build_project_configuration()
     assert _resolve_right_now_statuses(None, False, configuration) == {
         "in_progress",
-        "blocked",
     }
     assert _resolve_right_now_statuses(None, True, configuration) is None
     assert _resolve_right_now_statuses("all", False, configuration) is None

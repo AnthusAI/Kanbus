@@ -6,7 +6,8 @@ use std::path::Path;
 use crate::error::KanbusError;
 use crate::models::{
     AiConfiguration, CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
-    ProjectConfiguration, RealtimeConfig, RightNowConfiguration, StatusDefinition,
+    ProjectConfiguration, RealtimeConfig, RightNowConfiguration, StandupConfiguration,
+    StatusDefinition,
 };
 
 /// Return the default project configuration.
@@ -264,6 +265,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             model: "gpt-5.6-luna".to_string(),
         }),
         right_now: RightNowConfiguration::default(),
+        standup: StandupConfiguration::default(),
         hooks: HooksConfiguration::default(),
         github_security: None,
     }
