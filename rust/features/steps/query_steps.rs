@@ -78,6 +78,29 @@ fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     load_project_directory(cwd).expect("project dir")
 }
 
+pub(crate) fn resolve_issue_project_directory(world: &KanbusWorld, identifier: &str) -> PathBuf {
+    if let Some(state) = &world.virtual_project_state {
+        for project in state.virtual_projects.values() {
+            let shared_issue = project
+                .shared_dir
+                .join("issues")
+                .join(format!("{identifier}.json"));
+            if shared_issue.exists() {
+                return project.shared_dir.clone();
+            }
+            let local_issue = project
+                .local_dir
+                .join("issues")
+                .join(format!("{identifier}.json"));
+            if local_issue.exists() {
+                return project.local_dir.clone();
+            }
+        }
+        return state.current_project_dir.clone();
+    }
+    load_project_dir(world)
+}
+
 fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
     let issue_path = project_dir
         .join("issues")
@@ -147,8 +170,16 @@ fn given_repo_unreadable_project_dir(world: &mut KanbusWorld) {
 
 #[given(expr = "issue {string} has status {string}")]
 fn given_issue_has_status(world: &mut KanbusWorld, identifier: String, status: String) {
-    let project_dir = load_project_dir(world);
-    let mut issue = build_issue(&identifier);
+    let project_dir = resolve_issue_project_directory(world, &identifier);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let mut issue = if issue_path.exists() {
+        let contents = fs::read_to_string(&issue_path).expect("read issue");
+        serde_json::from_str(&contents).expect("parse issue")
+    } else {
+        build_issue(&identifier)
+    };
     issue.status = status;
     write_issue_file(&project_dir, &issue);
 }

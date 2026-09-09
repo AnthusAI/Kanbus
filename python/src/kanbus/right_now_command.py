@@ -22,7 +22,7 @@ from kanbus.right_now import (
 )
 from kanbus.status_semantics import (
     SEMANTIC_IN_PROGRESS,
-    status_keys_for_semantic_category,
+    resolve_primary_status_key_for_semantic_category,
 )
 
 DEFAULT_RIGHT_NOW_LIMIT = 30
@@ -87,6 +87,29 @@ class RightNowCommandOptions:
     purge: bool = False
 
 
+def select_right_now_issues(
+    root: Path,
+    options: RightNowCommandOptions,
+) -> List[IssueData]:
+    """Select and cap issues for right-now or standup fact feeds.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param options: Right-now selection options.
+    :type options: RightNowCommandOptions
+    :return: Selected issues sorted by updated_at descending.
+    :rtype: List[IssueData]
+    :raises RightNowCommandError: When options conflict or selection fails.
+    """
+    _validate_right_now_options(options)
+    issues = _select_right_now_issues(root, options)
+    sorted_issues = sort_issues_by_recently_updated(issues)
+    effective_limit = _effective_right_now_limit(options)
+    if effective_limit > 0:
+        sorted_issues = sorted_issues[:effective_limit]
+    return sorted_issues
+
+
 def run_right_now_command(
     root: Path,
     options: RightNowCommandOptions,
@@ -108,11 +131,7 @@ def run_right_now_command(
     if options.purge:
         purged = purge_right_now_summaries(root)
         return PURGE_OUTPUT_TEMPLATE.format(count=purged) + "\n"
-    issues = _select_right_now_issues(root, options)
-    sorted_issues = sort_issues_by_recently_updated(issues)
-    effective_limit = _effective_right_now_limit(options)
-    if effective_limit > 0:
-        sorted_issues = sorted_issues[:effective_limit]
+    sorted_issues = select_right_now_issues(root, options)
     if not options.raw:
         try:
             ensure_right_now_summaries(
@@ -198,9 +217,11 @@ def _resolve_right_now_statuses(
     if status_option is None:
         if has_issue_identifiers:
             return None
-        return set(
-            status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)
-        )
+        return {
+            resolve_primary_status_key_for_semantic_category(
+                configuration, SEMANTIC_IN_PROGRESS
+            )
+        }
     tokens = [part.strip() for part in status_option.split(",") if part.strip()]
     if not tokens:
         raise RightNowCommandError(EMPTY_STATUS_FILTER)

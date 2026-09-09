@@ -16,7 +16,9 @@ use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::{
     ensure_right_now_summaries, purge_right_now_summaries, require_display_right_now_summary,
 };
-use crate::status_semantics::{status_keys_for_semantic_category, SEMANTIC_IN_PROGRESS};
+use crate::status_semantics::{
+    resolve_primary_status_key_for_semantic_category, SEMANTIC_IN_PROGRESS,
+};
 
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
 const PURGE_OUTPUT_TEMPLATE: &str = "Purged right-now summaries for {count} issues";
@@ -95,12 +97,7 @@ pub fn run_right_now_command(
             PURGE_OUTPUT_TEMPLATE.replace("{count}", &purged.to_string())
         ));
     }
-    let mut issues = select_right_now_issues(root, options)?;
-    issues = sort_issues_by_recently_updated(issues);
-    let effective_limit = effective_right_now_limit(options);
-    if effective_limit > 0 {
-        issues.truncate(effective_limit);
-    }
+    let mut issues = select_right_now_issues_for_command(root, options)?;
     if !options.raw {
         let identifiers: Vec<String> = issues
             .iter()
@@ -205,8 +202,11 @@ fn resolve_right_now_statuses(
             if has_issue_identifiers {
                 Ok(None)
             } else {
-                let keys = status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)?;
-                Ok(Some(keys.into_iter().collect()))
+                let primary = resolve_primary_status_key_for_semantic_category(
+                    configuration,
+                    SEMANTIC_IN_PROGRESS,
+                )?;
+                Ok(Some(HashSet::from([primary])))
             }
         }
         Some(raw) => {
@@ -261,6 +261,25 @@ fn effective_right_now_limit(options: &RightNowCommandOptions) -> usize {
         return options.limit.unwrap_or(0);
     }
     options.limit.unwrap_or(DEFAULT_RIGHT_NOW_LIMIT)
+}
+
+/// Select and cap issues for right-now or standup fact feeds.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when options are invalid or selection fails.
+pub fn select_right_now_issues_for_command(
+    root: &Path,
+    options: &RightNowCommandOptions,
+) -> Result<Vec<IssueData>, KanbusError> {
+    validate_right_now_options(options)?;
+    let mut issues = select_right_now_issues(root, options)?;
+    issues = sort_issues_by_recently_updated(issues);
+    let effective_limit = effective_right_now_limit(options);
+    if effective_limit > 0 {
+        issues.truncate(effective_limit);
+    }
+    Ok(issues)
 }
 
 fn select_right_now_issues(

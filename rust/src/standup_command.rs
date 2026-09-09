@@ -128,6 +128,7 @@ pub fn run_standup_command(
         &events_by_issue,
         report_time,
         lookback_hours,
+        !options.issue_ids.is_empty(),
     );
     if options.as_json {
         format_standup_json(&report)

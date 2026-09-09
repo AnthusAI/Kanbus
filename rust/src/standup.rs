@@ -14,7 +14,10 @@ use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
-use crate::right_now::{ensure_right_now_summaries, require_display_right_now_summary};
+use crate::right_now::{
+    ensure_right_now_summaries, is_persisted_mock_right_now_summary,
+    require_display_right_now_summary,
+};
 
 pub const MEETING_SCRIPT_PROFILE: &str = "meeting-script";
 pub const DIRECTOR_BRIEF_PROFILE: &str = "director-brief";
@@ -138,7 +141,7 @@ pub fn load_issue_event_records(root: &Path, issue_identifier: &str) -> Vec<Valu
 }
 
 fn parse_rfc3339_timestamp(value: Option<&DateTime<Utc>>) -> Option<DateTime<Utc>> {
-    value.map(|timestamp| *timestamp)
+    value.copied()
 }
 
 fn parse_rfc3339_timestamp_from_value(value: Option<&Value>) -> Option<DateTime<Utc>> {
@@ -525,6 +528,19 @@ pub fn format_standup_text(report: &StandupReport) -> String {
     lines.join("\n")
 }
 
+/// Return right-now summary text suitable for standup report output.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when the summary is missing or invalid.
+pub fn standup_display_summary(issue: &IssueData) -> Result<String, KanbusError> {
+    let summary = require_display_right_now_summary(issue)?;
+    if is_persisted_mock_right_now_summary(&summary, &issue.identifier) {
+        return Ok(truncate_bullet(&format!("Progress on {}.", issue.title)));
+    }
+    Ok(summary)
+}
+
 /// Collect right-now summary text for fact-feed issues.
 ///
 /// # Errors
@@ -535,10 +551,7 @@ pub fn collect_right_now_texts(
 ) -> Result<HashMap<String, String>, KanbusError> {
     let mut texts = HashMap::new();
     for issue in issues {
-        texts.insert(
-            issue.identifier.clone(),
-            require_display_right_now_summary(issue)?,
-        );
+        texts.insert(issue.identifier.clone(), standup_display_summary(issue)?);
     }
     Ok(texts)
 }
@@ -590,13 +603,8 @@ pub fn extract_section_text(report_text: &str, section_name: &str) -> String {
             continue;
         }
         if in_section {
-            if !line.is_empty()
-                && !line.starts_with('-')
-                && !SECTION_HEADINGS.contains(&line.trim())
-            {
-                if !section_lines.is_empty() {
-                    break;
-                }
+            if SECTION_HEADINGS.contains(&line.trim()) {
+                break;
             }
             if line.starts_with("Standup (") && !section_lines.is_empty() {
                 break;

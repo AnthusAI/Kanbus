@@ -338,7 +338,8 @@ def given_no_file_exists(context: object, filename: str) -> None:
 @given('a Kanbus project with a file "kanbus.yml" containing:')
 def given_project_with_kanbus_yml_containing(context: object) -> None:
     """Create kanbus.yml merging default config with the given YAML (context.text)."""
-    initialize_default_project(context)
+    if not getattr(context, "working_directory", None):
+        initialize_default_project(context)
     repository = Path(context.working_directory)
     config_path = repository / ".kanbus.yml"
     config_path.parent.mkdir(parents=True, exist_ok=True)

@@ -19,6 +19,7 @@ use kanbus::standup::{
 use kanbus::standup_command::{select_standup_fact_feed, StandupCommandOptions};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
+use crate::step_definitions::query_steps::resolve_issue_project_directory;
 
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -64,10 +65,7 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
     let mut index = 0;
     while index < tokens.len() {
         let token = tokens[index];
-        if token == "kanbus"
-            && index + 1 < tokens.len()
-            && tokens[index + 1] == "standup"
-        {
+        if token == "kanbus" && index + 1 < tokens.len() && tokens[index + 1] == "standup" {
             index += 2;
             continue;
         }
@@ -97,11 +95,7 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
 }
 
 fn repository_root(world: &KanbusWorld) -> PathBuf {
-    world
-        .working_directory
-        .as_ref()
-        .expect("cwd")
-        .to_path_buf()
+    world.working_directory.as_ref().expect("cwd").to_path_buf()
 }
 
 fn current_standup_fact_feed(world: &KanbusWorld) -> Vec<String> {
@@ -259,7 +253,7 @@ fn given_standup_lookback_hours(world: &mut KanbusWorld, hours: u32) {
 
 #[given(expr = "issue {string} has closed_at within standup lookback")]
 fn given_issue_closed_at_within_standup_lookback(world: &mut KanbusWorld, identifier: String) {
-    let project_dir = load_project_dir(world);
+    let project_dir = resolve_issue_project_directory(world, &identifier);
     let issue = read_issue_file(&project_dir, &identifier);
     let recent = Utc::now() - Duration::hours(1);
     let updated = IssueData {
@@ -271,7 +265,7 @@ fn given_issue_closed_at_within_standup_lookback(world: &mut KanbusWorld, identi
 
 #[given(expr = "issue {string} has updated_at within standup lookback")]
 fn given_issue_updated_at_within_standup_lookback(world: &mut KanbusWorld, identifier: String) {
-    let project_dir = load_project_dir(world);
+    let project_dir = resolve_issue_project_directory(world, &identifier);
     let issue = read_issue_file(&project_dir, &identifier);
     let recent = Utc::now() - Duration::hours(1);
     let updated = IssueData {
@@ -283,7 +277,7 @@ fn given_issue_updated_at_within_standup_lookback(world: &mut KanbusWorld, ident
 
 #[given(expr = "issue {string} has updated_at older than standup lookback")]
 fn given_issue_updated_at_older_than_standup_lookback(world: &mut KanbusWorld, identifier: String) {
-    let project_dir = load_project_dir(world);
+    let project_dir = resolve_issue_project_directory(world, &identifier);
     let issue = read_issue_file(&project_dir, &identifier);
     let stale = Utc::now() - Duration::hours(48);
     let updated = IssueData {
@@ -299,15 +293,12 @@ fn given_issue_state_transition_within_standup_lookback(
     identifier: String,
     status: String,
 ) {
-    let project_dir = load_project_dir(world);
+    let project_dir = resolve_issue_project_directory(world, &identifier);
     let events_dir = project_dir.join("events");
     fs::create_dir_all(&events_dir).expect("create events dir");
     let occurred_at = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let event_id = format!("standup-transition-{identifier}");
-    let filename = format!(
-        "{}__{event_id}.json",
-        occurred_at.replace(':', "-")
-    );
+    let filename = format!("{}__{event_id}.json", occurred_at.replace(':', "-"));
     let payload = serde_json::json!({
         "schema_version": 1,
         "event_id": event_id,
@@ -334,9 +325,7 @@ fn then_standup_fact_feed_matches_default(world: &mut KanbusWorld) {
     assert_eq!(actual, expected);
 }
 
-#[then(
-    "the standup fact feed should match kanbus now listing with status in_progress,blocked"
-)]
+#[then("the standup fact feed should match kanbus now listing with status in_progress,blocked")]
 fn then_standup_fact_feed_matches_kanbus_now_status(world: &mut KanbusWorld) {
     let actual = current_standup_fact_feed(world);
     let expected = kanbus_now_fact_feed(world, "in_progress,blocked");
@@ -395,8 +384,7 @@ fn then_standup_report_includes_section(world: &mut KanbusWorld, section_name: S
         return;
     }
     assert!(
-        stdout.contains(&format!("\n{section_name}\n"))
-            || stdout.trim().ends_with(&section_name)
+        stdout.contains(&format!("\n{section_name}\n")) || stdout.trim().ends_with(&section_name)
     );
 }
 
@@ -406,7 +394,11 @@ fn then_standup_section_mentions(world: &mut KanbusWorld, section_name: String, 
 }
 
 #[then(expr = "the standup report section {string} should not mention {string}")]
-fn then_standup_section_does_not_mention(world: &mut KanbusWorld, section_name: String, text: String) {
+fn then_standup_section_does_not_mention(
+    world: &mut KanbusWorld,
+    section_name: String,
+    text: String,
+) {
     assert_standup_section_does_not_mention(world, &section_name, &text);
 }
 
@@ -431,11 +423,9 @@ fn then_standup_section_not_empty(world: &mut KanbusWorld, section_name: String)
         return;
     }
     let section_text = extract_section_text(&stdout, &section_name);
-    assert!(
-        section_text
-            .lines()
-            .any(|line| line.trim().starts_with('-'))
-    );
+    assert!(section_text
+        .lines()
+        .any(|line| line.trim().starts_with('-')));
 }
 
 #[then(expr = "the standup report section \"Health\" should report {int} in-progress issues")]
@@ -466,12 +456,16 @@ fn then_standup_not_first_person_voice(world: &mut KanbusWorld) {
 
 #[then("the standup report should use third person executive voice")]
 fn then_standup_third_person_executive_voice(world: &mut KanbusWorld) {
-    assert!(report_uses_third_person_executive_voice(&stdout_text(world)));
+    assert!(report_uses_third_person_executive_voice(&stdout_text(
+        world
+    )));
 }
 
 #[then("the standup report should not use third person executive voice")]
 fn then_standup_not_third_person_executive_voice(world: &mut KanbusWorld) {
-    assert!(!report_uses_third_person_executive_voice(&stdout_text(world)));
+    assert!(!report_uses_third_person_executive_voice(&stdout_text(
+        world
+    )));
 }
 
 #[then(expr = "each standup report bullet should be at most {int} characters")]
@@ -551,10 +545,26 @@ fn then_standup_json_right_now_texts_match_between_profiles(world: &mut KanbusWo
 }
 
 #[then("standup generation should use the right now litellm configuration")]
-fn then_standup_uses_right_now_litellm_configuration(_world: &mut KanbusWorld) {
-    assert_eq!(
-        std::env::var("KANBUS_RIGHT_NOW_LITELLM_CALLED").ok(),
-        Some("1".to_string())
+fn then_standup_uses_right_now_litellm_configuration(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let log_path = project_dir.join("events").join("llm_usage.jsonl");
+    assert!(log_path.is_file(), "expected {:?} to exist", log_path);
+    let entries: Vec<serde_json::Value> = std::fs::read_to_string(&log_path)
+        .expect("read llm usage log")
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| serde_json::from_str(line).expect("parse llm usage entry"))
+        .collect();
+    let matching = entries
+        .iter()
+        .filter(|entry| {
+            entry.get("operation")
+                == Some(&serde_json::Value::String("right_now_summary".to_string()))
+        })
+        .count();
+    assert!(
+        matching > 0,
+        "expected right_now_summary entry in llm usage log"
     );
 }
 

@@ -1,4 +1,3 @@
-@wip
 Feature: Standup director brief profile
   As a stakeholder scanning project health
   I want an executive brief from the same board facts as the meeting script
