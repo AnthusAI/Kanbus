@@ -262,6 +262,11 @@ pub fn qualifies_for_momentum(
     if had_state_transition_within_lookback(events, &done_statuses(), report_time, lookback_hours) {
         return true;
     }
+    if done_statuses().contains(&issue.status)
+        && is_within_lookback(issue.closed_at.as_ref(), report_time, lookback_hours)
+    {
+        return true;
+    }
     issue.status == "in_progress"
         && is_within_lookback(Some(&issue.updated_at), report_time, lookback_hours)
 }
@@ -306,6 +311,7 @@ pub fn build_meeting_script_sections(
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
     lookback_hours: u32,
+    explicit_scope: bool,
 ) -> Vec<StandupSection> {
     let mut yesterday_identifiers = HashSet::new();
     let mut yesterday_bullets = Vec::new();
@@ -339,7 +345,12 @@ pub fn build_meeting_script_sections(
         if yesterday_identifiers.contains(&issue.identifier) {
             continue;
         }
-        if issue.status == "in_progress" || issue.status == "blocked" {
+        let active_statuses: &[&str] = if explicit_scope {
+            &["in_progress", "blocked", "open"]
+        } else {
+            &["in_progress", "blocked"]
+        };
+        if active_statuses.contains(&issue.status.as_str()) {
             if let Some(summary) = right_now_texts.get(&issue.identifier) {
                 today_bullets.push(truncate_bullet(summary));
             }
@@ -407,7 +418,7 @@ pub fn build_director_brief_sections(
             risk_bullets.push(truncate_bullet(&issue.identifier));
             blocker_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
         } else if is_stale_in_progress(issue, report_time, lookback_hours) {
-            risk_bullets.push(truncate_bullet(&issue.identifier));
+            risk_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
         }
     }
 
@@ -439,6 +450,7 @@ pub fn build_standup_report(
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
     lookback_hours: u32,
+    explicit_scope: bool,
 ) -> StandupReport {
     let sections = if profile == DIRECTOR_BRIEF_PROFILE {
         build_director_brief_sections(
@@ -455,6 +467,7 @@ pub fn build_standup_report(
             events_by_issue,
             report_time,
             lookback_hours,
+            explicit_scope,
         )
     };
     StandupReport {
