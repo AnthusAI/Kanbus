@@ -1,0 +1,20 @@
+{
+  "id": "kbs-36171e",
+  "title": "kbs now shows placeholders/mocks instead of fail-closed JIT",
+  "description": "Observed: `kbs now` emits placeholder or mock right-now strings instead of failing closed when real JIT generation is unavailable or fails.\n\nExpected:\n- Production `kbs now` generates real summaries just-in-time via the LLM pipeline\n- On failure (missing key, LLM error, validation), fail closed with a clear error — never substitute mock/placeholder text\n- SD acceptance on `/workspace/projects-meta`",
+  "type": "bug",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-0fe175",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:12:52.814517347Z",
+  "updated_at": "2026-09-09T16:12:52.821833683Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
