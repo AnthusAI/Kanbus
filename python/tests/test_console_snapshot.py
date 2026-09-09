@@ -101,6 +101,35 @@ def test_build_console_snapshot_includes_config_issues_and_timestamp(
     assert snapshot["updated_at"].endswith("Z")
 
 
+def test_active_right_now_tree_includes_ancestors_and_all_descendants() -> None:
+    epic = build_issue("kanbus-epic")
+    parent = build_issue("kanbus-parent")
+    parent.parent = epic.identifier
+    active = build_issue("kanbus-active")
+    active.status = "in_progress"
+    active.parent = parent.identifier
+    discovery = build_issue("kanbus-discovery")
+    discovery.status = "discovery"
+    discovery.parent = parent.identifier
+    discovery_child = build_issue("kanbus-discovery-child")
+    discovery_child.status = "closed"
+    discovery_child.parent = discovery.identifier
+    unrelated = build_issue("kanbus-unrelated")
+
+    roots, selected = console_snapshot._active_right_now_tree(
+        [epic, parent, active, discovery, discovery_child, unrelated]
+    )
+
+    assert roots == ["kanbus-epic"]
+    assert selected == {
+        "kanbus-epic",
+        "kanbus-parent",
+        "kanbus-active",
+        "kanbus-discovery",
+        "kanbus-discovery-child",
+    }
+
+
 def test_load_project_context_wraps_configuration_lookup_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
