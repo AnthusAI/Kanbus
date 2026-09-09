@@ -25,6 +25,21 @@ class DaemonClientError(RuntimeError):
     """Raised when daemon communication fails."""
 
 
+DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE = "unknown configuration fields"
+_daemon_restart_recorded_for_testing = False
+
+
+def is_daemon_config_schema_error(message: str) -> bool:
+    """Return whether a daemon error indicates stale config schema parsing.
+
+    :param message: Daemon error message text.
+    :type message: str
+    :return: True when the message is a config schema rejection.
+    :rtype: bool
+    """
+    return message == DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE
+
+
 def is_daemon_enabled() -> bool:
     """Return whether daemon mode is enabled.
 
@@ -77,6 +92,40 @@ def spawn_daemon(root: Path) -> None:
     )
 
 
+def was_daemon_restarted_for_testing() -> bool:
+    """Return whether restart_daemon ran during the current test scenario.
+
+    :return: True when restart_daemon was invoked.
+    :rtype: bool
+    """
+    return _daemon_restart_recorded_for_testing
+
+
+def reset_daemon_restart_recorded_for_testing() -> None:
+    """Clear the restart_daemon test recorder."""
+    global _daemon_restart_recorded_for_testing
+    _daemon_restart_recorded_for_testing = False
+
+
+def restart_daemon(root: Path) -> None:
+    """Restart the daemon after a stale process rejects the current config schema.
+
+    :param root: Repository root path.
+    :type root: Path
+    """
+    global _daemon_restart_recorded_for_testing
+    _daemon_restart_recorded_for_testing = True
+    try:
+        request_shutdown(root)
+    except DaemonClientError:
+        pass
+    socket_path = get_daemon_socket_path(root)
+    if socket_path.exists():
+        socket_path.unlink()
+    spawn_daemon(root)
+    time.sleep(0.05)
+
+
 def request_index_list(root: Path) -> List[Dict[str, Any]]:
     """Request the index list from the daemon, spawning it if needed.
 
@@ -102,7 +151,16 @@ def request_index_list(root: Path) -> List[Dict[str, Any]]:
         error = response.error or ErrorEnvelope(
             code="internal_error", message="daemon error", details={}
         )
-        raise DaemonClientError(error.message)
+        if is_daemon_config_schema_error(error.message):
+            restart_daemon(root)
+            response = _request_with_recovery(socket_path, request, root)
+            if response.status != "ok":
+                retry_error = response.error or ErrorEnvelope(
+                    code="internal_error", message="daemon error", details={}
+                )
+                raise DaemonClientError(retry_error.message)
+        else:
+            raise DaemonClientError(error.message)
     result = response.result or {}
     return list(result.get("issues", []))
 

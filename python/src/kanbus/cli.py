@@ -144,7 +144,6 @@ from kanbus.right_now import (
 from kanbus.right_now_command import (
     RightNowCommandError,
     RightNowCommandOptions,
-    RightNowOutputFormat,
     resolve_right_now_output_format,
     run_right_now_command,
 )

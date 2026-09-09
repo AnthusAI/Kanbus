@@ -32,6 +32,7 @@ pub enum TestDaemonResponse {
 
 static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
 static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
+static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
 
 /// Set the test response for the next daemon request.
 ///
@@ -90,6 +91,56 @@ pub fn is_daemon_enabled() -> bool {
     !matches!(value.as_str(), "1" | "true" | "yes")
 }
 
+/// Error message returned when a stale daemon rejects the current config schema.
+pub const DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE: &str = "unknown configuration fields";
+
+/// Return whether a daemon error indicates stale config schema parsing.
+///
+/// # Arguments
+/// * `message` - Daemon error message text.
+///
+/// # Returns
+/// `true` when the message is a config schema rejection.
+pub fn is_daemon_config_schema_error(message: &str) -> bool {
+    message == DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE
+}
+
+/// Return whether `restart_daemon` ran during the current test scenario.
+pub fn was_daemon_restarted_for_testing() -> bool {
+    let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+    *cell.lock().expect("lock daemon restart recorder")
+}
+
+/// Clear the `restart_daemon` test recorder.
+pub fn reset_daemon_restart_recorded_for_testing() {
+    let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+    *cell.lock().expect("lock daemon restart recorder") = false;
+}
+
+/// Restart the daemon after a stale process rejects the current config schema.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Errors
+/// Returns `KanbusError` when socket cleanup fails.
+pub fn restart_daemon(root: &Path) -> Result<(), KanbusError> {
+    {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder") = true;
+    }
+    if !has_test_daemon_response() {
+        let _ = request_shutdown(root);
+    }
+    let socket_path = get_daemon_socket_path(root)?;
+    if socket_path.exists() {
+        std::fs::remove_file(&socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    spawn_daemon(root)?;
+    std::thread::sleep(Duration::from_millis(50));
+    Ok(())
+}
+
 /// Request index list from the daemon, spawning it if needed.
 ///
 /// # Arguments
@@ -118,6 +169,23 @@ pub fn request_index_list(root: &Path) -> Result<Vec<Value>, KanbusError> {
             message: "daemon error".to_string(),
             details: BTreeMap::new(),
         });
+        if is_daemon_config_schema_error(&error.message) {
+            restart_daemon(root)?;
+            let retry_response = request_with_recovery(&socket_path, &request, root)?;
+            if retry_response.status != "ok" {
+                let retry_error = retry_response.error.unwrap_or(ErrorEnvelope {
+                    code: "internal_error".to_string(),
+                    message: "daemon error".to_string(),
+                    details: BTreeMap::new(),
+                });
+                return Err(KanbusError::IssueOperation(retry_error.message));
+            }
+            let result = retry_response.result.unwrap_or_default();
+            return match result.get("issues") {
+                Some(Value::Array(values)) => Ok(values.clone()),
+                _ => Ok(Vec::new()),
+            };
+        }
         return Err(KanbusError::IssueOperation(error.message));
     }
     let result = response.result.unwrap_or_default();

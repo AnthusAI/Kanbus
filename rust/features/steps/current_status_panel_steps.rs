@@ -801,13 +801,19 @@ fn then_now_panel_no_right_now_placeholder(world: &mut KanbusWorld) {
 fn when_request_console_now_snapshot(world: &mut KanbusWorld) {
     let port = world.console_port.expect("console server is not running");
     let url = format!("http://127.0.0.1:{port}/api/now");
-    let client = Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .expect("build http client");
-    let response = client.get(&url).send().expect("request now snapshot");
-    world.now_api_status = Some(response.status().as_u16());
-    let body = response.text().expect("read now snapshot body");
+    let (status, body) = thread::spawn(move || {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .expect("build http client");
+        let response = client.get(&url).send().expect("request now snapshot");
+        let status = response.status().as_u16();
+        let body = response.text().expect("read now snapshot body");
+        (status, body)
+    })
+    .join()
+    .expect("now snapshot request thread");
+    world.now_api_status = Some(status);
     world.now_api_response = Some(body);
 }
 

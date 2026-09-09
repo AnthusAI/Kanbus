@@ -346,6 +346,12 @@ pub fn generate_right_now_summary(
         return Ok(truncate_to_max_length(&summary, max_length));
     }
 
+    if std::env::var("KANBUS_TEST_SIMULATE_LITELLM_MISSING").as_deref() == Ok("1") {
+        return Err(KanbusError::IssueOperation(
+            "litellm is required for right-now summary generation".to_string(),
+        ));
+    }
+
     let prompt = build_right_now_prompt(context, max_length);
     let (completion_text, usage) = litellm_chat_completion(&model, &prompt)?;
     record_llm_usage(

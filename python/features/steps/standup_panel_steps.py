@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 
 from behave import given, then, when
 
-from kanbus.console_standup import StandupGenerateRequest, generate_standup_report
 from kanbus.models import IssueData
 from kanbus.standup import (
     MEETING_SCRIPT_PROFILE,
@@ -427,7 +426,8 @@ def then_standup_api_response_profile(context: object, profile: str) -> None:
     """
     status = getattr(context, "standup_api_status", None)
     if status != 200:
-        raise AssertionError(f"expected HTTP 200, got {status}")
+        response = getattr(context, "standup_api_response", {})
+        raise AssertionError(f"expected HTTP 200, got {status}: {response!r}")
     response = getattr(context, "standup_api_response", {})
     if response.get("profile") != profile:
         raise AssertionError(

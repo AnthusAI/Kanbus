@@ -17,6 +17,7 @@ dependencies = [
     "pyyaml",
     "pydantic-settings",
     "requests",
+    "litellm",
     "paho-mqtt",
     "behave",
     "pytest",

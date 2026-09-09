@@ -632,6 +632,67 @@ def then_daemon_request_succeeds(context: object) -> None:
     assert error is None
 
 
+@then("the daemon should have been restarted")
+def then_daemon_should_have_been_restarted(context: object) -> None:
+    import kanbus.daemon_client as daemon_client
+
+    assert daemon_client.was_daemon_restarted_for_testing() is True
+
+
+@given('the daemon index list responds with "{message}"')
+def given_daemon_index_list_responds_with(context: object, message: str) -> None:
+    import kanbus.daemon_client as daemon_client
+    from kanbus.daemon_protocol import ErrorEnvelope
+
+    _set_daemon_env(context, "0")
+    context.original_request_with_recovery = daemon_client._request_with_recovery
+
+    def fake_request(
+        socket_path: Path, request: RequestEnvelope, root: Path
+    ) -> ResponseEnvelope:
+        return ResponseEnvelope(
+            protocol_version=PROTOCOL_VERSION,
+            request_id=request.request_id,
+            status="error",
+            error=ErrorEnvelope(code="internal_error", message=message, details={}),
+        )
+
+    daemon_client._request_with_recovery = fake_request
+
+
+@given('the daemon index list fails once with "{message}" then succeeds')
+def given_daemon_index_list_fails_once_then_succeeds(
+    context: object, message: str
+) -> None:
+    import kanbus.daemon_client as daemon_client
+    from kanbus.daemon_protocol import ErrorEnvelope
+
+    _set_daemon_env(context, "0")
+    context.original_request_with_recovery = daemon_client._request_with_recovery
+    attempts = {"count": 0}
+
+    def fake_request(
+        socket_path: Path, request: RequestEnvelope, root: Path
+    ) -> ResponseEnvelope:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            return ResponseEnvelope(
+                protocol_version=PROTOCOL_VERSION,
+                request_id=request.request_id,
+                status="error",
+                error=ErrorEnvelope(code="internal_error", message=message, details={}),
+            )
+        return ResponseEnvelope(
+            protocol_version=PROTOCOL_VERSION,
+            request_id=request.request_id,
+            status="ok",
+            result={"issues": []},
+            error=None,
+        )
+
+    daemon_client._request_with_recovery = fake_request
+
+
 @when('I send a daemon request with protocol version "{version}"')
 def when_send_request_with_protocol(context: object, version: str) -> None:
     request = RequestEnvelope(
