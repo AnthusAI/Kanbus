@@ -44,7 +44,7 @@ def test_load_dotenv_sets_values_without_overwriting_existing(
     )
     monkeypatch.setenv("KEEP", "already")
 
-    config_loader._load_dotenv(dotenv)
+    config_loader.load_dotenv_file(dotenv)
 
     assert os.environ.get("PLAIN") == "one"
     assert os.environ.get("QUOTED") == "two"

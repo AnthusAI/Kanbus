@@ -167,14 +167,14 @@ def test_load_override_configuration_returns_empty_for_null_yaml(
 def test_load_dotenv_missing_or_unreadable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    config_loader._load_dotenv(tmp_path / "missing.env")
+    config_loader.load_dotenv_file(tmp_path / "missing.env")
 
     env_path = tmp_path / ".env"
     env_path.write_text("A=1\n", encoding="utf-8")
     monkeypatch.setattr(
         Path, "read_text", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("x"))
     )
-    config_loader._load_dotenv(env_path)
+    config_loader.load_dotenv_file(env_path)
 
 
 def test_validate_project_configuration_error_paths() -> None:

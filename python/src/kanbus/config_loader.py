@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.models import ProjectConfiguration
 
+CONGREGATION_ENV_FILENAME = ".kanbus.env"
+
 SORT_PRESETS = ("fifo", "priority-first", "recently-updated")
 SORT_FIELDS = ("priority", "created_at", "updated_at", "id")
 SORT_DIRECTIONS = ("asc", "desc")
@@ -46,8 +48,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if not path.exists():
         raise ConfigurationError("configuration file not found")
 
-    _load_dotenv(Path.home() / ".kanbus.env")
-    _load_dotenv(path.parent / ".env")
+    load_repository_environment(path.parent)
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
@@ -153,7 +154,34 @@ def _parse_int_env(name: str) -> int | None:
         return None
 
 
-def _load_dotenv(path: Path) -> None:
+def congregation_env_path() -> Path:
+    """Return the user congregation env file path.
+
+    :return: Path to ``~/.kanbus.env``.
+    :rtype: Path
+    """
+    return Path.home() / CONGREGATION_ENV_FILENAME
+
+
+def load_repository_environment(repository_root: Path) -> None:
+    """Load congregation and project dotenv files into the process environment.
+
+    Loads ``~/.kanbus.env`` first, then ``repository_root/.env``. Values already
+    present in the process environment are never overwritten.
+
+    :param repository_root: Repository root containing ``.kanbus.yml``.
+    :type repository_root: Path
+    """
+    load_dotenv_file(congregation_env_path())
+    load_dotenv_file(repository_root / ".env")
+
+
+def load_dotenv_file(path: Path) -> None:
+    """Load key/value pairs from a dotenv file without overriding existing env vars.
+
+    :param path: Dotenv file path.
+    :type path: Path
+    """
     if not path.exists():
         return
     try:
@@ -177,6 +205,10 @@ def _load_dotenv(path: Path) -> None:
         if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
             value = value[1:-1]
         os.environ[key] = value
+
+
+def _load_dotenv(path: Path) -> None:
+    load_dotenv_file(path)
 
 
 def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
