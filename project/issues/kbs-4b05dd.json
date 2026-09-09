@@ -3,18 +3,29 @@
   "title": "Rust CLI delegates now-generate-internal to PATH kanbus (clap unknown subcommand)",
   "description": "## Problem\n\nWhen `kbs` is the Rust binary (default after install), standup and right-now summary generation fails because `delegate_right_now_summary_to_python` shells out to `kanbus now-generate-internal`, which is a Python-only hidden subcommand.\n\n## Symptom\n\n```\nerror: unrecognized subcommand 'now-generate-internal'\n```\n\nRust `kbs standup` (and related right-now flows) invoke `Command::new(\"kanbus\").args([\"now-generate-internal\", ...])`. When PATH resolves `kanbus` to the Rust binary, clap rejects the subcommand.\n\n## Context\n\n- Parent initiative: kbs-60f3d0 (on-demand daily standup report)\n- Python implementation: `python/src/kanbus/cli.py` defines `now-generate-internal` (hidden)\n- Rust caller: `rust/src/right_now.rs` `delegate_right_now_summary_to_python`\n\n## Expected fix direction\n\nRust should either implement `now-generate-internal` natively or invoke the Python CLI explicitly (not PATH `kanbus`) so Rust-as-default installs work.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
   "parent": "kbs-60f3d0",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f6ce70ff-341f-4bdf-856a-14fbb5bd4617",
+      "author": "ubuntu",
+      "text": "Merged in develop via PR #248. Merge SHA: a38442d14e7d54804abe6397fa6c0eba069a7717",
+      "created_at": "2026-09-09T20:12:18.291706984Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T19:43:07.613625831Z",
-  "updated_at": "2026-09-09T19:43:07.621445264Z",
-  "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "updated_at": "2026-09-09T20:12:23.803910931Z",
+  "closed_at": "2026-09-09T20:12:23.795843251Z",
+  "right_now_summary": "PR #248 merged a fix into develop for Rust right-now summary generation.",
+  "right_now_updated_at": "2026-09-09T20:12:26.073185005Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
