@@ -48,10 +48,7 @@ fn then_right_now_json_item_priority_equals(
 ) {
     let payload = parse_stdout_json(world);
     let item = find_flat_json_item(&payload, &identifier);
-    assert_eq!(
-        item.get("priority"),
-        Some(&Value::Number(expected.into()))
-    );
+    assert_eq!(item.get("priority"), Some(&Value::Number(expected.into())));
 }
 
 #[then(expr = "the right now JSON item for {string} should have right_now_summary {string}")]
