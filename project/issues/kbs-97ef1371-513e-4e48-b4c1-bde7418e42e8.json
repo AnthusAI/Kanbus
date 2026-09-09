@@ -1,0 +1,20 @@
+{
+  "id": "kbs-97ef1371-513e-4e48-b4c1-bde7418e42e8",
+  "title": "Gherkin specs for standup reports (both profiles + shared stack)",
+  "description": "Behavior specs first: standup report generation for Meeting script and Director brief profiles on the shared LiteLLM/right-now stack. Dual-runtime parity; SD reviews specs before implementation.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e7abbe",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T17:17:31.598248983Z",
+  "updated_at": "2026-09-09T17:17:31.606131544Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

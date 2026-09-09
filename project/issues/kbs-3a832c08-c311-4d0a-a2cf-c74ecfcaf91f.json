@@ -1,0 +1,20 @@
+{
+  "id": "kbs-3a832c08-c311-4d0a-a2cf-c74ecfcaf91f",
+  "title": "Director-brief CLI output (stakeholder scan)",
+  "description": "CLI command output for Director-brief profile: stakeholder scan with executive framing from the same board facts. Implements after Gherkin specs pass SD review.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4d37ed32-d10f-4d09-ba94-d832bb4a488f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T17:17:31.835214160Z",
+  "updated_at": "2026-09-09T17:17:31.842646993Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
