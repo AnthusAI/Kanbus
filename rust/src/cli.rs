@@ -462,6 +462,9 @@ kbs now --status all             every status, not just in-progress"
         /// Status filter. Default: in_progress. Use all for every status.
         #[arg(long)]
         status: Option<String>,
+        /// Clear right_now_summary and right_now_updated_at across the board.
+        #[arg(long)]
+        purge: bool,
         /// Issue identifiers to show. Default: recently-updated issues.
         #[arg(value_name = "ISSUE")]
         issue_ids: Vec<String>,
@@ -2984,6 +2987,7 @@ fn execute_command(
             raw,
             json,
             status,
+            purge,
             issue_ids,
         } => {
             let options = RightNowCommandOptions {
@@ -2997,6 +3001,7 @@ fn execute_command(
                 recursive: !no_recursive,
                 issue_ids,
                 status,
+                purge,
             };
             let output = run_right_now_command(root, &options)?;
             Ok(Some(output))
