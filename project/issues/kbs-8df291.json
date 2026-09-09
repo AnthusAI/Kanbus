@@ -1,0 +1,20 @@
+{
+  "id": "kbs-8df291",
+  "title": "Validate/doctor: type vs status mismatch needs remediation hint",
+  "description": "Ryan 2026-09-09 dogfood: editorial workflow treats story+open as invalid. Claude created or encountered a story in open status and had no clear remediation path until manually running kbs move to convert it to task.\n\n## Expected\n\nkbs validate or kbs doctor should detect type/status mismatches against the active workflow and print a concrete remediation hint (for example: use kbs move to change type from story to task).\n\n## Observed\n\nInvalid combination is rejected or surfaced without telling the agent what to do next.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f042e3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T13:11:07.200946963Z",
+  "updated_at": "2026-09-09T13:11:07.208259272Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
