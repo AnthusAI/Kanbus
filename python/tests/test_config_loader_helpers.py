@@ -25,9 +25,7 @@ def test_parse_int_env_handles_invalid_values(monkeypatch) -> None:
     assert config_loader._parse_int_env("K_INT") is None
 
 
-def test_congregation_env_path_uses_home_directory(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_congregation_env_path_uses_home_directory(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     assert config_loader.congregation_env_path() == tmp_path / ".kanbus.env"
 
@@ -58,9 +56,7 @@ def test_load_dotenv_file_returns_when_path_is_missing(tmp_path: Path) -> None:
     config_loader.load_dotenv_file(tmp_path / "missing.env")
 
 
-def test_load_dotenv_file_returns_when_read_fails(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_load_dotenv_file_returns_when_read_fails(tmp_path: Path, monkeypatch) -> None:
     dotenv = tmp_path / ".env"
     dotenv.write_text("UNREADABLE=value\n", encoding="utf-8")
     original_read_text = Path.read_text
