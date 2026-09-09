@@ -138,6 +138,8 @@ from kanbus.right_now import (
 from kanbus.right_now_command import (
     RightNowCommandError,
     RightNowCommandOptions,
+    RightNowOutputFormat,
+    resolve_right_now_output_format,
     run_right_now_command,
 )
 from kanbus.standup import StandupError
@@ -3001,7 +3003,9 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
 @click.option("--expanded", is_flag=True, default=False)
 @click.option("--collapsed", is_flag=True, default=False)
 @click.option("--raw", is_flag=True, default=False)
+@click.option("--yaml", "as_yaml", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False)
+@click.option("--text", "as_text", is_flag=True, default=False)
 @click.option(
     "--status",
     default=None,
@@ -3022,7 +3026,9 @@ def right_now_command(
     expanded: bool,
     collapsed: bool,
     raw: bool,
+    as_yaml: bool,
     as_json: bool,
+    as_text: bool,
     status: str | None,
     purge: bool,
 ) -> None:
@@ -3031,26 +3037,35 @@ def right_now_command(
     \b
 
     Examples:
-      kbs now                          tree of recently-updated issues (cap 30)
-      kbs now --list                   reverse-chronological list
-      kbs now --all                    every issue as a tree
+      kbs now                          YAML tree of recently-updated issues (cap 30)
+      kbs now --list                   reverse-chronological YAML list
+      kbs now --all                    every issue as a YAML tree
       kbs now --limit 10               10 most recently updated
-      kbs now kbs-abc                  issue and descendants as a tree
+      kbs now kbs-abc                  issue and descendants as a YAML tree
       kbs now kbs-abc --no-recursive   that issue only
-      kbs now kbs-abc --list           descendants as a flat list
+      kbs now kbs-abc --list           descendants as a flat YAML list
       kbs now --json                   machine-readable JSON for agents
+      kbs now --text                   human-readable text lines
       kbs now --raw                    titles only, no summaries
       kbs now --status all             every status, not just in-progress
       kbs now --purge                  clear all right-now summaries on the board
     """
     root = Path.cwd()
+    try:
+        output_format = resolve_right_now_output_format(
+            as_yaml=as_yaml,
+            as_json=as_json,
+            as_text=as_text,
+        )
+    except RightNowCommandError as error:
+        raise click.ClickException(str(error)) from error
     options = RightNowCommandOptions(
         limit=limit,
         tree=not as_list,
         expanded=expanded,
         collapsed=collapsed,
         raw=raw,
-        as_json=as_json,
+        output_format=output_format,
         show_all=show_all,
         recursive=not no_recursive,
         issue_ids=issue_ids,

@@ -12,7 +12,9 @@ use serde_yaml::{Mapping, Value as YamlValue};
 use kanbus::config::default_project_configuration;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
-use kanbus::right_now_command::{select_right_now_issues_for_command, RightNowCommandOptions};
+use kanbus::right_now_command::{
+    select_right_now_issues_for_command, RightNowCommandOptions, RightNowOutputFormat,
+};
 use kanbus::standup::{
     extract_section_text, report_uses_first_person_voice, report_uses_third_person_executive_voice,
 };
@@ -126,7 +128,7 @@ fn kanbus_now_fact_feed(world: &KanbusWorld, status_filter: &str) -> Vec<String>
         expanded: false,
         collapsed: false,
         raw: false,
-        as_json: false,
+        output_format: RightNowOutputFormat::Yaml,
         show_all: false,
         recursive: true,
         issue_ids: Vec::new(),
