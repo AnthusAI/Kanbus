@@ -4,6 +4,19 @@ Kanbus adds a realtime gossip channel plus a speculative overlay cache. Git is s
 
 ![Realtime Collaboration architecture diagram](images/realtime-collaboration-diagram.svg)
 
+## When Mosquitto is required vs optional
+
+Mosquitto is **optional** for routine Kanbus CLI board work (`kbs list`, `kbs show`, `kbs create`, `kbs update`, and similar commands). Those commands do not require a local MQTT broker.
+
+Mosquitto is needed only when you explicitly use **local MQTT realtime**:
+
+- `kbs gossip watch --transport mqtt --broker auto`
+- MQTT transport with `realtime.autostart=true` and no reachable broker
+
+The default console hub path uses UDS (`kbsc` plus routine CLI mutations). Install Mosquitto only when you want local MQTT gossip outside the console UDS broker.
+
+Set `KANBUS_REALTIME_WARN_MOSQUITTO=0` to suppress the once-per-session Mosquitto install hint for explicit MQTT commands.
+
 ## Quickstart
 
 ### One console hub (UDS)
@@ -187,7 +200,7 @@ Environment values override `.kanbus.yml` (and `.env` can supply these when not 
 
 ## Troubleshooting
 
-- **Mosquitto missing:** install `mosquitto` (macOS: `brew install mosquitto`, Debian/Ubuntu: `apt install mosquitto`).
+- **Mosquitto missing:** only required for explicit MQTT gossip commands. Routine CLI board work does not need Mosquitto. Install with `brew install mosquitto` (macOS) or `apt install mosquitto` (Debian/Ubuntu). Kanbus prints at most one install hint per process for MQTT commands unless `KANBUS_REALTIME_WARN_MOSQUITTO=0`.
 - **Broker not reachable:** verify `realtime.broker` and `broker.json` endpoint; try `mqtt://127.0.0.1:1883`.
 - **UDS socket missing:** start the broker with `kanbus gossip broker`.
 

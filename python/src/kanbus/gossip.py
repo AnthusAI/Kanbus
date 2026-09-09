@@ -27,6 +27,9 @@ from kanbus.project import (
     resolve_labeled_projects,
 )
 
+_MOSQUITTO_MISSING_WARNED = False
+_MOSQUITTO_MISSING_WARNING_COUNT = 0
+
 
 class GossipEnvelope(BaseModel):
     """Realtime gossip envelope."""
@@ -301,7 +304,7 @@ def _run_gossip_consumer(
             raise GossipError("broker not reachable and autostart disabled")
         startup = ensure_mosquitto(endpoint)
         if startup is None:
-            _print_mosquitto_missing()
+            _maybe_warn_mosquitto_missing()
             return
         endpoint = startup.endpoint
         broker_process = startup.process
@@ -474,7 +477,6 @@ def _publish_envelope(
             return
         startup = ensure_mosquitto(endpoint)
         if startup is None:
-            _print_mosquitto_missing()
             return
         endpoint = startup.endpoint
         broker_process = startup.process
@@ -521,6 +523,8 @@ def broker_is_reachable(endpoint: BrokerEndpoint) -> bool:
 
 
 def ensure_mosquitto(endpoint: BrokerEndpoint) -> Optional[BrokerStartup]:
+    if os.environ.get("KANBUS_TEST_MOSQUITTO_UNAVAILABLE") == "1":
+        return None
     if endpoint.scheme != "mqtt":
         return None
     if endpoint.host not in ("127.0.0.1", "localhost"):
@@ -701,9 +705,47 @@ def _now_iso() -> str:
     )
 
 
-def _print_mosquitto_missing() -> None:
+def _mosquitto_warnings_enabled() -> bool:
+    return os.environ.get("KANBUS_REALTIME_WARN_MOSQUITTO") != "0"
+
+
+def _maybe_warn_mosquitto_missing() -> None:
+    global _MOSQUITTO_MISSING_WARNED, _MOSQUITTO_MISSING_WARNING_COUNT
+    if not _mosquitto_warnings_enabled():
+        return
+    if _MOSQUITTO_MISSING_WARNED:
+        return
+    _MOSQUITTO_MISSING_WARNED = True
+    _MOSQUITTO_MISSING_WARNING_COUNT += 1
     print(
-        "Mosquitto not found. Install with: brew install mosquitto (macOS) "
-        "or apt install mosquitto (Debian/Ubuntu).",
+        "Mosquitto not found; local MQTT realtime is optional. Install mosquitto "
+        "for gossip watch (see docs/REALTIME.md). macOS: brew install mosquitto. "
+        "Debian/Ubuntu: apt install mosquitto.",
         file=sys.stderr,
     )
+
+
+def reset_mosquitto_missing_warning() -> None:
+    """Reset the once-per-session Mosquitto warning gate."""
+    global _MOSQUITTO_MISSING_WARNED, _MOSQUITTO_MISSING_WARNING_COUNT
+    _MOSQUITTO_MISSING_WARNED = False
+    _MOSQUITTO_MISSING_WARNING_COUNT = 0
+
+
+def mosquitto_missing_warning_count() -> int:
+    """Return how many Mosquitto install hints were emitted in this process."""
+    return _MOSQUITTO_MISSING_WARNING_COUNT
+
+
+def attempt_mosquitto_missing_warning() -> None:
+    """Emit the Mosquitto install hint gate used by realtime MQTT commands."""
+    _maybe_warn_mosquitto_missing()
+
+
+def attempt_mqtt_publish_without_broker(
+    configuration: ProjectConfiguration,
+    topic: str,
+    envelope: GossipEnvelope,
+) -> None:
+    """Publish a gossip envelope for behavior-spec MQTT publish checks."""
+    _publish_envelope(Path("."), configuration, topic, envelope)

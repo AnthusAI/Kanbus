@@ -100,6 +100,8 @@ kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 
 ## Realtime quickstart
 
+Routine `kbs` board commands do not require Mosquitto. Local MQTT is optional and only needed for explicit gossip watch workflows (see [docs/REALTIME.md](docs/REALTIME.md)).
+
 ### One console hub (UDS)
 
 Terminal 1:
@@ -129,7 +131,7 @@ curl -N http://127.0.0.1:5174/api/events/realtime
 kanbus gossip watch --transport mqtt --broker auto
 ```
 
-If Mosquitto is installed, Kanbus will autostart it and record `~/.kanbus/run/broker.json`.
+Mosquitto is optional for basic board CLI use. If you run MQTT gossip watch and Mosquitto is installed, Kanbus will autostart it and record `~/.kanbus/run/broker.json`.
 
 ### Overlay maintenance
 
