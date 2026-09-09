@@ -19,8 +19,8 @@ use crate::right_now::{
     require_display_right_now_summary,
 };
 use crate::standup_window::{
-    CALENDAR_WINDOW, StandupWindowSettings, is_on_completed_calendar_day,
-    parse_standup_lookback_hours, start_of_report_calendar_day,
+    is_on_completed_calendar_day, parse_standup_lookback_hours, start_of_report_calendar_day,
+    StandupWindowSettings, CALENDAR_WINDOW,
 };
 
 pub const MEETING_SCRIPT_PROFILE: &str = "meeting-script";

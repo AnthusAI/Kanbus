@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
@@ -21,7 +21,6 @@ from kanbus.right_now import (
 )
 from kanbus.standup_window import (
     CALENDAR_WINDOW,
-    DEFAULT_STANDUP_LOOKBACK_HOURS,
     MEETING_SCRIPT_PROFILE,
     DIRECTOR_BRIEF_PROFILE,
     StandupWindowSettings,

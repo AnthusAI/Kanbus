@@ -8,14 +8,14 @@ use cucumber::{given, then, when};
 use reqwest::blocking::Client;
 use serde_json::json;
 
+use chrono_tz::UTC;
 use kanbus::models::IssueData;
 use kanbus::standup::{
     build_standup_report, collect_right_now_texts, format_standup_text, resolve_standup_profile,
     MEETING_SCRIPT_PROFILE,
 };
 use kanbus::standup_command::STANDUP_DEFAULT_STATUS_FILTER;
-use kanbus::standup_window::{DEFAULT_STANDUP_LOOKBACK, ROLLING_WINDOW, StandupWindowSettings};
-use chrono_tz::UTC;
+use kanbus::standup_window::{StandupWindowSettings, DEFAULT_STANDUP_LOOKBACK, ROLLING_WINDOW};
 
 use crate::step_definitions::console_ui_steps::{ConsoleIssue, ConsoleState};
 use crate::step_definitions::initialization_steps::KanbusWorld;
