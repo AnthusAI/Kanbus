@@ -5,9 +5,8 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::models::{
-    AiConfiguration, CategoryDefinition, HooksConfiguration, OverlayConfig,
-    PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
-    StatusDefinition,
+    AiConfiguration, CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
+    ProjectConfiguration, RealtimeConfig, RightNowConfiguration, StatusDefinition,
 };
 
 /// Return the default project configuration.
