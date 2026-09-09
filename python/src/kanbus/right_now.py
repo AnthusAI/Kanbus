@@ -209,9 +209,7 @@ def load_child_issues(root: Path, issue_identifier: str) -> List[IssueData]:
     from kanbus.console_snapshot import get_issues_for_root
 
     return [
-        issue
-        for issue in get_issues_for_root(root)
-        if issue.parent == issue_identifier
+        issue for issue in get_issues_for_root(root) if issue.parent == issue_identifier
     ]
 
 
@@ -318,14 +316,21 @@ def persist_right_now_summary(
         "right_now_updated_at": updated_at,
     }
     overlay_path = overlay_issue_path(project_dir, issue_identifier)
+    canonical_path = project_dir / "issues" / f"{issue_identifier}.json"
+    canonical_issue = (
+        read_issue_from_file(canonical_path) if canonical_path.exists() else None
+    )
     if issue_path.resolve() != overlay_path.resolve() and issue_path.exists():
-        stored_issue = read_issue_from_file(issue_path)
+        stored_issue = canonical_issue or read_issue_from_file(issue_path)
         write_issue_to_file(stored_issue.model_copy(update=fields), issue_path)
     overlay_record = load_overlay_issue(project_dir, issue_identifier)
     if overlay_record is not None:
+        base_issue = (
+            canonical_issue if canonical_issue is not None else overlay_record.issue
+        )
         write_overlay_issue(
             project_dir,
-            overlay_record.issue.model_copy(update=fields),
+            base_issue.model_copy(update=fields),
             overlay_record.overlay_ts,
             overlay_record.overlay_event_id,
         )
@@ -351,7 +356,12 @@ def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
         lookup = load_issue_from_project(root, issue_identifier)
     except IssueLookupError:
         return
-    issue = lookup.issue
+    canonical_path = lookup.project_dir / "issues" / f"{issue_identifier}.json"
+    issue = (
+        read_issue_from_file(canonical_path)
+        if canonical_path.exists()
+        else lookup.issue
+    )
     try:
         children = load_child_issues(root, issue_identifier)
     except IssueListingError:

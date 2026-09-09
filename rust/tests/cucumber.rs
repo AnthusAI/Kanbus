@@ -108,6 +108,9 @@ async fn main() {
             let feature_has_slow = feature.tags.iter().any(|tag| tag == "slow");
             let scenario_has_cloud = scenario.tags.iter().any(|tag| tag == "cloud");
             let feature_has_cloud = feature.tags.iter().any(|tag| tag == "cloud");
+            let scenario_has_console_server =
+                scenario.tags.iter().any(|tag| tag == "console-server");
+            let feature_has_console_server = feature.tags.iter().any(|tag| tag == "console-server");
             if scenario_has_wip || feature_has_wip {
                 return false;
             }
@@ -115,6 +118,9 @@ async fn main() {
                 return false;
             }
             if scenario_has_cloud || feature_has_cloud {
+                return false;
+            }
+            if scenario_has_console_server || feature_has_console_server {
                 return false;
             }
             let has_console = scenario_has_console || feature_has_console;
