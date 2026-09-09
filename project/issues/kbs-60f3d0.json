@@ -22,8 +22,8 @@
   "created_at": "2026-09-09T16:03:53.845499622Z",
   "updated_at": "2026-09-09T17:17:24.575290357Z",
   "closed_at": null,
-  "right_now_summary": "The JIT gate is cleared, and shared standup profiles and Now-panel integration are ready to build.",
-  "right_now_updated_at": "2026-09-09T20:21:57.651608635Z",
+  "right_now_summary": "Reliable right-now summaries have landed, so shared standup profiles can now be built.",
+  "right_now_updated_at": "2026-09-09T20:23:27.497116238Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
