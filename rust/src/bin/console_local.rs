@@ -89,6 +89,7 @@ struct IssueEventsResponse {
 
 #[tokio::main]
 async fn main() {
+    std::env::set_var("KANBUS_NO_DAEMON", "1");
     let trace = |msg: &str| {
         let _ = std::io::stderr().flush();
         eprintln!("[kbsc] {}", msg);
