@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4d37ed32-d10f-4d09-ba94-d832bb4a488f",
+  "title": "Director-brief stakeholder profile",
+  "description": "Stakeholder scan from the same board facts as Meeting script: project health, risks, and momentum with executive framing. Shared stack only.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T17:17:27.929764124Z",
+  "updated_at": "2026-09-09T17:17:27.937359824Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

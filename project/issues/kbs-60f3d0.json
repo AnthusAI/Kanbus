@@ -3,16 +3,24 @@
   "title": "On-demand daily standup report",
   "description": "## Origin\n\nDiscord 2026-09-09 (frendan_braser / Ryan). Need an adaptive on-demand standup they can speak from — not paragraphs.\n\n## Output profiles\n\nTwo distinct report outputs from the same underlying board data:\n\n1. **Meeting script** — first-person standup the user can speak from aloud.\n2. **Director brief** — stakeholder scan summarizing project health, risks, and momentum.\n\nBoth profiles consume `kbs now` output only after JIT fail-closed real summaries are in place (Epic kbs-0fe175). No placeholder or mock right-now text may feed report generation.\n\n## Shape\n\nDaily standup with standard questions:\n\n- What I did yesterday\n- What I am doing today\n- Blockers\n\nPlus likely questions they might get asked. Written like the user might speak; very short bullets (Meeting script). Director brief uses the same data with executive framing.\n\n## Data sources\n\nConsume Kanbus (and optionally Jira-synced) issues, right-now summaries, and recursive rollups via `kbs now` after JIT fail-closed generation. Shared AI stack with right-now regeneration — one pipeline, not a parallel mock path.\n\n## Delivery\n\nOn demand (CLI + later console). Ship JIT fail-closed `kbs now` first (kbs-0fe175); standup report generation follows once real summaries are reliable.\n\n## Architecture\n\nKanbus AI procedures share the right-now stack; Tactus DSL orchestration comes later (see Epic kbs-e7abbe). Do not fork a separate LLM path for standup until the shared stack is proven.\n\n## Scope boundary\n\nDo not implement report generation until child epics exist and JIT fail-closed `kbs now` ships.",
   "type": "initiative",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "62e57d74-c393-4d07-be4b-4183f6b19e0c",
+      "author": "agent",
+      "text": "JIT gate cleared via PR #239 merge 0cd2fc4 / SD acceptance.",
+      "created_at": "2026-09-09T17:17:24.575275918Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T16:03:53.845499622Z",
-  "updated_at": "2026-09-09T16:14:17.285992259Z",
+  "updated_at": "2026-09-09T17:17:24.575290357Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
