@@ -22,7 +22,9 @@ Feature: Whole-project right-now payload for agent compaction hooks
   Platform notes (documentation sketch; installers are out of scope):
   - Claude Code: SessionStart matcher `compact` via `.claude/settings.json`; stdout
     plain text or JSON `hookSpecificOutput.additionalContext`. PreCompact and
-    PostCompact are not the reinject path.
+    PostCompact are not the reinject path. First concrete config should format the
+    injected reminder from `kanbus now --json --list` (preferred), not raw `--list`
+    text, because today's flat text render omits status and priority.
   - Cursor: `preCompact` in `.cursor/hooks.json` is observational only and cannot
     reinject agent context post-compact. v1 uses on-demand `kbs now` in AGENTS.md
     plus an optional preCompact nudge.

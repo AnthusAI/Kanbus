@@ -95,7 +95,7 @@ Feature: Right now CLI command
     Then the command should succeed
     And stdout should be valid JSON
     And the right now JSON output should have 1 item
-    And the right now JSON item for "kanbus-rn-json" should include fields "id,title,type,status,updated_at,right_now_summary,parent"
+    And the right now JSON item for "kanbus-rn-json" should include fields "id,title,type,status,priority,updated_at,right_now_summary,parent"
     And the right now JSON item for "kanbus-rn-json" should have right_now_summary "JSON summary."
 
   Scenario: JSON output omits right_now_summary when raw
