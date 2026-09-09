@@ -7,6 +7,41 @@ Kanbus wiki pages are Markdown files with Jinja2-style templates. Rendering is a
 
 The console wiki preview consumes backend-rendered HTML that already includes Markus semantic classes (for example `markus-pull-quote`, `markus-card-grid`). The browser applies console styling only; it does not parse `:::directives` client-side.
 
+## Markus renderer (not PyPI `markus`)
+
+**Do not run `pip install markus`.** The [PyPI package `markus`](https://pypi.org/project/markus/) is Mozilla's metrics library (Datadog, StatsD, and similar backends). It has nothing to do with Kanbus wiki rendering.
+
+Kanbus wiki HTML uses **[Markus](https://anthusai.github.io/Markus)** — Anthus-Flavored Markdown with colon-fenced `:::directives` such as `pull-quote` and `card-grid`. The correct Python distribution is **`anthus-markus`** (import `markusmd`, entry point `markusmd.convert`). It is pinned in `python/pyproject.toml` and installed automatically when you run `pip install -e python` from this repository.
+
+| Toolchain | Markus dependency | Install notes |
+|-----------|-------------------|---------------|
+| `kbs` (Rust release binary) | Built-in `wiki_markus` module | No separate Markus package; build with `cargo build --release` |
+| `kanbus` (Python CLI) | `anthus-markus @ git+https://github.com/AnthusAI/Markus.git` | Pulled in by `pip install -e python`; do not substitute PyPI `markus` |
+| Papyrus / newsroom pods | Same as Kanbus | Use `kbs wiki render` from the pod checkout; no ElevenLabs or site build required |
+
+To smoke-test Markus HTML rendering from the repository root (no console server, no ElevenLabs, no full site build):
+
+```bash
+kbs wiki render project/wiki/index.md --html | grep markus-document
+```
+
+To verify a directive converts to semantic HTML:
+
+```bash
+kbs wiki render project/wiki/index.md --json
+```
+
+The JSON payload includes `rendered` (post-Jinja Markdown) and `rendered_html` (Markus HTML). Warnings stay on stderr.
+
+If you need the Markus library outside Kanbus (for example, to experiment in a Python REPL):
+
+```bash
+pip install "anthus-markus @ git+https://github.com/AnthusAI/Markus.git@v0.5.1"
+python -c "from markusmd import convert; print(convert('# Hello', include_css=False, full_document=False))"
+```
+
+Never install the unrelated PyPI `markus` package for wiki work.
+
 ## Where wiki pages live
 
 Wiki pages live in `project/wiki/`. Use `kanbus wiki render <page>` to render a page and print the result to stdout.
