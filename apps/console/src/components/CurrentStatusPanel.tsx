@@ -4,7 +4,6 @@ import type { KanbanConfig } from "@kanbus/ui";
 import type { Issue, ProjectConfig } from "../types/issues";
 import { StandupDrawer } from "./StandupDrawer";
 
-const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 const DEFAULT_STATUS_FEED_LIMIT = 30;
 const DEFAULT_NOW_STATUS_FILTER = "in_progress";
 const NOW_STATUS_FILTER_ALL = "all";
@@ -73,10 +72,10 @@ function formatUpdatedAt(value: string | undefined): string {
 
 function resolveRightNowSummary(issue: Issue): string {
   const summary = issue.right_now_summary;
-  if (summary == null || summary.trim().length === 0) {
-    return RIGHT_NOW_PLACEHOLDER;
+  if (summary == null) {
+    return "";
   }
-  return summary;
+  return summary.trim();
 }
 
 function collectNowTreeIssues(allIssues: Issue[], matchingIssues: Issue[]): Issue[] {

@@ -57,13 +57,13 @@ Feature: Console current status panel
     Then the status feed row for "Alpha task" should show title "Alpha task"
     And the status feed row for "Alpha task" should show right-now summary "Working on alpha"
 
-  Scenario: Missing right-now summary shows placeholder
+  Scenario: Now feed never shows right-now placeholder text
     Given the console is open
     And no issues exist in the console
     And a status issue "Beta task" updated at "2026-01-01T10:00:00.000Z"
     When I switch to the "Now" view
     And I disable the status tree view
-    Then the status feed row for "Beta task" should show right-now summary "(no right-now summary)"
+    Then the now panel should not show right-now placeholder text
 
   Scenario: Live update refreshes feed row
     Given the console is open
@@ -158,12 +158,12 @@ Feature: Console current status panel
     Then the status tree row for "Task Gamma" should show title "Task Gamma"
     And the status tree row for "Task Gamma" should show right-now summary "Working on gamma"
 
-  Scenario: Missing right-now summary shows placeholder in tree
+  Scenario: Now tree never shows right-now placeholder text
     Given the console is open
     And no issues exist in the console
     And a status hierarchy root "Task Delta" of type "task" updated at "2026-01-01T10:00:00.000Z"
     When I switch to the "Now" view
-    Then the status tree row for "Task Delta" should show right-now summary "(no right-now summary)"
+    Then the now panel should not show right-now placeholder text
 
   Scenario: Disabling tree toggle returns to flat feed
     Given the console is open
@@ -245,6 +245,21 @@ Feature: Console current status panel
     And the status tree row for "Initiative Alpha" should show status color "gray"
     And the status tree row for "Epic Beta" should show status color "green"
     And the status tree row for "Task Gamma" should show status color "blue"
+
+  @console-server
+  Scenario: Now API JIT generates summaries for tree relatives
+    Given a Kanbus project with default configuration
+    And mock AI is enabled
+    And right now litellm call tracking is reset
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
+    And an issue "kanbus-now-parent" of type "initiative" with status "open" and title "Parent initiative"
+    And an issue "kanbus-now-child" of type "task" with status "in_progress" and parent "kanbus-now-parent"
+    And the console server is running
+    When I request the console now snapshot from the API
+    Then the console now API response should succeed
+    And the console now API response should not contain "(no right-now summary)"
+    And issue "kanbus-now-parent" should have a non-empty right now summary
+    And issue "kanbus-now-child" should have a non-empty right now summary
 
   Scenario: Rootless matching issue stays a tree root under status filter
     Given the console is open

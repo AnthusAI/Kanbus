@@ -22,8 +22,8 @@
   "created_at": "2026-09-09T16:12:43.081899501Z",
   "updated_at": "2026-09-09T17:09:21.686797514Z",
   "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "PR #239 merged the fail-closed JIT summaries and board-wide purge changes into develop.",
+  "right_now_updated_at": "2026-09-09T20:55:47.917178276Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4a7312c9-9d88-45ab-9e31-0c0a10f7bf23",
+  "title": "Console Now JIT fail-closed for tree relatives",
+  "description": "",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-0fe175",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T20:50:10.540690086Z",
+  "updated_at": "2026-09-09T20:55:42.451658553Z",
+  "closed_at": null,
+  "right_now_summary": "The console now fails closed during JIT for tree relatives.",
+  "right_now_updated_at": "2026-09-09T20:55:45.160897694Z",
+  "custom": {}
+}
