@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from "react";
-import { generateStandupReport, type StandupGenerateResponse } from "../api/client";
-
-export type StandupProfile = "meeting-script" | "director-brief";
+import {
+  generateStandupReport,
+  type StandupGenerateResponse,
+  type StandupProfile,
+  type StandupWindow,
+} from "../api/client";
 
 interface StandupDrawerProps {
   apiBase: string;
@@ -27,6 +30,9 @@ function formatReportText(response: StandupGenerateResponse): string {
 
 export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) {
   const [profile, setProfile] = useState<StandupProfile>("meeting-script");
+  const [window, setWindow] = useState<StandupWindow>("rolling");
+  const [lookback, setLookback] = useState("24h");
+  const [skipWeekends, setSkipWeekends] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportText, setReportText] = useState<string | null>(null);
@@ -44,7 +50,12 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
     resetResult();
     setIsGenerating(true);
     try {
-      const response = await generateStandupReport(apiBase, profile);
+      const response = await generateStandupReport(apiBase, {
+        profile,
+        window,
+        lookback,
+        skip_weekends: skipWeekends,
+      });
       setReportText(formatReportText(response));
       setReportSections(response.sections);
     } catch (generationError) {
@@ -58,7 +69,7 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
     } finally {
       setIsGenerating(false);
     }
-  }, [apiBase, profile, resetResult]);
+  }, [apiBase, profile, window, lookback, skipWeekends, resetResult]);
 
   const handleCopy = useCallback(async () => {
     if (!reportText) {
@@ -112,6 +123,47 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
               <option value="meeting-script">meeting-script</option>
               <option value="director-brief">director-brief</option>
             </select>
+          </label>
+          <label className="standup-window-control">
+            <span>Window</span>
+            <select
+              data-testid="standup-window-select"
+              value={window}
+              onChange={(event) => {
+                setWindow(event.target.value as StandupWindow);
+                resetResult();
+              }}
+              disabled={isGenerating}
+            >
+              <option value="rolling">rolling</option>
+              <option value="calendar">calendar</option>
+            </select>
+          </label>
+          <label className="standup-lookback-control">
+            <span>Lookback</span>
+            <input
+              data-testid="standup-lookback-input"
+              type="text"
+              value={lookback}
+              onChange={(event) => {
+                setLookback(event.target.value);
+                resetResult();
+              }}
+              disabled={isGenerating}
+            />
+          </label>
+          <label className="standup-skip-weekends-control">
+            <span>Skip weekends</span>
+            <input
+              data-testid="standup-skip-weekends-checkbox"
+              type="checkbox"
+              checked={skipWeekends}
+              onChange={(event) => {
+                setSkipWeekends(event.target.checked);
+                resetResult();
+              }}
+              disabled={isGenerating}
+            />
           </label>
           <button
             type="button"

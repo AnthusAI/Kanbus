@@ -19,11 +19,19 @@ from kanbus.right_now import (
     is_persisted_mock_right_now_summary,
     require_display_right_now_summary,
 )
+from kanbus.standup_window import (
+    CALENDAR_WINDOW,
+    DEFAULT_STANDUP_LOOKBACK_HOURS,
+    MEETING_SCRIPT_PROFILE,
+    DIRECTOR_BRIEF_PROFILE,
+    StandupWindowSettings,
+    is_on_completed_calendar_day,
+    parse_standup_lookback_hours,
+    parse_rfc3339_timestamp,
+    start_of_report_calendar_day,
+)
 
-MEETING_SCRIPT_PROFILE = "meeting-script"
-DIRECTOR_BRIEF_PROFILE = "director-brief"
 STANDUP_PROFILES = {MEETING_SCRIPT_PROFILE, DIRECTOR_BRIEF_PROFILE}
-DEFAULT_STANDUP_LOOKBACK_HOURS = 24
 MAX_STANDUP_BULLET_LENGTH = 120
 FIRST_PERSON_INTRO = "Here is my standup update."
 EXECUTIVE_BRIEF_INTRO = "Executive brief for stakeholders."
@@ -106,7 +114,7 @@ def resolve_standup_lookback_hours(configuration: ProjectConfiguration) -> int:
     :return: Lookback window in hours.
     :rtype: int
     """
-    return configuration.standup.lookback_hours
+    return parse_standup_lookback_hours(configuration.standup.lookback)
 
 
 def load_issue_event_records(root: Path, issue_identifier: str) -> List[dict]:
@@ -140,25 +148,6 @@ def load_issue_event_records(root: Path, issue_identifier: str) -> List[dict]:
             if payload.get("issue_id") == issue_identifier:
                 records.append(payload)
     return records
-
-
-def parse_rfc3339_timestamp(value: Optional[datetime | str]) -> Optional[datetime]:
-    """Parse an RFC3339 timestamp into UTC.
-
-    :param value: Timestamp value from issue or event data.
-    :type value: Optional[datetime | str]
-    :return: Parsed UTC datetime, or None when absent.
-    :rtype: Optional[datetime]
-    """
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        parsed = value
-    else:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
 
 
 def is_within_lookback(
@@ -219,7 +208,7 @@ def qualifies_for_yesterday(
     issue: IssueData,
     events: List[dict],
     report_time: datetime,
-    lookback_hours: int,
+    window_settings: StandupWindowSettings,
 ) -> bool:
     """Return whether an issue belongs in the Yesterday section.
 
@@ -229,11 +218,28 @@ def qualifies_for_yesterday(
     :type events: List[dict]
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
     :return: True when the issue qualifies for Yesterday.
     :rtype: bool
     """
+    if window_settings.window == CALENDAR_WINDOW:
+        if is_on_completed_calendar_day(issue.closed_at, report_time, window_settings):
+            return True
+        for event in events:
+            if event.get("event_type") != "state_transition":
+                continue
+            payload = event.get("payload", {})
+            if payload.get("to_status") not in DONE_STATUSES:
+                continue
+            if is_on_completed_calendar_day(
+                event.get("occurred_at"),
+                report_time,
+                window_settings,
+            ):
+                return True
+        return False
+    lookback_hours = window_settings.lookback_hours
     if is_within_lookback(issue.closed_at, report_time, lookback_hours):
         return True
     return had_state_transition_within_lookback(
@@ -247,7 +253,7 @@ def qualifies_for_yesterday(
 def is_stale_in_progress(
     issue: IssueData,
     report_time: datetime,
-    lookback_hours: int,
+    window_settings: StandupWindowSettings,
 ) -> bool:
     """Return whether an in-progress issue is stale relative to lookback.
 
@@ -255,21 +261,31 @@ def is_stale_in_progress(
     :type issue: IssueData
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
     :return: True when the issue is in progress and older than lookback.
     :rtype: bool
     """
     if issue.status != "in_progress":
         return False
-    return not is_within_lookback(issue.updated_at, report_time, lookback_hours)
+    if window_settings.window == CALENDAR_WINDOW:
+        report_day_start = start_of_report_calendar_day(report_time, window_settings)
+        updated_at = parse_rfc3339_timestamp(issue.updated_at)
+        if updated_at is None:
+            return True
+        return updated_at < report_day_start
+    return not is_within_lookback(
+        issue.updated_at,
+        report_time,
+        window_settings.lookback_hours,
+    )
 
 
 def qualifies_for_momentum(
     issue: IssueData,
     events: List[dict],
     report_time: datetime,
-    lookback_hours: int,
+    window_settings: StandupWindowSettings,
 ) -> bool:
     """Return whether an issue belongs in the Momentum section.
 
@@ -279,11 +295,12 @@ def qualifies_for_momentum(
     :type events: List[dict]
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
     :return: True when the issue qualifies for Momentum.
     :rtype: bool
     """
+    lookback_hours = window_settings.lookback_hours
     if had_state_transition_within_lookback(
         events,
         {"in_progress"},
@@ -355,7 +372,7 @@ def build_meeting_script_sections(
     right_now_texts: Dict[str, str],
     events_by_issue: Dict[str, List[dict]],
     report_time: datetime,
-    lookback_hours: int,
+    window_settings: StandupWindowSettings,
     explicit_scope: bool = False,
 ) -> List[StandupSection]:
     """Build meeting-script profile sections from fact-feed issues.
@@ -368,8 +385,8 @@ def build_meeting_script_sections(
     :type events_by_issue: Dict[str, List[dict]]
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
     :return: Ordered meeting-script sections.
     :rtype: List[StandupSection]
     """
@@ -382,13 +399,13 @@ def build_meeting_script_sections(
     for issue in issues:
         events = events_by_issue.get(issue.identifier, [])
         summary = right_now_texts[issue.identifier]
-        if qualifies_for_yesterday(issue, events, report_time, lookback_hours):
+        if qualifies_for_yesterday(issue, events, report_time, window_settings):
             yesterday_identifiers.add(issue.identifier)
             yesterday_bullets.append(truncate_bullet(summary))
         if issue.status == "blocked":
             blocker_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
             question_bullets.append(derive_blocked_question(summary))
-        if is_stale_in_progress(issue, report_time, lookback_hours):
+        if is_stale_in_progress(issue, report_time, window_settings):
             question_bullets.append(derive_stale_question(issue.identifier))
 
     for issue in issues:
@@ -413,7 +430,7 @@ def build_director_brief_sections(
     right_now_texts: Dict[str, str],
     events_by_issue: Dict[str, List[dict]],
     report_time: datetime,
-    lookback_hours: int,
+    window_settings: StandupWindowSettings,
 ) -> List[StandupSection]:
     """Build director-brief profile sections from fact-feed issues.
 
@@ -425,8 +442,8 @@ def build_director_brief_sections(
     :type events_by_issue: Dict[str, List[dict]]
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
     :return: Ordered director-brief sections.
     :rtype: List[StandupSection]
     """
@@ -444,12 +461,12 @@ def build_director_brief_sections(
     for issue in issues:
         events = events_by_issue.get(issue.identifier, [])
         summary = right_now_texts[issue.identifier]
-        if qualifies_for_momentum(issue, events, report_time, lookback_hours):
+        if qualifies_for_momentum(issue, events, report_time, window_settings):
             momentum_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
         if issue.status == "blocked":
             risk_bullets.append(truncate_bullet(issue.identifier))
             blocker_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
-        elif is_stale_in_progress(issue, report_time, lookback_hours):
+        elif is_stale_in_progress(issue, report_time, window_settings):
             risk_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
 
     return [
@@ -466,7 +483,7 @@ def build_standup_report(
     right_now_texts: Dict[str, str],
     events_by_issue: Dict[str, List[dict]],
     report_time: datetime,
-    lookback_hours: int,
+    window_settings: StandupWindowSettings,
     explicit_scope: bool = False,
 ) -> StandupReport:
     """Build a structured standup report for the requested profile.
@@ -481,8 +498,8 @@ def build_standup_report(
     :type events_by_issue: Dict[str, List[dict]]
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
     :return: Structured standup report.
     :rtype: StandupReport
     """
@@ -492,7 +509,7 @@ def build_standup_report(
             right_now_texts,
             events_by_issue,
             report_time,
-            lookback_hours,
+            window_settings,
         )
     else:
         sections = build_meeting_script_sections(
@@ -500,7 +517,7 @@ def build_standup_report(
             right_now_texts,
             events_by_issue,
             report_time,
-            lookback_hours,
+            window_settings,
             explicit_scope,
         )
     return StandupReport(

@@ -46,7 +46,7 @@ def given_standup_lookback_hours(context: object, hours: int) -> None:
     if not isinstance(payload, dict):
         payload = dict(DEFAULT_CONFIGURATION)
     payload.setdefault("standup", {})
-    payload["standup"]["lookback_hours"] = hours
+    payload["standup"]["lookback"] = f"{hours}h"
     config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
@@ -167,6 +167,15 @@ def _standup_options_from_last_command(context: object) -> StandupCommandOptions
         if token == "--no-recursive":
             recursive = False
             index += 1
+            continue
+        if token == "--skip-weekends":
+            index += 1
+            continue
+        if token == "--no-skip-weekends":
+            index += 1
+            continue
+        if token in {"--window", "--lookback", "--profile"} and index + 1 < len(tokens):
+            index += 2
             continue
         if token.startswith("--"):
             index += 2

@@ -232,13 +232,22 @@ class RightNowConfiguration(BaseModel):
 class StandupConfiguration(BaseModel):
     """On-demand standup report configuration.
 
-    :param lookback_hours: Hours before report time for Yesterday and Momentum signals.
-    :type lookback_hours: int
+    :param window: Standup window mode (`rolling` or `calendar`).
+    :type window: str
+    :param lookback: Rolling lookback duration (for example `24h` or `1d`).
+    :type lookback: str
+    :param skip_weekends: Whether calendar mode bundles weekends on Monday.
+    :type skip_weekends: bool
+    :param timezone: Optional IANA timezone for calendar buckets.
+    :type timezone: Optional[str]
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    lookback_hours: int = 24
+    window: str = "rolling"
+    lookback: str = "24h"
+    skip_weekends: bool = False
+    timezone: Optional[str] = None
 
 
 class JiraConfiguration(BaseModel):

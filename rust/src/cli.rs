@@ -490,6 +490,18 @@ kbs standup kbs-abc --json               machine-readable JSON")]
         /// Standup profile (default: meeting-script).
         #[arg(long)]
         profile: Option<String>,
+        /// Standup window mode: rolling or calendar.
+        #[arg(long)]
+        window: Option<String>,
+        /// Rolling lookback duration (for example 24h or 1d).
+        #[arg(long)]
+        lookback: Option<String>,
+        /// Bundle Friday-Sunday into Monday completed bucket in calendar mode.
+        #[arg(long = "skip-weekends")]
+        skip_weekends: bool,
+        /// Disable weekend bundling in calendar mode.
+        #[arg(long = "no-skip-weekends")]
+        no_skip_weekends: bool,
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
@@ -3042,15 +3054,34 @@ fn execute_command(
         }
         Commands::Standup {
             profile,
+            window,
+            lookback,
+            skip_weekends,
+            no_skip_weekends,
             json,
             no_recursive,
             issue_ids,
         } => {
+            if skip_weekends && no_skip_weekends {
+                return Err(KanbusError::IssueOperation(
+                    "cannot use both --skip-weekends and --no-skip-weekends".to_string(),
+                ));
+            }
+            let skip_weekends_override = if skip_weekends {
+                Some(true)
+            } else if no_skip_weekends {
+                Some(false)
+            } else {
+                None
+            };
             let options = StandupCommandOptions {
                 issue_ids,
                 profile,
                 as_json: json,
                 recursive: !no_recursive,
+                window,
+                lookback,
+                skip_weekends: skip_weekends_override,
             };
             let output = run_standup_command(root, &options)?;
             Ok(Some(output))

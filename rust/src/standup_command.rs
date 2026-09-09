@@ -3,8 +3,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use chrono::Utc;
-
 use crate::config_loader::load_repository_environment;
 use crate::error::KanbusError;
 use crate::models::IssueData;
@@ -14,7 +12,10 @@ use crate::right_now_command::{
 use crate::standup::{
     build_standup_report, collect_right_now_texts, ensure_standup_summaries, format_standup_json,
     format_standup_text, load_issue_event_records, load_standup_configuration,
-    resolve_standup_lookback_hours, resolve_standup_profile, DEFAULT_STANDUP_LOOKBACK_HOURS,
+    resolve_standup_profile,
+};
+use crate::standup_window::{
+    StandupWindowOverrides, resolve_standup_report_time, resolve_standup_window_settings,
 };
 
 pub const STANDUP_DEFAULT_STATUS_FILTER: &str = "in_progress,blocked";
@@ -32,6 +33,12 @@ pub struct StandupCommandOptions {
     pub as_json: bool,
     /// Whether to include descendants of selected issues.
     pub recursive: bool,
+    /// Optional window mode override.
+    pub window: Option<String>,
+    /// Optional lookback duration override.
+    pub lookback: Option<String>,
+    /// Optional skip-weekends override.
+    pub skip_weekends: Option<bool>,
 }
 
 /// Default standup command options: board-wide recursive meeting script.
@@ -42,6 +49,9 @@ impl Default for StandupCommandOptions {
             profile: None,
             as_json: false,
             recursive: true,
+            window: None,
+            lookback: None,
+            skip_weekends: None,
         }
     }
 }
@@ -108,10 +118,13 @@ pub fn run_standup_command(
     load_repository_environment(root);
     let profile = resolve_standup_profile(options.profile.as_deref())?;
     let configuration = load_standup_configuration(root)?;
-    let mut lookback_hours = resolve_standup_lookback_hours(&configuration);
-    if lookback_hours == 0 {
-        lookback_hours = DEFAULT_STANDUP_LOOKBACK_HOURS;
-    }
+    let window_overrides = StandupWindowOverrides {
+        window: options.window.clone(),
+        lookback: options.lookback.clone(),
+        skip_weekends: options.skip_weekends,
+    };
+    let window_settings =
+        resolve_standup_window_settings(&configuration, Some(&profile), &window_overrides)?;
     let issues = select_standup_fact_feed(root, options)?;
     let issues = ensure_standup_summaries(root, &issues)?;
     let right_now_texts = collect_right_now_texts(&issues)?;
@@ -122,14 +135,14 @@ pub fn run_standup_command(
             load_issue_event_records(root, &issue.identifier),
         );
     }
-    let report_time = Utc::now();
+    let report_time = resolve_standup_report_time()?;
     let report = build_standup_report(
         &profile,
         &issues,
         &right_now_texts,
         &events_by_issue,
         report_time,
-        lookback_hours,
+        &window_settings,
         !options.issue_ids.is_empty(),
     );
     if options.as_json {

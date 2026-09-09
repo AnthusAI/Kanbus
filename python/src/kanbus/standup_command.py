@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -18,7 +17,6 @@ from kanbus.right_now_command import (
     select_right_now_issues,
 )
 from kanbus.standup import (
-    DEFAULT_STANDUP_LOOKBACK_HOURS,
     StandupReport,
     StandupSection,
     build_standup_report,
@@ -28,8 +26,13 @@ from kanbus.standup import (
     format_standup_text,
     load_issue_event_records,
     load_standup_configuration,
-    resolve_standup_lookback_hours,
     resolve_standup_profile,
+)
+from kanbus.standup_window import (
+    StandupWindowError,
+    StandupWindowOverrides,
+    resolve_standup_report_time,
+    resolve_standup_window_settings,
 )
 
 STANDUP_DEFAULT_STATUS_FILTER = "in_progress,blocked"
@@ -50,12 +53,21 @@ class StandupCommandOptions:
     :type as_json: bool
     :param recursive: Whether to include descendants of selected issues.
     :type recursive: bool
+    :param window: Optional window mode override.
+    :type window: Optional[str]
+    :param lookback: Optional lookback duration override.
+    :type lookback: Optional[str]
+    :param skip_weekends: Optional skip-weekends override.
+    :type skip_weekends: Optional[bool]
     """
 
     issue_ids: tuple[str, ...] = ()
     profile: Optional[str] = None
     as_json: bool = False
     recursive: bool = True
+    window: Optional[str] = None
+    lookback: Optional[str] = None
+    skip_weekends: Optional[bool] = None
 
 
 class StandupCommandError(RuntimeError):
@@ -133,9 +145,19 @@ def run_standup_command(root: Path, options: StandupCommandOptions) -> str:
     load_repository_environment(root)
     profile = resolve_standup_profile(options.profile)
     configuration = load_standup_configuration(root)
-    lookback_hours = resolve_standup_lookback_hours(configuration)
-    if lookback_hours <= 0:
-        lookback_hours = DEFAULT_STANDUP_LOOKBACK_HOURS
+    window_overrides = StandupWindowOverrides(
+        window=options.window,
+        lookback=options.lookback,
+        skip_weekends=options.skip_weekends,
+    )
+    try:
+        window_settings = resolve_standup_window_settings(
+            configuration,
+            profile,
+            window_overrides,
+        )
+    except StandupWindowError as error:
+        raise StandupCommandError(str(error)) from error
     try:
         issues = select_standup_fact_feed(root, options)
     except IssueListingError as error:
@@ -146,14 +168,14 @@ def run_standup_command(root: Path, options: StandupCommandOptions) -> str:
         issue.identifier: load_issue_event_records(root, issue.identifier)
         for issue in issues
     }
-    report_time = datetime.now(timezone.utc)
+    report_time = resolve_standup_report_time()
     report = build_standup_report(
         profile,
         issues,
         right_now_texts,
         events_by_issue,
         report_time,
-        lookback_hours,
+        window_settings,
         bool(options.issue_ids),
     )
     if options.as_json:
