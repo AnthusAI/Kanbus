@@ -294,6 +294,24 @@ def test_publish_envelope_returns_when_broker_off(monkeypatch) -> None:
     assert uds_called["value"] is False
 
 
+def test_maybe_warn_mosquitto_missing_prints_once_per_session(
+    monkeypatch, capsys
+) -> None:
+    gossip.reset_mosquitto_missing_warning()
+    gossip.attempt_mosquitto_missing_warning()
+    gossip.attempt_mosquitto_missing_warning()
+    assert gossip.mosquitto_missing_warning_count() == 1
+    assert capsys.readouterr().err.count("Mosquitto not found") == 1
+
+
+def test_maybe_warn_mosquitto_missing_respects_disable_env(monkeypatch, capsys) -> None:
+    gossip.reset_mosquitto_missing_warning()
+    monkeypatch.setenv("KANBUS_REALTIME_WARN_MOSQUITTO", "0")
+    gossip.attempt_mosquitto_missing_warning()
+    assert gossip.mosquitto_missing_warning_count() == 0
+    assert capsys.readouterr().err == ""
+
+
 def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
     monkeypatch.setattr(
         gossip, "_uds_socket_path", lambda _realtime: Path("/no/such/socket")
@@ -311,7 +329,7 @@ def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
     printed = {"value": False}
     monkeypatch.setattr(
         gossip,
-        "_print_mosquitto_missing",
+        "_maybe_warn_mosquitto_missing",
         lambda: printed.__setitem__("value", True),
     )
 
@@ -332,7 +350,7 @@ def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
         producer_id="producer-miss",
     )
     gossip._publish_envelope(Path("."), configuration, "topic/miss", envelope)
-    assert printed["value"] is True
+    assert printed["value"] is False
 
 
 def test_publish_issue_mutation_skips_when_config_lookup_fails(
@@ -1402,14 +1420,11 @@ def test_run_gossip_consumer_prints_missing_mosquitto_when_autostart_fails(
     )
     monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: False)
     monkeypatch.setattr(gossip, "ensure_mosquitto", lambda _endpoint: None)
-    printed = {"value": False}
-    monkeypatch.setattr(
-        gossip, "_print_mosquitto_missing", lambda: printed.__setitem__("value", True)
-    )
+    gossip.reset_mosquitto_missing_warning()
     gossip._run_gossip_consumer(
         tmp_path, None, None, None, None, None, False, None, False, True
     )
-    assert printed["value"] is True
+    assert gossip.mosquitto_missing_warning_count() == 1
 
 
 def test_run_uds_broker_binds_accepts_and_spawns_threads(
@@ -1712,8 +1727,11 @@ def test_project_and_path_helpers_cover_remaining_branches(
     assert isinstance(
         gossip.resolve_broker_endpoint("mqtt://x:1883"), gossip.BrokerEndpoint
     )
-    gossip._print_mosquitto_missing()
+    gossip.reset_mosquitto_missing_warning()
+    gossip.attempt_mosquitto_missing_warning()
     assert "Mosquitto not found" in capsys.readouterr().err
+    gossip.attempt_mosquitto_missing_warning()
+    assert gossip.mosquitto_missing_warning_count() == 1
 
 
 def test_handle_uds_connection_and_subscription_skip_blank_lines(monkeypatch) -> None:

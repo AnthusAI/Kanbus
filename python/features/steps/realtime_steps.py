@@ -13,8 +13,14 @@ from pathlib import Path
 
 from behave import given, then, when
 
-from kanbus.gossip import DedupeSet, GossipEnvelope, ensure_mosquitto
-from kanbus.models import IssueData, OverlayConfig
+from kanbus.gossip import (
+    DedupeSet,
+    GossipEnvelope,
+    ensure_mosquitto,
+    mosquitto_missing_warning_count,
+    reset_mosquitto_missing_warning,
+)
+from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig
 from kanbus.overlay import (
     OverlayIssueRecord,
     gc_overlay,
@@ -319,6 +325,90 @@ def then_subscriber_receives(context: object) -> None:
             assert msg.get("id") == context.uds_published_id
             return
     raise AssertionError("subscriber did not receive envelope")
+
+
+@given("mosquitto is not available")
+def given_mosquitto_not_available(context: object) -> None:
+    reset_mosquitto_missing_warning()
+    context._mosquitto_unavailable_env = os.environ.get(
+        "KANBUS_TEST_MOSQUITTO_UNAVAILABLE"
+    )
+    os.environ["KANBUS_TEST_MOSQUITTO_UNAVAILABLE"] = "1"
+    context.mosquitto_unavailable = True
+
+
+@given("realtime autostart is enabled")
+def given_realtime_autostart_enabled(context: object) -> None:
+    context.realtime_autostart_enabled = True
+
+
+@when("I publish gossip envelopes for two issue mutations without a broker")
+def when_publish_two_without_broker(context: object) -> None:
+    from kanbus.gossip import _publish_envelope, broker_is_reachable
+
+    reset_mosquitto_missing_warning()
+    configuration = ProjectConfiguration(
+        project_directory="project",
+        project_key="kanbus",
+        hierarchy=[],
+        types=[],
+        workflows={},
+        initial_status="open",
+        priorities={},
+        default_priority=2,
+        realtime=RealtimeConfig(
+            transport="mqtt",
+            broker="auto",
+            autostart=True,
+            keepalive=False,
+        ),
+    )
+    import kanbus.gossip as gossip_module
+
+    original_reachable = broker_is_reachable
+    gossip_module.broker_is_reachable = lambda _endpoint: False
+    try:
+        envelope = GossipEnvelope(
+            id="env-1",
+            ts="2026-01-01T00:00:00Z",
+            project="kanbus",
+            type="issue.mutated",
+            issue_id="KAN-1",
+            producer_id="producer-1",
+        )
+        root = Path.cwd()
+        _publish_envelope(root, configuration, "projects/kanbus/events", envelope)
+        envelope.id = "env-2"
+        _publish_envelope(root, configuration, "projects/kanbus/events", envelope)
+    finally:
+        gossip_module.broker_is_reachable = original_reachable
+    context.mosquitto_hint_count = mosquitto_missing_warning_count()
+
+
+@when("I attempt MQTT gossip subscription twice in one session")
+def when_attempt_mqtt_subscription_twice(context: object) -> None:
+    from kanbus.gossip import attempt_mosquitto_missing_warning
+
+    reset_mosquitto_missing_warning()
+    attempt_mosquitto_missing_warning()
+    attempt_mosquitto_missing_warning()
+    context.mosquitto_hint_count = mosquitto_missing_warning_count()
+
+
+@then("Mosquitto install hints should not be printed")
+def then_mosquitto_hints_not_printed(context: object) -> None:
+    assert context.mosquitto_hint_count == 0
+
+
+@then("Mosquitto install hints should be printed once")
+def then_mosquitto_hints_printed_once(context: object) -> None:
+    assert context.mosquitto_hint_count == 1
+
+
+@then("the realtime guide documents optional Mosquitto")
+def then_doc_optional_mosquitto(context: object) -> None:
+    assert "optional" in context.realtime_doc.lower()
+    assert "Mosquitto" in context.realtime_doc
 
 
 @given("mosquitto is available")
