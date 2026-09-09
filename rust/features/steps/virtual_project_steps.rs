@@ -6,7 +6,9 @@ use std::process::Command;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
+use kanbus::file_io::load_project_directory;
 use kanbus::models::{IssueComment, IssueData};
+use serde_yaml::{Mapping, Value as YamlValue};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
@@ -99,31 +101,98 @@ fn ensure_virtual_state(world: &mut KanbusWorld) -> &mut VirtualProjectState {
         .expect("virtual project state")
 }
 
+fn add_virtual_project_if_missing(state: &mut VirtualProjectState, label: &str) {
+    if state.virtual_projects.contains_key(label) {
+        return;
+    }
+    let base = state.root.join("virtual").join(label);
+    let shared_dir = base.join("project");
+    let local_dir = base.join("project-local");
+    fs::create_dir_all(shared_dir.join("issues")).expect("create virtual issues");
+    fs::create_dir_all(shared_dir.join("events")).expect("create virtual events");
+    fs::create_dir_all(local_dir.join("issues")).expect("create virtual local issues");
+    fs::create_dir_all(local_dir.join("events")).expect("create virtual local events");
+    state.virtual_projects.insert(
+        label.to_string(),
+        VirtualProject {
+            label: label.to_string(),
+            shared_dir: shared_dir.clone(),
+            local_dir,
+            events_dir: shared_dir.join("events"),
+        },
+    );
+}
+
 fn configure_virtual_projects<'a>(
     world: &'a mut KanbusWorld,
     labels: Vec<&str>,
 ) -> &'a mut VirtualProjectState {
     let state = ensure_virtual_state(world);
-    state.virtual_projects.clear();
     for label in labels {
-        let base = state.root.join("virtual").join(label);
-        let shared_dir = base.join("project");
-        let local_dir = base.join("project-local");
-        fs::create_dir_all(shared_dir.join("issues")).expect("create virtual issues");
-        fs::create_dir_all(shared_dir.join("events")).expect("create virtual events");
-        fs::create_dir_all(local_dir.join("issues")).expect("create virtual local issues");
-        fs::create_dir_all(local_dir.join("events")).expect("create virtual local events");
-        state.virtual_projects.insert(
-            label.to_string(),
-            VirtualProject {
-                label: label.to_string(),
-                shared_dir: shared_dir.clone(),
-                local_dir,
-                events_dir: shared_dir.join("events"),
-            },
-        );
+        add_virtual_project_if_missing(state, label);
     }
     state
+}
+
+fn adopt_existing_repository_for_virtual_projects(
+    world: &mut KanbusWorld,
+) -> &mut VirtualProjectState {
+    let root = world.working_directory.clone().expect("working directory");
+    let current_project_dir = load_project_directory(&root).expect("project dir");
+    let current_local_dir = root.join("project-local");
+    fs::create_dir_all(current_local_dir.join("issues")).expect("create local issues");
+    fs::create_dir_all(current_local_dir.join("events")).expect("create local events");
+    let state = VirtualProjectState {
+        root,
+        current_label: "kbs".to_string(),
+        current_project_dir,
+        current_local_dir,
+        issue_counter: 1,
+        new_issue_project: None,
+        virtual_projects: BTreeMap::new(),
+        pending_interactive_command: None,
+        prompt_output: None,
+        last_updated_issue: None,
+        last_event_path: None,
+        missing_path: false,
+        missing_issues_dir: false,
+    };
+    world.virtual_project_state = Some(state);
+    world
+        .virtual_project_state
+        .as_mut()
+        .expect("virtual project state")
+}
+
+fn write_virtual_projects_configuration(state: &VirtualProjectState) {
+    let config_path = state.root.join(".kanbus.yml");
+    let mut mapping: Mapping = if config_path.exists() {
+        let contents = fs::read_to_string(&config_path).expect("read config");
+        serde_yaml::from_str(&contents).expect("parse config")
+    } else {
+        Mapping::new()
+    };
+    let mut virtual_projects = Mapping::new();
+    for (label, project) in &state.virtual_projects {
+        let relative_path = project
+            .shared_dir
+            .strip_prefix(&state.root)
+            .expect("virtual project path")
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mut entry = Mapping::new();
+        entry.insert(
+            YamlValue::String("path".to_string()),
+            YamlValue::String(relative_path),
+        );
+        virtual_projects.insert(YamlValue::String(label.clone()), YamlValue::Mapping(entry));
+    }
+    mapping.insert(
+        YamlValue::String("virtual_projects".to_string()),
+        YamlValue::Mapping(virtual_projects),
+    );
+    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
+    fs::write(config_path, yaml).expect("write config");
 }
 
 fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
@@ -707,7 +776,21 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
 
 #[given("a Kanbus project with virtual projects configured")]
 fn given_project_with_virtual_projects(world: &mut KanbusWorld) {
-    let state = configure_virtual_projects(world, vec!["alpha", "beta"]);
+    if world.virtual_project_state.is_none() {
+        if world.working_directory.is_some() {
+            adopt_existing_repository_for_virtual_projects(world);
+        } else {
+            ensure_virtual_state(world);
+        }
+    } else {
+        ensure_virtual_state(world);
+    }
+    configure_virtual_projects(world, vec!["alpha", "beta"]);
+    let state = world
+        .virtual_project_state
+        .as_mut()
+        .expect("virtual project state");
+    write_virtual_projects_configuration(state);
     state.new_issue_project = None;
     // Clear any leftover issue files so each scenario starts clean.
     for dir in [
@@ -884,14 +967,16 @@ fn then_no_issue_created_current(world: &mut KanbusWorld) {
 
 #[given(expr = "an issue {string} exists in virtual project {string}")]
 fn given_issue_exists_virtual(world: &mut KanbusWorld, identifier: String, label: String) {
-    let state = configure_virtual_projects(world, vec![label.as_str()]);
+    let state = ensure_virtual_state(world);
+    add_virtual_project_if_missing(state, &label);
     let project = state.virtual_projects.get(&label).expect("virtual project");
     create_issue(&project.shared_dir, &identifier, "Virtual issue", "open");
 }
 
 #[given(expr = "a local issue {string} exists in virtual project {string}")]
 fn given_local_issue_exists_virtual(world: &mut KanbusWorld, identifier: String, label: String) {
-    let state = configure_virtual_projects(world, vec![label.as_str()]);
+    let state = ensure_virtual_state(world);
+    add_virtual_project_if_missing(state, &label);
     let project = state.virtual_projects.get(&label).expect("virtual project");
     create_issue(
         &project.local_dir,

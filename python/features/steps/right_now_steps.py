@@ -51,7 +51,9 @@ def given_issue_has_right_now_summary(
     :param summary: Right-now summary text.
     :type summary: str
     """
-    project_dir = load_project_directory(context)
+    from features.steps.query_steps import _resolve_issue_project_directory
+
+    project_dir = _resolve_issue_project_directory(context, identifier)
     issue = read_issue_file(project_dir, identifier)
     issue.right_now_summary = summary
     write_issue_file(project_dir, issue)

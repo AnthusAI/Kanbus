@@ -479,7 +479,7 @@ kbs standup kbs-abc --no-recursive       selected issues only\n  \
 kbs standup kbs-abc --json               machine-readable JSON")]
     Standup {
         /// Standup profile (default: meeting-script).
-        #[arg(long, value_parser = ["meeting-script", "director-brief"])]
+        #[arg(long)]
         profile: Option<String>,
         /// Emit machine-readable JSON output.
         #[arg(long)]

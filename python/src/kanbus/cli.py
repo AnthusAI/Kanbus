@@ -140,6 +140,12 @@ from kanbus.right_now_command import (
     RightNowCommandOptions,
     run_right_now_command,
 )
+from kanbus.standup import StandupError
+from kanbus.standup_command import (
+    StandupCommandError,
+    StandupCommandOptions,
+    run_standup_command,
+)
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -3054,6 +3060,46 @@ def right_now_command(
     try:
         output = run_right_now_command(root, options)
     except (IssueListingError, RightNowCommandError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=not output.endswith("\n"))
+
+
+@cli.command("standup")
+@click.argument("issue_ids", nargs=-1)
+@click.option(
+    "--profile",
+    default=None,
+    help="Standup profile: meeting-script or director-brief (default: meeting-script).",
+)
+@click.option("--json", "as_json", is_flag=True, default=False)
+@click.option("--no-recursive", is_flag=True, default=False)
+def standup_command(
+    issue_ids: tuple[str, ...],
+    profile: str | None,
+    as_json: bool,
+    no_recursive: bool,
+) -> None:
+    """Generate on-demand standup reports from right-now facts.
+
+    \b
+
+    Examples:
+      kbs standup                              board-wide meeting script
+      kbs standup --profile director-brief     executive brief
+      kbs standup kbs-abc kbs-def              scoped report
+      kbs standup kbs-abc --no-recursive       selected issues only
+      kbs standup kbs-abc --json               machine-readable JSON
+    """
+    root = Path.cwd()
+    options = StandupCommandOptions(
+        issue_ids=issue_ids,
+        profile=profile,
+        as_json=as_json,
+        recursive=not no_recursive,
+    )
+    try:
+        output = run_standup_command(root, options)
+    except (IssueListingError, StandupCommandError, StandupError) as error:
         raise click.ClickException(str(error)) from error
     click.echo(output, nl=not output.endswith("\n"))
 

@@ -1,4 +1,3 @@
-@wip
 Feature: Standup report dual-runtime parity
   Kanbus ships standup report generation in both Python and Rust CLIs.
   Both implementations must satisfy the same observable behavior defined by the

@@ -143,6 +143,7 @@ def run_cli(context: object, command: str) -> None:
     :param command: Full command string.
     :type command: str
     """
+    context.last_command = command
     runner = CliRunner()
     args = shlex.split(command)[1:]
 
@@ -192,6 +193,21 @@ def run_cli(context: object, command: str) -> None:
             stderr=stderr,
             output=result.output,
         )
+        if (
+            result.exit_code == 0
+            and "standup" in command
+            and "--json" in command
+            and stdout
+            and stdout.strip().startswith("{")
+        ):
+            try:
+                payload = json.loads(stdout)
+                if isinstance(payload, dict) and "profile" in payload:
+                    profiles = getattr(context, "standup_json_by_profile", {})
+                    profiles[payload["profile"]] = payload
+                    context.standup_json_by_profile = profiles
+            except json.JSONDecodeError:
+                pass
     finally:
         os.chdir(previous)
 

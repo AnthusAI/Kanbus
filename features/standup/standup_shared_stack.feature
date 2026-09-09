@@ -1,4 +1,3 @@
-@wip
 Feature: Standup report shared stack on right-now summaries
   On-demand standup reports consume real board state from the same pipeline as
   `kbs now` / `kanbus now`. Standup generation never invents placeholder text and

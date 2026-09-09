@@ -78,6 +78,20 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     match result {
         Ok(output) => {
             world.exit_code = Some(0);
+            if normalized.contains("standup") && normalized.contains("--json") {
+                if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&output.stdout) {
+                    if let Some(profile) = payload.get("profile").and_then(|v| v.as_str()) {
+                        if world.standup_json_by_profile.is_none() {
+                            world.standup_json_by_profile = Some(std::collections::BTreeMap::new());
+                        }
+                        world
+                            .standup_json_by_profile
+                            .as_mut()
+                            .expect("standup json profiles")
+                            .insert(profile.to_string(), payload);
+                    }
+                }
+            }
             world.stdout = Some(output.stdout);
             world.stderr = Some(output.stderr);
             record_kanbus_issue_id_if_created(world, &normalized);

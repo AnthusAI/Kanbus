@@ -27,6 +27,13 @@ def _parse_labels(labels_csv: str) -> list[str]:
     return [label.strip() for label in labels_csv.split(",") if label.strip()]
 
 
+def _resolve_primary_project_directory(context: object) -> Path:
+    virtual_state = getattr(context, "virtual_project_state", None)
+    if virtual_state is not None:
+        return virtual_state.current_project_dir
+    return load_project_directory(context)
+
+
 def _write_issue_with_overrides(
     context: object,
     identifier: str,
@@ -40,7 +47,21 @@ def _write_issue_with_overrides(
     assignee: str | None = None,
     priority: int = 2,
 ) -> None:
-    project_dir = load_project_directory(context)
+    from features.steps.query_steps import _resolve_issue_project_directory
+
+    virtual_state = getattr(context, "virtual_project_state", None)
+    if virtual_state is not None:
+        for project in virtual_state.virtual_projects.values():
+            if (project.shared_dir / "issues" / f"{identifier}.json").exists():
+                project_dir = project.shared_dir
+                break
+            if (project.local_dir / "issues" / f"{identifier}.json").exists():
+                project_dir = project.local_dir
+                break
+        else:
+            project_dir = virtual_state.current_project_dir
+    else:
+        project_dir = _resolve_issue_project_directory(context, identifier)
     issue = build_issue(
         identifier,
         title,

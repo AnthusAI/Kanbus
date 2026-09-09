@@ -38,9 +38,26 @@ def given_single_issue_exists(context: object, identifier: str) -> None:
 
 @given('issue "{identifier}" has status "{status}"')
 def given_issue_has_status(context: object, identifier: str, status: str) -> None:
-    project_dir = load_project_directory(context)
-    issue = build_issue(identifier, "Title", "task", status, None, [])
+    project_dir = _resolve_issue_project_directory(context, identifier)
+    issue_path = project_dir / "issues" / f"{identifier}.json"
+    if issue_path.exists():
+        issue = read_issue_file(project_dir, identifier)
+        issue = issue.model_copy(update={"status": status})
+    else:
+        issue = build_issue(identifier, "Title", "task", status, None, [])
     write_issue_file(project_dir, issue)
+
+
+def _resolve_issue_project_directory(context: object, identifier: str) -> Path:
+    virtual_state = getattr(context, "virtual_project_state", None)
+    if virtual_state is not None:
+        for project in virtual_state.virtual_projects.values():
+            if (project.shared_dir / "issues" / f"{identifier}.json").exists():
+                return project.shared_dir
+            if (project.local_dir / "issues" / f"{identifier}.json").exists():
+                return project.local_dir
+        return virtual_state.current_project_dir
+    return load_project_directory(context)
 
 
 @given('issue "{identifier}" has type "{issue_type}"')
