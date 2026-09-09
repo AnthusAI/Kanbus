@@ -54,14 +54,16 @@ fn lookback_pattern() -> &'static Regex {
 /// Returns `KanbusError::IssueOperation` when the duration format is invalid.
 pub fn parse_standup_lookback_hours(lookback: &str) -> Result<u32, KanbusError> {
     let normalized = lookback.trim().to_ascii_lowercase();
-    let captures = lookback_pattern()
-        .captures(&normalized)
-        .ok_or_else(|| KanbusError::IssueOperation(format!("invalid standup lookback: {lookback}")))?;
+    let captures = lookback_pattern().captures(&normalized).ok_or_else(|| {
+        KanbusError::IssueOperation(format!("invalid standup lookback: {lookback}"))
+    })?;
     let amount = captures
         .get(1)
         .and_then(|value| value.as_str().parse::<u32>().ok())
         .filter(|value| *value > 0)
-        .ok_or_else(|| KanbusError::IssueOperation(format!("invalid standup lookback: {lookback}")))?;
+        .ok_or_else(|| {
+            KanbusError::IssueOperation(format!("invalid standup lookback: {lookback}"))
+        })?;
     let unit = captures.get(2).map(|value| value.as_str()).unwrap_or("h");
     if unit == "d" {
         return Ok(amount * 24);

@@ -138,7 +138,6 @@ from kanbus.right_now import (
 from kanbus.right_now_command import (
     RightNowCommandError,
     RightNowCommandOptions,
-    RightNowOutputFormat,
     resolve_right_now_output_format,
     run_right_now_command,
 )
@@ -3125,7 +3124,9 @@ def standup_command(
     root = Path.cwd()
     skip_weekends_override = None
     if skip_weekends and no_skip_weekends:
-        raise click.ClickException("cannot use both --skip-weekends and --no-skip-weekends")
+        raise click.ClickException(
+            "cannot use both --skip-weekends and --no-skip-weekends"
+        )
     if skip_weekends:
         skip_weekends_override = True
     elif no_skip_weekends:
