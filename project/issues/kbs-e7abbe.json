@@ -1,0 +1,20 @@
+{
+  "id": "kbs-e7abbe",
+  "title": "Kanbus AI procedures share right-now stack; Tactus DSL later",
+  "description": "Epic under initiative kbs-60f3d0: unify Kanbus AI procedures on the same stack as right-now summary generation.\n\nNear term:\n- Standup report (Meeting script + Director brief) consumes `kbs now` after JIT fail-closed real summaries ship (kbs-0fe175)\n- Shared LLM configuration, key loading, and generation pipeline with right-now — no duplicate mock paths\n\nLater:\n- Tactus DSL orchestration for multi-step AI procedures (standup, briefings, and future board-aware workflows)\n\nSequencing: ship JIT fail-closed `kbs now` first; layer standup report outputs second; Tactus DSL third.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:14:17.223285296Z",
+  "updated_at": "2026-09-09T16:14:17.235013741Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
