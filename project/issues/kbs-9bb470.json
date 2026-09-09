@@ -3,7 +3,7 @@
   "title": "Helper: agent-friendly whole-project right-now for hooks",
   "description": "CLI helper or script entry point that produces agent-friendly whole-project right-now output suitable for compaction-hook scripts. Output must cover the full board WIP state, not a single pinned issue.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -24,11 +24,18 @@
       "text": "PR: https://github.com/AnthusAI/Kanbus/pull/232",
       "created_at": "2026-09-09T12:03:57.357412631Z",
       "comment_type": "default"
+    },
+    {
+      "id": "32795a6e-2d3a-499f-bf30-751c2cd50b58",
+      "author": "ubuntu",
+      "text": "PR #232 merged to develop (merge SHA 51057772). Adds priority to flat right-now JSON output for compaction hooks.",
+      "created_at": "2026-09-09T12:26:29.056173852Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-09T11:38:24.493607190Z",
-  "updated_at": "2026-09-09T12:03:57.357433196Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T12:26:29.207608638Z",
+  "closed_at": "2026-09-09T12:26:29.200047105Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
