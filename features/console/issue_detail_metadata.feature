@@ -35,9 +35,9 @@ Feature: Console issue detail metadata
     And I open the task "Add structured logging"
     Then the issue detail should show right-now summary "Working on logging"
 
-  Scenario: Detail view shows placeholder when right-now summary is missing
+  Scenario: Detail view omits placeholder when right-now summary is missing
     Given the console is open
     And the console has a task "Add structured logging" created at "2026-02-13T23:13:00.000Z" updated at "2026-02-13T23:13:00.000Z"
     When I switch to the "Tasks" tab
     And I open the task "Add structured logging"
-    Then the issue detail should show right-now summary "(no right-now summary)"
+    Then the issue detail should show empty right-now summary

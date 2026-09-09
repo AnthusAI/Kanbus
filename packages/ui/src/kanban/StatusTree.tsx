@@ -10,8 +10,6 @@ import {
 } from "./issue-colors";
 import type { KanbanConfig, KanbanIssue } from "./types";
 
-const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
-
 export interface StatusTreeIssue {
   id: string;
   title: string;
@@ -68,10 +66,10 @@ function compareRecentlyUpdated(left: StatusTreeIssue, right: StatusTreeIssue): 
 
 function resolveRightNowSummary(issue: StatusTreeIssue): string {
   const summary = issue.right_now_summary;
-  if (summary == null || summary.trim().length === 0) {
-    return RIGHT_NOW_PLACEHOLDER;
+  if (summary == null) {
+    return "";
   }
-  return summary;
+  return summary.trim();
 }
 
 function toKanbanIssue(issue: StatusTreeIssue): KanbanIssue {

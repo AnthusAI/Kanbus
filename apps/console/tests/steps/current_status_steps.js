@@ -534,3 +534,13 @@ Then(
     );
   }
 );
+
+Then("the issue detail should show empty right-now summary", async function () {
+  await expect(this.page.getByTestId("issue-right-now-summary")).toHaveText("");
+});
+
+Then("the now panel should not show right-now placeholder text", async function () {
+  await expect(this.page.getByTestId("current-status-panel")).not.toContainText(
+    "(no right-now summary)"
+  );
+});

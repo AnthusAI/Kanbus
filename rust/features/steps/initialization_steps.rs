@@ -89,6 +89,8 @@ pub struct KanbusWorld {
     pub console_standup_state: Option<StandupPanelState>,
     pub standup_api_status: Option<u16>,
     pub standup_api_response: Option<serde_json::Value>,
+    pub now_api_status: Option<u16>,
+    pub now_api_response: Option<String>,
     pub console_sort_order: Option<BTreeMap<String, serde_json::Value>>,
     pub console_time_zone: Option<String>,
     pub console_board_column_fixture_loaded: bool,
