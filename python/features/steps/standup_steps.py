@@ -11,7 +11,11 @@ import yaml
 from behave import given, then
 
 from kanbus.config import DEFAULT_CONFIGURATION
-from kanbus.right_now_command import RightNowCommandOptions, select_right_now_issues
+from kanbus.right_now_command import (
+    RightNowCommandOptions,
+    RightNowOutputFormat,
+    select_right_now_issues,
+)
 from kanbus.standup import (
     extract_section_text,
     report_uses_first_person_voice,
@@ -193,7 +197,7 @@ def _kanbus_now_fact_feed(context: object, status_filter: str) -> list[str]:
     root = Path(context.working_directory)
     options = RightNowCommandOptions(
         tree=False,
-        as_json=False,
+        output_format=RightNowOutputFormat.YAML,
         status=status_filter,
     )
     issues = select_right_now_issues(root, options)

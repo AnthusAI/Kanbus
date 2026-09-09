@@ -14,6 +14,7 @@ from kanbus.models import IssueData
 from kanbus.right_now_command import (
     RightNowCommandError,
     RightNowCommandOptions,
+    RightNowOutputFormat,
     select_right_now_issues,
 )
 from kanbus.standup import (
@@ -87,7 +88,7 @@ def build_standup_right_now_options(
         limit=None,
         tree=False,
         raw=False,
-        as_json=False,
+        output_format=RightNowOutputFormat.YAML,
         show_all=False,
         recursive=options.recursive,
         issue_ids=options.issue_ids,

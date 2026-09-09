@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import yaml
 
 from kanbus.config_loader import load_project_configuration, load_repository_environment
 from kanbus.issue_listing import list_issues
@@ -37,6 +40,15 @@ CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS = (
 NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS = (
     "--no-recursive requires one or more issue identifiers"
 )
+CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS = "cannot combine output format flags"
+
+
+class RightNowOutputFormat(str, Enum):
+    """Machine or human output format for the right-now CLI command."""
+
+    YAML = "yaml"
+    JSON = "json"
+    TEXT = "text"
 
 
 class RightNowCommandError(RuntimeError):
@@ -58,8 +70,8 @@ class RightNowCommandOptions:
     :type collapsed: bool
     :param raw: Whether to omit right-now summaries.
     :type raw: bool
-    :param as_json: Whether to emit JSON output.
-    :type as_json: bool
+    :param output_format: Output serialization format.
+    :type output_format: RightNowOutputFormat
     :param show_all: Whether to list every issue without the default cap.
     :type show_all: bool
     :param recursive: Whether to include descendants of selected issues.
@@ -79,7 +91,7 @@ class RightNowCommandOptions:
     expanded: bool = False
     collapsed: bool = False
     raw: bool = False
-    as_json: bool = False
+    output_format: RightNowOutputFormat = RightNowOutputFormat.YAML
     show_all: bool = False
     recursive: bool = True
     issue_ids: tuple[str, ...] = ()
@@ -161,7 +173,7 @@ def _format_right_now_output(
     options: RightNowCommandOptions,
     tree_expanded: bool,
 ) -> str:
-    if options.as_json:
+    if options.output_format == RightNowOutputFormat.JSON:
         if options.tree:
             roots = _build_right_now_tree(sorted_issues)
             payload = [_serialize_tree_json_node(node, options.raw) for node in roots]
@@ -170,6 +182,21 @@ def _format_right_now_output(
             _serialize_flat_json_entry(issue, options.raw) for issue in sorted_issues
         ]
         return json.dumps(payload, indent=2) + "\n"
+    if options.output_format == RightNowOutputFormat.YAML:
+        if options.tree:
+            roots = _build_right_now_tree(sorted_issues)
+            payload = [_serialize_tree_yaml_node(node, options.raw) for node in roots]
+        else:
+            payload = [
+                _serialize_flat_yaml_entry(issue, options.raw)
+                for issue in sorted_issues
+            ]
+        return yaml.dump(
+            payload,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        )
     if options.tree:
         roots = _build_right_now_tree(sorted_issues)
         lines: List[str] = []
@@ -197,6 +224,40 @@ def _validate_right_now_options(options: RightNowCommandOptions) -> None:
         tokens = [part.strip() for part in options.status.split(",") if part.strip()]
         if not tokens:
             raise RightNowCommandError(EMPTY_STATUS_FILTER)
+
+
+def resolve_right_now_output_format(
+    *,
+    as_yaml: bool,
+    as_json: bool,
+    as_text: bool,
+) -> RightNowOutputFormat:
+    """Resolve mutually exclusive right-now output format flags.
+
+    :param as_yaml: Whether ``--yaml`` was passed.
+    :type as_yaml: bool
+    :param as_json: Whether ``--json`` was passed.
+    :type as_json: bool
+    :param as_text: Whether ``--text`` was passed.
+    :type as_text: bool
+    :return: Selected output format.
+    :rtype: RightNowOutputFormat
+    :raises RightNowCommandError: When more than one format flag is set.
+    """
+    selected = [
+        flag
+        for flag, enabled in (
+            (RightNowOutputFormat.YAML, as_yaml),
+            (RightNowOutputFormat.JSON, as_json),
+            (RightNowOutputFormat.TEXT, as_text),
+        )
+        if enabled
+    ]
+    if len(selected) > 1:
+        raise RightNowCommandError(CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS)
+    if selected:
+        return selected[0]
+    return RightNowOutputFormat.YAML
 
 
 def _resolve_right_now_statuses(
@@ -407,7 +468,7 @@ def _render_tree_node(
     return lines
 
 
-def _serialize_flat_json_entry(issue: IssueData, raw: bool) -> Dict[str, Any]:
+def _serialize_issue_core_fields(issue: IssueData, raw: bool) -> Dict[str, Any]:
     entry: Dict[str, Any] = {
         "id": issue.identifier,
         "title": issue.title,
@@ -418,8 +479,17 @@ def _serialize_flat_json_entry(issue: IssueData, raw: bool) -> Dict[str, Any]:
     }
     if not raw:
         entry["right_now_summary"] = require_display_right_now_summary(issue)
+    return entry
+
+
+def _serialize_flat_json_entry(issue: IssueData, raw: bool) -> Dict[str, Any]:
+    entry = _serialize_issue_core_fields(issue, raw)
     entry["parent"] = issue.parent
     return entry
+
+
+def _serialize_flat_yaml_entry(issue: IssueData, raw: bool) -> Dict[str, Any]:
+    return _serialize_flat_json_entry(issue, raw)
 
 
 def _serialize_tree_json_node(
@@ -427,14 +497,15 @@ def _serialize_tree_json_node(
     raw: bool,
 ) -> Dict[str, Any]:
     issue = node.issue
-    entry: Dict[str, Any] = {
-        "id": issue.identifier,
-        "title": issue.title,
-        "updated_at": _format_updated_at(issue.updated_at),
-    }
-    if not raw:
-        entry["right_now_summary"] = require_display_right_now_summary(issue)
+    entry = _serialize_issue_core_fields(issue, raw)
     entry["children"] = [
         _serialize_tree_json_node(child, raw) for child in node.children
     ]
     return entry
+
+
+def _serialize_tree_yaml_node(
+    node: RightNowTreeNode,
+    raw: bool,
+) -> Dict[str, Any]:
+    return _serialize_tree_json_node(node, raw)
