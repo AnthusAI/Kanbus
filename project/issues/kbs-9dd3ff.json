@@ -1,0 +1,20 @@
+{
+  "id": "kbs-9dd3ff",
+  "title": "Command: purge right-now summaries across board",
+  "description": "Implement a Kanbus command to purge right-now summary fields across the entire board.\n\nPurge scope (only these fields):\n- `right_now_summary`\n- `right_now_updated_at`\n\nMust include `virtual_projects` targets, not just the primary project tree.\n\nSD acceptance on `/workspace/projects-meta`.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-0fe175",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:12:52.910476358Z",
+  "updated_at": "2026-09-09T16:12:52.917324160Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
