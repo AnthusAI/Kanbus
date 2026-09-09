@@ -1,0 +1,20 @@
+{
+  "id": "kbs-60f3d0",
+  "title": "On-demand daily standup report",
+  "description": "## Origin\n\nDiscord 2026-09-09 (frendan_braser / Ryan). Need an adaptive on-demand standup they can speak from — not paragraphs.\n\n## Shape\n\nDaily standup with standard questions:\n\n- What I did yesterday\n- What I am doing today\n- Blockers\n\nPlus likely questions they might get asked. Written like the user might speak; very short bullets.\n\n## Data sources\n\nConsume Kanbus (and optionally Jira-synced) issues, right-now summaries, and recursive rollups. This is the report feature, not a new Jira client.\n\n## Delivery\n\nOn demand (CLI + later console). Exact generation, voice, and windows TBD.\n\n## Scope boundary\n\nDo not implement until child epics exist.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:03:53.845499622Z",
+  "updated_at": "2026-09-09T16:03:53.853198685Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
