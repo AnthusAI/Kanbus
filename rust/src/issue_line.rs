@@ -328,6 +328,7 @@ mod tests {
             hooks: Default::default(),
             github_security: None,
             right_now: Default::default(),
+            standup: Default::default(),
         }
     }
 

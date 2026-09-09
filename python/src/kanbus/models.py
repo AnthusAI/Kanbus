@@ -229,6 +229,18 @@ class RightNowConfiguration(BaseModel):
     model: Optional[str] = "gpt-5.6-luna"
 
 
+class StandupConfiguration(BaseModel):
+    """On-demand standup report configuration.
+
+    :param lookback_hours: Hours before report time for Yesterday and Momentum signals.
+    :type lookback_hours: int
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    lookback_hours: int = 24
+
+
 class JiraConfiguration(BaseModel):
     """Jira synchronization configuration."""
 
@@ -377,6 +389,8 @@ class ProjectConfiguration(BaseModel):
     :type sort_order: Dict[str, object]
     :param right_now: Right-now summary configuration.
     :type right_now: RightNowConfiguration
+    :param standup: Standup report configuration.
+    :type standup: StandupConfiguration
     :param jira: Optional Jira synchronization configuration.
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
@@ -420,6 +434,7 @@ class ProjectConfiguration(BaseModel):
     wiki_directory: Optional[str] = None
     ai: Optional[AiConfiguration] = None
     right_now: RightNowConfiguration = Field(default_factory=RightNowConfiguration)
+    standup: StandupConfiguration = Field(default_factory=StandupConfiguration)
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)

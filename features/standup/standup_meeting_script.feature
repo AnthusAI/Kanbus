@@ -1,4 +1,3 @@
-@wip
 Feature: Standup meeting script profile
   As a Kanbus user preparing for a daily standup
   I want a first-person speakable script with very short bullets

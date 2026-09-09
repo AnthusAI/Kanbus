@@ -148,6 +148,8 @@ pub struct KanbusWorld {
     pub mosquitto_unavailable: bool,
     pub ai_call_count_after_first_render: Option<usize>,
     pub environment_overrides: BTreeMap<String, String>,
+    pub last_command: Option<String>,
+    pub standup_json_by_profile: Option<BTreeMap<String, Value>>,
 }
 
 const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [

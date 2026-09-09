@@ -152,5 +152,8 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "max_length": 120,
         "model": "gpt-5.6-luna",
     },
+    "standup": {
+        "lookback_hours": 24,
+    },
     "github_security": None,
 }

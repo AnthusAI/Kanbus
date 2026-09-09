@@ -73,7 +73,8 @@ fn given_issues_with_identifier_prefix(world: &mut KanbusWorld, count: i32, pref
 
 #[given(expr = "issue {string} has right now summary {string}")]
 fn given_issue_has_right_now_summary(world: &mut KanbusWorld, identifier: String, summary: String) {
-    let project_dir = load_project_dir(world);
+    let project_dir =
+        crate::step_definitions::query_steps::resolve_issue_project_directory(world, &identifier);
     let mut issue = read_issue_file(&project_dir, &identifier);
     issue.right_now_summary = Some(summary);
     write_issue_file(&project_dir, &issue);
