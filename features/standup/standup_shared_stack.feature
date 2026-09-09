@@ -7,10 +7,14 @@ Feature: Standup report shared stack on right-now summaries
   Product rules:
   - Standup gathers issue facts by running the recursive right-now path (JIT
     backfill included) for the requested scope before composing the report.
-  - Omitting issue identifiers uses the same default selection as `kanbus now`
-    without identifiers: status filter `in_progress`, reverse-chronological by
-    `updated_at`, default cap of 30 issues. The fact feed includes the current
-    project and every configured `virtual_projects` entry (congregation scope).
+  - Omitting issue identifiers uses the **standup default** fact feed:
+    congregation-scoped (current project plus every configured `virtual_projects`
+    entry), reverse-chronological by `updated_at`, default cap of 30 issues,
+    status filter `in_progress` OR `blocked`. This deliberately widens
+    `kanbus now`'s default status filter (`in_progress` only) so Blockers,
+    Likely questions, Risks, and Health blocked counts have data. Equivalence:
+    standup default matches `kanbus now --list --status in_progress,blocked` for
+    the same congregation and cap — not plain `kanbus now --list`.
   - Explicit issue identifiers still narrow scope; `--no-recursive` limits to
     the named issues only (same as `kanbus now`).
   - If right-now summary generation cannot produce real summaries, standup fails
@@ -40,18 +44,43 @@ Feature: Standup report shared stack on right-now summaries
     And stdout should not contain "(no right-now summary)"
     And stdout should not contain "Mock right-now summary"
 
-  Scenario: Standup without issue IDs uses kanbus now default in_progress selection
+  Scenario: Standup without issue IDs uses standup default in_progress and blocked selection
     Given an issue "kanbus-def-ip" exists with status "in_progress"
     And issue "kanbus-def-ip" has right now summary "Default scope work."
+    And an issue "kanbus-def-blk" exists with status "blocked"
+    And issue "kanbus-def-blk" has right now summary "Blocked default scope work."
     And an issue "kanbus-def-open" exists with status "open"
     And issue "kanbus-def-open" has right now summary "Not in default scope."
     When I run "kanbus standup"
     Then the command should succeed
-    And the standup fact feed should match kanbus now default listing
+    And the standup fact feed should match standup default listing
+    And the standup fact feed should match kanbus now listing with status in_progress,blocked
     And stdout should contain "Default scope work."
+    And stdout should contain "Blocked default scope work."
     And stdout should not contain "Not in default scope."
 
-  Scenario: Standup without issue IDs respects kanbus now default cap of 30
+  Scenario: Standup default status filter is wider than kanbus now default
+    Given an issue "kanbus-def-wider-ip" exists with status "in_progress"
+    And an issue "kanbus-def-wider-blk" exists with status "blocked"
+    And issue "kanbus-def-wider-blk" has right now summary "Blocked for standup feed."
+    When I run "kanbus now --list"
+    Then the command should succeed
+    And stdout should not contain "kanbus-def-wider-blk"
+    When I run "kanbus standup"
+    Then the command should succeed
+    And the standup fact feed should include issue "kanbus-def-wider-blk"
+
+  Scenario: Standup without issue IDs excludes open and backlog issues
+    Given an issue "kanbus-def-active" exists with status "in_progress"
+    And an issue "kanbus-def-open2" exists with status "open"
+    And an issue "kanbus-def-backlog" exists with status "backlog"
+    When I run "kanbus standup"
+    Then the command should succeed
+    And the standup fact feed should include issue "kanbus-def-active"
+    And the standup fact feed should not include issue "kanbus-def-open2"
+    And the standup fact feed should not include issue "kanbus-def-backlog"
+
+  Scenario: Standup without issue IDs respects standup default cap of 30
     Given 31 in-progress issues exist with identifier prefix "kanbus-def-cap"
     When I run "kanbus standup"
     Then the command should succeed
