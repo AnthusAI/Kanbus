@@ -193,9 +193,7 @@ def test_extract_section_text_stops_at_next_header() -> None:
 def test_report_voice_helpers() -> None:
     assert report_uses_first_person_voice("I shipped the standup work.") is True
     assert (
-        report_uses_third_person_executive_voice(
-            "Executive brief for stakeholders."
-        )
+        report_uses_third_person_executive_voice("Executive brief for stakeholders.")
         is True
     )
 
@@ -246,7 +244,9 @@ def test_run_standup_command_invalid_lookback_uses_default(tmp_path: Path) -> No
     issue = build_issue("kanbus-active", status="in_progress").model_copy(
         update={"right_now_summary": "Active work."}
     )
-    with patch("kanbus.standup_command.load_standup_configuration", return_value=configuration):
+    with patch(
+        "kanbus.standup_command.load_standup_configuration", return_value=configuration
+    ):
         with patch(
             "kanbus.standup_command.select_standup_fact_feed",
             return_value=[issue],
@@ -266,7 +266,9 @@ def test_run_standup_command_wraps_issue_listing_error(tmp_path: Path) -> None:
     from kanbus.issue_listing import IssueListingError
 
     configuration = build_project_configuration()
-    with patch("kanbus.standup_command.load_standup_configuration", return_value=configuration):
+    with patch(
+        "kanbus.standup_command.load_standup_configuration", return_value=configuration
+    ):
         with patch(
             "kanbus.standup_command.select_standup_fact_feed",
             side_effect=IssueListingError("listing failed"),
