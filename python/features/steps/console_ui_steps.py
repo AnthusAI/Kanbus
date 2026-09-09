@@ -88,13 +88,21 @@ def _build_kbsc_if_needed(binary: Path) -> None:
         raise RuntimeError("cargo build --bin kbsc failed")
 
 
-def _start_kbsc(working_directory: Path, port: int) -> subprocess.Popen:  # type: ignore[type-arg]
+def _start_kbsc(
+    working_directory: Path, port: int, context: object | None = None
+) -> subprocess.Popen:  # type: ignore[type-arg]
     binary = _kbsc_binary_path()
     _build_kbsc_if_needed(binary)
+    environment = {**os.environ, "KANBUS_NO_DAEMON": "1"}
+    overrides = (
+        getattr(context, "environment_overrides", None) if context is not None else None
+    )
+    if overrides:
+        environment.update(overrides)
     return subprocess.Popen(
         [str(binary)],
         env={
-            **os.environ,
+            **environment,
             "CONSOLE_PORT": str(port),
             "CONSOLE_DATA_ROOT": str(working_directory),
             "KANBUS_NO_DAEMON": "1",
@@ -246,7 +254,7 @@ def given_console_server_is_running(context: object) -> None:
     working_directory = Path(context.working_directory)
     port = _allocate_port()
     _write_console_port_to_config(working_directory, port)
-    proc = _start_kbsc(working_directory, port)
+    proc = _start_kbsc(working_directory, port, context)
     context.console_server_process = proc
     ready_port = _wait_for_server(port)
     assert ready_port is not None, f"kbsc did not become ready on port {port}"
@@ -313,7 +321,7 @@ def when_console_server_is_restarted(context: object) -> None:
     context.console_server_process = None
     time.sleep(0.2)
     working_directory = Path(context.working_directory)
-    new_proc = _start_kbsc(working_directory, port)
+    new_proc = _start_kbsc(working_directory, port, context)
     context.console_server_process = new_proc
     ready_port = _wait_for_server(port)
     assert (

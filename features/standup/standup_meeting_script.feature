@@ -66,7 +66,7 @@ Feature: Standup meeting script profile
     And issue "kanbus-ms-yest" has right now summary "Finished API integration."
     And an issue "kanbus-ms-today" exists with status "in_progress"
     And issue "kanbus-ms-today" has right now summary "Continuing UI polish."
-    When I run "kanbus standup kanbus-ms-yest kanbus-ms-today --profile meeting-script"
+    When I run "kanbus standup --window rolling kanbus-ms-yest kanbus-ms-today --profile meeting-script"
     Then the standup report section "Yesterday" should mention "Finished API integration"
     And the standup report section "Today" should mention "Continuing UI polish"
     And the standup report section "Today" should not mention "Finished API integration"
@@ -76,7 +76,7 @@ Feature: Standup meeting script profile
     And an issue "kanbus-ms-trans" exists with status "closed"
     And issue "kanbus-ms-trans" has a state transition to "closed" within standup lookback
     And issue "kanbus-ms-trans" has right now summary "Merged the compaction spec."
-    When I run "kanbus standup kanbus-ms-trans --profile meeting-script"
+    When I run "kanbus standup --window rolling kanbus-ms-trans --profile meeting-script"
     Then the standup report section "Yesterday" should mention "Merged the compaction spec."
     And the standup report section "Today" should not mention "kanbus-ms-trans"
 

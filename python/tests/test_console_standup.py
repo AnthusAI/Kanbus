@@ -3,12 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from kanbus.console_standup import StandupGenerateRequest, generate_standup_report
-from kanbus.models import IssueData
 from kanbus.standup import MEETING_SCRIPT_PROFILE
-from kanbus.standup_command import StandupCommandOptions
 
 from test_helpers import build_issue, build_project_configuration
 

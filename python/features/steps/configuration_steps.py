@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import os
 import shutil
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1018,3 +1019,10 @@ def then_attempt_priority_update(context: object, priority: str) -> None:
             context.result = SimpleNamespace(
                 exit_code=1, stdout="", stderr="invalid priority"
             )
+
+
+@given("litellm is not installed")
+def given_litellm_is_not_installed(context: object) -> None:
+    """Simulate a uv tool install environment without litellm."""
+    context.original_litellm_module = sys.modules.get("litellm")
+    sys.modules["litellm"] = None
