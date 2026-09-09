@@ -8,6 +8,7 @@ Welcome to the Kanbus documentation site. Kanbus is a git-backed project managem
 - [CLI Reference](CLI_REFERENCE.md)
 - [Configuration](CONFIGURATION.md)
 - [Lifecycle Hooks](LIFECYCLE_HOOKS.md)
+- [Agent Compaction and Right-Now Elicitation](AGENT_COMPACTION_RIGHT_NOW.md)
 - [Realtime Collaboration](REALTIME.md)
 - [Wiki Guide](WIKI_GUIDE.md)
 - [Troubleshooting](TROUBLESHOOTING.md)

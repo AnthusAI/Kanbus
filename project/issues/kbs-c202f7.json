@@ -3,18 +3,21 @@
   "title": "Docs: compaction hook setup across coding agents",
   "description": "Document how to configure compaction hooks in Cursor, Claude Code, Codex, and other coding agents to inject whole-project right-now WIP reminders after context compaction.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-d5030c",
   "labels": [],
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-09T11:38:24.614370681Z",
-  "updated_at": "2026-09-09T11:38:24.620923653Z",
+  "updated_at": "2026-09-09T12:29:37.539046466Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

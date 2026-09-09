@@ -75,6 +75,12 @@ kanbus list --status todo
 kanbus show kanbus-a1b
 ```
 
+## Documentation
+
+- [Getting Started](docs/GETTING_STARTED.md)
+- [CLI Reference](docs/CLI_REFERENCE.md)
+- [Agent compaction and right-now elicitation](docs/AGENT_COMPACTION_RIGHT_NOW.md) — reinject board WIP after coding-agent context compaction; on-demand `kbs now`
+
 ## Console (Rust backend)
 
 The console UI is served by the Rust local server.

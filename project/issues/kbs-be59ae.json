@@ -3,18 +3,21 @@
   "title": "Ship first concrete compaction-hook config examples",
   "description": "Ship first concrete compaction-hook configuration examples (e.g. Cursor hooks.json, Claude Code settings) that call the whole-project right-now helper after compaction.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-d5030c",
   "labels": [],
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-09T11:38:24.729131553Z",
-  "updated_at": "2026-09-09T11:38:24.735873040Z",
+  "updated_at": "2026-09-09T12:29:37.700191769Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
