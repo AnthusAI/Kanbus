@@ -3,7 +3,7 @@
   "title": "Spec: whole-project right-now payload for compaction hooks",
   "description": "Authoritative Gherkin scenarios defining the whole-project right-now payload shape and behavior for compaction-hook injection. Compaction hooks must receive board-wide WIP awareness, not pinned-issue scope.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -24,11 +24,18 @@
       "text": "PR #231 follow-up: aligned right_now.feature JSON field ratchet with compaction feature (priority in field list). Added Claude Code note preferring --json --list over raw --list text.",
       "created_at": "2026-09-09T11:44:09.790042032Z",
       "comment_type": "default"
+    },
+    {
+      "id": "ce7b0a03-4dcc-4d98-9adf-0cf7017c167e",
+      "author": "ubuntu",
+      "text": "PR #231 merged to develop (squash ec5919fa). Authoritative Gherkin for whole-project right-now compaction payload landed. Implementation follow-up: kbs-9bb470 (priority in flat JSON).",
+      "created_at": "2026-09-09T11:56:26.288658417Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-09T11:38:24.370795759Z",
-  "updated_at": "2026-09-09T11:44:09.790059459Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T11:56:26.397622561Z",
+  "closed_at": "2026-09-09T11:56:26.390336885Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
