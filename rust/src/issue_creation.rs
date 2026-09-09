@@ -98,7 +98,12 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
             )));
         }
 
-        validate_status_value(&configuration, resolved_type, &configuration.initial_status)?;
+        validate_status_value(
+            &configuration,
+            resolved_type,
+            &configuration.initial_status,
+            None,
+        )?;
     }
 
     let mut existing_ids = list_issue_identifiers(&project_dir.join("issues"))?;

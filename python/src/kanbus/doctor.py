@@ -7,6 +7,7 @@ from pathlib import Path
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.file_io import InitializationError, ensure_git_repository
+from kanbus.maintenance import ProjectValidationError, validate_project
 from kanbus.project import (
     ProjectMarkerError,
     get_configuration_path,
@@ -48,6 +49,11 @@ def run_doctor(root: Path) -> DoctorResult:
         configuration_path = get_configuration_path(root)
         load_project_configuration(configuration_path)
     except (ConfigurationError, ProjectMarkerError) as error:
+        raise DoctorError(str(error)) from error
+
+    try:
+        validate_project(root)
+    except ProjectValidationError as error:
         raise DoctorError(str(error)) from error
 
     return DoctorResult(project_dir=project_dir)

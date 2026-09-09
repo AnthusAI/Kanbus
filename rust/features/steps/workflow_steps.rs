@@ -1,12 +1,17 @@
 use std::collections::BTreeMap;
+use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 use serde_json::Value;
+use tempfile::TempDir;
 
-use kanbus::file_io::load_project_directory;
+use kanbus::cli::run_from_args_with_output;
+use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::{get_configuration_path, load_project_directory};
 use kanbus::models::{
     HooksConfiguration, IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration,
     RealtimeConfig, StatusDefinition,
@@ -14,6 +19,181 @@ use kanbus::models::{
 use kanbus::workflows::get_workflow_for_issue_type;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
+
+fn run_cli(world: &mut KanbusWorld, command: &str) {
+    let args = shell_words::split(command).expect("parse command");
+    let cwd = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+
+    match run_from_args_with_output(args, cwd.as_path()) {
+        Ok(output) => {
+            world.exit_code = Some(0);
+            world.stdout = Some(output.stdout);
+            world.stderr = Some(String::new());
+        }
+        Err(error) => {
+            world.exit_code = Some(1);
+            world.stdout = Some(String::new());
+            world.stderr = Some(error.to_string());
+        }
+    }
+}
+
+fn initialize_default_project(world: &mut KanbusWorld) {
+    env::set_var("KANBUS_NO_DAEMON", "1");
+    let temp_dir = TempDir::new().expect("tempdir");
+    let repo_path = temp_dir.path().join("repo");
+    fs::create_dir_all(&repo_path).expect("create repo dir");
+    Command::new("git")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("git init failed");
+    world.working_directory = Some(repo_path);
+    world.temp_dir = Some(temp_dir);
+    run_cli(world, "kanbus init");
+    assert_eq!(world.exit_code, Some(0));
+}
+
+fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
+    configuration.workflows.insert(
+        "story".to_string(),
+        BTreeMap::from([
+            (
+                "backlog".to_string(),
+                vec!["Discovery".to_string(), "closed".to_string()],
+            ),
+            (
+                "Discovery".to_string(),
+                vec!["copy_writing".to_string(), "backlog".to_string()],
+            ),
+            (
+                "copy_writing".to_string(),
+                vec!["in_progress".to_string(), "backlog".to_string()],
+            ),
+            (
+                "in_progress".to_string(),
+                vec![
+                    "copy_writing".to_string(),
+                    "blocked".to_string(),
+                    "closed".to_string(),
+                    "backlog".to_string(),
+                ],
+            ),
+            (
+                "blocked".to_string(),
+                vec!["in_progress".to_string(), "closed".to_string()],
+            ),
+            ("closed".to_string(), vec!["backlog".to_string()]),
+        ]),
+    );
+    configuration.transition_labels.insert(
+        "story".to_string(),
+        BTreeMap::from([
+            (
+                "backlog".to_string(),
+                BTreeMap::from([
+                    ("Discovery".to_string(), "Start discovery".to_string()),
+                    ("closed".to_string(), "Drop".to_string()),
+                ]),
+            ),
+            (
+                "Discovery".to_string(),
+                BTreeMap::from([
+                    ("copy_writing".to_string(), "Start copy".to_string()),
+                    ("backlog".to_string(), "Back to backlog".to_string()),
+                ]),
+            ),
+            (
+                "copy_writing".to_string(),
+                BTreeMap::from([
+                    ("in_progress".to_string(), "Start work".to_string()),
+                    ("backlog".to_string(), "Back to backlog".to_string()),
+                ]),
+            ),
+            (
+                "in_progress".to_string(),
+                BTreeMap::from([
+                    ("copy_writing".to_string(), "Back to copy".to_string()),
+                    ("blocked".to_string(), "Block".to_string()),
+                    ("closed".to_string(), "Complete".to_string()),
+                    ("backlog".to_string(), "Back to backlog".to_string()),
+                ]),
+            ),
+            (
+                "blocked".to_string(),
+                BTreeMap::from([
+                    ("in_progress".to_string(), "Unblock".to_string()),
+                    ("closed".to_string(), "Drop".to_string()),
+                ]),
+            ),
+            (
+                "closed".to_string(),
+                BTreeMap::from([("backlog".to_string(), "Back to backlog".to_string())]),
+            ),
+        ]),
+    );
+    configuration.statuses = vec![
+        StatusDefinition {
+            key: "backlog".to_string(),
+            name: "Backlog".to_string(),
+            category: "To do".to_string(),
+            semantic_category: "todo".to_string(),
+            collapsed: true,
+            color: None,
+        },
+        StatusDefinition {
+            key: "open".to_string(),
+            name: "Ready".to_string(),
+            category: "To do".to_string(),
+            semantic_category: "todo".to_string(),
+            collapsed: false,
+            color: None,
+        },
+        StatusDefinition {
+            key: "Discovery".to_string(),
+            name: "Discovery".to_string(),
+            category: "To do".to_string(),
+            semantic_category: "todo".to_string(),
+            collapsed: false,
+            color: None,
+        },
+        StatusDefinition {
+            key: "copy_writing".to_string(),
+            name: "Copy Writing".to_string(),
+            category: "In progress".to_string(),
+            semantic_category: "in_progress".to_string(),
+            collapsed: false,
+            color: None,
+        },
+        StatusDefinition {
+            key: "in_progress".to_string(),
+            name: "In Progress".to_string(),
+            category: "In progress".to_string(),
+            semantic_category: "in_progress".to_string(),
+            collapsed: false,
+            color: None,
+        },
+        StatusDefinition {
+            key: "blocked".to_string(),
+            name: "Blocked".to_string(),
+            category: "In progress".to_string(),
+            semantic_category: "in_progress".to_string(),
+            collapsed: true,
+            color: None,
+        },
+        StatusDefinition {
+            key: "closed".to_string(),
+            name: "Done".to_string(),
+            category: "Done".to_string(),
+            semantic_category: "done".to_string(),
+            collapsed: true,
+            color: None,
+        },
+    ];
+}
 
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
@@ -562,6 +742,19 @@ fn given_primary_in_progress_status_key(world: &mut KanbusWorld, new_key: String
     rename_status_key_in_configuration(&mut configuration, "in_progress", &new_key);
     let serialized = serde_yaml::to_string(&configuration).expect("serialize config");
     fs::write(config_path, serialized).expect("write config");
+}
+
+#[given("a Kanbus project with an editorial story workflow configuration")]
+fn given_editorial_story_workflow_configuration(world: &mut KanbusWorld) {
+    initialize_default_project(world);
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let project_dir = load_project_directory(cwd).expect("project dir");
+    let configuration_path = get_configuration_path(project_dir.as_path()).expect("config path");
+    let mut configuration =
+        load_project_configuration(&configuration_path).expect("load configuration");
+    apply_editorial_story_workflow(&mut configuration);
+    let serialized = serde_yaml::to_string(&configuration).expect("serialize config");
+    fs::write(configuration_path, serialized).expect("write config");
 }
 
 #[given("a configuration without a default workflow")]

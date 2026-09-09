@@ -259,6 +259,7 @@ def update_issue(
                     configuration,
                     resolved_type or updated_issue.issue_type,
                     resolved_status,
+                    updated_issue.identifier,
                 )
                 validate_status_transition(
                     configuration,

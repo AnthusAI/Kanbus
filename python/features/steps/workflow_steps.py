@@ -397,6 +397,114 @@ def given_epic_blocked_to_in_progress(context: object) -> None:
     given_epic_workflow_allows_transition(context, "blocked", "in_progress")
 
 
+EDITORIAL_STORY_WORKFLOW_CONFIGURATION = {
+    **DEFAULT_CONFIGURATION,
+    "workflows": {
+        **DEFAULT_CONFIGURATION["workflows"],
+        "story": {
+            "backlog": ["Discovery", "closed"],
+            "Discovery": ["copy_writing", "backlog"],
+            "copy_writing": ["in_progress", "backlog"],
+            "in_progress": ["copy_writing", "blocked", "closed", "backlog"],
+            "blocked": ["in_progress", "closed"],
+            "closed": ["backlog"],
+        },
+    },
+    "statuses": [
+        {
+            "key": "backlog",
+            "name": "Backlog",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": True,
+        },
+        {
+            "key": "open",
+            "name": "Ready",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": False,
+        },
+        {
+            "key": "Discovery",
+            "name": "Discovery",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": False,
+        },
+        {
+            "key": "copy_writing",
+            "name": "Copy Writing",
+            "category": "In progress",
+            "semantic_category": "in_progress",
+            "collapsed": False,
+        },
+        {
+            "key": "in_progress",
+            "name": "In Progress",
+            "category": "In progress",
+            "semantic_category": "in_progress",
+            "collapsed": False,
+        },
+        {
+            "key": "blocked",
+            "name": "Blocked",
+            "category": "In progress",
+            "semantic_category": "in_progress",
+            "collapsed": True,
+        },
+        {
+            "key": "closed",
+            "name": "Done",
+            "category": "Done",
+            "semantic_category": "done",
+            "collapsed": True,
+        },
+    ],
+    "transition_labels": {
+        **DEFAULT_CONFIGURATION["transition_labels"],
+        "story": {
+            "backlog": {
+                "Discovery": "Start discovery",
+                "closed": "Drop",
+            },
+            "Discovery": {
+                "copy_writing": "Start copy",
+                "backlog": "Back to backlog",
+            },
+            "copy_writing": {
+                "in_progress": "Start work",
+                "backlog": "Back to backlog",
+            },
+            "in_progress": {
+                "copy_writing": "Back to copy",
+                "blocked": "Block",
+                "closed": "Complete",
+                "backlog": "Back to backlog",
+            },
+            "blocked": {
+                "in_progress": "Unblock",
+                "closed": "Drop",
+            },
+            "closed": {
+                "backlog": "Back to backlog",
+            },
+        },
+    },
+}
+
+
+@given("a Kanbus project with an editorial story workflow configuration")
+def given_editorial_story_workflow_configuration(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    config_path.write_text(
+        yaml.safe_dump(EDITORIAL_STORY_WORKFLOW_CONFIGURATION, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given("a configuration without a default workflow")
 def given_config_without_default_workflow(context: object) -> None:
     initialize_default_project(context)
