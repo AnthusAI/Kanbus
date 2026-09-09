@@ -122,7 +122,12 @@ def test_format_issue_for_display_sections_and_context(
     ]
     configuration.statuses = [
         StatusDefinition.model_validate(
-            {"key": "open", "name": "Open", "category": "To do"}
+            {
+                "key": "open",
+                "name": "Open",
+                "category": "To do",
+                "semantic_category": "todo",
+            }
         )
     ]
     configuration.priorities[2].color = "bright_blue"
@@ -188,7 +193,13 @@ def test_format_issue_for_display_uses_explicit_status_color() -> None:
     ]
     configuration.statuses = [
         StatusDefinition.model_validate(
-            {"key": "open", "name": "Open", "category": "To do", "color": "red"}
+            {
+                "key": "open",
+                "name": "Open",
+                "category": "To do",
+                "color": "red",
+                "semantic_category": "todo",
+            }
         )
     ]
     issue = build_issue("kanbus-1", status="open")
@@ -205,7 +216,12 @@ def test_issue_line_color_resolution_helpers() -> None:
     ]
     configuration.statuses = [
         StatusDefinition.model_validate(
-            {"key": "open", "name": "Open", "category": "To do"}
+            {
+                "key": "open",
+                "name": "Open",
+                "category": "To do",
+                "semantic_category": "todo",
+            }
         )
     ]
     configuration.statuses[0].color = "red"
@@ -268,7 +284,12 @@ def test_issue_line_format_non_porcelain_with_color_paths(
     ]
     configuration.statuses = [
         StatusDefinition.model_validate(
-            {"key": "open", "name": "Open", "category": "To do"}
+            {
+                "key": "open",
+                "name": "Open",
+                "category": "To do",
+                "semantic_category": "todo",
+            }
         )
     ]
     configuration.statuses[0].color = "cyan"

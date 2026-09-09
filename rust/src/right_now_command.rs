@@ -13,9 +13,8 @@ use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
-use crate::right_now::{
-    ensure_right_now_summaries, get_right_now_summary, DEFAULT_RIGHT_NOW_STATUS,
-};
+use crate::right_now::{ensure_right_now_summaries, get_right_now_summary};
+use crate::status_semantics::{status_keys_for_semantic_category, SEMANTIC_IN_PROGRESS};
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
@@ -164,7 +163,17 @@ fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), Ka
             NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS.to_string(),
         ));
     }
-    resolve_right_now_statuses(options.status.as_deref(), !options.issue_ids.is_empty())?;
+    if let Some(raw) = options.status.as_deref() {
+        let tokens: Vec<String> = raw
+            .split(',')
+            .map(str::trim)
+            .filter(|token| !token.is_empty())
+            .map(str::to_string)
+            .collect();
+        if tokens.is_empty() {
+            return Err(KanbusError::IssueOperation(EMPTY_STATUS_FILTER.to_string()));
+        }
+    }
     Ok(())
 }
 
@@ -176,13 +185,15 @@ fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), Ka
 fn resolve_right_now_statuses(
     status_option: Option<&str>,
     has_issue_identifiers: bool,
+    configuration: &ProjectConfiguration,
 ) -> Result<Option<HashSet<String>>, KanbusError> {
     match status_option {
         None => {
             if has_issue_identifiers {
                 Ok(None)
             } else {
-                Ok(Some(HashSet::from([DEFAULT_RIGHT_NOW_STATUS.to_string()])))
+                let keys = status_keys_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)?;
+                Ok(Some(keys.into_iter().collect()))
             }
         }
         Some(raw) => {
@@ -209,11 +220,17 @@ fn resolve_right_now_statuses(
 ///
 /// Returns `KanbusError` when the status filter is empty.
 fn filter_right_now_issues_by_status(
+    root: &Path,
     issues: Vec<IssueData>,
     options: &RightNowCommandOptions,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    let allowed =
-        resolve_right_now_statuses(options.status.as_deref(), !options.issue_ids.is_empty())?;
+    let configuration_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    let allowed = resolve_right_now_statuses(
+        options.status.as_deref(),
+        !options.issue_ids.is_empty(),
+        &configuration,
+    )?;
     Ok(match allowed {
         None => issues,
         Some(statuses) => issues
@@ -251,7 +268,7 @@ fn select_right_now_issues(
         false,
     )?;
     if options.issue_ids.is_empty() {
-        return filter_right_now_issues_by_status(issues, options);
+        return filter_right_now_issues_by_status(root, issues, options);
     }
     let mut issues_by_identifier: HashMap<String, IssueData> = issues
         .into_iter()
@@ -288,6 +305,7 @@ fn select_right_now_issues(
         }
     }
     filter_right_now_issues_by_status(
+        root,
         issues_by_identifier
             .into_iter()
             .filter(|(identifier, _)| selected.contains(identifier))
@@ -603,23 +621,30 @@ mod tests {
 
     #[test]
     fn resolve_right_now_statuses_defaults_to_in_progress_for_board() {
-        let statuses = resolve_right_now_statuses(None, false).expect("ok");
+        let configuration = crate::config::default_project_configuration();
+        let statuses = resolve_right_now_statuses(None, false, &configuration).expect("ok");
         assert_eq!(
             statuses,
-            Some(HashSet::from([DEFAULT_RIGHT_NOW_STATUS.to_string()]))
+            Some(HashSet::from([
+                "in_progress".to_string(),
+                "blocked".to_string(),
+            ]))
         );
-        assert!(resolve_right_now_statuses(None, true)
+        assert!(resolve_right_now_statuses(None, true, &configuration)
             .expect("named")
             .is_none());
-        assert!(resolve_right_now_statuses(Some("all"), false)
-            .expect("all")
-            .is_none());
-        let selected = resolve_right_now_statuses(Some("in_progress,open"), false)
+        assert!(
+            resolve_right_now_statuses(Some("all"), false, &configuration)
+                .expect("all")
+                .is_none()
+        );
+        let selected = resolve_right_now_statuses(Some("in_progress,open"), false, &configuration)
             .expect("csv")
             .expect("set");
         assert!(selected.contains("in_progress"));
         assert!(selected.contains("open"));
-        let error = resolve_right_now_statuses(Some(" , "), false).expect_err("empty");
+        let error =
+            resolve_right_now_statuses(Some(" , "), false, &configuration).expect_err("empty");
         assert_eq!(error.to_string(), EMPTY_STATUS_FILTER);
     }
 

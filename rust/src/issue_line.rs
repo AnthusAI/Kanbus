@@ -4,6 +4,7 @@ use owo_colors::{AnsiColors, OwoColorize};
 
 use crate::ids::format_issue_key;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::status_semantics::default_color_for_semantic_category;
 
 /// Column widths for list output.
 #[derive(Debug, Clone, Copy)]
@@ -177,23 +178,24 @@ fn parse_color(name: &str) -> Option<AnsiColors> {
 
 fn status_color(status: &str, configuration: Option<&ProjectConfiguration>) -> Option<AnsiColors> {
     if let Some(config) = configuration {
-        // Look up color from statuses list
         if let Some(status_def) = config.statuses.iter().find(|s| s.key == status) {
             if let Some(color) = &status_def.color {
                 return parse_color(color);
             }
+            if let Some(category_color) = config
+                .categories
+                .iter()
+                .find(|category| category.name == status_def.category)
+                .and_then(|category| category.color.as_deref())
+            {
+                return parse_color(category_color);
+            }
+            return parse_color(default_color_for_semantic_category(
+                &status_def.semantic_category,
+            ));
         }
     }
-    // Fallback to default colors
-    parse_color(match status {
-        "backlog" => "grey",
-        "open" => "cyan",
-        "in_progress" => "blue",
-        "blocked" => "red",
-        "closed" => "green",
-        "deferred" => "yellow",
-        _ => "white",
-    })
+    parse_color("white")
 }
 
 fn priority_color(
@@ -306,6 +308,7 @@ mod tests {
                 key: "open".to_string(),
                 name: "Open".to_string(),
                 category: "todo".to_string(),
+                semantic_category: "todo".to_string(),
                 color: Some("bright_green".to_string()),
                 collapsed: false,
             }],
@@ -397,10 +400,10 @@ mod tests {
             Some(AnsiColors::BrightMagenta)
         );
 
-        assert_eq!(status_color("closed", None), Some(AnsiColors::Green));
+        assert_eq!(status_color("closed", None), Some(AnsiColors::White));
         assert_eq!(priority_color(0, None), Some(AnsiColors::Red));
         assert_eq!(type_color("story", None), Some(AnsiColors::Cyan));
         assert_eq!(parse_color("not-a-color"), None);
-        assert_eq!(status_color("backlog", None), None);
+        assert_eq!(status_color("backlog", None), Some(AnsiColors::White));
     }
 }

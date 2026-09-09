@@ -69,21 +69,41 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     ],
     "sort_order": {},
     "statuses": [
-        {"key": "backlog", "name": "Backlog", "category": "To do", "collapsed": True},
-        {"key": "open", "name": "Discovery", "category": "To do", "collapsed": False},
+        {
+            "key": "backlog",
+            "name": "Backlog",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": True,
+        },
+        {
+            "key": "open",
+            "name": "Discovery",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": False,
+        },
         {
             "key": "in_progress",
             "name": "In Progress",
             "category": "In progress",
+            "semantic_category": "in_progress",
             "collapsed": False,
         },
         {
             "key": "blocked",
             "name": "Blocked",
             "category": "In progress",
+            "semantic_category": "in_progress",
             "collapsed": True,
         },
-        {"key": "closed", "name": "Done", "category": "Done", "collapsed": True},
+        {
+            "key": "closed",
+            "name": "Done",
+            "category": "Done",
+            "semantic_category": "done",
+            "collapsed": True,
+        },
     ],
     "transition_labels": {
         "default": {

@@ -64,6 +64,7 @@ pub mod rich_text_signals;
 pub mod right_now;
 pub mod right_now_command;
 pub mod snyk_sync;
+pub mod status_semantics;
 pub mod summarize;
 pub mod text_editor;
 pub mod users;

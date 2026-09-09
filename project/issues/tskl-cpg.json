@@ -5,7 +5,7 @@
   "type": "epic",
   "status": "in_progress",
   "priority": 2,
-  "assignee": null,
+  "assignee": "agent",
   "creator": "ryan.porter",
   "parent": null,
   "labels": [],

@@ -183,6 +183,7 @@ class StatusDefinition(BaseModel):
     key: str = Field(min_length=1)
     name: str = Field(min_length=1)
     category: str = Field(min_length=1)
+    semantic_category: str = Field(min_length=1)
     color: Optional[str] = None
     collapsed: bool = False
 

@@ -10,6 +10,7 @@ import click
 
 from kanbus.ids import format_issue_key
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.status_semantics import default_color_for_semantic_category
 
 STATUS_COLORS = {
     "backlog": "grey",
@@ -88,6 +89,12 @@ def _resolve_status_color(
             )
             if category_color:
                 return category_color
+            return (
+                _normalize_cli_color(
+                    default_color_for_semantic_category(status_def.semantic_category)
+                )
+                or "white"
+            )
     return STATUS_COLORS.get(status, "white")
 
 
