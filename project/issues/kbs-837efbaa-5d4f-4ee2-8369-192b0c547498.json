@@ -1,0 +1,20 @@
+{
+  "id": "kbs-837efbaa-5d4f-4ee2-8369-192b0c547498",
+  "title": "Fix kbs now YAML scalar line wrapping",
+  "description": "",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T21:17:06.786689431Z",
+  "updated_at": "2026-09-09T21:17:16.322729190Z",
+  "closed_at": null,
+  "right_now_summary": "The team is fixing YAML scalar line wrapping in kbs now.",
+  "right_now_updated_at": "2026-09-09T21:17:20.965661676Z",
+  "custom": {}
+}
