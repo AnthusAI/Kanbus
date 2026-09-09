@@ -98,14 +98,7 @@ pub fn run_right_now_command(
                 .map(|issue| issue.identifier.clone())
                 .collect();
             ensure_right_now_summaries(root, &identifiers);
-            let mut reloaded = Vec::new();
-            for issue in issues {
-                match load_issue_from_project(root, &issue.identifier) {
-                    Ok(lookup) => reloaded.push(lookup.issue),
-                    Err(_) => reloaded.push(issue),
-                }
-            }
-            issues = reloaded;
+            issues = reload_right_now_issues(root, issues);
         } else {
             let all_issues = list_issues(
                 root,
@@ -126,17 +119,8 @@ pub fn run_right_now_command(
                 .into_iter()
                 .map(|issue| (issue.identifier.clone(), issue))
                 .collect();
-            let mut expanded_issues = Vec::new();
-            for identifier in &selected_identifiers {
-                match load_issue_from_project(root, identifier) {
-                    Ok(lookup) => expanded_issues.push(lookup.issue),
-                    Err(_) => {
-                        if let Some(fallback) = issues_by_identifier.get(identifier) {
-                            expanded_issues.push(fallback.clone());
-                        }
-                    }
-                }
-            }
+            let expanded_issues =
+                expand_active_right_now_issues(root, &selected_identifiers, &issues_by_identifier);
             issues = sort_issues_by_recently_updated(expanded_issues);
             if effective_limit > 0 {
                 issues.truncate(effective_limit);
@@ -187,6 +171,36 @@ pub fn run_right_now_command(
     }
     lines.push(String::new());
     Ok(lines.join("\n"))
+}
+
+fn reload_right_now_issues(root: &Path, issues: Vec<IssueData>) -> Vec<IssueData> {
+    let mut reloaded = Vec::new();
+    for issue in issues {
+        match load_issue_from_project(root, &issue.identifier) {
+            Ok(lookup) => reloaded.push(lookup.issue),
+            Err(_) => reloaded.push(issue),
+        }
+    }
+    reloaded
+}
+
+fn expand_active_right_now_issues(
+    root: &Path,
+    selected_identifiers: &HashSet<String>,
+    issues_by_identifier: &HashMap<String, IssueData>,
+) -> Vec<IssueData> {
+    let mut expanded_issues = Vec::new();
+    for identifier in selected_identifiers {
+        match load_issue_from_project(root, identifier) {
+            Ok(lookup) => expanded_issues.push(lookup.issue),
+            Err(_) => {
+                if let Some(fallback) = issues_by_identifier.get(identifier) {
+                    expanded_issues.push(fallback.clone());
+                }
+            }
+        }
+    }
+    expanded_issues
 }
 
 fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), KanbusError> {
@@ -530,7 +544,7 @@ mod tests {
     use crate::models::IssueData;
     use chrono::{TimeZone, Utc};
     use serial_test::serial;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, HashMap, HashSet};
     use std::fs;
     use tempfile::TempDir;
 
@@ -756,5 +770,192 @@ mod tests {
             Some(value) => std::env::set_var("KANBUS_NO_DAEMON", value),
             None => std::env::remove_var("KANBUS_NO_DAEMON"),
         }
+    }
+
+    #[test]
+    #[serial]
+    fn cli_now_default_board_uses_active_tree_expansion() {
+        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
+        let previous_no_daemon = std::env::var("KANBUS_NO_DAEMON").ok();
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        std::env::set_var("KANBUS_NO_DAEMON", "1");
+        let temp_dir = TempDir::new().expect("tempdir");
+        fs::write(
+            temp_dir.path().join(".kanbus.yml"),
+            "project_key: kanbus\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-4o-mini\nright_now:\n  enabled: true\n",
+        )
+        .expect("write config");
+        let issues_dir = temp_dir.path().join("project/issues");
+        fs::create_dir_all(&issues_dir).expect("create issues");
+
+        let parent = make_issue("kanbus-board-parent", "Board parent");
+        let mut discovery_child = make_issue("kanbus-board-discovery", "Board discovery");
+        discovery_child.status = "discovery".to_string();
+        discovery_child.parent = Some(parent.identifier.clone());
+        let mut active_child = make_issue("kanbus-board-active", "Board active");
+        active_child.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
+        active_child.parent = Some(parent.identifier.clone());
+        for issue in [&parent, &discovery_child, &active_child] {
+            fs::write(
+                issues_dir.join(format!("{}.json", issue.identifier)),
+                serde_json::to_vec(issue).expect("serialize issue"),
+            )
+            .expect("write issue");
+        }
+
+        let output = run_right_now_command(
+            temp_dir.path(),
+            &RightNowCommandOptions {
+                expanded: true,
+                ..RightNowCommandOptions::default()
+            },
+        )
+        .expect("run now");
+
+        for identifier in [
+            "kanbus-board-parent",
+            "kanbus-board-discovery",
+            "kanbus-board-active",
+        ] {
+            assert!(output.contains(identifier));
+        }
+
+        match previous_mock {
+            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
+            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
+        }
+        match previous_no_daemon {
+            Some(value) => std::env::set_var("KANBUS_NO_DAEMON", value),
+            None => std::env::remove_var("KANBUS_NO_DAEMON"),
+        }
+    }
+
+    #[test]
+    fn run_right_now_command_returns_empty_output_when_board_has_no_matches() {
+        let previous_no_daemon = std::env::var("KANBUS_NO_DAEMON").ok();
+        std::env::set_var("KANBUS_NO_DAEMON", "1");
+        let temp_dir = TempDir::new().expect("tempdir");
+        fs::write(
+            temp_dir.path().join(".kanbus.yml"),
+            "project_key: kanbus\nproject_directory: project\nright_now:\n  enabled: true\n",
+        )
+        .expect("write config");
+        let issues_dir = temp_dir.path().join("project/issues");
+        fs::create_dir_all(&issues_dir).expect("create issues");
+        let open_issue = make_issue("kanbus-open-only", "Open only");
+        fs::write(
+            issues_dir.join(format!("{}.json", open_issue.identifier)),
+            serde_json::to_vec(&open_issue).expect("serialize issue"),
+        )
+        .expect("write issue");
+
+        let tree_output = run_right_now_command(
+            temp_dir.path(),
+            &RightNowCommandOptions {
+                raw: true,
+                ..RightNowCommandOptions::default()
+            },
+        )
+        .expect("tree output");
+        assert!(tree_output.is_empty());
+
+        let flat_output = run_right_now_command(
+            temp_dir.path(),
+            &RightNowCommandOptions {
+                tree: false,
+                raw: true,
+                ..RightNowCommandOptions::default()
+            },
+        )
+        .expect("flat output");
+        assert!(flat_output.is_empty());
+
+        match previous_no_daemon {
+            Some(value) => std::env::set_var("KANBUS_NO_DAEMON", value),
+            None => std::env::remove_var("KANBUS_NO_DAEMON"),
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn cli_now_filtered_listing_keeps_cached_issue_on_reload_failure() {
+        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
+        let previous_no_daemon = std::env::var("KANBUS_NO_DAEMON").ok();
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        std::env::set_var("KANBUS_NO_DAEMON", "1");
+        let temp_dir = TempDir::new().expect("tempdir");
+        fs::write(
+            temp_dir.path().join(".kanbus.yml"),
+            "project_key: kanbus\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-4o-mini\nright_now:\n  enabled: true\n",
+        )
+        .expect("write config");
+        let issues_dir = temp_dir.path().join("project/issues");
+        fs::create_dir_all(&issues_dir).expect("create issues");
+        let mut active = make_issue("kanbus-filtered-reload", "Filtered reload");
+        active.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
+        fs::write(
+            issues_dir.join(format!("{}.json", active.identifier)),
+            serde_json::to_vec(&active).expect("serialize issue"),
+        )
+        .expect("write issue");
+
+        let output = run_right_now_command(
+            temp_dir.path(),
+            &RightNowCommandOptions {
+                tree: false,
+                status: Some("all".to_string()),
+                ..RightNowCommandOptions::default()
+            },
+        )
+        .expect("run now");
+
+        assert!(output.contains("kanbus-filtered-reload"));
+
+        match previous_mock {
+            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
+            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
+        }
+        match previous_no_daemon {
+            Some(value) => std::env::set_var("KANBUS_NO_DAEMON", value),
+            None => std::env::remove_var("KANBUS_NO_DAEMON"),
+        }
+    }
+
+    #[test]
+    fn reload_right_now_issues_keeps_cached_issue_on_lookup_error() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        fs::write(
+            temp_dir.path().join(".kanbus.yml"),
+            "project_key: kanbus\nproject_directory: project\n",
+        )
+        .expect("write config");
+        let issues_dir = temp_dir.path().join("project/issues");
+        fs::create_dir_all(&issues_dir).expect("create issues");
+        let issue = make_issue("kanbus-reload", "Reload fallback");
+        fs::write(
+            issues_dir.join(format!("{}.json", issue.identifier)),
+            serde_json::to_vec(&issue).expect("serialize issue"),
+        )
+        .expect("write issue");
+        fs::remove_file(issues_dir.join(format!("{}.json", issue.identifier))).expect("remove");
+
+        let reloaded = reload_right_now_issues(temp_dir.path(), vec![issue.clone()]);
+        assert_eq!(reloaded.len(), 1);
+        assert_eq!(reloaded[0].identifier, issue.identifier);
+    }
+
+    #[test]
+    fn expand_active_right_now_issues_uses_listing_cache_on_lookup_error() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let issue = make_issue("kanbus-cache-fallback", "Cache fallback");
+        let mut selected = HashSet::new();
+        selected.insert(issue.identifier.clone());
+        let mut cache = HashMap::new();
+        cache.insert(issue.identifier.clone(), issue.clone());
+
+        let expanded = expand_active_right_now_issues(temp_dir.path(), &selected, &cache);
+
+        assert_eq!(expanded.len(), 1);
+        assert_eq!(expanded[0].identifier, issue.identifier);
     }
 }
