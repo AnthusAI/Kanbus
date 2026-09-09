@@ -85,11 +85,9 @@ pub fn litellm_chat_completion(
         )));
     }
 
-    let payload = response
-        .json::<ChatCompletionResponse>()
-        .map_err(|error| {
-            KanbusError::IssueOperation(format!("litellm completion response parse failed: {error}"))
-        })?;
+    let payload = response.json::<ChatCompletionResponse>().map_err(|error| {
+        KanbusError::IssueOperation(format!("litellm completion response parse failed: {error}"))
+    })?;
 
     let completion_text = payload
         .choices
@@ -134,9 +132,7 @@ fn resolve_litellm_endpoint_and_api_key() -> Result<(String, String), KanbusErro
     }
 
     let api_key = read_non_empty_env("OPENAI_API_KEY").ok_or_else(|| {
-        KanbusError::IssueOperation(
-            "OPENAI_API_KEY is required for litellm completion".to_string(),
-        )
+        KanbusError::IssueOperation("OPENAI_API_KEY is required for litellm completion".to_string())
     })?;
 
     let endpoint = read_non_empty_env("OPENAI_API_BASE")
@@ -217,7 +213,10 @@ mod tests {
             litellm_chat_completion("gpt-4o-mini", "prompt").expect("stub completion");
         assert_eq!(text, "Stubbed native completion.");
         assert_eq!(usage.total_tokens, 3);
-        assert_eq!(std::env::var(LITELLM_CALLED_ENV).ok(), Some("1".to_string()));
+        assert_eq!(
+            std::env::var(LITELLM_CALLED_ENV).ok(),
+            Some("1".to_string())
+        );
         std::env::remove_var(TEST_LITELLM_COMPLETION_ENV);
         std::env::remove_var(LITELLM_CALLED_ENV);
     }

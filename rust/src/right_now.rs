@@ -10,10 +10,10 @@ use serde_json::{json, Value};
 
 use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::error::KanbusError;
-use crate::litellm_completion::litellm_chat_completion;
 use crate::file_io::get_configuration_path;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
+use crate::litellm_completion::litellm_chat_completion;
 use crate::models::{IssueComment, IssueData, ProjectConfiguration};
 use crate::overlay::{load_overlay_issue, overlay_issue_path, write_overlay_issue};
 
