@@ -3,19 +3,29 @@
   "title": "Standup Yesterday scenarios: stop using --window rolling with calendar-day semantics",
   "description": "SD soft nit on #261: scenarios still say When ... --window rolling while describing calendar-day Yesterday \u2014 switch to calendar window or profile default.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "assignee": null,
   "creator": null,
   "parent": "kbs-c328f3c6-3997-4155-9007-232daef0e3fd",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1dd472a9-3281-48c1-ab98-fe5ded6dadfd",
+      "author": "box",
+      "text": "Fixed in PR #261: Yesterday scenarios omit --window and use meeting-script calendar defaults.",
+      "created_at": "2026-09-09T23:58:47.259174Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": null
+    }
+  ],
   "created_at": "2026-09-09T23:25:05.887851Z",
-  "updated_at": "2026-09-09T23:25:05.926141Z",
-  "closed_at": null,
-  "right_now_summary": "The scenarios still use `--window rolling` for calendar-day Yesterday and need a calendar window or profile default.",
-  "right_now_updated_at": "2026-09-09T23:25:11.097121Z",
+  "updated_at": "2026-09-09T23:58:47.259332Z",
+  "closed_at": "2026-09-09T23:58:32.372373Z",
+  "right_now_summary": "PR #261 fixes the Yesterday scenarios by removing `--window` and using calendar-day defaults.",
+  "right_now_updated_at": "2026-09-09T23:58:52.299240Z",
   "custom": {},
   "agent": null
 }
