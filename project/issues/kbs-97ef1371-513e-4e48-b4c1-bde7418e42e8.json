@@ -17,10 +17,17 @@
       "text": "Specs-first PR opened: https://github.com/AnthusAI/Kanbus/pull/245\n\nAdds @wip Gherkin for shared standup stack, meeting-script profile, director-brief profile, dual-runtime parity, and CLI surface. No implementation yet — awaiting SD spec review.",
       "created_at": "2026-09-09T17:40:16.645112280Z",
       "comment_type": "default"
+    },
+    {
+      "id": "a3faa95b-88df-4824-b3f1-e99d9171de62",
+      "author": "ubuntu",
+      "text": "SD review amendments pushed to PR #245: https://github.com/AnthusAI/Kanbus/pull/245\n\nChanges:\n1. Omit-IDs default scope = kanbus now (in_progress, cap 30, virtual_projects); director-brief board-wide without IDs\n2. Observable signal rules for Yesterday/Today and Health/Momentum/Risks (standup.lookback_hours)\n3. Likely questions contract from blocker summaries + stale WIP identifiers\n4. Fixed JSON scenario (source_issues includes id; removed contradictory stdout check)\n5. Cross-profile JSON parity on source_issues set + right_now_texts fields\n6. virtual_projects congregation scenario in shared stack\n7. Fixture models aligned to gpt-5.6-luna\n\nReady for SD re-review. Still @wip / spec-only.",
+      "created_at": "2026-09-09T17:50:49.876188774Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-09T17:17:31.598248983Z",
-  "updated_at": "2026-09-09T17:40:16.645130329Z",
+  "updated_at": "2026-09-09T17:50:49.876209697Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
