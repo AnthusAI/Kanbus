@@ -66,6 +66,7 @@ use crate::rich_text_signals::{
 };
 use crate::right_now_command::{run_right_now_command, RightNowCommandOptions};
 use crate::snyk_sync::pull_from_snyk;
+use crate::standup_command::{run_standup_command, StandupCommandOptions};
 use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
@@ -466,6 +467,27 @@ kbs now --status all             every status, not just in-progress"
         #[arg(long)]
         purge: bool,
         /// Issue identifiers to show. Default: recently-updated issues.
+        #[arg(value_name = "ISSUE")]
+        issue_ids: Vec<String>,
+    },
+    /// Generate on-demand standup reports from right-now facts.
+    #[command(after_help = "Examples:\n  \
+kbs standup                              board-wide meeting script\n  \
+kbs standup --profile director-brief     executive brief\n  \
+kbs standup kbs-abc kbs-def              scoped report\n  \
+kbs standup kbs-abc --no-recursive       selected issues only\n  \
+kbs standup kbs-abc --json               machine-readable JSON")]
+    Standup {
+        /// Standup profile (default: meeting-script).
+        #[arg(long, value_parser = ["meeting-script", "director-brief"])]
+        profile: Option<String>,
+        /// Emit machine-readable JSON output.
+        #[arg(long)]
+        json: bool,
+        /// Show only the named issues, without descendants.
+        #[arg(long = "no-recursive")]
+        no_recursive: bool,
+        /// Issue identifiers to scope the report. Default: in-progress and blocked issues.
         #[arg(value_name = "ISSUE")]
         issue_ids: Vec<String>,
     },
@@ -3004,6 +3026,21 @@ fn execute_command(
                 purge,
             };
             let output = run_right_now_command(root, &options)?;
+            Ok(Some(output))
+        }
+        Commands::Standup {
+            profile,
+            json,
+            no_recursive,
+            issue_ids,
+        } => {
+            let options = StandupCommandOptions {
+                issue_ids,
+                profile,
+                as_json: json,
+                recursive: !no_recursive,
+            };
+            let output = run_standup_command(root, &options)?;
             Ok(Some(output))
         }
         Commands::Jira { command } => match command {
