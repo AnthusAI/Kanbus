@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -487,6 +488,19 @@ def test_ensure_right_now_subtree_handles_lookup_and_listing_errors(
     )
 
 
+def test_completion_uses_litellm_test_stub_without_import(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from kanbus.right_now import _completion
+
+    monkeypatch.setenv("KANBUS_TEST_LITELLM_COMPLETION", "Stubbed native completion.")
+    monkeypatch.delenv("KANBUS_RIGHT_NOW_LITELLM_CALLED", raising=False)
+    text, usage = _completion("gpt-5.6-luna", "prompt")
+    assert text == "Stubbed native completion."
+    assert usage["total_tokens"] == 3
+    assert os.environ.get("KANBUS_RIGHT_NOW_LITELLM_CALLED") == "1"
+
+
 def test_completion_requires_litellm_and_handles_empty_and_usage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -495,6 +509,7 @@ def test_completion_requires_litellm_and_handles_empty_and_usage(
 
     from kanbus.right_now import _completion
 
+    monkeypatch.delenv("KANBUS_TEST_LITELLM_COMPLETION", raising=False)
     monkeypatch.setitem(sys.modules, "litellm", None)
     with pytest.raises(RightNowError, match="litellm is required"):
         _completion("gpt-5.6-luna", "prompt")

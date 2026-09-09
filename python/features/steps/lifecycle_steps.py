@@ -21,6 +21,33 @@ def step_lifecycle_impl_1(context):
     config_path.write_text(content)
 
 
+@given("mock AI is disabled")
+def step_lifecycle_mock_ai_disabled(context):
+    tracked = context.__dict__.get("_tracked_env_vars")
+    if tracked is None:
+        tracked = set()
+        context._tracked_env_vars = tracked
+    if not hasattr(context, "_unset_env_vars"):
+        context._unset_env_vars = []
+    for name in (
+        "KANBUS_TEST_AI_MOCK",
+        "KANBUS_RIGHT_NOW_LITELLM_CALLED",
+        "KANBUS_TEST_RIGHT_NOW_COMPLETION",
+        "KANBUS_TEST_LITELLM_COMPLETION",
+    ):
+        if name not in tracked:
+            context._unset_env_vars.append((name, os.environ.get(name)))
+            tracked.add(name)
+    os.environ.pop("KANBUS_TEST_AI_MOCK", None)
+    os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
+    os.environ.pop("KANBUS_TEST_RIGHT_NOW_COMPLETION", None)
+    os.environ.pop("KANBUS_TEST_LITELLM_COMPLETION", None)
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is not None:
+        overrides.pop("KANBUS_TEST_RIGHT_NOW_COMPLETION", None)
+        overrides.pop("KANBUS_TEST_LITELLM_COMPLETION", None)
+
+
 @given("mock AI is enabled")
 def step_lifecycle_impl_2(context):
     tracked = context.__dict__.get("_tracked_env_vars")
@@ -33,6 +60,7 @@ def step_lifecycle_impl_2(context):
         "KANBUS_TEST_AI_MOCK",
         "KANBUS_RIGHT_NOW_LITELLM_CALLED",
         "KANBUS_TEST_RIGHT_NOW_COMPLETION",
+        "KANBUS_TEST_LITELLM_COMPLETION",
     ):
         if name not in tracked:
             context._unset_env_vars.append((name, os.environ.get(name)))
@@ -40,9 +68,11 @@ def step_lifecycle_impl_2(context):
     os.environ["KANBUS_TEST_AI_MOCK"] = "1"
     os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
     os.environ.pop("KANBUS_TEST_RIGHT_NOW_COMPLETION", None)
+    os.environ.pop("KANBUS_TEST_LITELLM_COMPLETION", None)
     overrides = getattr(context, "environment_overrides", None)
     if overrides is not None:
         overrides.pop("KANBUS_TEST_RIGHT_NOW_COMPLETION", None)
+        overrides.pop("KANBUS_TEST_LITELLM_COMPLETION", None)
 
 
 @given('an issue "{issue_id}" of type "{issue_type}" in status "{status}"')

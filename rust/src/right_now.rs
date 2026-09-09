@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -14,6 +13,7 @@ use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
+use crate::litellm_completion::litellm_chat_completion;
 use crate::models::{IssueComment, IssueData, ProjectConfiguration};
 use crate::overlay::{load_overlay_issue, overlay_issue_path, write_overlay_issue};
 
@@ -315,7 +315,7 @@ pub fn build_leaf_right_now_context(issue: &IssueData) -> RightNowContext {
 pub fn generate_right_now_summary(
     root: &Path,
     issue: &IssueData,
-    _context: &RightNowContext,
+    context: &RightNowContext,
 ) -> Result<String, KanbusError> {
     load_repository_environment(root);
     let configuration = load_configuration(root)?;
@@ -346,8 +346,22 @@ pub fn generate_right_now_summary(
         return Ok(truncate_to_max_length(&summary, max_length));
     }
 
-    let summary = delegate_right_now_summary_to_python(root, &issue.identifier)?;
-    Ok(truncate_to_max_length(&summary, max_length))
+    let prompt = build_right_now_prompt(context, max_length);
+    let (completion_text, usage) = litellm_chat_completion(&model, &prompt)?;
+    record_llm_usage(
+        root,
+        &configuration,
+        &issue.identifier,
+        &model,
+        RightNowLlmUsageRecord {
+            prompt_tokens: usage.prompt_tokens,
+            completion_tokens: usage.completion_tokens,
+            total_tokens: usage.total_tokens,
+            cost: usage.cost,
+            mock: false,
+        },
+    )?;
+    Ok(truncate_to_max_length(completion_text.trim(), max_length))
 }
 
 /// Persist only right-now summary fields without re-entering the write gate.
@@ -898,26 +912,31 @@ fn record_llm_usage(
     Ok(())
 }
 
-fn delegate_right_now_summary_to_python(
-    root: &Path,
-    issue_identifier: &str,
-) -> Result<String, KanbusError> {
-    let output = Command::new("kanbus")
-        .args(["now-generate-internal", issue_identifier])
-        .current_dir(root)
-        .output()
-        .map_err(|error| KanbusError::Io(format!("invoke python right-now generator: {error}")))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(KanbusError::IssueOperation(stderr.trim().to_string()));
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if stdout.is_empty() {
-        return Err(KanbusError::IssueOperation(
-            "right-now summary generation returned empty content".to_string(),
-        ));
-    }
-    Ok(stdout)
+fn build_right_now_prompt(context: &RightNowContext, max_length: usize) -> String {
+    let child_section = match context.child_summaries.as_ref() {
+        Some(child_summaries) if !child_summaries.is_empty() => {
+            let lines = child_summaries
+                .iter()
+                .map(|child| format!("- {}: {}", child.identifier, child.summary))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("Child summaries:\n{lines}\n\n")
+        }
+        _ => String::new(),
+    };
+    format!(
+        "Write exactly one short sentence describing what is happening with this \
+issue right now. Use plain, direct language in Hemingway style. \
+Do not mention issue status labels such as open, closed, blocked, done, \
+or in progress. Maximum {max_length} characters.\n\n\
+Title: {title}\n\
+Description: {description}\n\
+Recent activity:\n{recent_activity}\n\n\
+{child_section}",
+        title = context.title,
+        description = context.description,
+        recent_activity = context.recent_activity,
+    )
 }
 
 /// Read llm usage entries for right-now summary operations.
@@ -1134,5 +1153,21 @@ mod tests {
     fn summary_contains_status_keyword_detects_bare_tokens() {
         assert!(summary_contains_status_keyword("Work is blocked on review"));
         assert!(!summary_contains_status_keyword("Agents keep shipping"));
+    }
+
+    #[test]
+    fn build_right_now_prompt_includes_child_summaries() {
+        let context = RightNowContext {
+            title: "Parent".to_string(),
+            description: "Parent description".to_string(),
+            recent_activity: "Recent parent activity".to_string(),
+            child_summaries: Some(vec![RightNowChildSummary {
+                identifier: "kanbus-child".to_string(),
+                summary: "Child summary.".to_string(),
+            }]),
+        };
+        let prompt = build_right_now_prompt(&context, 80);
+        assert!(prompt.contains("Child summaries:"));
+        assert!(prompt.contains("kanbus-child: Child summary."));
     }
 }
