@@ -11,6 +11,20 @@ from behave import given, then
 from features.steps.output_steps import _strip_ansi
 from features.steps.shared import build_issue, load_project_directory, write_issue_file
 
+_RIGHT_NOW_YAML_ITEM_KEYS = frozenset(
+    {
+        "id",
+        "title",
+        "type",
+        "status",
+        "priority",
+        "updated_at",
+        "right_now_summary",
+        "parent",
+        "children",
+    }
+)
+
 
 @given('{count:d} issues exist with identifier prefix "{prefix}"')
 def given_issues_with_identifier_prefix(
@@ -48,6 +62,36 @@ def given_in_progress_issues_with_identifier_prefix(
     :type prefix: str
     """
     _write_prefixed_issues(context, count, prefix, "in_progress")
+
+
+@then('stdout YAML should not fold fields "{fields_csv}"')
+def then_stdout_yaml_should_not_fold_fields(context: object, fields_csv: str) -> None:
+    """Verify YAML string fields are not emitted as folded plain scalars.
+
+    :param context: Behave context object.
+    :type context: object
+    :param fields_csv: Comma-separated field names to inspect.
+    :type fields_csv: str
+    """
+    stdout = _strip_ansi(context.result.stdout)
+    fields = [field.strip() for field in fields_csv.split(",") if field.strip()]
+    lines = stdout.splitlines()
+    for index, line in enumerate(lines):
+        for field in fields:
+            marker = f"{field}:"
+            if marker not in line:
+                continue
+            if index + 1 >= len(lines):
+                continue
+            next_line = lines[index + 1]
+            if not next_line.strip():
+                continue
+            current_indent = len(line) - len(line.lstrip())
+            next_indent = len(next_line) - len(next_line.lstrip())
+            if next_indent > current_indent and not _is_yaml_item_key_line(next_line):
+                raise AssertionError(
+                    f"folded YAML scalar for {field} at line {index + 1}: {next_line!r}"
+                )
 
 
 @then("stdout should be valid YAML")
@@ -422,6 +466,14 @@ def then_right_now_json_tree_has_child(
     root = next(item for item in payload if item.get("id") == root_id)
     child_ids = [child.get("id") for child in root.get("children", [])]
     assert child_id in child_ids
+
+
+def _is_yaml_item_key_line(line: str) -> bool:
+    stripped = line.lstrip()
+    if stripped.startswith("- "):
+        return True
+    key = stripped.split(":", 1)[0].strip()
+    return key in _RIGHT_NOW_YAML_ITEM_KEYS
 
 
 def _find_flat_json_item(payload: object, identifier: str) -> dict:
