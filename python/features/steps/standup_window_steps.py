@@ -23,7 +23,11 @@ from kanbus.standup_window import (
     resolve_standup_window_settings,
 )
 
-from features.steps.shared import load_project_directory, read_issue_file, write_issue_file
+from features.steps.shared import (
+    load_project_directory,
+    read_issue_file,
+    write_issue_file,
+)
 
 
 def _load_config_payload(context: object) -> dict:
@@ -70,9 +74,9 @@ def _clear_report_time() -> None:
 
 def _set_report_time(context: object, report_time: datetime) -> None:
     context.standup_report_time = report_time
-    os.environ["KANBUS_STANDUP_REPORT_TIME"] = (
-        report_time.isoformat(timespec="seconds").replace("+00:00", "Z")
-    )
+    os.environ["KANBUS_STANDUP_REPORT_TIME"] = report_time.isoformat(
+        timespec="seconds"
+    ).replace("+00:00", "Z")
 
 
 def _ensure_live_report_time(context: object) -> None:
@@ -175,9 +179,7 @@ def given_issue_closed_at_hours_before_report(
 
 
 @given('issue "{identifier}" closed on the previous calendar day in standup timezone')
-def given_issue_closed_previous_calendar_day(
-    context: object, identifier: str
-) -> None:
+def given_issue_closed_previous_calendar_day(context: object, identifier: str) -> None:
     """Set issue closed_at on the previous calendar day in standup timezone."""
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
@@ -304,7 +306,13 @@ def when_resolve_standup_window_settings_both_runtimes(context: object) -> None:
     python_settings = resolve_standup_window_settings(configuration, None, overrides)
     context.python_window_settings = python_settings
 
-    probe_binary = Path(__file__).resolve().parents[3] / "rust" / "target" / "release" / "standup_window_probe"
+    probe_binary = (
+        Path(__file__).resolve().parents[3]
+        / "rust"
+        / "target"
+        / "release"
+        / "standup_window_probe"
+    )
     if not probe_binary.is_file():
         build_result = subprocess.run(
             ["cargo", "build", "--quiet", "--bin", "standup_window_probe"],

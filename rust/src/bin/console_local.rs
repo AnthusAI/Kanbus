@@ -103,6 +103,9 @@ async fn main() {
             });
     };
     trace("entry");
+    if std::env::var_os("KANBUS_NO_DAEMON").is_none() {
+        std::env::set_var("KANBUS_NO_DAEMON", "1");
+    }
     let repo_root = resolve_repo_root();
     trace(&format!("repo_root: {}", repo_root.display()));
     let root_override = std::env::var("CONSOLE_ROOT").ok().map(PathBuf::from);

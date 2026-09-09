@@ -97,6 +97,7 @@ def _start_kbsc(working_directory: Path, port: int) -> subprocess.Popen:  # type
             **os.environ,
             "CONSOLE_PORT": str(port),
             "CONSOLE_DATA_ROOT": str(working_directory),
+            "KANBUS_NO_DAEMON": "1",
         },
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

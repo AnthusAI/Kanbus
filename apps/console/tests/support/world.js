@@ -13,6 +13,7 @@ setDefaultTimeout(60 * 1000);
 class ConsoleWorld {
   constructor() {
     this.page = null;
+    this.context = null;
     this.overridePath = null;
   }
 }
@@ -30,7 +31,10 @@ AfterAll(async () => {
 });
 
 Before(async function () {
-  this.page = await browser.newPage();
+  this.context = await browser.newContext({
+    permissions: ["clipboard-read", "clipboard-write"]
+  });
+  this.page = await this.context.newPage();
   await this.page.goto(BASE_URL, {
     waitUntil: "domcontentloaded",
     timeout: 60000
@@ -40,7 +44,11 @@ Before(async function () {
 });
 
 After(async function () {
-  if (this.page) {
+  if (this.context) {
+    await this.context.close();
+    this.context = null;
+    this.page = null;
+  } else if (this.page) {
     await this.page.close();
   }
   if (this.overridePath) {

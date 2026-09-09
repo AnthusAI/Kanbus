@@ -123,21 +123,53 @@ function logConsoleEvent(
   writeConsoleLog({ type: "event", label, payload });
 }
 
-async function runSnapshot(): Promise<IssuesSnapshot> {
+function kanbusCommandEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    KANBUS_NO_DAEMON: "1",
+    PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
+  };
+}
+
+async function runKanbusConsoleCommand(
+  subcommand: string,
+  extraArgs: string[] = []
+): Promise<string> {
   const command = kanbusPython ?? "kanbus";
   const args = kanbusPython
-    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "console", "snapshot"]
-    : ["console", "snapshot"];
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "console", subcommand, ...extraArgs]
+    : ["console", subcommand, ...extraArgs];
   const { stdout } = await execFileAsync(command, args, {
     cwd: repoRoot,
-    env: {
-      ...process.env,
-      KANBUS_NO_DAEMON: "1",
-      PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
-    },
+    env: kanbusCommandEnv(),
     maxBuffer: 10 * 1024 * 1024
   });
+  return stdout;
+}
+
+async function runSnapshot(): Promise<IssuesSnapshot> {
+  const stdout = await runKanbusConsoleCommand("snapshot");
   return JSON.parse(stdout) as IssuesSnapshot;
+}
+
+async function runNowIssues(): Promise<IssuesSnapshot["issues"]> {
+  const stdout = await runKanbusConsoleCommand("now");
+  return JSON.parse(stdout) as IssuesSnapshot["issues"];
+}
+
+type StandupGenerateRequest = {
+  profile?: string;
+  window?: string;
+  lookback?: string;
+  skip_weekends?: boolean;
+};
+
+async function runStandupReport(request: StandupGenerateRequest): Promise<Record<string, unknown>> {
+  const stdout = await runKanbusConsoleCommand(
+    "standup",
+    ["--request-json", JSON.stringify(request)]
+  );
+  return JSON.parse(stdout) as Record<string, unknown>;
 }
 
 async function getSnapshot(): Promise<IssuesSnapshot> {
@@ -238,6 +270,28 @@ apiRouter.get("/issues/:id", async (req, res) => {
       return;
     }
     res.json(issue);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.get("/now", async (_req, res) => {
+  try {
+    const issues = await runNowIssues();
+    res.json(issues);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.post("/standup", async (req, res) => {
+  if (process.env.KANBUS_TEST_STANDUP_FAIL === "1") {
+    res.status(500).json({ error: "standup generation failed" });
+    return;
+  }
+  try {
+    const response = await runStandupReport(req.body as StandupGenerateRequest);
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

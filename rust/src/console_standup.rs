@@ -13,7 +13,7 @@ use crate::standup::{
 };
 use crate::standup_command::{select_standup_fact_feed, StandupCommandOptions};
 use crate::standup_window::{
-    StandupWindowOverrides, resolve_standup_report_time, resolve_standup_window_settings,
+    resolve_standup_report_time, resolve_standup_window_settings, StandupWindowOverrides,
 };
 
 /// Request body for generating a standup report from the console API.
