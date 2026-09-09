@@ -14,6 +14,7 @@ from kanbus.issue_lookup import IssueLookupError
 from kanbus.right_now import (
     AI_PROVIDER_NOT_CONFIGURED_MESSAGE,
     OPENAI_API_KEY_NOT_LOADED_MESSAGE,
+    RIGHT_NOW_DISABLED_MESSAGE,
     RightNowError,
     _bound_activity_text,
     _build_right_now_prompt,
@@ -24,15 +25,20 @@ from kanbus.right_now import (
     _truncate_to_max_length,
     build_bounded_raw_child_summary,
     build_right_now_context,
+    clear_right_now_summary,
     ensure_right_now_subtree,
     generate_right_now_summary,
     get_child_full_summary,
     get_right_now_summary,
+    is_persisted_mock_right_now_summary,
     mock_right_now_summary_text,
     persist_right_now_summary,
+    purge_right_now_summaries,
     regenerate_right_now_ancestors,
     regenerate_right_now_for_issue,
+    require_display_right_now_summary,
     resolve_child_summary,
+    right_now_summary_needs_regeneration,
     summary_contains_status_keyword,
 )
 
@@ -525,3 +531,124 @@ def test_completion_requires_litellm_and_handles_empty_and_usage(
     assert usage["completion_tokens"] == 4
     assert usage["total_tokens"] == 7
     assert usage["cost"] == 0.25
+
+
+def test_is_persisted_mock_and_regeneration_detection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    issue = build_issue("kanbus-mock")
+    mock_text = mock_right_now_summary_text("kanbus-mock")
+    assert is_persisted_mock_right_now_summary(mock_text, "kanbus-mock") is True
+    assert is_persisted_mock_right_now_summary("Real summary.", "kanbus-mock") is False
+
+    issue.right_now_summary = mock_text
+    monkeypatch.delenv("KANBUS_TEST_AI_MOCK", raising=False)
+    assert right_now_summary_needs_regeneration(issue) is True
+
+    monkeypatch.setenv("KANBUS_TEST_AI_MOCK", "1")
+    assert right_now_summary_needs_regeneration(issue) is False
+
+
+def test_require_display_right_now_summary_fail_closed() -> None:
+    issue = build_issue("kanbus-display")
+    with pytest.raises(RightNowError, match="right-now summary missing"):
+        require_display_right_now_summary(issue)
+
+    issue.right_now_summary = mock_right_now_summary_text("kanbus-display")
+    with pytest.raises(RightNowError, match="persisted test mock"):
+        require_display_right_now_summary(issue)
+
+    issue.right_now_summary = "Production summary."
+    assert require_display_right_now_summary(issue) == "Production summary."
+
+
+def test_regenerate_right_now_for_issue_fail_closed_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kanbus.right_now.load_repository_environment",
+        lambda *_a: None,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now._load_configuration",
+        lambda *_a: (_ for _ in ()).throw(RightNowError("config failed")),
+    )
+    with pytest.raises(RightNowError, match="config failed"):
+        regenerate_right_now_for_issue(tmp_path, "kanbus-x", fail_closed=True)
+
+    configuration = build_project_configuration()
+    configuration.right_now.enabled = False
+    monkeypatch.setattr(
+        "kanbus.right_now._load_configuration",
+        lambda *_a: configuration,
+    )
+    with pytest.raises(RightNowError, match=RIGHT_NOW_DISABLED_MESSAGE):
+        regenerate_right_now_for_issue(tmp_path, "kanbus-x", fail_closed=True)
+
+    configuration.right_now.enabled = True
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing issue")),
+    )
+    with pytest.raises(RightNowError, match="missing issue"):
+        regenerate_right_now_for_issue(tmp_path, "kanbus-x", fail_closed=True)
+
+
+def test_ensure_right_now_subtree_fail_closed_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_a: (_ for _ in ()).throw(IssueListingError("listing failed")),
+    )
+    with pytest.raises(RightNowError, match="listing failed"):
+        ensure_right_now_subtree(
+            tmp_path,
+            "kanbus-parent",
+            {"kanbus-parent"},
+            fail_closed=True,
+        )
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("lookup failed")),
+    )
+    with pytest.raises(RightNowError, match="lookup failed"):
+        ensure_right_now_subtree(
+            tmp_path,
+            "kanbus-parent",
+            {"kanbus-parent"},
+            fail_closed=True,
+        )
+
+
+def test_purge_right_now_summaries_skips_issues_without_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bare = build_issue("kanbus-bare")
+    with_summary = build_issue("kanbus-with")
+    with_summary.right_now_summary = "Keep cleared."
+    with_summary.right_now_updated_at = datetime(2026, 3, 9, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        "kanbus.right_now.list_issues",
+        lambda *_a: [bare, with_summary],
+    )
+    lookup = SimpleNamespace(
+        project_dir=tmp_path / "project",
+        issue_path=tmp_path / "project" / "issues" / "kanbus-with.json",
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: lookup,
+    )
+    cleared: list[str] = []
+
+    def record_clear(
+        project_dir: Path, issue_path: Path, issue_identifier: str
+    ) -> None:
+        cleared.append(issue_identifier)
+
+    monkeypatch.setattr("kanbus.right_now.clear_right_now_summary", record_clear)
+    assert purge_right_now_summaries(tmp_path) == 1
+    assert cleared == ["kanbus-with"]
