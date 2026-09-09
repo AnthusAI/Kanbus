@@ -194,6 +194,7 @@ def test_resolve_model_and_provider_guards() -> None:
         _ensure_litellm_provider(configuration)
 
     configuration.ai = AiConfiguration(provider="litellm", model="gpt-4o")
+    configuration.right_now = RightNowConfiguration(model=None)
     _ensure_litellm_provider(configuration)
     assert _resolve_right_now_model(configuration) == "gpt-4o"
     configuration.right_now = RightNowConfiguration(model="gpt-5.6-luna")

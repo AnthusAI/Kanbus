@@ -278,7 +278,7 @@ fn given_kanbus_project_has_no_ai_configuration(world: &mut KanbusWorld) {
     let config_path = root.join(".kanbus.yml");
     let contents = fs::read_to_string(&config_path).expect("read config");
     let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
-    mapping.remove(&Value::String("ai".to_string()));
+    mapping.insert(Value::String("ai".to_string()), Value::Null);
     let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
     fs::write(config_path, yaml).expect("write config");
 }

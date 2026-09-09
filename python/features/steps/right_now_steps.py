@@ -410,7 +410,7 @@ def given_kanbus_project_has_no_ai_configuration(context: object) -> None:
     config_path = repository / ".kanbus.yml"
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
-        payload.pop("ai", None)
+        payload["ai"] = None
         config_path.write_text(
             yaml.safe_dump(payload, sort_keys=False),
             encoding="utf-8",

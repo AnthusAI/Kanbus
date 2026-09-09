@@ -10,7 +10,7 @@ Feature: Right now configuration
     And the right now configuration should have enabled true
     And the right now configuration should have default_tree_expanded false
     And the right now configuration should have max_length 120
-    And the right now model override should be unset
+    And the right now model override should be "gpt-5.6-luna"
 
   Scenario: Right now configuration loads explicit values
     Given a Kanbus project with a file "kanbus.yml" containing:
