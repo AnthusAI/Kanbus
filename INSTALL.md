@@ -25,6 +25,22 @@ kanbus doctor
 
 Note: the `kanbus` console script is available when the virtual environment is active.
 
+### Wiki Markus dependency (`anthus-markus`, not PyPI `markus`)
+
+Wiki HTML rendering uses [Markus](https://anthusai.github.io/Markus) (Anthus-Flavored Markdown). The Python CLI pulls in **`anthus-markus`** from GitHub (`markusmd.convert`). This is declared in `python/pyproject.toml` and installs with `pip install -e python`.
+
+**Do not `pip install markus`.** The [PyPI package `markus`](https://pypi.org/project/markus/) is an unrelated metrics library. It will not render wiki `:::directives`.
+
+The Rust `kbs` binary embeds Markus conversion (`wiki_markus`) and does not require a separate Markus install.
+
+Smoke-test wiki rendering after install:
+
+```bash
+kbs wiki render project/wiki/index.md --html | grep markus-document
+```
+
+See [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md) for the full wiki and Markus pipeline.
+
 ## Rust (developer install)
 
 ```bash
