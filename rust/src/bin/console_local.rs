@@ -36,6 +36,7 @@ use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::console_standup::{generate_standup_report, StandupGenerateRequest};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
 use kanbus::console_wiki::{
     create_page, delete_page, get_page, list_pages, rename_page, render_page, update_page,
@@ -197,6 +198,7 @@ async fn main() {
         .route("/api/config", get(get_config_root))
         .route("/api/issues", get(get_issues_root))
         .route("/api/now", get(get_now_root))
+        .route("/api/standup", post(post_standup_root))
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
@@ -232,6 +234,7 @@ async fn main() {
         .route("/:account/:project/api/config", get(get_config))
         .route("/:account/:project/api/issues", get(get_issues))
         .route("/:account/:project/api/now", get(get_now))
+        .route("/:account/:project/api/standup", post(post_standup))
         .route("/:account/:project/api/issues/:id", get(get_issue))
         .route(
             "/:account/:project/api/issues/:id/events",
@@ -543,6 +546,41 @@ async fn now_snapshot_response(store: FileStore) -> Response {
     .await;
     match result {
         Ok(Ok(snapshot)) => Json(snapshot.issues).into_response(),
+        Ok(Err(error)) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn post_standup_root(
+    State(state): State<AppState>,
+    Json(payload): Json<StandupGenerateRequest>,
+) -> Response {
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    standup_response(store, payload).await
+}
+
+async fn post_standup(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+    Json(payload): Json<StandupGenerateRequest>,
+) -> Response {
+    let store = store_for(&state, &account, &project);
+    standup_response(store, payload).await
+}
+
+async fn standup_response(store: FileStore, payload: StandupGenerateRequest) -> Response {
+    let result =
+        tokio::task::spawn_blocking(move || generate_standup_report(&store, &payload)).await;
+    match result {
+        Ok(Ok(response)) => Json(response).into_response(),
         Ok(Err(error)) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
         Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }

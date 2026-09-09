@@ -11,6 +11,7 @@ use tempfile::TempDir;
 use crate::step_definitions::console_ui_steps::{
     ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
 };
+use crate::step_definitions::standup_panel_steps::StandupPanelState;
 use chrono::{DateTime, Utc};
 use kanbus::daemon_client;
 use kanbus::index::IssueIndex;
@@ -85,6 +86,9 @@ pub struct KanbusWorld {
     pub console_state: Option<ConsoleState>,
     pub console_local_storage: ConsoleLocalStorage,
     pub console_wiki_state: Option<WikiWorkspaceState>,
+    pub console_standup_state: Option<StandupPanelState>,
+    pub standup_api_status: Option<u16>,
+    pub standup_api_response: Option<serde_json::Value>,
     pub console_sort_order: Option<BTreeMap<String, serde_json::Value>>,
     pub console_time_zone: Option<String>,
     pub console_board_column_fixture_loaded: bool,
