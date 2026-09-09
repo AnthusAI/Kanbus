@@ -3,18 +3,29 @@
   "title": "Claude/kbs dogfood rough edges",
   "description": "Ryan 2026-09-09 dogfood: Claude used kbs against the Kanbus editorial workflow and hit several rough edges that slow agent work. Track remediation here.\n\n## Context\n\n- Editorial workflow rejects story+open as an invalid combination; Claude had to discover and run kbs move to task manually.\n- Optional Mosquitto broker missing prints a warning on every kbs invocation instead of once or on demand.\n- Markus render binary naming collides with the unrelated PyPI markus package in docs and onboarding.\n\n## Goal\n\nSmooth the Claude/kbs dogfood path so agents get actionable hints instead of silent invalid states or noisy warnings.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "e5fc7ffa-5528-45fb-9be6-6dd9c1b2849e",
+      "author": "ubuntu",
+      "text": "All three child issues closed on develop:\n\n- kbs-b9fc8f: PR #236\n- kbs-8df291: PR #238 (f0350276)\n- kbs-cf388a: PR #237 (276fecb0)",
+      "created_at": "2026-09-09T14:03:25.980410680Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T13:11:00.480762042Z",
-  "updated_at": "2026-09-09T13:11:00.488303063Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T14:03:25.980424783Z",
+  "closed_at": "2026-09-09T14:03:25.919615569Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
