@@ -921,10 +921,7 @@ skinparam SequenceDividerFontColor white`
                 className="text-sm text-muted rounded px-2 py-1 -mx-2 -my-1"
                 data-testid="issue-right-now-summary"
               >
-                {taskToRender.right_now_summary != null &&
-                taskToRender.right_now_summary.trim().length > 0
-                  ? taskToRender.right_now_summary
-                  : "(no right-now summary)"}
+                {taskToRender.right_now_summary?.trim() ?? ""}
               </p>
               {descriptionHtml ? (
                 <div
