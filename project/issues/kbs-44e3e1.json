@@ -1,0 +1,20 @@
+{
+  "id": "kbs-44e3e1",
+  "title": "Gherkin: console Now-panel Standup drawer + API",
+  "description": "## Spec-first\n\nAuthoritative Gherkin scenarios for Console standup embedded in the Now panel.\n\n## Scenarios to cover\n\n- Now panel exposes a Standup control (button) without adding Reports navigation.\n- Opening the control shows a standup drawer anchored to CurrentStatusPanel.\n- Drawer supports profile selection (meeting-script, director-brief) consistent with CLI standup.\n- Drawer triggers standup generation via Console API (POST /api/standup).\n- Loading, success, and fail-closed error states when right-now summaries are missing or generation fails.\n- Drawer can be dismissed without leaving the Now panel view.\n\n## Tags\n\n- `@console` / `@console-server` as appropriate for kbsc-backed scenarios.\n- No `@wip` when scenarios are ready for implementation.\n\n## Parity\n\nPython behave and Rust cucumber step definitions must stay in sync (`tools/check_spec_parity.py`).",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-164aab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:59:12.833906649Z",
+  "updated_at": "2026-09-09T19:59:12.841605082Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

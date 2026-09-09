@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4656c7",
+  "title": "Console API: POST /api/standup shared pipeline",
+  "description": "## Goal\n\nExpose standup generation on kbsc via POST /api/standup using the **shared** standup pipeline (same code path as `kbs standup` / `kanbus standup`), not a console-only fork.\n\n## Contract (sketch)\n\n- **Method**: POST /api/standup\n- **Body**: profile (meeting-script | director-brief), optional scoped issue id(s), optional JSON response flag.\n- **Behavior**: delegates to shared standup generation on right-now summaries; fail-closed when summaries cannot be produced.\n- **Response**: standup sections JSON matching CLI `--json` output shape for parity.\n\n## Non-goals\n\n- Separate LiteLLM client or mock standup text for console.\n- Reports routes or nav entries.\n\n## Depends on\n\n- Shared standup generation epic kbs-e7abbe.\n- Gherkin spec kbs-44e3e1 defines observable behavior.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-164aab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:59:17.829371112Z",
+  "updated_at": "2026-09-09T19:59:17.837116056Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

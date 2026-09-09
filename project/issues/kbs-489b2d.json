@@ -1,0 +1,20 @@
+{
+  "id": "kbs-489b2d",
+  "title": "Console UI: Standup button + drawer in CurrentStatusPanel",
+  "description": "## Goal\n\nAdd Standup entry point to the Now panel (CurrentStatusPanel): a button that opens a drawer for on-demand standup output.\n\n## UX\n\n- Button lives in CurrentStatusPanel chrome (Now panel), not under Reports nav.\n- Drawer overlays or slides from the panel; user remains in Now context.\n- Profile picker: meeting-script vs director-brief.\n- Shows loading state while POST /api/standup runs.\n- Renders standup sections on success; surfaces API fail-closed errors clearly.\n- Flat design per apps/console/AGENTS.md (no gradients, drop-shadows, or container borders).\n\n## Implementation notes\n\n- Call POST /api/standup (kbs-4656c7).\n- Behavior locked by Gherkin kbs-44e3e1.\n\n## Depends on\n\n- kbs-4656c7 (API) and kbs-44e3e1 (spec) should land before or in parallel with UI; spec is authoritative.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-164aab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:59:17.952041946Z",
+  "updated_at": "2026-09-09T19:59:17.959032766Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
