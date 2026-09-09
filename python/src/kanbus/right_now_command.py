@@ -41,6 +41,7 @@ NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS = (
     "--no-recursive requires one or more issue identifiers"
 )
 CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS = "cannot combine output format flags"
+RIGHT_NOW_YAML_DUMP_WIDTH = 2**31 - 1
 
 
 class RightNowOutputFormat(str, Enum):
@@ -191,12 +192,7 @@ def _format_right_now_output(
                 _serialize_flat_yaml_entry(issue, options.raw)
                 for issue in sorted_issues
             ]
-        return yaml.dump(
-            payload,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        )
+        return _dump_right_now_yaml(payload)
     if options.tree:
         roots = _build_right_now_tree(sorted_issues)
         lines: List[str] = []
@@ -509,3 +505,20 @@ def _serialize_tree_yaml_node(
     raw: bool,
 ) -> Dict[str, Any]:
     return _serialize_tree_json_node(node, raw)
+
+
+def _dump_right_now_yaml(payload: List[Dict[str, Any]]) -> str:
+    """Serialize right-now YAML without folding long string scalars.
+
+    :param payload: Right-now YAML document root.
+    :type payload: List[Dict[str, Any]]
+    :return: YAML text.
+    :rtype: str
+    """
+    return yaml.dump(
+        payload,
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+        width=RIGHT_NOW_YAML_DUMP_WIDTH,
+    )

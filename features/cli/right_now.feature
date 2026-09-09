@@ -56,6 +56,24 @@ Feature: Right now CLI command
     And the right now YAML item for "kanbus-rn-yflat" should include fields "id,title,type,status,priority,updated_at,right_now_summary,parent"
     And the right now YAML item for "kanbus-rn-yflat" should have right_now_summary "Flat YAML summary."
 
+  Scenario: Flat YAML keeps long right_now_summary on one line
+    Given an issue "kanbus-rn-wrap" exists with title "YAML wrap flat issue with a long title that should remain on one scalar line when serialized"
+    And issue "kanbus-rn-wrap" has right now summary "This is a very long right now summary that should not be wrapped across multiple lines when emitted as YAML from kbs now command output for human readability and parser safety."
+    When I run "kanbus now --status all --list"
+    Then the command should succeed
+    And stdout should be valid YAML
+    And stdout YAML should not fold fields "right_now_summary,title"
+    And the right now YAML item for "kanbus-rn-wrap" should have right_now_summary "This is a very long right now summary that should not be wrapped across multiple lines when emitted as YAML from kbs now command output for human readability and parser safety."
+
+  Scenario: Tree YAML keeps long right_now_summary on one line
+    Given an issue "kanbus-rn-twrap" of type "initiative" with status "open" and parent "kanbus-rn-missing" and title "YAML tree root with a long title that should remain on one scalar line when serialized"
+    And issue "kanbus-rn-twrap" has right now summary "This is a very long right now summary that should not be wrapped across multiple lines when emitted as YAML from kbs now command output for human readability and parser safety."
+    When I run "kanbus now --status all"
+    Then the command should succeed
+    And stdout should be valid YAML
+    And stdout YAML should not fold fields "right_now_summary,title"
+    And the right now YAML tree item for "kanbus-rn-twrap" should have type "initiative"
+
   Scenario: Flat output JIT-generates a missing right-now summary
     Given an issue "kanbus-rn-nosum" exists with title "No summary issue"
     And mock AI is enabled
