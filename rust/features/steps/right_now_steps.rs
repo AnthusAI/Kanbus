@@ -140,6 +140,17 @@ fn then_issue_has_right_now_updated_at(
     assert_eq!(issue.right_now_updated_at, Some(expected_timestamp));
 }
 
+#[then(expr = "issue {string} should have a non-empty right now summary")]
+fn then_issue_has_non_empty_right_now_summary(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let summary = issue
+        .right_now_summary
+        .as_deref()
+        .expect("right now summary");
+    assert!(!summary.trim().is_empty());
+}
+
 #[then(expr = "issue {string} should have no right now summary")]
 fn then_issue_has_no_right_now_summary(world: &mut KanbusWorld, identifier: String) {
     let issue = if let Some(issue) = world.reloaded_issue.clone() {
@@ -223,6 +234,36 @@ fn given_right_now_generation_requires_loaded_openai_credentials(world: &mut Kan
         "KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS".to_string(),
         "1".to_string(),
     );
+}
+
+#[given(expr = "right now generation uses completion {string}")]
+fn given_right_now_generation_uses_completion(world: &mut KanbusWorld, summary: String) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_RIGHT_NOW_COMPLETION".to_string(),
+        summary.clone(),
+    );
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_RIGHT_NOW_COMPLETION")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_RIGHT_NOW_COMPLETION".to_string(),
+            std::env::var("KANBUS_TEST_RIGHT_NOW_COMPLETION").ok(),
+        ));
+    }
+    std::env::set_var("KANBUS_TEST_RIGHT_NOW_COMPLETION", summary);
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_AI_MOCK")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_AI_MOCK".to_string(),
+            std::env::var("KANBUS_TEST_AI_MOCK").ok(),
+        ));
+    }
+    std::env::remove_var("KANBUS_TEST_AI_MOCK");
 }
 
 #[given("right now litellm call tracking is reset")]

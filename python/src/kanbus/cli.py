@@ -3001,6 +3001,12 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
     default=None,
     help="Status filter. Default: in_progress. Use all for every status.",
 )
+@click.option(
+    "--purge",
+    is_flag=True,
+    default=False,
+    help="Clear right_now_summary and right_now_updated_at across the board.",
+)
 def right_now_command(
     issue_ids: tuple[str, ...],
     limit: int | None,
@@ -3012,6 +3018,7 @@ def right_now_command(
     raw: bool,
     as_json: bool,
     status: str | None,
+    purge: bool,
 ) -> None:
     """List recently-updated issues with right-now summaries.
 
@@ -3028,6 +3035,7 @@ def right_now_command(
       kbs now --json                   machine-readable JSON for agents
       kbs now --raw                    titles only, no summaries
       kbs now --status all             every status, not just in-progress
+      kbs now --purge                  clear all right-now summaries on the board
     """
     root = Path.cwd()
     options = RightNowCommandOptions(
@@ -3041,6 +3049,7 @@ def right_now_command(
         recursive=not no_recursive,
         issue_ids=issue_ids,
         status=status,
+        purge=purge,
     )
     try:
         output = run_right_now_command(root, options)

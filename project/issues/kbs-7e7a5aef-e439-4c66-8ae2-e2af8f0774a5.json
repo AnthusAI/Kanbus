@@ -1,0 +1,20 @@
+{
+  "id": "kbs-7e7a5aef-e439-4c66-8ae2-e2af8f0774a5",
+  "title": "Command: purge right-now summaries across board",
+  "description": "Add kbs now --purge to clear right_now_summary and right_now_updated_at across board including virtual_projects.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e2f6d66e-899a-4ec4-862c-538c670b5d5d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:13:39.351247698Z",
+  "updated_at": "2026-09-09T16:13:43.662178869Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

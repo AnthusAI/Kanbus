@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4884c3e2-dc4f-4893-ab51-3ca011ab32a8",
+  "title": "kbs now shows placeholders/mocks instead of fail-closed JIT",
+  "description": "regenerate_right_now_for_issue swallows RightNowError; ensure_right_now_summaries prints placeholder.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e2f6d66e-899a-4ec4-862c-538c670b5d5d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:13:39.252534678Z",
+  "updated_at": "2026-09-09T16:13:43.571924364Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

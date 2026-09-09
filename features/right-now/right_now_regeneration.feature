@@ -100,4 +100,5 @@ Feature: Right now summary regeneration on mutation
     Then the command should succeed
     When I run "kanbus now --status all --list"
     Then the command should succeed
-    And stdout should contain "Mock right-now summary for kanbus-overlay-rn."
+    And stdout should not contain "(no right-now summary)"
+    And issue "kanbus-overlay-rn" should have a non-empty right now summary

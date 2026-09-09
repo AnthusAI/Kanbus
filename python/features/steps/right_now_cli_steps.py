@@ -135,6 +135,26 @@ def then_right_now_json_item_priority_equals(
     assert item.get("priority") == expected
 
 
+@then(
+    'the right now JSON item for "{identifier}" should have a non-empty right_now_summary'
+)
+def then_right_now_json_item_summary_non_empty(
+    context: object, identifier: str
+) -> None:
+    """Verify a flat JSON item has a non-empty right_now_summary value.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier to locate.
+    :type identifier: str
+    """
+    payload = json.loads(_strip_ansi(context.result.stdout))
+    item = _find_flat_json_item(payload, identifier)
+    summary = item.get("right_now_summary")
+    assert isinstance(summary, str)
+    assert summary.strip()
+
+
 @then('the right now JSON item for "{identifier}" should have right_now_summary null')
 def then_right_now_json_item_summary_null(context: object, identifier: str) -> None:
     """Verify a flat JSON item has null right_now_summary.

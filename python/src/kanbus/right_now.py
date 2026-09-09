@@ -37,6 +37,8 @@ AI_PROVIDER_NOT_CONFIGURED_MESSAGE = (
 OPENAI_API_KEY_NOT_LOADED_MESSAGE = (
     "OPENAI_API_KEY was not loaded from repository environment files"
 )
+RIGHT_NOW_DISABLED_MESSAGE = "Right-now summary generation is disabled in .kanbus.yml"
+TEST_RIGHT_NOW_COMPLETION_ENV = "KANBUS_TEST_RIGHT_NOW_COMPLETION"
 
 
 class RightNowError(RuntimeError):
@@ -86,6 +88,19 @@ def get_right_now_summary(issue: IssueData) -> Optional[str]:
     :rtype: Optional[str]
     """
     return issue.right_now_summary
+
+
+def is_persisted_mock_right_now_summary(summary: str, identifier: str) -> bool:
+    """Return whether a summary matches the deterministic test mock pattern.
+
+    :param summary: Summary text to inspect.
+    :type summary: str
+    :param identifier: Issue identifier for the mock template.
+    :type identifier: str
+    :return: True when the summary is a persisted test mock string.
+    :rtype: bool
+    """
+    return summary == mock_right_now_summary_text(identifier)
 
 
 def mock_right_now_summary_text(identifier: str) -> str:
@@ -258,6 +273,10 @@ def generate_right_now_summary(
     model = _resolve_right_now_model(configuration)
     _ensure_openai_credentials_when_required()
 
+    stub_completion = os.environ.get(TEST_RIGHT_NOW_COMPLETION_ENV)
+    if stub_completion is not None:
+        return _truncate_to_max_length(stub_completion.strip(), max_length)
+
     if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
         summary = mock_right_now_summary_text(issue.identifier)
         _record_llm_usage(
@@ -331,36 +350,55 @@ def persist_right_now_summary(
         )
 
 
-def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
+def regenerate_right_now_for_issue(
+    root: Path,
+    issue_identifier: str,
+    *,
+    fail_closed: bool = False,
+) -> None:
     """Regenerate and persist the right-now summary for one issue.
 
-    When generation is disabled or fails, the existing summary is left unchanged.
+    When ``fail_closed`` is false, generation failures leave the existing summary
+    unchanged. When true, failures raise ``RightNowError``.
 
     :param root: Repository root path.
     :type root: Path
     :param issue_identifier: Issue identifier to regenerate.
     :type issue_identifier: str
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
     """
     load_repository_environment(root)
     try:
         configuration = _load_configuration(root)
     except RightNowError:
+        if fail_closed:
+            raise
         return
     if not configuration.right_now.enabled:
+        if fail_closed:
+            raise RightNowError(RIGHT_NOW_DISABLED_MESSAGE)
         return
     try:
         lookup = load_issue_from_project(root, issue_identifier)
-    except IssueLookupError:
+    except IssueLookupError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
         return
     issue = lookup.issue
     try:
         children = load_child_issues(root, issue_identifier)
-    except IssueListingError:
+    except IssueListingError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
         return
     context = build_right_now_context(issue, children)
     try:
         summary = generate_right_now_summary(root, issue, context)
     except RightNowError:
+        if fail_closed:
+            raise
         return
     current_time = datetime.now(timezone.utc)
     try:
@@ -371,8 +409,9 @@ def regenerate_right_now_for_issue(root: Path, issue_identifier: str) -> None:
             summary,
             current_time,
         )
-    except OSError:
-        return
+    except OSError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
 
 
 def right_now_summary_is_missing_or_stale(issue: IssueData) -> bool:
@@ -391,11 +430,108 @@ def right_now_summary_is_missing_or_stale(issue: IssueData) -> bool:
     return issue.updated_at > issue.right_now_updated_at
 
 
+def right_now_summary_needs_regeneration(issue: IssueData) -> bool:
+    """Return whether an issue needs JIT right-now summary regeneration.
+
+    :param issue: Issue to inspect.
+    :type issue: IssueData
+    :return: True when the summary is absent, stale, or a persisted test mock.
+    :rtype: bool
+    """
+    summary = issue.right_now_summary
+    if summary is None or not summary.strip():
+        return True
+    if is_persisted_mock_right_now_summary(summary, issue.identifier):
+        if os.environ.get("KANBUS_TEST_AI_MOCK") != "1":
+            return True
+    return right_now_summary_is_missing_or_stale(issue)
+
+
+def require_display_right_now_summary(issue: IssueData) -> str:
+    """Return the right-now summary for CLI display or raise when invalid.
+
+    :param issue: Issue whose summary is required.
+    :type issue: IssueData
+    :return: Non-empty right-now summary text.
+    :rtype: str
+    :raises RightNowError: When the summary is missing or a persisted test mock.
+    """
+    summary = get_right_now_summary(issue)
+    if summary is None or not summary.strip():
+        raise RightNowError(f"right-now summary missing for {issue.identifier}")
+    if is_persisted_mock_right_now_summary(summary, issue.identifier):
+        if os.environ.get("KANBUS_TEST_AI_MOCK") != "1":
+            raise RightNowError(
+                "persisted test mock right-now summary for "
+                f"{issue.identifier} must be regenerated"
+            )
+    return summary
+
+
+def clear_right_now_summary(
+    project_dir: Path,
+    issue_path: Path,
+    issue_identifier: str,
+) -> None:
+    """Clear right-now summary fields from every live store for an issue.
+
+    :param project_dir: Shared project directory.
+    :type project_dir: Path
+    :param issue_path: Path used by issue lookup (canonical or overlay).
+    :type issue_path: Path
+    :param issue_identifier: Issue identifier whose stores are updated.
+    :type issue_identifier: str
+    """
+    fields = {
+        "right_now_summary": None,
+        "right_now_updated_at": None,
+    }
+    overlay_path = overlay_issue_path(project_dir, issue_identifier)
+    if issue_path.resolve() != overlay_path.resolve() and issue_path.exists():
+        stored_issue = read_issue_from_file(issue_path)
+        write_issue_to_file(stored_issue.model_copy(update=fields), issue_path)
+    overlay_record = load_overlay_issue(project_dir, issue_identifier)
+    if overlay_record is not None:
+        write_overlay_issue(
+            project_dir,
+            overlay_record.issue.model_copy(update=fields),
+            overlay_record.overlay_ts,
+            overlay_record.overlay_event_id,
+        )
+
+
+def purge_right_now_summaries(root: Path) -> int:
+    """Clear right-now summary fields for every issue on the board.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Number of issues whose right-now fields were cleared.
+    :rtype: int
+    :raises IssueListingError: When issue listing fails.
+    :raises IssueLookupError: When an issue cannot be reloaded for writing.
+    """
+    issues = list_issues(root)
+    purged = 0
+    for issue in issues:
+        if issue.right_now_summary is None and issue.right_now_updated_at is None:
+            continue
+        lookup = load_issue_from_project(root, issue.identifier)
+        clear_right_now_summary(
+            lookup.project_dir,
+            lookup.issue_path,
+            issue.identifier,
+        )
+        purged += 1
+    return purged
+
+
 def ensure_right_now_subtree(
     root: Path,
     issue_identifier: str,
     selected_identifiers: Set[str],
     memo: Optional[Dict[str, bool]] = None,
+    *,
+    fail_closed: bool = False,
 ) -> bool:
     """Backfill right-now summaries for an issue after selected descendants.
 
@@ -410,8 +546,11 @@ def ensure_right_now_subtree(
     :type selected_identifiers: Set[str]
     :param memo: Per-walk cache of whether a subtree generated a summary.
     :type memo: Optional[Dict[str, bool]]
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
     :return: True when this subtree generated or refreshed a summary.
     :rtype: bool
+    :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
     """
     if memo is None:
         memo = {}
@@ -419,41 +558,60 @@ def ensure_right_now_subtree(
         return memo[issue_identifier]
     try:
         children = load_child_issues(root, issue_identifier)
-    except IssueListingError:
+    except IssueListingError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
         memo[issue_identifier] = False
         return False
     descendant_generated = False
     for child in children:
         if child.identifier not in selected_identifiers:
             continue
-        if ensure_right_now_subtree(root, child.identifier, selected_identifiers, memo):
+        if ensure_right_now_subtree(
+            root,
+            child.identifier,
+            selected_identifiers,
+            memo,
+            fail_closed=fail_closed,
+        ):
             descendant_generated = True
     try:
         lookup = load_issue_from_project(root, issue_identifier)
-    except IssueLookupError:
+    except IssueLookupError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
         memo[issue_identifier] = False
         return False
-    should_generate = descendant_generated or right_now_summary_is_missing_or_stale(
+    should_generate = descendant_generated or right_now_summary_needs_regeneration(
         lookup.issue
     )
     generated = False
     if should_generate:
         previous_summary = lookup.issue.right_now_summary
         previous_updated = lookup.issue.right_now_updated_at
-        regenerate_right_now_for_issue(root, issue_identifier)
+        regenerate_right_now_for_issue(root, issue_identifier, fail_closed=fail_closed)
         try:
             after = load_issue_from_project(root, issue_identifier).issue
             generated = (
                 after.right_now_summary != previous_summary
                 or after.right_now_updated_at != previous_updated
             )
-        except IssueLookupError:
+            if fail_closed:
+                require_display_right_now_summary(after)
+        except IssueLookupError as error:
+            if fail_closed:
+                raise RightNowError(str(error)) from error
             generated = False
     memo[issue_identifier] = generated or descendant_generated
     return memo[issue_identifier]
 
 
-def ensure_right_now_summaries(root: Path, issue_identifiers: List[str]) -> None:
+def ensure_right_now_summaries(
+    root: Path,
+    issue_identifiers: List[str],
+    *,
+    fail_closed: bool = False,
+) -> None:
     """Backfill right-now summaries for the issues in the current Now view.
 
     Descendants that are not in ``issue_identifiers`` are not generated.
@@ -462,11 +620,20 @@ def ensure_right_now_summaries(root: Path, issue_identifiers: List[str]) -> None
     :type root: Path
     :param issue_identifiers: Issue identifiers in the current Now view.
     :type issue_identifiers: List[str]
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
     """
     selected_identifiers = set(issue_identifiers)
     memo: Dict[str, bool] = {}
     for identifier in issue_identifiers:
-        ensure_right_now_subtree(root, identifier, selected_identifiers, memo)
+        ensure_right_now_subtree(
+            root,
+            identifier,
+            selected_identifiers,
+            memo,
+            fail_closed=fail_closed,
+        )
 
 
 def regenerate_right_now_for_issue_and_ancestors(

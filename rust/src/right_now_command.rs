@@ -13,11 +13,13 @@ use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
-use crate::right_now::{ensure_right_now_summaries, get_right_now_summary};
+use crate::right_now::{
+    ensure_right_now_summaries, purge_right_now_summaries, require_display_right_now_summary,
+};
 use crate::status_semantics::{status_keys_for_semantic_category, SEMANTIC_IN_PROGRESS};
 
-const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
+const PURGE_OUTPUT_TEMPLATE: &str = "Purged right-now summaries for {count} issues";
 const RIGHT_NOW_STATUS_ALL: &str = "all";
 const EMPTY_STATUS_FILTER: &str = "status filter must not be empty";
 const CANNOT_COMBINE_ALL_WITH_LIMIT: &str = "cannot combine --all with --limit";
@@ -49,6 +51,8 @@ pub struct RightNowCommandOptions {
     pub issue_ids: Vec<String>,
     /// Status filter. `None` defaults to in-progress for board listings.
     pub status: Option<String>,
+    /// Whether to clear right-now summary fields across the board.
+    pub purge: bool,
 }
 
 /// Default right-now command options: hierarchical tree with recursive descendants.
@@ -65,6 +69,7 @@ impl Default for RightNowCommandOptions {
             recursive: true,
             issue_ids: Vec::new(),
             status: None,
+            purge: false,
         }
     }
 }
@@ -83,6 +88,13 @@ pub fn run_right_now_command(
 ) -> Result<String, KanbusError> {
     validate_right_now_options(options)?;
     load_repository_environment(root);
+    if options.purge {
+        let purged = purge_right_now_summaries(root)?;
+        return Ok(format!(
+            "{}\n",
+            PURGE_OUTPUT_TEMPLATE.replace("{count}", &purged.to_string())
+        ));
+    }
     let mut issues = select_right_now_issues(root, options)?;
     issues = sort_issues_by_recently_updated(issues);
     let effective_limit = effective_right_now_limit(options);
@@ -94,7 +106,7 @@ pub fn run_right_now_command(
             .iter()
             .map(|issue| issue.identifier.clone())
             .collect();
-        ensure_right_now_summaries(root, &identifiers);
+        ensure_right_now_summaries(root, &identifiers, true)?;
         let mut reloaded = Vec::new();
         for issue in issues {
             match load_issue_from_project(root, &issue.identifier) {
@@ -109,18 +121,18 @@ pub fn run_right_now_command(
     if options.as_json {
         if options.tree {
             let roots = build_right_now_tree(&issues);
-            let payload: Vec<RightNowTreeJsonEntry> = roots
-                .iter()
-                .map(|node| serialize_tree_json_node(node, options.raw))
-                .collect();
+            let mut payload = Vec::new();
+            for node in &roots {
+                payload.push(serialize_tree_json_node(node, options.raw)?);
+            }
             let output = serde_json::to_string_pretty(&payload)
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             return Ok(format!("{output}\n"));
         }
-        let payload: Vec<RightNowFlatJsonEntry> = issues
-            .iter()
-            .map(|issue| serialize_flat_json_entry(issue, options.raw))
-            .collect();
+        let mut payload = Vec::new();
+        for issue in &issues {
+            payload.push(serialize_flat_json_entry(issue, options.raw)?);
+        }
         let output = serde_json::to_string_pretty(&payload)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
         return Ok(format!("{output}\n"));
@@ -129,7 +141,7 @@ pub fn run_right_now_command(
         let roots = build_right_now_tree(&issues);
         let mut lines = Vec::new();
         for node in &roots {
-            render_tree_node(node, tree_expanded, options.raw, 0, &mut lines);
+            render_tree_node(node, tree_expanded, options.raw, 0, &mut lines)?;
         }
         if lines.is_empty() {
             return Ok(String::new());
@@ -139,7 +151,7 @@ pub fn run_right_now_command(
     }
     let mut lines = Vec::new();
     for issue in &issues {
-        render_flat_issue(issue, options.raw, &mut lines);
+        render_flat_issue(issue, options.raw, &mut lines)?;
     }
     if lines.is_empty() {
         return Ok(String::new());
@@ -340,7 +352,11 @@ fn format_updated_at(value: DateTime<Utc>) -> String {
     value.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-fn render_flat_issue(issue: &IssueData, raw: bool, lines: &mut Vec<String>) {
+fn render_flat_issue(
+    issue: &IssueData,
+    raw: bool,
+    lines: &mut Vec<String>,
+) -> Result<(), KanbusError> {
     lines.push(format!(
         "{}  {}  {}",
         format_updated_at(issue.updated_at),
@@ -348,10 +364,11 @@ fn render_flat_issue(issue: &IssueData, raw: bool, lines: &mut Vec<String>) {
         issue.title
     ));
     if raw {
-        return;
+        return Ok(());
     }
-    let summary_text = get_right_now_summary(issue).unwrap_or(RIGHT_NOW_PLACEHOLDER);
+    let summary_text = require_display_right_now_summary(issue)?;
     lines.push(format!("    {summary_text}"));
+    Ok(())
 }
 
 /// Hierarchy node for right-now tree rendering.
@@ -426,7 +443,7 @@ fn render_tree_node(
     raw: bool,
     depth: usize,
     lines: &mut Vec<String>,
-) {
+) -> Result<(), KanbusError> {
     let indent = "  ".repeat(depth);
     let marker = collapse_marker(tree_expanded);
     let issue = &node.issue;
@@ -437,12 +454,13 @@ fn render_tree_node(
         issue.title
     ));
     if !raw {
-        let summary_text = get_right_now_summary(issue).unwrap_or(RIGHT_NOW_PLACEHOLDER);
+        let summary_text = require_display_right_now_summary(issue)?;
         lines.push(format!("{indent}    {summary_text}"));
     }
     for child in &node.children {
-        render_tree_node(child, tree_expanded, raw, depth + 1, lines);
+        render_tree_node(child, tree_expanded, raw, depth + 1, lines)?;
     }
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -459,8 +477,11 @@ struct RightNowFlatJsonEntry {
     parent: Option<String>,
 }
 
-fn serialize_flat_json_entry(issue: &IssueData, raw: bool) -> RightNowFlatJsonEntry {
-    RightNowFlatJsonEntry {
+fn serialize_flat_json_entry(
+    issue: &IssueData,
+    raw: bool,
+) -> Result<RightNowFlatJsonEntry, KanbusError> {
+    Ok(RightNowFlatJsonEntry {
         id: issue.identifier.clone(),
         title: issue.title.clone(),
         issue_type: issue.issue_type.clone(),
@@ -470,10 +491,10 @@ fn serialize_flat_json_entry(issue: &IssueData, raw: bool) -> RightNowFlatJsonEn
         right_now_summary: if raw {
             None
         } else {
-            Some(get_right_now_summary(issue).map(str::to_string))
+            Some(Some(require_display_right_now_summary(issue)?))
         },
         parent: issue.parent.clone(),
-    }
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -486,22 +507,25 @@ struct RightNowTreeJsonEntry {
     children: Vec<RightNowTreeJsonEntry>,
 }
 
-fn serialize_tree_json_node(node: &RightNowTreeNode, raw: bool) -> RightNowTreeJsonEntry {
-    RightNowTreeJsonEntry {
+fn serialize_tree_json_node(
+    node: &RightNowTreeNode,
+    raw: bool,
+) -> Result<RightNowTreeJsonEntry, KanbusError> {
+    let mut children = Vec::new();
+    for child in &node.children {
+        children.push(serialize_tree_json_node(child, raw)?);
+    }
+    Ok(RightNowTreeJsonEntry {
         id: node.issue.identifier.clone(),
         title: node.issue.title.clone(),
         updated_at: format_updated_at(node.issue.updated_at),
         right_now_summary: if raw {
             None
         } else {
-            Some(get_right_now_summary(&node.issue).map(str::to_string))
+            Some(Some(require_display_right_now_summary(&node.issue)?))
         },
-        children: node
-            .children
-            .iter()
-            .map(|child| serialize_tree_json_node(child, raw))
-            .collect(),
-    }
+        children,
+    })
 }
 
 #[cfg(test)]
@@ -575,24 +599,18 @@ mod tests {
     }
 
     #[test]
-    fn render_flat_issue_includes_placeholder_and_raw_omits_summary() {
+    fn render_flat_issue_raw_omits_summary() {
         let issue = make_issue("kanbus-flat", "Flat title");
         let mut lines = Vec::new();
-        render_flat_issue(&issue, false, &mut lines);
-        assert_eq!(lines.len(), 2);
-        assert!(lines[1].contains(RIGHT_NOW_PLACEHOLDER));
-        lines.clear();
-        render_flat_issue(&issue, true, &mut lines);
+        render_flat_issue(&issue, true, &mut lines).expect("render");
         assert_eq!(lines.len(), 1);
     }
 
     #[test]
     fn serialize_flat_json_entry_omits_summary_when_raw() {
         let issue = make_issue("kanbus-json", "JSON title");
-        let raw = serialize_flat_json_entry(&issue, true);
+        let raw = serialize_flat_json_entry(&issue, true).expect("serialize");
         assert!(raw.right_now_summary.is_none());
-        let with_summary = serialize_flat_json_entry(&issue, false);
-        assert_eq!(with_summary.right_now_summary, Some(None));
     }
 
     #[test]
