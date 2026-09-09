@@ -9,8 +9,11 @@ use chrono::{DateTime, TimeZone, Utc};
 use cucumber::{given, then, when};
 use tempfile::TempDir;
 
-use kanbus::gossip::{autostart_mosquitto, DedupeSet, GossipEnvelope};
-use kanbus::models::{IssueData, OverlayConfig};
+use kanbus::gossip::{
+    attempt_mosquitto_missing_warning, attempt_mqtt_publish_without_broker, autostart_mosquitto,
+    mosquitto_missing_warning_count, reset_mosquitto_missing_warning, DedupeSet, GossipEnvelope,
+};
+use kanbus::models::{IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig};
 use kanbus::overlay::{
     gc_overlay, overlay_issue_path, resolve_issue_with_overlay, write_overlay_issue,
     OverlayIssueRecord,
@@ -365,6 +368,107 @@ fn then_subscriber_receives(world: &mut KanbusWorld) {
     let msg = payload.get("msg").expect("msg");
     let received_id = msg.get("id").and_then(|value| value.as_str()).unwrap_or("");
     assert_eq!(Some(received_id.to_string()), world.uds_published_id);
+}
+
+#[given("mosquitto is not available")]
+fn given_mosquitto_not_available(world: &mut KanbusWorld) {
+    reset_mosquitto_missing_warning();
+    std::env::set_var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE", "1");
+    world.mosquitto_unavailable = true;
+}
+
+#[given("realtime autostart is enabled")]
+fn given_realtime_autostart_enabled(_world: &mut KanbusWorld) {}
+
+#[when("I publish gossip envelopes for two issue mutations without a broker")]
+fn when_publish_two_without_broker(world: &mut KanbusWorld) {
+    reset_mosquitto_missing_warning();
+    let configuration = ProjectConfiguration {
+        project_directory: "project".to_string(),
+        virtual_projects: std::collections::BTreeMap::new(),
+        new_issue_project: None,
+        ignore_paths: Vec::new(),
+        console_port: None,
+        project_key: "kanbus".to_string(),
+        name: None,
+        project_management_template: None,
+        hierarchy: Vec::new(),
+        types: Vec::new(),
+        workflows: std::collections::BTreeMap::new(),
+        transition_labels: std::collections::BTreeMap::new(),
+        initial_status: "open".to_string(),
+        priorities: std::collections::BTreeMap::new(),
+        default_priority: 2,
+        assignee: None,
+        time_zone: None,
+        statuses: Vec::new(),
+        categories: Vec::new(),
+        sort_order: std::collections::BTreeMap::new(),
+        type_colors: std::collections::BTreeMap::new(),
+        beads_compatibility: false,
+        wiki_directory: None,
+        ai: None,
+        right_now: kanbus::models::RightNowConfiguration::default(),
+        jira: None,
+        snyk: None,
+        github_security: None,
+        realtime: RealtimeConfig {
+            transport: "mqtt".to_string(),
+            broker: "auto".to_string(),
+            autostart: true,
+            keepalive: false,
+            uds_socket_path: None,
+            mqtt_custom_authorizer_name: None,
+            mqtt_api_token: None,
+            topics: kanbus::models::RealtimeTopics::default(),
+        },
+        overlay: OverlayConfig::default(),
+        hooks: kanbus::models::HooksConfiguration::default(),
+    };
+    let envelope = GossipEnvelope {
+        id: "env-1".to_string(),
+        ts: "2026-01-01T00:00:00Z".to_string(),
+        project: "kanbus".to_string(),
+        event_type: "issue.mutated".to_string(),
+        issue_id: Some("KAN-1".to_string()),
+        event_id: None,
+        producer_id: "producer-1".to_string(),
+        origin_cluster_id: None,
+        issue: None,
+    };
+    let _ =
+        attempt_mqtt_publish_without_broker(&configuration, "projects/kanbus/events", &envelope);
+    let second = GossipEnvelope {
+        id: "env-2".to_string(),
+        ..envelope
+    };
+    let _ = attempt_mqtt_publish_without_broker(&configuration, "projects/kanbus/events", &second);
+    world.mosquitto_hint_count = Some(mosquitto_missing_warning_count());
+}
+
+#[when("I attempt MQTT gossip subscription twice in one session")]
+fn when_attempt_mqtt_subscription_twice(world: &mut KanbusWorld) {
+    reset_mosquitto_missing_warning();
+    attempt_mosquitto_missing_warning();
+    attempt_mosquitto_missing_warning();
+    world.mosquitto_hint_count = Some(mosquitto_missing_warning_count());
+}
+
+#[then("Mosquitto install hints should not be printed")]
+fn then_mosquitto_hints_not_printed(world: &mut KanbusWorld) {
+    assert_eq!(world.mosquitto_hint_count, Some(0));
+}
+
+#[then("Mosquitto install hints should be printed once")]
+fn then_mosquitto_hints_printed_once(world: &mut KanbusWorld) {
+    assert_eq!(world.mosquitto_hint_count, Some(1));
+}
+
+#[then("the realtime guide documents optional Mosquitto")]
+fn then_doc_optional_mosquitto(world: &mut KanbusWorld) {
+    let doc = world.realtime_doc.as_ref().expect("realtime doc");
+    assert!(doc.to_lowercase().contains("optional"));
+    assert!(doc.contains("Mosquitto"));
 }
 
 #[given("mosquitto is available")]

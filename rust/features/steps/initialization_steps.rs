@@ -144,6 +144,8 @@ pub struct KanbusWorld {
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
     pub uds_published_id: Option<String>,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
+    pub mosquitto_hint_count: Option<usize>,
+    pub mosquitto_unavailable: bool,
     pub ai_call_count_after_first_render: Option<usize>,
     pub environment_overrides: BTreeMap<String, String>,
 }
