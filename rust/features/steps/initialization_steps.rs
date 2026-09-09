@@ -87,6 +87,7 @@ pub struct KanbusWorld {
     pub console_local_storage: ConsoleLocalStorage,
     pub console_wiki_state: Option<WikiWorkspaceState>,
     pub console_standup_state: Option<StandupPanelState>,
+    pub console_viewport: Option<(u32, u32)>,
     pub standup_api_status: Option<u16>,
     pub standup_api_response: Option<serde_json::Value>,
     pub now_api_status: Option<u16>,
