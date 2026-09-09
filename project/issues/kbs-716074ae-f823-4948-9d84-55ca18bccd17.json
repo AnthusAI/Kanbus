@@ -1,0 +1,20 @@
+{
+  "id": "kbs-716074ae-f823-4948-9d84-55ca18bccd17",
+  "title": "Index daemon rejects config that validates in-process",
+  "description": "## Problem\n\n`kbs standup` and issue listing fail with `unknown configuration fields` when the daemon answers `index.list`, while the same `.kanbus.yml` validates via `ProjectConfiguration.model_validate`. Workaround: `KANBUS_NO_DAEMON=1`.\n\n## Root cause\n\nStale daemon process from an older binary cannot parse newer config schema fields.\n\n## Fix\n\nDaemon reload/restart on config schema changes and automatic failover to filesystem listing so users never need `KANBUS_NO_DAEMON` for this.\n\n## Acceptance\n\nFrom Kanbus repo root, `kbs standup` works without `KANBUS_NO_DAEMON`.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:48:32.015762481Z",
+  "updated_at": "2026-09-09T19:56:27.284960742Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-923fd4f1-e89f-4762-9b57-1a5cdb44065f",
+  "title": "litellm not declared for uv tool install",
+  "description": "## Problem\n\nAfter `uv tool install --from . kanbus`, JIT/standup fail with `litellm is required for right-now summary generation`. Manual `uv pip install --python <tool-env> litellm` unblocks.\n\n## Fix\n\nDeclare litellm (and any other AI-stack deps needed for `kbs now` / `kbs standup`) in package deps. Curated fail-closed stderr (clear Kanbus message, not raw litellm traceback).\n\n## Acceptance\n\nClean `uv tool install` on fresh env; `kbs now` / `kbs standup` work without manual litellm side-install.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:48:32.010879395Z",
+  "updated_at": "2026-09-09T19:56:27.380736922Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
