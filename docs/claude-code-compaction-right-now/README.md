@@ -25,13 +25,13 @@ From your Kanbus repository root:
 
 ```bash
 mkdir -p .claude/hooks
-cp docs/examples/claude-code-compaction-right-now/kanbus-compaction-right-now.sh .claude/hooks/
+cp docs/claude-code-compaction-right-now/kanbus-compaction-right-now.sh .claude/hooks/
 chmod +x .claude/hooks/kanbus-compaction-right-now.sh
 ```
 
-Merge the `hooks` block from `settings.json` into `.claude/settings.json` (create the file if needed).
+Merge the `hooks` block from `settings.json` into `.claude/settings.json` (create the file if needed). If hook commands run with an unexpected working directory, use an absolute path such as `"$CLAUDE_PROJECT_DIR/.claude/hooks/kanbus-compaction-right-now.sh"` in `settings.json` instead of `.claude/hooks/kanbus-compaction-right-now.sh`.
 
-Ensure `kbs` is on PATH when Claude Code runs hooks. See [AGENTS.md](../../../AGENTS.md) for `tools/install-system.sh`.
+Ensure `kbs` is on PATH when Claude Code runs hooks. See [AGENTS.md](../../AGENTS.md) for `tools/install-system.sh`.
 
 ## Verify
 
