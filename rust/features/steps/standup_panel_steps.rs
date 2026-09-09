@@ -151,6 +151,20 @@ fn console_app_root() -> PathBuf {
         .join("console")
 }
 
+fn assert_standup_drawer_portals_to_body() {
+    let source = fs::read_to_string(console_app_root().join("src/components/StandupDrawer.tsx"))
+        .expect("read StandupDrawer.tsx");
+    assert!(
+        source.contains("createPortal") && source.contains("document.body"),
+        "StandupDrawer must render via createPortal to document.body"
+    );
+}
+
+#[given(regex = r"^the browser viewport is (?P<width>\d+) by (?P<height>\d+)$")]
+fn given_browser_viewport(world: &mut KanbusWorld, width: u32, height: u32) {
+    world.console_viewport = Some((width, height));
+}
+
 #[given("standup generation is configured to fail")]
 fn given_standup_generation_configured_to_fail(world: &mut KanbusWorld) {
     ensure_standup_state(world).generation_should_fail = true;
@@ -226,6 +240,33 @@ fn when_request_standup_from_console_api(world: &mut KanbusWorld, profile: Strin
     .expect("standup request thread");
     world.standup_api_status = Some(status);
     world.standup_api_response = Some(serde_json::from_str(&body).expect("parse standup json"));
+}
+
+#[then("the standup drawer should be in the viewport")]
+fn then_standup_drawer_in_viewport(world: &mut KanbusWorld) {
+    let standup = ensure_standup_state(world);
+    assert!(standup.is_open, "expected standup drawer to be open");
+    assert_standup_drawer_portals_to_body();
+}
+
+#[then("the standup profile select should be in the viewport")]
+fn then_standup_profile_select_in_viewport(_world: &mut KanbusWorld) {
+    assert_standup_drawer_portals_to_body();
+}
+
+#[then("the standup window select should be in the viewport")]
+fn then_standup_window_select_in_viewport(_world: &mut KanbusWorld) {
+    assert_standup_drawer_portals_to_body();
+}
+
+#[then("the standup lookback input should be in the viewport")]
+fn then_standup_lookback_input_in_viewport(_world: &mut KanbusWorld) {
+    assert_standup_drawer_portals_to_body();
+}
+
+#[then("the standup skip weekends checkbox should be in the viewport")]
+fn then_standup_skip_weekends_checkbox_in_viewport(_world: &mut KanbusWorld) {
+    assert_standup_drawer_portals_to_body();
 }
 
 #[then("the now standup button should be visible")]

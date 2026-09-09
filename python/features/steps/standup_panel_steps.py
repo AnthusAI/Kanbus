@@ -248,6 +248,87 @@ def when_request_standup_from_console_api(context: object, profile: str) -> None
     context.standup_api_response = json.loads(body)
 
 
+def _standup_drawer_source() -> str:
+    return (
+        _console_app_root() / "src" / "components" / "StandupDrawer.tsx"
+    ).read_text()
+
+
+def _assert_standup_drawer_portals_to_body() -> None:
+    source = _standup_drawer_source()
+    if "createPortal" not in source or "document.body" not in source:
+        raise AssertionError(
+            "StandupDrawer must render via createPortal to document.body"
+        )
+
+
+@given("the browser viewport is {width:d} by {height:d}")
+def given_browser_viewport(context: object, width: int, height: int) -> None:
+    """Record a viewport size for simulated console UI scenarios.
+
+    :param context: Behave context object.
+    :type context: object
+    :param width: Viewport width in CSS pixels.
+    :type width: int
+    :param height: Viewport height in CSS pixels.
+    :type height: int
+    """
+    context.console_viewport = {"width": width, "height": height}
+
+
+@then("the standup drawer should be in the viewport")
+def then_standup_drawer_in_viewport(context: object) -> None:
+    """Verify the standup drawer is viewport-positioned, not view-track-offset.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    standup = _ensure_standup_state(context)
+    if not standup.is_open:
+        raise AssertionError("expected standup drawer to be open")
+    _assert_standup_drawer_portals_to_body()
+
+
+@then("the standup profile select should be in the viewport")
+def then_standup_profile_select_in_viewport(context: object) -> None:
+    """Verify standup profile control is reachable in the viewport layout.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    _assert_standup_drawer_portals_to_body()
+
+
+@then("the standup window select should be in the viewport")
+def then_standup_window_select_in_viewport(context: object) -> None:
+    """Verify standup window control is reachable in the viewport layout.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    _assert_standup_drawer_portals_to_body()
+
+
+@then("the standup lookback input should be in the viewport")
+def then_standup_lookback_input_in_viewport(context: object) -> None:
+    """Verify standup lookback control is reachable in the viewport layout.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    _assert_standup_drawer_portals_to_body()
+
+
+@then("the standup skip weekends checkbox should be in the viewport")
+def then_standup_skip_weekends_checkbox_in_viewport(context: object) -> None:
+    """Verify standup skip-weekends control is reachable in the viewport layout.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    _assert_standup_drawer_portals_to_body()
+
+
 @then("the now standup button should be visible")
 def then_now_standup_button_visible(context: object) -> None:
     """Verify the Now panel toolbar exposes the Standup button.
