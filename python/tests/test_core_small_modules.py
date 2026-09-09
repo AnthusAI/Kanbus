@@ -55,6 +55,7 @@ def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
     )
     monkeypatch.setattr(doctor, "load_project_configuration", lambda _path: object())
+    monkeypatch.setattr(doctor, "validate_project", lambda _root: None)
 
     result = doctor.run_doctor(tmp_path)
     assert result.project_dir == expected_dir
@@ -205,7 +206,10 @@ def test_validate_status_value_checks_known_and_allowed_statuses() -> None:
         workflows.validate_status_value(configuration, "task", "nope")
 
     configuration.workflows["task"] = {"open": ["in_progress"]}
-    with pytest.raises(workflows.InvalidTransitionError, match="invalid transition"):
+    with pytest.raises(
+        workflows.InvalidTransitionError,
+        match="status 'closed' is not allowed for type 'task'",
+    ):
         workflows.validate_status_value(configuration, "task", "closed")
 
 

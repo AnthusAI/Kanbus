@@ -880,7 +880,10 @@ def update(
 
             if configuration and proposed_issue.status != before_issue.status:
                 validate_status_value(
-                    configuration, proposed_issue.issue_type, proposed_issue.status
+                    configuration,
+                    proposed_issue.issue_type,
+                    proposed_issue.status,
+                    proposed_issue.identifier,
                 )
                 validate_status_transition(
                     configuration,
