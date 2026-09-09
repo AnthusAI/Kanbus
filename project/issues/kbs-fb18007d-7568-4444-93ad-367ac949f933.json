@@ -1,0 +1,20 @@
+{
+  "id": "kbs-fb18007d-7568-4444-93ad-367ac949f933",
+  "title": "Standup time windows follow-ups (PR #254 soft nits)",
+  "description": "Non-blocking follow-ups from SD acceptance of PR #254 (window/lookback/skip_weekends dual-runtime). Do not block merge; track polish and parity debt.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T21:25:44.354901701Z",
+  "updated_at": "2026-09-09T21:25:44.362699828Z",
+  "closed_at": null,
+  "right_now_summary": "The team is polishing runtime parity, docs, UI defaults, timezone matching, flag parsing, and lookback migration.",
+  "right_now_updated_at": "2026-09-09T21:26:36.705834113Z",
+  "custom": {}
+}

@@ -22,8 +22,8 @@
   "created_at": "2026-09-09T16:03:53.845499622Z",
   "updated_at": "2026-09-09T17:17:24.575290357Z",
   "closed_at": null,
-  "right_now_summary": "The JIT gate is cleared, and the shared standup pipeline and console drawer are moving forward.",
-  "right_now_updated_at": "2026-09-09T20:12:28.892742331Z",
+  "right_now_summary": "The JIT gate is cleared, and the team is building shared standup profiles and Console delivery.",
+  "right_now_updated_at": "2026-09-09T21:26:39.335037339Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
