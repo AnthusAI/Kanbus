@@ -1,0 +1,21 @@
+{
+  "id": "kbs-a7156690-6f59-420a-8703-951819c7ff16",
+  "title": "Reconcile #261 commit message vs post-rebase diff (ruff F401 claim)",
+  "description": "SD soft nit on #261: commit body cites ruff F401 unused-import removals, but post-rebase diff vs develop no longer shows those import removals (likely landed via #250 or rebase drop). Amend message on follow-up or document.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c328f3c6-3997-4155-9007-232daef0e3fd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T23:25:17.529196Z",
+  "updated_at": "2026-09-09T23:25:17.570075Z",
+  "closed_at": null,
+  "right_now_summary": "The commit message still claims F401 removals that no longer appear in the rebased diff.",
+  "right_now_updated_at": "2026-09-09T23:25:22.095013Z",
+  "custom": {},
+  "agent": null
+}
