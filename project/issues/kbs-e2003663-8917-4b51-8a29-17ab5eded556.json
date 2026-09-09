@@ -1,0 +1,21 @@
+{
+  "id": "kbs-e2003663-8917-4b51-8a29-17ab5eded556",
+  "title": "Standup fail path: prefer KANBUS_TEST_STANDUP_FAIL over Playwright page.route",
+  "description": "SD soft nit on #259: fail scenario currently uses Playwright page.route mock; prefer env-driven KANBUS_TEST_STANDUP_FAIL (or equivalent) for parity with other harnesses.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b70842c5-fcb8-4774-b04c-b305f60a5997",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T22:16:40.037071Z",
+  "updated_at": "2026-09-09T22:16:40.075115Z",
+  "closed_at": null,
+  "right_now_summary": "The fail scenario still uses Playwright routing instead of the preferred environment-driven test flag.",
+  "right_now_updated_at": "2026-09-09T22:16:46.034974Z",
+  "custom": {},
+  "agent": null
+}
