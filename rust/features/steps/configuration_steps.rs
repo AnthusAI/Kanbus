@@ -871,6 +871,20 @@ fn then_ai_provider_matches(world: &mut KanbusWorld, expected: String) {
     );
 }
 
+#[then(expr = "the AI model should be {string}")]
+fn then_ai_model_matches(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let ai = configuration
+        .ai
+        .as_ref()
+        .expect("no AI configuration in .kanbus.yml");
+    assert_eq!(
+        ai.model, expected,
+        "expected AI model '{}', got '{}'",
+        expected, ai.model
+    );
+}
+
 #[then(expr = "the right now configuration should have enabled {word}")]
 fn then_right_now_enabled(world: &mut KanbusWorld, expected: String) {
     let configuration = world.configuration.as_ref().expect("configuration");

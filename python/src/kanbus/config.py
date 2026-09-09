@@ -142,11 +142,15 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     },
     "beads_compatibility": False,
     "wiki_directory": None,
+    "ai": {
+        "provider": "litellm",
+        "model": "gpt-5.6-luna",
+    },
     "right_now": {
         "enabled": True,
         "default_tree_expanded": False,
         "max_length": 120,
-        "model": None,
+        "model": "gpt-5.6-luna",
     },
     "github_security": None,
 }

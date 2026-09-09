@@ -164,6 +164,24 @@ priority_import_aliases:
 priority_accept_unmapped: false
 ```
 
+## AI and right-now defaults
+
+Kanbus routes LLM calls through LiteLLM (`ai.provider: litellm`). The product default model is `gpt-5.6-luna` (OpenAI via `OPENAI_API_KEY`).
+
+```yaml
+ai:
+  provider: litellm
+  model: gpt-5.6-luna
+
+right_now:
+  enabled: true
+  default_tree_expanded: false
+  max_length: 120
+  model: gpt-5.6-luna
+```
+
+Set `OPENAI_API_KEY` in the environment, project `.env`, or `~/.kanbus.env`. Do not commit API keys to `.kanbus.yml`.
+
 ## Optional sync sections
 
 ```yaml
