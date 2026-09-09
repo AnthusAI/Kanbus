@@ -348,12 +348,20 @@ def when_publish_two_without_broker(context: object) -> None:
 
     reset_mosquitto_missing_warning()
     configuration = ProjectConfiguration(
+        project_directory="project",
+        project_key="kanbus",
+        hierarchy=[],
+        types=[],
+        workflows={},
+        initial_status="open",
+        priorities={},
+        default_priority=2,
         realtime=RealtimeConfig(
             transport="mqtt",
             broker="auto",
             autostart=True,
             keepalive=False,
-        )
+        ),
     )
     import kanbus.gossip as gossip_module
 
