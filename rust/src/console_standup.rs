@@ -3,25 +3,32 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::console_backend::FileStore;
 use crate::error::KanbusError;
 use crate::standup::{
     build_standup_report, collect_right_now_texts, ensure_standup_summaries, format_standup_text,
-    load_issue_event_records, load_standup_configuration, resolve_standup_lookback_hours,
-    resolve_standup_profile, DEFAULT_STANDUP_LOOKBACK_HOURS,
+    load_issue_event_records, load_standup_configuration, resolve_standup_profile,
 };
 use crate::standup_command::{select_standup_fact_feed, StandupCommandOptions};
+use crate::standup_window::{
+    StandupWindowOverrides, resolve_standup_report_time, resolve_standup_window_settings,
+};
 
 /// Request body for generating a standup report from the console API.
 ///
 /// # Fields
 /// * `profile` - Optional standup profile identifier (`meeting-script` or `director-brief`)
+/// * `window` - Optional standup window mode override
+/// * `lookback` - Optional rolling lookback duration override
+/// * `skip_weekends` - Optional skip-weekends override
 #[derive(Debug, Clone, Deserialize)]
 pub struct StandupGenerateRequest {
     pub profile: Option<String>,
+    pub window: Option<String>,
+    pub lookback: Option<String>,
+    pub skip_weekends: Option<bool>,
 }
 
 /// A standup report section in console API responses.
@@ -68,10 +75,13 @@ pub fn generate_standup_report(
     let root = store.root();
     let profile = resolve_standup_profile(request.profile.as_deref())?;
     let configuration = load_standup_configuration(root)?;
-    let mut lookback_hours = resolve_standup_lookback_hours(&configuration);
-    if lookback_hours == 0 {
-        lookback_hours = DEFAULT_STANDUP_LOOKBACK_HOURS;
-    }
+    let window_overrides = StandupWindowOverrides {
+        window: request.window.clone(),
+        lookback: request.lookback.clone(),
+        skip_weekends: request.skip_weekends,
+    };
+    let window_settings =
+        resolve_standup_window_settings(&configuration, Some(&profile), &window_overrides)?;
     let options = StandupCommandOptions::default();
     let issues = select_standup_fact_feed(root, &options)?;
     let issues = ensure_standup_summaries(root, &issues)?;
@@ -83,14 +93,14 @@ pub fn generate_standup_report(
             load_issue_event_records(root, &issue.identifier),
         );
     }
-    let report_time = Utc::now();
+    let report_time = resolve_standup_report_time()?;
     let report = build_standup_report(
         &profile,
         &issues,
         &right_now_texts,
         &events_by_issue,
         report_time,
-        lookback_hours,
+        &window_settings,
         false,
     );
     let text = format_standup_text(&report);

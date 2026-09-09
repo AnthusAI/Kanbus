@@ -141,21 +141,34 @@ impl Default for RightNowConfiguration {
     }
 }
 
-fn default_standup_lookback_hours() -> u32 {
-    24
+fn default_standup_window() -> String {
+    String::from("rolling")
+}
+
+fn default_standup_lookback() -> String {
+    String::from("24h")
 }
 
 /// On-demand standup report configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StandupConfiguration {
-    #[serde(default = "default_standup_lookback_hours")]
-    pub lookback_hours: u32,
+    #[serde(default = "default_standup_window")]
+    pub window: String,
+    #[serde(default = "default_standup_lookback")]
+    pub lookback: String,
+    #[serde(default)]
+    pub skip_weekends: bool,
+    #[serde(default)]
+    pub timezone: Option<String>,
 }
 
 impl Default for StandupConfiguration {
     fn default() -> Self {
         Self {
-            lookback_hours: default_standup_lookback_hours(),
+            window: default_standup_window(),
+            lookback: default_standup_lookback(),
+            skip_weekends: false,
+            timezone: None,
         }
     }
 }

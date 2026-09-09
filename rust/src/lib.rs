@@ -68,6 +68,7 @@ pub mod right_now_command;
 pub mod snyk_sync;
 pub mod standup;
 pub mod standup_command;
+pub mod standup_window;
 pub mod status_semantics;
 pub mod summarize;
 pub mod text_editor;

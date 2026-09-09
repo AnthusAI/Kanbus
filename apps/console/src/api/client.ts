@@ -253,6 +253,14 @@ export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
 }
 
 export type StandupProfile = "meeting-script" | "director-brief";
+export type StandupWindow = "rolling" | "calendar";
+
+export type StandupGenerateRequest = {
+  profile?: StandupProfile;
+  window?: StandupWindow;
+  lookback?: string;
+  skip_weekends?: boolean;
+};
 
 export type StandupSectionResponse = {
   name: string;
@@ -269,12 +277,12 @@ export type StandupGenerateResponse = {
 
 export async function generateStandupReport(
   apiBase: string,
-  profile: StandupProfile
+  request: StandupGenerateRequest
 ): Promise<StandupGenerateResponse> {
   const response = await fetchWithAuth(`${apiBase}/standup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profile }),
+    body: JSON.stringify(request),
   });
   if (!response.ok) {
     let message = `standup request failed: ${response.status}`;

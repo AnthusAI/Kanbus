@@ -19,6 +19,12 @@ from kanbus.standup import (
     format_standup_text,
     resolve_standup_profile,
 )
+from kanbus.standup_window import (
+    DEFAULT_STANDUP_LOOKBACK,
+    ROLLING_WINDOW,
+    StandupWindowSettings,
+)
+from zoneinfo import ZoneInfo
 from kanbus.standup_command import STANDUP_DEFAULT_STATUS_FILTER
 
 from features.steps.console_ui_steps import (
@@ -114,13 +120,20 @@ def _generate_from_console_state(
     profile = resolve_standup_profile(profile_name)
     issues = _standup_fact_feed_issues(console_state)
     right_now_texts = collect_right_now_texts(issues)
+    window_settings = StandupWindowSettings(
+        window=ROLLING_WINDOW,
+        lookback=DEFAULT_STANDUP_LOOKBACK,
+        lookback_hours=24,
+        skip_weekends=False,
+        timezone=ZoneInfo("UTC"),
+    )
     report = build_standup_report(
         profile,
         issues,
         right_now_texts,
         {},
         datetime.now(timezone.utc),
-        24,
+        window_settings,
         False,
     )
     section_names = [section.name for section in report.sections]
