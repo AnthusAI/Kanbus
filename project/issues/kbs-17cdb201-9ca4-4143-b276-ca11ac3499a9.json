@@ -1,0 +1,21 @@
+{
+  "id": "kbs-17cdb201-9ca4-4143-b276-ca11ac3499a9",
+  "title": "Standup Yesterday scenarios: stop using --window rolling with calendar-day semantics",
+  "description": "SD soft nit on #261: scenarios still say When ... --window rolling while describing calendar-day Yesterday \u2014 switch to calendar window or profile default.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c328f3c6-3997-4155-9007-232daef0e3fd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T23:25:05.887851Z",
+  "updated_at": "2026-09-09T23:25:05.926141Z",
+  "closed_at": null,
+  "right_now_summary": "The scenarios still use `--window rolling` for calendar-day Yesterday and need a calendar window or profile default.",
+  "right_now_updated_at": "2026-09-09T23:25:11.097121Z",
+  "custom": {},
+  "agent": null
+}
