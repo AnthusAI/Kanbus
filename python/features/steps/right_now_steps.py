@@ -366,6 +366,28 @@ def given_right_now_generation_requires_loaded_openai_credentials(
     overrides["KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS"] = "1"
 
 
+@given('right now native litellm test completion is "{summary}"')
+def given_right_now_native_litellm_test_completion(
+    context: object, summary: str
+) -> None:
+    """Stub native LiteLLM completion for dual-runtime generation tests.
+
+    :param context: Behave context object.
+    :type context: object
+    :param summary: Completion text returned by the LiteLLM layer.
+    :type summary: str
+    """
+    from features.steps.configuration_steps import _track_env_restore
+
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    _track_env_restore(context, "KANBUS_TEST_LITELLM_COMPLETION")
+    overrides["KANBUS_TEST_LITELLM_COMPLETION"] = summary
+    os.environ["KANBUS_TEST_LITELLM_COMPLETION"] = summary
+
+
 @given('right now generation uses completion "{summary}"')
 def given_right_now_generation_uses_completion(context: object, summary: str) -> None:
     """Stub right-now generation with a fixed completion string.
