@@ -145,3 +145,17 @@ def test_run_right_now_command_fails_when_summary_missing_after_reload(
             tmp_path,
             RightNowCommandOptions(tree=False, recursive=True),
         )
+
+
+def test_run_right_now_command_purge_returns_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kanbus.right_now_command.purge_right_now_summaries",
+        lambda *_a: 3,
+    )
+    output = run_right_now_command(
+        tmp_path,
+        RightNowCommandOptions(purge=True),
+    )
+    assert output == "Purged right-now summaries for 3 issues\n"
