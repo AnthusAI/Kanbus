@@ -13,10 +13,12 @@ from kanbus.issue_listing import IssueListingError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.right_now import (
     AI_PROVIDER_NOT_CONFIGURED_MESSAGE,
+    OPENAI_API_KEY_NOT_LOADED_MESSAGE,
     RightNowError,
     _bound_activity_text,
     _build_right_now_prompt,
     _ensure_litellm_provider,
+    _ensure_openai_credentials_when_required,
     _resolve_right_now_model,
     _select_recent_non_summary_comments,
     _truncate_to_max_length,
@@ -434,6 +436,49 @@ def test_regenerate_skips_when_persist_fails(
     )
     regenerate_right_now_for_issue(tmp_path, "kanbus-persist")
     assert issue.right_now_summary == "Previous summary."
+
+
+def test_ensure_openai_credentials_when_required_enforces_loaded_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS", "1")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(RightNowError, match=OPENAI_API_KEY_NOT_LOADED_MESSAGE):
+        _ensure_openai_credentials_when_required()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "from-test")
+    _ensure_openai_credentials_when_required()
+
+
+def test_ensure_openai_credentials_when_required_skips_without_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _ensure_openai_credentials_when_required()
+
+
+def test_ensure_right_now_subtree_handles_lookup_and_listing_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_args: (_ for _ in ()).throw(IssueListingError("missing children")),
+    )
+    assert (
+        ensure_right_now_subtree(tmp_path, "kanbus-missing", {"kanbus-missing"})
+        is False
+    )
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_args: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_args: (_ for _ in ()).throw(IssueLookupError("missing issue")),
+    )
+    assert (
+        ensure_right_now_subtree(tmp_path, "kanbus-missing", {"kanbus-missing"})
+        is False
+    )
 
 
 def test_completion_requires_litellm_and_handles_empty_and_usage(
