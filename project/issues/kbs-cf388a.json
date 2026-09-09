@@ -1,0 +1,20 @@
+{
+  "id": "kbs-cf388a",
+  "title": "Optional Mosquitto missing: stop spamming every kbs command",
+  "description": "Ryan 2026-09-09 dogfood: when Mosquitto is not installed, kbs prints a warning on every command invocation.\n\nExample seen during dogfood:\nMosquitto not found. Install with: brew install mosquitto (macOS) or apt install mosquitto (Debian/Ubuntu).\n\n## Expected\n\nMosquitto is optional for console pub/sub. Warn once per session, only when a command actually needs MQTT, or gate behind an explicit diagnostic flag.\n\n## Observed\n\nThe install hint repeats on routine commands such as create, show, and list, adding noise to agent transcripts.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f042e3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T13:11:07.189413927Z",
+  "updated_at": "2026-09-09T13:11:07.197002537Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

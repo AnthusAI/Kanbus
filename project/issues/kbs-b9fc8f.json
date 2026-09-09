@@ -1,0 +1,20 @@
+{
+  "id": "kbs-b9fc8f",
+  "title": "Docs: Markus render binary is not PyPI markus",
+  "description": "Ryan 2026-09-09 dogfood: docs and onboarding do not distinguish the Kanbus Markus render binary from the unrelated PyPI package named markus.\n\n## Problem\n\nAgents and contributors may pip install markus expecting the render toolchain, or search docs for Markus and land on the wrong project.\n\n## Expected\n\nDocumentation should name the render binary explicitly, state that it is not the PyPI markus package, and point to the correct install or build path for the Kanbus renderer.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f042e3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T13:11:07.199732325Z",
+  "updated_at": "2026-09-09T13:11:07.206689205Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
