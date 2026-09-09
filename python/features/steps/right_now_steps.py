@@ -375,12 +375,16 @@ def given_right_now_generation_uses_completion(context: object, summary: str) ->
     :param summary: Completion text returned by generation.
     :type summary: str
     """
+    from features.steps.configuration_steps import _track_env_restore
+
     overrides = getattr(context, "environment_overrides", None)
     if overrides is None:
         context.environment_overrides = {}
         overrides = context.environment_overrides
+    _track_env_restore(context, "KANBUS_TEST_RIGHT_NOW_COMPLETION")
     overrides["KANBUS_TEST_RIGHT_NOW_COMPLETION"] = summary
     os.environ["KANBUS_TEST_RIGHT_NOW_COMPLETION"] = summary
+    _track_env_restore(context, "KANBUS_TEST_AI_MOCK")
     os.environ.pop("KANBUS_TEST_AI_MOCK", None)
 
 
