@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { StatusTree } from "@kanbus/ui";
 import type { KanbanConfig } from "@kanbus/ui";
 import type { Issue, ProjectConfig } from "../types/issues";
+import { StandupDrawer } from "./StandupDrawer";
 
 const RIGHT_NOW_PLACEHOLDER = "(no right-now summary)";
 const DEFAULT_STATUS_FEED_LIMIT = 30;
@@ -17,6 +18,7 @@ interface CurrentStatusPanelProps {
   defaultTreeExpanded?: boolean;
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
+  apiBase?: string;
 }
 
 function toKanbanConfig(config: ProjectConfig): KanbanConfig {
@@ -120,6 +122,7 @@ export function CurrentStatusPanel({
   defaultTreeExpanded = false,
   onSelectIssue,
   selectedIssueId = null,
+  apiBase = "",
 }: CurrentStatusPanelProps) {
   const kanbanConfig = useMemo(
     () => (config ? toKanbanConfig(config) : undefined),
@@ -128,6 +131,7 @@ export function CurrentStatusPanel({
   const statuses = config?.statuses ?? [];
   const [treeViewEnabled, setTreeViewEnabled] = useState(true);
   const [statusFilter, setStatusFilter] = useState(DEFAULT_NOW_STATUS_FILTER);
+  const [standupOpen, setStandupOpen] = useState(false);
   const visibleIssues = useMemo(() => {
     if (statusFilter === NOW_STATUS_FILTER_ALL) {
       return issues;
@@ -179,8 +183,21 @@ export function CurrentStatusPanel({
           />
           <span>Tree</span>
         </label>
+        <button
+          type="button"
+          className="now-standup-button"
+          data-testid="now-standup-button"
+          onClick={() => setStandupOpen(true)}
+        >
+          Standup
+        </button>
         </div>
       </div>
+      <StandupDrawer
+        apiBase={apiBase}
+        isOpen={standupOpen}
+        onClose={() => setStandupOpen(false)}
+      />
       {treeViewEnabled ? (
         <StatusTree
           issues={treeIssues}

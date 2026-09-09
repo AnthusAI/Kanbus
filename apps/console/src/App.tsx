@@ -2075,6 +2075,7 @@ export default function App() {
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}
                     selectedIssueId={selectedTask?.id ?? null}
+                    apiBase={apiBase}
                   />
                 </div>
               </div>

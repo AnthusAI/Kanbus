@@ -1,0 +1,20 @@
+{
+  "id": "kbs-706d519b-83b8-46e3-8cd5-144d0af0b2e4",
+  "title": "Console Standup embedded in Now panel",
+  "description": "Gherkin-first console standup drawer on Current Status panel with POST /api/standup using shared standup pipeline.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e7abbe",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:58:30.454957720Z",
+  "updated_at": "2026-09-09T19:58:42.616473652Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
