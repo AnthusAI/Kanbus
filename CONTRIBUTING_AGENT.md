@@ -349,6 +349,8 @@ Severity is not emotion. It is signal.
 
 The wiki lives under project/wiki/. You may edit Markdown files there directly.
 
+Wiki HTML uses **Markus** (Anthus-Flavored Markdown, package `anthus-markus` / `markusmd.convert`). **Do not `pip install markus`** — the PyPI `markus` package is an unrelated metrics library. See [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md#markus-renderer-not-pypi-markus) for the correct dependency, install path, and smoke-test commands (`kbs wiki render ... --html`).
+
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.
 - Use `kbs wiki list` to discover wiki pages.
