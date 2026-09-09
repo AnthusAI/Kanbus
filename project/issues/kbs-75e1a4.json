@@ -3,18 +3,29 @@
   "title": "Right-now elicitation guidance for coding agents",
   "description": "Coding agents need lightweight, always-current awareness of board state without opening every issue. This initiative establishes guidance for when and how agents should surface right-now summaries — especially via compaction hooks — and clarifies the two operating modes.\n\n## Product rule (Ryan 2026-09-09)\n\n**Compaction-hook injection** must deliver a **whole-project WIP summary** (general board awareness), not a pinned-issue-scoped summary.\n\nWhen an agent runs `kbs now` (or `kbs right-now`) on its own initiative, it may scope to its own work for focused WIP.\n\nAgents must understand both modes:\n1. **Compaction hooks** — whole-project WIP (board-wide awareness after context loss)\n2. **On-demand `kbs now`** — agent may scope to its own assigned/in-progress work for focused WIP\n\nCompaction should be followed by whole-project WIP so the agent regains general board context, not just the issue it was pinned to.",
   "type": "initiative",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "4caaf516-1b25-4345-9932-46e10f2f46cf",
+      "author": "ubuntu",
+      "text": "Merged PR #234 to develop at 32959eece349f5e2e82fc7dff884c4b6a87d45e5. Agent compaction right-now docs and Claude Code example shipped; initiative complete.",
+      "created_at": "2026-09-09T12:36:57.146333156Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T11:38:18.012806317Z",
-  "updated_at": "2026-09-09T11:38:18.021523112Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T12:36:57.146350296Z",
+  "closed_at": "2026-09-09T12:36:51.855923849Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
