@@ -13,8 +13,13 @@ from kanbus.issue_listing import list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.console_snapshot import _active_right_now_tree
 from kanbus.queries import sort_issues_by_recently_updated
-from kanbus.right_now import ensure_right_now_summaries, get_right_now_summary
+from kanbus.right_now import (
+    ensure_right_now_summaries,
+    ensure_right_now_summary_subtrees,
+    get_right_now_summary,
+)
 
 RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 DEFAULT_RIGHT_NOW_LIMIT = 30
@@ -94,20 +99,35 @@ def run_right_now_command(
     issues = _select_right_now_issues(root, options)
     sorted_issues = sort_issues_by_recently_updated(issues)
     effective_limit = _effective_right_now_limit(options)
-    if effective_limit > 0:
-        sorted_issues = sorted_issues[:effective_limit]
     if not options.raw:
-        ensure_right_now_summaries(
-            root,
-            [issue.identifier for issue in sorted_issues],
-        )
-        reloaded: List[IssueData] = []
-        for issue in sorted_issues:
-            try:
-                reloaded.append(load_issue_from_project(root, issue.identifier).issue)
-            except IssueLookupError:
-                reloaded.append(issue)
-        sorted_issues = reloaded
+        if options.issue_ids:
+            if effective_limit > 0:
+                sorted_issues = sorted_issues[:effective_limit]
+            ensure_right_now_summaries(
+                root,
+                [issue.identifier for issue in sorted_issues],
+            )
+            sorted_issues = _reload_right_now_issues(root, sorted_issues)
+        else:
+            all_issues = list_issues(root)
+            _roots, selected_identifiers = _active_right_now_tree(all_issues)
+            ensure_right_now_summary_subtrees(root, list(_roots), selected_identifiers)
+            issues_by_identifier = {issue.identifier: issue for issue in all_issues}
+            expanded_issues: List[IssueData] = []
+            for identifier in selected_identifiers:
+                try:
+                    expanded_issues.append(
+                        load_issue_from_project(root, identifier).issue
+                    )
+                except IssueLookupError:
+                    fallback = issues_by_identifier.get(identifier)
+                    if fallback is not None:
+                        expanded_issues.append(fallback)
+            sorted_issues = sort_issues_by_recently_updated(expanded_issues)
+            if effective_limit > 0:
+                sorted_issues = sorted_issues[:effective_limit]
+    elif effective_limit > 0:
+        sorted_issues = sorted_issues[:effective_limit]
     configuration = _load_configuration(root)
     tree_expanded = _resolve_tree_expanded(options, configuration)
     if options.as_json:
@@ -133,6 +153,25 @@ def run_right_now_command(
         for line in _render_flat_issue(issue, raw=options.raw)
     ]
     return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _reload_right_now_issues(root: Path, issues: List[IssueData]) -> List[IssueData]:
+    """Reload issue payloads after just-in-time summary backfill.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issues: Issues to reload.
+    :type issues: List[IssueData]
+    :return: Reloaded issues in the same order.
+    :rtype: List[IssueData]
+    """
+    reloaded: List[IssueData] = []
+    for issue in issues:
+        try:
+            reloaded.append(load_issue_from_project(root, issue.identifier).issue)
+        except IssueLookupError:
+            reloaded.append(issue)
+    return reloaded
 
 
 def _validate_right_now_options(options: RightNowCommandOptions) -> None:

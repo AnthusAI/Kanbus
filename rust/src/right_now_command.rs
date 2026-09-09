@@ -7,6 +7,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 
 use crate::config_loader::load_project_configuration;
+use crate::console_backend::active_right_now_tree;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_listing::list_issues;
@@ -14,7 +15,8 @@ use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::{
-    ensure_right_now_summaries, get_right_now_summary, DEFAULT_RIGHT_NOW_STATUS,
+    ensure_right_now_summaries, ensure_right_now_summary_subtrees, get_right_now_summary,
+    DEFAULT_RIGHT_NOW_STATUS,
 };
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
@@ -86,23 +88,62 @@ pub fn run_right_now_command(
     let mut issues = select_right_now_issues(root, options)?;
     issues = sort_issues_by_recently_updated(issues);
     let effective_limit = effective_right_now_limit(options);
-    if effective_limit > 0 {
-        issues.truncate(effective_limit);
-    }
     if !options.raw {
-        let identifiers: Vec<String> = issues
-            .iter()
-            .map(|issue| issue.identifier.clone())
-            .collect();
-        ensure_right_now_summaries(root, &identifiers);
-        let mut reloaded = Vec::new();
-        for issue in issues {
-            match load_issue_from_project(root, &issue.identifier) {
-                Ok(lookup) => reloaded.push(lookup.issue),
-                Err(_) => reloaded.push(issue),
+        if options.issue_ids.is_empty() {
+            let all_issues = list_issues(
+                root,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                &[],
+                true,
+                false,
+            )?;
+            let (roots, selected_identifiers) = active_right_now_tree(&all_issues);
+            ensure_right_now_summary_subtrees(root, &roots, &selected_identifiers);
+            let issues_by_identifier: HashMap<String, IssueData> = all_issues
+                .into_iter()
+                .map(|issue| (issue.identifier.clone(), issue))
+                .collect();
+            let mut expanded_issues = Vec::new();
+            for identifier in &selected_identifiers {
+                match load_issue_from_project(root, identifier) {
+                    Ok(lookup) => expanded_issues.push(lookup.issue),
+                    Err(_) => {
+                        if let Some(fallback) = issues_by_identifier.get(identifier) {
+                            expanded_issues.push(fallback.clone());
+                        }
+                    }
+                }
             }
+            issues = sort_issues_by_recently_updated(expanded_issues);
+            if effective_limit > 0 {
+                issues.truncate(effective_limit);
+            }
+        } else {
+            if effective_limit > 0 {
+                issues.truncate(effective_limit);
+            }
+            let identifiers: Vec<String> = issues
+                .iter()
+                .map(|issue| issue.identifier.clone())
+                .collect();
+            ensure_right_now_summaries(root, &identifiers);
+            let mut reloaded = Vec::new();
+            for issue in issues {
+                match load_issue_from_project(root, &issue.identifier) {
+                    Ok(lookup) => reloaded.push(lookup.issue),
+                    Err(_) => reloaded.push(issue),
+                }
+            }
+            issues = reloaded;
         }
-        issues = reloaded;
+    } else if effective_limit > 0 {
+        issues.truncate(effective_limit);
     }
     let configuration = load_configuration(root);
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());
@@ -488,6 +529,7 @@ mod tests {
     use super::*;
     use crate::models::IssueData;
     use chrono::{TimeZone, Utc};
+    use serial_test::serial;
     use std::collections::BTreeMap;
     use std::fs;
     use tempfile::TempDir;
@@ -653,6 +695,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn cli_now_recursively_backfills_every_rendered_tree_node() {
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         let previous_no_daemon = std::env::var("KANBUS_NO_DAEMON").ok();

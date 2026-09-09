@@ -168,7 +168,7 @@ impl FileStore {
 /// selected set must include the whole association tree. A user can expand
 /// any branch in the Now UI without another backend request, so descendants
 /// must be ready before the snapshot is returned.
-fn active_right_now_tree(issues: &[IssueData]) -> (Vec<String>, HashSet<String>) {
+pub(crate) fn active_right_now_tree(issues: &[IssueData]) -> (Vec<String>, HashSet<String>) {
     let parents: HashMap<&str, Option<&str>> = issues
         .iter()
         .map(|issue| (issue.identifier.as_str(), issue.parent.as_deref()))
@@ -342,6 +342,7 @@ fn tag_custom(issue: &mut IssueData, key: &str, value: &str) {
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
+    use serial_test::serial;
     use tempfile::TempDir;
 
     fn issue(identifier: &str) -> IssueData {
@@ -588,6 +589,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn file_store_backfills_active_issue_ancestors() {
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
@@ -647,6 +649,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn file_store_backfills_visible_cards_in_virtual_projects() {
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
@@ -700,6 +703,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn file_store_backfills_expandable_active_tree_by_default() {
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
