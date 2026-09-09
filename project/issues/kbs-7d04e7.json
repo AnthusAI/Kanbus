@@ -10,12 +10,20 @@
   "parent": "kbs-e7abbe",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ae821ca9-e01f-4796-93ec-a7eec8f3b08e",
+      "author": "ubuntu",
+      "text": "Amended PR https://github.com/AnthusAI/Kanbus/pull/252 — full locked scenario set, meeting-script window docs, story kbs-7d04e7. Draft; do not merge until SD review.",
+      "created_at": "2026-09-09T20:23:54.236679966Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T20:23:13.361059931Z",
-  "updated_at": "2026-09-09T20:23:20.418078067Z",
+  "updated_at": "2026-09-09T20:23:54.236694708Z",
   "closed_at": null,
-  "right_now_summary": "The team is defining Gherkin specs for standup lookback windows before implementation.",
-  "right_now_updated_at": "2026-09-09T20:23:22.555473596Z",
+  "right_now_summary": "The full Gherkin scenario set is drafted and awaits SD review before implementation begins.",
+  "right_now_updated_at": "2026-09-09T20:23:56.242930193Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
