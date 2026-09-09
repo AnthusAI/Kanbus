@@ -2,13 +2,38 @@
 
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_yaml::{Mapping, Value};
 
 use crate::config::default_project_configuration;
 use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
+
+/// Filename for the user congregation env file in the home directory.
+pub const CONGREGATION_ENV_FILENAME: &str = ".kanbus.env";
+
+/// Return the user congregation env file path.
+///
+/// # Returns
+///
+/// Path to `~/.kanbus.env`.
+pub fn congregation_env_path() -> PathBuf {
+    user_home_directory().join(CONGREGATION_ENV_FILENAME)
+}
+
+/// Load congregation and project dotenv files into the process environment.
+///
+/// Loads `~/.kanbus.env` first, then `repository_root/.env`. Values already
+/// present in the process environment are never overwritten.
+///
+/// # Arguments
+///
+/// * `repository_root` - Repository root containing `.kanbus.yml`.
+pub fn load_repository_environment(repository_root: &Path) {
+    load_dotenv(&congregation_env_path());
+    load_dotenv(&repository_root.join(".env"));
+}
 
 /// Load a project configuration from disk.
 ///
@@ -20,12 +45,8 @@ use crate::models::ProjectConfiguration;
 ///
 /// Returns `KanbusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
-    let dotenv_path = path.parent().unwrap_or(Path::new(".")).join(".env");
-    if let Some(home) = std::env::var_os("HOME") {
-        let global_dotenv = Path::new(&home).join(".kanbus.env");
-        load_dotenv(&global_dotenv);
-    }
-    load_dotenv(&dotenv_path);
+    let repository_root = path.parent().unwrap_or(Path::new("."));
+    load_repository_environment(repository_root);
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             KanbusError::Configuration("configuration file not found".to_string())
@@ -50,6 +71,20 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+fn user_home_directory() -> PathBuf {
+    if let Ok(home) = env::var("HOME") {
+        if !home.trim().is_empty() {
+            return PathBuf::from(home);
+        }
+    }
+    if let Ok(profile) = env::var("USERPROFILE") {
+        if !profile.trim().is_empty() {
+            return PathBuf::from(profile);
+        }
+    }
+    PathBuf::from(".")
 }
 
 fn load_dotenv(path: &Path) {

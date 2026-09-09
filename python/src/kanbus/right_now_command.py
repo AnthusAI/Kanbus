@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from kanbus.config_loader import load_project_configuration
+from kanbus.config_loader import load_project_configuration, load_repository_environment
 from kanbus.issue_listing import list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
@@ -95,6 +95,7 @@ def run_right_now_command(
     :raises RightNowCommandError: When options conflict or selection fails.
     """
     _validate_right_now_options(options)
+    load_repository_environment(root)
     issues = _select_right_now_issues(root, options)
     sorted_issues = sort_issues_by_recently_updated(issues)
     effective_limit = _effective_right_now_limit(options)

@@ -25,6 +25,52 @@ def test_parse_int_env_handles_invalid_values(monkeypatch) -> None:
     assert config_loader._parse_int_env("K_INT") is None
 
 
+def test_congregation_env_path_uses_home_directory(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert config_loader.congregation_env_path() == tmp_path / ".kanbus.env"
+
+
+def test_load_repository_environment_loads_congregation_before_project(
+    tmp_path: Path, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    repository_root = tmp_path / "repo"
+    repository_root.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    (home / ".kanbus.env").write_text(
+        "FROM_CONGREGATION=congregation\nSHARED=congregation\n", encoding="utf-8"
+    )
+    (repository_root / ".env").write_text(
+        "FROM_PROJECT=project\nSHARED=project\n", encoding="utf-8"
+    )
+
+    config_loader.load_repository_environment(repository_root)
+
+    assert os.environ.get("FROM_CONGREGATION") == "congregation"
+    assert os.environ.get("FROM_PROJECT") == "project"
+    assert os.environ.get("SHARED") == "congregation"
+
+
+def test_load_dotenv_file_returns_when_path_is_missing(tmp_path: Path) -> None:
+    config_loader.load_dotenv_file(tmp_path / "missing.env")
+
+
+def test_load_dotenv_file_returns_when_read_fails(tmp_path: Path, monkeypatch) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("UNREADABLE=value\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def patched_read_text(self: Path, *args, **kwargs) -> str:
+        if self == dotenv:
+            raise OSError("permission denied")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", patched_read_text)
+    config_loader.load_dotenv_file(dotenv)
+    assert os.environ.get("UNREADABLE") is None
+
+
 def test_load_dotenv_sets_values_without_overwriting_existing(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -44,7 +90,7 @@ def test_load_dotenv_sets_values_without_overwriting_existing(
     )
     monkeypatch.setenv("KEEP", "already")
 
-    config_loader._load_dotenv(dotenv)
+    config_loader.load_dotenv_file(dotenv)
 
     assert os.environ.get("PLAIN") == "one"
     assert os.environ.get("QUOTED") == "two"

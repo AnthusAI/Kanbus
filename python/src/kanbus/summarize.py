@@ -553,6 +553,9 @@ def compaction_summarize(
     :return: Rewritten description text, or None for dry-run without persistence.
     :rtype: str | None
     """
+    from kanbus.config_loader import load_repository_environment
+
+    load_repository_environment(root)
     config_path = get_configuration_path(root)
     config = load_project_configuration(config_path)
 

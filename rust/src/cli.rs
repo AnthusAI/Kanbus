@@ -20,7 +20,7 @@ use crate::beads_write::{
     delete_beads_issue, remove_beads_dependency, update_beads_comment, update_beads_issue,
 };
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
-use crate::config_loader::load_project_configuration;
+use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
@@ -1201,6 +1201,10 @@ where
     };
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
+    if let Ok(configuration_path) = get_configuration_path(&root) {
+        let repository_root = configuration_path.parent().unwrap_or(&root);
+        load_repository_environment(repository_root);
+    }
     if should_enforce_kanbus_version(&cli.command) {
         enforce_kanbus_version(&root, env!("GIT_VERSION"))
             .map_err(|error| KanbusError::IssueOperation(error.message().to_string()))?;
