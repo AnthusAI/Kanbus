@@ -3,13 +3,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use chrono::{Duration, Utc};
+use chrono::{Duration, TimeZone, Utc};
 use cucumber::{given, then};
 use regex::Regex;
 use serde_json::Value;
 use serde_yaml::{Mapping, Value as YamlValue};
 
 use kanbus::config::default_project_configuration;
+use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::get_configuration_path;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 use kanbus::right_now_command::{
@@ -19,6 +21,7 @@ use kanbus::standup::{
     extract_section_text, report_uses_first_person_voice, report_uses_third_person_executive_voice,
 };
 use kanbus::standup_command::{select_standup_fact_feed, StandupCommandOptions};
+use kanbus::standup_window::{resolve_standup_report_time, resolve_standup_timezone};
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 use crate::step_definitions::query_steps::resolve_issue_project_directory;
@@ -266,6 +269,82 @@ fn given_standup_lookback_hours(world: &mut KanbusWorld, hours: u32) {
     fs::write(config_path, yaml).expect("write config");
 }
 
+fn previous_calendar_day_timestamp(root: &Path) -> chrono::DateTime<Utc> {
+    let configuration_path = get_configuration_path(root).expect("config path");
+    let configuration = load_project_configuration(&configuration_path).expect("load config");
+    let timezone = resolve_standup_timezone(&configuration);
+    let report_time = resolve_standup_report_time().expect("report time");
+    let report_local = report_time.with_timezone(&timezone);
+    let previous_day = report_local.date_naive() - Duration::days(1);
+    timezone
+        .from_local_datetime(
+            &previous_day
+                .and_hms_opt(16, 0, 0)
+                .expect("previous calendar day time"),
+        )
+        .single()
+        .map(|timestamp| timestamp.with_timezone(&Utc))
+        .unwrap_or_else(|| report_time - Duration::hours(24))
+}
+
+fn write_state_transition_event(
+    project_dir: &PathBuf,
+    identifier: &str,
+    status: &str,
+    occurred_at: chrono::DateTime<Utc>,
+) {
+    let events_dir = project_dir.join("events");
+    fs::create_dir_all(&events_dir).expect("create events dir");
+    let occurred_at_text = occurred_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let event_id = format!("standup-transition-{identifier}");
+    let filename = format!("{}__{event_id}.json", occurred_at_text.replace(':', "-"));
+    let payload = serde_json::json!({
+        "schema_version": 1,
+        "event_id": event_id,
+        "issue_id": identifier,
+        "event_type": "state_transition",
+        "occurred_at": occurred_at_text,
+        "actor_id": "agent",
+        "payload": {
+            "from_status": "in_progress",
+            "to_status": status,
+        }
+    });
+    fs::write(
+        events_dir.join(filename),
+        serde_json::to_string_pretty(&payload).expect("serialize event"),
+    )
+    .expect("write event");
+}
+
+#[given(expr = "issue {string} closed on the previous calendar day in standup timezone")]
+fn given_issue_closed_previous_calendar_day(world: &mut KanbusWorld, identifier: String) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let project_dir = resolve_issue_project_directory(world, &identifier);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let closed_at = previous_calendar_day_timestamp(root);
+    let updated = IssueData {
+        closed_at: Some(closed_at),
+        status: String::from("closed"),
+        ..issue
+    };
+    write_issue_file(&project_dir, &updated);
+}
+
+#[given(
+    expr = "issue {string} has a state transition to {string} on the previous calendar day in standup timezone"
+)]
+fn given_issue_state_transition_previous_calendar_day(
+    world: &mut KanbusWorld,
+    identifier: String,
+    status: String,
+) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let project_dir = resolve_issue_project_directory(world, &identifier);
+    let occurred_at = previous_calendar_day_timestamp(root);
+    write_state_transition_event(&project_dir, &identifier, &status, occurred_at);
+}
+
 #[given(expr = "issue {string} has closed_at within standup lookback")]
 fn given_issue_closed_at_within_standup_lookback(world: &mut KanbusWorld, identifier: String) {
     let project_dir = resolve_issue_project_directory(world, &identifier);
@@ -309,28 +388,8 @@ fn given_issue_state_transition_within_standup_lookback(
     status: String,
 ) {
     let project_dir = resolve_issue_project_directory(world, &identifier);
-    let events_dir = project_dir.join("events");
-    fs::create_dir_all(&events_dir).expect("create events dir");
-    let occurred_at = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
-    let event_id = format!("standup-transition-{identifier}");
-    let filename = format!("{}__{event_id}.json", occurred_at.replace(':', "-"));
-    let payload = serde_json::json!({
-        "schema_version": 1,
-        "event_id": event_id,
-        "issue_id": identifier,
-        "event_type": "state_transition",
-        "occurred_at": occurred_at,
-        "actor_id": "agent",
-        "payload": {
-            "from_status": "in_progress",
-            "to_status": status,
-        }
-    });
-    fs::write(
-        events_dir.join(filename),
-        serde_json::to_string_pretty(&payload).expect("serialize event"),
-    )
-    .expect("write event");
+    let occurred_at = Utc::now() - Duration::hours(1);
+    write_state_transition_event(&project_dir, &identifier, &status, occurred_at);
 }
 
 #[then("the standup fact feed should match standup default listing")]

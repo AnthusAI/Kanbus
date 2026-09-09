@@ -13,11 +13,11 @@ Feature: Standup meeting script profile
   - Blockers
   - Likely questions
 
-  Signal rules (observable; default `standup.lookback_hours` is 24):
-  - **Yesterday**: an issue appears when `closed_at` is within lookback_hours
-    before report time, OR the issue event log has a `state_transition` to
-    `closed` or `done` within lookback_hours. Yesterday bullets cite the issue
-    right-now summary text.
+  Signal rules (observable; meeting-script uses calendar window with skip_weekends):
+  - **Yesterday**: an issue appears when `closed_at` falls on a completed
+    calendar day before report time, OR the issue event log has a
+    `state_transition` to `closed` or `done` on a completed calendar day.
+    Yesterday bullets cite the issue right-now summary text.
   - **Today**: an issue appears when its status is `in_progress` or `blocked`
     at report time AND the issue is in the standup fact feed. An issue MUST NOT
     appear in both Yesterday and Today.
@@ -59,24 +59,24 @@ Feature: Standup meeting script profile
     Then the command should succeed
     And the standup report should have profile "meeting-script"
 
-  Scenario: Closed issue within lookback appears in Yesterday not Today
+  Scenario: Closed issue on completed calendar day appears in Yesterday not Today
     Given standup lookback hours is 24
     And an issue "kanbus-ms-yest" exists with status "closed"
-    And issue "kanbus-ms-yest" has closed_at within standup lookback
+    And issue "kanbus-ms-yest" closed on the previous calendar day in standup timezone
     And issue "kanbus-ms-yest" has right now summary "Finished API integration."
     And an issue "kanbus-ms-today" exists with status "in_progress"
     And issue "kanbus-ms-today" has right now summary "Continuing UI polish."
-    When I run "kanbus standup --window rolling kanbus-ms-yest kanbus-ms-today --profile meeting-script"
+    When I run "kanbus standup kanbus-ms-yest kanbus-ms-today --profile meeting-script"
     Then the standup report section "Yesterday" should mention "Finished API integration"
     And the standup report section "Today" should mention "Continuing UI polish"
     And the standup report section "Today" should not mention "Finished API integration"
 
-  Scenario: Status transition to closed within lookback qualifies for Yesterday
+  Scenario: Status transition to closed on completed calendar day qualifies for Yesterday
     Given standup lookback hours is 24
     And an issue "kanbus-ms-trans" exists with status "closed"
-    And issue "kanbus-ms-trans" has a state transition to "closed" within standup lookback
+    And issue "kanbus-ms-trans" has a state transition to "closed" on the previous calendar day in standup timezone
     And issue "kanbus-ms-trans" has right now summary "Merged the compaction spec."
-    When I run "kanbus standup --window rolling kanbus-ms-trans --profile meeting-script"
+    When I run "kanbus standup kanbus-ms-trans --profile meeting-script"
     Then the standup report section "Yesterday" should mention "Merged the compaction spec."
     And the standup report section "Today" should not mention "kanbus-ms-trans"
 

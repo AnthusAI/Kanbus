@@ -807,9 +807,10 @@ fn when_request_console_now_snapshot(world: &mut KanbusWorld) {
             .build()
             .expect("build http client");
         let response = client.get(&url).send().expect("request now snapshot");
-        let status = response.status().as_u16();
-        let body = response.text().expect("read now snapshot body");
-        (status, body)
+        (
+            response.status().as_u16(),
+            response.text().expect("read now snapshot body"),
+        )
     })
     .join()
     .expect("now snapshot request thread");

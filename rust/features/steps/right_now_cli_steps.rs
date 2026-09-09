@@ -216,19 +216,13 @@ fn then_right_now_json_tree_item_includes_fields(
     identifier: String,
     fields_csv: String,
 ) {
-    let payload = parse_stdout_json(world);
-    let item = find_tree_json_item(&payload, &identifier);
+    let stdout = stdout_text(world);
     let expected_fields: Vec<String> = fields_csv
         .split(',')
         .map(str::trim)
         .map(str::to_string)
         .collect();
-    let actual_fields: Vec<String> = item
-        .as_object()
-        .expect("json object")
-        .keys()
-        .cloned()
-        .collect();
+    let actual_fields = extract_json_key_order(&stdout, &identifier);
     assert_eq!(actual_fields, expected_fields);
 }
 
@@ -396,35 +390,6 @@ fn search_tree_yaml_item<'a>(payload: &'a YamlValue, identifier: &str) -> Option
     None
 }
 
-fn find_tree_json_item<'a>(payload: &'a Value, identifier: &str) -> &'a Value {
-    search_tree_json_item(payload, identifier)
-        .unwrap_or_else(|| panic!("JSON tree item for {identifier} not found"))
-}
-
-fn search_tree_json_item<'a>(payload: &'a Value, identifier: &str) -> Option<&'a Value> {
-    if let Some(items) = payload.as_array() {
-        for item in items {
-            if let Some(found) = search_tree_json_item(item, identifier) {
-                return Some(found);
-            }
-        }
-        return None;
-    }
-    if let Some(mapping) = payload.as_object() {
-        if mapping.get("id") == Some(&Value::String(identifier.to_string())) {
-            return Some(payload);
-        }
-        if let Some(children) = mapping.get("children").and_then(Value::as_array) {
-            for child in children {
-                if let Some(found) = search_tree_json_item(child, identifier) {
-                    return Some(found);
-                }
-            }
-        }
-    }
-    None
-}
-
 fn extract_flat_json_key_order(stdout: &str, identifier: &str) -> Vec<String> {
     extract_json_key_order(stdout, identifier)
 }
@@ -435,24 +400,59 @@ fn extract_json_key_order(stdout: &str, identifier: &str) -> Vec<String> {
         .find(&marker)
         .unwrap_or_else(|| panic!("JSON item for {identifier} not found"));
     let object_start = stdout[..marker_index].rfind('{').expect("object start");
-    let object_end = stdout[marker_index..]
-        .find('}')
-        .map(|index| marker_index + index)
-        .expect("object end");
-    let object_text = &stdout[object_start..=object_end];
-    let mut keys = Vec::new();
-    let mut search_from = 0;
-    while let Some(quote_index) = object_text[search_from..].find('"') {
-        let absolute = search_from + quote_index;
-        let remainder = &object_text[absolute + 1..];
-        let Some(end_quote) = remainder.find('"') else {
-            break;
-        };
-        let key = &remainder[..end_quote];
-        if remainder.get(end_quote + 1..end_quote + 2) == Some(":") {
-            keys.push(key.to_string());
+    let object_text = extract_balanced_json_object(&stdout[object_start..]);
+    extract_top_level_json_keys(object_text)
+}
+
+fn extract_balanced_json_object(text: &str) -> &str {
+    let mut depth = 0;
+    for (index, character) in text.char_indices() {
+        if character == '{' {
+            depth += 1;
+        } else if character == '}' {
+            depth -= 1;
+            if depth == 0 {
+                return &text[..=index];
+            }
         }
-        search_from = absolute + end_quote + 2;
+    }
+    panic!("unbalanced JSON object");
+}
+
+fn extract_top_level_json_keys(object_text: &str) -> Vec<String> {
+    let mut keys = Vec::new();
+    let mut depth = 0;
+    let mut index = 0;
+    let characters: Vec<char> = object_text.chars().collect();
+    while index < characters.len() {
+        let character = characters[index];
+        if character == '{' || character == '[' {
+            depth += 1;
+            index += 1;
+            continue;
+        }
+        if character == '}' || character == ']' {
+            depth -= 1;
+            index += 1;
+            continue;
+        }
+        if depth == 1 && character == '"' {
+            let key_start = index + 1;
+            index += 1;
+            while index < characters.len() && characters[index] != '"' {
+                index += 1;
+            }
+            let key = characters[key_start..index].iter().collect::<String>();
+            index += 1;
+            while index < characters.len() && characters[index].is_whitespace() {
+                index += 1;
+            }
+            if index < characters.len() && characters[index] == ':' {
+                keys.push(key);
+            }
+            continue;
+        }
+        index += 1;
     }
     keys
 }

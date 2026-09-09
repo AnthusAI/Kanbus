@@ -2,11 +2,9 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::thread;
 
 use cucumber::{given, when};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::daemon_client::{
     has_test_daemon_response, set_test_daemon_response, TestDaemonResponse,
 };
@@ -14,7 +12,7 @@ use kanbus::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, 
 use kanbus::daemon_server::handle_request_for_testing;
 
 use crate::step_definitions::initialization_steps::{
-    apply_environment_overrides, restore_environment, KanbusWorld,
+    apply_environment_overrides, restore_environment, run_from_args_in_blocking_thread, KanbusWorld,
 };
 use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_project_command;
 
@@ -68,11 +66,8 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         world.existing_kanbus_ids = Some(current_issue_ids(world));
     }
 
-    let cwd_path = cwd.to_path_buf();
     let saved_env = apply_environment_overrides(&world.environment_overrides);
-    let result = thread::spawn(move || run_from_args_with_output(args, &cwd_path))
-        .join()
-        .expect("cli thread panicked");
+    let result = run_from_args_in_blocking_thread(args, cwd.as_path());
     restore_environment(saved_env);
 
     match result {

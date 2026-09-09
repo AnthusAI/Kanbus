@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
-use std::thread::JoinHandle;
+use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
 
 use cucumber::{given, then, World};
@@ -13,7 +13,9 @@ use crate::step_definitions::console_ui_steps::{
 };
 use crate::step_definitions::standup_panel_steps::StandupPanelState;
 use chrono::{DateTime, Utc};
+use kanbus::cli::{run_from_args_with_output, CommandOutput};
 use kanbus::daemon_client;
+use kanbus::error::KanbusError;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
 use kanbus::right_now::RightNowContext;
@@ -186,6 +188,18 @@ pub fn apply_environment_overrides(
         std::env::set_var(key, value);
     }
     saved
+}
+
+/// Run the Kanbus CLI on a worker thread so blocking runtimes are not dropped
+/// inside Cucumber's async test harness.
+pub fn run_from_args_in_blocking_thread(
+    args: Vec<String>,
+    cwd: &Path,
+) -> Result<CommandOutput, KanbusError> {
+    let cwd_path = cwd.to_path_buf();
+    thread::spawn(move || run_from_args_with_output(args, &cwd_path))
+        .join()
+        .expect("cli thread panicked")
 }
 
 /// Restore process environment values saved by ``apply_environment_overrides``.
