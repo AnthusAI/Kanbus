@@ -36,6 +36,8 @@ Feature: Whole-project right-now payload for agent compaction hooks
 
   Background:
     Given a Kanbus project with default configuration
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
 
   Scenario: Compaction payload is whole-project board listing without issue identifiers
     Given an issue "kanbus-cmp-a" exists with status "in_progress"

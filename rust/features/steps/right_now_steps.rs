@@ -242,7 +242,27 @@ fn given_right_now_generation_uses_completion(world: &mut KanbusWorld, summary: 
         "KANBUS_TEST_RIGHT_NOW_COMPLETION".to_string(),
         summary.clone(),
     );
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_RIGHT_NOW_COMPLETION")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_RIGHT_NOW_COMPLETION".to_string(),
+            std::env::var("KANBUS_TEST_RIGHT_NOW_COMPLETION").ok(),
+        ));
+    }
     std::env::set_var("KANBUS_TEST_RIGHT_NOW_COMPLETION", summary);
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_AI_MOCK")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_AI_MOCK".to_string(),
+            std::env::var("KANBUS_TEST_AI_MOCK").ok(),
+        ));
+    }
     std::env::remove_var("KANBUS_TEST_AI_MOCK");
 }
 
