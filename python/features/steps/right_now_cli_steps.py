@@ -27,16 +27,26 @@ def given_issues_with_identifier_prefix(
     :param prefix: Identifier prefix before the numeric suffix.
     :type prefix: str
     """
-    project_dir = load_project_directory(context)
-    newest = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
-    for index in range(1, count + 1):
-        identifier = f"{prefix}-{index}"
-        issue = build_issue(identifier, f"Many issue {index}", "task", "open", None, [])
-        updated_at = newest - timedelta(minutes=index)
-        issue = issue.model_copy(
-            update={"updated_at": updated_at, "created_at": updated_at}
-        )
-        write_issue_file(project_dir, issue)
+    _write_prefixed_issues(context, count, prefix, "open")
+
+
+@given('{count:d} in-progress issues exist with identifier prefix "{prefix}"')
+def given_in_progress_issues_with_identifier_prefix(
+    context: object, count: int, prefix: str
+) -> None:
+    """Create sequentially timestamped in-progress issues for default-limit coverage.
+
+    Newer issues use lower sequence numbers so the highest suffix is oldest
+    and falls outside the default right-now cap of 30.
+
+    :param context: Behave context object.
+    :type context: object
+    :param count: Number of issues to create.
+    :type count: int
+    :param prefix: Identifier prefix before the numeric suffix.
+    :type prefix: str
+    """
+    _write_prefixed_issues(context, count, prefix, "in_progress")
 
 
 @then("stdout should be valid JSON")
@@ -107,6 +117,24 @@ def then_right_now_json_item_summary_equals(
     assert item.get("right_now_summary") == expected
 
 
+@then('the right now JSON item for "{identifier}" should have priority {expected:d}')
+def then_right_now_json_item_priority_equals(
+    context: object, identifier: str, expected: int
+) -> None:
+    """Verify a flat JSON item priority value.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier to locate.
+    :type identifier: str
+    :param expected: Expected priority integer.
+    :type expected: int
+    """
+    payload = json.loads(_strip_ansi(context.result.stdout))
+    item = _find_flat_json_item(payload, identifier)
+    assert item.get("priority") == expected
+
+
 @then('the right now JSON item for "{identifier}" should have right_now_summary null')
 def then_right_now_json_item_summary_null(context: object, identifier: str) -> None:
     """Verify a flat JSON item has null right_now_summary.
@@ -168,3 +196,28 @@ def _find_flat_json_item(payload: object, identifier: str) -> dict:
         if isinstance(item, dict) and item.get("id") == identifier:
             return item
     raise AssertionError(f"JSON item for {identifier} not found")
+
+
+def _write_prefixed_issues(
+    context: object,
+    count: int,
+    prefix: str,
+    status: str,
+) -> None:
+    project_dir = load_project_directory(context)
+    newest = datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc)
+    for index in range(1, count + 1):
+        identifier = f"{prefix}-{index}"
+        issue = build_issue(
+            identifier,
+            f"Many issue {index}",
+            "task",
+            status,
+            None,
+            [],
+        )
+        updated_at = newest - timedelta(minutes=index)
+        issue = issue.model_copy(
+            update={"updated_at": updated_at, "created_at": updated_at}
+        )
+        write_issue_file(project_dir, issue)
