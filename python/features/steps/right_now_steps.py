@@ -165,6 +165,23 @@ def then_issue_has_right_now_updated_at(
     assert actual == expected_timestamp
 
 
+@then('issue "{identifier}" should have a non-empty right now summary')
+def then_issue_has_non_empty_right_now_summary(
+    context: object, identifier: str
+) -> None:
+    """Verify an issue has a non-empty right-now summary.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.right_now_summary is not None
+    assert issue.right_now_summary.strip()
+
+
 @then('issue "{identifier}" should have no right now summary')
 def then_issue_has_no_right_now_summary(context: object, identifier: str) -> None:
     """Verify an issue has no right-now summary.
@@ -347,6 +364,28 @@ def given_right_now_generation_requires_loaded_openai_credentials(
         context.environment_overrides = {}
         overrides = context.environment_overrides
     overrides["KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS"] = "1"
+
+
+@given('right now generation uses completion "{summary}"')
+def given_right_now_generation_uses_completion(context: object, summary: str) -> None:
+    """Stub right-now generation with a fixed completion string.
+
+    :param context: Behave context object.
+    :type context: object
+    :param summary: Completion text returned by generation.
+    :type summary: str
+    """
+    from features.steps.configuration_steps import _track_env_restore
+
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    _track_env_restore(context, "KANBUS_TEST_RIGHT_NOW_COMPLETION")
+    overrides["KANBUS_TEST_RIGHT_NOW_COMPLETION"] = summary
+    os.environ["KANBUS_TEST_RIGHT_NOW_COMPLETION"] = summary
+    _track_env_restore(context, "KANBUS_TEST_AI_MOCK")
+    os.environ.pop("KANBUS_TEST_AI_MOCK", None)
 
 
 @given("right now litellm call tracking is reset")

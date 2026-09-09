@@ -1,0 +1,20 @@
+{
+  "id": "kbs-6c3131a9-b50c-4af4-a2b2-9020109dd2b3",
+  "title": "Spec: kbs now JIT fail-closed and purge",
+  "description": "Gherkin scenarios for fail-closed JIT generation and purge command.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e2f6d66e-899a-4ec4-862c-538c670b5d5d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:13:39.156658431Z",
+  "updated_at": "2026-09-09T16:13:43.462391279Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

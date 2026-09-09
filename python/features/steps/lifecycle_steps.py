@@ -29,12 +29,20 @@ def step_lifecycle_impl_2(context):
         context._tracked_env_vars = tracked
     if not hasattr(context, "_unset_env_vars"):
         context._unset_env_vars = []
-    for name in ("KANBUS_TEST_AI_MOCK", "KANBUS_RIGHT_NOW_LITELLM_CALLED"):
+    for name in (
+        "KANBUS_TEST_AI_MOCK",
+        "KANBUS_RIGHT_NOW_LITELLM_CALLED",
+        "KANBUS_TEST_RIGHT_NOW_COMPLETION",
+    ):
         if name not in tracked:
             context._unset_env_vars.append((name, os.environ.get(name)))
             tracked.add(name)
     os.environ["KANBUS_TEST_AI_MOCK"] = "1"
     os.environ.pop("KANBUS_RIGHT_NOW_LITELLM_CALLED", None)
+    os.environ.pop("KANBUS_TEST_RIGHT_NOW_COMPLETION", None)
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is not None:
+        overrides.pop("KANBUS_TEST_RIGHT_NOW_COMPLETION", None)
 
 
 @given('an issue "{issue_id}" of type "{issue_type}" in status "{status}"')

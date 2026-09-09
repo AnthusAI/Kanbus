@@ -5,6 +5,8 @@ Feature: Now status filter
 
   Background:
     Given a Kanbus project with default configuration
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
 
   Scenario: Now lists only in-progress issues by default
     Given an issue "kanbus-rn-active" exists with status "in_progress"

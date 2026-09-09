@@ -14,14 +14,19 @@ from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.queries import sort_issues_by_recently_updated
-from kanbus.right_now import ensure_right_now_summaries, get_right_now_summary
+from kanbus.right_now import (
+    RightNowError,
+    ensure_right_now_summaries,
+    purge_right_now_summaries,
+    require_display_right_now_summary,
+)
 from kanbus.status_semantics import (
     SEMANTIC_IN_PROGRESS,
     status_keys_for_semantic_category,
 )
 
-RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 DEFAULT_RIGHT_NOW_LIMIT = 30
+PURGE_OUTPUT_TEMPLATE = "Purged right-now summaries for {count} issues"
 DEFAULT_RIGHT_NOW_STATUS = "in_progress"
 RIGHT_NOW_STATUS_ALL = "all"
 EMPTY_STATUS_FILTER = "status filter must not be empty"
@@ -65,6 +70,8 @@ class RightNowCommandOptions:
         listings and to every status when issue identifiers are named.
         ``all`` includes every status. Comma-separated values select several.
     :type status: Optional[str]
+    :param purge: Whether to clear right-now summary fields across the board.
+    :type purge: bool
     """
 
     limit: Optional[int] = None
@@ -77,6 +84,7 @@ class RightNowCommandOptions:
     recursive: bool = True
     issue_ids: tuple[str, ...] = ()
     status: Optional[str] = None
+    purge: bool = False
 
 
 def run_right_now_command(
@@ -93,19 +101,27 @@ def run_right_now_command(
     :rtype: str
     :raises IssueListingError: When issue listing fails.
     :raises RightNowCommandError: When options conflict or selection fails.
+    :raises RightNowError: When fail-closed summary generation cannot run.
     """
     _validate_right_now_options(options)
     load_repository_environment(root)
+    if options.purge:
+        purged = purge_right_now_summaries(root)
+        return PURGE_OUTPUT_TEMPLATE.format(count=purged) + "\n"
     issues = _select_right_now_issues(root, options)
     sorted_issues = sort_issues_by_recently_updated(issues)
     effective_limit = _effective_right_now_limit(options)
     if effective_limit > 0:
         sorted_issues = sorted_issues[:effective_limit]
     if not options.raw:
-        ensure_right_now_summaries(
-            root,
-            [issue.identifier for issue in sorted_issues],
-        )
+        try:
+            ensure_right_now_summaries(
+                root,
+                [issue.identifier for issue in sorted_issues],
+                fail_closed=True,
+            )
+        except RightNowError as error:
+            raise RightNowCommandError(str(error)) from error
         reloaded: List[IssueData] = []
         for issue in sorted_issues:
             try:
@@ -115,6 +131,17 @@ def run_right_now_command(
         sorted_issues = reloaded
     configuration = _load_configuration(root)
     tree_expanded = _resolve_tree_expanded(options, configuration)
+    try:
+        return _format_right_now_output(sorted_issues, options, tree_expanded)
+    except RightNowError as error:
+        raise RightNowCommandError(str(error)) from error
+
+
+def _format_right_now_output(
+    sorted_issues: List[IssueData],
+    options: RightNowCommandOptions,
+    tree_expanded: bool,
+) -> str:
     if options.as_json:
         if options.tree:
             roots = _build_right_now_tree(sorted_issues)
@@ -279,8 +306,7 @@ def _render_flat_issue(issue: IssueData, raw: bool) -> List[str]:
     )
     if raw:
         return [header]
-    summary = get_right_now_summary(issue)
-    summary_text = summary if summary is not None else RIGHT_NOW_PLACEHOLDER
+    summary_text = require_display_right_now_summary(issue)
     return [header, f"    {summary_text}"]
 
 
@@ -346,8 +372,7 @@ def _render_tree_node(
     )
     lines = [header]
     if not raw:
-        summary = get_right_now_summary(issue)
-        summary_text = summary if summary is not None else RIGHT_NOW_PLACEHOLDER
+        summary_text = require_display_right_now_summary(issue)
         lines.append(f"{indent}    {summary_text}")
     for child in node.children:
         lines.extend(
@@ -371,7 +396,7 @@ def _serialize_flat_json_entry(issue: IssueData, raw: bool) -> Dict[str, Any]:
         "updated_at": _format_updated_at(issue.updated_at),
     }
     if not raw:
-        entry["right_now_summary"] = get_right_now_summary(issue)
+        entry["right_now_summary"] = require_display_right_now_summary(issue)
     entry["parent"] = issue.parent
     return entry
 
@@ -387,7 +412,7 @@ def _serialize_tree_json_node(
         "updated_at": _format_updated_at(issue.updated_at),
     }
     if not raw:
-        entry["right_now_summary"] = get_right_now_summary(issue)
+        entry["right_now_summary"] = require_display_right_now_summary(issue)
     entry["children"] = [
         _serialize_tree_json_node(child, raw) for child in node.children
     ]
