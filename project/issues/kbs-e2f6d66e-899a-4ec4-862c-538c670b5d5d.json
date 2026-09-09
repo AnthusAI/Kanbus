@@ -17,10 +17,17 @@
       "text": "Duplicate of kbs-0fe175. Shipped in PR #239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2. Use epic kbs-0fe175 for SD acceptance tracking.",
       "created_at": "2026-09-09T17:09:21.065859681Z",
       "comment_type": "default"
+    },
+    {
+      "id": "ca3b86d0-0835-4668-b292-bfce3d3bbd1a",
+      "author": "ubuntu",
+      "text": "Duplicate of canonical epic kbs-0fe175. Shipped via PR #239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2. Track SD acceptance on kbs-0fe175.",
+      "created_at": "2026-09-09T17:10:05.069431960Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-09T16:13:33.475000094Z",
-  "updated_at": "2026-09-09T17:09:21.126549115Z",
+  "updated_at": "2026-09-09T17:10:05.069445566Z",
   "closed_at": "2026-09-09T17:09:21.119244401Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
