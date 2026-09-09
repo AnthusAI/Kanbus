@@ -1,0 +1,21 @@
+{
+  "id": "kbs-b70842c5-fcb8-4774-b04c-b305f60a5997",
+  "title": "CI cleanup soft nits (PR #259)",
+  "description": "Non-blocking follow-ups from SD ACCEPT of PR #259 (develop CI cleanup). Do not block merge; track polish after fmt / parity / standup console-ui fixes land.",
+  "type": "epic",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T22:16:18.938158Z",
+  "updated_at": "2026-09-09T22:16:18.996361Z",
+  "closed_at": null,
+  "right_now_summary": "Three CI cleanup follow-ups remain: preserve the env value, remove dead code, and switch the fail test flag.",
+  "right_now_updated_at": "2026-09-09T22:17:03.602619Z",
+  "custom": {},
+  "agent": null
+}

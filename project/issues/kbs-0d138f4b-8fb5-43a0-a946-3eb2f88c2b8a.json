@@ -1,0 +1,21 @@
+{
+  "id": "kbs-0d138f4b-8fb5-43a0-a946-3eb2f88c2b8a",
+  "title": "Node kanbusCommandEnv: preserve KANBUS_NO_DAEMON if already set",
+  "description": "SD soft nit on #259: Node kanbusCommandEnv always sets KANBUS_NO_DAEMON=1; should preserve an existing value when already set (escape-hatch parity with kbsc).",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b70842c5-fcb8-4774-b04c-b305f60a5997",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T22:16:55.571364Z",
+  "updated_at": "2026-09-09T22:16:55.612451Z",
+  "closed_at": null,
+  "right_now_summary": "The Node environment handling still overwrites an existing KANBUS_NO_DAEMON value.",
+  "right_now_updated_at": "2026-09-09T22:17:00.536786Z",
+  "custom": {},
+  "agent": null
+}

@@ -1,0 +1,21 @@
+{
+  "id": "kbs-bc1a863b-f741-46f9-9aad-6fe94b3ffc98",
+  "title": "Remove unused format_now_timestamp in console_now.py",
+  "description": "SD soft nit on #259: format_now_timestamp is unused in python console_now.py \u2014 delete or wire it up.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b70842c5-fcb8-4774-b04c-b305f60a5997",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T22:16:29.055927Z",
+  "updated_at": "2026-09-09T22:16:29.095263Z",
+  "closed_at": null,
+  "right_now_summary": "The unused `format_now_timestamp` function needs to be deleted or put to use.",
+  "right_now_updated_at": "2026-09-09T22:16:34.028370Z",
+  "custom": {},
+  "agent": null
+}
