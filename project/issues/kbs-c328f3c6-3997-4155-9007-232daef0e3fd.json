@@ -1,0 +1,21 @@
+{
+  "id": "kbs-c328f3c6-3997-4155-9007-232daef0e3fd",
+  "title": "CI green-pass soft nits (PR #261)",
+  "description": "Non-blocking follow-ups from SD ACCEPT of PR #261 (post-#259 CI green pass). Do not block merge.",
+  "type": "epic",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T23:24:57.435073Z",
+  "updated_at": "2026-09-09T23:24:57.475237Z",
+  "closed_at": null,
+  "right_now_summary": "Follow-ups remain: fix the calendar-day window and update the stale F401 claim in the commit message.",
+  "right_now_updated_at": "2026-09-09T23:25:25.243062Z",
+  "custom": {},
+  "agent": null
+}
