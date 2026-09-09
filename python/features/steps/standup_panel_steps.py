@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 
 from behave import given, then, when
 
-from kanbus.console_standup import StandupGenerateRequest, generate_standup_report
 from kanbus.models import IssueData
 from kanbus.standup import (
     MEETING_SCRIPT_PROFILE,
