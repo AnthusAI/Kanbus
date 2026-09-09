@@ -1,0 +1,20 @@
+{
+  "id": "kbs-9545f4fa-875e-4124-9ef2-2ff4b163fbd9",
+  "title": "Gherkin specs for standup time windows (rolling/calendar, skip_weekends)",
+  "description": "Behavior specs for standup lookback time windows: rolling vs calendar modes, 8h/24h lookback, skip_weekends, profile-specific defaults (meeting-script calendar+skip_weekends, director-brief rolling 24h), overnight 8h edge cases, and Monday/Fri-Sun calendar scenarios. Dual-runtime parity. Specs-only; implementation follows SD review.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e7abbe",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T20:20:21.149364371Z",
+  "updated_at": "2026-09-09T20:20:53.955023480Z",
+  "closed_at": null,
+  "right_now_summary": "Behavior specs are being defined for standup lookback windows across both runtimes.",
+  "right_now_updated_at": "2026-09-09T20:20:56.388785073Z",
+  "custom": {}
+}
