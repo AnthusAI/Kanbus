@@ -37,6 +37,16 @@ tools/install-system.sh --mode symlink
 
 This may require sudo once to create the links in `/usr/local/bin`. After that, rebuild with `cargo build --release` and the symlinks will pick up the new binaries automatically.
 
+## Wiki Markus rendering
+
+Kanbus wiki HTML uses [Markus](https://anthusai.github.io/Markus) (`anthus-markus`, import `markusmd`). **Do not `pip install markus`** — PyPI `markus` is Mozilla's metrics library and is unrelated.
+
+- Rust `kbs`: built-in `wiki_markus` (no separate install)
+- Python `kanbus`: `anthus-markus` from GitHub, installed via `pip install -e python`
+- Smoke test: `kbs wiki render project/wiki/index.md --html | grep markus-document`
+
+Full guide: [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md#markus-renderer-not-pypi-markus).
+
 ## VideoML pipeline (Kanb.us)
 
 The Kanb.us marketing site uses VideoML sources in `videos/`. The render and upload flow is centralized in root scripts.
