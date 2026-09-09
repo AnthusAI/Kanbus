@@ -40,6 +40,20 @@ fn then_right_now_json_item_includes_fields(
     assert_eq!(actual_fields, expected_fields);
 }
 
+#[then(expr = "the right now JSON item for {string} should have priority {int}")]
+fn then_right_now_json_item_priority_equals(
+    world: &mut KanbusWorld,
+    identifier: String,
+    expected: i64,
+) {
+    let payload = parse_stdout_json(world);
+    let item = find_flat_json_item(&payload, &identifier);
+    assert_eq!(
+        item.get("priority"),
+        Some(&Value::Number(expected.into()))
+    );
+}
+
 #[then(expr = "the right now JSON item for {string} should have right_now_summary {string}")]
 fn then_right_now_json_item_summary_equals(
     world: &mut KanbusWorld,
