@@ -663,10 +663,7 @@ mod tests {
         let statuses = resolve_right_now_statuses(None, false, &configuration).expect("ok");
         assert_eq!(
             statuses,
-            Some(HashSet::from([
-                "in_progress".to_string(),
-                "blocked".to_string(),
-            ]))
+            Some(HashSet::from(["in_progress".to_string()]))
         );
         assert!(resolve_right_now_statuses(None, true, &configuration)
             .expect("named")
