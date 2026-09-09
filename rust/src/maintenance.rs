@@ -9,7 +9,10 @@ use crate::error::KanbusError;
 use crate::file_io::{get_configuration_path, load_project_directory};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::models::IssueData;
-use crate::workflows::get_workflow_for_issue_type;
+use crate::workflows::{
+    collect_workflow_statuses, format_status_not_allowed_for_type_error,
+    get_workflow_for_issue_type,
+};
 
 const ALLOWED_DEPENDENCY_TYPES: [&str; 2] = ["blocked-by", "relates-to"];
 
@@ -199,9 +202,25 @@ fn validate_issue_fields(
         errors.push(format!("{filename}: invalid priority '{}'", issue.priority));
     }
 
-    if let Ok(statuses) = collect_workflow_statuses(configuration, &issue.issue_type) {
+    let global_statuses: BTreeSet<&str> = configuration
+        .statuses
+        .iter()
+        .map(|entry| entry.key.as_str())
+        .collect();
+    if !global_statuses.contains(issue.status.as_str()) {
+        errors.push(format!("{filename}: invalid status '{}'", issue.status));
+    } else if let Ok(statuses) =
+        collect_workflow_statuses_for_type(configuration, &issue.issue_type)
+    {
         if !statuses.contains(&issue.status) {
-            errors.push(format!("{filename}: invalid status '{}'", issue.status));
+            let message = format_status_not_allowed_for_type_error(
+                configuration,
+                &issue.issue_type,
+                &issue.status,
+                Some(&issue.identifier),
+            )
+            .unwrap_or_else(|_| format!("invalid status '{}'", issue.status));
+            errors.push(format!("{filename}: {message}"));
         }
     }
 
@@ -227,16 +246,12 @@ fn validate_issue_fields(
     }
 }
 
-fn collect_workflow_statuses(
+fn collect_workflow_statuses_for_type(
     configuration: &crate::models::ProjectConfiguration,
     issue_type: &str,
 ) -> Result<BTreeSet<String>, KanbusError> {
     let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
-    let mut statuses: BTreeSet<String> = workflow.keys().cloned().collect();
-    for transitions in workflow.values() {
-        statuses.extend(transitions.iter().cloned());
-    }
-    Ok(statuses)
+    Ok(collect_workflow_statuses(workflow))
 }
 
 fn validate_references(

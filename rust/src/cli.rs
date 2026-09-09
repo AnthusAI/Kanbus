@@ -1832,6 +1832,7 @@ fn execute_command(
                                 configuration,
                                 &proposed_issue.issue_type,
                                 &proposed_issue.status,
+                                Some(&proposed_issue.identifier),
                             )?;
                             crate::workflows::validate_status_transition(
                                 configuration,

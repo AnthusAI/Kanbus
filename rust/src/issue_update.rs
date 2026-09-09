@@ -264,7 +264,12 @@ pub fn update_issue(
     if let Some(new_status) = resolved_status {
         if validate {
             let type_for_validation = resolved_type.unwrap_or(&updated_issue.issue_type);
-            validate_status_value(&configuration, type_for_validation, new_status)?;
+            validate_status_value(
+                &configuration,
+                type_for_validation,
+                new_status,
+                Some(&updated_issue.identifier),
+            )?;
             validate_status_transition(
                 &configuration,
                 type_for_validation,
