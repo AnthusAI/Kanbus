@@ -3,17 +3,29 @@
   "title": "Status categories should be configurable; status names should not be magic strings",
   "description": "The status key 'in_progress' is hard-coded in multiple places, making it impossible for projects to use custom status names.\n\nThe fix is to make status categories configurable (like Jira's status categories). Each status in the workflow config maps to one of a fixed set of categories: 'todo', 'in_progress', and 'done'. Business logic that currently hard-codes the string 'in_progress' (e.g. kbs update --claim, Jira sync, beads import, display color logic) instead looks up which configured status belongs to the 'in_progress' category.\n\nHard-coded locations to fix:\n- rust/src/issue_update.rs: --claim hardcodes target status as \"in_progress\"\n- rust/src/config.rs: default workflow/status definitions hard-code \"in_progress\" as a key\n- rust/src/migration.rs: beads import maps \"in-progress\" to \"in_progress\" as a fixed canonical name\n- rust/src/jira_sync.rs: Jira status mapping hardcodes \"in_progress\" as the target for in-progress-like statuses\n- rust/src/issue_display.rs, issue_line.rs: color/display logic hard-codes \"in_progress\"\n\nApproach:\n- Add a 'category' field to StatusDefinition in ProjectConfiguration (values: 'todo', 'in_progress', 'done')\n- Default config assigns categories to its built-in statuses\n- Business logic resolves the active status by finding the first status with category 'in_progress'\n- Beads and Jira imports map to category rather than a hard-coded key",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": "ryan.porter",
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "b04741f5-7db8-4208-824d-6452389b93c4",
+      "author": "ubuntu",
+      "text": "Epic complete: PR #228 merged into develop (merge SHA fd7b22fa). All scoped work shipped — configurable semantic_category on statuses with helper-based resolution across claim, import, right-now, and display.",
+      "created_at": "2026-09-09T13:18:16.243019361Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5"
+      }
+    }
+  ],
   "created_at": "2026-02-20T03:40:01.270802Z",
-  "updated_at": "2026-09-07T21:03:01.755311639Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T13:18:16.298168762Z",
+  "closed_at": "2026-09-09T13:18:16.290613595Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
