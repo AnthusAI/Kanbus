@@ -16,6 +16,7 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -414,7 +415,7 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         }
         let startup = ensure_mosquitto(&endpoint)?;
         let Some(startup) = startup else {
-            print_mosquitto_missing();
+            maybe_warn_mosquitto_missing();
             return Ok(());
         };
         endpoint = parse_broker_url(&startup.endpoint)?;
@@ -478,7 +479,7 @@ fn run_mqtt_subscription_resilient(
                     broker_process = Some(startup.process);
                 }
                 Ok(None) => {
-                    print_mosquitto_missing();
+                    maybe_warn_mosquitto_missing();
                     thread::sleep(Duration::from_secs(2));
                     continue;
                 }
@@ -762,10 +763,10 @@ fn publish_with_transport(
             return Ok(());
         }
         let startup = ensure_mosquitto(&endpoint)?;
-        let Some(startup) = startup else {
-            print_mosquitto_missing();
+        if startup.is_none() {
             return Ok(());
-        };
+        }
+        let startup = startup.expect("startup checked above");
         endpoint = parse_broker_url(&startup.endpoint)?;
         broker_process = Some(startup.process);
     }
@@ -979,6 +980,13 @@ fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
 }
 
 fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, KanbusError> {
+    if std::env::var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
+        return Ok(None);
+    }
     if endpoint.scheme != "mqtt" {
         return Ok(None);
     }
@@ -1141,10 +1149,61 @@ fn parse_broker_url(url: &str) -> Result<BrokerEndpoint, KanbusError> {
     })
 }
 
-fn print_mosquitto_missing() {
+static MOSQUITTO_MISSING_WARNED: AtomicBool = AtomicBool::new(false);
+static MOSQUITTO_MISSING_WARNING_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+fn mosquitto_warnings_enabled() -> bool {
+    std::env::var("KANBUS_REALTIME_WARN_MOSQUITTO")
+        .ok()
+        .as_deref()
+        != Some("0")
+}
+
+/// Emit a single Mosquitto install hint per process for explicit realtime commands.
+fn maybe_warn_mosquitto_missing() {
+    if !mosquitto_warnings_enabled() {
+        return;
+    }
+    if MOSQUITTO_MISSING_WARNED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    MOSQUITTO_MISSING_WARNING_COUNT.fetch_add(1, Ordering::SeqCst);
     eprintln!(
-        "Mosquitto not found. Install with: brew install mosquitto (macOS) or apt install mosquitto (Debian/Ubuntu)."
+        "Mosquitto not found; local MQTT realtime is optional. Install mosquitto for gossip watch (see docs/REALTIME.md). macOS: brew install mosquitto. Debian/Ubuntu: apt install mosquitto."
     );
+}
+
+/// Reset the once-per-session Mosquitto warning gate.
+pub fn reset_mosquitto_missing_warning() {
+    MOSQUITTO_MISSING_WARNED.store(false, Ordering::SeqCst);
+    MOSQUITTO_MISSING_WARNING_COUNT.store(0, Ordering::SeqCst);
+}
+
+/// Return how many Mosquitto install hints were emitted in this process.
+pub fn mosquitto_missing_warning_count() -> usize {
+    MOSQUITTO_MISSING_WARNING_COUNT.load(Ordering::SeqCst)
+}
+
+/// Publish a gossip envelope for behavior-spec MQTT publish checks.
+pub fn attempt_mqtt_publish_without_broker(
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+) -> Result<(), KanbusError> {
+    publish_with_transport(
+        topic,
+        envelope,
+        &configuration.realtime,
+        "mqtt",
+        &configuration.realtime.broker,
+        configuration.realtime.autostart,
+        configuration.realtime.keepalive,
+    )
+}
+
+/// Emit the Mosquitto install hint gate used by realtime MQTT commands.
+pub fn attempt_mosquitto_missing_warning() {
+    maybe_warn_mosquitto_missing();
 }
 
 #[cfg(test)]
@@ -1769,5 +1828,22 @@ mod tests {
             .expect_err("error")
             .to_string()
             .contains("realtime broker is disabled"));
+    }
+
+    #[test]
+    fn maybe_warn_mosquitto_missing_prints_once_per_session() {
+        reset_mosquitto_missing_warning();
+        attempt_mosquitto_missing_warning();
+        attempt_mosquitto_missing_warning();
+        assert_eq!(mosquitto_missing_warning_count(), 1);
+    }
+
+    #[test]
+    fn maybe_warn_mosquitto_missing_respects_disable_env() {
+        reset_mosquitto_missing_warning();
+        std::env::set_var("KANBUS_REALTIME_WARN_MOSQUITTO", "0");
+        attempt_mosquitto_missing_warning();
+        assert_eq!(mosquitto_missing_warning_count(), 0);
+        std::env::remove_var("KANBUS_REALTIME_WARN_MOSQUITTO");
     }
 }
