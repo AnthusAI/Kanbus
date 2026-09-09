@@ -25,7 +25,6 @@ from kanbus.right_now import (
     _truncate_to_max_length,
     build_bounded_raw_child_summary,
     build_right_now_context,
-    clear_right_now_summary,
     ensure_right_now_subtree,
     generate_right_now_summary,
     get_child_full_summary,
