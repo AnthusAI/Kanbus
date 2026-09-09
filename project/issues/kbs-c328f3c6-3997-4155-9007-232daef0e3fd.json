@@ -14,8 +14,8 @@
   "created_at": "2026-09-09T23:24:57.435073Z",
   "updated_at": "2026-09-09T23:24:57.475237Z",
   "closed_at": null,
-  "right_now_summary": "Follow-ups remain: fix the calendar-day window and update the stale F401 claim in the commit message.",
-  "right_now_updated_at": "2026-09-09T23:25:25.243062Z",
+  "right_now_summary": "PR #261 fixes Yesterday scenarios, but its commit message still mentions F401 removals absent from the diff.",
+  "right_now_updated_at": "2026-09-09T23:58:56.465449Z",
   "custom": {},
   "agent": null
 }
