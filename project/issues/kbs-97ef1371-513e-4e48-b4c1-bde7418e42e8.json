@@ -3,7 +3,7 @@
   "title": "Gherkin specs for standup reports (both profiles + shared stack)",
   "description": "Behavior specs first: standup report generation for Meeting script and Director brief profiles on the shared LiteLLM/right-now stack. Dual-runtime parity; SD reviews specs before implementation.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -31,11 +31,18 @@
       "text": "SD round-3 amendment pushed to PR #245: https://github.com/AnthusAI/Kanbus/pull/245\n\nStandup omit-IDs default widened to in_progress OR blocked (congregation, cap 30, updated_at desc). Documented deliberate widening vs kanbus now in_progress-only; equivalence is kanbus now --status in_progress,blocked.\n\nAdded scenarios: blocked in fact feed + Blockers (meeting-script and director-brief); open/backlog excluded; proof standup includes blocked that plain kanbus now omits.\n\nReady for SD quick re-review.",
       "created_at": "2026-09-09T17:52:52.926570230Z",
       "comment_type": "default"
+    },
+    {
+      "id": "e8f2bc0c-f4e9-48d7-9a9d-5f612fe10b10",
+      "author": "ubuntu",
+      "text": "Specs shipped: PR #245 merged to develop at 2e231135f64e393470ccfab23e92ffac5542af25. Standup report Gherkin (@wip) SD-approved; implementation is a follow-up story.",
+      "created_at": "2026-09-09T18:05:35.910575823Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-09T17:17:31.598248983Z",
-  "updated_at": "2026-09-09T17:52:52.926605655Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T18:05:35.910595959Z",
+  "closed_at": "2026-09-09T18:05:35.791584804Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
