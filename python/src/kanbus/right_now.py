@@ -755,6 +755,16 @@ def _build_right_now_prompt(context: RightNowContext, max_length: int) -> str:
 
 
 def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
+    test_completion = os.environ.get("KANBUS_TEST_LITELLM_COMPLETION")
+    if test_completion is not None:
+        os.environ["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = "1"
+        return test_completion, {
+            "prompt_tokens": 1,
+            "completion_tokens": 2,
+            "total_tokens": 3,
+            "cost": 0.0,
+        }
+
     try:
         import litellm
     except ImportError as error:
