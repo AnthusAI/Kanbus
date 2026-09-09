@@ -13,6 +13,9 @@ use crate::issue_files::read_issue_from_file;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
 use crate::models::IssueData;
+use crate::status_semantics::{
+    resolve_primary_status_key_for_semantic_category, SEMANTIC_IN_PROGRESS,
+};
 use crate::users::get_current_user;
 use crate::workflows::{
     apply_transition_side_effects, validate_status_transition, validate_status_value,
@@ -77,7 +80,15 @@ pub fn update_issue(
     let mut updated_issue = lookup.issue.clone();
     let current_time = Utc::now();
 
-    let mut resolved_status = if claim { Some("in_progress") } else { status };
+    let claim_status = if claim {
+        Some(resolve_primary_status_key_for_semantic_category(
+            &configuration,
+            SEMANTIC_IN_PROGRESS,
+        )?)
+    } else {
+        None
+    };
+    let mut resolved_status = claim_status.as_deref().or(status);
     let mut resolved_type = issue_type.map(str::trim).filter(|value| !value.is_empty());
     if resolved_type == Some(updated_issue.issue_type.as_str()) {
         resolved_type = None;

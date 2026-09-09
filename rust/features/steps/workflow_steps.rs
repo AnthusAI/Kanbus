@@ -470,6 +470,7 @@ fn given_epic_workflow_allows_transition(
                 .collect::<Vec<_>>()
                 .join(" "),
             category: "To do".to_string(),
+            semantic_category: "todo".to_string(),
             color: None,
             collapsed: false,
         });
@@ -485,6 +486,80 @@ fn given_epic_workflow_allows_transition(
         .entry(to_status.clone())
         .or_insert_with(|| format!("Move to {}", to_status.replace('_', " ")));
 
+    let serialized = serde_yaml::to_string(&configuration).expect("serialize config");
+    fs::write(config_path, serialized).expect("write config");
+}
+
+fn rename_status_key_in_configuration(
+    configuration: &mut ProjectConfiguration,
+    old_key: &str,
+    new_key: &str,
+) {
+    for status in &mut configuration.statuses {
+        if status.key == old_key {
+            status.key = new_key.to_string();
+            break;
+        }
+    }
+    for workflow in configuration.workflows.values_mut() {
+        let rebuilt: BTreeMap<String, Vec<String>> = workflow
+            .iter()
+            .map(|(from_status, targets)| {
+                let next_from = if from_status == old_key {
+                    new_key.to_string()
+                } else {
+                    from_status.clone()
+                };
+                let next_targets = targets
+                    .iter()
+                    .map(|target| {
+                        if target == old_key {
+                            new_key.to_string()
+                        } else {
+                            target.clone()
+                        }
+                    })
+                    .collect();
+                (next_from, next_targets)
+            })
+            .collect();
+        *workflow = rebuilt;
+    }
+    for workflow_labels in configuration.transition_labels.values_mut() {
+        let rebuilt: BTreeMap<String, BTreeMap<String, String>> = workflow_labels
+            .iter()
+            .map(|(from_status, targets)| {
+                let next_from = if from_status == old_key {
+                    new_key.to_string()
+                } else {
+                    from_status.clone()
+                };
+                let next_targets = targets
+                    .iter()
+                    .map(|(target, label)| {
+                        let next_target = if target == old_key {
+                            new_key.to_string()
+                        } else {
+                            target.clone()
+                        };
+                        (next_target, label.clone())
+                    })
+                    .collect();
+                (next_from, next_targets)
+            })
+            .collect();
+        *workflow_labels = rebuilt;
+    }
+}
+
+#[given(expr = "the primary in_progress status key is configured as {string}")]
+fn given_primary_in_progress_status_key(world: &mut KanbusWorld, new_key: String) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let config_path = cwd.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut configuration: ProjectConfiguration =
+        serde_yaml::from_str(&contents).expect("parse config");
+    rename_status_key_in_configuration(&mut configuration, "in_progress", &new_key);
     let serialized = serde_yaml::to_string(&configuration).expect("serialize config");
     fs::write(config_path, serialized).expect("write config");
 }

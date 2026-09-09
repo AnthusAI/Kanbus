@@ -439,6 +439,7 @@ pub struct StatusDefinition {
     pub key: String,
     pub name: String,
     pub category: String,
+    pub semantic_category: String,
     #[serde(default)]
     pub color: Option<String>,
     #[serde(default)]

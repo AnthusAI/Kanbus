@@ -487,12 +487,14 @@ def given_invalid_config_duplicate_statuses(context: object) -> None:
             "key": "open",
             "name": "Open",
             "category": "To do",
+            "semantic_category": "todo",
             "collapsed": False,
         },
         {
             "key": "open_duplicate",
             "name": "Open",
             "category": "To do",
+            "semantic_category": "todo",
             "collapsed": False,
         },
     ]
@@ -514,6 +516,7 @@ def given_invalid_config_workflow_statuses(context: object) -> None:
             "key": "open",
             "name": "Open",
             "category": "To do",
+            "semantic_category": "todo",
             "collapsed": False,
         }
     ]

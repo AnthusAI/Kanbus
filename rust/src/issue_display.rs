@@ -7,6 +7,7 @@ use crate::agent_metadata::{
 };
 use crate::ids::format_issue_key;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::status_semantics::default_color_for_semantic_category;
 use crate::summarize::get_comment_display_text;
 use crate::wiki;
 
@@ -49,22 +50,16 @@ fn parse_color(name: &str) -> Option<AnsiColors> {
 
 fn status_color(status: &str, configuration: Option<&ProjectConfiguration>) -> Option<AnsiColors> {
     if let Some(config) = configuration {
-        // Look up color from statuses list
         if let Some(status_def) = config.statuses.iter().find(|s| s.key == status) {
             if let Some(color) = &status_def.color {
                 return parse_color(color);
             }
+            return parse_color(default_color_for_semantic_category(
+                &status_def.semantic_category,
+            ));
         }
     }
-    // Fallback to default colors
-    parse_color(match status {
-        "open" => "cyan",
-        "in_progress" => "blue",
-        "blocked" => "red",
-        "closed" => "green",
-        "deferred" => "yellow",
-        _ => "",
-    })
+    parse_color("")
 }
 
 fn priority_color(

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4830001c-1eb1-4968-8612-cc240127db49",
+  "title": "Implement configurable status semantic categories",
+  "description": "Add semantic_category to StatusDefinition and resolve business logic by category instead of hard-coded in_progress key.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "tskl-cpg",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-07T20:57:47.871697178Z",
+  "updated_at": "2026-09-07T21:05:46.846038318Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -21,6 +21,10 @@ from kanbus.issue_lookup import (
 from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from kanbus.models import IssueData
 from kanbus.project import get_configuration_path
+from kanbus.status_semantics import (
+    SEMANTIC_IN_PROGRESS,
+    resolve_primary_status_key_for_semantic_category,
+)
 from kanbus.workflows import (
     InvalidTransitionError,
     apply_transition_side_effects,
@@ -120,7 +124,9 @@ def update_issue(
 
     resolved_status = status
     if claim:
-        resolved_status = "in_progress"
+        resolved_status = resolve_primary_status_key_for_semantic_category(
+            configuration, SEMANTIC_IN_PROGRESS
+        )
     resolved_type = issue_type.strip() if issue_type is not None else None
     if resolved_type == "":
         resolved_type = None

@@ -9,6 +9,8 @@ import pytest
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
 from kanbus.models import AiConfiguration, IssueComment, RightNowConfiguration
 from kanbus.overlay import load_overlay_issue, write_overlay_issue
+from kanbus.issue_listing import IssueListingError
+from kanbus.issue_lookup import IssueLookupError
 from kanbus.right_now import (
     AI_PROVIDER_NOT_CONFIGURED_MESSAGE,
     RightNowError,
@@ -20,6 +22,7 @@ from kanbus.right_now import (
     _truncate_to_max_length,
     build_bounded_raw_child_summary,
     build_right_now_context,
+    ensure_right_now_subtree,
     generate_right_now_summary,
     get_child_full_summary,
     get_right_now_summary,
@@ -42,6 +45,65 @@ def _comment(text: str, author: str = "dev") -> IssueComment:
             "text": text,
             "created_at": datetime(2026, 3, 9, tzinfo=timezone.utc).isoformat(),
         }
+    )
+
+
+def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = {"kanbus-parent"}
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_a: (_ for _ in ()).throw(IssueListingError("listing failed")),
+    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
+    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
+
+    issue = build_issue("kanbus-parent")
+    lookup = SimpleNamespace(issue=issue)
+    load_calls = 0
+
+    def load_with_vanish_after_regenerate(*_args: object) -> SimpleNamespace:
+        nonlocal load_calls
+        load_calls += 1
+        if load_calls == 1:
+            return lookup
+        raise IssueLookupError("vanished")
+
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        load_with_vanish_after_regenerate,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.right_now_summary_is_missing_or_stale",
+        lambda *_a: True,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.regenerate_right_now_for_issue",
+        lambda *_a: None,
+    )
+    assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
+
+
+def test_ensure_right_now_subtree_uses_memo_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    memo: dict[str, bool] = {"kanbus-cached": True}
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_a: (_ for _ in ()).throw(AssertionError("should not list children")),
+    )
+    assert (
+        ensure_right_now_subtree(
+            tmp_path, "kanbus-cached", {"kanbus-cached"}, memo=memo
+        )
+        is True
     )
 
 

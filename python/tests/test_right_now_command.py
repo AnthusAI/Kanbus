@@ -7,11 +7,11 @@ import pytest
 
 from kanbus.models import RightNowConfiguration
 from kanbus.project import ProjectMarkerError
+from kanbus.issue_lookup import IssueLookupError
 from kanbus.right_now_command import (
     CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS,
     CANNOT_COMBINE_ALL_WITH_LIMIT,
     DEFAULT_RIGHT_NOW_LIMIT,
-    DEFAULT_RIGHT_NOW_STATUS,
     EMPTY_STATUS_FILTER,
     NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS,
     RightNowCommandError,
@@ -22,9 +22,10 @@ from kanbus.right_now_command import (
     _resolve_right_now_statuses,
     _resolve_tree_expanded,
     _validate_right_now_options,
+    run_right_now_command,
 )
 
-from test_helpers import build_project_configuration
+from test_helpers import build_issue, build_project_configuration
 
 
 def test_load_configuration_returns_none_on_missing_project(
@@ -81,19 +82,25 @@ def test_validate_right_now_options_rejects_conflicts() -> None:
         RightNowCommandError, match=NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS
     ):
         _validate_right_now_options(RightNowCommandOptions(recursive=False))
+    with pytest.raises(RightNowCommandError, match=EMPTY_STATUS_FILTER):
+        _validate_right_now_options(RightNowCommandOptions(status=" , "))
     _validate_right_now_options(RightNowCommandOptions())
 
 
 def test_resolve_right_now_statuses_defaults_to_in_progress_for_board() -> None:
-    assert _resolve_right_now_statuses(None, False) == {DEFAULT_RIGHT_NOW_STATUS}
-    assert _resolve_right_now_statuses(None, True) is None
-    assert _resolve_right_now_statuses("all", False) is None
-    assert _resolve_right_now_statuses("in_progress,open", False) == {
+    configuration = build_project_configuration()
+    assert _resolve_right_now_statuses(None, False, configuration) == {
+        "in_progress",
+        "blocked",
+    }
+    assert _resolve_right_now_statuses(None, True, configuration) is None
+    assert _resolve_right_now_statuses("all", False, configuration) is None
+    assert _resolve_right_now_statuses("in_progress,open", False, configuration) == {
         "in_progress",
         "open",
     }
     with pytest.raises(RightNowCommandError, match=EMPTY_STATUS_FILTER):
-        _resolve_right_now_statuses(" , ", False)
+        _resolve_right_now_statuses(" , ", False, configuration)
 
 
 def test_effective_right_now_limit_uses_selection_policy() -> None:
@@ -111,3 +118,30 @@ def test_effective_right_now_limit_uses_selection_policy() -> None:
         == 1
     )
     assert _effective_right_now_limit(RightNowCommandOptions(limit=5)) == 5
+
+
+def test_run_right_now_command_keeps_issue_when_reload_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    issue = build_issue("kanbus-rn", status="in_progress", title="Active work")
+    monkeypatch.setattr(
+        "kanbus.right_now_command._select_right_now_issues",
+        lambda *_args: [issue],
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.ensure_right_now_summaries", lambda *_a: None
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command._load_configuration",
+        lambda *_a: build_project_configuration(),
+    )
+    output = run_right_now_command(
+        tmp_path,
+        RightNowCommandOptions(tree=False, recursive=True),
+    )
+    assert "kanbus-rn" in output
+    assert "Active work" in output
