@@ -3,16 +3,38 @@
   "title": "Gherkin specs for standup reports (both profiles + shared stack)",
   "description": "Behavior specs first: standup report generation for Meeting script and Director brief profiles on the shared LiteLLM/right-now stack. Dual-runtime parity; SD reviews specs before implementation.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-e7abbe",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "497d53c3-d6ac-41c6-935d-d5d418c4b2e4",
+      "author": "ubuntu",
+      "text": "Specs-first PR opened: https://github.com/AnthusAI/Kanbus/pull/245\n\nAdds @wip Gherkin for shared standup stack, meeting-script profile, director-brief profile, dual-runtime parity, and CLI surface. No implementation yet — awaiting SD spec review.",
+      "created_at": "2026-09-09T17:40:16.645112280Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "a3faa95b-88df-4824-b3f1-e99d9171de62",
+      "author": "ubuntu",
+      "text": "SD review amendments pushed to PR #245: https://github.com/AnthusAI/Kanbus/pull/245\n\nChanges:\n1. Omit-IDs default scope = kanbus now (in_progress, cap 30, virtual_projects); director-brief board-wide without IDs\n2. Observable signal rules for Yesterday/Today and Health/Momentum/Risks (standup.lookback_hours)\n3. Likely questions contract from blocker summaries + stale WIP identifiers\n4. Fixed JSON scenario (source_issues includes id; removed contradictory stdout check)\n5. Cross-profile JSON parity on source_issues set + right_now_texts fields\n6. virtual_projects congregation scenario in shared stack\n7. Fixture models aligned to gpt-5.6-luna\n\nReady for SD re-review. Still @wip / spec-only.",
+      "created_at": "2026-09-09T17:50:49.876188774Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "62f4a133-5d76-4e62-bb60-683deaedadfb",
+      "author": "ubuntu",
+      "text": "SD round-3 amendment pushed to PR #245: https://github.com/AnthusAI/Kanbus/pull/245\n\nStandup omit-IDs default widened to in_progress OR blocked (congregation, cap 30, updated_at desc). Documented deliberate widening vs kanbus now in_progress-only; equivalence is kanbus now --status in_progress,blocked.\n\nAdded scenarios: blocked in fact feed + Blockers (meeting-script and director-brief); open/backlog excluded; proof standup includes blocked that plain kanbus now omits.\n\nReady for SD quick re-review.",
+      "created_at": "2026-09-09T17:52:52.926570230Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T17:17:31.598248983Z",
-  "updated_at": "2026-09-09T17:17:31.606131544Z",
+  "updated_at": "2026-09-09T17:52:52.926605655Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
