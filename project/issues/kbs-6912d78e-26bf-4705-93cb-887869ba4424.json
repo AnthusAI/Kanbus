@@ -12,28 +12,16 @@
   "dependencies": [],
   "comments": [
     {
-<<<<<<< HEAD
-      "id": "fb8fad54-191f-48f9-8632-cce92499ebdf",
-      "author": "ubuntu",
-      "text": "Shipped as PR #235.",
-      "created_at": "2026-09-09T16:13:43.402483552Z",
-=======
       "id": "ca2b93c8-f50a-4648-a418-0e12705704fc",
       "author": "ubuntu",
       "text": "Shipped in PR #235: OpenAI key loaded from .env and congregation (~/.kanbus.env) for kbs now and right-now regeneration.",
       "created_at": "2026-09-09T16:12:58.298937421Z",
->>>>>>> origin/develop
       "comment_type": "default"
     }
   ],
   "created_at": "2026-09-09T12:57:06.744198470Z",
-<<<<<<< HEAD
   "updated_at": "2026-09-09T16:13:43.402501021Z",
   "closed_at": "2026-09-09T16:13:43.335377310Z",
-=======
-  "updated_at": "2026-09-09T16:12:58.361296896Z",
-  "closed_at": "2026-09-09T16:12:58.353409218Z",
->>>>>>> origin/develop
   "right_now_summary": "Mock right-now summary for kbs-6912d78e-26bf-4705-93cb-887869ba4424.",
   "right_now_updated_at": "2026-09-09T12:57:14.265137783Z",
   "custom": {}

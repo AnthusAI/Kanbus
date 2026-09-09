@@ -3,17 +3,25 @@
   "title": "Command: purge right-now summaries across board",
   "description": "Add kbs now --purge to clear right_now_summary and right_now_updated_at across board including virtual_projects.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": "kbs-e2f6d66e-899a-4ec4-862c-538c670b5d5d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "06521613-c542-4808-8747-86a98c66f8ed",
+      "author": "ubuntu",
+      "text": "Duplicate of kbs-0fe175. Shipped in PR #239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2. Use epic kbs-0fe175 for SD acceptance tracking.",
+      "created_at": "2026-09-09T17:09:21.523562502Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T16:13:39.351247698Z",
-  "updated_at": "2026-09-09T16:13:43.662178869Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T17:09:21.606835994Z",
+  "closed_at": "2026-09-09T17:09:21.599707456Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

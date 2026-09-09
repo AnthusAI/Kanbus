@@ -3,18 +3,29 @@
   "title": "kbs now shows placeholders/mocks instead of fail-closed JIT",
   "description": "Observed: `kbs now` emits placeholder or mock right-now strings instead of failing closed when real JIT generation is unavailable or fails.\n\nExpected:\n- Production `kbs now` generates real summaries just-in-time via the LLM pipeline\n- On failure (missing key, LLM error, validation), fail closed with a clear error — never substitute mock/placeholder text\n- SD acceptance on `/workspace/projects-meta`",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
   "parent": "kbs-0fe175",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "19471f56-010e-4b3a-86f7-4468dc3c6d6b",
+      "author": "ubuntu",
+      "text": "Merged to develop in PR #239: https://github.com/AnthusAI/Kanbus/pull/239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2",
+      "created_at": "2026-09-09T17:09:21.807259056Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T16:12:52.814517347Z",
-  "updated_at": "2026-09-09T16:12:52.821833683Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T17:09:21.807269969Z",
+  "closed_at": "2026-09-09T17:09:10.820655891Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
