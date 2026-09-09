@@ -16,6 +16,7 @@ from kanbus.right_now_command import (
     NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS,
     RightNowCommandError,
     RightNowCommandOptions,
+    _dump_right_now_yaml,
     _effective_right_now_limit,
     _format_updated_at,
     _load_configuration,
@@ -144,6 +145,33 @@ def test_run_right_now_command_fails_when_summary_missing_after_reload(
             tmp_path,
             RightNowCommandOptions(tree=False, recursive=True),
         )
+
+
+def test_dump_right_now_yaml_keeps_long_strings_on_one_line() -> None:
+    long_summary = (
+        "This is a very long right now summary that should not be wrapped across "
+        "multiple lines when emitted as YAML from kbs now command output for human "
+        "readability and parser safety."
+    )
+    payload = [
+        {
+            "id": "kanbus-wrap",
+            "title": "YAML wrap flat issue with a long title that should remain on one scalar line when serialized",
+            "right_now_summary": long_summary,
+        }
+    ]
+    output = _dump_right_now_yaml(payload)
+    assert f"right_now_summary: {long_summary}" in output
+    lines = output.splitlines()
+    summary_index = next(
+        index for index, line in enumerate(lines) if "right_now_summary:" in line
+    )
+    if summary_index + 1 < len(lines):
+        summary_line = lines[summary_index]
+        next_line = lines[summary_index + 1]
+        summary_indent = len(summary_line) - len(summary_line.lstrip())
+        next_indent = len(next_line) - len(next_line.lstrip())
+        assert next_indent <= summary_indent or ":" in next_line.split(":", 1)[0]
 
 
 def test_run_right_now_command_purge_returns_count(
