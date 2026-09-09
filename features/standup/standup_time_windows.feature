@@ -22,8 +22,12 @@ Feature: Standup time windows (rolling vs calendar)
   - skip_weekends is ignored (no effect) when window is rolling
   - Hour granularity is required (e.g. 8h overnight); not days-only
 
+  Timezone (locked):
+  - Canonical source: standup.timezone in project configuration
+  - When standup.timezone is unset, use the system local timezone (no other fallback)
+
   Calendar behavior:
-  - Buckets align to calendar days in standup.timezone (or project timezone when set)
+  - Buckets align to calendar days in the resolved standup timezone
   - skip_weekends false: completed bucket is the previous calendar day only
   - skip_weekends true: Monday completed bucket includes Friday + Saturday + Sunday;
     Tuesday–Friday completed bucket is the previous calendar day only
@@ -124,15 +128,28 @@ Feature: Standup time windows (rolling vs calendar)
     And the standup report section "Yesterday" should mention "Sunday tweak"
     And the standup report section "Yesterday" should not mention "Thursday leftover"
 
-  Scenario: CLI window lookback skip_weekends flags override config
-    Given the Kanbus configuration sets standup window to "calendar"
-    And the Kanbus configuration sets standup lookback to "24h"
-    And the Kanbus configuration sets standup skip_weekends to true
+  Scenario: CLI help documents window lookback skip_weekends flags
     When I run "kanbus standup --help"
     Then the command should succeed
     And command help should mention "--window"
     And command help should mention "--lookback"
     And command help should mention "--skip-weekends"
+
+  Scenario: CLI flags override config and profile on standup run
+    Given the Kanbus configuration sets standup window to "calendar"
+    And the Kanbus configuration sets standup lookback to "24h"
+    And the Kanbus configuration sets standup skip_weekends to true
+    And the report time is fixed
+    And an issue "kanbus-cli-ov-in" exists with status "closed"
+    And issue "kanbus-cli-ov-in" has closed_at 3 hours before report time
+    And issue "kanbus-cli-ov-in" has right now summary "CLI rolling include."
+    And an issue "kanbus-cli-ov-out" exists with status "closed"
+    And issue "kanbus-cli-ov-out" has closed_at 12 hours before report time
+    And issue "kanbus-cli-ov-out" has right now summary "CLI rolling exclude."
+    When I run "kanbus standup --window rolling --lookback 8h --no-skip-weekends --profile meeting-script kanbus-cli-ov-in kanbus-cli-ov-out"
+    Then the command should succeed
+    And the standup report section "Yesterday" should mention "CLI rolling include"
+    And the standup report section "Yesterday" should not mention "CLI rolling exclude"
 
   Scenario: Console API accepts the same window lookback skip_weekends field names
     Given the console server is running
