@@ -15,7 +15,7 @@ use crate::standup::{
     resolve_standup_profile,
 };
 use crate::standup_window::{
-    StandupWindowOverrides, resolve_standup_report_time, resolve_standup_window_settings,
+    resolve_standup_report_time, resolve_standup_window_settings, StandupWindowOverrides,
 };
 
 pub const STANDUP_DEFAULT_STATUS_FILTER: &str = "in_progress,blocked";

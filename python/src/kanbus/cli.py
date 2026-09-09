@@ -99,7 +99,13 @@ from kanbus.text_editor import (
     edit_create,
     edit_insert,
 )
+from kanbus.console_now import build_now_issues
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_standup import (
+    StandupGenerateRequest,
+    StandupGenerateResponseModel,
+    generate_standup_report,
+)
 from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
@@ -2529,6 +2535,56 @@ def console_snapshot() -> None:
     click.echo(payload)
 
 
+@console.command("now")
+def console_now() -> None:
+    """Emit JSON issues for the Now panel with JIT right-now summaries."""
+    root = Path.cwd()
+    try:
+        issues = build_now_issues(root)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+    payload = json.dumps(
+        [issue.model_dump(by_alias=True, mode="json") for issue in issues],
+        indent=2,
+        sort_keys=False,
+    )
+    click.echo(payload)
+
+
+@console.command("standup")
+@click.option(
+    "--request-json",
+    default=None,
+    help="Standup request JSON. When omitted, JSON is read from stdin.",
+)
+def console_standup(request_json: str | None) -> None:
+    """Emit a JSON standup report for the console API."""
+    root = Path.cwd()
+    raw_request = request_json if request_json is not None else sys.stdin.read()
+    if not raw_request.strip():
+        raise click.ClickException("standup request JSON is required")
+    try:
+        request = StandupGenerateRequest.model_validate(json.loads(raw_request))
+        response = generate_standup_report(root, request)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+    payload = StandupGenerateResponseModel(
+        profile=response.profile,
+        sections=[
+            {"name": section.name, "bullets": section.bullets}
+            for section in response.sections
+        ],
+        text=response.text,
+        source_issues=response.source_issues,
+        right_now_texts=response.right_now_texts,
+    ).model_dump()
+    click.echo(json.dumps(payload, indent=2, sort_keys=False))
+
+
 @console.command("screenshot")
 @click.option(
     "--output",
@@ -3125,7 +3181,9 @@ def standup_command(
     root = Path.cwd()
     skip_weekends_override = None
     if skip_weekends and no_skip_weekends:
-        raise click.ClickException("cannot use both --skip-weekends and --no-skip-weekends")
+        raise click.ClickException(
+            "cannot use both --skip-weekends and --no-skip-weekends"
+        )
     if skip_weekends:
         skip_weekends_override = True
     elif no_skip_weekends:
