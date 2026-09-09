@@ -185,7 +185,15 @@ fn given_issue_has_labels(world: &mut KanbusWorld, identifier: String, label_tex
 #[given(expr = "issue {string} has priority {int}")]
 fn given_issue_has_priority(world: &mut KanbusWorld, identifier: String, priority: String) {
     let project_dir = load_project_dir(world);
-    let mut issue = build_issue(&identifier);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let mut issue = if issue_path.exists() {
+        let contents = fs::read_to_string(&issue_path).expect("read issue");
+        serde_json::from_str(&contents).expect("parse issue")
+    } else {
+        build_issue(&identifier)
+    };
     let parsed = priority.parse::<i32>().expect("priority int");
     issue.priority = parsed;
     write_issue_file(&project_dir, &issue);
