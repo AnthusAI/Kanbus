@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::models::{
-    CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
+    AiConfiguration, CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
     ProjectConfiguration, RealtimeConfig, RightNowConfiguration, StatusDefinition,
 };
 
@@ -259,7 +259,10 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         jira: None,
         snyk: None,
         wiki_directory: None,
-        ai: None,
+        ai: Some(AiConfiguration {
+            provider: "litellm".to_string(),
+            model: "gpt-5.6-luna".to_string(),
+        }),
         right_now: RightNowConfiguration::default(),
         hooks: HooksConfiguration::default(),
         github_security: None,
