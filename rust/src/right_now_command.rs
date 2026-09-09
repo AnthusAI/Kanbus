@@ -661,10 +661,7 @@ mod tests {
     fn resolve_right_now_statuses_defaults_to_in_progress_for_board() {
         let configuration = crate::config::default_project_configuration();
         let statuses = resolve_right_now_statuses(None, false, &configuration).expect("ok");
-        assert_eq!(
-            statuses,
-            Some(HashSet::from(["in_progress".to_string()]))
-        );
+        assert_eq!(statuses, Some(HashSet::from(["in_progress".to_string()])));
         assert!(resolve_right_now_statuses(None, true, &configuration)
             .expect("named")
             .is_none());
