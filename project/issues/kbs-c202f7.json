@@ -21,10 +21,21 @@
         "platform": "cursor",
         "model": "composer-2.5"
       }
+    },
+    {
+      "id": "7a2ec7e1-2269-4fdd-9d63-58c1447e17be",
+      "author": "ubuntu",
+      "text": "SD path fixes on PR #234: README cp path and AGENTS.md link corrected; tip pending push.",
+      "created_at": "2026-09-09T12:33:15.566606651Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5"
+      }
     }
   ],
   "created_at": "2026-09-09T11:38:24.614370681Z",
-  "updated_at": "2026-09-09T12:31:40.390755568Z",
+  "updated_at": "2026-09-09T12:33:15.566628459Z",
   "closed_at": "2026-09-09T12:31:40.384019853Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
