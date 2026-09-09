@@ -161,17 +161,13 @@ pub fn run_right_now_command(
                 for node in &roots {
                     payload.push(serialize_tree_json_node(node, options.raw)?);
                 }
-                let output = serde_yaml::to_string(&payload)
-                    .map_err(|error| KanbusError::Io(error.to_string()))?;
-                Ok(output)
+                Ok(serialize_right_now_yaml(&payload)?)
             } else {
                 let mut payload = Vec::new();
                 for issue in &issues {
                     payload.push(serialize_flat_json_entry(issue, options.raw)?);
                 }
-                let output = serde_yaml::to_string(&payload)
-                    .map_err(|error| KanbusError::Io(error.to_string()))?;
-                Ok(output)
+                Ok(serialize_right_now_yaml(&payload)?)
             }
         }
         RightNowOutputFormat::Text => {
@@ -607,6 +603,10 @@ struct RightNowTreeJsonEntry {
     children: Vec<RightNowTreeJsonEntry>,
 }
 
+fn serialize_right_now_yaml<T: Serialize>(payload: &T) -> Result<String, KanbusError> {
+    serde_yaml::to_string(payload).map_err(|error| KanbusError::Io(error.to_string()))
+}
+
 fn serialize_tree_json_node(
     node: &RightNowTreeNode,
     raw: bool,
@@ -714,6 +714,42 @@ mod tests {
         let issue = make_issue("kanbus-json", "JSON title");
         let raw = serialize_flat_json_entry(&issue, true).expect("serialize");
         assert!(raw.right_now_summary.is_none());
+    }
+
+    #[test]
+    fn serialize_right_now_yaml_keeps_long_strings_on_one_line() {
+        let mut issue = make_issue(
+            "kanbus-wrap",
+            "Also a long title that might wrap if we are not careful about YAML dumper width settings",
+        );
+        issue.right_now_summary = Some(
+            "This is a very long right now summary that should not be wrapped across multiple lines when emitted as YAML from kbs now command output for human readability and parser safety."
+                .to_string(),
+        );
+        let entry = serialize_flat_json_entry(&issue, false).expect("serialize");
+        let output = serialize_right_now_yaml(&vec![entry]).expect("yaml");
+        assert!(
+            output.contains("right_now_summary: This is a very long right now summary"),
+            "expected single-line right_now_summary, got:\n{output}"
+        );
+        let lines: Vec<&str> = output.lines().collect();
+        let summary_line = lines
+            .iter()
+            .find(|line| line.contains("right_now_summary:"))
+            .expect("summary line");
+        let summary_index = lines
+            .iter()
+            .position(|line| line == summary_line)
+            .expect("summary index");
+        if summary_index + 1 < lines.len() {
+            let next_line = lines[summary_index + 1];
+            let summary_indent = summary_line.len() - summary_line.trim_start().len();
+            let next_indent = next_line.len() - next_line.trim_start().len();
+            assert!(
+                next_indent <= summary_indent || next_line.trim_start().contains(':'),
+                "unexpected folded right_now_summary continuation: {next_line}"
+            );
+        }
     }
 
     #[test]

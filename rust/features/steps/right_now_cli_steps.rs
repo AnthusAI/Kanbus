@@ -4,6 +4,18 @@ use serde_yaml::Value as YamlValue;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
+const RIGHT_NOW_YAML_ITEM_KEYS: [&str; 9] = [
+    "id",
+    "title",
+    "type",
+    "status",
+    "priority",
+    "updated_at",
+    "right_now_summary",
+    "parent",
+    "children",
+];
+
 fn stdout_text(world: &KanbusWorld) -> &str {
     world.stdout.as_deref().expect("stdout missing")
 }
@@ -14,6 +26,43 @@ fn parse_stdout_json(world: &KanbusWorld) -> Value {
 
 fn parse_stdout_yaml(world: &KanbusWorld) -> YamlValue {
     serde_yaml::from_str(stdout_text(world)).expect("parse stdout yaml")
+}
+
+#[then(expr = "stdout YAML should not fold fields {string}")]
+fn then_stdout_yaml_should_not_fold_fields(world: &mut KanbusWorld, fields_csv: String) {
+    let stdout = stdout_text(world);
+    let fields: Vec<String> = fields_csv
+        .split(',')
+        .map(str::trim)
+        .filter(|field| !field.is_empty())
+        .map(str::to_string)
+        .collect();
+    let lines: Vec<&str> = stdout.lines().collect();
+    for (index, line) in lines.iter().enumerate() {
+        for field in &fields {
+            let marker = format!("{field}:");
+            if !line.contains(&marker) {
+                continue;
+            }
+            if index + 1 >= lines.len() {
+                continue;
+            }
+            let next_line = lines[index + 1];
+            if next_line.trim().is_empty() {
+                continue;
+            }
+            let current_indent = line.len() - line.trim_start().len();
+            let next_indent = next_line.len() - next_line.trim_start().len();
+            if next_indent > current_indent && !is_yaml_item_key_line(next_line) {
+                panic!(
+                    "folded YAML scalar for {} at line {}: {}",
+                    field,
+                    index + 1,
+                    next_line
+                );
+            }
+        }
+    }
 }
 
 #[then("stdout should be valid YAML")]
@@ -287,6 +336,15 @@ fn then_right_now_json_tree_has_child(world: &mut KanbusWorld, root_id: String, 
         .filter_map(|child| child.get("id").and_then(Value::as_str).map(str::to_string))
         .collect();
     assert!(child_ids.iter().any(|value| value == &child_id));
+}
+
+fn is_yaml_item_key_line(line: &str) -> bool {
+    let stripped = line.trim_start();
+    if stripped.starts_with("- ") {
+        return true;
+    }
+    let key = stripped.split(':').next().unwrap_or("").trim();
+    RIGHT_NOW_YAML_ITEM_KEYS.contains(&key)
 }
 
 fn find_flat_json_item<'a>(payload: &'a Value, identifier: &str) -> &'a Value {
