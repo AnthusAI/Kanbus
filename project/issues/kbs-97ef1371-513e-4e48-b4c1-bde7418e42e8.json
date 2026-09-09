@@ -10,9 +10,17 @@
   "parent": "kbs-e7abbe",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "497d53c3-d6ac-41c6-935d-d5d418c4b2e4",
+      "author": "ubuntu",
+      "text": "Specs-first PR opened: https://github.com/AnthusAI/Kanbus/pull/245\n\nAdds @wip Gherkin for shared standup stack, meeting-script profile, director-brief profile, dual-runtime parity, and CLI surface. No implementation yet — awaiting SD spec review.",
+      "created_at": "2026-09-09T17:40:16.645112280Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T17:17:31.598248983Z",
-  "updated_at": "2026-09-09T17:36:12.509122752Z",
+  "updated_at": "2026-09-09T17:40:16.645130329Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
