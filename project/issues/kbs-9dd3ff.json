@@ -3,18 +3,29 @@
   "title": "Command: purge right-now summaries across board",
   "description": "Implement a Kanbus command to purge right-now summary fields across the entire board.\n\nPurge scope (only these fields):\n- `right_now_summary`\n- `right_now_updated_at`\n\nMust include `virtual_projects` targets, not just the primary project tree.\n\nSD acceptance on `/workspace/projects-meta`.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-0fe175",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6e9f8a24-f80f-4209-8d8f-02aee0a6d81b",
+      "author": "ubuntu",
+      "text": "Merged to develop in PR #239: https://github.com/AnthusAI/Kanbus/pull/239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2",
+      "created_at": "2026-09-09T17:09:21.882049427Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T16:12:52.910476358Z",
-  "updated_at": "2026-09-09T16:12:52.917324160Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T17:09:21.882062043Z",
+  "closed_at": "2026-09-09T17:09:10.912520764Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
