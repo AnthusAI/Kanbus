@@ -33,13 +33,28 @@ Feature: Right now CLI command
     And stdout should contain "kanbus-rn-l2"
     And stdout should not contain "kanbus-rn-l3"
 
-  Scenario: Flat output shows title and right-now summary
-    Given an issue "kanbus-rn-sum" exists with title "Summary issue"
-    And issue "kanbus-rn-sum" has right now summary "Working on the CLI command."
+  Scenario: Default tree output is YAML with type and priority
+    Given an issue "kanbus-rn-ytree" of type "initiative" with status "open" and parent "kanbus-rn-missing" and title "YAML tree root"
+    And an issue "kanbus-rn-ychild" of type "epic" with status "open" and parent "kanbus-rn-ytree" and title "YAML tree child"
+    And issue "kanbus-rn-ytree" has right now summary "Parent YAML summary."
+    And issue "kanbus-rn-ychild" has right now summary "Child YAML summary."
+    When I run "kanbus now --status all"
+    Then the command should succeed
+    And stdout should be valid YAML
+    And the right now YAML tree should have root "kanbus-rn-ytree" with child "kanbus-rn-ychild"
+    And the right now YAML tree item for "kanbus-rn-ytree" should include fields "id,title,type,status,priority,updated_at,right_now_summary,children"
+    And the right now YAML tree item for "kanbus-rn-ytree" should have type "initiative"
+    And the right now YAML tree item for "kanbus-rn-ytree" should have priority 2
+
+  Scenario: Flat list output is YAML with type and priority
+    Given an issue "kanbus-rn-yflat" of type "task" with status "open" and title "YAML flat issue"
+    And issue "kanbus-rn-yflat" has right now summary "Flat YAML summary."
     When I run "kanbus now --status all --list"
     Then the command should succeed
-    And stdout should contain "Summary issue"
-    And stdout should contain "Working on the CLI command."
+    And stdout should be valid YAML
+    And the right now YAML output should have 1 item
+    And the right now YAML item for "kanbus-rn-yflat" should include fields "id,title,type,status,priority,updated_at,right_now_summary,parent"
+    And the right now YAML item for "kanbus-rn-yflat" should have right_now_summary "Flat YAML summary."
 
   Scenario: Flat output JIT-generates a missing right-now summary
     Given an issue "kanbus-rn-nosum" exists with title "No summary issue"
@@ -47,27 +62,34 @@ Feature: Right now CLI command
     And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
     When I run "kanbus now --status all --list"
     Then the command should succeed
-    And stdout should contain "No summary issue"
-    And stdout should not contain "(no right-now summary)"
+    And stdout should be valid YAML
+    And the right now YAML item for "kanbus-rn-nosum" should have a non-empty right_now_summary
     And issue "kanbus-rn-nosum" should have a non-empty right now summary
 
-  Scenario: Raw flat output shows titles only
+  Scenario: Raw flat output omits right_now_summary
     Given an issue "kanbus-rn-raw" exists with title "Raw issue"
     And issue "kanbus-rn-raw" has right now summary "Hidden summary."
     When I run "kanbus now --status all --list --raw"
     Then the command should succeed
-    And stdout should contain "Raw issue"
-    And stdout should not contain "Hidden summary."
-    And stdout should not contain "(no right-now summary)"
+    And stdout should be valid YAML
+    And the right now YAML item for "kanbus-rn-raw" should not include field "right_now_summary"
 
-  Scenario: Tree output shows hierarchy with indentation
+  Scenario: Text flat output shows title and right-now summary
+    Given an issue "kanbus-rn-sum" exists with title "Summary issue"
+    And issue "kanbus-rn-sum" has right now summary "Working on the CLI command."
+    When I run "kanbus now --status all --list --text"
+    Then the command should succeed
+    And stdout should contain "Summary issue"
+    And stdout should contain "Working on the CLI command."
+
+  Scenario: Text tree output shows hierarchy with indentation
     Given an issue "kanbus-rn-init" of type "initiative" with status "open" and parent "kanbus-rn-missing" and title "Initiative root"
     And an issue "kanbus-rn-epic" of type "epic" with status "open" and parent "kanbus-rn-init" and title "Epic child"
     And an issue "kanbus-rn-task" of type "task" with status "open" and parent "kanbus-rn-epic" and title "Task leaf"
     And issue "kanbus-rn-init" has right now summary "Initiative summary."
     And issue "kanbus-rn-epic" has right now summary "Epic summary."
     And issue "kanbus-rn-task" has right now summary "Task summary."
-    When I run "kanbus now --status all --collapsed"
+    When I run "kanbus now --status all --collapsed --text"
     Then the command should succeed
     And stdout should contain "[+] 2026-02-11T00:00:00.000Z  kanbus-rn-init"
     And stdout should contain "  [+] 2026-02-11T00:00:00.000Z  kanbus-rn-epic"
@@ -79,7 +101,7 @@ Feature: Right now CLI command
   Scenario: Expanded tree uses minus collapse markers
     Given an issue "kanbus-rn-exp" exists with title "Expanded node"
     And issue "kanbus-rn-exp" has right now summary "Expanded summary."
-    When I run "kanbus now --status all --expanded"
+    When I run "kanbus now --status all --expanded --text"
     Then the command should succeed
     And stdout should contain "[-] 2026-02-11T00:00:00.000Z  kanbus-rn-exp"
     And stdout should not contain "[+] 2026-02-11T00:00:00.000Z  kanbus-rn-exp"
@@ -87,7 +109,7 @@ Feature: Right now CLI command
   Scenario: Collapsed tree uses plus collapse markers
     Given an issue "kanbus-rn-col" exists with title "Collapsed node"
     And issue "kanbus-rn-col" has right now summary "Collapsed summary."
-    When I run "kanbus now --status all --collapsed"
+    When I run "kanbus now --status all --collapsed --text"
     Then the command should succeed
     And stdout should contain "[+] 2026-02-11T00:00:00.000Z  kanbus-rn-col"
     And stdout should not contain "[-] 2026-02-11T00:00:00.000Z  kanbus-rn-col"
@@ -120,6 +142,8 @@ Feature: Right now CLI command
     Then the command should succeed
     And stdout should be valid JSON
     And the right now JSON tree should have root "kanbus-rn-jinit" with child "kanbus-rn-jepic"
+    And the right now JSON tree item for "kanbus-rn-jinit" should include fields "id,title,type,status,priority,updated_at,right_now_summary,children"
+    And the right now JSON tree item for "kanbus-rn-jepic" should include fields "id,title,type,status,priority,updated_at,right_now_summary,children"
 
   Scenario: Tie-break on identifier ascending when updated_at matches
     Given an issue "kanbus-rn-z" exists with title "Zulu issue"
@@ -184,7 +208,7 @@ Feature: Right now CLI command
   Scenario: Recursive tree nests descendants under the selected issue
     Given an issue "kanbus-rn-tree-init" of type "initiative" with status "open" and parent "kanbus-rn-missing" and title "Tree initiative"
     And an issue "kanbus-rn-tree-epic" of type "epic" with status "open" and parent "kanbus-rn-tree-init" and title "Tree epic"
-    When I run "kanbus now kanbus-rn-tree-init --collapsed"
+    When I run "kanbus now kanbus-rn-tree-init --collapsed --text"
     Then the command should succeed
     And stdout should contain "[+] 2026-02-11T00:00:00.000Z  kanbus-rn-tree-init"
     And stdout should contain "  [+] 2026-02-11T00:00:00.000Z  kanbus-rn-tree-epic"
