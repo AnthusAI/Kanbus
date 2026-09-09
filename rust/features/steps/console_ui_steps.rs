@@ -935,11 +935,17 @@ fn given_console_issue_right_now_summary(world: &mut KanbusWorld, title: String,
 #[then(expr = "the issue detail should show right-now summary {string}")]
 fn then_issue_detail_right_now_summary(world: &mut KanbusWorld, expected: String) {
     let issue = get_selected_issue(world);
-    let actual = match issue.right_now_summary.as_deref() {
-        None | Some("") => "(no right-now summary)",
-        Some(summary) => summary,
-    };
+    let actual = issue
+        .right_now_summary
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default();
     assert_eq!(actual, expected);
+}
+
+#[then("the issue detail should show empty right-now summary")]
+fn then_issue_detail_empty_right_now_summary(world: &mut KanbusWorld) {
+    then_issue_detail_right_now_summary(world, String::new());
 }
 
 #[when(expr = "I open the console route {string}")]

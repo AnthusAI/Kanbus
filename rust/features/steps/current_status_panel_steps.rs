@@ -239,8 +239,8 @@ fn status_feed_issues<'a>(issues: Vec<&'a ConsoleIssue>) -> Vec<&'a ConsoleIssue
 
 fn resolve_feed_summary(issue: &ConsoleIssue) -> String {
     match issue.right_now_summary.as_deref() {
-        None | Some("") => RIGHT_NOW_PLACEHOLDER.to_string(),
-        Some(summary) => summary.to_string(),
+        None => String::new(),
+        Some(summary) => summary.trim().to_string(),
     }
 }
 
@@ -773,4 +773,62 @@ fn then_status_feed_row_count(world: &mut KanbusWorld, count: i32) {
     let state = require_console_state(world);
     let actual = status_feed_issues(now_visible_issues(state)).len();
     assert_eq!(actual, count as usize);
+}
+
+#[then("the now panel should not show right-now placeholder text")]
+fn then_now_panel_no_right_now_placeholder(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    let issues: Vec<&ConsoleIssue> = if state.status_tree_mode {
+        state
+            .issues
+            .iter()
+            .filter(|issue| now_tree_identifiers(state).contains(&issue_tree_identifier(issue)))
+            .collect()
+    } else {
+        status_feed_issues(now_visible_issues(state))
+    };
+    for issue in issues {
+        assert_ne!(
+            resolve_feed_summary(issue),
+            RIGHT_NOW_PLACEHOLDER,
+            "issue {:?} rendered right-now placeholder text",
+            issue.title
+        );
+    }
+}
+
+#[when("I request the console now snapshot from the API")]
+fn when_request_console_now_snapshot(world: &mut KanbusWorld) {
+    let port = world.console_port.expect("console server is not running");
+    let url = format!("http://127.0.0.1:{port}/api/now");
+    let client = Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .expect("build http client");
+    let response = client.get(&url).send().expect("request now snapshot");
+    world.now_api_status = Some(response.status().as_u16());
+    let body = response.text().expect("read now snapshot body");
+    world.now_api_response = Some(body);
+}
+
+#[then("the console now API response should succeed")]
+fn then_console_now_api_response_succeeds(world: &mut KanbusWorld) {
+    let status = world.now_api_status.expect("now API status missing");
+    assert_eq!(
+        status, 200,
+        "expected now API status 200, got {}: {:?}",
+        status, world.now_api_response
+    );
+}
+
+#[then("the console now API response should not contain \"(no right-now summary)\"")]
+fn then_console_now_api_response_has_no_placeholder(world: &mut KanbusWorld) {
+    let body = world
+        .now_api_response
+        .as_ref()
+        .expect("now API response missing");
+    assert!(
+        !body.contains(RIGHT_NOW_PLACEHOLDER),
+        "now API response contains right-now placeholder text"
+    );
 }

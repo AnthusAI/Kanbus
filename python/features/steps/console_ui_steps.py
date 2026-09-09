@@ -711,12 +711,14 @@ def given_console_issue_right_now_summary(
 def then_issue_detail_right_now_summary(context: object, expected: str) -> None:
     issue = _get_selected_issue(context)
     summary = issue.right_now_summary
-    if summary is None or summary.strip() == "":
-        actual = "(no right-now summary)"
-    else:
-        actual = summary
+    actual = "" if summary is None else summary.strip()
     if actual != expected:
         raise AssertionError(f"expected right-now summary {expected}, got {actual}")
+
+
+@then("the issue detail should show empty right-now summary")
+def then_issue_detail_empty_right_now_summary(context: object) -> None:
+    then_issue_detail_right_now_summary(context, "")
 
 
 @given(
