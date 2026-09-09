@@ -652,3 +652,45 @@ def test_purge_right_now_summaries_skips_issues_without_fields(
     monkeypatch.setattr("kanbus.right_now.clear_right_now_summary", record_clear)
     assert purge_right_now_summaries(tmp_path) == 1
     assert cleared == ["kanbus-with"]
+
+
+def test_regenerate_right_now_for_issue_fail_closed_child_and_persist_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configuration = build_project_configuration()
+    issue = build_issue("kanbus-child-err")
+    lookup = SimpleNamespace(
+        project_dir=tmp_path / "project",
+        issue_path=tmp_path / "project" / "issues" / "kanbus-child-err.json",
+        issue=issue,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.load_repository_environment",
+        lambda *_a: None,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now._load_configuration",
+        lambda *_a: configuration,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project",
+        lambda *_a: lookup,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.load_child_issues",
+        lambda *_a: (_ for _ in ()).throw(IssueListingError("child listing failed")),
+    )
+    with pytest.raises(RightNowError, match="child listing failed"):
+        regenerate_right_now_for_issue(tmp_path, "kanbus-child-err", fail_closed=True)
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr(
+        "kanbus.right_now.generate_right_now_summary",
+        lambda *_a: "Generated summary.",
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now.persist_right_now_summary",
+        lambda *_a: (_ for _ in ()).throw(OSError("disk full")),
+    )
+    with pytest.raises(RightNowError, match="disk full"):
+        regenerate_right_now_for_issue(tmp_path, "kanbus-child-err", fail_closed=True)
