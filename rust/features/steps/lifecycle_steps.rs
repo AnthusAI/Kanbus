@@ -32,6 +32,26 @@ fn the_ai_provider_is_configured_as_litellm(world: &mut KanbusWorld) {
     fs::write(&config_path, updated).unwrap();
 }
 
+#[given(regex = r#"^mock AI is disabled$"#)]
+fn mock_ai_is_disabled(world: &mut KanbusWorld) {
+    if world.ai_mock_env.is_none() {
+        world.ai_mock_env = Some(std::env::var("KANBUS_TEST_AI_MOCK").ok());
+    }
+    if world.litellm_called_env.is_none() {
+        world.litellm_called_env = Some(std::env::var("KANBUS_RIGHT_NOW_LITELLM_CALLED").ok());
+    }
+    std::env::remove_var("KANBUS_TEST_AI_MOCK");
+    std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
+    std::env::remove_var("KANBUS_TEST_RIGHT_NOW_COMPLETION");
+    std::env::remove_var("KANBUS_TEST_LITELLM_COMPLETION");
+    world
+        .environment_overrides
+        .remove("KANBUS_TEST_RIGHT_NOW_COMPLETION");
+    world
+        .environment_overrides
+        .remove("KANBUS_TEST_LITELLM_COMPLETION");
+}
+
 #[given(regex = r#"^mock AI is enabled$"#)]
 fn mock_ai_is_enabled(world: &mut KanbusWorld) {
     if world.ai_mock_env.is_none() {
@@ -43,9 +63,13 @@ fn mock_ai_is_enabled(world: &mut KanbusWorld) {
     std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
     std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
     std::env::remove_var("KANBUS_TEST_RIGHT_NOW_COMPLETION");
+    std::env::remove_var("KANBUS_TEST_LITELLM_COMPLETION");
     world
         .environment_overrides
         .remove("KANBUS_TEST_RIGHT_NOW_COMPLETION");
+    world
+        .environment_overrides
+        .remove("KANBUS_TEST_LITELLM_COMPLETION");
 }
 
 #[given(regex = r#"^an issue "([^"]+)" of type "([^"]+)" in status "([^"]+)"$"#)]

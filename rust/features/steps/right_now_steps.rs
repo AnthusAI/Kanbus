@@ -236,6 +236,25 @@ fn given_right_now_generation_requires_loaded_openai_credentials(world: &mut Kan
     );
 }
 
+#[given(expr = "right now native litellm test completion is {string}")]
+fn given_right_now_native_litellm_test_completion(world: &mut KanbusWorld, summary: String) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_LITELLM_COMPLETION".to_string(),
+        summary.clone(),
+    );
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_LITELLM_COMPLETION")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_LITELLM_COMPLETION".to_string(),
+            std::env::var("KANBUS_TEST_LITELLM_COMPLETION").ok(),
+        ));
+    }
+    std::env::set_var("KANBUS_TEST_LITELLM_COMPLETION", summary);
+}
+
 #[given(expr = "right now generation uses completion {string}")]
 fn given_right_now_generation_uses_completion(world: &mut KanbusWorld, summary: String) {
     world.environment_overrides.insert(
