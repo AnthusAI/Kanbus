@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   generateStandupReport,
   type StandupGenerateResponse,
@@ -87,7 +88,7 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
     return null;
   }
 
-  return (
+  const drawer = (
     <div className="standup-drawer-backdrop" data-testid="standup-drawer-backdrop">
       <div
         className="standup-drawer"
@@ -241,4 +242,6 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
       </div>
     </div>
   );
+
+  return createPortal(drawer, document.body);
 }

@@ -11,6 +11,17 @@ Feature: Console standup in the Now panel
     When I switch to the "Now" view
     Then the now standup button should be visible
 
+  Scenario: Standup drawer controls stay in viewport on 1280x800
+    Given the console is open
+    And the browser viewport is 1280 by 800
+    When I switch to the "Now" view
+    And I open the standup drawer
+    Then the standup drawer should be in the viewport
+    And the standup profile select should be in the viewport
+    And the standup window select should be in the viewport
+    And the standup lookback input should be in the viewport
+    And the standup skip weekends checkbox should be in the viewport
+
   Scenario: Generate meeting-script succeeds and shows report sections
     Given no issues exist in the console
     And a status issue "Alpha task" updated at "2026-01-01T10:00:00.000Z"
