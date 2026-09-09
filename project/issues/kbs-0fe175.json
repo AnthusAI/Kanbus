@@ -1,0 +1,20 @@
+{
+  "id": "kbs-0fe175",
+  "title": "kbs now JIT real summaries fail-closed",
+  "description": "Production `kbs now` must generate just-in-time real summaries from the LLM pipeline. Never emit placeholder or mock strings. Fail closed when generation cannot produce a real summary (missing API key, LLM error, validation failure).\n\nScope:\n- JIT real summaries only; no canned fallbacks\n- Fail-closed behavior on any generation failure\n- Purge clears only `right_now_summary` and `right_now_updated_at`, including `virtual_projects`\n- SD acceptance on `/workspace/projects-meta`",
+  "type": "epic",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T16:12:43.081899501Z",
+  "updated_at": "2026-09-09T16:12:43.091917892Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
