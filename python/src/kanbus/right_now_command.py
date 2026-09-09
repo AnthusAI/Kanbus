@@ -100,7 +100,7 @@ def run_right_now_command(
     sorted_issues = sort_issues_by_recently_updated(issues)
     effective_limit = _effective_right_now_limit(options)
     if not options.raw:
-        if options.issue_ids:
+        if options.issue_ids or options.status is not None:
             if effective_limit > 0:
                 sorted_issues = sorted_issues[:effective_limit]
             ensure_right_now_summaries(

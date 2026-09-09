@@ -89,7 +89,24 @@ pub fn run_right_now_command(
     issues = sort_issues_by_recently_updated(issues);
     let effective_limit = effective_right_now_limit(options);
     if !options.raw {
-        if options.issue_ids.is_empty() {
+        if !options.issue_ids.is_empty() || options.status.is_some() {
+            if effective_limit > 0 {
+                issues.truncate(effective_limit);
+            }
+            let identifiers: Vec<String> = issues
+                .iter()
+                .map(|issue| issue.identifier.clone())
+                .collect();
+            ensure_right_now_summaries(root, &identifiers);
+            let mut reloaded = Vec::new();
+            for issue in issues {
+                match load_issue_from_project(root, &issue.identifier) {
+                    Ok(lookup) => reloaded.push(lookup.issue),
+                    Err(_) => reloaded.push(issue),
+                }
+            }
+            issues = reloaded;
+        } else {
             let all_issues = list_issues(
                 root,
                 None,
@@ -124,23 +141,6 @@ pub fn run_right_now_command(
             if effective_limit > 0 {
                 issues.truncate(effective_limit);
             }
-        } else {
-            if effective_limit > 0 {
-                issues.truncate(effective_limit);
-            }
-            let identifiers: Vec<String> = issues
-                .iter()
-                .map(|issue| issue.identifier.clone())
-                .collect();
-            ensure_right_now_summaries(root, &identifiers);
-            let mut reloaded = Vec::new();
-            for issue in issues {
-                match load_issue_from_project(root, &issue.identifier) {
-                    Ok(lookup) => reloaded.push(lookup.issue),
-                    Err(_) => reloaded.push(issue),
-                }
-            }
-            issues = reloaded;
         }
     } else if effective_limit > 0 {
         issues.truncate(effective_limit);
