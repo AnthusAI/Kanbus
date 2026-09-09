@@ -83,12 +83,12 @@ def test_ensure_right_now_subtree_handles_listing_and_lookup_errors(
         load_with_vanish_after_regenerate,
     )
     monkeypatch.setattr(
-        "kanbus.right_now.right_now_summary_is_missing_or_stale",
+        "kanbus.right_now.right_now_summary_needs_regeneration",
         lambda *_a: True,
     )
     monkeypatch.setattr(
         "kanbus.right_now.regenerate_right_now_for_issue",
-        lambda *_a: None,
+        lambda *_a, **_k: None,
     )
     assert ensure_right_now_subtree(tmp_path, "kanbus-parent", selected) is False
 

@@ -65,6 +65,17 @@ fn then_right_now_json_item_summary_equals(
     );
 }
 
+#[then(expr = "the right now JSON item for {string} should have a non-empty right_now_summary")]
+fn then_right_now_json_item_summary_non_empty(world: &mut KanbusWorld, identifier: String) {
+    let payload = parse_stdout_json(world);
+    let item = find_flat_json_item(&payload, &identifier);
+    let summary = item
+        .get("right_now_summary")
+        .and_then(Value::as_str)
+        .expect("right_now_summary string");
+    assert!(!summary.trim().is_empty());
+}
+
 #[then(expr = "the right now JSON item for {string} should have right_now_summary null")]
 fn then_right_now_json_item_summary_null(world: &mut KanbusWorld, identifier: String) {
     let payload = parse_stdout_json(world);

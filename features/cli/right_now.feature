@@ -5,6 +5,8 @@ Feature: Right now CLI command
 
   Background:
     Given a Kanbus project with default configuration
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
 
   Scenario: Right now lists issues reverse-chronologically by updated_at
     Given an issue "kanbus-rn-a" exists with title "Oldest issue"
@@ -39,12 +41,15 @@ Feature: Right now CLI command
     And stdout should contain "Summary issue"
     And stdout should contain "Working on the CLI command."
 
-  Scenario: Flat output shows placeholder when right-now summary is absent
+  Scenario: Flat output JIT-generates a missing right-now summary
     Given an issue "kanbus-rn-nosum" exists with title "No summary issue"
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
     When I run "kanbus now --status all --list"
     Then the command should succeed
     And stdout should contain "No summary issue"
-    And stdout should contain "(no right-now summary)"
+    And stdout should not contain "(no right-now summary)"
+    And issue "kanbus-rn-nosum" should have a non-empty right now summary
 
   Scenario: Raw flat output shows titles only
     Given an issue "kanbus-rn-raw" exists with title "Raw issue"
@@ -125,12 +130,14 @@ Feature: Right now CLI command
     Then the command should succeed
     And stdout should list "kanbus-rn-a-tie" before "kanbus-rn-z"
 
-  Scenario: JSON output uses null for absent right-now summary
+  Scenario: JSON output JIT-generates a missing right-now summary
     Given an issue "kanbus-rn-null" exists with title "Null summary issue"
-    When I run "kanbus now --status all --json"
+    And mock AI is enabled
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
+    When I run "kanbus now --status all --json --list"
     Then the command should succeed
     And stdout should be valid JSON
-    And the right now JSON item for "kanbus-rn-null" should have right_now_summary null
+    And the right now JSON item for "kanbus-rn-null" should have a non-empty right_now_summary
 
   Scenario: Selected issue lists only that issue
     Given an issue "kanbus-rn-sel-a" exists with title "Selected alpha"

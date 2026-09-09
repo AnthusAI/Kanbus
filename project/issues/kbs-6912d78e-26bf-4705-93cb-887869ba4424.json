@@ -3,17 +3,25 @@
   "title": "Load OpenAI key from .env and congregation for kbs now",
   "description": "kbs now and right-now regeneration must load OPENAI_API_KEY from project .env and ~/.kanbus.env (congregation) when not already in process env.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "fb8fad54-191f-48f9-8632-cce92499ebdf",
+      "author": "ubuntu",
+      "text": "Shipped as PR #235.",
+      "created_at": "2026-09-09T16:13:43.402483552Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T12:57:06.744198470Z",
-  "updated_at": "2026-09-09T12:57:14.253454817Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T16:13:43.402501021Z",
+  "closed_at": "2026-09-09T16:13:43.335377310Z",
   "right_now_summary": "Mock right-now summary for kbs-6912d78e-26bf-4705-93cb-887869ba4424.",
   "right_now_updated_at": "2026-09-09T12:57:14.265137783Z",
   "custom": {}

@@ -156,7 +156,7 @@ impl FileStore {
             .filter(|issue| in_progress_statuses.contains(&issue.status))
             .map(|issue| issue.identifier.clone())
             .collect();
-        crate::right_now::ensure_right_now_summaries(self.root(), &identifiers);
+        crate::right_now::ensure_right_now_summaries(self.root(), &identifiers, false)?;
         Ok(())
     }
 

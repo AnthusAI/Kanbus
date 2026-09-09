@@ -120,7 +120,7 @@ def test_effective_right_now_limit_uses_selection_policy() -> None:
     assert _effective_right_now_limit(RightNowCommandOptions(limit=5)) == 5
 
 
-def test_run_right_now_command_keeps_issue_when_reload_fails(
+def test_run_right_now_command_fails_when_summary_missing_after_reload(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     issue = build_issue("kanbus-rn", status="in_progress", title="Active work")
@@ -129,7 +129,8 @@ def test_run_right_now_command_keeps_issue_when_reload_fails(
         lambda *_args: [issue],
     )
     monkeypatch.setattr(
-        "kanbus.right_now_command.ensure_right_now_summaries", lambda *_a: None
+        "kanbus.right_now_command.ensure_right_now_summaries",
+        lambda *_a, **_k: None,
     )
     monkeypatch.setattr(
         "kanbus.right_now_command.load_issue_from_project",
@@ -139,9 +140,8 @@ def test_run_right_now_command_keeps_issue_when_reload_fails(
         "kanbus.right_now_command._load_configuration",
         lambda *_a: build_project_configuration(),
     )
-    output = run_right_now_command(
-        tmp_path,
-        RightNowCommandOptions(tree=False, recursive=True),
-    )
-    assert "kanbus-rn" in output
-    assert "Active work" in output
+    with pytest.raises(RightNowCommandError, match="right-now summary missing"):
+        run_right_now_command(
+            tmp_path,
+            RightNowCommandOptions(tree=False, recursive=True),
+        )
