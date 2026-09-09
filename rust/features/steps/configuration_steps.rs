@@ -1324,3 +1324,8 @@ fn then_hierarchy_should_include(world: &mut KanbusWorld, value: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert!(configuration.hierarchy.contains(&value));
 }
+
+#[given("litellm is not installed")]
+fn given_litellm_is_not_installed(_world: &mut KanbusWorld) {
+    std::env::set_var("KANBUS_TEST_SIMULATE_LITELLM_MISSING", "1");
+}

@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::config_loader::load_project_configuration;
-use crate::daemon_client::{is_daemon_enabled, request_index_list};
+use crate::daemon_client::{is_daemon_config_schema_error, is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
 use crate::file_io::{
     canonicalize_path, discover_kanbus_projects, discover_project_directories,
@@ -128,12 +128,7 @@ pub fn list_issues(
     if include_local || local_only {
         let local_dir = find_project_local_directory(&project_dir);
         if !local_only && is_daemon_enabled() {
-            let payloads = request_index_list(root)?;
-            let mut issues: Vec<IssueData> = payloads
-                .into_iter()
-                .map(serde_json::from_value::<IssueData>)
-                .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
-                .collect::<Result<Vec<IssueData>, KanbusError>>()?;
+            let mut issues = load_shared_issues_via_daemon_or_filesystem(root, &project_dir)?;
             issues = apply_overlay_to_issues(
                 &project_dir,
                 issues,
@@ -162,12 +157,7 @@ pub fn list_issues(
         );
     }
     if is_daemon_enabled() {
-        let payloads = request_index_list(root)?;
-        let issues: Vec<IssueData> = payloads
-            .into_iter()
-            .map(serde_json::from_value::<IssueData>)
-            .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
-            .collect::<Result<Vec<IssueData>, KanbusError>>()?;
+        let issues = load_shared_issues_via_daemon_or_filesystem(root, &project_dir)?;
         let issues = apply_overlay_to_issues(
             &project_dir,
             issues,
@@ -235,6 +225,23 @@ fn list_with_project_filter(
     apply_query(
         issues, status, issue_type, assignee, label, parent, sort, search,
     )
+}
+
+fn load_shared_issues_via_daemon_or_filesystem(
+    root: &Path,
+    project_dir: &Path,
+) -> Result<Vec<IssueData>, KanbusError> {
+    match request_index_list(root) {
+        Ok(payloads) => payloads
+            .into_iter()
+            .map(serde_json::from_value::<IssueData>)
+            .map(|result| result.map_err(|error| KanbusError::Io(error.to_string())))
+            .collect(),
+        Err(KanbusError::IssueOperation(message)) if is_daemon_config_schema_error(&message) => {
+            list_issues_for_project(project_dir)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 fn list_issues_local(

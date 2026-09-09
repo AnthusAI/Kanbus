@@ -754,6 +754,24 @@ def _build_right_now_prompt(context: RightNowContext, max_length: int) -> str:
     )
 
 
+def _curated_litellm_failure_message(error: Exception) -> str:
+    """Return a user-facing message for LiteLLM failures without stack traces.
+
+    :param error: Exception raised by LiteLLM or its provider adapters.
+    :type error: Exception
+    :return: Curated Kanbus error message.
+    :rtype: str
+    """
+    message = str(error).strip()
+    if "Missing credentials" in message or "OPENAI_API_KEY" in message:
+        return OPENAI_API_KEY_NOT_LOADED_MESSAGE
+    if "litellm" in message.lower() and "not installed" in message.lower():
+        return "litellm is required for right-now summary generation"
+    if message:
+        return f"right-now summary generation failed: {message}"
+    return "right-now summary generation failed"
+
+
 def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
     test_completion = os.environ.get("KANBUS_TEST_LITELLM_COMPLETION")
     if test_completion is not None:
@@ -765,18 +783,23 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
             "cost": 0.0,
         }
 
+    if os.environ.get("KANBUS_TEST_SIMULATE_LITELLM_MISSING") == "1":
+        raise RightNowError("litellm is required for right-now summary generation")
     try:
         import litellm
-    except ImportError as error:
-        raise RightNowError(
-            "litellm is required for right-now summary generation"
-        ) from error
+    except ImportError:
+        raise RightNowError("litellm is required for right-now summary generation")
 
+    litellm.suppress_debug_info = True
+    litellm.set_verbose = False
     os.environ["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = "1"
-    response = litellm.completion(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    try:
+        response = litellm.completion(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as error:
+        raise RightNowError(_curated_litellm_failure_message(error)) from None
     message = response.choices[0].message.content
     if not message:
         raise RightNowError("right-now summary generation returned empty content")
