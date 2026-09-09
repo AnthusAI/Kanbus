@@ -3,18 +3,33 @@
   "title": "Docs: standing reminder that agents can run kbs now on demand",
   "description": "Add standing documentation reminding agents they can run `kbs now` on demand for focused, self-scoped WIP — distinct from the whole-project summary injected by compaction hooks.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-d5030c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6575e125-dcf3-42a6-ab28-a4d0d277a9fa",
+      "author": "ubuntu",
+      "text": "Addressed in same PR: AGENTS.md and CONTRIBUTING_AGENT.md kbs now on-demand section. https://github.com/AnthusAI/Kanbus/pull/234",
+      "created_at": "2026-09-09T12:31:40.290603918Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5"
+      }
+    }
+  ],
   "created_at": "2026-09-09T11:38:24.841018555Z",
-  "updated_at": "2026-09-09T11:38:24.847634980Z",
-  "closed_at": null,
+  "updated_at": "2026-09-09T12:31:40.602451044Z",
+  "closed_at": "2026-09-09T12:31:40.595736043Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
