@@ -42,6 +42,8 @@ fn mock_ai_is_enabled(world: &mut KanbusWorld) {
     }
     std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
     std::env::remove_var("KANBUS_RIGHT_NOW_LITELLM_CALLED");
+    std::env::remove_var("KANBUS_TEST_RIGHT_NOW_COMPLETION");
+    world.environment_overrides.remove("KANBUS_TEST_RIGHT_NOW_COMPLETION");
 }
 
 #[given(regex = r#"^an issue "([^"]+)" of type "([^"]+)" in status "([^"]+)"$"#)]
