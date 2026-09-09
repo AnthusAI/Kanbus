@@ -49,7 +49,7 @@ def test_load_standup_configuration_raises_on_marker_error(tmp_path: Path) -> No
 def test_resolve_standup_lookback_hours_reads_configuration() -> None:
     configuration = build_project_configuration()
     configuration = configuration.model_copy(
-        update={"standup": StandupConfiguration(lookback_hours=12)}
+        update={"standup": StandupConfiguration(lookback="12h")}
     )
     assert resolve_standup_lookback_hours(configuration) == 12
 
@@ -115,6 +115,16 @@ def test_truncate_bullet_adds_ellipsis() -> None:
 
 
 def test_qualifies_for_momentum_uses_transitions_and_updates() -> None:
+    from kanbus.standup_window import StandupWindowSettings
+    from zoneinfo import ZoneInfo
+
+    window_settings = StandupWindowSettings(
+        window="rolling",
+        lookback="24h",
+        lookback_hours=24,
+        skip_weekends=False,
+        timezone=ZoneInfo("UTC"),
+    )
     report_time = datetime(2026, 3, 6, 12, 0, 0, tzinfo=timezone.utc)
     issue = build_issue("kanbus-momentum", status="in_progress").model_copy(
         update={"updated_at": report_time - timedelta(hours=1)}
@@ -126,7 +136,7 @@ def test_qualifies_for_momentum_uses_transitions_and_updates() -> None:
             "payload": {"to_status": "in_progress"},
         }
     ]
-    assert qualifies_for_momentum(issue, events, report_time, 24) is True
+    assert qualifies_for_momentum(issue, events, report_time, window_settings) is True
 
     closed_issue = build_issue("kanbus-done", status="closed").model_copy(
         update={"closed_at": report_time - timedelta(hours=1)}
@@ -138,7 +148,10 @@ def test_qualifies_for_momentum_uses_transitions_and_updates() -> None:
             "payload": {"to_status": "closed"},
         }
     ]
-    assert qualifies_for_momentum(closed_issue, done_events, report_time, 24) is True
+    assert (
+        qualifies_for_momentum(closed_issue, done_events, report_time, window_settings)
+        is True
+    )
 
 
 def test_collect_right_now_texts_wraps_right_now_errors() -> None:
@@ -209,13 +222,23 @@ def test_build_standup_report_meeting_script_sections() -> None:
             "updated_at": report_time - timedelta(hours=1),
         }
     )
+    from kanbus.standup_window import StandupWindowSettings
+    from zoneinfo import ZoneInfo
+
+    window_settings = StandupWindowSettings(
+        window="calendar",
+        lookback="24h",
+        lookback_hours=24,
+        skip_weekends=True,
+        timezone=ZoneInfo("UTC"),
+    )
     report = build_standup_report(
         MEETING_SCRIPT_PROFILE,
         [issue],
         {"kanbus-active": "Shipping standup."},
         {"kanbus-active": []},
         report_time,
-        24,
+        window_settings,
         explicit_scope=True,
     )
     assert report.profile == "meeting-script"
@@ -235,30 +258,21 @@ def test_load_standup_report_from_json_round_trip() -> None:
     assert report.source_issues == ["kanbus-1"]
 
 
-def test_run_standup_command_invalid_lookback_uses_default(tmp_path: Path) -> None:
+def test_run_standup_command_rejects_invalid_lookback(tmp_path: Path) -> None:
+    from kanbus.standup_command import StandupCommandError
+
     configuration = build_project_configuration()
     configuration = configuration.model_copy(
-        update={"standup": StandupConfiguration(lookback_hours=0)}
-    )
-    issue = build_issue("kanbus-active", status="in_progress").model_copy(
-        update={"right_now_summary": "Active work."}
+        update={"standup": StandupConfiguration(lookback="0h")}
     )
     with patch(
         "kanbus.standup_command.load_standup_configuration", return_value=configuration
     ):
-        with patch(
-            "kanbus.standup_command.select_standup_fact_feed",
-            return_value=[issue],
-        ):
-            with patch(
-                "kanbus.standup_command.ensure_standup_summaries",
-                return_value=[issue],
-            ):
-                output = run_standup_command(
-                    tmp_path,
-                    StandupCommandOptions(issue_ids=["kanbus-active"]),
-                )
-    assert "Standup" in output
+        with pytest.raises(StandupCommandError, match="invalid standup lookback"):
+            run_standup_command(
+                tmp_path,
+                StandupCommandOptions(issue_ids=["kanbus-active"]),
+            )
 
 
 def test_run_standup_command_wraps_issue_listing_error(tmp_path: Path) -> None:

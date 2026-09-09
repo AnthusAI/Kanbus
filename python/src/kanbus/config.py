@@ -153,7 +153,9 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "model": "gpt-5.6-luna",
     },
     "standup": {
-        "lookback_hours": 24,
+        "window": "rolling",
+        "lookback": "24h",
+        "skip_weekends": False,
     },
     "github_security": None,
 }

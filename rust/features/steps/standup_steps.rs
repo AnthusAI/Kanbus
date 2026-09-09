@@ -81,6 +81,16 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
             index += 1;
             continue;
         }
+        if token == "--skip-weekends" || token == "--no-skip-weekends" {
+            index += 1;
+            continue;
+        }
+        if (token == "--window" || token == "--lookback" || token == "--profile")
+            && index + 1 < tokens.len()
+        {
+            index += 2;
+            continue;
+        }
         if token.starts_with("--") {
             index += 2;
             continue;
@@ -93,6 +103,9 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
         profile,
         as_json: false,
         recursive,
+        window: None,
+        lookback: None,
+        skip_weekends: None,
     }
 }
 
@@ -242,8 +255,8 @@ fn given_standup_lookback_hours(world: &mut KanbusWorld, hours: u32) {
                 .expect("standup mapping")
         });
     standup_block.insert(
-        YamlValue::String("lookback_hours".to_string()),
-        YamlValue::Number(hours.into()),
+        YamlValue::String("lookback".to_string()),
+        YamlValue::String(format!("{hours}h")),
     );
     mapping.insert(
         YamlValue::String("standup".to_string()),

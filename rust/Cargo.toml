@@ -34,6 +34,8 @@ serde_yaml = "0.9"
 minijinja = "2.18"
 sha2 = "0.10"
 chrono = { version = "0.4", features = ["serde", "clock"] }
+chrono-tz = "0.8"
+iana-time-zone = "0.1"
 rand = "0.8"
 uuid = { version = "1.6", features = ["v4", "v5"] }
 owo-colors = "4.1"
