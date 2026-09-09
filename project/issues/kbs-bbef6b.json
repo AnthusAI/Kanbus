@@ -1,0 +1,20 @@
+{
+  "id": "kbs-bbef6b",
+  "title": "Spec: whole-project right-now payload for compaction hooks",
+  "description": "Authoritative Gherkin scenarios defining the whole-project right-now payload shape and behavior for compaction-hook injection. Compaction hooks must receive board-wide WIP awareness, not pinned-issue scope.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-d5030c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T11:38:24.370795759Z",
+  "updated_at": "2026-09-09T11:38:24.378039137Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

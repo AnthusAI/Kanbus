@@ -1,0 +1,20 @@
+{
+  "id": "kbs-d5030c",
+  "title": "Inject right-now WIP reminder on agent compaction",
+  "description": "Inject a right-now WIP reminder into coding-agent compaction hooks so agents regain board awareness after context compaction without manual intervention.\n\n## Product rule (Ryan 2026-09-09)\n\nCompaction-hook injection = **whole-project WIP summary** (general board awareness), NOT pinned-issue scoped.\n\nWhen an agent runs `kbs now` itself, it may scope to its own work for focused WIP.\n\nAgents should be aware of both modes; compaction should be followed by whole-project WIP.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-75e1a4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T11:38:20.498660826Z",
+  "updated_at": "2026-09-09T11:38:20.506371175Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
