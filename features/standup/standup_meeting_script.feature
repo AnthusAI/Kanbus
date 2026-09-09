@@ -13,22 +13,19 @@ Feature: Standup meeting script profile
   - Blockers
   - Likely questions
 
-  Signal rules (observable; time windows defined in standup_time_windows.feature):
-  - **Yesterday**: an issue appears when `closed_at` or a `state_transition` to
-    `closed`/`done` falls within the profile **time window** anchored at report
-    time. Meeting-script default window is **calendar** with **skip_weekends:
-    true** (on Monday, Yesterday spans the preceding Friday, not Saturday or
-    Sunday). Yesterday bullets cite the issue right-now summary text.
+  Signal rules (observable; default `standup.lookback_hours` is 24):
+  - **Yesterday**: an issue appears when `closed_at` is within lookback_hours
+    before report time, OR the issue event log has a `state_transition` to
+    `closed` or `done` within lookback_hours. Yesterday bullets cite the issue
+    right-now summary text.
   - **Today**: an issue appears when its status is `in_progress` or `blocked`
-    at report time AND the issue is in the standup fact feed. Today is not
-    window-filtered — it reflects current WIP membership. An issue MUST NOT
+    at report time AND the issue is in the standup fact feed. An issue MUST NOT
     appear in both Yesterday and Today.
   - **Blockers**: every fact-feed issue with status `blocked` appears here.
   - **Likely questions**: at least one question per blocked fact-feed issue,
     derived from that issue's right-now summary keywords; stale in-progress
-    issues (`updated_at` older than `lookback_hours` relative to report time)
-    each add a staleness question naming the issue identifier. Staleness uses
-    rolling `lookback_hours`, not calendar window mode.
+    issues (`updated_at` older than lookback_hours) each add a staleness
+    question naming the issue identifier.
 
   Background:
     Given a Kanbus project with default configuration

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-19293b",
+  "title": "Standup time window implementation",
+  "description": "Implement rolling/calendar window, lookback, and skip_weekends per features/standup/standup_time_windows.feature after SD approves specs (kbs-7d04e7).",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e7abbe",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T20:24:38.353581361Z",
+  "updated_at": "2026-09-09T20:24:38.361309825Z",
+  "closed_at": null,
+  "right_now_summary": "Implementation is waiting for SD to approve the time-window specs.",
+  "right_now_updated_at": "2026-09-09T20:24:40.805372941Z",
+  "custom": {}
+}
