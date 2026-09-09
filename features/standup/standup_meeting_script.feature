@@ -34,13 +34,13 @@ Feature: Standup meeting script profile
     And right now litellm call tracking is reset
     And the Kanbus configuration uses AI provider "litellm" with model "gpt-5.6-luna"
 
-  Scenario: Default standup without issue IDs uses meeting-script on kanbus now selection
+  Scenario: Default standup without issue IDs uses meeting-script on standup default selection
     Given an issue "kanbus-ms-def" exists with status "in_progress"
     And issue "kanbus-ms-def" has right now summary "Default meeting-script work."
     When I run "kanbus standup"
     Then the command should succeed
     And the standup report should have profile "meeting-script"
-    And the standup fact feed should match kanbus now default listing
+    And the standup fact feed should match standup default listing
 
   Scenario: Default standup uses meeting-script profile when scoped
     Given an issue "kanbus-ms-default" exists with status "in_progress"

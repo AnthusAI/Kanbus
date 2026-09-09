@@ -40,7 +40,7 @@ Feature: Standup director brief profile
     When I run "kanbus standup --profile director-brief"
     Then the command should succeed
     And the standup report should have profile "director-brief"
-    And the standup fact feed should match kanbus now default listing
+    And the standup fact feed should match standup default listing
     And stdout should contain "Board-wide brief work."
 
   Scenario: Director brief profile is selectable with explicit scope

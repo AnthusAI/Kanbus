@@ -9,8 +9,10 @@ Feature: Standup report dual-runtime parity
   - Identical exit codes for success and each failure mode.
   - Identical stderr error messages byte-for-byte (including right-now fail-closed text).
   - Identical stdout formatting for the same fixture project and profile.
-  - Omitting issue identifiers MUST produce the same fact feed in both runtimes
-    as `kanbus now` default selection (including virtual_projects).
+  - Omitting issue identifiers MUST produce the same standup default fact feed in
+    both runtimes: congregation scope (including virtual_projects), cap 30,
+    `in_progress` OR `blocked` — equivalent to
+    `kanbus now --list --status in_progress,blocked`, not plain `kanbus now`.
   - Cross-profile JSON parity fields: `source_issues` set and per-issue
     `right_now_summary` texts MUST match between meeting-script and director-brief
     for the same scope; only `profile` and `sections` presentation differ.
@@ -32,13 +34,17 @@ Feature: Standup report dual-runtime parity
     And stdout should contain "--profile"
     And stdout should contain "--json"
 
-  Scenario: Both runtimes use kanbus now default selection when issue IDs omitted
+  Scenario: Both runtimes use standup default selection when issue IDs omitted
     Given an issue "kanbus-par-def" exists with status "in_progress"
     And issue "kanbus-par-def" has right now summary "Parity default scope."
+    And an issue "kanbus-par-blk" exists with status "blocked"
+    And issue "kanbus-par-blk" has right now summary "Parity blocked scope."
     And an issue "kanbus-par-open" exists with status "open"
     When I run "kanbus standup"
     Then the command should succeed
-    And the standup fact feed should match kanbus now default listing
+    And the standup fact feed should match standup default listing
+    And the standup fact feed should include issue "kanbus-par-blk"
+    And the standup fact feed should not include issue "kanbus-par-open"
 
   Scenario: Both runtimes fail with the same error when AI is unconfigured
     Given the Kanbus project has no AI configuration
