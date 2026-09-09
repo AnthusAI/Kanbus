@@ -9,7 +9,7 @@ use cucumber::{given, then, when};
 use serde_json::Value;
 use tempfile::TempDir;
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::config_loader::load_project_configuration;
 use kanbus::file_io::{get_configuration_path, load_project_directory};
 use kanbus::models::{
@@ -27,7 +27,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);

@@ -5,10 +5,11 @@ use cucumber::{then, when};
 use regex::Regex;
 use serde_json::Value;
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::file_io::load_project_directory;
 
-use crate::step_definitions::initialization_steps::KanbusWorld;
+use crate::step_definitions::initialization_steps::{
+    run_from_args_in_blocking_thread, KanbusWorld,
+};
 
 fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
@@ -21,7 +22,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         std::env::set_var("KANBUS_NO_DAEMON", "1");
     }
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);

@@ -2,7 +2,7 @@ use std::fs;
 
 use cucumber::{gherkin::Step, given, then, when};
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::content_validation::{validate_code_blocks, CodeBlock};
 use kanbus::error::KanbusError;
 
@@ -52,7 +52,7 @@ fn when_create_with_description(world: &mut KanbusWorld, step: &Step) {
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args_with_desc, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args_with_desc, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -85,7 +85,7 @@ fn when_create_no_validate_with_description(world: &mut KanbusWorld, step: &Step
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args_with_desc, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args_with_desc, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -116,7 +116,7 @@ fn when_comment_with_text(world: &mut KanbusWorld, step: &Step, identifier: Stri
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -148,7 +148,7 @@ fn when_comment_no_validate_with_text(world: &mut KanbusWorld, step: &Step, iden
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -179,7 +179,7 @@ fn when_update_with_description(world: &mut KanbusWorld, step: &Step, identifier
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);

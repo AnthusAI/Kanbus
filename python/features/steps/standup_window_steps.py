@@ -178,6 +178,58 @@ def given_issue_closed_at_hours_before_report(
     write_issue_file(project_dir, issue)
 
 
+@given(
+    'issue "{identifier}" has a state transition to "{status}" on the previous calendar day in standup timezone'
+)
+def given_issue_state_transition_previous_calendar_day(
+    context: object, identifier: str, status: str
+) -> None:
+    """Write a state transition event on the previous calendar day in standup timezone.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param status: Destination status for the transition.
+    :type status: str
+    """
+    project_dir = load_project_directory(context)
+    events_dir = project_dir / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    timezone_info = _standup_timezone(context)
+    report_local = _report_time(context).astimezone(timezone_info)
+    previous_day = report_local.date() - timedelta(days=1)
+    occurred_at = datetime(
+        previous_day.year,
+        previous_day.month,
+        previous_day.day,
+        16,
+        0,
+        tzinfo=timezone_info,
+    ).astimezone(timezone.utc)
+    occurred_at_text = occurred_at.isoformat(timespec="milliseconds").replace(
+        "+00:00", "Z"
+    )
+    event_id = f"standup-transition-{identifier}"
+    filename = f"{occurred_at_text.replace(':', '-')}__{event_id}.json"
+    payload = {
+        "schema_version": 1,
+        "event_id": event_id,
+        "issue_id": identifier,
+        "event_type": "state_transition",
+        "occurred_at": occurred_at_text,
+        "actor_id": "agent",
+        "payload": {
+            "from_status": "in_progress",
+            "to_status": status,
+        },
+    }
+    (events_dir / filename).write_text(
+        json.dumps(payload, indent=2),
+        encoding="utf-8",
+    )
+
+
 @given('issue "{identifier}" closed on the previous calendar day in standup timezone')
 def given_issue_closed_previous_calendar_day(context: object, identifier: str) -> None:
     """Set issue closed_at on the previous calendar day in standup timezone."""
