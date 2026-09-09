@@ -10,11 +10,26 @@
   "parent": "kbs-75e1a4",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f1a852a9-c5c5-40d7-abd0-676b9fa587b2",
+      "author": "ubuntu",
+      "text": "PR #234 README path fixes pushed. Tip SHA: 85616cc97b0cd443524784c16293d78b4778c338 — awaiting SD greenlight before merge.",
+      "created_at": "2026-09-09T12:33:19.855851Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5"
+      }
+    }
+  ],
   "created_at": "2026-09-09T11:38:20.498660826Z",
-  "updated_at": "2026-09-09T11:38:20.506371175Z",
+  "updated_at": "2026-09-09T12:33:19.855868809Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
