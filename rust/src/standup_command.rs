@@ -8,7 +8,9 @@ use chrono::Utc;
 use crate::config_loader::load_repository_environment;
 use crate::error::KanbusError;
 use crate::models::IssueData;
-use crate::right_now_command::{select_right_now_issues_for_command, RightNowCommandOptions};
+use crate::right_now_command::{
+    select_right_now_issues_for_command, RightNowCommandOptions, RightNowOutputFormat,
+};
 use crate::standup::{
     build_standup_report, collect_right_now_texts, ensure_standup_summaries, format_standup_json,
     format_standup_text, load_issue_event_records, load_standup_configuration,
@@ -71,7 +73,7 @@ pub fn build_standup_right_now_options(options: &StandupCommandOptions) -> Right
         expanded: false,
         collapsed: false,
         raw: false,
-        as_json: false,
+        output_format: RightNowOutputFormat::Yaml,
         show_all: false,
         recursive: options.recursive,
         issue_ids: options.issue_ids.clone(),

@@ -64,7 +64,9 @@ use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
-use crate::right_now_command::{run_right_now_command, RightNowCommandOptions};
+use crate::right_now_command::{
+    resolve_right_now_output_format, run_right_now_command, RightNowCommandOptions,
+};
 use crate::snyk_sync::pull_from_snyk;
 use crate::standup_command::{run_standup_command, StandupCommandOptions};
 use crate::summarize::get_comment_display_text;
@@ -424,14 +426,15 @@ enum Commands {
     #[command(
         name = "now",
         after_help = "Examples:\n  \
-kbs now                          tree of recently-updated issues (cap 30)\n  \
-kbs now --list                   reverse-chronological list\n  \
-kbs now --all                    every issue as a tree\n  \
+kbs now                          YAML tree of recently-updated issues (cap 30)\n  \
+kbs now --list                   reverse-chronological YAML list\n  \
+kbs now --all                    every issue as a YAML tree\n  \
 kbs now --limit 10               10 most recently updated\n  \
-kbs now kbs-abc                  issue and descendants as a tree\n  \
+kbs now kbs-abc                  issue and descendants as a YAML tree\n  \
 kbs now kbs-abc --no-recursive   that issue only\n  \
-kbs now kbs-abc --list           descendants as a flat list\n  \
+kbs now kbs-abc --list           descendants as a flat YAML list\n  \
 kbs now --json                   machine-readable JSON for agents\n  \
+kbs now --text                   human-readable text lines\n  \
 kbs now --raw                    titles only, no summaries\n  \
 kbs now --status all             every status, not just in-progress"
     )]
@@ -457,9 +460,15 @@ kbs now --status all             every status, not just in-progress"
         /// Show titles only, without right-now summaries.
         #[arg(long)]
         raw: bool,
+        /// Emit YAML output (default when no format flag is set).
+        #[arg(long)]
+        yaml: bool,
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Emit human-readable text lines.
+        #[arg(long)]
+        text: bool,
         /// Status filter. Default: in_progress. Use all for every status.
         #[arg(long)]
         status: Option<String>,
@@ -3007,18 +3016,21 @@ fn execute_command(
             expanded,
             collapsed,
             raw,
+            yaml,
             json,
+            text,
             status,
             purge,
             issue_ids,
         } => {
+            let output_format = resolve_right_now_output_format(yaml, json, text)?;
             let options = RightNowCommandOptions {
                 limit,
                 tree: !list,
                 expanded,
                 collapsed,
                 raw,
-                as_json: json,
+                output_format,
                 show_all: all,
                 recursive: !no_recursive,
                 issue_ids,

@@ -29,6 +29,24 @@ const CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS: &str =
     "cannot combine --all with issue identifiers";
 const NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS: &str =
     "--no-recursive requires one or more issue identifiers";
+const CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS: &str = "cannot combine output format flags";
+
+/// Output serialization format for the right-now CLI command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RightNowOutputFormat {
+    /// YAML document output.
+    Yaml,
+    /// JSON document output.
+    Json,
+    /// Human-readable text lines.
+    Text,
+}
+
+impl Default for RightNowOutputFormat {
+    fn default() -> Self {
+        Self::Yaml
+    }
+}
 
 /// Options for the right-now CLI command.
 #[derive(Debug, Clone)]
@@ -43,8 +61,8 @@ pub struct RightNowCommandOptions {
     pub collapsed: bool,
     /// Whether to omit right-now summaries.
     pub raw: bool,
-    /// Whether to emit JSON output.
-    pub as_json: bool,
+    /// Output serialization format.
+    pub output_format: RightNowOutputFormat,
     /// Whether to list every issue without the default cap.
     pub show_all: bool,
     /// Whether to include descendants of selected issues.
@@ -66,7 +84,7 @@ impl Default for RightNowCommandOptions {
             expanded: false,
             collapsed: false,
             raw: false,
-            as_json: false,
+            output_format: RightNowOutputFormat::default(),
             show_all: false,
             recursive: true,
             issue_ids: Vec::new(),
@@ -115,46 +133,74 @@ pub fn run_right_now_command(
     }
     let configuration = load_configuration(root);
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());
-    if options.as_json {
-        if options.tree {
-            let roots = build_right_now_tree(&issues);
-            let mut payload = Vec::new();
-            for node in &roots {
-                payload.push(serialize_tree_json_node(node, options.raw)?);
+    match options.output_format {
+        RightNowOutputFormat::Json => {
+            if options.tree {
+                let roots = build_right_now_tree(&issues);
+                let mut payload = Vec::new();
+                for node in &roots {
+                    payload.push(serialize_tree_json_node(node, options.raw)?);
+                }
+                let output = serde_json::to_string_pretty(&payload)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(format!("{output}\n"))
+            } else {
+                let mut payload = Vec::new();
+                for issue in &issues {
+                    payload.push(serialize_flat_json_entry(issue, options.raw)?);
+                }
+                let output = serde_json::to_string_pretty(&payload)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(format!("{output}\n"))
             }
-            let output = serde_json::to_string_pretty(&payload)
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
-            return Ok(format!("{output}\n"));
         }
-        let mut payload = Vec::new();
-        for issue in &issues {
-            payload.push(serialize_flat_json_entry(issue, options.raw)?);
+        RightNowOutputFormat::Yaml => {
+            if options.tree {
+                let roots = build_right_now_tree(&issues);
+                let mut payload = Vec::new();
+                for node in &roots {
+                    payload.push(serialize_tree_json_node(node, options.raw)?);
+                }
+                let output = serde_yaml::to_string(&payload)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(output)
+            } else {
+                let mut payload = Vec::new();
+                for issue in &issues {
+                    payload.push(serialize_flat_json_entry(issue, options.raw)?);
+                }
+                let output = serde_yaml::to_string(&payload)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(output)
+            }
         }
-        let output = serde_json::to_string_pretty(&payload)
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
-        return Ok(format!("{output}\n"));
-    }
-    if options.tree {
-        let roots = build_right_now_tree(&issues);
-        let mut lines = Vec::new();
-        for node in &roots {
-            render_tree_node(node, tree_expanded, options.raw, 0, &mut lines)?;
+        RightNowOutputFormat::Text => {
+            if options.tree {
+                let roots = build_right_now_tree(&issues);
+                let mut lines = Vec::new();
+                for node in &roots {
+                    render_tree_node(node, tree_expanded, options.raw, 0, &mut lines)?;
+                }
+                if lines.is_empty() {
+                    Ok(String::new())
+                } else {
+                    lines.push(String::new());
+                    Ok(lines.join("\n"))
+                }
+            } else {
+                let mut lines = Vec::new();
+                for issue in &issues {
+                    render_flat_issue(issue, options.raw, &mut lines)?;
+                }
+                if lines.is_empty() {
+                    Ok(String::new())
+                } else {
+                    lines.push(String::new());
+                    Ok(lines.join("\n"))
+                }
+            }
         }
-        if lines.is_empty() {
-            return Ok(String::new());
-        }
-        lines.push(String::new());
-        return Ok(lines.join("\n"));
     }
-    let mut lines = Vec::new();
-    for issue in &issues {
-        render_flat_issue(issue, options.raw, &mut lines)?;
-    }
-    if lines.is_empty() {
-        return Ok(String::new());
-    }
-    lines.push(String::new());
-    Ok(lines.join("\n"))
 }
 
 fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), KanbusError> {
@@ -185,6 +231,37 @@ fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), Ka
         }
     }
     Ok(())
+}
+
+/// Resolve mutually exclusive right-now output format flags.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when more than one format flag is set.
+pub fn resolve_right_now_output_format(
+    as_yaml: bool,
+    as_json: bool,
+    as_text: bool,
+) -> Result<RightNowOutputFormat, KanbusError> {
+    let mut selected = Vec::new();
+    if as_yaml {
+        selected.push(RightNowOutputFormat::Yaml);
+    }
+    if as_json {
+        selected.push(RightNowOutputFormat::Json);
+    }
+    if as_text {
+        selected.push(RightNowOutputFormat::Text);
+    }
+    if selected.len() > 1 {
+        return Err(KanbusError::IssueOperation(
+            CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS.to_string(),
+        ));
+    }
+    Ok(selected
+        .into_iter()
+        .next()
+        .unwrap_or(RightNowOutputFormat::Yaml))
 }
 
 /// Return allowed statuses, or `None` to include every status.
@@ -520,6 +597,10 @@ fn serialize_flat_json_entry(
 struct RightNowTreeJsonEntry {
     id: String,
     title: String,
+    #[serde(rename = "type")]
+    issue_type: String,
+    status: String,
+    priority: i32,
     updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     right_now_summary: Option<Option<String>>,
@@ -537,6 +618,9 @@ fn serialize_tree_json_node(
     Ok(RightNowTreeJsonEntry {
         id: node.issue.identifier.clone(),
         title: node.issue.title.clone(),
+        issue_type: node.issue.issue_type.clone(),
+        status: node.issue.status.clone(),
+        priority: node.issue.priority,
         updated_at: format_updated_at(node.issue.updated_at),
         right_now_summary: if raw {
             None
@@ -586,7 +670,7 @@ mod tests {
         assert!(!options.expanded);
         assert!(!options.collapsed);
         assert!(!options.raw);
-        assert!(!options.as_json);
+        assert_eq!(options.output_format, RightNowOutputFormat::Yaml);
         assert!(!options.show_all);
         assert!(options.recursive);
         assert!(options.issue_ids.is_empty());
