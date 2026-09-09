@@ -4,18 +4,31 @@ Feature: Standup CLI command
   I want to generate on-demand standup reports from the terminal
   So that I can prepare for meetings without manual synthesis
 
+  Default invocation (no issue identifiers) mirrors `kanbus now` default
+  selection: in_progress issues across the congregation (current project plus
+  configured virtual_projects), capped at 30, ordered by updated_at descending.
+
   Background:
     Given a Kanbus project with default configuration
     And mock AI is enabled
     And right now litellm call tracking is reset
-    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-5.6-luna"
 
-  Scenario: Standup requires at least one issue identifier
+  Scenario: Standup without issue IDs succeeds with kanbus now default selection
+    Given an issue "kanbus-cli-def" exists with status "in_progress"
+    And issue "kanbus-cli-def" has right now summary "CLI default scope work."
     When I run "kanbus standup"
-    Then the command should fail
-    And stderr should contain "requires one or more issue identifiers"
+    Then the command should succeed
+    And the standup fact feed should match kanbus now default listing
 
-  Scenario: Standup rejects a missing issue identifier
+  Scenario: Director brief without issue IDs succeeds board-wide
+    Given an issue "kanbus-cli-brief" exists with status "in_progress"
+    And issue "kanbus-cli-brief" has right now summary "Board-wide director brief."
+    When I run "kanbus standup --profile director-brief"
+    Then the command should succeed
+    And the standup fact feed should match kanbus now default listing
+
+  Scenario: Standup rejects a missing issue identifier when scoped
     When I run "kanbus standup kanbus-stu-missing"
     Then the command should fail
     And stderr should contain "not found"

@@ -9,6 +9,11 @@ Feature: Standup report dual-runtime parity
   - Identical exit codes for success and each failure mode.
   - Identical stderr error messages byte-for-byte (including right-now fail-closed text).
   - Identical stdout formatting for the same fixture project and profile.
+  - Omitting issue identifiers MUST produce the same fact feed in both runtimes
+    as `kanbus now` default selection (including virtual_projects).
+  - Cross-profile JSON parity fields: `source_issues` set and per-issue
+    `right_now_summary` texts MUST match between meeting-script and director-brief
+    for the same scope; only `profile` and `sections` presentation differ.
   - No implementation may bypass the shared right-now stack or emit placeholders
     that the other runtime would reject.
 
@@ -16,7 +21,7 @@ Feature: Standup report dual-runtime parity
     Given a Kanbus project with default configuration
     And mock AI is enabled
     And right now litellm call tracking is reset
-    And the Kanbus configuration uses AI provider "litellm" with model "gpt-4o-mini"
+    And the Kanbus configuration uses AI provider "litellm" with model "gpt-5.6-luna"
 
   Scenario: Both runtimes expose the standup command with the same profiles
     When I run "kanbus standup --help"
@@ -26,6 +31,14 @@ Feature: Standup report dual-runtime parity
     And stdout should contain "director-brief"
     And stdout should contain "--profile"
     And stdout should contain "--json"
+
+  Scenario: Both runtimes use kanbus now default selection when issue IDs omitted
+    Given an issue "kanbus-par-def" exists with status "in_progress"
+    And issue "kanbus-par-def" has right now summary "Parity default scope."
+    And an issue "kanbus-par-open" exists with status "open"
+    When I run "kanbus standup"
+    Then the command should succeed
+    And the standup fact feed should match kanbus now default listing
 
   Scenario: Both runtimes fail with the same error when AI is unconfigured
     Given the Kanbus project has no AI configuration
@@ -55,6 +68,16 @@ Feature: Standup report dual-runtime parity
     Then the command should succeed
     And stdout should be valid JSON
     And the standup JSON output should include fields "profile,sections,source_issues"
+
+  Scenario: Both runtimes match source_issues and right_now texts across profiles
+    Given an issue "kanbus-par-facts" exists with status "in_progress"
+    And issue "kanbus-par-facts" has right now summary "Shared parity facts."
+    When I run "kanbus standup kanbus-par-facts --profile meeting-script --json"
+    Then the command should succeed
+    When I run "kanbus standup kanbus-par-facts --profile director-brief --json"
+    Then the command should succeed
+    And the standup JSON source_issues set should match between profiles
+    And the standup JSON right_now_texts should match between profiles
 
   Scenario: Removing wip from standup scenarios requires both implementations green
     Given standup parity is tracked by tools/check_spec_parity.py
