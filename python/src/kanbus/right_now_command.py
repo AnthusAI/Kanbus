@@ -352,6 +352,7 @@ def _serialize_flat_json_entry(issue: IssueData, raw: bool) -> Dict[str, Any]:
         "title": issue.title,
         "type": issue.issue_type,
         "status": issue.status,
+        "priority": issue.priority,
         "updated_at": _format_updated_at(issue.updated_at),
     }
     if not raw:

@@ -433,6 +433,7 @@ struct RightNowFlatJsonEntry {
     #[serde(rename = "type")]
     issue_type: String,
     status: String,
+    priority: i32,
     updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     right_now_summary: Option<Option<String>>,
@@ -445,6 +446,7 @@ fn serialize_flat_json_entry(issue: &IssueData, raw: bool) -> RightNowFlatJsonEn
         title: issue.title.clone(),
         issue_type: issue.issue_type.clone(),
         status: issue.status.clone(),
+        priority: issue.priority,
         updated_at: format_updated_at(issue.updated_at),
         right_now_summary: if raw {
             None
