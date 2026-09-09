@@ -83,6 +83,20 @@ python -m kanbus.cli <command> [args...]
 
 NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
 
+## Right-now WIP (`kbs now`)
+
+On demand, agents can read current WIP from the board without waiting for compaction hooks:
+
+```bash
+kbs now                  # whole-project tree (default cap 30 in-progress issues)
+kbs now --list           # flat list with right-now summaries
+kbs now --json --list    # JSON flat list (includes priority and status)
+kbs now kbs-abc          # focused: issue kbs-abc and descendants
+kbs now kbs-abc --no-recursive   # that issue only
+```
+
+Scoped `kbs now <id>` is for self-directed focus. Whole-project reinjection after coding-agent compaction uses the same JSON payload without issue identifiers; see [docs/AGENT_COMPACTION_RIGHT_NOW.md](docs/AGENT_COMPACTION_RIGHT_NOW.md).
+
 ## Agent provenance metadata
 
 When you create issues or post comments as an AI agent, Kanbus can optionally record which platform, model, and runtime settings produced the change. This goes beyond `author: agent` or `KANBUS_USER=agent` and helps distinguish Cursor from Codex, Claude Code, or Antigravity in multi-agent workflows.

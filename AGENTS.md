@@ -7,6 +7,20 @@ How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules,
 Performance: Prefer kbs (Rust) when available; kanbus (Python) is equivalent but slower.
 Warning: Editing project/ directly violates The Way. Do not read or write anything in project/; work only through Kanbus.
 
+## Right-now WIP (`kbs now`)
+
+Agents can pull current board context on demand:
+
+```bash
+kbs now                  # whole-project WIP tree (default cap)
+kbs now --list           # flat list
+kbs now --json --list    # machine-readable flat list (includes priority)
+kbs now kbs-abc          # focused: issue and descendants
+kbs now kbs-abc --list   # focused flat list
+```
+
+Use scoped `kbs now <id>` when you are working a pinned epic or task. Whole-project reinjection after coding-agent context compaction is a separate hook pattern; see [docs/AGENT_COMPACTION_RIGHT_NOW.md](docs/AGENT_COMPACTION_RIGHT_NOW.md).
+
 ## System-wide kbs/kbsc install (agent PATH)
 
 The agent environment only sees `/usr/local/bin` by default. To ensure `kbs` and `kbsc` are always available without PATH hacks, use the repo helper:
