@@ -971,6 +971,19 @@ def then_ai_provider_matches(context: object, expected: str) -> None:
     ), f"Expected AI provider '{expected}', got '{configuration.ai.provider}'"
 
 
+@then('the AI model should be "{expected}"')
+def then_ai_model_matches(context: object, expected: str) -> None:
+    """Verify AI model matches expected value."""
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+    if configuration.ai is None:
+        raise AssertionError("No AI configuration in .kanbus.yml")
+    assert (
+        configuration.ai.model == expected
+    ), f"Expected AI model '{expected}', got '{configuration.ai.model}'"
+
+
 @then('the default priority should be "{expected}"')
 def then_default_priority_matches(context: object, expected: str) -> None:
     """Verify default priority matches."""

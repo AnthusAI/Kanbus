@@ -198,9 +198,9 @@ class PriorityDefinition(BaseModel):
 class AiConfiguration(BaseModel):
     """AI provider configuration for wiki summarization.
 
-    :param provider: AI provider identifier (e.g. openai).
+    :param provider: AI provider identifier (`litellm` routes through LiteLLM).
     :type provider: str
-    :param model: Model identifier (e.g. gpt-4o).
+    :param model: Model identifier (e.g. gpt-5.6-luna).
     :type model: str
     """
 
@@ -226,7 +226,7 @@ class RightNowConfiguration(BaseModel):
     enabled: bool = True
     default_tree_expanded: bool = False
     max_length: int = 120
-    model: Optional[str] = None
+    model: Optional[str] = "gpt-5.6-luna"
 
 
 class JiraConfiguration(BaseModel):

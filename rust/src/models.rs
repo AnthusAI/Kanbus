@@ -102,14 +102,18 @@ fn default_jira_sync_direction() -> String {
 /// AI provider configuration for wiki summarization.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiConfiguration {
-    /// AI provider identifier (e.g. openai).
+    /// AI provider identifier (`litellm` routes through LiteLLM to the model vendor).
     pub provider: String,
-    /// Model identifier (e.g. gpt-4o).
+    /// Model identifier (e.g. gpt-5.6-luna).
     pub model: String,
 }
 
 fn default_right_now_max_length() -> usize {
     120
+}
+
+fn default_right_now_model() -> Option<String> {
+    Some("gpt-5.6-luna".to_string())
 }
 
 /// Right-now summary configuration for the console.
@@ -122,7 +126,7 @@ pub struct RightNowConfiguration {
     pub default_tree_expanded: bool,
     #[serde(default = "default_right_now_max_length")]
     pub max_length: usize,
-    #[serde(default)]
+    #[serde(default = "default_right_now_model")]
     pub model: Option<String>,
 }
 
@@ -132,7 +136,7 @@ impl Default for RightNowConfiguration {
             enabled: true,
             default_tree_expanded: false,
             max_length: default_right_now_max_length(),
-            model: None,
+            model: default_right_now_model(),
         }
     }
 }

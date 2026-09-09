@@ -93,6 +93,34 @@ Priority assigned to new issues when not explicitly provided.
 Whether CLI commands default to Beads compatibility mode when `--beads` is not provided.
 Defaults to `false`.
 
+### `ai` (mapping, optional)
+
+LLM configuration for wiki summarization, issue compaction, and right-now summaries.
+Kanbus uses [LiteLLM](https://docs.litellm.ai/) as the client; the default model targets OpenAI.
+
+```yaml
+ai:
+  provider: litellm          # LiteLLM adapter (default)
+  model: gpt-5.6-luna        # default model for all LLM tasks
+```
+
+Credentials: set `OPENAI_API_KEY` in the environment, project `.env`, or `~/.kanbus.env`.
+Do not store API keys in `.kanbus.yml`.
+
+### `right_now` (mapping, optional)
+
+Console right-now summary configuration.
+
+```yaml
+right_now:
+  enabled: true
+  default_tree_expanded: false
+  max_length: 120
+  model: gpt-5.6-luna        # pinned summarization model (default)
+```
+
+`right_now.model` pins the summarization model independently of `ai.model` so right-now summaries stay on Luna even if full-summary tasks use a different model.
+
 ### `realtime` (map, optional)
 
 Realtime gossip configuration.
