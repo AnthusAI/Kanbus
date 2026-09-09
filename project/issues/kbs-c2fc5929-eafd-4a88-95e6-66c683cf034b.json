@@ -1,0 +1,20 @@
+{
+  "id": "kbs-c2fc5929-eafd-4a88-95e6-66c683cf034b",
+  "title": "Tactus agent DSL handoff for AI procedures",
+  "description": "Thin future epic: Tactus DSL orchestration for multi-step Kanbus AI procedures after Meeting script and Director brief profiles prove out. Does not block near-term standup delivery.",
+  "type": "epic",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T17:17:28.017597809Z",
+  "updated_at": "2026-09-09T17:17:28.024809559Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
