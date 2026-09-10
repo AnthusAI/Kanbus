@@ -223,6 +223,31 @@ def given_issue_comment_with_agent_metadata(
     write_issue_file(project_dir, issue)
 
 
+@given(
+    'issue "{identifier}" has a comment from "{author}" with text "{text}" with complete agent metadata platform "{platform}" model "{model}" name "{name}"'
+)
+def given_issue_comment_with_complete_agent_metadata(
+    context: object,
+    identifier: str,
+    author: str,
+    text: str,
+    platform: str,
+    model: str,
+    name: str,
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    comment = IssueComment(
+        id="abc123def456",
+        author=author,
+        text=text,
+        created_at=datetime(2026, 2, 11, tzinfo=timezone.utc),
+        agent=AgentMetadata(platform=platform, model=model, name=name),
+    )
+    issue = issue.model_copy(update={"comments": [comment]})
+    write_issue_file(project_dir, issue)
+
+
 @when("I resolve agent metadata with no CLI overrides")
 def when_resolve_agent_metadata(context: object) -> None:
     _apply_env_overrides(context)

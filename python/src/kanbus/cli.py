@@ -108,6 +108,7 @@ from kanbus.agent_metadata import (
     AgentMetadataRequest,
     AgentMetadataResolutionError,
     emit_agent_provenance_warning,
+    format_agent_display_line,
     reject_agent_metadata_in_beads_mode,
     resolve_agent_metadata,
 )
@@ -1823,6 +1824,10 @@ def comment(
                 comment_id=result_comment.comment.id,
                 silenced=no_agent_provenance,
             )
+            if result_comment.comment.agent is not None:
+                click.echo(
+                    f"Agent: {format_agent_display_line(result_comment.comment.agent)}"
+                )
     except IssueCommentError as error:
         raise click.ClickException(str(error)) from error
 

@@ -21,10 +21,21 @@ Feature: Agent provenance guidance
     And an issue "kanbus-aaa" exists
     When I run "kanbus comment kanbus-aaa \"Note\""
     Then the command should succeed
+    And stdout should not contain "Agent:"
     And stderr should contain "agent provenance is incomplete"
     And stderr should contain "kbs comment update"
     And stderr should contain "--agent-platform \"Cursor\""
     And stderr should contain "--agent-name \"Cloud Agent\""
+
+  Scenario: Create with platform and model but no name succeeds and warns for name only
+    Given a Kanbus project with default configuration
+    When I run "kanbus create \"Partial\" --type task --agent-platform Cursor --agent-model \"Composer 2.5\""
+    Then the command should succeed
+    And the created issue should have agent metadata platform "cursor" and model "Composer 2.5"
+    And stderr should contain "agent provenance is incomplete"
+    And stderr should contain "missing: name"
+    And stderr should contain "--agent-name \"Cloud Agent\""
+    And stderr should not contain "--agent-platform"
 
   Scenario: Override silences the provenance warning
     Given a Kanbus project with default configuration
@@ -61,6 +72,16 @@ Feature: Agent provenance guidance
     When I run "kanbus update kanbus-agent --agent-platform Codex --agent-model \"GPT-5\" --agent-name \"Other Agent\""
     Then the command should fail with exit code 1
     And stderr should contain "agent metadata is already set"
+
+  Scenario: Comment update rejects replacing complete agent metadata
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    And issue "kanbus-aaa" has a comment from "agent" with text "Done" with complete agent metadata platform "cursor" model "Composer 2.5" name "Cloud Agent"
+    When I run "kanbus comment update kanbus-aaa abc123def456 --agent-platform Codex --agent-model \"GPT-5\" --agent-name \"Other Agent\""
+    Then the command should fail with exit code 1
+    And stderr should contain "agent metadata is already set"
+    And the latest comment should have text "Done"
+    And the latest comment should have agent platform "cursor" and model "Composer 2.5"
 
   Scenario: Create help mentions provenance guidance
     Given a Kanbus project with default configuration

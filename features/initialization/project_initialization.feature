@@ -15,6 +15,7 @@ Feature: Project initialization
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.template.md should contain "As a <role>, I want <capability>, so that <benefit>."
+    And CONTRIBUTING_AGENT.template.md should contain "Agent provenance metadata"
     And project/issues/ and project/events/ should contain AGENTS.md with the warning
     And project/issues/ and project/events/ should contain DO_NOT_EDIT with the warning
 
@@ -27,6 +28,7 @@ Feature: Project initialization
     And .gitignore should include "project-local/"
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."
+    And CONTRIBUTING_AGENT.template.md should contain "Agent provenance metadata"
 
   Scenario: Refuse to initialize when project already exists
     Given a git repository with an existing Kanbus project

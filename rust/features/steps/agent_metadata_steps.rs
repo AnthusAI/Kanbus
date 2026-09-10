@@ -249,6 +249,37 @@ fn given_issue_comment_with_agent_metadata(
     save_issue(&project_dir, &issue);
 }
 
+#[given(
+    expr = "issue {string} has a comment from {string} with text {string} with complete agent metadata platform {string} model {string} name {string}"
+)]
+fn given_issue_comment_with_complete_agent_metadata(
+    world: &mut KanbusWorld,
+    identifier: String,
+    author: String,
+    text: String,
+    platform: String,
+    model: String,
+    name: String,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = load_issue(&project_dir, &identifier);
+    issue.comments = vec![IssueComment {
+        id: Some("abc123def456".to_string()),
+        author,
+        text: Some(text),
+        created_at: Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap(),
+        comment_type: "default".to_string(),
+        data: Default::default(),
+        agent: Some(AgentMetadata {
+            platform,
+            model,
+            name: Some(name),
+            settings: Default::default(),
+        }),
+    }];
+    save_issue(&project_dir, &issue);
+}
+
 #[when("I resolve agent metadata with no CLI overrides")]
 fn when_resolve_agent_metadata(world: &mut KanbusWorld) {
     let saved = apply_environment_overrides(&world.environment_overrides);

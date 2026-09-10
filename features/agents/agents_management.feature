@@ -11,6 +11,7 @@ Feature: Manage AGENTS.md Kanbus instructions
     And CONTRIBUTING_AGENT.md should exist
     And CONTRIBUTING_AGENT.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.md should contain "As a <role>, I want <capability>, so that <benefit>."
+    And CONTRIBUTING_AGENT.md should contain "Agent provenance metadata"
 
   Scenario: Insert Kanbus section after H1 when missing
     Given a Kanbus repository with AGENTS.md without a Kanbus section

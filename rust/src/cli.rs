@@ -12,8 +12,8 @@ use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 
 use crate::agent_metadata::{
-    emit_agent_provenance_warning, reject_agent_metadata_in_beads_mode, resolve_agent_metadata,
-    AgentMetadataRequest,
+    emit_agent_provenance_warning, format_agent_display_line, reject_agent_metadata_in_beads_mode,
+    resolve_agent_metadata, AgentMetadataRequest,
 };
 use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{
@@ -2645,7 +2645,25 @@ fn execute_command(
                         comment_result.comment.id.as_deref(),
                         no_agent_provenance,
                     );
-                    Some(comment_result.issue)
+                    let agent_stdout = comment_result
+                        .comment
+                        .agent
+                        .as_ref()
+                        .map(|agent| format!("Agent: {}", format_agent_display_line(agent)));
+                    run_lifecycle_hooks_for_context(
+                        root,
+                        HookPhase::After,
+                        HookEvent::IssueComment,
+                        serde_json::json!({
+                            "identifier": identifier,
+                            "text": repaired_comment_text,
+                            "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                            "after_issue": comment_result.issue.clone(),
+                        }),
+                        &[],
+                        hook_options,
+                    )?;
+                    return Ok(agent_stdout);
                 };
                 run_lifecycle_hooks_for_context(
                     root,
