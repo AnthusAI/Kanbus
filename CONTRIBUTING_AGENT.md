@@ -104,7 +104,7 @@ Platform and model must both be present or both absent. Partial metadata fails w
 
 ### CLI flags
 
-These flags are available on `create` and `comment` only:
+These flags are available on `create`, `comment`, `update`, and `comment update`:
 
 - `--agent-platform <name>` — Coding agent product name
 - `--agent-model <name>` — Model name
@@ -142,6 +142,8 @@ If yours is not listed, use a short Title Case product name anyway.
 - Grok 4
 
 **Session name** (`--agent-name`, `KANBUS_AGENT_NAME`): optional label for this run or bot (for example `Cloud Agent`, `bugbot`). This identifies the session, not the product.
+
+Host-specific instruction snippets (Cursor, Claude Code, Codex, Antigravity, Grok Bot) live in `docs/AGENT_PROVENANCE.md` and on the Kanb.us Agent Provenance page. Do not put product or model names in shared `AGENTS.md`.
 
 ### Settings
 
