@@ -169,6 +169,25 @@ def test_format_agent_settings_display() -> None:
     assert "speed=fast" in display
     assert "reasoning_effort=turbo" in display
 
+    structured = AgentMetadata(
+        platform="cursor",
+        model="composer-2.5",
+        settings={
+            "enabled": True,
+            "disabled": False,
+            "optional": None,
+            "flags": {"a": 1},
+            "tags": ["x", "y"],
+        },
+    )
+    structured_display = format_agent_settings_display(structured)
+    assert structured_display is not None
+    assert "enabled=true" in structured_display
+    assert "disabled=false" in structured_display
+    assert "optional=null" in structured_display
+    assert "flags=" in structured_display
+    assert "tags=" in structured_display
+
 
 def test_format_agent_provenance_warning_includes_follow_up() -> None:
     warning = format_agent_provenance_warning("kanbus-aaa", None)
@@ -178,6 +197,17 @@ def test_format_agent_provenance_warning_includes_follow_up() -> None:
     assert '--agent-model "Composer 2.5"' in warning
     assert '--agent-name "Cloud Agent"' in warning
     assert "--no-agent-provenance" in warning
+
+
+def test_missing_agent_provenance_fields_for_complete_and_absent() -> None:
+    from kanbus.agent_metadata import missing_agent_provenance_fields
+    from kanbus.models import AgentMetadata
+
+    assert missing_agent_provenance_fields(None) == ["platform", "model", "name"]
+    complete = AgentMetadata(
+        platform="cursor", model="composer-2.5", name="Cloud Agent"
+    )
+    assert missing_agent_provenance_fields(complete) == []
 
 
 def test_assign_agent_metadata_rejects_complete_replace() -> None:
