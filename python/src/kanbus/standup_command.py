@@ -28,6 +28,11 @@ from kanbus.standup import (
     load_standup_configuration,
     resolve_standup_profile,
 )
+from kanbus.standup_rollup import (
+    StandupRollupError,
+    expand_issues_with_ancestors,
+    resolve_standup_rollup,
+)
 from kanbus.standup_window import (
     StandupWindowError,
     StandupWindowOverrides,
@@ -59,6 +64,8 @@ class StandupCommandOptions:
     :type lookback: Optional[str]
     :param skip_weekends: Optional skip-weekends override.
     :type skip_weekends: Optional[bool]
+    :param rollup: Optional rollup mode override.
+    :type rollup: Optional[str]
     """
 
     issue_ids: tuple[str, ...] = ()
@@ -68,6 +75,7 @@ class StandupCommandOptions:
     window: Optional[str] = None
     lookback: Optional[str] = None
     skip_weekends: Optional[bool] = None
+    rollup: Optional[str] = None
 
 
 class StandupCommandError(RuntimeError):
@@ -145,6 +153,14 @@ def run_standup_command(root: Path, options: StandupCommandOptions) -> str:
     load_repository_environment(root)
     profile = resolve_standup_profile(options.profile)
     configuration = load_standup_configuration(root)
+    try:
+        rollup_settings = resolve_standup_rollup(
+            options.rollup,
+            configuration,
+            bool(options.issue_ids),
+        )
+    except StandupRollupError as error:
+        raise StandupCommandError(str(error)) from error
     window_overrides = StandupWindowOverrides(
         window=options.window,
         lookback=options.lookback,
@@ -162,8 +178,11 @@ def run_standup_command(root: Path, options: StandupCommandOptions) -> str:
         issues = select_standup_fact_feed(root, options)
     except IssueListingError as error:
         raise StandupCommandError(str(error)) from error
-    issues = ensure_standup_summaries(root, issues)
-    right_now_texts = collect_right_now_texts(issues)
+    issues_for_summaries = expand_issues_with_ancestors(root, issues)
+    issues_for_summaries = ensure_standup_summaries(root, issues_for_summaries)
+    summary_by_identifier = {issue.identifier: issue for issue in issues_for_summaries}
+    issues = [summary_by_identifier.get(issue.identifier, issue) for issue in issues]
+    right_now_texts = collect_right_now_texts(issues_for_summaries)
     events_by_issue = {
         issue.identifier: load_issue_event_records(root, issue.identifier)
         for issue in issues
@@ -176,6 +195,8 @@ def run_standup_command(root: Path, options: StandupCommandOptions) -> str:
         events_by_issue,
         report_time,
         window_settings,
+        configuration,
+        rollup_settings,
         bool(options.issue_ids),
     )
     if options.as_json:

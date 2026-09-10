@@ -84,6 +84,10 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
             index += 1;
             continue;
         }
+        if token == "--rollup" && index + 1 < tokens.len() {
+            index += 2;
+            continue;
+        }
         if token == "--skip-weekends" || token == "--no-skip-weekends" {
             index += 1;
             continue;
@@ -109,6 +113,7 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
         window: None,
         lookback: None,
         skip_weekends: None,
+        rollup: None,
     }
 }
 
@@ -666,4 +671,53 @@ fn then_standup_parity_tracked(world: &mut KanbusWorld) {
 )]
 fn then_standup_completion_requires_dual_runtime(world: &mut KanbusWorld) {
     let _ = world;
+}
+
+fn standup_section_bullets(world: &KanbusWorld, section_name: &str) -> Vec<String> {
+    let stdout = stdout_text(world);
+    if stdout.trim().starts_with('{') {
+        let payload = parse_standup_json(world);
+        let sections = payload
+            .get("sections")
+            .and_then(Value::as_array)
+            .expect("sections array");
+        let section = sections
+            .iter()
+            .find(|item| item.get("name") == Some(&Value::String(section_name.to_string())))
+            .expect("section");
+        return section
+            .get("bullets")
+            .and_then(Value::as_array)
+            .expect("bullets array")
+            .iter()
+            .filter_map(|value| value.as_str().map(str::to_string))
+            .collect();
+    }
+    let section_text = extract_section_text(&stdout, section_name);
+    section_text
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            trimmed.strip_prefix("- ").map(|bullet| bullet.to_string())
+        })
+        .collect()
+}
+
+#[then(expr = "the standup report section {string} should have {int} bullet")]
+#[then(expr = "the standup report section {string} should have {int} bullets")]
+fn then_standup_section_bullet_count(world: &mut KanbusWorld, section_name: String, count: usize) {
+    let bullets = standup_section_bullets(world, &section_name);
+    assert_eq!(bullets.len(), count);
+}
+
+#[then(expr = "the standup report section {string} should match pattern {string}")]
+fn then_standup_section_matches_pattern(
+    world: &mut KanbusWorld,
+    section_name: String,
+    pattern: String,
+) {
+    let bullets = standup_section_bullets(world, &section_name);
+    let joined = bullets.join("\n");
+    let regex = Regex::new(&pattern).expect("valid pattern");
+    assert!(regex.is_match(&joined));
 }

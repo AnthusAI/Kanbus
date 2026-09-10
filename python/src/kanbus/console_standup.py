@@ -18,6 +18,7 @@ from kanbus.standup import (
     resolve_standup_profile,
 )
 from kanbus.standup_command import StandupCommandOptions, select_standup_fact_feed
+from kanbus.standup_rollup import expand_issues_with_ancestors, resolve_standup_rollup
 from kanbus.standup_window import (
     StandupWindowOverrides,
     resolve_standup_report_time,
@@ -130,9 +131,11 @@ def generate_standup_report(
         window_overrides,
     )
     options = StandupCommandOptions()
+    rollup_settings = resolve_standup_rollup(None, configuration, False)
     issues = select_standup_fact_feed(root, options)
-    issues = ensure_standup_summaries(root, issues)
-    right_now_texts = collect_right_now_texts(issues)
+    issues_for_summaries = expand_issues_with_ancestors(root, issues)
+    issues_for_summaries = ensure_standup_summaries(root, issues_for_summaries)
+    right_now_texts = collect_right_now_texts(issues_for_summaries)
     events_by_issue = {
         issue.identifier: load_issue_event_records(root, issue.identifier)
         for issue in issues
@@ -145,6 +148,8 @@ def generate_standup_report(
         events_by_issue,
         report_time,
         window_settings,
+        configuration,
+        rollup_settings,
         False,
     )
     text = format_standup_text(report)

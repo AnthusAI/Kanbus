@@ -18,6 +18,10 @@ use crate::right_now::{
     ensure_right_now_summaries, is_persisted_mock_right_now_summary,
     require_display_right_now_summary,
 };
+use crate::standup_rollup::{
+    build_close_out_bullets, ensure_yesterday_bullets, roll_up_active_bullets,
+    StandupRollupSettings, CLOSE_OUT_SECTION, ROLLUP_FLAT,
+};
 use crate::standup_window::{
     is_on_completed_calendar_day, parse_standup_lookback_hours, start_of_report_calendar_day,
     StandupWindowSettings, CALENDAR_WINDOW,
@@ -325,7 +329,7 @@ pub fn qualifies_for_momentum(
         && is_within_lookback(Some(&issue.updated_at), report_time, lookback_hours)
 }
 
-fn truncate_bullet(text: &str) -> String {
+pub(crate) fn truncate_bullet(text: &str) -> String {
     truncate_bullet_with_max_length(text, MAX_STANDUP_BULLET_LENGTH)
 }
 
@@ -354,22 +358,20 @@ fn derive_blocked_question(summary: &str) -> String {
     ))
 }
 
-fn derive_stale_question(identifier: &str) -> String {
-    truncate_bullet(&format!("Why is {identifier} still in progress?"))
-}
-
 /// Build meeting-script profile sections from fact-feed issues.
+#[allow(clippy::too_many_arguments)]
 pub fn build_meeting_script_sections(
     issues: &[IssueData],
     right_now_texts: &HashMap<String, String>,
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
     window_settings: &StandupWindowSettings,
+    configuration: &ProjectConfiguration,
+    rollup_settings: &StandupRollupSettings,
     explicit_scope: bool,
 ) -> Vec<StandupSection> {
     let mut yesterday_identifiers = HashSet::new();
     let mut yesterday_bullets = Vec::new();
-    let mut today_bullets = Vec::new();
     let mut blocker_bullets = Vec::new();
     let mut question_bullets = Vec::new();
 
@@ -390,11 +392,9 @@ pub fn build_meeting_script_sections(
             blocker_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
             question_bullets.push(derive_blocked_question(summary));
         }
-        if is_stale_in_progress(issue, report_time, window_settings) {
-            question_bullets.push(derive_stale_question(&issue.identifier));
-        }
     }
 
+    let mut today_issues = Vec::new();
     for issue in issues {
         if yesterday_identifiers.contains(&issue.identifier) {
             continue;
@@ -405,20 +405,33 @@ pub fn build_meeting_script_sections(
             &["in_progress", "blocked"]
         };
         if active_statuses.contains(&issue.status.as_str()) {
-            if let Some(summary) = right_now_texts.get(&issue.identifier) {
-                today_bullets.push(truncate_bullet(summary));
-            }
+            today_issues.push(issue.clone());
         }
     }
+
+    let today_bullets = roll_up_active_bullets(
+        &today_issues,
+        right_now_texts,
+        configuration,
+        rollup_settings,
+        false,
+    );
+
+    let close_out_bullets =
+        build_close_out_bullets(issues, right_now_texts, report_time, window_settings);
 
     vec![
         StandupSection {
             name: String::from("Yesterday"),
-            bullets: yesterday_bullets,
+            bullets: ensure_yesterday_bullets(&yesterday_bullets),
         },
         StandupSection {
             name: String::from("Today"),
             bullets: today_bullets,
+        },
+        StandupSection {
+            name: String::from(CLOSE_OUT_SECTION),
+            bullets: close_out_bullets,
         },
         StandupSection {
             name: String::from("Blockers"),
@@ -438,6 +451,8 @@ pub fn build_director_brief_sections(
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
     window_settings: &StandupWindowSettings,
+    configuration: &ProjectConfiguration,
+    _rollup_settings: &StandupRollupSettings,
 ) -> Vec<StandupSection> {
     let in_progress_count = issues
         .iter()
@@ -452,22 +467,14 @@ pub fn build_director_brief_sections(
         "{in_progress_count} in-progress issues, {blocked_count} blocked issue{blocked_suffix}"
     )];
 
-    let mut momentum_bullets = Vec::new();
     let mut risk_bullets = Vec::new();
     let mut blocker_bullets = Vec::new();
 
     for issue in issues {
-        let events = events_by_issue
-            .get(&issue.identifier)
-            .map(Vec::as_slice)
-            .unwrap_or(&[]);
         let summary = right_now_texts
             .get(&issue.identifier)
             .map(String::as_str)
             .unwrap_or("");
-        if qualifies_for_momentum(issue, events, report_time, window_settings) {
-            momentum_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
-        }
         if issue.status == "blocked" {
             risk_bullets.push(truncate_bullet(&issue.identifier));
             blocker_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
@@ -475,6 +482,31 @@ pub fn build_director_brief_sections(
             risk_bullets.push(truncate_bullet(&format!("{}: {summary}", issue.identifier)));
         }
     }
+
+    let momentum_issues = issues
+        .iter()
+        .filter(|issue| {
+            let events = events_by_issue
+                .get(&issue.identifier)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
+            qualifies_for_momentum(issue, events, report_time, window_settings)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let momentum_rollup = StandupRollupSettings {
+        mode: ROLLUP_FLAT.to_string(),
+    };
+    let momentum_bullets = roll_up_active_bullets(
+        &momentum_issues,
+        right_now_texts,
+        configuration,
+        &momentum_rollup,
+        true,
+    );
+
+    let close_out_bullets =
+        build_close_out_bullets(issues, right_now_texts, report_time, window_settings);
 
     vec![
         StandupSection {
@@ -490,6 +522,10 @@ pub fn build_director_brief_sections(
             bullets: risk_bullets,
         },
         StandupSection {
+            name: String::from(CLOSE_OUT_SECTION),
+            bullets: close_out_bullets,
+        },
+        StandupSection {
             name: String::from("Blockers"),
             bullets: blocker_bullets,
         },
@@ -497,6 +533,7 @@ pub fn build_director_brief_sections(
 }
 
 /// Build a structured standup report for the requested profile.
+#[allow(clippy::too_many_arguments)]
 pub fn build_standup_report(
     profile: &str,
     issues: &[IssueData],
@@ -505,6 +542,8 @@ pub fn build_standup_report(
     report_time: DateTime<Utc>,
     window_settings: &StandupWindowSettings,
     explicit_scope: bool,
+    configuration: &ProjectConfiguration,
+    rollup_settings: &StandupRollupSettings,
 ) -> StandupReport {
     let sections = if profile == DIRECTOR_BRIEF_PROFILE {
         build_director_brief_sections(
@@ -513,6 +552,8 @@ pub fn build_standup_report(
             events_by_issue,
             report_time,
             window_settings,
+            configuration,
+            rollup_settings,
         )
     } else {
         build_meeting_script_sections(
@@ -521,6 +562,8 @@ pub fn build_standup_report(
             events_by_issue,
             report_time,
             window_settings,
+            configuration,
+            rollup_settings,
             explicit_scope,
         )
     };
@@ -634,9 +677,10 @@ pub fn ensure_standup_summaries(
     Ok(reloaded)
 }
 
-static SECTION_HEADINGS: [&str; 7] = [
+static SECTION_HEADINGS: [&str; 8] = [
     "Yesterday",
     "Today",
+    CLOSE_OUT_SECTION,
     "Blockers",
     "Likely questions",
     "Health",

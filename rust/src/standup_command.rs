@@ -14,6 +14,7 @@ use crate::standup::{
     format_standup_text, load_issue_event_records, load_standup_configuration,
     resolve_standup_profile,
 };
+use crate::standup_rollup::{expand_issues_with_ancestors, resolve_standup_rollup};
 use crate::standup_window::{
     resolve_standup_report_time, resolve_standup_window_settings, StandupWindowOverrides,
 };
@@ -39,6 +40,8 @@ pub struct StandupCommandOptions {
     pub lookback: Option<String>,
     /// Optional skip-weekends override.
     pub skip_weekends: Option<bool>,
+    /// Optional rollup mode override.
+    pub rollup: Option<String>,
 }
 
 /// Default standup command options: board-wide recursive meeting script.
@@ -52,6 +55,7 @@ impl Default for StandupCommandOptions {
             window: None,
             lookback: None,
             skip_weekends: None,
+            rollup: None,
         }
     }
 }
@@ -118,6 +122,11 @@ pub fn run_standup_command(
     load_repository_environment(root);
     let profile = resolve_standup_profile(options.profile.as_deref())?;
     let configuration = load_standup_configuration(root)?;
+    let rollup_settings = resolve_standup_rollup(
+        options.rollup.as_deref(),
+        &configuration,
+        !options.issue_ids.is_empty(),
+    )?;
     let window_overrides = StandupWindowOverrides {
         window: options.window.clone(),
         lookback: options.lookback.clone(),
@@ -126,8 +135,22 @@ pub fn run_standup_command(
     let window_settings =
         resolve_standup_window_settings(&configuration, Some(&profile), &window_overrides)?;
     let issues = select_standup_fact_feed(root, options)?;
-    let issues = ensure_standup_summaries(root, &issues)?;
-    let right_now_texts = collect_right_now_texts(&issues)?;
+    let issues_for_summaries = expand_issues_with_ancestors(root, &issues)?;
+    let issues_for_summaries = ensure_standup_summaries(root, &issues_for_summaries)?;
+    let summary_by_identifier: HashMap<String, IssueData> = issues_for_summaries
+        .iter()
+        .map(|issue| (issue.identifier.clone(), issue.clone()))
+        .collect();
+    let issues = issues
+        .iter()
+        .map(|issue| {
+            summary_by_identifier
+                .get(&issue.identifier)
+                .cloned()
+                .unwrap_or_else(|| issue.clone())
+        })
+        .collect::<Vec<_>>();
+    let right_now_texts = collect_right_now_texts(&issues_for_summaries)?;
     let mut events_by_issue = HashMap::new();
     for issue in &issues {
         events_by_issue.insert(
@@ -144,6 +167,8 @@ pub fn run_standup_command(
         report_time,
         &window_settings,
         !options.issue_ids.is_empty(),
+        &configuration,
+        &rollup_settings,
     );
     if options.as_json {
         format_standup_json(&report)

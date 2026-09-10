@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 from behave import given, then, when
 
@@ -46,6 +47,20 @@ class StandupPanelState:
     section_names: list[str] = field(default_factory=list)
     clipboard: str | None = None
     generation_should_fail: bool = False
+
+
+def _standup_repository_root(context: object) -> Path:
+    """Return the repository root used to load standup configuration.
+
+    :param context: Behave context object.
+    :type context: object
+    :return: Repository root path.
+    :rtype: Path
+    """
+    working = getattr(context, "working_directory", None)
+    if working is not None:
+        return Path(working)
+    return Path(__file__).resolve().parents[3]
 
 
 def _ensure_standup_state(context: object) -> StandupPanelState:
@@ -115,6 +130,7 @@ def _standup_fact_feed_issues(console_state: ConsoleState) -> list[IssueData]:
 def _generate_from_console_state(
     console_state: ConsoleState,
     profile_name: str,
+    repository: Path,
 ) -> tuple[str, list[str]]:
     profile = resolve_standup_profile(profile_name)
     issues = _standup_fact_feed_issues(console_state)
@@ -126,6 +142,11 @@ def _generate_from_console_state(
         skip_weekends=False,
         timezone=ZoneInfo("UTC"),
     )
+    from kanbus.standup import load_standup_configuration
+    from kanbus.standup_rollup import resolve_standup_rollup
+
+    configuration = load_standup_configuration(repository)
+    rollup_settings = resolve_standup_rollup(None, configuration, False)
     report = build_standup_report(
         profile,
         issues,
@@ -133,6 +154,8 @@ def _generate_from_console_state(
         {},
         datetime.now(timezone.utc),
         window_settings,
+        configuration,
+        rollup_settings,
         False,
     )
     section_names = [section.name for section in report.sections]
@@ -192,6 +215,7 @@ def when_generate_standup_report(context: object) -> None:
         report_text, section_names = _generate_from_console_state(
             console_state,
             standup.profile,
+            _standup_repository_root(context),
         )
     except Exception as error:
         standup.is_generating = False
