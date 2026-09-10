@@ -1,0 +1,26 @@
+{
+  "id": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "title": "Standup multi-project rollup + close-out dogfood",
+  "description": "## Product ask (Ryan / SD, 2026-09-10)\n\nGherkin-first, dual Python+Rust. SD owns Composer implementation (bc-f9b425e3); no duplicate worker.\n\n### Scope\n1. Multi-project rollup shapes: `--rollup project` (one bullet per project, upward-summarized) and `--rollup tree` (nested project\u2192epic\u2192leaf). Default: project at multi-project / congregation; tree OK inside single board.\n2. Recursive upward right-now: parent/initiative/project rollup bullets recompute from children (LLM or structured reduce) \u2014 not flat leaf dump.\n3. Project labels on every multi-project bullet.\n4. Close-out section for kanban WIP control: ready-to-close / merged-but-still-in_progress / blocked-only-on-external-wait (replace or demote useless \u201cWhy is X still in progress?\u201d Likely questions).\n5. Deduplicate parent+child saying the same thing.\n6. Empty Yesterday: explicit \u201cno completions\u201d (don\u2019t leave blank).\n\n### Constraints\n- Specs first; dual-runtime\n- No admin-merge",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:43:11.855820Z",
+  "updated_at": "2026-09-10T13:44:17.774400Z",
+  "closed_at": null,
+  "right_now_summary": "The team is defining rollups, close-out prompts, deduplication, and empty-Yesterday handling in Python and Rust.",
+  "right_now_updated_at": "2026-09-10T13:44:22.540328Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}
