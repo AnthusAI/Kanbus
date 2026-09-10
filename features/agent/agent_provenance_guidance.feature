@@ -83,9 +83,64 @@ Feature: Agent provenance guidance
     And the latest comment should have text "Done"
     And the latest comment should have agent platform "cursor" and model "Composer 2.5"
 
+  Scenario: Title Case product name on create stores a normalized platform
+    Given a Kanbus project with default configuration
+    When I run "kanbus create \"Spaced product\" --type task --agent-platform \"Claude Code\" --agent-model \"Composer 2.5\" --agent-name \"Cloud Agent\""
+    Then the command should succeed
+    And the created issue should have agent metadata platform "claude_code" and model "Composer 2.5"
+    And stderr should not contain "agent provenance is incomplete"
+
+  Scenario: Title Case product name on comment stores a normalized platform
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    When I run "kanbus comment kanbus-aaa \"Note\" --agent-platform \"Claude Code\" --agent-model \"Composer 2.5\" --agent-name \"Cloud Agent\""
+    Then the command should succeed
+    And the latest comment should have agent platform "claude_code" and model "Composer 2.5"
+    And stdout should contain "Cloud Agent / claude_code / Composer 2.5"
+    And stderr should not contain "agent provenance is incomplete"
+
+  Scenario: Comment override silences the provenance warning
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    When I run "kanbus comment kanbus-aaa \"Human note\" --no-agent-provenance"
+    Then the command should succeed
+    And stderr should not contain "agent provenance is incomplete"
+
+  Scenario: Comment with platform and model but no name succeeds and warns for name only
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    When I run "kanbus comment kanbus-aaa \"Partial\" --agent-platform Cursor --agent-model \"Composer 2.5\""
+    Then the command should succeed
+    And the latest comment should have agent platform "cursor" and model "Composer 2.5"
+    And stderr should contain "agent provenance is incomplete"
+    And stderr should contain "missing: name"
+    And stderr should contain "--agent-name \"Cloud Agent\""
+    And stderr should not contain "--agent-platform"
+    And stdout should contain "Agent:"
+
   Scenario: Create help mentions provenance guidance
     Given a Kanbus project with default configuration
     When I run "kanbus create --help"
     Then the command should succeed
     And stdout should contain "agent-platform"
     And stdout should contain "CONTRIBUTING_AGENT.md"
+
+  Scenario: Comment help mentions provenance guidance
+    Given a Kanbus project with default configuration
+    When I run "kanbus comment --help"
+    Then the command should succeed
+    And stdout should contain "agent-platform"
+    And stdout should contain "CONTRIBUTING_AGENT.md"
+
+  Scenario: Update help mentions agent platform
+    Given a Kanbus project with default configuration
+    When I run "kanbus update --help"
+    Then the command should succeed
+    And stdout should contain "agent-platform"
+
+  Scenario: Beads mode rejects agent flags on comment update
+    Given a Kanbus project with beads compatibility enabled
+    And an issue "kanbus-aaa" exists
+    When I run "kanbus comment update kanbus-aaa abc123def456 --agent-platform cursor --agent-model x"
+    Then the command should fail with exit code 1
+    And stderr should contain "agent metadata requires native Kanbus issue storage"
