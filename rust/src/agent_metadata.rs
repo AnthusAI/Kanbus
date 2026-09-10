@@ -38,7 +38,11 @@ fn normalize_optional_text(value: Option<&str>) -> Option<String> {
 }
 
 fn normalize_platform(platform: &str) -> Result<String, KanbusError> {
-    let normalized = platform.trim().to_ascii_lowercase();
+    let slug = platform
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("_");
+    let normalized = slug.to_ascii_lowercase();
     if !PLATFORM_PATTERN.is_match(&normalized) {
         return Err(KanbusError::IssueOperation(
             "invalid agent platform".to_string(),
