@@ -4,6 +4,7 @@ use chrono::Utc;
 use std::fs;
 use std::path::Path;
 
+use crate::agent_metadata::assign_agent_metadata_if_incomplete;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::event_history::{build_update_events, now_timestamp};
@@ -12,7 +13,7 @@ use crate::issue_creation::resolve_issue_identifier;
 use crate::issue_files::read_issue_from_file;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
-use crate::models::IssueData;
+use crate::models::{AgentMetadata, IssueData};
 use crate::users::get_current_user;
 use crate::workflows::{
     apply_transition_side_effects, validate_status_transition, validate_status_value,
@@ -56,6 +57,7 @@ pub fn update_issue(
     set_labels: Option<&str>,
     parent: Option<&str>,
     issue_type: Option<&str>,
+    agent: Option<AgentMetadata>,
 ) -> Result<IssueUpdateResult, KanbusError> {
     let fields_requested = title.is_some()
         || description.is_some()
@@ -67,7 +69,8 @@ pub fn update_issue(
         || !remove_labels.is_empty()
         || set_labels.is_some()
         || parent.is_some()
-        || issue_type.is_some();
+        || issue_type.is_some()
+        || agent.is_some();
 
     let lookup = load_issue_from_project(root, identifier)?;
     let before_issue = lookup.issue.clone();
@@ -230,6 +233,9 @@ pub fn update_issue(
         }
     }
 
+    let assigned_agent = assign_agent_metadata_if_incomplete(updated_issue.agent.clone(), agent)?;
+    let agent_changed = assigned_agent != updated_issue.agent;
+
     if resolved_status.is_none()
         && resolved_type.is_none()
         && updated_title.is_none()
@@ -238,6 +244,7 @@ pub fn update_issue(
         && updated_priority.is_none()
         && updated_labels.is_none()
         && updated_parent.is_none()
+        && !agent_changed
     {
         if fields_requested {
             return Ok(IssueUpdateResult {
@@ -285,6 +292,9 @@ pub fn update_issue(
     }
     if let Some(new_parent) = updated_parent {
         updated_issue.parent = Some(new_parent);
+    }
+    if agent_changed {
+        updated_issue.agent = assigned_agent;
     }
 
     let policies_dir = lookup.project_dir.join("policies");

@@ -119,7 +119,7 @@ Options:
 - `--add-label <label>` Add a label
 - `--remove-label <label>` Remove a label
 
-Note: Agent metadata is not supported on `update`. Issue `agent` is set at `create` only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance.
+Note: Incomplete provenance on `create` and `comment` warns with a one-step `kbs update` or `kbs comment update` command. Those commands set `agent` when it is missing. Complete metadata is not replaced.
 
 Example:
 
@@ -245,12 +245,12 @@ Optional provenance metadata records which AI platform, model, and runtime setti
 
 | Flag | Field | Commands |
 | --- | --- | --- |
-| `--agent-platform <id>` | `platform` | `create`, `comment` |
-| `--agent-model <id>` | `model` | `create`, `comment` |
-| `--agent-name <name>` | `name` | `create`, `comment` |
-| `--agent-settings <json>` | `settings` | `create`, `comment` |
+| `--agent-platform <id>` | `platform` | `create`, `comment`, `update`, `comment update` |
+| `--agent-model <id>` | `model` | `create`, `comment`, `update`, `comment update` |
+| `--agent-name <name>` | `name` | `create`, `comment`, `update`, `comment update` |
+| `--agent-settings <json>` | `settings` | `create`, `comment`, `update`, `comment update` |
 
-`update` does not accept agent flags. Issue `agent` is create-only and immutable.
+`update` and `comment update` set `agent` only when the issue or comment is missing complete provenance (platform, model, and name). Complete metadata is not replaced. `close` does not accept agent flags.
 
 ### Environment variables
 

@@ -111,7 +111,9 @@ These flags are available on `create` and `comment` only:
 - `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
 - `--agent-name <name>` — Optional session or bot label (not the product name)
 
-`kanbus update` does not accept agent flags. Issue `agent` metadata is set at create only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance on comments.
+If you omit tags, create and comment still succeed and print a warning with a ready `kbs update` or `kbs comment update` command. Copy that command to add platform, model, and session name in one step. `--no-agent-provenance` silences the warning when tagging does not apply.
+
+`update` and `comment update` accept `--agent-*` to fill provenance when it is missing. Once platform, model, and name are set, they are not replaced. `close` does not take agent flags.
 
 ### Product and model names
 
@@ -386,7 +388,11 @@ kanbus update <id> --status blocked
 
 kanbus comment <id> "Progress note"
 
-kbs create "Agent task" --type task --agent-platform "Cursor" --agent-model "Composer 2.5"
+kbs create "Agent task" --type task --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
+
+kbs update <id> --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
+
+kbs comment update <id> <comment-id> --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
 
 kanbus list --status open
 
