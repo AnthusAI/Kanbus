@@ -19,8 +19,8 @@ use crate::right_now::{
     require_display_right_now_summary,
 };
 use crate::standup_rollup::{
-    build_close_out_bullets, ensure_yesterday_bullets, roll_up_active_bullets,
-    StandupRollupSettings, CLOSE_OUT_SECTION, ROLLUP_FLAT,
+    build_close_out_bullets, close_out_issue_identifiers, ensure_yesterday_bullets,
+    roll_up_active_bullets, StandupRollupSettings, CLOSE_OUT_SECTION, ROLLUP_FLAT,
 };
 use crate::standup_window::{
     is_on_completed_calendar_day, parse_standup_lookback_hours, start_of_report_calendar_day,
@@ -183,7 +183,7 @@ pub fn is_within_lookback(
     parsed >= window_start && parsed <= report_time
 }
 
-fn is_event_within_lookback(
+pub(crate) fn is_event_within_lookback(
     event: &Value,
     report_time: DateTime<Utc>,
     lookback_hours: u32,
@@ -361,6 +361,7 @@ fn derive_blocked_question(summary: &str) -> String {
 /// Build meeting-script profile sections from fact-feed issues.
 #[allow(clippy::too_many_arguments)]
 pub fn build_meeting_script_sections(
+    root: &Path,
     issues: &[IssueData],
     right_now_texts: &HashMap<String, String>,
     events_by_issue: &HashMap<String, Vec<Value>>,
@@ -369,7 +370,7 @@ pub fn build_meeting_script_sections(
     configuration: &ProjectConfiguration,
     rollup_settings: &StandupRollupSettings,
     explicit_scope: bool,
-) -> Vec<StandupSection> {
+) -> Result<Vec<StandupSection>, KanbusError> {
     let mut yesterday_identifiers = HashSet::new();
     let mut yesterday_bullets = Vec::new();
     let mut blocker_bullets = Vec::new();
@@ -410,17 +411,34 @@ pub fn build_meeting_script_sections(
     }
 
     let today_bullets = roll_up_active_bullets(
+        root,
         &today_issues,
         right_now_texts,
         configuration,
         rollup_settings,
         false,
+    )?;
+
+    let close_out_bullets = build_close_out_bullets(
+        issues,
+        right_now_texts,
+        events_by_issue,
+        report_time,
+        window_settings,
     );
+    let close_out_identifiers = close_out_issue_identifiers(&close_out_bullets);
+    for issue in issues {
+        if close_out_identifiers.contains(&issue.identifier) {
+            continue;
+        }
+        if issue.status == "in_progress"
+            && is_stale_in_progress(issue, report_time, window_settings)
+        {
+            question_bullets.push(derive_stale_question(&issue.identifier));
+        }
+    }
 
-    let close_out_bullets =
-        build_close_out_bullets(issues, right_now_texts, report_time, window_settings);
-
-    vec![
+    Ok(vec![
         StandupSection {
             name: String::from("Yesterday"),
             bullets: ensure_yesterday_bullets(&yesterday_bullets),
@@ -441,19 +459,21 @@ pub fn build_meeting_script_sections(
             name: String::from("Likely questions"),
             bullets: question_bullets,
         },
-    ]
+    ])
 }
 
 /// Build director-brief profile sections from fact-feed issues.
+#[allow(clippy::too_many_arguments)]
 pub fn build_director_brief_sections(
+    root: &Path,
     issues: &[IssueData],
     right_now_texts: &HashMap<String, String>,
     events_by_issue: &HashMap<String, Vec<Value>>,
     report_time: DateTime<Utc>,
     window_settings: &StandupWindowSettings,
     configuration: &ProjectConfiguration,
-    _rollup_settings: &StandupRollupSettings,
-) -> Vec<StandupSection> {
+    rollup_settings: &StandupRollupSettings,
+) -> Result<Vec<StandupSection>, KanbusError> {
     let in_progress_count = issues
         .iter()
         .filter(|issue| issue.status == "in_progress")
@@ -494,21 +514,25 @@ pub fn build_director_brief_sections(
         })
         .cloned()
         .collect::<Vec<_>>();
-    let momentum_rollup = StandupRollupSettings {
-        mode: ROLLUP_FLAT.to_string(),
-    };
+    let prefix_issue_identifiers = rollup_settings.mode == ROLLUP_FLAT;
     let momentum_bullets = roll_up_active_bullets(
+        root,
         &momentum_issues,
         right_now_texts,
         configuration,
-        &momentum_rollup,
-        true,
+        rollup_settings,
+        prefix_issue_identifiers,
+    )?;
+
+    let close_out_bullets = build_close_out_bullets(
+        issues,
+        right_now_texts,
+        events_by_issue,
+        report_time,
+        window_settings,
     );
 
-    let close_out_bullets =
-        build_close_out_bullets(issues, right_now_texts, report_time, window_settings);
-
-    vec![
+    Ok(vec![
         StandupSection {
             name: String::from("Health"),
             bullets: health_bullets,
@@ -529,12 +553,17 @@ pub fn build_director_brief_sections(
             name: String::from("Blockers"),
             bullets: blocker_bullets,
         },
-    ]
+    ])
 }
 
 /// Build a structured standup report for the requested profile.
+///
+/// # Errors
+///
+/// Returns `KanbusError::IssueOperation` when rollup summarization fails fail-closed.
 #[allow(clippy::too_many_arguments)]
 pub fn build_standup_report(
+    root: &Path,
     profile: &str,
     issues: &[IssueData],
     right_now_texts: &HashMap<String, String>,
@@ -544,9 +573,10 @@ pub fn build_standup_report(
     explicit_scope: bool,
     configuration: &ProjectConfiguration,
     rollup_settings: &StandupRollupSettings,
-) -> StandupReport {
+) -> Result<StandupReport, KanbusError> {
     let sections = if profile == DIRECTOR_BRIEF_PROFILE {
         build_director_brief_sections(
+            root,
             issues,
             right_now_texts,
             events_by_issue,
@@ -554,9 +584,10 @@ pub fn build_standup_report(
             window_settings,
             configuration,
             rollup_settings,
-        )
+        )?
     } else {
         build_meeting_script_sections(
+            root,
             issues,
             right_now_texts,
             events_by_issue,
@@ -565,9 +596,9 @@ pub fn build_standup_report(
             configuration,
             rollup_settings,
             explicit_scope,
-        )
+        )?
     };
-    StandupReport {
+    Ok(StandupReport {
         profile: profile.to_string(),
         sections,
         source_issues: issues
@@ -575,7 +606,7 @@ pub fn build_standup_report(
             .map(|issue| issue.identifier.clone())
             .collect(),
         right_now_texts: right_now_texts.clone(),
-    }
+    })
 }
 
 /// Serialize a standup report as JSON.

@@ -472,6 +472,60 @@ fn then_standup_section_mentions(world: &mut KanbusWorld, section_name: String, 
     assert_standup_section_mentions(world, &section_name, &text);
 }
 
+#[then(expr = "the standup report section {string} should not contain {string}")]
+fn then_standup_section_does_not_contain(
+    world: &mut KanbusWorld,
+    section_name: String,
+    text: String,
+) {
+    let stdout = stdout_text(world);
+    if stdout.trim().starts_with('{') {
+        let payload = parse_standup_json(world);
+        let sections = payload
+            .get("sections")
+            .and_then(Value::as_array)
+            .expect("sections array");
+        let section = sections
+            .iter()
+            .find(|item| item.get("name") == Some(&Value::String(section_name.clone())))
+            .expect("section");
+        let joined = section
+            .get("bullets")
+            .and_then(Value::as_array)
+            .map(|bullets| {
+                bullets
+                    .iter()
+                    .filter_map(|bullet| bullet.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .unwrap_or_default();
+        assert!(!joined.contains(&text));
+        return;
+    }
+    let section_text = extract_section_text(&stdout, &section_name);
+    assert!(!section_text.contains(&text));
+}
+
+#[given(expr = "standup rollup reduce uses completion {string}")]
+fn given_standup_rollup_reduce_completion(world: &mut KanbusWorld, summary: String) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_STANDUP_ROLLUP_COMPLETION".to_string(),
+        summary.clone(),
+    );
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_STANDUP_ROLLUP_COMPLETION")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_STANDUP_ROLLUP_COMPLETION".to_string(),
+            std::env::var("KANBUS_TEST_STANDUP_ROLLUP_COMPLETION").ok(),
+        ));
+    }
+    std::env::set_var("KANBUS_TEST_STANDUP_ROLLUP_COMPLETION", summary);
+}
+
 #[then(expr = "the standup report section {string} should not mention {string}")]
 fn then_standup_section_does_not_mention(
     world: &mut KanbusWorld,

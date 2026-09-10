@@ -98,6 +98,7 @@ pub fn generate_standup_report(
     }
     let report_time = resolve_standup_report_time()?;
     let report = build_standup_report(
+        root,
         &profile,
         &issues,
         &right_now_texts,
@@ -107,7 +108,7 @@ pub fn generate_standup_report(
         false,
         &configuration,
         &rollup_settings,
-    );
+    )?;
     let text = format_standup_text(&report);
     Ok(StandupGenerateResponse {
         profile: report.profile.clone(),

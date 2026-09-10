@@ -1635,6 +1635,7 @@ mod tests {
             "alpha".to_string(),
             VirtualProjectConfig {
                 path: "projects/alpha".to_string(),
+                display_name: None,
             },
         );
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");

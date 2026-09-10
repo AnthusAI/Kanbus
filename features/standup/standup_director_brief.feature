@@ -71,7 +71,7 @@ Feature: Standup director brief profile
     And an issue "kanbus-db-mom" exists with status "closed"
     And issue "kanbus-db-mom" has closed_at within standup lookback
     And issue "kanbus-db-mom" has right now summary "Completed rollout."
-    When I run "kanbus standup kanbus-db-mom --profile director-brief"
+    When I run "kanbus standup kanbus-db-mom --profile director-brief --rollup flat"
     Then the command should succeed
     And the standup report section "Momentum" should mention "kanbus-db-mom"
     And the standup report section "Momentum" should mention "Completed rollout"
@@ -81,7 +81,7 @@ Feature: Standup director brief profile
     And an issue "kanbus-db-recent" exists with status "in_progress"
     And issue "kanbus-db-recent" has updated_at within standup lookback
     And issue "kanbus-db-recent" has right now summary "Active delivery this week."
-    When I run "kanbus standup kanbus-db-recent --profile director-brief"
+    When I run "kanbus standup kanbus-db-recent --profile director-brief --rollup flat"
     Then the command should succeed
     And the standup report section "Momentum" should mention "kanbus-db-recent"
     And the standup report section "Momentum" should mention "Active delivery this week"

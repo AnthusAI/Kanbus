@@ -142,6 +142,7 @@ def generate_standup_report(
     }
     report_time = resolve_standup_report_time()
     report = build_standup_report(
+        root,
         profile,
         issues,
         right_now_texts,

@@ -352,6 +352,54 @@ def then_standup_section_mentions(
     assert text in section_text
 
 
+@then('the standup report section "{section_name}" should not contain "{text}"')
+def then_standup_section_does_not_contain(
+    context: object, section_name: str, text: str
+) -> None:
+    """Verify section content does not contain excluded text.
+
+    :param context: Behave context object.
+    :type context: object
+    :param section_name: Section heading.
+    :type section_name: str
+    :param text: Substring that must be absent.
+    :type text: str
+    """
+    stdout = _strip_ansi(context.result.stdout)
+    if stdout.strip().startswith("{"):
+        payload = json.loads(stdout)
+        section = next(
+            item for item in payload["sections"] if item["name"] == section_name
+        )
+        joined = "\n".join(section.get("bullets", []))
+        assert text not in joined
+        return
+    section_text = extract_section_text(stdout, section_name)
+    assert text not in section_text
+
+
+@given('standup rollup reduce uses completion "{summary}"')
+def given_standup_rollup_reduce_completion(context: object, summary: str) -> None:
+    """Stub standup rollup upward LLM reduce with a fixed completion string.
+
+    :param context: Behave context object.
+    :type context: object
+    :param summary: Completion text returned by rollup reduce.
+    :type summary: str
+    """
+    import os
+
+    from features.steps.configuration_steps import _track_env_restore
+
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    _track_env_restore(context, "KANBUS_TEST_STANDUP_ROLLUP_COMPLETION")
+    overrides["KANBUS_TEST_STANDUP_ROLLUP_COMPLETION"] = summary
+    os.environ["KANBUS_TEST_STANDUP_ROLLUP_COMPLETION"] = summary
+
+
 @then('the standup report section "{section_name}" should not mention "{text}"')
 def then_standup_section_does_not_mention(
     context: object, section_name: str, text: str

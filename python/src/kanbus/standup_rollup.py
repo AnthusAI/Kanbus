@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Set
 
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.standup_rollup_reduce import reduce_summaries_for_standup_rollup
+from kanbus.standup_window import is_within_lookback
 from kanbus.standup_window import (
     CALENDAR_WINDOW,
     StandupWindowSettings,
@@ -79,6 +81,7 @@ STANDUP_ROLLUP_CHOICES = frozenset({ROLLUP_FLAT, ROLLUP_PROJECT, ROLLUP_TREE})
 
 CLOSE_OUT_SECTION = "Close-out"
 EMPTY_YESTERDAY_BULLET = "No completions yesterday."
+CLOSE_OUT_MAX_BULLETS = 6
 
 _TREE_INDENT = "  "
 
@@ -122,8 +125,87 @@ def resolve_standup_rollup(
     return StandupRollupSettings(mode=ROLLUP_FLAT)
 
 
+def resolve_standup_partition_key(
+    raw_label: str,
+    configuration: ProjectConfiguration,
+) -> str:
+    """Normalize a raw project label to a congregation partition key.
+
+    :param raw_label: Label from issue metadata or configuration.
+    :type raw_label: str
+    :param configuration: Project configuration.
+    :type configuration: ProjectConfiguration
+    :return: Canonical partition key for grouping.
+    :rtype: str
+    """
+    trimmed = raw_label.strip()
+    if not trimmed:
+        return configuration.project_key
+    if trimmed == configuration.project_key:
+        return configuration.project_key
+    if trimmed in configuration.virtual_projects:
+        return trimmed
+    lowered = trimmed.lower()
+    if configuration.name and lowered == configuration.name.strip().lower():
+        return configuration.project_key
+    if lowered == configuration.project_key.lower():
+        return configuration.project_key
+    for partition_key, virtual_project in configuration.virtual_projects.items():
+        if partition_key.lower() == lowered:
+            return partition_key
+        display_name = virtual_project.display_name
+        if display_name and display_name.strip().lower() == lowered:
+            return partition_key
+    return trimmed
+
+
+def canonical_standup_project_display_label(
+    partition_key: str,
+    configuration: ProjectConfiguration,
+) -> str:
+    """Return the stable human display label for a congregation partition.
+
+    :param partition_key: Canonical partition key.
+    :type partition_key: str
+    :param configuration: Project configuration.
+    :type configuration: ProjectConfiguration
+    :return: Display label used in standup bracket prefixes.
+    :rtype: str
+    """
+    if partition_key == configuration.project_key:
+        if configuration.name and configuration.name.strip():
+            return configuration.name.strip()
+        return configuration.project_key
+    virtual_project = configuration.virtual_projects.get(partition_key)
+    if virtual_project is None:
+        return partition_key
+    if virtual_project.display_name and virtual_project.display_name.strip():
+        return virtual_project.display_name.strip()
+    return partition_key
+
+
+def issue_project_partition_key(
+    issue: IssueData,
+    configuration: ProjectConfiguration,
+) -> str:
+    """Return the congregation partition key for an issue.
+
+    :param issue: Issue to label.
+    :type issue: IssueData
+    :param configuration: Project configuration.
+    :type configuration: ProjectConfiguration
+    :return: Partition key string.
+    :rtype: str
+    """
+    custom = issue.custom or {}
+    label = custom.get("project_label")
+    if isinstance(label, str) and label.strip():
+        return resolve_standup_partition_key(label.strip(), configuration)
+    return configuration.project_key
+
+
 def issue_project_label(issue: IssueData, configuration: ProjectConfiguration) -> str:
-    """Return the congregation project label for an issue.
+    """Return the congregation project display label for an issue.
 
     :param issue: Issue to label.
     :type issue: IssueData
@@ -132,11 +214,8 @@ def issue_project_label(issue: IssueData, configuration: ProjectConfiguration) -
     :return: Project label string.
     :rtype: str
     """
-    custom = issue.custom or {}
-    label = custom.get("project_label")
-    if isinstance(label, str) and label.strip():
-        return label.strip()
-    return configuration.project_key
+    partition_key = issue_project_partition_key(issue, configuration)
+    return canonical_standup_project_display_label(partition_key, configuration)
 
 
 def expand_issues_with_ancestors(
@@ -246,15 +325,63 @@ def _children_map(issues: List[IssueData]) -> Dict[str, List[IssueData]]:
     return children
 
 
+def _compute_issue_rollup_summary(
+    root: Path,
+    issue: IssueData,
+    children_by_parent: Dict[str, List[IssueData]],
+    right_now_texts: Dict[str, str],
+    cache: Dict[str, str],
+) -> str:
+    cached = cache.get(issue.identifier)
+    if cached is not None:
+        return cached
+    own_summary = right_now_texts[issue.identifier]
+    children = children_by_parent.get(issue.identifier, [])
+    if not children:
+        cache[issue.identifier] = own_summary
+        return own_summary
+    child_summaries = [
+        _compute_issue_rollup_summary(
+            root,
+            child,
+            children_by_parent,
+            right_now_texts,
+            cache,
+        )
+        for child in children
+    ]
+    child_summaries = dedupe_summary_list(child_summaries)
+    if len(child_summaries) == 1 and summaries_near_identical(
+        child_summaries[0], own_summary
+    ):
+        cache[issue.identifier] = own_summary
+        return own_summary
+    combined = dedupe_summary_list([own_summary, *child_summaries])
+    if len(combined) == 1:
+        result = combined[0]
+    else:
+        result = reduce_summaries_for_standup_rollup(root, combined)
+    cache[issue.identifier] = result
+    return result
+
+
 def _emit_tree_lines(
+    root: Path,
     issue: IssueData,
     depth: int,
     children_by_parent: Dict[str, List[IssueData]],
     right_now_texts: Dict[str, str],
+    rollup_cache: Dict[str, str],
     parent_summary: Optional[str],
     lines: List[str],
 ) -> None:
-    summary = right_now_texts[issue.identifier]
+    summary = _compute_issue_rollup_summary(
+        root,
+        issue,
+        children_by_parent,
+        right_now_texts,
+        rollup_cache,
+    )
     include = parent_summary is None or not summaries_near_identical(
         summary, parent_summary
     )
@@ -263,16 +390,19 @@ def _emit_tree_lines(
         lines.append(truncate_bullet(f"{indent}{summary}"))
     for child in children_by_parent.get(issue.identifier, []):
         _emit_tree_lines(
+            root,
             child,
             depth + 1,
             children_by_parent,
             right_now_texts,
+            rollup_cache,
             summary if include else parent_summary,
             lines,
         )
 
 
 def roll_up_active_bullets(
+    root: Path,
     active_issues: List[IssueData],
     right_now_texts: Dict[str, str],
     configuration: ProjectConfiguration,
@@ -307,33 +437,53 @@ def roll_up_active_bullets(
                 bullets.append(truncate_bullet(summary))
         return bullets
 
-    by_project: Dict[str, List[IssueData]] = {}
+    by_partition: Dict[str, List[IssueData]] = {}
     for issue in active_issues:
-        label = issue_project_label(issue, configuration)
-        by_project.setdefault(label, []).append(issue)
+        partition_key = issue_project_partition_key(issue, configuration)
+        by_partition.setdefault(partition_key, []).append(issue)
 
     bullets: List[str] = []
-    for label in sorted(by_project.keys()):
-        project_issues = by_project[label]
+    for partition_key in sorted(by_partition.keys()):
+        display_label = canonical_standup_project_display_label(
+            partition_key, configuration
+        )
+        project_issues = by_partition[partition_key]
         roots = forest_roots(project_issues)
         children_by_parent = _children_map(project_issues)
+        rollup_cache: Dict[str, str] = {}
 
         if rollup_settings.mode == ROLLUP_PROJECT:
             root_summaries = dedupe_summary_list(
-                [right_now_texts[root.identifier] for root in roots]
+                [
+                    _compute_issue_rollup_summary(
+                        root,
+                        forest_root,
+                        children_by_parent,
+                        right_now_texts,
+                        rollup_cache,
+                    )
+                    for forest_root in roots
+                ]
             )
-            joined = "; ".join(root_summaries)
-            bullets.append(truncate_bullet(f"[{label}] {joined}"))
+            if len(root_summaries) == 1:
+                project_summary = root_summaries[0]
+            else:
+                project_summary = reduce_summaries_for_standup_rollup(
+                    root, root_summaries
+                )
+            bullets.append(truncate_bullet(f"[{display_label}] {project_summary}"))
             continue
 
-        prefix = f"[{label}] "
-        for root in roots:
+        prefix = f"[{display_label}] "
+        for forest_root in roots:
             tree_lines: List[str] = []
             _emit_tree_lines(
                 root,
+                forest_root,
                 0,
                 children_by_parent,
                 right_now_texts,
+                rollup_cache,
                 None,
                 tree_lines,
             )
@@ -373,11 +523,156 @@ _EXTERNAL_BLOCK_PATTERN = re.compile(
     r"waiting on|blocked on|awaiting",
     re.IGNORECASE,
 )
+_FINISHABLE_STALE_PATTERN = re.compile(
+    r"waiting on review|waiting for review|awaiting review|"
+    r"waiting on deploy|waiting for deploy|deploy toggle|"
+    r"\bmerged\b|ready to merge",
+    re.IGNORECASE,
+)
+
+
+def _children_by_parent_for_issues(
+    issues: List[IssueData],
+) -> Dict[str, List[IssueData]]:
+    identifiers = {issue.identifier for issue in issues}
+    children: Dict[str, List[IssueData]] = {}
+    for issue in issues:
+        if issue.parent is None or issue.parent not in identifiers:
+            continue
+        children.setdefault(issue.parent, []).append(issue)
+    for child_list in children.values():
+        child_list.sort(key=lambda item: item.identifier)
+    return children
+
+
+def _collect_descendant_identifiers(
+    root_identifier: str,
+    children_by_parent: Dict[str, List[IssueData]],
+) -> Set[str]:
+    descendants: Set[str] = set()
+    stack = list(children_by_parent.get(root_identifier, []))
+    while stack:
+        child = stack.pop()
+        if child.identifier in descendants:
+            continue
+        descendants.add(child.identifier)
+        stack.extend(children_by_parent.get(child.identifier, []))
+    return descendants
+
+
+def _issue_had_activity_within_lookback(
+    issue: IssueData,
+    events: List[dict],
+    report_time: datetime,
+    window_settings: StandupWindowSettings,
+) -> bool:
+    lookback_hours = window_settings.lookback_hours
+    if is_within_lookback(issue.updated_at, report_time, lookback_hours):
+        return True
+    for event in events:
+        timestamp = event.get("timestamp") or event.get("created_at")
+        if isinstance(timestamp, str) and is_within_lookback(
+            timestamp, report_time, lookback_hours
+        ):
+            return True
+    return False
+
+
+def has_recent_descendant_activity(
+    issue: IssueData,
+    issues: List[IssueData],
+    events_by_issue: Dict[str, List[dict]],
+    report_time: datetime,
+    window_settings: StandupWindowSettings,
+) -> bool:
+    """Return whether any descendant issue had activity within the lookback window.
+
+    :param issue: Parent issue to inspect.
+    :type issue: IssueData
+    :param issues: Fact-feed issues that define the descendant graph.
+    :type issues: List[IssueData]
+    :param events_by_issue: Event records keyed by issue identifier.
+    :type events_by_issue: Dict[str, List[dict]]
+    :param report_time: Report generation time in UTC.
+    :type report_time: datetime
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
+    :return: True when a descendant had recent activity.
+    :rtype: bool
+    """
+    children_by_parent = _children_by_parent_for_issues(issues)
+    descendants = _collect_descendant_identifiers(issue.identifier, children_by_parent)
+    issues_by_identifier = {item.identifier: item for item in issues}
+    for descendant_identifier in descendants:
+        descendant = issues_by_identifier.get(descendant_identifier)
+        if descendant is None:
+            continue
+        events = events_by_issue.get(descendant_identifier, [])
+        if _issue_had_activity_within_lookback(
+            descendant, events, report_time, window_settings
+        ):
+            return True
+    return False
+
+
+def qualifies_for_close_out_stale(
+    issue: IssueData,
+    summary: str,
+    issues: List[IssueData],
+    events_by_issue: Dict[str, List[dict]],
+    report_time: datetime,
+    window_settings: StandupWindowSettings,
+) -> bool:
+    """Return whether a stale in-progress issue belongs in Close-out.
+
+    :param issue: Issue to evaluate.
+    :type issue: IssueData
+    :param summary: Right-now summary text.
+    :type summary: str
+    :param issues: Fact-feed issues for descendant activity checks.
+    :type issues: List[IssueData]
+    :param events_by_issue: Event records keyed by issue identifier.
+    :type events_by_issue: Dict[str, List[dict]]
+    :param report_time: Report generation time in UTC.
+    :type report_time: datetime
+    :param window_settings: Resolved standup window settings.
+    :type window_settings: StandupWindowSettings
+    :return: True when the issue is a narrow stale close-out candidate.
+    :rtype: bool
+    """
+    if not is_stale_in_progress(issue, report_time, window_settings):
+        return False
+    if not _FINISHABLE_STALE_PATTERN.search(summary):
+        return False
+    return not has_recent_descendant_activity(
+        issue,
+        issues,
+        events_by_issue,
+        report_time,
+        window_settings,
+    )
+
+
+def close_out_issue_identifiers(bullets: List[str]) -> Set[str]:
+    """Extract issue identifiers referenced in Close-out bullets.
+
+    :param bullets: Rendered Close-out bullet lines.
+    :type bullets: List[str]
+    :return: Issue identifiers mentioned in Close-out.
+    :rtype: Set[str]
+    """
+    identifiers: Set[str] = set()
+    for bullet in bullets:
+        prefix = bullet.split(":", 1)[0].strip()
+        if prefix:
+            identifiers.add(prefix)
+    return identifiers
 
 
 def build_close_out_bullets(
     issues: List[IssueData],
     right_now_texts: Dict[str, str],
+    events_by_issue: Dict[str, List[dict]],
     report_time,
     window_settings: StandupWindowSettings,
 ) -> List[str]:
@@ -387,6 +682,8 @@ def build_close_out_bullets(
     :type issues: List[IssueData]
     :param right_now_texts: Right-now summary text keyed by issue identifier.
     :type right_now_texts: Dict[str, str]
+    :param events_by_issue: Event records keyed by issue identifier.
+    :type events_by_issue: Dict[str, List[dict]]
     :param report_time: Report generation time in UTC.
     :type report_time: datetime
     :param window_settings: Resolved standup window settings.
@@ -394,35 +691,48 @@ def build_close_out_bullets(
     :return: Close-out bullet lines.
     :rtype: List[str]
     """
-    bullets: List[str] = []
+    ranked_candidates: List[tuple[int, str]] = []
     seen: Set[str] = set()
     for issue in issues:
         summary = right_now_texts.get(issue.identifier, "")
         if not summary:
             continue
         candidate: Optional[str] = None
+        priority = 99
         if issue.status == "in_progress":
             if _MERGED_STILL_OPEN_PATTERN.search(summary):
                 candidate = (
                     f"{issue.identifier}: merged but still in progress — "
                     f"{truncate_bullet(summary)}"
                 )
+                priority = 0
             elif _READY_TO_CLOSE_PATTERN.search(summary):
                 candidate = f"{issue.identifier}: {truncate_bullet(summary)}"
-            elif is_stale_in_progress(issue, report_time, window_settings):
+                priority = 1
+            elif qualifies_for_close_out_stale(
+                issue,
+                summary,
+                issues,
+                events_by_issue,
+                report_time,
+                window_settings,
+            ):
                 candidate = (
                     f"{issue.identifier}: stale WIP — {truncate_bullet(summary)}"
                 )
+                priority = 3
         elif issue.status == "blocked" and _EXTERNAL_BLOCK_PATTERN.search(summary):
             candidate = f"{issue.identifier}: {truncate_bullet(summary)}"
+            priority = 2
         if candidate is None:
             continue
         normalized = normalize_summary_text(candidate)
         if normalized in seen:
             continue
         seen.add(normalized)
-        bullets.append(truncate_bullet(candidate))
-    return bullets
+        ranked_candidates.append((priority, truncate_bullet(candidate)))
+    ranked_candidates.sort(key=lambda item: (item[0], item[1]))
+    return [bullet for _priority, bullet in ranked_candidates[:CLOSE_OUT_MAX_BULLETS]]
 
 
 def count_section_bullets(section_text: str) -> int:

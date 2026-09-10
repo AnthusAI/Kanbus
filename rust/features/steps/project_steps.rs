@@ -237,6 +237,7 @@ fn given_repo_kanbus_external_project(world: &mut KanbusWorld) {
         "external".to_string(),
         kanbus::models::VirtualProjectConfig {
             path: external_project.display().to_string(),
+            display_name: None,
         },
     );
     let payload = serde_yaml::to_string(&configuration).expect("serialize config");
@@ -252,6 +253,7 @@ fn given_repo_kanbus_missing(world: &mut KanbusWorld) {
         "missing".to_string(),
         kanbus::models::VirtualProjectConfig {
             path: "missing/project".to_string(),
+            display_name: None,
         },
     );
     let payload = serde_yaml::to_string(&configuration).expect("serialize config");

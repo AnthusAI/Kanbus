@@ -21,9 +21,9 @@ from kanbus.right_now import (
 )
 from kanbus.standup_rollup import (
     CLOSE_OUT_SECTION,
-    ROLLUP_FLAT,
     StandupRollupSettings,
     build_close_out_bullets,
+    close_out_issue_identifiers,
     ensure_yesterday_bullets,
     roll_up_active_bullets,
 )
@@ -364,6 +364,7 @@ def derive_blocked_question(summary: str) -> str:
 
 
 def build_meeting_script_sections(
+    root: Path,
     issues: List[IssueData],
     right_now_texts: Dict[str, str],
     events_by_issue: Dict[str, List[dict]],
@@ -413,6 +414,7 @@ def build_meeting_script_sections(
             today_issues.append(issue)
 
     today_bullets = roll_up_active_bullets(
+        root,
         today_issues,
         right_now_texts,
         configuration,
@@ -422,9 +424,18 @@ def build_meeting_script_sections(
     close_out_bullets = build_close_out_bullets(
         issues,
         right_now_texts,
+        events_by_issue,
         report_time,
         window_settings,
     )
+    close_out_identifiers = close_out_issue_identifiers(close_out_bullets)
+    for issue in issues:
+        if issue.identifier in close_out_identifiers:
+            continue
+        if issue.status == "in_progress" and is_stale_in_progress(
+            issue, report_time, window_settings
+        ):
+            question_bullets.append(derive_stale_question(issue.identifier))
 
     return [
         StandupSection("Yesterday", ensure_yesterday_bullets(yesterday_bullets)),
@@ -436,6 +447,7 @@ def build_meeting_script_sections(
 
 
 def build_director_brief_sections(
+    root: Path,
     issues: List[IssueData],
     right_now_texts: Dict[str, str],
     events_by_issue: Dict[str, List[dict]],
@@ -487,18 +499,19 @@ def build_director_brief_sections(
             window_settings,
         )
     ]
-    momentum_rollup = StandupRollupSettings(mode=ROLLUP_FLAT)
     momentum_bullets = roll_up_active_bullets(
+        root,
         momentum_issues,
         right_now_texts,
         configuration,
-        momentum_rollup,
-        prefix_issue_identifiers=True,
+        rollup_settings,
+        prefix_issue_identifiers=rollup_settings.mode == "flat",
     )
 
     close_out_bullets = build_close_out_bullets(
         issues,
         right_now_texts,
+        events_by_issue,
         report_time,
         window_settings,
     )
@@ -513,6 +526,7 @@ def build_director_brief_sections(
 
 
 def build_standup_report(
+    root: Path,
     profile: str,
     issues: List[IssueData],
     right_now_texts: Dict[str, str],
@@ -542,6 +556,7 @@ def build_standup_report(
     """
     if profile == DIRECTOR_BRIEF_PROFILE:
         sections = build_director_brief_sections(
+            root,
             issues,
             right_now_texts,
             events_by_issue,
@@ -552,6 +567,7 @@ def build_standup_report(
         )
     else:
         sections = build_meeting_script_sections(
+            root,
             issues,
             right_now_texts,
             events_by_issue,

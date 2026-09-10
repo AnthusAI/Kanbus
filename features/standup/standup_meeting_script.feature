@@ -115,7 +115,7 @@ Feature: Standup meeting script profile
     Given standup lookback hours is 24
     And an issue "kanbus-ms-stale" exists with status "in_progress"
     And issue "kanbus-ms-stale" has updated_at older than standup lookback
-    And issue "kanbus-ms-stale" has right now summary "Long-running refactor."
+    And issue "kanbus-ms-stale" has right now summary "Waiting on review before deploy."
     When I run "kanbus standup kanbus-ms-stale --profile meeting-script"
     Then the command should succeed
     And the standup report section "Close-out" should mention "kanbus-ms-stale"
