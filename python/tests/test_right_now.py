@@ -458,3 +458,25 @@ def test_ensure_right_now_subtree_memo_and_lookup_failures(
     assert (
         ensure_right_now_subtree(tmp_path, "kanbus-absent", {"kanbus-absent"}) is False
     )
+
+
+def test_ensure_right_now_subtree_handles_missing_issue_after_generate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    issue = build_issue("kanbus-vanish")
+    lookups = {"count": 0}
+
+    def fake_lookup(_root, _identifier):
+        lookups["count"] += 1
+        if lookups["count"] == 1:
+            return SimpleNamespace(issue=issue)
+        raise IssueLookupError("gone")
+
+    monkeypatch.setattr("kanbus.right_now.load_child_issues", lambda *_a: [])
+    monkeypatch.setattr("kanbus.right_now.load_issue_from_project", fake_lookup)
+    monkeypatch.setattr(
+        "kanbus.right_now.regenerate_right_now_for_issue", lambda *_a: None
+    )
+    assert (
+        ensure_right_now_subtree(tmp_path, "kanbus-vanish", {"kanbus-vanish"}) is False
+    )
