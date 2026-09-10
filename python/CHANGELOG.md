@@ -2,6 +2,145 @@
 
 <!-- version list -->
 
+## v0.27.0 (2026-09-10)
+
+### Bug Fixes
+
+- **ci**: Define console board visibility step and mock Now in unit tests
+  ([`da69fe1`](https://github.com/AnthusAI/Kanbus/commit/da69fe162742e80c7dfd4a6bdd9b1753e56827aa))
+
+- **ci**: Now association trees, overlay persist, and /api/now rate limit
+  ([`fb76544`](https://github.com/AnthusAI/Kanbus/commit/fb765442d48c2f7ffbb2bcd808794144fa0b8ef6))
+
+- **ci**: Pass black, clippy, and console now Gherkin
+  ([`930c412`](https://github.com/AnthusAI/Kanbus/commit/930c4127b68a7e3a2ea62208f0495c73110166a1))
+
+- **ci**: Resolve board name in snapshot and fix console UI test steps
+  ([`0560c80`](https://github.com/AnthusAI/Kanbus/commit/0560c80a14fc66ff51fab4d541cf6391d62cad8c))
+
+- **console**: Align Now tree rows with board IssueCard layout
+  ([`d56f4a5`](https://github.com/AnthusAI/Kanbus/commit/d56f4a515282d150f4d3c927b32edee7ec900545))
+
+- **console**: Apply board IssueCard colors to Now tree rows
+  ([`7adb946`](https://github.com/AnthusAI/Kanbus/commit/7adb9464f143f8258d108bd3d0e20e168821ea83))
+
+- **console**: Apply board priority colors to Now tree priority chips
+  ([`d594a2f`](https://github.com/AnthusAI/Kanbus/commit/d594a2fe85924af95fbb6dc45c93b11338874377))
+
+- **console**: Drop expand toggle spacer on Now tree leaf rows
+  ([`71ff131`](https://github.com/AnthusAI/Kanbus/commit/71ff1310c826763862e4e7195a5f30ccb83e0ca3))
+
+- **console**: Emphasize right-now summary over title on Now tree
+  ([`714d827`](https://github.com/AnthusAI/Kanbus/commit/714d8270218c902f0c03404aea7588264978d4cc))
+
+- **console**: Move Now tree title into accent bar beside issue key
+  ([`ad537a5`](https://github.com/AnthusAI/Kanbus/commit/ad537a5aaa4ceb1cf9023c67b3fccddd95a3a1ea))
+
+- **console**: Now tab first with tree default (e1452d)
+  ([`ae343ad`](https://github.com/AnthusAI/Kanbus/commit/ae343ad4b43362615da70216e46017046ac78d8a))
+
+- **console**: Now tree title visibility, ID width, and full-row indent
+  ([`b824a92`](https://github.com/AnthusAI/Kanbus/commit/b824a923dbeb7d45e1c05ba5a4aaaae66d89ff12))
+
+- **console**: Redesign Now tree row for readable title, ID, and indent
+  ([`4e6e7de`](https://github.com/AnthusAI/Kanbus/commit/4e6e7de9e390b0850b6d3280b5bd707af337e084))
+
+- **console**: Soften Now tree summary typography slightly
+  ([`f0bcba1`](https://github.com/AnthusAI/Kanbus/commit/f0bcba12535700d2675cd912b91257fbbe9742e8))
+
+- **console**: Widen Now tree left accent rail with icon and ID
+  ([`20cc521`](https://github.com/AnthusAI/Kanbus/commit/20cc52199369153ca6f6187c8abc3452e5c3ffaf))
+
+- **console-ui**: Remove duplicate status filter step and wait for SSE refresh
+  ([`4029a38`](https://github.com/AnthusAI/Kanbus/commit/4029a3860a2d362f5ddb4663ecf528e910f7b656))
+
+- **now**: Backfill summaries for active trees
+  ([`23fe04c`](https://github.com/AnthusAI/Kanbus/commit/23fe04c6692825213f7a1bc64236fb43cc7b6b1f))
+
+- **wiki**: Defer path resolve for human render; rustfmt
+  ([#205](https://github.com/AnthusAI/Kanbus/pull/205),
+  [`554f235`](https://github.com/AnthusAI/Kanbus/commit/554f2352309a66f6899ccf0e7a58141984e1910e))
+
+- **wiki**: Reuse shared valid-JSON step from right_now_cli_steps
+  ([#205](https://github.com/AnthusAI/Kanbus/pull/205),
+  [`554f235`](https://github.com/AnthusAI/Kanbus/commit/554f2352309a66f6899ccf0e7a58141984e1910e))
+
+### Chores
+
+- **kanbus**: Authorize e1452d Now-tab implementation
+  ([`b7ab15f`](https://github.com/AnthusAI/Kanbus/commit/b7ab15fb36e8dec6946ea43df3ae4ac2a7791e81))
+
+- **kanbus**: Close 56f23f; console-ui CI leftover already fixed
+  ([`67246c5`](https://github.com/AnthusAI/Kanbus/commit/67246c5b6e6c20278d33427448058ae8105c85d0))
+
+- **kanbus**: Close 87b6ce after live GitHub sync proof
+  ([`0a6d956`](https://github.com/AnthusAI/Kanbus/commit/0a6d956b6b918008f72eaf684fa681b3f9b4c6dd))
+
+- **kanbus**: Close c445a6 and fbaf62 after wiki JSON flags
+  ([`c8075fa`](https://github.com/AnthusAI/Kanbus/commit/c8075fa67091bb25e46e3e485b2ac5d8c823ab46))
+
+- **kanbus**: Commit board state (issues)
+  ([`3f7e8dd`](https://github.com/AnthusAI/Kanbus/commit/3f7e8ddde00a45d0b8cb9ecb3a027faf901b5743))
+
+- **kanbus**: Park 87b6ce on live hook proof; start 56f23f plan
+  ([`903b9cb`](https://github.com/AnthusAI/Kanbus/commit/903b9cb7e6fcf7ab3170e67c7d877a1ee68d905c))
+
+- **kanbus**: Track e1452d Now-tab card and start isolated plan
+  ([`2190fbd`](https://github.com/AnthusAI/Kanbus/commit/2190fbdf5b8715f54e0af8a3a816fcfca00f652b))
+
+### Continuous Integration
+
+- Install rustc only for the performance job
+  ([`6feefab`](https://github.com/AnthusAI/Kanbus/commit/6feefabf75ad56606f693398da0aee3cd6c7c1a9))
+
+### Documentation
+
+- Add agent provenance setup guide and kanb.us page
+  ([`2147c34`](https://github.com/AnthusAI/Kanbus/commit/2147c3466ad648b3da0d95bd16ceb8b2d6799421))
+
+- Simplify agent provenance naming guidance for coding agents
+  ([`fe148b2`](https://github.com/AnthusAI/Kanbus/commit/fe148b2159c5eff9093f4a12e62fe3feed3c65f1))
+
+### Features
+
+- **agent**: Complete provenance docs and remaining CLI gaps
+  ([`eb40af7`](https://github.com/AnthusAI/Kanbus/commit/eb40af73bbad574adfb295c55013b88c39256986))
+
+- **cli**: Warn on missing agent provenance with a one-step fix
+  ([`faf6481`](https://github.com/AnthusAI/Kanbus/commit/faf6481ff13615946160031f4eaac5b76cb13bce))
+
+- **console**: Include ancestor chain in Now status-filtered tree
+  ([`fd4ae4b`](https://github.com/AnthusAI/Kanbus/commit/fd4ae4be3d2536ffec7864ff12a8593b2bcbcaff))
+
+- **console**: Now panel polish, status filter, and board name
+  ([`dd919fd`](https://github.com/AnthusAI/Kanbus/commit/dd919fd8c274714fff3cb95c3454d1cedc2e5637))
+
+- **right-now**: Backfill summaries when viewing Now
+  ([`07017fe`](https://github.com/AnthusAI/Kanbus/commit/07017fe24ee3aeaeb7345fd494b514d31743bbb4))
+
+- **wiki**: --json and --limit for list, search, render
+  ([#205](https://github.com/AnthusAI/Kanbus/pull/205),
+  [`554f235`](https://github.com/AnthusAI/Kanbus/commit/554f2352309a66f6899ccf0e7a58141984e1910e))
+
+- **wiki**: Add --json and --limit flags for list and search
+  ([#205](https://github.com/AnthusAI/Kanbus/pull/205),
+  [`554f235`](https://github.com/AnthusAI/Kanbus/commit/554f2352309a66f6899ccf0e7a58141984e1910e))
+
+### Testing
+
+- Cover comment-update CLI errors and remaining Now helpers
+  ([`1f93e25`](https://github.com/AnthusAI/Kanbus/commit/1f93e256401f90c23625a21477dc90d6a4c5995e))
+
+- Cover remaining Python lines for coverage ratchet
+  ([`4e7664b`](https://github.com/AnthusAI/Kanbus/commit/4e7664b8afe685b8bf602fa30b4113e1c8ded70a))
+
+- **agent**: Specify Title Case CLI and shipped Way procedure
+  ([`10066a9`](https://github.com/AnthusAI/Kanbus/commit/10066a9f38bd113e917dbe807e008c9d1267dc1e))
+
+- **now**: Cover console Now backfill and association-tree edges
+  ([`103112a`](https://github.com/AnthusAI/Kanbus/commit/103112a3b293f30ba9fd5debe4135f059b086cbe))
+
+
 ## v0.26.0 (2026-09-02)
 
 ### Bug Fixes
