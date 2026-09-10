@@ -180,6 +180,19 @@ def when_resolve_agent_metadata(context: object) -> None:
         _restore_env_overrides(context)
 
 
+@when('I resolve agent metadata with platform "{platform}" and model "{model}"')
+def when_resolve_agent_metadata_with_platform_and_model(
+    context: object, platform: str, model: str
+) -> None:
+    _apply_env_overrides(context)
+    try:
+        context.resolved_agent_metadata = resolve_agent_metadata(
+            AgentMetadataRequest(platform=platform, model=model)
+        )
+    finally:
+        _restore_env_overrides(context)
+
+
 @then('the resolved agent platform should be "{platform}"')
 def then_resolved_agent_platform(context: object, platform: str) -> None:
     metadata = getattr(context, "resolved_agent_metadata", None)

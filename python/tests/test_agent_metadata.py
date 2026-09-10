@@ -73,6 +73,13 @@ def test_invalid_agent_platform() -> None:
     assert str(error.value) == "invalid agent platform"
 
 
+def test_title_case_platform_with_spaces_normalizes() -> None:
+    metadata = build_agent_metadata("Claude Code", "Composer 2.5", {})
+    assert metadata is not None
+    assert metadata.platform == "claude_code"
+    assert metadata.model == "Composer 2.5"
+
+
 def test_invalid_agent_name() -> None:
     with pytest.raises(AgentMetadataResolutionError) as error:
         build_agent_metadata(

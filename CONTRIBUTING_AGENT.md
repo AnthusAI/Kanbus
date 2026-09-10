@@ -95,8 +95,8 @@ Set defaults once per session; CLI flags override environment values. Empty or w
 
 | Variable | Purpose |
 | --- | --- |
-| `KANBUS_AGENT_PLATFORM` | Default agent platform |
-| `KANBUS_AGENT_MODEL` | Default model identifier |
+| `KANBUS_AGENT_PLATFORM` | Default agent product name |
+| `KANBUS_AGENT_MODEL` | Default model name |
 | `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
 | `KANBUS_AGENT_NAME` | Optional session or bot name for display |
 
@@ -106,23 +106,40 @@ Platform and model must both be present or both absent. Partial metadata fails w
 
 These flags are available on `create` and `comment` only:
 
-- `--agent-platform <id>`
-- `--agent-model <id>`
+- `--agent-platform <name>` — Coding agent product name
+- `--agent-model <name>` — Model name
 - `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
-- `--agent-name <name>` — Optional session or bot display name
+- `--agent-name <name>` — Optional session or bot label (not the product name)
 
 `kanbus update` does not accept agent flags. Issue `agent` metadata is set at create only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance on comments.
 
-### Canonical platforms
+### Product and model names
 
-Prefer these platform identifiers:
+Use plain **product names** and **model names** in Title Case. Pass the same names you would use in a handoff note. Do not invent a separate slug or identifier.
 
-- `claude_code`
-- `codex`
-- `antigravity`
-- `cursor`
+- **Platform** (`--agent-platform`, `KANBUS_AGENT_PLATFORM`): the coding agent product (for example Cursor, Codex).
+- **Model** (`--agent-model`, `KANBUS_AGENT_MODEL`): the model the product is running (for example Composer 2.5, GPT-5.6).
 
-Kanbus accepts any lowercase string matching `^[a-z0-9_-]{1,64}$`. The canonical list is for consistency and autocomplete; storage is not a closed enum.
+Kanbus normalizes platform for storage (lowercase; spaces become underscores). Model is stored as you provide it. Kanbus does not enforce a fixed allowlist; the lists below are for consistency only.
+
+**Preferred products** — use when they match your environment:
+
+- Cursor
+- Codex
+- Claude Code
+- Antigravity
+- Grok Bot
+
+If yours is not listed, use a short Title Case product name anyway.
+
+**Model names** — prefer the official name from your host. When you choose the string yourself, use Title Case and conventional vendor punctuation. Examples (not exhaustive):
+
+- Composer 2.5
+- GPT-5.6
+- Claude Sonnet 4
+- Grok 4
+
+**Session name** (`--agent-name`, `KANBUS_AGENT_NAME`): optional label for this run or bot (for example `Cloud Agent`, `bugbot`). This identifies the session, not the product.
 
 ### Settings
 
@@ -151,8 +168,8 @@ Use native Kanbus issue storage when you need agent provenance.
 ### Example workflow
 
 ```bash
-export KANBUS_AGENT_PLATFORM=cursor
-export KANBUS_AGENT_MODEL=composer-2.5
+export KANBUS_AGENT_PLATFORM="Cursor"
+export KANBUS_AGENT_MODEL="Composer 2.5"
 
 kbs create "Implement feature X" --type task --parent <epic-id>
 kbs comment <id> "Progress: schema drafted"
@@ -162,8 +179,8 @@ Override defaults for a single comment:
 
 ```bash
 kbs comment <id> "Deep review done" \
-  --agent-platform codex \
-  --agent-model gpt-5 \
+  --agent-platform "Codex" \
+  --agent-model "GPT-5" \
   --agent-settings '{"thinking_level":"high"}'
 ```
 
@@ -369,7 +386,7 @@ kanbus update <id> --status blocked
 
 kanbus comment <id> "Progress note"
 
-kbs create "Agent task" --type task --agent-platform cursor --agent-model composer-2.5
+kbs create "Agent task" --type task --agent-platform "Cursor" --agent-model "Composer 2.5"
 
 kanbus list --status open
 

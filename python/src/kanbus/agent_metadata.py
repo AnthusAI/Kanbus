@@ -48,7 +48,8 @@ def _normalize_optional_text(value: Optional[str]) -> Optional[str]:
 
 
 def _normalize_platform(platform: str) -> str:
-    normalized = platform.strip().lower()
+    slug = re.sub(r"\s+", "_", platform.strip())
+    normalized = slug.lower()
     if not PLATFORM_PATTERN.fullmatch(normalized):
         raise AgentMetadataResolutionError("invalid agent platform")
     return normalized

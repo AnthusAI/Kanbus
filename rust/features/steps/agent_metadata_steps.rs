@@ -199,6 +199,22 @@ fn when_resolve_agent_metadata(world: &mut KanbusWorld) {
     restore_environment(saved);
 }
 
+#[when(expr = "I resolve agent metadata with platform {string} and model {string}")]
+fn when_resolve_agent_metadata_with_platform_and_model(
+    world: &mut KanbusWorld,
+    platform: String,
+    model: String,
+) {
+    let saved = apply_environment_overrides(&world.environment_overrides);
+    let request = AgentMetadataRequest {
+        platform: Some(platform),
+        model: Some(model),
+        ..AgentMetadataRequest::default()
+    };
+    world.resolved_agent_metadata = resolve_agent_metadata(&request).ok().flatten();
+    restore_environment(saved);
+}
+
 #[then(expr = "the resolved agent platform should be {string}")]
 fn then_resolved_agent_platform(world: &mut KanbusWorld, platform: String) {
     let metadata = world.resolved_agent_metadata.as_ref().expect("metadata");
