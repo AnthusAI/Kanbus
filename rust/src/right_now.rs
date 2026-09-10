@@ -296,7 +296,7 @@ pub fn generate_right_now_summary(
     let max_length = configuration.right_now.max_length;
     let model = resolve_right_now_model(&configuration)?;
 
-    if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+    if cfg!(test) || std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
         let summary = mock_right_now_summary_text(&issue.identifier);
         record_llm_usage(
             root,
