@@ -19,6 +19,15 @@ from kanbus.right_now import (
     is_persisted_mock_right_now_summary,
     require_display_right_now_summary,
 )
+from kanbus.models import ProjectConfiguration
+from kanbus.standup_rollup import (
+    CLOSE_OUT_SECTION,
+    ROLLUP_FLAT,
+    StandupRollupSettings,
+    build_close_out_bullets,
+    ensure_yesterday_bullets,
+    roll_up_active_bullets,
+)
 from kanbus.standup_window import (
     CALENDAR_WINDOW,
     MEETING_SCRIPT_PROFILE,
@@ -372,6 +381,8 @@ def build_meeting_script_sections(
     events_by_issue: Dict[str, List[dict]],
     report_time: datetime,
     window_settings: StandupWindowSettings,
+    configuration: ProjectConfiguration,
+    rollup_settings: StandupRollupSettings,
     explicit_scope: bool = False,
 ) -> List[StandupSection]:
     """Build meeting-script profile sections from fact-feed issues.
@@ -404,9 +415,7 @@ def build_meeting_script_sections(
         if issue.status == "blocked":
             blocker_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
             question_bullets.append(derive_blocked_question(summary))
-        if is_stale_in_progress(issue, report_time, window_settings):
-            question_bullets.append(derive_stale_question(issue.identifier))
-
+    today_issues: List[IssueData] = []
     for issue in issues:
         if issue.identifier in yesterday_identifiers:
             continue
@@ -414,11 +423,26 @@ def build_meeting_script_sections(
         if explicit_scope:
             active_statuses.add("open")
         if issue.status in active_statuses:
-            today_bullets.append(truncate_bullet(right_now_texts[issue.identifier]))
+            today_issues.append(issue)
+
+    today_bullets = roll_up_active_bullets(
+        today_issues,
+        right_now_texts,
+        configuration,
+        rollup_settings,
+    )
+
+    close_out_bullets = build_close_out_bullets(
+        issues,
+        right_now_texts,
+        report_time,
+        window_settings,
+    )
 
     return [
-        StandupSection("Yesterday", yesterday_bullets),
+        StandupSection("Yesterday", ensure_yesterday_bullets(yesterday_bullets)),
         StandupSection("Today", today_bullets),
+        StandupSection(CLOSE_OUT_SECTION, close_out_bullets),
         StandupSection("Blockers", blocker_bullets),
         StandupSection("Likely questions", question_bullets),
     ]
@@ -430,6 +454,8 @@ def build_director_brief_sections(
     events_by_issue: Dict[str, List[dict]],
     report_time: datetime,
     window_settings: StandupWindowSettings,
+    configuration: ProjectConfiguration,
+    rollup_settings: StandupRollupSettings,
 ) -> List[StandupSection]:
     """Build director-brief profile sections from fact-feed issues.
 
@@ -453,25 +479,49 @@ def build_director_brief_sections(
         + ("s" if blocked_count != 1 else "")
     ]
 
-    momentum_bullets: List[str] = []
     risk_bullets: List[str] = []
     blocker_bullets: List[str] = []
 
     for issue in issues:
         events = events_by_issue.get(issue.identifier, [])
         summary = right_now_texts[issue.identifier]
-        if qualifies_for_momentum(issue, events, report_time, window_settings):
-            momentum_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
         if issue.status == "blocked":
             risk_bullets.append(truncate_bullet(issue.identifier))
             blocker_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
         elif is_stale_in_progress(issue, report_time, window_settings):
             risk_bullets.append(truncate_bullet(f"{issue.identifier}: {summary}"))
 
+    momentum_issues = [
+        issue
+        for issue in issues
+        if qualifies_for_momentum(
+            issue,
+            events_by_issue.get(issue.identifier, []),
+            report_time,
+            window_settings,
+        )
+    ]
+    momentum_rollup = StandupRollupSettings(mode=ROLLUP_FLAT)
+    momentum_bullets = roll_up_active_bullets(
+        momentum_issues,
+        right_now_texts,
+        configuration,
+        momentum_rollup,
+        prefix_issue_identifiers=True,
+    )
+
+    close_out_bullets = build_close_out_bullets(
+        issues,
+        right_now_texts,
+        report_time,
+        window_settings,
+    )
+
     return [
         StandupSection("Health", health_bullets),
         StandupSection("Momentum", momentum_bullets),
         StandupSection("Risks", risk_bullets),
+        StandupSection(CLOSE_OUT_SECTION, close_out_bullets),
         StandupSection("Blockers", blocker_bullets),
     ]
 
@@ -483,6 +533,8 @@ def build_standup_report(
     events_by_issue: Dict[str, List[dict]],
     report_time: datetime,
     window_settings: StandupWindowSettings,
+    configuration: ProjectConfiguration,
+    rollup_settings: StandupRollupSettings,
     explicit_scope: bool = False,
 ) -> StandupReport:
     """Build a structured standup report for the requested profile.
@@ -509,6 +561,8 @@ def build_standup_report(
             events_by_issue,
             report_time,
             window_settings,
+            configuration,
+            rollup_settings,
         )
     else:
         sections = build_meeting_script_sections(
@@ -517,6 +571,8 @@ def build_standup_report(
             events_by_issue,
             report_time,
             window_settings,
+            configuration,
+            rollup_settings,
             explicit_scope,
         )
     return StandupReport(
@@ -646,6 +702,7 @@ def extract_section_text(report_text: str, section_name: str) -> str:
     section_headers = {
         "Yesterday",
         "Today",
+        CLOSE_OUT_SECTION,
         "Blockers",
         "Likely questions",
         "Health",

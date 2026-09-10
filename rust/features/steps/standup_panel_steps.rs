@@ -11,9 +11,10 @@ use serde_json::json;
 use chrono_tz::UTC;
 use kanbus::models::IssueData;
 use kanbus::standup::{
-    build_standup_report, collect_right_now_texts, format_standup_text, resolve_standup_profile,
-    MEETING_SCRIPT_PROFILE,
+    build_standup_report, collect_right_now_texts, format_standup_text, load_standup_configuration,
+    resolve_standup_profile, MEETING_SCRIPT_PROFILE,
 };
+use kanbus::standup_rollup::resolve_standup_rollup;
 use kanbus::standup_command::STANDUP_DEFAULT_STATUS_FILTER;
 use kanbus::standup_window::{StandupWindowSettings, DEFAULT_STANDUP_LOOKBACK, ROLLING_WINDOW};
 
@@ -116,6 +117,7 @@ fn standup_fact_feed_issues(console_state: &ConsoleState) -> Vec<IssueData> {
 fn generate_from_console_state(
     console_state: &ConsoleState,
     profile_name: &str,
+    root: &std::path::Path,
 ) -> Result<(String, Vec<String>), String> {
     let profile = resolve_standup_profile(Some(profile_name)).map_err(|error| error.to_string())?;
     let issues = standup_fact_feed_issues(console_state);
@@ -127,6 +129,9 @@ fn generate_from_console_state(
         skip_weekends: false,
         timezone: UTC,
     };
+    let configuration = load_standup_configuration(root).map_err(|error| error.to_string())?;
+    let rollup_settings =
+        resolve_standup_rollup(None, &configuration, false).map_err(|error| error.to_string())?;
     let report = build_standup_report(
         &profile,
         &issues,
@@ -135,6 +140,8 @@ fn generate_from_console_state(
         Utc::now(),
         &window_settings,
         false,
+        &configuration,
+        &rollup_settings,
     );
     let section_names = report
         .sections
@@ -187,8 +194,12 @@ fn when_generate_standup_report(world: &mut KanbusWorld) {
     let generated = if generation_should_fail {
         Err("standup generation failed".to_string())
     } else {
+        let root = world
+            .working_directory
+            .clone()
+            .expect("working directory not initialized");
         let console_state = require_console_state(world);
-        generate_from_console_state(console_state, &profile)
+        generate_from_console_state(console_state, &profile, &root)
     };
     let standup = ensure_standup_state(world);
     standup.is_generating = true;

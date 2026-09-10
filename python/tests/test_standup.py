@@ -232,6 +232,9 @@ def test_build_standup_report_meeting_script_sections() -> None:
         skip_weekends=True,
         timezone=ZoneInfo("UTC"),
     )
+    configuration = build_project_configuration()
+    from kanbus.standup_rollup import StandupRollupSettings
+
     report = build_standup_report(
         MEETING_SCRIPT_PROFILE,
         [issue],
@@ -239,6 +242,8 @@ def test_build_standup_report_meeting_script_sections() -> None:
         {"kanbus-active": []},
         report_time,
         window_settings,
+        configuration,
+        StandupRollupSettings(mode="flat"),
         explicit_scope=True,
     )
     assert report.profile == "meeting-script"

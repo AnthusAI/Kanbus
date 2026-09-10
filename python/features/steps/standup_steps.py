@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -167,6 +168,9 @@ def _standup_options_from_last_command(context: object) -> StandupCommandOptions
         if token == "--no-recursive":
             recursive = False
             index += 1
+            continue
+        if token == "--rollup" and index + 1 < len(tokens):
+            index += 2
             continue
         if token == "--skip-weekends":
             index += 1
@@ -609,3 +613,56 @@ def then_standup_completion_requires_dual_runtime(context: object) -> None:
     :type context: object
     """
     assert True
+
+
+def _standup_section_bullets(context: object, section_name: str) -> list[str]:
+    stdout = _strip_ansi(context.result.stdout)
+    if stdout.strip().startswith("{"):
+        payload = json.loads(stdout)
+        section = next(
+            item for item in payload["sections"] if item["name"] == section_name
+        )
+        return list(section.get("bullets", []))
+    section_text = extract_section_text(stdout, section_name)
+    bullets: list[str] = []
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            bullets.append(stripped[2:])
+    return bullets
+
+
+@then('the standup report section "{section_name}" should have {count:d} bullet')
+@then('the standup report section "{section_name}" should have {count:d} bullets')
+def then_standup_section_bullet_count(
+    context: object, section_name: str, count: int
+) -> None:
+    """Verify the number of bullets in a standup section.
+
+    :param context: Behave context object.
+    :type context: object
+    :param section_name: Section heading.
+    :type section_name: str
+    :param count: Expected bullet count.
+    :type count: int
+    """
+    bullets = _standup_section_bullets(context, section_name)
+    assert len(bullets) == count
+
+
+@then('the standup report section "{section_name}" should match pattern "{pattern}"')
+def then_standup_section_matches_pattern(
+    context: object, section_name: str, pattern: str
+) -> None:
+    """Verify section bullets match a regular expression.
+
+    :param context: Behave context object.
+    :type context: object
+    :param section_name: Section heading.
+    :type section_name: str
+    :param pattern: Regular expression that must match section text.
+    :type pattern: str
+    """
+    bullets = _standup_section_bullets(context, section_name)
+    joined = "\n".join(bullets)
+    assert re.search(pattern, joined)

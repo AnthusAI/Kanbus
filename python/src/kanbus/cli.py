@@ -3156,6 +3156,12 @@ def right_now_command(
 @click.option("--no-skip-weekends", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False)
 @click.option("--no-recursive", is_flag=True, default=False)
+@click.option(
+    "--rollup",
+    default=None,
+    type=click.Choice(["flat", "project", "tree"]),
+    help="Today rollup: flat, project (multi-board default), or tree.",
+)
 def standup_command(
     issue_ids: tuple[str, ...],
     profile: str | None,
@@ -3165,6 +3171,7 @@ def standup_command(
     no_skip_weekends: bool,
     as_json: bool,
     no_recursive: bool,
+    rollup: str | None,
 ) -> None:
     """Generate on-demand standup reports from right-now facts.
 
@@ -3173,6 +3180,7 @@ def standup_command(
     Examples:
       kbs standup                              board-wide meeting script
       kbs standup --profile director-brief     executive brief
+      kbs standup --rollup project             one bullet per virtual project
       kbs standup kbs-abc kbs-def              scoped report
       kbs standup kbs-abc --no-recursive       selected issues only
       kbs standup kbs-abc --json               machine-readable JSON
@@ -3195,6 +3203,7 @@ def standup_command(
         window=window,
         lookback=lookback,
         skip_weekends=skip_weekends_override,
+        rollup=rollup,
     )
     try:
         output = run_standup_command(root, options)

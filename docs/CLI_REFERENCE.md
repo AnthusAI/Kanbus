@@ -173,6 +173,19 @@ kanbus list --parent kanbus-a1b2c3
 kanbus list --all
 ```
 
+### `kanbus standup`
+
+Generate on-demand standup reports from right-now summaries (fail-closed; no placeholder text).
+
+```bash
+kbs standup [issue-ids...] [--profile meeting-script|director-brief] [--rollup flat|project|tree] [--json]
+```
+
+- **Default fact feed** (no issue IDs): congregation scope (`in_progress` and `blocked`, cap 30).
+- **`--rollup`**: `flat` (per-leaf bullets), `project` (one labeled bullet per project), or `tree` (nested by hierarchy). When omitted: `project` for `virtual_projects` boards; `flat` for single-project board-wide; `tree` for explicit scoped issue IDs.
+- **Close-out** section (both profiles): merged-but-open WIP, ready-to-close, external blocks, stale WIP.
+- **Yesterday**: emits `No completions yesterday.` when empty.
+
 ### `kanbus commit`
 
 Commit `project/issues/` changes to git.

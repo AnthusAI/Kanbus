@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 from behave import given, then, when
 
@@ -126,6 +127,11 @@ def _generate_from_console_state(
         skip_weekends=False,
         timezone=ZoneInfo("UTC"),
     )
+    from kanbus.standup import load_standup_configuration
+    from kanbus.standup_rollup import resolve_standup_rollup
+
+    configuration = load_standup_configuration(Path(context.working_directory))
+    rollup_settings = resolve_standup_rollup(None, configuration, False)
     report = build_standup_report(
         profile,
         issues,
@@ -133,6 +139,8 @@ def _generate_from_console_state(
         {},
         datetime.now(timezone.utc),
         window_settings,
+        configuration,
+        rollup_settings,
         False,
     )
     section_names = [section.name for section in report.sections]

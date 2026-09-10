@@ -14,6 +14,13 @@ Feature: Standup CLI command
     And right now litellm call tracking is reset
     And the Kanbus configuration uses AI provider "litellm" with model "gpt-5.6-luna"
 
+  Scenario: Standup accepts rollup mode flag
+    Given an issue "kanbus-cli-roll" exists with status "in_progress"
+    And issue "kanbus-cli-roll" has right now summary "Rollup flag work."
+    When I run "kanbus standup kanbus-cli-roll --rollup flat"
+    Then the command should succeed
+    And the standup report section "Today" should mention "Rollup flag work."
+
   Scenario: Standup without issue IDs succeeds with standup default selection
     Given an issue "kanbus-cli-def" exists with status "in_progress"
     And issue "kanbus-cli-def" has right now summary "CLI default scope work."
