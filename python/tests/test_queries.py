@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from kanbus import queries
@@ -56,6 +58,17 @@ def test_sort_issues_priority_and_invalid_key() -> None:
 
     with pytest.raises(queries.QueryError, match="invalid sort key"):
         queries.sort_issues([hi], "bad")
+
+
+def test_sort_issues_by_recently_updated_accepts_naive_timestamp() -> None:
+    naive = build_issue("kanbus-naive")
+    naive.updated_at = datetime(2026, 3, 6)
+    aware = build_issue("kanbus-aware")
+    sorted_issues = queries.sort_issues_by_recently_updated([naive, aware])
+    assert {issue.identifier for issue in sorted_issues} == {
+        "kanbus-naive",
+        "kanbus-aware",
+    }
 
 
 def test_sort_issues_none_returns_input_order() -> None:
