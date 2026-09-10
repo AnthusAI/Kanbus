@@ -1,0 +1,26 @@
+{
+  "id": "kbs-056a5daa-c1fa-403b-8982-9d4840eacc45",
+  "title": "Clarify agent_metadata.feature optionally-tag vs MUST policy wording",
+  "description": "SD soft nit on #264: agent_metadata.feature still says optionally tag (CLI capability) while CONTRIBUTING_AGENT policy says MUST for AI agents \u2014 clarify feature language so capability vs doctrine is not confused.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-1cf80dea-258b-4bf2-8ead-2f8cc91b3247",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:40:27.528209Z",
+  "updated_at": "2026-09-10T13:40:27.561532Z",
+  "closed_at": null,
+  "right_now_summary": "The team is clarifying whether agent metadata tags are optional features or required for AI agents.",
+  "right_now_updated_at": "2026-09-10T13:40:33.521900Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}
