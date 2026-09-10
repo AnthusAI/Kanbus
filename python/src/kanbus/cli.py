@@ -23,7 +23,7 @@ from kanbus.content_validation import ContentValidationError, validate_code_bloc
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
 from kanbus.issue_close import IssueCloseError, close_issue
-from kanbus.issue_comment import IssueCommentError, add_comment
+from kanbus.issue_comment import IssueCommentError, add_comment, update_comment
 from kanbus.issue_delete import (
     IssueDeleteError,
     delete_issue,
@@ -107,6 +107,8 @@ from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_
 from kanbus.agent_metadata import (
     AgentMetadataRequest,
     AgentMetadataResolutionError,
+    emit_agent_provenance_warning,
+    format_agent_display_line,
     reject_agent_metadata_in_beads_mode,
     resolve_agent_metadata,
 )
@@ -421,6 +423,13 @@ def repair(yes: bool) -> None:
 @click.option("--agent-model")
 @click.option("--agent-name")
 @click.option("--agent-settings")
+@click.option(
+    "--no-agent-provenance",
+    "no_agent_provenance",
+    is_flag=True,
+    default=False,
+    help="Do not warn when agent provenance is incomplete. See CONTRIBUTING_AGENT.md.",
+)
 @click.pass_context
 def create(
     context: click.Context,
@@ -439,6 +448,7 @@ def create(
     agent_model: str | None,
     agent_name: str | None,
     agent_settings: str | None,
+    no_agent_provenance: bool = False,
 ) -> None:
     """Create a new issue in the current project.
 
@@ -586,6 +596,11 @@ def create(
     )
     if quality_result:
         emit_signals(quality_result, "description", issue_id=result.issue.identifier)
+    emit_agent_provenance_warning(
+        result.issue.identifier,
+        result.issue.agent,
+        silenced=no_agent_provenance,
+    )
     _run_lifecycle_hooks_for_context(
         context,
         phase=HookPhase.AFTER,
@@ -725,6 +740,10 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
 @click.option("--set-labels", "set_labels")
 @click.option("--claim", is_flag=True, default=False)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-name")
+@click.option("--agent-settings")
 @click.pass_context
 def update(
     context: click.Context,
@@ -740,6 +759,10 @@ def update(
     set_labels: str | None,
     claim: bool,
     no_validate: bool,
+    agent_platform: str | None = None,
+    agent_model: str | None = None,
+    agent_name: str | None = None,
+    agent_settings: str | None = None,
 ) -> None:
     """Update an existing issue.
 
@@ -796,8 +819,12 @@ def update(
         parsed_set_labels = [label.strip() for label in set_labels.split(",")]
 
     final_assignee = assignee or (get_current_user() if claim else None)
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
 
     if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
         root = _resolve_beads_root(root)
         if parent is not None:
             raise click.ClickException("parent update not supported in beads mode")
@@ -996,6 +1023,7 @@ def update(
             remove_labels=list(remove_labels) if remove_labels else None,
             set_labels=parsed_set_labels,
             parent=parent,
+            agent=agent_metadata,
         )
     except IssueUpdateError as error:
         raise click.ClickException(str(error)) from error
@@ -1581,26 +1609,108 @@ def localize(context: click.Context, identifier: str) -> None:
     )
 
 
+def _update_issue_comment(
+    context: click.Context,
+    tokens: tuple[str, ...],
+    no_validate: bool,
+    agent_platform: str | None,
+    agent_model: str | None,
+    agent_name: str | None,
+    agent_settings: str | None,
+) -> None:
+    """Add missing agent provenance or replace comment text.
+
+    :param context: Click context.
+    :type context: click.Context
+    :param tokens: Issue id, comment id, and optional replacement text.
+    :type tokens: tuple[str, ...]
+    :param no_validate: Bypass validation checks.
+    :type no_validate: bool
+    :param agent_platform: Agent platform flag.
+    :type agent_platform: str | None
+    :param agent_model: Agent model flag.
+    :type agent_model: str | None
+    :param agent_name: Agent session name flag.
+    :type agent_name: str | None
+    :param agent_settings: Agent settings JSON flag.
+    :type agent_settings: str | None
+    """
+    if len(tokens) < 2:
+        raise click.ClickException("comment update requires an issue id and comment id")
+    identifier = tokens[0]
+    comment_id = tokens[1]
+    text = " ".join(tokens[2:]).strip() if len(tokens) > 2 else ""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
+        raise click.ClickException("beads mode does not support comment update")
+    replacement_text = text if text else None
+    if replacement_text is None and agent_metadata is None:
+        raise click.ClickException("comment text is required")
+    if replacement_text is not None:
+        quality_result = apply_text_quality_signals(replacement_text)
+        replacement_text = quality_result.text
+        if not no_validate:
+            try:
+                validate_code_blocks(replacement_text)
+            except ContentValidationError as error:
+                raise click.ClickException(str(error)) from error
+        emit_signals(
+            quality_result,
+            "comment",
+            issue_id=identifier,
+            comment_id=comment_id,
+            is_update=True,
+        )
+    try:
+        update_comment(
+            root,
+            identifier,
+            comment_id,
+            replacement_text,
+            agent_metadata,
+        )
+    except IssueCommentError as error:
+        raise click.ClickException(str(error)) from error
+
+
 @cli.command("comment")
-@click.argument("identifier")
-@click.argument("text", required=False)
+@click.argument("tokens", nargs=-1)
 @click.option("--body-file", type=click.File("r"), default=None)
 @click.option("--no-validate", "no_validate", is_flag=True, default=False)
 @click.option("--agent-platform")
 @click.option("--agent-model")
 @click.option("--agent-name")
 @click.option("--agent-settings")
+@click.option(
+    "--no-agent-provenance",
+    "no_agent_provenance",
+    is_flag=True,
+    default=False,
+    help="Do not warn when agent provenance is incomplete. See CONTRIBUTING_AGENT.md.",
+)
 @click.pass_context
 def comment(
     context: click.Context,
-    identifier: str,
-    text: Optional[str],
+    tokens: tuple[str, ...],
     body_file: Optional[click.File],
     no_validate: bool = False,
     agent_platform: str | None = None,
     agent_model: str | None = None,
     agent_name: str | None = None,
     agent_settings: str | None = None,
+    no_agent_provenance: bool = False,
 ) -> None:
     """Add a comment to an issue.
 
@@ -1615,6 +1725,21 @@ def comment(
     :param no_validate: Bypass validation checks.
     :type no_validate: bool
     """
+    if tokens and tokens[0] == "update":
+        _update_issue_comment(
+            context,
+            tokens[1:],
+            no_validate=no_validate,
+            agent_platform=agent_platform,
+            agent_model=agent_model,
+            agent_name=agent_name,
+            agent_settings=agent_settings,
+        )
+        return
+    if not tokens:
+        raise click.ClickException("issue identifier is required")
+    identifier = tokens[0]
+    text = " ".join(tokens[1:]) if len(tokens) > 1 else None
     root = Path.cwd()
     beads_mode = context.obj.get("beads_mode", False)
     agent_metadata = _resolve_cli_agent_metadata(
@@ -1693,6 +1818,16 @@ def comment(
                 issue_id=identifier,
                 comment_id=result_comment.comment.id,
             )
+            emit_agent_provenance_warning(
+                identifier,
+                result_comment.comment.agent,
+                comment_id=result_comment.comment.id,
+                silenced=no_agent_provenance,
+            )
+            if result_comment.comment.agent is not None:
+                click.echo(
+                    f"Agent: {format_agent_display_line(result_comment.comment.agent)}"
+                )
     except IssueCommentError as error:
         raise click.ClickException(str(error)) from error
 

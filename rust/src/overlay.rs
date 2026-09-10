@@ -72,6 +72,34 @@ pub fn write_overlay_issue(
     fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
+/// Replace an existing overlay snapshot with the mutated issue.
+///
+/// Overlay timestamps and event identifiers stay unchanged so a newer overlay
+/// remains the live store after a canonical write.
+///
+/// # Arguments
+///
+/// * `project_dir` - Shared project directory.
+/// * `issue` - Mutated issue to store in the overlay snapshot.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when the overlay snapshot cannot be written.
+pub fn replace_overlay_issue_if_present(
+    project_dir: &Path,
+    issue: &IssueData,
+) -> Result<(), KanbusError> {
+    let Some(overlay_record) = load_overlay_issue(project_dir, &issue.identifier)? else {
+        return Ok(());
+    };
+    write_overlay_issue(
+        project_dir,
+        issue,
+        &overlay_record.overlay_ts,
+        overlay_record.overlay_event_id,
+    )
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct OverlayReconcileStats {
     pub projects: usize,

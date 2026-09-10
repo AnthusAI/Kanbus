@@ -7,8 +7,10 @@ import os
 import re
 from typing import Any, Dict, Optional
 
+import click
 from pydantic import BaseModel, ConfigDict
 
+from kanbus.ids import format_issue_key
 from kanbus.models import AgentMetadata
 
 PLATFORM_PATTERN = re.compile(r"^[a-z0-9_-]{1,64}$")
@@ -48,7 +50,8 @@ def _normalize_optional_text(value: Optional[str]) -> Optional[str]:
 
 
 def _normalize_platform(platform: str) -> str:
-    normalized = platform.strip().lower()
+    slug = re.sub(r"\s+", "_", platform.strip())
+    normalized = slug.lower()
     if not PLATFORM_PATTERN.fullmatch(normalized):
         raise AgentMetadataResolutionError("invalid agent platform")
     return normalized
@@ -223,6 +226,121 @@ def agent_metadata_to_event_value(agent: AgentMetadata) -> Dict[str, Any]:
     :rtype: Dict[str, Any]
     """
     return _serialize_agent_metadata(agent)
+
+
+EXAMPLE_AGENT_PLATFORM = "Cursor"
+EXAMPLE_AGENT_MODEL = "Composer 2.5"
+EXAMPLE_AGENT_NAME = "Cloud Agent"
+AGENT_METADATA_ALREADY_SET = "agent metadata is already set"
+
+
+def agent_provenance_is_complete(agent: Optional[AgentMetadata]) -> bool:
+    """Return whether platform, model, and session name are all present.
+
+    :param agent: Stored agent metadata.
+    :type agent: Optional[AgentMetadata]
+    :return: True when tagging is complete.
+    :rtype: bool
+    """
+    return agent is not None and bool(agent.name)
+
+
+def missing_agent_provenance_fields(agent: Optional[AgentMetadata]) -> list[str]:
+    """List required provenance fields that are not set.
+
+    :param agent: Stored or resolved agent metadata.
+    :type agent: Optional[AgentMetadata]
+    :return: Missing field names in stable order.
+    :rtype: list[str]
+    """
+    if agent is None:
+        return ["platform", "model", "name"]
+    if agent.name:
+        return []
+    return ["name"]
+
+
+def assign_agent_metadata_if_incomplete(
+    existing: Optional[AgentMetadata], incoming: Optional[AgentMetadata]
+) -> Optional[AgentMetadata]:
+    """Set agent metadata when the existing record is incomplete.
+
+    :param existing: Current issue or comment agent metadata.
+    :type existing: Optional[AgentMetadata]
+    :param incoming: Newly resolved metadata, or None when not requested.
+    :type incoming: Optional[AgentMetadata]
+    :return: Metadata to store.
+    :rtype: Optional[AgentMetadata]
+    :raises AgentMetadataResolutionError: If complete metadata would be replaced.
+    """
+    if incoming is None:
+        return existing
+    if agent_provenance_is_complete(existing):
+        raise AgentMetadataResolutionError(AGENT_METADATA_ALREADY_SET)
+    return incoming
+
+
+def format_agent_provenance_warning(
+    issue_identifier: str,
+    agent: Optional[AgentMetadata],
+    comment_id: Optional[str] = None,
+) -> str:
+    """Build a warning that includes a one-step follow-up command.
+
+    :param issue_identifier: Issue identifier to include in the follow-up.
+    :type issue_identifier: str
+    :param agent: Metadata already stored or resolved for this write.
+    :type agent: Optional[AgentMetadata]
+    :param comment_id: Comment identifier when warning about a comment.
+    :type comment_id: Optional[str]
+    :return: Multi-line warning text.
+    :rtype: str
+    """
+    missing = missing_agent_provenance_fields(agent)
+    missing_text = ", ".join(missing)
+    issue_key = format_issue_key(issue_identifier, False)
+    if comment_id:
+        command = f"kbs comment update {issue_key} {comment_id}"
+    else:
+        command = f"kbs update {issue_key}"
+    if "platform" in missing:
+        command = f'{command} --agent-platform "{EXAMPLE_AGENT_PLATFORM}"'
+    if "model" in missing:
+        command = f'{command} --agent-model "{EXAMPLE_AGENT_MODEL}"'
+    if "name" in missing:
+        command = f'{command} --agent-name "{EXAMPLE_AGENT_NAME}"'
+    return (
+        f"WARNING: agent provenance is incomplete (missing: {missing_text}).\n"
+        "See CONTRIBUTING_AGENT.md (Agent provenance metadata).\n"
+        "To add it in one step:\n"
+        f"  {command}\n"
+        "To skip tagging this time, re-run with --no-agent-provenance."
+    )
+
+
+def emit_agent_provenance_warning(
+    issue_identifier: str,
+    agent: Optional[AgentMetadata],
+    comment_id: Optional[str] = None,
+    silenced: bool = False,
+) -> None:
+    """Write the incomplete-provenance warning to stderr when needed.
+
+    :param issue_identifier: Issue identifier to include in the follow-up.
+    :type issue_identifier: str
+    :param agent: Metadata already stored or resolved for this write.
+    :type agent: Optional[AgentMetadata]
+    :param comment_id: Comment identifier when warning about a comment.
+    :type comment_id: Optional[str]
+    :param silenced: When True, do not emit a warning.
+    :type silenced: bool
+    """
+    if silenced or agent_provenance_is_complete(agent):
+        return
+    click.echo(
+        format_agent_provenance_warning(issue_identifier, agent, comment_id),
+        err=True,
+    )
 
 
 def reject_agent_metadata_in_beads_mode(agent_present: bool) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List
 
 from kanbus.config_loader import (
     ConfigurationError,
@@ -57,59 +57,17 @@ def build_console_now_issues(root: Path) -> List[Dict[str, object]]:
     :rtype: List[Dict[str, object]]
     :raises ConsoleSnapshotError: If loading or backfill fails.
     """
-    from kanbus.right_now import ensure_right_now_summary_subtrees
+    from kanbus.right_now import (
+        active_right_now_tree,
+        ensure_right_now_summary_subtrees,
+    )
 
     project_dir, config = _load_project_context(root)
     issues = _load_console_issues(root, project_dir, config)
-    roots, selected_identifiers = _active_right_now_tree(issues)
+    roots, selected_identifiers = active_right_now_tree(issues)
     ensure_right_now_summary_subtrees(root, roots, selected_identifiers)
     issues = _load_console_issues(root, project_dir, config)
     return [issue.model_dump(by_alias=True, mode="json") for issue in issues]
-
-
-def _active_right_now_tree(issues: List[IssueData]) -> Tuple[List[str], Set[str]]:
-    """Return roots and every issue in trees containing active work.
-
-    The Now UI can expand any associated descendant after receiving this
-    snapshot. Backfill the complete tree, independent of issue status or type,
-    before returning it.
-    """
-    parents = {issue.identifier: issue.parent for issue in issues}
-    children_by_parent: Dict[str, List[str]] = {}
-    for issue in issues:
-        if issue.parent is not None:
-            children_by_parent.setdefault(issue.parent, []).append(issue.identifier)
-
-    selected_identifiers: Set[str] = set()
-    for issue in issues:
-        if issue.status != "in_progress":
-            continue
-        current = issue.identifier
-        visited: Set[str] = set()
-        while current not in visited:
-            visited.add(current)
-            selected_identifiers.add(current)
-            parent = parents.get(current)
-            if parent is None or parent not in parents:
-                break
-            current = parent
-
-    pending = list(selected_identifiers)
-    while pending:
-        identifier = pending.pop()
-        for child in children_by_parent.get(identifier, []):
-            if child not in selected_identifiers:
-                selected_identifiers.add(child)
-                pending.append(child)
-
-    roots = sorted(
-        identifier
-        for identifier in selected_identifiers
-        if parents.get(identifier) not in selected_identifiers
-    )
-    if not roots and selected_identifiers:
-        roots = sorted(selected_identifiers)
-    return roots, selected_identifiers
 
 
 def get_issues_for_root(root: Path) -> List[IssueData]:

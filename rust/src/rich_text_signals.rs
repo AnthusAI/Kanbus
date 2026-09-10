@@ -28,6 +28,11 @@ pub fn take_captured_stderr() -> Option<String> {
     CAPTURED_STDERR.with(|cell| cell.borrow_mut().take())
 }
 
+/// Write a message to stderr or the test capture buffer.
+pub fn emit_stderr_message(message: &str) {
+    write_stderr(message);
+}
+
 fn write_stderr(message: &str) {
     let mut captured = false;
     CAPTURED_STDERR.with(|cell| {

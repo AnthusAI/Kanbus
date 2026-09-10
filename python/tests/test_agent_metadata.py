@@ -5,8 +5,10 @@ import pytest
 from kanbus.agent_metadata import (
     AgentMetadataRequest,
     AgentMetadataResolutionError,
+    assign_agent_metadata_if_incomplete,
     build_agent_metadata,
     format_agent_display_line,
+    format_agent_provenance_warning,
     reject_agent_metadata_in_beads_mode,
     resolve_agent_metadata,
 )
@@ -71,6 +73,13 @@ def test_invalid_agent_platform() -> None:
     with pytest.raises(AgentMetadataResolutionError) as error:
         build_agent_metadata("bad platform!", "composer-2.5", {})
     assert str(error.value) == "invalid agent platform"
+
+
+def test_title_case_platform_with_spaces_normalizes() -> None:
+    metadata = build_agent_metadata("Claude Code", "Composer 2.5", {})
+    assert metadata is not None
+    assert metadata.platform == "claude_code"
+    assert metadata.model == "Composer 2.5"
 
 
 def test_invalid_agent_name() -> None:
@@ -159,3 +168,51 @@ def test_format_agent_settings_display() -> None:
     assert "temperature=0.5" in display
     assert "speed=fast" in display
     assert "reasoning_effort=turbo" in display
+
+    structured = AgentMetadata(
+        platform="cursor",
+        model="composer-2.5",
+        settings={
+            "enabled": True,
+            "disabled": False,
+            "optional": None,
+            "flags": {"a": 1},
+            "tags": ["x", "y"],
+        },
+    )
+    structured_display = format_agent_settings_display(structured)
+    assert structured_display is not None
+    assert "enabled=true" in structured_display
+    assert "disabled=false" in structured_display
+    assert "optional=null" in structured_display
+    assert "flags=" in structured_display
+    assert "tags=" in structured_display
+
+
+def test_format_agent_provenance_warning_includes_follow_up() -> None:
+    warning = format_agent_provenance_warning("kanbus-aaa", None)
+    assert "agent provenance is incomplete (missing: platform, model, name)" in warning
+    assert "CONTRIBUTING_AGENT.md" in warning
+    assert 'kbs update kanbus-aaa --agent-platform "Cursor"' in warning
+    assert '--agent-model "Composer 2.5"' in warning
+    assert '--agent-name "Cloud Agent"' in warning
+    assert "--no-agent-provenance" in warning
+
+
+def test_missing_agent_provenance_fields_for_complete_and_absent() -> None:
+    from kanbus.agent_metadata import missing_agent_provenance_fields
+    from kanbus.models import AgentMetadata
+
+    assert missing_agent_provenance_fields(None) == ["platform", "model", "name"]
+    complete = AgentMetadata(
+        platform="cursor", model="composer-2.5", name="Cloud Agent"
+    )
+    assert missing_agent_provenance_fields(complete) == []
+
+
+def test_assign_agent_metadata_rejects_complete_replace() -> None:
+    existing = build_agent_metadata("cursor", "Composer 2.5", {}, name="Cloud Agent")
+    incoming = build_agent_metadata("codex", "GPT-5", {}, name="Other")
+    with pytest.raises(AgentMetadataResolutionError) as error:
+        assign_agent_metadata_if_incomplete(existing, incoming)
+    assert str(error.value) == "agent metadata is already set"

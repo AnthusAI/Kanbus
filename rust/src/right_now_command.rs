@@ -14,7 +14,8 @@ use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::{
-    ensure_right_now_summaries, get_right_now_summary, DEFAULT_RIGHT_NOW_STATUS,
+    association_trees_for_seeds, ensure_right_now_summaries, get_right_now_summary,
+    DEFAULT_RIGHT_NOW_STATUS,
 };
 
 const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
@@ -251,7 +252,16 @@ fn select_right_now_issues(
         false,
     )?;
     if options.issue_ids.is_empty() {
-        return filter_right_now_issues_by_status(issues, options);
+        let filtered = filter_right_now_issues_by_status(issues.clone(), options)?;
+        let seeds: HashSet<String> = filtered
+            .iter()
+            .map(|issue| issue.identifier.clone())
+            .collect();
+        let (_roots, selected) = association_trees_for_seeds(&issues, &seeds);
+        return Ok(issues
+            .into_iter()
+            .filter(|issue| selected.contains(&issue.identifier))
+            .collect());
     }
     let mut issues_by_identifier: HashMap<String, IssueData> = issues
         .into_iter()

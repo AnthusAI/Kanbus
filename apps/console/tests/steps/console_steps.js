@@ -664,8 +664,13 @@ When("I select the {string} type filter", async function (filterName) {
   await this.page.getByRole("tab", { name: filterName }).click();
 });
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function boardColumnLocator(page, label) {
-  return page.locator(".kb-column").filter({ hasText: label });
+  const titleExact = new RegExp(`^${escapeRegExp(label)}$`);
+  return page.locator(".kb-column").filter({ has: page.getByText(titleExact) });
 }
 
 Then("the board should show the column {string}", async function (label) {

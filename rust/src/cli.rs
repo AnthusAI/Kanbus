@@ -12,7 +12,8 @@ use clap::{Parser, Subcommand};
 use std::collections::HashSet;
 
 use crate::agent_metadata::{
-    reject_agent_metadata_in_beads_mode, resolve_agent_metadata, AgentMetadataRequest,
+    emit_agent_provenance_warning, format_agent_display_line, reject_agent_metadata_in_beads_mode,
+    resolve_agent_metadata, AgentMetadataRequest,
 };
 use crate::agents_management::ensure_agents_file;
 use crate::beads_write::{
@@ -204,6 +205,9 @@ enum Commands {
         /// Agent settings JSON object for provenance metadata.
         #[arg(long = "agent-settings")]
         agent_settings: Option<String>,
+        /// Do not warn when agent provenance is incomplete. See CONTRIBUTING_AGENT.md.
+        #[arg(long = "no-agent-provenance")]
+        no_agent_provenance: bool,
     },
     /// Show an issue.
     Show {
@@ -256,6 +260,18 @@ enum Commands {
         /// Bypass validation checks.
         #[arg(long = "no-validate")]
         no_validate: bool,
+        /// Agent platform identifier for provenance metadata.
+        #[arg(long = "agent-platform")]
+        agent_platform: Option<String>,
+        /// Agent model identifier for provenance metadata.
+        #[arg(long = "agent-model")]
+        agent_model: Option<String>,
+        /// Agent session or bot name for provenance metadata.
+        #[arg(long = "agent-name")]
+        agent_name: Option<String>,
+        /// Agent settings JSON object for provenance metadata.
+        #[arg(long = "agent-settings")]
+        agent_settings: Option<String>,
     },
     /// Bulk issue operations.
     Bulk {
@@ -320,6 +336,9 @@ enum Commands {
         /// Agent settings JSON object for provenance metadata.
         #[arg(long = "agent-settings")]
         agent_settings: Option<String>,
+        /// Do not warn when agent provenance is incomplete. See CONTRIBUTING_AGENT.md.
+        #[arg(long = "no-agent-provenance")]
+        no_agent_provenance: bool,
     },
     /// List issues.
     ///
@@ -1073,8 +1092,20 @@ enum CommentCommands {
         /// Comment id (full or prefix).
         comment_id: String,
         /// Updated comment text.
-        #[arg(required = true)]
+        #[arg(required = false)]
         text: Vec<String>,
+        /// Agent platform identifier for provenance metadata.
+        #[arg(long = "agent-platform")]
+        agent_platform: Option<String>,
+        /// Agent model identifier for provenance metadata.
+        #[arg(long = "agent-model")]
+        agent_model: Option<String>,
+        /// Agent session or bot name for provenance metadata.
+        #[arg(long = "agent-name")]
+        agent_name: Option<String>,
+        /// Agent settings JSON object for provenance metadata.
+        #[arg(long = "agent-settings")]
+        agent_settings: Option<String>,
     },
     /// Delete a comment by id prefix.
     Delete {
@@ -1416,6 +1447,7 @@ fn execute_command(
             agent_model,
             agent_name,
             agent_settings,
+            no_agent_provenance,
         } => {
             let title_text = title.join(" ");
             if title_text.trim().is_empty() {
@@ -1530,6 +1562,12 @@ fn execute_command(
             if let Some(ref qr) = quality_result {
                 emit_signals(qr, "description", Some(&issue.identifier), None, false);
             }
+            emit_agent_provenance_warning(
+                &issue.identifier,
+                issue.agent.as_ref(),
+                None,
+                no_agent_provenance,
+            );
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::After,
@@ -1688,6 +1726,10 @@ fn execute_command(
             parent,
             claim,
             no_validate,
+            agent_platform,
+            agent_model,
+            agent_name,
+            agent_settings,
         } => {
             let title_text = title
                 .as_ref()
@@ -1721,6 +1763,15 @@ fn execute_command(
                     (None, None)
                 };
             let final_description_value = repaired_description.as_deref();
+            let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
+                platform: agent_platform,
+                model: agent_model,
+                name: agent_name,
+                settings_json: agent_settings,
+            })?;
+            if beads_mode {
+                reject_agent_metadata_in_beads_mode(agent_metadata.is_some())?;
+            }
             if !no_validate {
                 if let Some(text) = final_description_value {
                     validate_code_blocks(text)?;
@@ -1904,6 +1955,7 @@ fn execute_command(
                     set_labels.as_deref(),
                     parent.as_deref(),
                     None,
+                    agent_metadata,
                 )?;
                 after_issue_for_hooks = Some(update_result.issue.clone());
                 let formatted_identifier = format_issue_key(&identifier, false);
@@ -2013,6 +2065,7 @@ fn execute_command(
                 None,
                 None,
                 Some(&issue_type),
+                None,
             )?;
             let moved_issue = update_result.issue;
             run_lifecycle_hooks_for_context(
@@ -2094,6 +2147,7 @@ fn execute_command(
                         None,
                         None,
                         None,
+                        None,
                     )?;
                     if update_result.changed && seen.insert(update_result.issue.identifier.clone())
                     {
@@ -2131,6 +2185,7 @@ fn execute_command(
                             !no_validate,
                             &[],
                             &[],
+                            None,
                             None,
                             None,
                             None,
@@ -2407,40 +2462,71 @@ fn execute_command(
             agent_model,
             agent_name,
             agent_settings,
+            no_agent_provenance,
         } => match command {
             Some(CommentCommands::Update {
                 identifier,
                 comment_id,
                 text,
+                agent_platform: update_agent_platform,
+                agent_model: update_agent_model,
+                agent_name: update_agent_name,
+                agent_settings: update_agent_settings,
             }) => {
                 let text_value = text.join(" ");
-                if text_value.trim().is_empty() {
+                let has_text = !text_value.trim().is_empty();
+                let agent_metadata = resolve_agent_metadata(&AgentMetadataRequest {
+                    platform: update_agent_platform,
+                    model: update_agent_model,
+                    name: update_agent_name,
+                    settings_json: update_agent_settings,
+                })?;
+                if beads_mode {
+                    reject_agent_metadata_in_beads_mode(agent_metadata.is_some())?;
+                }
+                if !has_text && agent_metadata.is_none() {
                     return Err(KanbusError::IssueOperation(
                         "comment text is required".to_string(),
                     ));
                 }
-                let comment_update_quality_result = apply_text_quality_signals(&text_value);
-                let repaired_text_value = comment_update_quality_result.text.clone();
+                let comment_update_quality_result = if has_text {
+                    Some(apply_text_quality_signals(&text_value))
+                } else {
+                    None
+                };
+                let repaired_text_value = comment_update_quality_result
+                    .as_ref()
+                    .map(|result| result.text.clone());
                 if !no_validate {
-                    validate_code_blocks(&repaired_text_value)?;
+                    if let Some(text) = repaired_text_value.as_deref() {
+                        validate_code_blocks(text)?;
+                    }
                 }
                 if beads_mode {
-                    update_beads_comment(
-                        &root_for_beads,
+                    let Some(text) = repaired_text_value.as_deref() else {
+                        return Err(KanbusError::IssueOperation(
+                            "comment text is required".to_string(),
+                        ));
+                    };
+                    update_beads_comment(&root_for_beads, &identifier, &comment_id, text)?;
+                } else {
+                    update_comment(
+                        root,
                         &identifier,
                         &comment_id,
-                        &repaired_text_value,
+                        repaired_text_value.as_deref(),
+                        agent_metadata,
                     )?;
-                } else {
-                    update_comment(root, &identifier, &comment_id, &repaired_text_value)?;
                 }
-                emit_signals(
-                    &comment_update_quality_result,
-                    "comment",
-                    Some(&identifier),
-                    Some(&comment_id),
-                    true,
-                );
+                if let Some(quality_result) = comment_update_quality_result.as_ref() {
+                    emit_signals(
+                        quality_result,
+                        "comment",
+                        Some(&identifier),
+                        Some(&comment_id),
+                        true,
+                    );
+                }
                 Ok(None)
             }
             Some(CommentCommands::Delete {
@@ -2553,7 +2639,31 @@ fn execute_command(
                         comment_result.comment.id.as_deref(),
                         false,
                     );
-                    Some(comment_result.issue)
+                    emit_agent_provenance_warning(
+                        &identifier,
+                        comment_result.comment.agent.as_ref(),
+                        comment_result.comment.id.as_deref(),
+                        no_agent_provenance,
+                    );
+                    let agent_stdout = comment_result
+                        .comment
+                        .agent
+                        .as_ref()
+                        .map(|agent| format!("Agent: {}", format_agent_display_line(agent)));
+                    run_lifecycle_hooks_for_context(
+                        root,
+                        HookPhase::After,
+                        HookEvent::IssueComment,
+                        serde_json::json!({
+                            "identifier": identifier,
+                            "text": repaired_comment_text,
+                            "before_issue": before_issue_for_hooks.as_ref().map(serialize_issue),
+                            "after_issue": comment_result.issue.clone(),
+                        }),
+                        &[],
+                        hook_options,
+                    )?;
+                    return Ok(agent_stdout);
                 };
                 run_lifecycle_hooks_for_context(
                     root,
