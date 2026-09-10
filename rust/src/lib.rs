@@ -69,6 +69,7 @@ pub mod snyk_sync;
 pub mod standup;
 pub mod standup_command;
 pub mod standup_rollup;
+pub mod standup_rollup_reduce;
 pub mod standup_window;
 pub mod status_semantics;
 pub mod summarize;

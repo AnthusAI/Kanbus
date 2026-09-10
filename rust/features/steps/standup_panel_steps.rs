@@ -133,6 +133,7 @@ fn generate_from_console_state(
     let rollup_settings =
         resolve_standup_rollup(None, &configuration, false).map_err(|error| error.to_string())?;
     let report = build_standup_report(
+        root,
         &profile,
         &issues,
         &right_now_texts,
@@ -142,7 +143,8 @@ fn generate_from_console_state(
         false,
         &configuration,
         &rollup_settings,
-    );
+    )
+    .map_err(|error| error.to_string())?;
     let section_names = report
         .sections
         .iter()

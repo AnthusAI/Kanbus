@@ -182,8 +182,10 @@ kbs standup [issue-ids...] [--profile meeting-script|director-brief] [--rollup f
 ```
 
 - **Default fact feed** (no issue IDs): congregation scope (`in_progress` and `blocked`, cap 30).
-- **`--rollup`**: `flat` (per-leaf bullets), `project` (one labeled bullet per project), or `tree` (nested by hierarchy). When omitted: `project` for `virtual_projects` boards; `flat` for single-project board-wide; `tree` for explicit scoped issue IDs.
-- **Close-out** section (both profiles): merged-but-open WIP, ready-to-close, external blocks, stale WIP.
+- **`--rollup`**: `flat` (per-leaf bullets), `project` (one labeled bullet per project with bottom-up LLM rollup of right-now facts), or `tree` (nested by hierarchy with upward rollup on parents when children differ). When omitted: `project` for `virtual_projects` boards; `flat` for single-project board-wide; `tree` for explicit scoped issue IDs.
+- **Project labels** (congregation / `virtual_projects`): bracket prefixes use one canonical display name per partition — `virtual_projects.<key>.display_name` when set, else congregation `name` for the primary board, else the partition key. Issue `project_label` metadata is normalized so the same board never appears under two labels in one report.
+- **Close-out** section (both profiles): merged-but-open WIP, ready-to-close, external blocks, and a narrow stale WIP class (finishable phrasing such as waiting on review/deploy, no recent descendant activity). Capped at six bullets, prioritized for actionability. Likely questions skip issues already listed in Close-out.
+- **director-brief Momentum** uses the same `--rollup` resolution as meeting-script Today (including congregation default `project`).
 - **Yesterday**: emits `No completions yesterday.` when empty.
 
 ### `kanbus commit`

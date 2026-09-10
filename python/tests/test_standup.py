@@ -236,6 +236,7 @@ def test_build_standup_report_meeting_script_sections() -> None:
     from kanbus.standup_rollup import StandupRollupSettings
 
     report = build_standup_report(
+        Path("."),
         MEETING_SCRIPT_PROFILE,
         [issue],
         {"kanbus-active": "Shipping standup."},

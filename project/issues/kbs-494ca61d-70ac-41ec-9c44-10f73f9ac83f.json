@@ -1,0 +1,20 @@
+{
+  "id": "kbs-494ca61d-70ac-41ec-9c44-10f73f9ac83f",
+  "title": "Standup rollup closeout follow-ups",
+  "description": "",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T14:23:23.415487398Z",
+  "updated_at": "2026-09-10T14:23:23.425901141Z",
+  "closed_at": null,
+  "right_now_summary": "No recent updates have been reported for the standup rollup closeout follow-ups.",
+  "right_now_updated_at": "2026-09-10T14:23:26.318944840Z",
+  "custom": {}
+}

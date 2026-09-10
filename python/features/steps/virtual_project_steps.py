@@ -466,6 +466,41 @@ def given_virtual_projects_alpha_beta(context: object, alpha: str, beta: str) ->
     _configure_virtual_projects(context, [alpha, beta])
 
 
+@given('virtual project "{label}" has display name "{display_name}"')
+def given_virtual_project_display_name(
+    context: object, label: str, display_name: str
+) -> None:
+    state = _ensure_virtual_state(context)
+    if label not in state.virtual_projects and label != state.current_label:
+        _configure_virtual_projects(context, [label])
+    config_path = state.root / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    virtual_projects = payload.setdefault("virtual_projects", {})
+    if label in state.virtual_projects:
+        project = state.virtual_projects[label]
+        virtual_projects.setdefault(label, {})
+        virtual_projects[label]["path"] = str(
+            project.shared_dir.relative_to(state.root)
+        )
+    virtual_projects[label]["display_name"] = display_name
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given('congregation primary display name is "{display_name}"')
+def given_congregation_primary_display_name(context: object, display_name: str) -> None:
+    state = _ensure_virtual_state(context)
+    config_path = state.root / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload["name"] = display_name
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given('a Kanbus project with new_issue_project set to "{label}"')
 def given_project_with_new_issue_project(context: object, label: str) -> None:
     state = _configure_virtual_projects(context, ["alpha", "beta"])

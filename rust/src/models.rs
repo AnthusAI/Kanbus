@@ -241,6 +241,8 @@ pub struct GithubSecurityConfiguration {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VirtualProjectConfig {
     pub path: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 /// Realtime topic templates.

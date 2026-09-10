@@ -293,11 +293,18 @@ class GithubSecurityConfiguration(BaseModel):
 
 
 class VirtualProjectConfig(BaseModel):
-    """Configuration for a single virtual project."""
+    """Configuration for a single virtual project.
+
+    :param path: Relative or absolute path to the virtual project directory.
+    :type path: str
+    :param display_name: Optional stable human label for standup and console output.
+    :type display_name: Optional[str]
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     path: str
+    display_name: Optional[str] = None
 
 
 class RealtimeTopics(BaseModel):

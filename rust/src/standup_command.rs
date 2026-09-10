@@ -160,6 +160,7 @@ pub fn run_standup_command(
     }
     let report_time = resolve_standup_report_time()?;
     let report = build_standup_report(
+        root,
         &profile,
         &issues,
         &right_now_texts,
@@ -169,7 +170,7 @@ pub fn run_standup_command(
         !options.issue_ids.is_empty(),
         &configuration,
         &rollup_settings,
-    );
+    )?;
     if options.as_json {
         format_standup_json(&report)
     } else {

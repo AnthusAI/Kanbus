@@ -813,7 +813,9 @@ fn load_configuration(root: &Path) -> Result<ProjectConfiguration, KanbusError> 
     load_project_configuration(&get_configuration_path(root)?)
 }
 
-fn ensure_litellm_provider(configuration: &ProjectConfiguration) -> Result<(), KanbusError> {
+pub(crate) fn ensure_litellm_provider(
+    configuration: &ProjectConfiguration,
+) -> Result<(), KanbusError> {
     match configuration.ai.as_ref() {
         Some(ai_configuration) if ai_configuration.provider == "litellm" => Ok(()),
         _ => Err(KanbusError::IssueOperation(

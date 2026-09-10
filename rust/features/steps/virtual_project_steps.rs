@@ -822,6 +822,75 @@ fn given_virtual_projects_alpha_beta(world: &mut KanbusWorld, alpha: String, bet
     configure_virtual_projects(world, vec![alpha.as_str(), beta.as_str()]);
 }
 
+#[given(expr = "virtual project {string} has display name {string}")]
+fn given_virtual_project_display_name(
+    world: &mut KanbusWorld,
+    label: String,
+    display_name: String,
+) {
+    let needs_configure = {
+        let state = ensure_virtual_state(world);
+        !state.virtual_projects.contains_key(&label) && label != state.current_label
+    };
+    if needs_configure {
+        configure_virtual_projects(world, vec![label.as_str()]);
+    }
+    let state = ensure_virtual_state(world);
+    let config_path = state.root.join(".kanbus.yml");
+    let mut mapping: Mapping =
+        serde_yaml::from_str(&fs::read_to_string(&config_path).expect("read config"))
+            .expect("parse config");
+    let virtual_projects = mapping
+        .get_mut(YamlValue::String("virtual_projects".to_string()))
+        .and_then(YamlValue::as_mapping_mut)
+        .expect("virtual_projects mapping");
+    let entry = virtual_projects
+        .entry(YamlValue::String(label.clone()))
+        .or_insert_with(|| {
+            let project = state.virtual_projects.get(&label).expect("virtual project");
+            let relative_path = project
+                .shared_dir
+                .strip_prefix(&state.root)
+                .expect("virtual project path")
+                .to_string_lossy()
+                .replace('\\', "/");
+            let mut new_entry = Mapping::new();
+            new_entry.insert(
+                YamlValue::String("path".to_string()),
+                YamlValue::String(relative_path),
+            );
+            YamlValue::Mapping(new_entry)
+        });
+    let entry_mapping = entry.as_mapping_mut().expect("virtual project entry");
+    entry_mapping.insert(
+        YamlValue::String("display_name".to_string()),
+        YamlValue::String(display_name),
+    );
+    fs::write(
+        config_path,
+        serde_yaml::to_string(&mapping).expect("serialize config"),
+    )
+    .expect("write config");
+}
+
+#[given(expr = "congregation primary display name is {string}")]
+fn given_congregation_primary_display_name(world: &mut KanbusWorld, display_name: String) {
+    let state = ensure_virtual_state(world);
+    let config_path = state.root.join(".kanbus.yml");
+    let mut mapping: Mapping =
+        serde_yaml::from_str(&fs::read_to_string(&config_path).expect("read config"))
+            .expect("parse config");
+    mapping.insert(
+        YamlValue::String("name".to_string()),
+        YamlValue::String(display_name),
+    );
+    fs::write(
+        config_path,
+        serde_yaml::to_string(&mapping).expect("serialize config"),
+    )
+    .expect("write config");
+}
+
 #[given(expr = "a Kanbus project with new_issue_project set to {string}")]
 fn given_project_with_new_issue_project(world: &mut KanbusWorld, label: String) {
     let state = configure_virtual_projects(world, vec!["alpha", "beta"]);
