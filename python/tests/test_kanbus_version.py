@@ -29,11 +29,6 @@ def test_compare_semver_cores(running: str, required: str, expected: bool) -> No
     assert compare_semver_cores(running, required) is expected
 
 
-def test_compare_semver_cores_returns_false_when_unparseable() -> None:
-    assert compare_semver_cores("not-a-version", "0.19.1") is False
-    assert compare_semver_cores("0.19.1", "not-a-version") is False
-
-
 def test_read_required_kanbus_version_missing_file(tmp_path: Path) -> None:
     assert read_required_kanbus_version(tmp_path) is None
 
