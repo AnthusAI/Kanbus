@@ -24,8 +24,8 @@
   "created_at": "2026-09-09T16:03:53.845499Z",
   "updated_at": "2026-09-09T17:17:24.575290Z",
   "closed_at": null,
-  "right_now_summary": "The JIT gate passed, and work now focuses on shared CLI and console standup reports.",
-  "right_now_updated_at": "2026-09-10T14:00:54.238766Z",
+  "right_now_summary": "The JIT gate cleared, and the team is building shared CLI and console standup reports.",
+  "right_now_updated_at": "2026-09-10T14:21:08.755878Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

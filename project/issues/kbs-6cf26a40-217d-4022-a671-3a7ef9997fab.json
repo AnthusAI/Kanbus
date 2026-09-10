@@ -14,8 +14,8 @@
   "created_at": "2026-09-10T13:43:11.855820Z",
   "updated_at": "2026-09-10T13:44:17.774400Z",
   "closed_at": null,
-  "right_now_summary": "The team is aligning multi-project rollups, close-out prompts, and matching Python and Rust behavior.",
-  "right_now_updated_at": "2026-09-10T14:00:51.770327Z",
+  "right_now_summary": "SD is implementing dual-runtime standup rollups, project labels, deduplication, and close-out prompts.",
+  "right_now_updated_at": "2026-09-10T14:21:06.222451Z",
   "custom": {},
   "agent": {
     "platform": "cursor",

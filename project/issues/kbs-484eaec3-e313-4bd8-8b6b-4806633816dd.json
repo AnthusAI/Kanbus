@@ -4,18 +4,33 @@
   "description": "SD soft nit on #266: close-out stale-WIP net is very wide \u2014 tighten heuristics so the section stays actionable.",
   "type": "task",
   "status": "open",
-  "priority": 2,
+  "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7f080d69-e59c-4f5b-8f37-c730446dae6c",
+      "author": "box",
+      "text": "Ryan upgraded to must-ship (2026-09-10). SD owns Composer implementation after #266.",
+      "created_at": "2026-09-10T14:20:35.843786Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5",
+        "name": "Kanbus",
+        "settings": {}
+      }
+    }
+  ],
   "created_at": "2026-09-10T14:00:31.907382Z",
-  "updated_at": "2026-09-10T14:00:31.941178Z",
+  "updated_at": "2026-09-10T14:20:35.843924Z",
   "closed_at": null,
-  "right_now_summary": "The team is tightening stale-WIP rules to keep the close-out section actionable.",
-  "right_now_updated_at": "2026-09-10T14:00:36.542546Z",
+  "right_now_summary": "SD now owns the Composer implementation after Ryan marked this must-ship.",
+  "right_now_updated_at": "2026-09-10T14:20:40.450438Z",
   "custom": {},
   "agent": {
     "platform": "cursor",
