@@ -6,6 +6,7 @@ Welcome to the Kanbus documentation site. Kanbus is a git-backed project managem
 
 - [Getting Started](GETTING_STARTED.md)
 - [CLI Reference](CLI_REFERENCE.md)
+- [Agent Provenance](AGENT_PROVENANCE.md)
 - [Configuration](CONFIGURATION.md)
 - [Lifecycle Hooks](LIFECYCLE_HOOKS.md)
 - [Realtime Collaboration](REALTIME.md)

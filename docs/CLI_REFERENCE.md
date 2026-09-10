@@ -322,6 +322,9 @@ agent metadata requires native Kanbus issue storage
 - `invalid agent settings JSON: ...`
 - `agent settings must not contain secret-like keys`
 - `agent metadata requires native Kanbus issue storage`
+- `agent metadata is already set`
+
+Maintainer setup for host instructions and environment defaults: [Agent Provenance](AGENT_PROVENANCE.md).
 
 ## Comments
 
