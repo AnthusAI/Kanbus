@@ -386,6 +386,17 @@ def test_fetch_snyk_issues_for_type_applies_severity_threshold(monkeypatch) -> N
     assert [item["attributes"]["key"] for item in issues] == ["S-1"]
 
 
+def test_fetch_snyk_issues_for_type_raises_on_request_exception(monkeypatch) -> None:
+    def fake_get(url: str, headers: dict, timeout: int) -> object:
+        raise snyk_sync.RequestException("network down")
+
+    monkeypatch.setattr(snyk_sync.requests, "get", fake_get)
+    with pytest.raises(snyk_sync.SnykSyncError, match="request failed"):
+        snyk_sync._fetch_snyk_issues_for_type(
+            org_id="org", token="token", min_priority=1, issue_type="code"
+        )
+
+
 def test_fetch_snyk_issues_for_type_raises_on_non_ok(monkeypatch) -> None:
     def fake_get(url: str, headers: dict, timeout: int) -> _FakeResponse:
         return _FakeResponse(ok=False, status_code=502, payload={}, text="gateway")

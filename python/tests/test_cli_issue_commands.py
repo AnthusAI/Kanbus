@@ -558,3 +558,192 @@ def test_comment_update_cli_error_paths(
     invalid_update = _run(["comment", "update", "kanbus-1", "c1", "```json\n{\n```"])
     assert invalid_update.exit_code != 0
     assert "bad comment update" in invalid_update.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=False),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _t: None)
+    monkeypatch.setattr(cli, "update_comment", lambda *_a, **_k: None)
+    signals: list[object] = []
+    monkeypatch.setattr(cli, "emit_signals", lambda *a, **k: signals.append((a, k)))
+    success_update = _run(["comment", "update", "kanbus-1", "c1", "hello"])
+    assert success_update.exit_code == 0
+    assert signals
+
+    monkeypatch.setattr(
+        cli,
+        "update_comment",
+        lambda *_a, **_k: (_ for _ in ()).throw(cli.IssueCommentError("update failed")),
+    )
+    failed_update = _run(["comment", "update", "kanbus-1", "c1", "hello"])
+    assert failed_update.exit_code != 0
+    assert "update failed" in failed_update.output
+
+
+def test_cost_summarize_and_now_generate_cli(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "_enforce_kanbus_version", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "_maybe_prompt_project_repair", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        "kanbus.project.get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        "kanbus.config_loader.load_project_configuration",
+        lambda _p: build_project_configuration(),
+    )
+
+    missing_logs = _run(["cost"])
+    assert missing_logs.exit_code == 0
+    assert "No LLM usage logs found" in missing_logs.output
+
+    log_path = tmp_path / "project" / "events" / "llm_usage.jsonl"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(
+        "\n".join(
+            [
+                "",
+                '{"timestamp":"2020-01-01T00:00:00+00:00","tokens":5,"cost":0.1}',
+                '{"timestamp":"2099-01-01T00:00:00+00:00","tokens":7,"cost":0.2}',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with_days = _run(["cost", "--days", "7"])
+    assert with_days.exit_code == 0
+    assert "Total Tokens: 7" in with_days.output
+    assert "0.2000" in with_days.output
+
+    monkeypatch.setattr(
+        "kanbus.summarize.compaction_summarize",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("summarize failed")),
+    )
+    summarize_fail = _run(["summarize", "kanbus-1"])
+    assert summarize_fail.exit_code != 0
+    assert "summarize failed" in summarize_fail.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing now")),
+    )
+    generate_missing = _run(["now-generate-internal", "kanbus-1"])
+    assert generate_missing.exit_code != 0
+    assert "missing now" in generate_missing.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_issue_from_project",
+        lambda *_a: SimpleNamespace(issue=build_issue("kanbus-1")),
+    )
+    monkeypatch.setattr(cli, "build_leaf_right_now_context", lambda _issue: "ctx")
+    monkeypatch.setattr(
+        cli,
+        "generate_right_now_summary",
+        lambda *_a: (_ for _ in ()).throw(cli.RightNowError("gen fail")),
+    )
+    generate_fail = _run(["now-generate-internal", "kanbus-1"])
+    assert generate_fail.exit_code != 0
+    assert "gen fail" in generate_fail.output
+
+    monkeypatch.setattr(cli, "generate_right_now_summary", lambda *_a: "now text")
+    generate_ok = _run(["now-generate-internal", "kanbus-1"])
+    assert generate_ok.exit_code == 0
+    assert "now text" in generate_ok.output
+
+
+def test_wiki_and_dependabot_cli_error_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_enforce_kanbus_version", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "_maybe_prompt_project_repair", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "check_wiki_page_links", lambda *_a: [])
+    monkeypatch.setattr(cli, "render_wiki_page", lambda *_a, **_k: "html")
+    monkeypatch.setattr(
+        cli,
+        "resolve_wiki_page_path",
+        lambda *_a: (_ for _ in ()).throw(cli.WikiError("resolve fail")),
+    )
+    render_json = _run(["wiki", "render", "index.md", "--json"])
+    assert render_json.exit_code != 0
+    assert "resolve fail" in render_json.output
+
+    monkeypatch.setattr(
+        cli,
+        "init_wiki",
+        lambda *_a: (_ for _ in ()).throw(cli.WikiError("init fail")),
+    )
+    init_fail = _run(["wiki", "init"])
+    assert init_fail.exit_code != 0
+    assert "init fail" in init_fail.output
+
+    monkeypatch.setattr(
+        cli,
+        "get_configuration_path",
+        lambda _p: (_ for _ in ()).throw(cli.ProjectMarkerError("no project")),
+    )
+    monkeypatch.setattr(
+        cli,
+        "_format_project_marker_error",
+        lambda error: str(error),
+    )
+    dependabot_marker = _run(["github", "dependabot", "pull"])
+    assert dependabot_marker.exit_code != 0
+    assert "no project" in dependabot_marker.output
+
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: (_ for _ in ()).throw(cli.ConfigurationError("cfg")),
+    )
+    dependabot_config = _run(["github", "dependabot", "pull"])
+    assert dependabot_config.exit_code != 0
+    assert "bad" in dependabot_config.output or "cfg" in dependabot_config.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(),
+    )
+    monkeypatch.setattr(
+        "kanbus.github_security_sync.pull_dependabot_from_github",
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            __import__(
+                "kanbus.github_security_sync", fromlist=["GithubSecuritySyncError"]
+            ).GithubSecuritySyncError("sync fail")
+        ),
+    )
+    dependabot_sync = _run(
+        [
+            "github",
+            "dependabot",
+            "pull",
+            "--dry-run",
+            "--repo",
+            "org/repo",
+            "--min-severity",
+            "high",
+            "--state",
+            "open",
+            "--parent-epic",
+            "epic-1",
+        ]
+    )
+    assert dependabot_sync.exit_code != 0
+    assert "sync fail" in dependabot_sync.output
+
+    monkeypatch.setattr(
+        "kanbus.github_security_sync.pull_dependabot_from_github_beads",
+        lambda *_a, **_k: SimpleNamespace(pulled=1, updated=2, skipped=3),
+    )
+    beads_pull = _run(["--beads", "gh", "dependabot", "pull"])
+    assert beads_pull.exit_code == 0
+    assert "pulled 1 new" in beads_pull.output

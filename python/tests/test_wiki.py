@@ -367,3 +367,14 @@ def test_list_wiki_pages_success_absolute_relative_and_errors(
     )
     with pytest.raises(wiki.WikiError, match="bad config"):
         wiki.list_wiki_pages(tmp_path)
+
+
+def test_resolve_wiki_internal_link_normalizes_dot_and_parent() -> None:
+    assert (
+        wiki._resolve_wiki_internal_link("guides/index.md", "./page.md")
+        == "guides/page.md"
+    )
+    assert (
+        wiki._resolve_wiki_internal_link("guides/index.md", "../root.md") == "root.md"
+    )
+    assert wiki._resolve_wiki_internal_link("index.md", "../outside.md") == "outside.md"
