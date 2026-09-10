@@ -515,7 +515,7 @@ pub fn ensure_right_now_summary_subtrees(
 ) {
     let mut memo = HashMap::new();
     for identifier in root_identifiers {
-        ensure_right_now_subtree(root, identifier, &selected_identifiers, &mut memo);
+        ensure_right_now_subtree(root, identifier, selected_identifiers, &mut memo);
     }
 }
 

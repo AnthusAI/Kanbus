@@ -118,6 +118,26 @@ async function refreshIssuesSnapshot() {
   return response.json();
 }
 
+async function writeTypedIssue({
+  id,
+  title = "Title",
+  type,
+  status,
+  parent = null
+}) {
+  const now = new Date().toISOString();
+  await writeStatusIssue(
+    buildStatusIssue({
+      id,
+      title,
+      type,
+      status,
+      updatedAt: now,
+      parent
+    })
+  );
+}
+
 async function waitForIssueField(issueId, predicate, timeoutMs = 8000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -532,5 +552,59 @@ Then(
     await expect(this.page.getByTestId("issue-right-now-summary")).toHaveText(
       summary
     );
+  }
+);
+
+Given("mock AI is enabled", async function () {
+  process.env.KANBUS_TEST_AI_MOCK = "1";
+});
+
+Given(
+  "the Kanbus configuration uses AI provider {string} with model {string}",
+  async function (provider, model) {
+    const config = await loadKanbusConfigFile();
+    config.ai = { provider, model };
+    await saveKanbusConfigFile(config);
+  }
+);
+
+Given(
+  "an issue {string} of type {string} with status {string} and title {string}",
+  async function (id, type, status, title) {
+    await writeTypedIssue({ id, type, status, title });
+  }
+);
+
+Given(
+  "an issue {string} of type {string} with status {string} and parent {string}",
+  async function (id, type, status, parent) {
+    await writeTypedIssue({ id, type, status, parent });
+  }
+);
+
+When("I request the console now snapshot", async function () {
+  const response = await fetch(`${consoleApiBase}/now`);
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`console now snapshot failed: ${response.status} ${detail}`);
+  }
+  this.consoleNowIssues = await response.json();
+});
+
+Then(
+  "the console now response should include issue {string} with right-now summary {string}",
+  async function (issueId, expected) {
+    const issues = this.consoleNowIssues;
+    if (!Array.isArray(issues)) {
+      throw new Error("console now response not loaded");
+    }
+    const match = issues.find((item) => item.id === issueId);
+    if (!match) {
+      throw new Error(`issue not found in now response: ${issueId}`);
+    }
+    const actual = match.right_now_summary || "";
+    if (actual !== expected) {
+      throw new Error(`expected summary ${expected}, got ${actual}`);
+    }
   }
 );
