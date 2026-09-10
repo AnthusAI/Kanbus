@@ -85,9 +85,13 @@ NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is 
 
 ## Agent provenance metadata
 
-When you create issues or post comments as an AI agent, Kanbus can optionally record which platform, model, and runtime settings produced the change. This goes beyond `author: agent` or `KANBUS_USER=agent` and helps distinguish Cursor from Codex, Claude Code, or Antigravity in multi-agent workflows.
+When you create issues or post comments as an AI agent, tag the write with Title Case **product**, **model**, and **session name** using `--agent-platform`, `--agent-model`, and `--agent-name` (or matching `KANBUS_AGENT_*` defaults). That records which platform, model, and runtime produced the change beyond `author: agent` or `KANBUS_USER=agent`, and helps distinguish Cursor, Codex, Claude Code, Antigravity, and Grok Bot in multi-agent workflows.
 
-Agent metadata is optional. When absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
+**Complete provenance** is platform + model + name. Settings (`--agent-settings`, `KANBUS_AGENT_SETTINGS`) stay optional.
+
+If you omit tags on `create` or `comment`, the command still succeeds. Kanbus prints a warning on stderr with a ready `kbs update` or `kbs comment update` command. Copy that command to fill the same issue or comment. Use `--no-agent-provenance` when tagging does not apply and you want to silence the warning.
+
+`update` and `comment update` accept `--agent-*` to fill missing tags. Once platform, model, and name are all set, they are not replaced. `close` does not take agent flags.
 
 ### Environment variables
 
@@ -98,7 +102,7 @@ Set defaults once per session; CLI flags override environment values. Empty or w
 | `KANBUS_AGENT_PLATFORM` | Default agent product name |
 | `KANBUS_AGENT_MODEL` | Default model name |
 | `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
-| `KANBUS_AGENT_NAME` | Optional session or bot name for display |
+| `KANBUS_AGENT_NAME` | Session or bot name (required for complete provenance) |
 
 Platform and model must both be present or both absent. Partial metadata fails with `agent metadata requires both platform and model`.
 
@@ -109,11 +113,7 @@ These flags are available on `create`, `comment`, `update`, and `comment update`
 - `--agent-platform <name>` — Coding agent product name
 - `--agent-model <name>` — Model name
 - `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
-- `--agent-name <name>` — Optional session or bot label (not the product name)
-
-If you omit tags, create and comment still succeed and print a warning with a ready `kbs update` or `kbs comment update` command. Copy that command to add platform, model, and session name in one step. `--no-agent-provenance` silences the warning when tagging does not apply.
-
-`update` and `comment update` accept `--agent-*` to fill provenance when it is missing. Once platform, model, and name are set, they are not replaced. `close` does not take agent flags.
+- `--agent-name <name>` — Session or bot label for this run (required for complete provenance; not the product name)
 
 ### Product and model names
 
@@ -141,7 +141,7 @@ If yours is not listed, use a short Title Case product name anyway.
 - Claude Sonnet 4
 - Grok 4
 
-**Session name** (`--agent-name`, `KANBUS_AGENT_NAME`): optional label for this run or bot (for example `Cloud Agent`, `bugbot`). This identifies the session, not the product.
+**Session name** (`--agent-name`, `KANBUS_AGENT_NAME`): label for this run or bot (for example `Cloud Agent`, `bugbot`). Required for complete provenance. This identifies the session, not the product.
 
 Host-specific instruction snippets (Cursor, Claude Code, Codex, Antigravity, Grok Bot) live in `docs/AGENT_PROVENANCE.md` and on the Kanb.us Agent Provenance page. Do not put product or model names in shared `AGENTS.md`.
 
@@ -174,6 +174,7 @@ Use native Kanbus issue storage when you need agent provenance.
 ```bash
 export KANBUS_AGENT_PLATFORM="Cursor"
 export KANBUS_AGENT_MODEL="Composer 2.5"
+export KANBUS_AGENT_NAME="Cloud Agent"
 
 kbs create "Implement feature X" --type task --parent <epic-id>
 kbs comment <id> "Progress: schema drafted"
@@ -184,7 +185,8 @@ Override defaults for a single comment:
 ```bash
 kbs comment <id> "Deep review done" \
   --agent-platform "Codex" \
-  --agent-model "GPT-5" \
+  --agent-model "GPT-5.6" \
+  --agent-name "Cloud Agent" \
   --agent-settings '{"thinking_level":"high"}'
 ```
 
