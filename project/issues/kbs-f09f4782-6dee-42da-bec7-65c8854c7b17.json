@@ -1,0 +1,26 @@
+{
+  "id": "kbs-f09f4782-6dee-42da-bec7-65c8854c7b17",
+  "title": "Gherkin: standup --rollup project|tree defaults and shapes",
+  "description": "## Intent\nAs a multi-project agent operator, I want `--rollup project` and `--rollup tree` with sensible defaults, so standup output matches congregation vs single-board context.\n\n## Behavior\n- `--rollup project`: one bullet per project, upward-summarized\n- `--rollup tree`: nested project\u2192epic\u2192leaf\n- Default: project at multi-project / congregation; tree OK inside single board\n\n## DoD\nGherkin dual-runtime scenarios; no production code beyond failing specs in this story if specs-first split.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:43:34.236130Z",
+  "updated_at": "2026-09-10T13:43:34.276044Z",
+  "closed_at": null,
+  "right_now_summary": "The team is defining rollup modes and defaults for multi-project and single-board standup views.",
+  "right_now_updated_at": "2026-09-10T13:43:38.988890Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}

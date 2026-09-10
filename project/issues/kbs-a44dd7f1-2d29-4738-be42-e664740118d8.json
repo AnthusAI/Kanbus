@@ -1,0 +1,26 @@
+{
+  "id": "kbs-a44dd7f1-2d29-4738-be42-e664740118d8",
+  "title": "Gherkin: standup close-out section + empty Yesterday",
+  "description": "## Intent\nAs a WIP controller, I want a close-out section and explicit empty Yesterday, so standup drives kanban hygiene instead of vague Likely questions.\n\n## Behavior\n- Close-out: ready-to-close / merged-but-still-in_progress / blocked-only-on-external-wait\n- Replace or demote useless \u201cWhy is X still in progress?\u201d Likely questions\n- Empty Yesterday: explicit \u201cno completions\u201d (never blank)\n\n## DoD\nGherkin dual-runtime scenarios.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:43:55.840250Z",
+  "updated_at": "2026-09-10T13:43:55.873315Z",
+  "closed_at": null,
+  "right_now_summary": "The team is defining close-out prompts and a clear \u201cno completions\u201d message for empty Yesterday updates.",
+  "right_now_updated_at": "2026-09-10T13:44:00.864590Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}

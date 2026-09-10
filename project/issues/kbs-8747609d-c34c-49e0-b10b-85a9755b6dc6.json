@@ -1,0 +1,26 @@
+{
+  "id": "kbs-8747609d-c34c-49e0-b10b-85a9755b6dc6",
+  "title": "Gherkin: recursive upward right-now, project labels, dedupe",
+  "description": "## Intent\nAs a reader of multi-project standup, I want parent/initiative/project bullets recomputed from children with project labels and no parent+child duplicate text.\n\n## Behavior\n- Recursive upward right-now (LLM or structured reduce), not flat leaf dump\n- Project labels on every multi-project bullet\n- Deduplicate parent+child saying the same thing\n\n## DoD\nObservable Gherkin scenarios dual-runtime.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:43:45.282720Z",
+  "updated_at": "2026-09-10T13:43:45.323960Z",
+  "closed_at": null,
+  "right_now_summary": "The team is defining recursive rollups, project labels, and deduplication for multi-project standups.",
+  "right_now_updated_at": "2026-09-10T13:43:50.294742Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}
