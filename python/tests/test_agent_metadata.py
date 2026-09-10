@@ -5,8 +5,10 @@ import pytest
 from kanbus.agent_metadata import (
     AgentMetadataRequest,
     AgentMetadataResolutionError,
+    assign_agent_metadata_if_incomplete,
     build_agent_metadata,
     format_agent_display_line,
+    format_agent_provenance_warning,
     reject_agent_metadata_in_beads_mode,
     resolve_agent_metadata,
 )
@@ -166,3 +168,21 @@ def test_format_agent_settings_display() -> None:
     assert "temperature=0.5" in display
     assert "speed=fast" in display
     assert "reasoning_effort=turbo" in display
+
+
+def test_format_agent_provenance_warning_includes_follow_up() -> None:
+    warning = format_agent_provenance_warning("kanbus-aaa", None)
+    assert "agent provenance is incomplete (missing: platform, model, name)" in warning
+    assert "CONTRIBUTING_AGENT.md" in warning
+    assert 'kbs update kanbus-aaa --agent-platform "Cursor"' in warning
+    assert '--agent-model "Composer 2.5"' in warning
+    assert '--agent-name "Cloud Agent"' in warning
+    assert "--no-agent-provenance" in warning
+
+
+def test_assign_agent_metadata_rejects_complete_replace() -> None:
+    existing = build_agent_metadata("cursor", "Composer 2.5", {}, name="Cloud Agent")
+    incoming = build_agent_metadata("codex", "GPT-5", {}, name="Other")
+    with pytest.raises(AgentMetadataResolutionError) as error:
+        assign_agent_metadata_if_incomplete(existing, incoming)
+    assert str(error.value) == "agent metadata is already set"

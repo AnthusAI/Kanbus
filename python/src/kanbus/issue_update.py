@@ -19,7 +19,11 @@ from kanbus.issue_lookup import (
     resolve_issue_identifier,
 )
 from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
-from kanbus.models import IssueData
+from kanbus.agent_metadata import (
+    AgentMetadataResolutionError,
+    assign_agent_metadata_if_incomplete,
+)
+from kanbus.models import AgentMetadata, IssueData
 from kanbus.project import get_configuration_path
 from kanbus.workflows import (
     InvalidTransitionError,
@@ -62,6 +66,7 @@ def update_issue(
     set_labels: Optional[list[str]] = None,
     parent: Optional[str] = None,
     issue_type: Optional[str] = None,
+    agent: Optional[AgentMetadata] = None,
 ) -> IssueUpdateResult:
     """Update an issue and persist it to disk.
 
@@ -89,6 +94,8 @@ def update_issue(
     :type set_labels: Optional[list[str]]
     :param parent: Updated parent identifier.
     :type parent: Optional[str]
+    :param agent: Agent provenance to set when the issue has none or is incomplete.
+    :type agent: Optional[AgentMetadata]
     :return: Updated issue data and whether disk state changed.
     :rtype: IssueUpdateResult
     :raises IssueUpdateError: If the update fails.
@@ -105,6 +112,7 @@ def update_issue(
         or set_labels is not None
         or parent is not None
         or issue_type is not None
+        or agent is not None
     )
 
     try:
@@ -232,6 +240,12 @@ def update_issue(
             except InvalidHierarchyError as error:
                 raise IssueUpdateError(str(error)) from error
 
+    try:
+        assigned_agent = assign_agent_metadata_if_incomplete(updated_issue.agent, agent)
+    except AgentMetadataResolutionError as error:
+        raise IssueUpdateError(str(error)) from error
+    agent_changed = assigned_agent != updated_issue.agent
+
     if (
         resolved_status is None
         and resolved_type is None
@@ -241,6 +255,7 @@ def update_issue(
         and priority is None
         and labels is None
         and updated_parent is None
+        and not agent_changed
     ):
         if fields_requested:
             return IssueUpdateResult(issue=before_issue, changed=False)
@@ -284,6 +299,8 @@ def update_issue(
         update_fields["parent"] = updated_parent
     if resolved_type is not None:
         update_fields["issue_type"] = resolved_type
+    if agent_changed:
+        update_fields["agent"] = assigned_agent
 
     updated_issue = updated_issue.model_copy(update=update_fields)
 

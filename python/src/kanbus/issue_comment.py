@@ -6,7 +6,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
 from uuid import uuid4
+
+from kanbus.agent_metadata import (
+    AgentMetadataResolutionError,
+    assign_agent_metadata_if_incomplete,
+)
 
 from kanbus.event_history import (
     comment_payload,
@@ -195,9 +201,28 @@ def ensure_issue_comment_ids(root: Path, identifier: str) -> IssueData:
 
 
 def update_comment(
-    root: Path, identifier: str, comment_id: str, text: str
+    root: Path,
+    identifier: str,
+    comment_id: str,
+    text: Optional[str] = None,
+    agent: Optional[AgentMetadata] = None,
 ) -> IssueData:
-    """Update a comment by id prefix."""
+    """Update a comment by id prefix.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param comment_id: Comment id or prefix.
+    :type comment_id: str
+    :param text: Replacement comment text, or None to leave text unchanged.
+    :type text: Optional[str]
+    :param agent: Agent provenance to set when the comment is incomplete.
+    :type agent: Optional[AgentMetadata]
+    :return: Persisted issue.
+    :rtype: IssueData
+    :raises IssueCommentError: If the update fails.
+    """
     try:
         lookup = load_issue_from_project(root, identifier)
     except IssueLookupError as error:
@@ -206,7 +231,20 @@ def update_comment(
     index = _find_comment_index(issue, comment_id)
     comments = list(issue.comments)
     existing_comment = comments[index]
-    updated_comment = comments[index].model_copy(update={"text": text})
+    try:
+        assigned_agent = assign_agent_metadata_if_incomplete(
+            existing_comment.agent, agent
+        )
+    except AgentMetadataResolutionError as error:
+        raise IssueCommentError(str(error)) from error
+    update_fields = {}
+    if text is not None:
+        update_fields["text"] = text
+    if assigned_agent != existing_comment.agent:
+        update_fields["agent"] = assigned_agent
+    if not update_fields:
+        raise IssueCommentError("no comment updates requested")
+    updated_comment = comments[index].model_copy(update=update_fields)
     comments[index] = updated_comment
     updated = issue.model_copy(update={"comments": comments})
     if not existing_comment.id:

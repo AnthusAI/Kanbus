@@ -101,6 +101,51 @@ def given_issue_with_agent_metadata(
     write_issue_file(project_dir, issue)
 
 
+@given(
+    'an issue "{identifier}" exists with agent metadata platform "{platform}" model "{model}" and name "{name}"'
+)
+def given_issue_with_complete_agent_metadata(
+    context: object, identifier: str, platform: str, model: str, name: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = build_issue(identifier, "Agent tagged issue", "task", "open", None, [])
+    issue = issue.model_copy(
+        update={
+            "agent": AgentMetadata(platform=platform, model=model, name=name),
+        }
+    )
+    write_issue_file(project_dir, issue)
+
+
+@then("the created issue should not have agent metadata")
+def then_created_issue_has_no_agent_metadata(context: object) -> None:
+    identifier = capture_issue_identifier(context)
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.agent is None
+
+
+@then(
+    'issue "{identifier}" should have agent metadata platform "{platform}" and model "{model}"'
+)
+def then_issue_has_agent_metadata(
+    context: object, identifier: str, platform: str, model: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.agent is not None
+    assert issue.agent.platform == platform
+    assert issue.agent.model == model
+
+
+@then('issue "{identifier}" should have agent name "{name}"')
+def then_issue_has_agent_name(context: object, identifier: str, name: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.agent is not None
+    assert issue.agent.name == name
+
+
 @then(
     'the created issue should have agent metadata platform "{platform}" and model "{model}"'
 )
@@ -125,6 +170,13 @@ def then_latest_comment_has_agent_metadata(
     assert latest.agent is not None
     assert latest.agent.platform == platform
     assert latest.agent.model == model
+
+
+@then('the latest comment should have text "Done"')
+def then_latest_comment_has_text_done(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, "kanbus-aaa")
+    assert issue.comments[-1].text == "Done"
 
 
 @then('the latest comment should have agent settings speed "{speed}"')
