@@ -3,22 +3,34 @@
   "title": "Require AI agent provenance in CONTRIBUTING_AGENT and generalize git policy to AGENTS.md",
   "description": "",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "9b365d1a-6f51-4fe6-86e9-17b65feac2c8",
+      "author": "ubuntu",
+      "text": "Delivered required agent provenance instructions and AGENTS.md git policy split.",
+      "created_at": "2026-09-10T13:36:06.066774498Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5"
+      }
+    }
+  ],
   "created_at": "2026-09-10T13:31:14.080658990Z",
-  "updated_at": "2026-09-10T13:35:38.345483611Z",
-  "closed_at": null,
+  "updated_at": "2026-09-10T13:36:06.066795702Z",
+  "closed_at": "2026-09-10T13:36:03.129137748Z",
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5"
   },
-  "right_now_summary": "The contribution guide is being updated to require AI agent provenance and apply git policy through AGENTS.md.",
-  "right_now_updated_at": "2026-09-10T13:35:41.105156204Z",
+  "right_now_summary": "Agent provenance instructions and a general git policy were added to CONTRIBUTING_AGENT and AGENTS.md.",
+  "right_now_updated_at": "2026-09-10T13:36:08.215651439Z",
   "custom": {}
 }
