@@ -194,10 +194,12 @@ fn when_generate_standup_report(world: &mut KanbusWorld) {
     let generated = if generation_should_fail {
         Err("standup generation failed".to_string())
     } else {
-        let root = world
-            .working_directory
-            .clone()
-            .expect("working directory not initialized");
+        let root = world.working_directory.clone().unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .expect("repository root")
+                .to_path_buf()
+        });
         let console_state = require_console_state(world);
         generate_from_console_state(console_state, &profile, &root)
     };

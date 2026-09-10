@@ -49,6 +49,20 @@ class StandupPanelState:
     generation_should_fail: bool = False
 
 
+def _standup_repository_root(context: object) -> Path:
+    """Return the repository root used to load standup configuration.
+
+    :param context: Behave context object.
+    :type context: object
+    :return: Repository root path.
+    :rtype: Path
+    """
+    working = getattr(context, "working_directory", None)
+    if working is not None:
+        return Path(working)
+    return Path(__file__).resolve().parents[3]
+
+
 def _ensure_standup_state(context: object) -> StandupPanelState:
     state = getattr(context, "console_standup_state", None)
     if state is None:
@@ -201,7 +215,7 @@ def when_generate_standup_report(context: object) -> None:
         report_text, section_names = _generate_from_console_state(
             console_state,
             standup.profile,
-            Path(context.working_directory),
+            _standup_repository_root(context),
         )
     except Exception as error:
         standup.is_generating = False

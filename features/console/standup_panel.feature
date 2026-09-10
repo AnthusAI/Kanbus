@@ -32,6 +32,7 @@ Feature: Console standup in the Now panel
     And I generate the standup report
     Then the standup drawer should show section "Yesterday"
     And the standup drawer should show section "Today"
+    And the standup drawer should show section "Close-out"
     And the standup drawer should show section "Blockers"
     And the standup drawer should show section "Likely questions"
     And the standup drawer result should mention "Working on alpha"
@@ -47,6 +48,7 @@ Feature: Console standup in the Now panel
     Then the standup drawer should show section "Health"
     And the standup drawer should show section "Momentum"
     And the standup drawer should show section "Risks"
+    And the standup drawer should show section "Close-out"
     And the standup drawer should show section "Blockers"
     And the standup drawer result should mention "Board health work"
 

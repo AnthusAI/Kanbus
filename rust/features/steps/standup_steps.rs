@@ -696,7 +696,10 @@ fn standup_section_bullets(world: &KanbusWorld, section_name: &str) -> Vec<Strin
     let section_text = extract_section_text(&stdout, section_name);
     section_text
         .lines()
-        .filter_map(|line| line.strip_prefix("- ").map(str::trim).map(str::to_string))
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            trimmed.strip_prefix("- ").map(|bullet| bullet.to_string())
+        })
         .collect()
 }
 

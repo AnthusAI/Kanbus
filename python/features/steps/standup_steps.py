@@ -626,9 +626,10 @@ def _standup_section_bullets(context: object, section_name: str) -> list[str]:
     section_text = extract_section_text(stdout, section_name)
     bullets: list[str] = []
     for line in section_text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("- "):
-            bullets.append(stripped[2:])
+        trimmed_start = line.lstrip()
+        if trimmed_start.startswith("- "):
+            bullet_start = line.find("- ") + 2
+            bullets.append(line[bullet_start:])
     return bullets
 
 
