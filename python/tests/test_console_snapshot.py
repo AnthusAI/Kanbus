@@ -131,6 +131,43 @@ def test_active_right_now_tree_includes_ancestors_and_all_descendants() -> None:
     }
 
 
+def test_build_console_now_issues_backfills_active_trees(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parent = build_issue("kanbus-parent")
+    active = build_issue("kanbus-active")
+    active.status = "in_progress"
+    active.parent = parent.identifier
+    config = build_project_configuration()
+    loads = {"count": 0}
+
+    def fake_load(_root, _project, _config):
+        loads["count"] += 1
+        return [parent, active]
+
+    backfills = []
+
+    def fake_ensure(root, roots, selected):
+        backfills.append((root, list(roots), set(selected)))
+
+    monkeypatch.setattr(
+        console_snapshot,
+        "_load_project_context",
+        lambda _root: (tmp_path / "project", config),
+    )
+    monkeypatch.setattr(console_snapshot, "_load_console_issues", fake_load)
+    monkeypatch.setattr(
+        "kanbus.right_now.ensure_right_now_summary_subtrees", fake_ensure
+    )
+
+    payload = console_snapshot.build_console_now_issues(tmp_path)
+
+    assert loads["count"] == 2
+    assert [item["id"] for item in payload] == ["kanbus-parent", "kanbus-active"]
+    assert backfills[0][1] == ["kanbus-parent"]
+    assert backfills[0][2] == {"kanbus-parent", "kanbus-active"}
+
+
 def test_load_project_context_wraps_configuration_lookup_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
