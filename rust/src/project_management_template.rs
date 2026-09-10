@@ -47,6 +47,31 @@ Operational discipline: use the minimum commands needed. To inspect work, run `k
 
 Editing project/ directly bypasses the record The Way depends on. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
+## Committing project state to git
+
+Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted.
+
+After you update or close cards, persist Kanbus-written issue state:
+
+```bash
+kbs commit
+```
+
+Then push to the branch your project uses for shared board state (see **AGENTS.md** in this repository).
+
+`kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
+
+Notes:
+- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after board changes so collaborators see current state.
+- `project/events/` holds event logs. `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files. `kbs commit` persists Kanbus-written issue state without hand-editing JSON.
+
+## Git commits and pull requests
+
+Rules for product-code commits, branch names, pull requests, reviews, and when human approval is required are **project-specific**. They live in this repository's **AGENTS.md**, not in this file.
+
+Read AGENTS.md before you push code or open a pull request. CONTRIBUTING_AGENT.md describes Kanbus workflow and board mechanics only.
+
 ## The Order of Being
 
 All work is structured.
@@ -192,6 +217,94 @@ When to use the wiki:
 Cache behavior:
 - AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
 - Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues, templates, or story reference JSON change on pages that call references()).
+
+## Agent provenance metadata
+
+When you act as an AI coding agent (Cursor, Claude Code, Codex, Antigravity, or similar), you MUST record agent provenance on every `kbs create` and `kbs comment`. Provenance goes beyond `author: agent` or `KANBUS_USER=agent`: it identifies which platform and model produced the change so multi-agent workflows stay auditable.
+
+Recording provenance is part of **Recorded** under The Discipline of Work. It is not optional polish for AI agents.
+
+Purely human authors do not need agent metadata. Omit the `agent` field when a human creates issues or comments without an AI acting on their behalf.
+
+Set session defaults once per run with environment variables; override with CLI flags when the model or tool changes mid-session. When metadata is absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
+
+### Environment variables
+
+Set defaults once per session; CLI flags override environment values. Empty or whitespace-only environment values are treated as absent.
+
+| Variable | Purpose |
+| --- | --- |
+| `KANBUS_AGENT_PLATFORM` | Default agent platform |
+| `KANBUS_AGENT_MODEL` | Default model identifier |
+| `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
+| `KANBUS_AGENT_NAME` | Optional session or bot name for display |
+
+Platform and model must both be present or both absent. Partial metadata fails with `agent metadata requires both platform and model`.
+
+### CLI flags
+
+These flags are available on `create` and `comment` only:
+
+- `--agent-platform <id>`
+- `--agent-model <id>`
+- `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
+- `--agent-name <name>` — Optional session or bot display name
+
+`kanbus update` does not accept agent flags. Issue `agent` metadata is set at create only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance on comments.
+
+### Canonical platforms
+
+Prefer these platform identifiers:
+
+- `claude_code`
+- `codex`
+- `antigravity`
+- `cursor`
+
+Kanbus accepts any lowercase string matching `^[a-z0-9_-]{1,64}$`. The canonical list is for consistency and autocomplete; storage is not a closed enum.
+
+### Settings
+
+`--agent-settings` and `KANBUS_AGENT_SETTINGS` accept a JSON object. Recommended keys:
+
+- `temperature` — model temperature (for example `0.7`)
+- `thinking_level` — reasoning depth (for example `off`, `low`, `medium`, `high`)
+- `max_output_tokens` — positive integer output limit
+
+Other non-secret keys are accepted (for example `speed`, `reasoning_effort`). Kanbus does not enforce a closed allowlist of settings keys.
+
+**No secrets:** Never store API keys, tokens, passwords, or credentials in agent metadata. Keys whose names match `api_key`, `token`, `secret`, `password`, or `credential` (case-insensitive) are rejected with `agent settings must not contain secret-like keys`. Keep credentials in your agent host environment instead.
+
+The serialized `agent` block is limited to 2 KB.
+
+### Beads compatibility
+
+In Beads compatibility mode (`--beads` or `beads_compatibility: true` in `.kanbus.yml`), agent flags and environment defaults that would produce metadata are rejected:
+
+```
+agent metadata requires native Kanbus issue storage
+```
+
+Use native Kanbus issue storage when you need agent provenance.
+
+### Example workflow
+
+```bash
+export KANBUS_AGENT_PLATFORM=cursor
+export KANBUS_AGENT_MODEL=composer-2.5
+
+kbs create "Implement feature X" --type task --parent <epic-id>
+kbs comment <id> "Progress: schema drafted"
+```
+
+Override defaults for a single comment:
+
+```bash
+kbs comment <id> "Deep review done" \
+  --agent-platform codex \
+  --agent-model gpt-5 \
+  --agent-settings '{"thinking_level":"high"}'
+```
 
 ## Command examples
 
