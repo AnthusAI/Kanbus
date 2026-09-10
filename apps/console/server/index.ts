@@ -181,6 +181,14 @@ async function getSnapshotForRequest(
   return getSnapshot();
 }
 
+const commandRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "rate limit exceeded" }
+});
+
 const apiRouter = express.Router();
 
 apiRouter.get("/auth/bootstrap", (_req, res) => {
@@ -227,7 +235,7 @@ apiRouter.get("/issues", async (_req, res) => {
   }
 });
 
-apiRouter.get("/now", async (_req, res) => {
+apiRouter.get("/now", commandRateLimit, async (_req, res) => {
   try {
     if (!kanbusPython) {
       throw new Error("KANBUS_PYTHON is required to serve /api/now");
@@ -498,15 +506,7 @@ async function wikiRenderPage(relativePagePath: string): Promise<string> {
   return stdout.trimEnd();
 }
 
-const wikiRateLimit = rateLimit({
-  windowMs: 60_000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "rate limit exceeded" }
-});
-
-apiRouter.get("/wiki/pages", wikiRateLimit, async (_req, res) => {
+apiRouter.get("/wiki/pages", commandRateLimit, async (_req, res) => {
   try {
     const result = await listWikiPages();
     res.json(result);
@@ -515,7 +515,7 @@ apiRouter.get("/wiki/pages", wikiRateLimit, async (_req, res) => {
   }
 });
 
-apiRouter.get("/wiki/page", wikiRateLimit, async (req, res) => {
+apiRouter.get("/wiki/page", commandRateLimit, async (req, res) => {
   try {
     const raw = req.query.path;
     if (typeof raw !== "string") {
@@ -542,7 +542,7 @@ apiRouter.get("/wiki/page", wikiRateLimit, async (req, res) => {
 
 apiRouter.post(
   "/wiki/page",
-  wikiRateLimit,
+  commandRateLimit,
   express.json({ limit: "2mb" }),
   async (req, res) => {
     try {
@@ -579,7 +579,7 @@ apiRouter.post(
 
 apiRouter.put(
   "/wiki/page",
-  wikiRateLimit,
+  commandRateLimit,
   express.json({ limit: "2mb" }),
   async (req, res) => {
     try {
@@ -610,7 +610,7 @@ apiRouter.put(
   }
 );
 
-apiRouter.delete("/wiki/page", wikiRateLimit, async (req, res) => {
+apiRouter.delete("/wiki/page", commandRateLimit, async (req, res) => {
   try {
     const raw = req.query.path;
     if (typeof raw !== "string") {
@@ -637,7 +637,7 @@ apiRouter.delete("/wiki/page", wikiRateLimit, async (req, res) => {
 
 apiRouter.post(
   "/wiki/rename",
-  wikiRateLimit,
+  commandRateLimit,
   express.json({ limit: "16kb" }),
   async (req, res) => {
     try {
@@ -678,7 +678,7 @@ apiRouter.post(
 
 apiRouter.post(
   "/wiki/render",
-  wikiRateLimit,
+  commandRateLimit,
   express.json({ limit: "2mb" }),
   async (req, res) => {
     try {

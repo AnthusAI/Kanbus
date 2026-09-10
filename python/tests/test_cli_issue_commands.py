@@ -371,7 +371,9 @@ def test_close_move_promote_localize_comment_paths(
     monkeypatch.setattr(
         cli,
         "add_comment",
-        lambda **_k: SimpleNamespace(issue=issue, comment=SimpleNamespace(id="c1")),
+        lambda **_k: SimpleNamespace(
+            issue=issue, comment=SimpleNamespace(id="c1", agent=None)
+        ),
     )
     result_comment = _run(["comment", "kanbus-1", "hello"])
     assert result_comment.exit_code == 0

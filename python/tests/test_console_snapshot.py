@@ -10,6 +10,7 @@ from kanbus import console_snapshot
 from kanbus.config_loader import ConfigurationError
 from kanbus.models import OverlayConfig
 from kanbus.project import ProjectMarkerError
+from kanbus.right_now import active_right_now_tree
 
 from test_helpers import build_issue, build_project_configuration
 
@@ -116,7 +117,7 @@ def test_active_right_now_tree_includes_ancestors_and_all_descendants() -> None:
     discovery_child.parent = discovery.identifier
     unrelated = build_issue("kanbus-unrelated")
 
-    roots, selected = console_snapshot._active_right_now_tree(
+    roots, selected = active_right_now_tree(
         [epic, parent, active, discovery, discovery_child, unrelated]
     )
 
