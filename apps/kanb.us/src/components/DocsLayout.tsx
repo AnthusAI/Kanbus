@@ -10,6 +10,7 @@ type SidebarLink = {
 const sidebarLinks: SidebarLink[] = [
   { label: "Overview", href: "/docs" },
   { label: "CLI Reference", href: "/docs/cli" },
+  { label: "Agent Provenance", href: "/docs/agent-provenance" },
   { label: "Configuration", href: "/docs/configuration" },
   { label: "Directory Structure", href: "/docs/directory-structure" },
   { label: "Features", href: "#", isHeader: true },

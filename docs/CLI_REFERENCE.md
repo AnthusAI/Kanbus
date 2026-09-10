@@ -75,9 +75,9 @@ Options:
 - `--label <label>` Add a label (repeatable)
 - `--blocked-by <id>` Add a blocked-by dependency (repeatable)
 - `--description <text>` Set description body (use `-` to read from stdin)
-- `--agent-platform <id>` Agent platform (see Agent metadata)
-- `--agent-model <id>` Model identifier
-- `--agent-name <name>` Optional session or bot display name
+- `--agent-platform <name>` Agent product name (Title Case; see Agent metadata)
+- `--agent-model <name>` Model name (Title Case)
+- `--agent-name <name>` Session or bot display name (required for complete provenance)
 - `--agent-settings <json>` JSON object of runtime settings
 
 Example:
@@ -90,7 +90,7 @@ Example with agent metadata:
 
 ```bash
 kanbus create "Agent task" --type task \
-  --agent-platform cursor --agent-model composer-2.5 \
+  --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent" \
   --agent-settings '{"thinking_level":"high"}'
 ```
 
@@ -118,8 +118,12 @@ Options:
 - `--title <text>` Change title
 - `--add-label <label>` Add a label
 - `--remove-label <label>` Remove a label
+- `--agent-platform <name>` Agent product name (Title Case; see Agent metadata)
+- `--agent-model <name>` Model name (Title Case)
+- `--agent-name <name>` Session or bot display name (required for complete provenance)
+- `--agent-settings <json>` JSON object of runtime settings
 
-Note: Agent metadata is not supported on `update`. Issue `agent` is set at `create` only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance.
+Note: Incomplete provenance on `create` and `comment` warns with a one-step `kbs update` or `kbs comment update` command. Those commands set `agent` when it is missing. Complete metadata is not replaced.
 
 Example:
 
@@ -239,18 +243,20 @@ kanbus dep tree <id> [--depth N] [--format FORMAT]
 
 ## Agent metadata
 
-Optional provenance metadata records which AI platform, model, and runtime settings produced an issue or comment. Metadata is stored in native Kanbus issue JSON, included in event payloads when present, and displayed in CLI and console output only when present.
+Tag `create` and `comment` with Title Case product, model, and session name (`--agent-platform`, `--agent-model`, `--agent-name`, or matching `KANBUS_AGENT_*` defaults). That is the expected path for agent provenance. Settings (`--agent-settings`) stay optional. If provenance is incomplete, the write still succeeds and stderr warns with a ready `kbs update` or `kbs comment update` command. Native Kanbus issue JSON stores the `agent` block when present; event payloads include it when present. CLI and console output omit the Agent row when metadata is absent — that is display behavior, not permission to skip tagging. Platform and model without a session name still store and display an Agent row, and still warn that provenance is incomplete.
 
 ### CLI flags
 
 | Flag | Field | Commands |
 | --- | --- | --- |
-| `--agent-platform <id>` | `platform` | `create`, `comment` |
-| `--agent-model <id>` | `model` | `create`, `comment` |
-| `--agent-name <name>` | `name` | `create`, `comment` |
-| `--agent-settings <json>` | `settings` | `create`, `comment` |
+| `--agent-platform <name>` | `platform` | `create`, `comment`, `update`, `comment update` |
+| `--agent-model <name>` | `model` | `create`, `comment`, `update`, `comment update` |
+| `--agent-name <name>` | `name` | `create`, `comment`, `update`, `comment update` |
+| `--agent-settings <json>` | `settings` | `create`, `comment`, `update`, `comment update` |
 
-`update` does not accept agent flags. Issue `agent` is create-only and immutable.
+`update` and `comment update` set `agent` only when the issue or comment is missing complete provenance (platform, model, and name). Complete metadata is not replaced. `close` does not accept agent flags.
+
+On `create` and `comment`, incomplete provenance warns on stderr with a ready `kbs update` or `kbs comment update` command. Use `--no-agent-provenance` to silence the warning when tagging does not apply.
 
 ### Environment variables
 
@@ -263,20 +269,15 @@ When a flag is omitted, Kanbus reads these environment variables (flags override
 
 Empty or whitespace-only environment values are ignored. Platform and model must both be present or both absent.
 
-### Platform validation
+### Product and model names
 
-Platform values are lowercased and must match `^[a-z0-9_-]{1,64}$`.
+Pass **Title Case** product and model names on the CLI (for example `Cursor`, `Claude Code`, `Composer 2.5`). Do not use a separate slug or identifier as the input convention.
 
-Canonical platform identifiers (prefer these):
+Kanbus stores `platform` lowercased with spaces replaced by underscores (for example `Claude Code` becomes `claude_code`). `model` is stored as you provide it. After that normalization, `platform` must match `^[a-z0-9_-]{1,64}$` (a storage charset check, not a product allowlist).
 
-| Platform | Typical use |
-| --- | --- |
-| `cursor` | Cursor agents |
-| `codex` | OpenAI Codex |
-| `claude_code` | Claude Code |
-| `antigravity` | Antigravity |
+**Preferred products** (examples, not a closed enum): Cursor, Codex, Claude Code, Antigravity, Grok Bot.
 
-Other valid lowercase identifiers are accepted; storage is not a closed enum.
+**Model examples** (not exhaustive): Composer 2.5, GPT-5.6, Claude Sonnet 4, Grok 4.
 
 ### Settings
 
@@ -297,8 +298,8 @@ When present:
 ```json
 {
   "platform": "cursor",
-  "model": "composer-2.5",
-  "name": "cloud-agent",
+  "model": "Composer 2.5",
+  "name": "Cloud Agent",
   "settings": {
     "thinking_level": "high"
   }
@@ -318,10 +319,13 @@ agent metadata requires native Kanbus issue storage
 ### Common errors
 
 - `agent metadata requires both platform and model`
-- `invalid agent platform`
+- `invalid agent platform` — stored platform failed the charset check after lowercasing and spaces-to-underscores (`^[a-z0-9_-]{1,64}$`)
 - `invalid agent settings JSON: ...`
 - `agent settings must not contain secret-like keys`
 - `agent metadata requires native Kanbus issue storage`
+- `agent metadata is already set`
+
+Maintainer setup for host instructions and environment defaults: [Agent Provenance](AGENT_PROVENANCE.md).
 
 ## Comments
 
@@ -334,9 +338,9 @@ kanbus comment <id> <text> [options]
 ```
 
 Options:
-- `--agent-platform <id>` Agent platform (see Agent metadata)
-- `--agent-model <id>` Model identifier
-- `--agent-name <name>` Optional session or bot display name
+- `--agent-platform <name>` Agent product name (Title Case; see Agent metadata)
+- `--agent-model <name>` Model name (Title Case)
+- `--agent-name <name>` Session or bot display name (required for complete provenance)
 - `--agent-settings <json>` JSON object of runtime settings
 
 When agent flags are omitted, `KANBUS_AGENT_*` environment variables apply.
@@ -344,7 +348,8 @@ When agent flags are omitted, `KANBUS_AGENT_*` environment variables apply.
 Example:
 
 ```bash
-kanbus comment kanbus-abc "Shipped fix" --agent-platform codex --agent-model gpt-5
+kanbus comment kanbus-abc "Shipped fix" \
+  --agent-platform "Codex" --agent-model "GPT-5.6" --agent-name "Cloud Agent"
 ```
 
 ## Synchronization

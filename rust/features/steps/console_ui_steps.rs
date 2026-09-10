@@ -693,6 +693,12 @@ fn then_tab_selected(world: &mut KanbusWorld, tab: String) {
     assert_eq!(state.selected_tab, tab);
 }
 
+#[then("the console board should be visible")]
+fn then_console_board_should_be_visible(world: &mut KanbusWorld) {
+    let state = require_console_state(world);
+    assert_eq!(state.panel_mode, "board");
+}
+
 #[then(expr = "no view tab should be selected")]
 fn then_no_tab_selected(world: &mut KanbusWorld) {
     let state = require_console_state(world);

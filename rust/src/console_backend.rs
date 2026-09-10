@@ -1,6 +1,5 @@
 //! Console backend core helpers.
 
-use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -16,7 +15,7 @@ use crate::file_io::{
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::overlay::apply_overlay_to_issues;
-use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
+use crate::right_now::active_right_now_tree;
 
 /// Snapshot payload for the console.
 #[derive(Debug, Clone, Serialize)]
@@ -162,78 +161,6 @@ impl FileStore {
     }
 }
 
-/// Return the roots and complete visible set for trees containing active work.
-///
-/// The right-now summary walk proceeds from parents to selected children, so the
-/// selected set must include the whole association tree. A user can expand
-/// any branch in the Now UI without another backend request, so descendants
-/// must be ready before the snapshot is returned.
-fn active_right_now_tree(issues: &[IssueData]) -> (Vec<String>, HashSet<String>) {
-    let parents: HashMap<&str, Option<&str>> = issues
-        .iter()
-        .map(|issue| (issue.identifier.as_str(), issue.parent.as_deref()))
-        .collect();
-    let mut selected_identifiers = HashSet::new();
-    let mut children_by_parent: HashMap<&str, Vec<&str>> = HashMap::new();
-    for issue in issues {
-        if let Some(parent) = issue.parent.as_deref() {
-            children_by_parent
-                .entry(parent)
-                .or_default()
-                .push(issue.identifier.as_str());
-        }
-    }
-
-    for issue in issues
-        .iter()
-        .filter(|issue| issue.status == DEFAULT_RIGHT_NOW_STATUS)
-    {
-        let mut current = issue.identifier.as_str();
-        let mut visited = HashSet::new();
-        while visited.insert(current) {
-            selected_identifiers.insert(current.to_string());
-            match parents.get(current).and_then(|parent| *parent) {
-                Some(parent) if parents.contains_key(parent) => current = parent,
-                _ => break,
-            }
-        }
-    }
-
-    // The console's Now tree expands each selected ancestor downward. Mirror
-    // that visibility rule here so discovery, open, or closed descendants do
-    // not remain permanently on the loading placeholder.
-    let mut pending: Vec<String> = selected_identifiers.iter().cloned().collect();
-    while let Some(identifier) = pending.pop() {
-        for child in children_by_parent
-            .get(identifier.as_str())
-            .into_iter()
-            .flatten()
-        {
-            if selected_identifiers.insert((*child).to_string()) {
-                pending.push((*child).to_string());
-            }
-        }
-    }
-
-    let mut roots: Vec<String> = selected_identifiers
-        .iter()
-        .filter(|identifier| {
-            !parents
-                .get(identifier.as_str())
-                .and_then(|parent| *parent)
-                .is_some_and(|parent| selected_identifiers.contains(parent))
-        })
-        .cloned()
-        .collect();
-    // A malformed cyclic hierarchy has no natural root. Run each selected
-    // issue in that case so JIT summary generation still makes progress.
-    if roots.is_empty() && !selected_identifiers.is_empty() {
-        roots.extend(selected_identifiers.iter().cloned());
-    }
-    roots.sort();
-    (roots, selected_identifiers)
-}
-
 /// Resolve issues by full or short identifier.
 ///
 /// Short identifiers are `{project_key}-{prefix}` where `prefix` is up to 6
@@ -341,6 +268,7 @@ fn tag_custom(issue: &mut IssueData, key: &str, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
     use chrono::{TimeZone, Utc};
     use tempfile::TempDir;
 

@@ -1,7 +1,7 @@
 Feature: Agent metadata on issues and comments
   As an AI agent using Kanbus
-  I want to optionally tag mutations with platform and model info
-  So that provenance is preserved without cluttering default output
+  I want to tag mutations with product, model, and session name
+  So that provenance is preserved and incomplete tags warn instead of failing
 
   Scenario: Create issue with agent metadata via flags
     Given a Kanbus project with default configuration
@@ -26,6 +26,15 @@ Feature: Agent metadata on issues and comments
     When I run "kanbus comment kanbus-aaa \"Progress note\""
     Then the command should succeed
     And the latest comment should have agent platform "cursor" and model "composer-2.5"
+
+  Scenario: Comment with agent metadata prints Agent line
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists
+    When I run "kanbus comment kanbus-aaa \"Progress note\" --agent-platform Cursor --agent-model \"Composer 2.5\" --agent-name \"Cloud Agent\""
+    Then the command should succeed
+    And the latest comment should have agent platform "cursor" and model "Composer 2.5"
+    And stdout should contain "Agent:"
+    And stdout should contain "Cloud Agent / cursor / Composer 2.5"
 
   Scenario: CLI flags override agent environment variables
     Given a Kanbus project with default configuration
@@ -75,6 +84,13 @@ Feature: Agent metadata on issues and comments
     Given a Kanbus project with beads compatibility enabled
     And an issue "kanbus-aaa" exists
     When I run "kanbus comment kanbus-aaa \"Note\" --agent-platform cursor --agent-model x"
+    Then the command should fail with exit code 1
+    And stderr should contain "agent metadata requires native Kanbus issue storage"
+
+  Scenario: Beads mode rejects agent flags on update
+    Given a Kanbus project with beads compatibility enabled
+    And an issue "kanbus-aaa" exists
+    When I run "kanbus update kanbus-aaa --agent-platform cursor --agent-model x"
     Then the command should fail with exit code 1
     And stderr should contain "agent metadata requires native Kanbus issue storage"
 

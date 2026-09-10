@@ -371,7 +371,9 @@ def test_close_move_promote_localize_comment_paths(
     monkeypatch.setattr(
         cli,
         "add_comment",
-        lambda **_k: SimpleNamespace(issue=issue, comment=SimpleNamespace(id="c1")),
+        lambda **_k: SimpleNamespace(
+            issue=issue, comment=SimpleNamespace(id="c1", agent=None)
+        ),
     )
     result_comment = _run(["comment", "kanbus-1", "hello"])
     assert result_comment.exit_code == 0
@@ -494,3 +496,65 @@ def test_update_beads_policy_signal_and_delete_beads_compat_paths(
     monkeypatch.setattr(cli, "load_beads_issue", lambda *_a, **_k: before_issue)
     result_comment = _run(["comment", "kanbus-1", "hello", "--no-validate"])
     assert result_comment.exit_code == 0
+
+
+def test_comment_update_cli_error_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+
+    missing_identifier = _run(["comment"])
+    assert missing_identifier.exit_code != 0
+    assert "issue identifier is required" in missing_identifier.output
+
+    missing_comment_id = _run(["comment", "update", "kanbus-1"])
+    assert missing_comment_id.exit_code != 0
+    assert (
+        "comment update requires an issue id and comment id"
+        in missing_comment_id.output
+    )
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: (_ for _ in ()).throw(cli.ProjectMarkerError("pm")),
+    )
+    missing_text = _run(["comment", "update", "kanbus-1", "c1"])
+    assert missing_text.exit_code != 0
+    assert "comment text is required" in missing_text.output
+
+    beads_update = _run(["--beads", "comment", "update", "kanbus-1", "c1", "hello"])
+    assert beads_update.exit_code != 0
+    assert "beads mode does not support comment update" in beads_update.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=True),
+    )
+    monkeypatch.setattr(
+        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    )
+    compatibility_update = _run(["comment", "update", "kanbus-1", "c1", "hello"])
+    assert compatibility_update.exit_code != 0
+    assert "beads mode does not support comment update" in compatibility_update.output
+
+    monkeypatch.setattr(
+        cli,
+        "load_project_configuration",
+        lambda _p: build_project_configuration(beads_compatibility=False),
+    )
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(
+        cli,
+        "validate_code_blocks",
+        lambda _t: (_ for _ in ()).throw(ContentValidationError("bad comment update")),
+    )
+    invalid_update = _run(["comment", "update", "kanbus-1", "c1", "```json\n{\n```"])
+    assert invalid_update.exit_code != 0
+    assert "bad comment update" in invalid_update.output
