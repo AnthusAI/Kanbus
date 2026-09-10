@@ -1,0 +1,26 @@
+{
+  "id": "kbs-b5137f93-c1b3-4a92-b841-64d838365e0a",
+  "title": "Project rollup: fail-closed upward LLM/structured reduce (not semicolon join)",
+  "description": "SD soft nit on #266: project rollup currently joins with semicolon rather than fail-closed upward LLM or structured reduce from children.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T14:00:19.598786Z",
+  "updated_at": "2026-09-10T14:00:19.630927Z",
+  "closed_at": null,
+  "right_now_summary": "The project rollup still joins child results with semicolons instead of using a fail-closed upward reduction.",
+  "right_now_updated_at": "2026-09-10T14:00:24.566337Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "kbs-ed82a353-dd0d-45fe-9b9d-494a915ff3e0",
+  "title": "director-brief Momentum: use rollup parity with meeting-script Today (not leaf-flat)",
+  "description": "SD soft nit on #266: director-brief Momentum still leaf-flat vs meeting-script Today rollup \u2014 bring Momentum bullets up to the same rollup behavior.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T14:00:44.724456Z",
+  "updated_at": "2026-09-10T14:00:44.762696Z",
+  "closed_at": null,
+  "right_now_summary": "The team is aligning director-brief Momentum bullets with meeting-script Today\u2019s rollup behavior.",
+  "right_now_updated_at": "2026-09-10T14:00:49.562163Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}

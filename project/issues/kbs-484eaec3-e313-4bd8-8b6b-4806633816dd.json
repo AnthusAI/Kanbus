@@ -1,0 +1,26 @@
+{
+  "id": "kbs-484eaec3-e313-4bd8-8b6b-4806633816dd",
+  "title": "Tighten close-out stale-WIP heuristics so section stays actionable",
+  "description": "SD soft nit on #266: close-out stale-WIP net is very wide \u2014 tighten heuristics so the section stays actionable.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T14:00:31.907382Z",
+  "updated_at": "2026-09-10T14:00:31.941178Z",
+  "closed_at": null,
+  "right_now_summary": "The team is tightening stale-WIP rules to keep the close-out section actionable.",
+  "right_now_updated_at": "2026-09-10T14:00:36.542546Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}
