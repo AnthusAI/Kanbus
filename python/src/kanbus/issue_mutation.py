@@ -18,6 +18,7 @@ from kanbus.event_history import (
 )
 from kanbus.issue_files import write_issue_to_file
 from kanbus.models import IssueData
+from kanbus.overlay import replace_overlay_issue_if_present
 from kanbus.right_now import (
     regenerate_right_now_ancestors,
     regenerate_right_now_for_issue_and_ancestors,
@@ -99,6 +100,7 @@ def persist_issue_mutation(
     current_time = datetime.now(timezone.utc)
     persisted_issue = request.issue.model_copy(update={"updated_at": current_time})
     write_issue_to_file(persisted_issue, request.issue_path)
+    replace_overlay_issue_if_present(request.project_dir, persisted_issue)
     final_issue_path = request.issue_path
     if request.relocate_to is not None:
         request.issue_path.replace(request.relocate_to)
