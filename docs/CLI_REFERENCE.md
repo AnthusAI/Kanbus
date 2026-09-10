@@ -239,7 +239,9 @@ kanbus dep tree <id> [--depth N] [--format FORMAT]
 
 ## Agent metadata
 
-Optional provenance metadata records which AI platform, model, and runtime settings produced an issue or comment. Metadata is stored in native Kanbus issue JSON, included in event payloads when present, and displayed in CLI and console output only when present.
+Provenance metadata records which AI platform, model, and runtime settings produced an issue or comment. Metadata is stored in native Kanbus issue JSON, included in event payloads when present, and displayed in CLI and console output only when present.
+
+AI coding agents **must** record provenance on `create` and `comment` as described in CONTRIBUTING_AGENT.md (session env defaults and/or `--agent-*` flags). The CLI does not require metadata for human-authored changes; when absent, Kanbus omits the `agent` field.
 
 ### CLI flags
 

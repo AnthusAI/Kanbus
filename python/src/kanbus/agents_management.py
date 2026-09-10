@@ -30,6 +30,7 @@ KANBUS_SECTION_LINES = [
     "How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the mistakes to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.",
     "Performance: Prefer kbs (Rust) when available; kanbus (Python) is equivalent but slower.",
     "Warning: Editing project/ directly violates The Way. Do not read or write anything in project/; work only through Kanbus.",
+    "Git / PR policy: Rules for product-code commits, branch names, pull requests, and human approval live in this repository's AGENTS.md (outside this Kanbus section). CONTRIBUTING_AGENT.md covers Kanbus board mechanics such as `kbs commit`; follow AGENTS.md for product code and git workflow.",
     "",
 ]
 KANBUS_SECTION_TEXT = "\n".join(KANBUS_SECTION_LINES)
