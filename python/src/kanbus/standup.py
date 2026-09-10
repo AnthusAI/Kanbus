@@ -19,7 +19,6 @@ from kanbus.right_now import (
     is_persisted_mock_right_now_summary,
     require_display_right_now_summary,
 )
-from kanbus.models import ProjectConfiguration
 from kanbus.standup_rollup import (
     CLOSE_OUT_SECTION,
     ROLLUP_FLAT,
@@ -364,17 +363,6 @@ def derive_blocked_question(summary: str) -> str:
     return truncate_bullet(f"What is blocking progress on {summary.rstrip('.')}? ")
 
 
-def derive_stale_question(identifier: str) -> str:
-    """Derive a staleness question for an in-progress issue.
-
-    :param identifier: Issue identifier.
-    :type identifier: str
-    :return: Staleness question text.
-    :rtype: str
-    """
-    return truncate_bullet(f"Why is {identifier} still in progress?")
-
-
 def build_meeting_script_sections(
     issues: List[IssueData],
     right_now_texts: Dict[str, str],
@@ -402,7 +390,6 @@ def build_meeting_script_sections(
     """
     yesterday_identifiers: Set[str] = set()
     yesterday_bullets: List[str] = []
-    today_bullets: List[str] = []
     blocker_bullets: List[str] = []
     question_bullets: List[str] = []
 
@@ -483,7 +470,6 @@ def build_director_brief_sections(
     blocker_bullets: List[str] = []
 
     for issue in issues:
-        events = events_by_issue.get(issue.identifier, [])
         summary = right_now_texts[issue.identifier]
         if issue.status == "blocked":
             risk_bullets.append(truncate_bullet(issue.identifier))

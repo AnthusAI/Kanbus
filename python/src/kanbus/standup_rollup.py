@@ -402,7 +402,6 @@ def build_close_out_bullets(
             continue
         candidate: Optional[str] = None
         if issue.status == "in_progress":
-            lowered = summary.lower()
             if _MERGED_STILL_OPEN_PATTERN.search(summary):
                 candidate = (
                     f"{issue.identifier}: merged but still in progress — "

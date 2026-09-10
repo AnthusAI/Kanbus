@@ -116,6 +116,7 @@ def _standup_fact_feed_issues(console_state: ConsoleState) -> list[IssueData]:
 def _generate_from_console_state(
     console_state: ConsoleState,
     profile_name: str,
+    repository: Path,
 ) -> tuple[str, list[str]]:
     profile = resolve_standup_profile(profile_name)
     issues = _standup_fact_feed_issues(console_state)
@@ -130,7 +131,7 @@ def _generate_from_console_state(
     from kanbus.standup import load_standup_configuration
     from kanbus.standup_rollup import resolve_standup_rollup
 
-    configuration = load_standup_configuration(Path(context.working_directory))
+    configuration = load_standup_configuration(repository)
     rollup_settings = resolve_standup_rollup(None, configuration, False)
     report = build_standup_report(
         profile,
@@ -200,6 +201,7 @@ def when_generate_standup_report(context: object) -> None:
         report_text, section_names = _generate_from_console_state(
             console_state,
             standup.profile,
+            Path(context.working_directory),
         )
     except Exception as error:
         standup.is_generating = False

@@ -358,11 +358,8 @@ fn derive_blocked_question(summary: &str) -> String {
     ))
 }
 
-fn derive_stale_question(identifier: &str) -> String {
-    truncate_bullet(&format!("Why is {identifier} still in progress?"))
-}
-
 /// Build meeting-script profile sections from fact-feed issues.
+#[allow(clippy::too_many_arguments)]
 pub fn build_meeting_script_sections(
     issues: &[IssueData],
     right_now_texts: &HashMap<String, String>,
@@ -375,7 +372,6 @@ pub fn build_meeting_script_sections(
 ) -> Vec<StandupSection> {
     let mut yesterday_identifiers = HashSet::new();
     let mut yesterday_bullets = Vec::new();
-    let mut today_bullets = Vec::new();
     let mut blocker_bullets = Vec::new();
     let mut question_bullets = Vec::new();
 
@@ -413,7 +409,7 @@ pub fn build_meeting_script_sections(
         }
     }
 
-    today_bullets = roll_up_active_bullets(
+    let today_bullets = roll_up_active_bullets(
         &today_issues,
         right_now_texts,
         configuration,
@@ -456,7 +452,7 @@ pub fn build_director_brief_sections(
     report_time: DateTime<Utc>,
     window_settings: &StandupWindowSettings,
     configuration: &ProjectConfiguration,
-    rollup_settings: &StandupRollupSettings,
+    _rollup_settings: &StandupRollupSettings,
 ) -> Vec<StandupSection> {
     let in_progress_count = issues
         .iter()
@@ -537,6 +533,7 @@ pub fn build_director_brief_sections(
 }
 
 /// Build a structured standup report for the requested profile.
+#[allow(clippy::too_many_arguments)]
 pub fn build_standup_report(
     profile: &str,
     issues: &[IssueData],

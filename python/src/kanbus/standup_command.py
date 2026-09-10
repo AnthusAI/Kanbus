@@ -19,7 +19,6 @@ from kanbus.right_now_command import (
 from kanbus.standup import (
     StandupReport,
     StandupSection,
-    StandupError,
     build_standup_report,
     collect_right_now_texts,
     ensure_standup_summaries,
