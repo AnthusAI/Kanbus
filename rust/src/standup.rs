@@ -421,12 +421,8 @@ pub fn build_meeting_script_sections(
         false,
     );
 
-    let close_out_bullets = build_close_out_bullets(
-        issues,
-        right_now_texts,
-        report_time,
-        window_settings,
-    );
+    let close_out_bullets =
+        build_close_out_bullets(issues, right_now_texts, report_time, window_settings);
 
     vec![
         StandupSection {
@@ -513,12 +509,8 @@ pub fn build_director_brief_sections(
         true,
     );
 
-    let close_out_bullets = build_close_out_bullets(
-        issues,
-        right_now_texts,
-        report_time,
-        window_settings,
-    );
+    let close_out_bullets =
+        build_close_out_bullets(issues, right_now_texts, report_time, window_settings);
 
     vec![
         StandupSection {

@@ -71,6 +71,7 @@ def is_stale_in_progress(
         return True
     return updated_at < window_start
 
+
 ROLLUP_FLAT = "flat"
 ROLLUP_PROJECT = "project"
 ROLLUP_TREE = "tree"
@@ -151,9 +152,7 @@ def expand_issues_with_ancestors(
     :return: Issues plus any missing ancestors.
     :rtype: List[IssueData]
     """
-    by_identifier: Dict[str, IssueData] = {
-        issue.identifier: issue for issue in issues
-    }
+    by_identifier: Dict[str, IssueData] = {issue.identifier: issue for issue in issues}
     for issue in issues:
         parent_identifier = issue.parent
         while parent_identifier:
@@ -194,9 +193,7 @@ def summaries_near_identical(first: str, second: str) -> bool:
     normalized_second = normalize_summary_text(second)
     if normalized_first == normalized_second:
         return True
-    shorter, longer = sorted(
-        (normalized_first, normalized_second), key=len
-    )
+    shorter, longer = sorted((normalized_first, normalized_second), key=len)
     if not shorter:
         return False
     if shorter in longer and len(shorter) >= 12:

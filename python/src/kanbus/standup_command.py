@@ -181,12 +181,8 @@ def run_standup_command(root: Path, options: StandupCommandOptions) -> str:
         raise StandupCommandError(str(error)) from error
     issues_for_summaries = expand_issues_with_ancestors(root, issues)
     issues_for_summaries = ensure_standup_summaries(root, issues_for_summaries)
-    summary_by_identifier = {
-        issue.identifier: issue for issue in issues_for_summaries
-    }
-    issues = [
-        summary_by_identifier.get(issue.identifier, issue) for issue in issues
-    ]
+    summary_by_identifier = {issue.identifier: issue for issue in issues_for_summaries}
+    issues = [summary_by_identifier.get(issue.identifier, issue) for issue in issues]
     right_now_texts = collect_right_now_texts(issues_for_summaries)
     events_by_issue = {
         issue.identifier: load_issue_event_records(root, issue.identifier)

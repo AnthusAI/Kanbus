@@ -702,11 +702,7 @@ fn standup_section_bullets(world: &KanbusWorld, section_name: &str) -> Vec<Strin
 
 #[then(expr = "the standup report section {string} should have {int} bullet")]
 #[then(expr = "the standup report section {string} should have {int} bullets")]
-fn then_standup_section_bullet_count(
-    world: &mut KanbusWorld,
-    section_name: String,
-    count: usize,
-) {
+fn then_standup_section_bullet_count(world: &mut KanbusWorld, section_name: String, count: usize) {
     let bullets = standup_section_bullets(world, &section_name);
     assert_eq!(bullets.len(), count);
 }

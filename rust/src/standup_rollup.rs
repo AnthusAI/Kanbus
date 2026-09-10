@@ -147,7 +147,10 @@ fn dedupe_summary_list(summaries: &[String]) -> Vec<String> {
 }
 
 fn forest_roots(issues: &[IssueData]) -> Vec<IssueData> {
-    let identifiers: HashSet<String> = issues.iter().map(|issue| issue.identifier.clone()).collect();
+    let identifiers: HashSet<String> = issues
+        .iter()
+        .map(|issue| issue.identifier.clone())
+        .collect();
     let mut roots = issues
         .iter()
         .filter(|issue| {
@@ -164,7 +167,10 @@ fn forest_roots(issues: &[IssueData]) -> Vec<IssueData> {
 }
 
 fn children_map(issues: &[IssueData]) -> HashMap<String, Vec<IssueData>> {
-    let identifiers: HashSet<String> = issues.iter().map(|issue| issue.identifier.clone()).collect();
+    let identifiers: HashSet<String> = issues
+        .iter()
+        .map(|issue| issue.identifier.clone())
+        .collect();
     let mut children: HashMap<String, Vec<IssueData>> = HashMap::new();
     for issue in issues {
         let parent = issue.parent.as_ref();
@@ -300,11 +306,7 @@ pub fn roll_up_active_bullets(
             }
             let first_line = &tree_lines[0];
             if first_line.starts_with(TREE_INDENT) {
-                tree_lines[0] = truncate_bullet(&format!(
-                    "{}{}",
-                    prefix,
-                    first_line.trim_start()
-                ));
+                tree_lines[0] = truncate_bullet(&format!("{}{}", prefix, first_line.trim_start()));
             } else {
                 tree_lines[0] = truncate_bullet(&format!("{prefix}{first_line}"));
             }
@@ -337,9 +339,7 @@ fn merged_still_open_pattern() -> &'static Regex {
 
 fn external_block_pattern() -> &'static Regex {
     static PATTERN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-    PATTERN.get_or_init(|| {
-        Regex::new(r"(?i)waiting on|blocked on|awaiting").expect("valid regex")
-    })
+    PATTERN.get_or_init(|| Regex::new(r"(?i)waiting on|blocked on|awaiting").expect("valid regex"))
 }
 
 /// Build Close-out bullets for WIP cards that should finish soon.

@@ -14,8 +14,8 @@ use kanbus::standup::{
     build_standup_report, collect_right_now_texts, format_standup_text, load_standup_configuration,
     resolve_standup_profile, MEETING_SCRIPT_PROFILE,
 };
-use kanbus::standup_rollup::resolve_standup_rollup;
 use kanbus::standup_command::STANDUP_DEFAULT_STATUS_FILTER;
+use kanbus::standup_rollup::resolve_standup_rollup;
 use kanbus::standup_window::{StandupWindowSettings, DEFAULT_STANDUP_LOOKBACK, ROLLING_WINDOW};
 
 use crate::step_definitions::console_ui_steps::{ConsoleIssue, ConsoleState};
