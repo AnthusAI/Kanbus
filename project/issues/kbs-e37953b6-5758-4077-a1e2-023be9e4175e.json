@@ -1,0 +1,26 @@
+{
+  "id": "kbs-e37953b6-5758-4077-a1e2-023be9e4175e",
+  "title": "Align root CONTRIBUTING_AGENT.md commit-note bullets with template/DEFAULT",
+  "description": "SD soft nit on #264: root CONTRIBUTING_AGENT.md commit notes have 2 extra bullets vs template/DEFAULT \u2014 sync dogfood file with shipped template.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-1cf80dea-258b-4bf2-8ead-2f8cc91b3247",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:40:14.699498Z",
+  "updated_at": "2026-09-10T13:40:14.738180Z",
+  "closed_at": null,
+  "right_now_summary": "The root CONTRIBUTING_AGENT.md has two extra commit-note bullets that need removal.",
+  "right_now_updated_at": "2026-09-10T13:40:20.597575Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}

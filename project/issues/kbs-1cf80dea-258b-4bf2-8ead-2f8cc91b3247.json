@@ -1,0 +1,26 @@
+{
+  "id": "kbs-1cf80dea-258b-4bf2-8ead-2f8cc91b3247",
+  "title": "CI soft nits from PR #264 ACCEPT",
+  "description": "Non-blocking follow-ups from SD ACCEPT of PR #264 (required agent provenance in CONTRIBUTING_AGENT).",
+  "type": "epic",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-10T13:39:30.486415Z",
+  "updated_at": "2026-09-10T13:39:30.557540Z",
+  "closed_at": null,
+  "right_now_summary": "The team is clarifying agent tags and removing two extra bullets from CONTRIBUTING_AGENT.md.",
+  "right_now_updated_at": "2026-09-10T13:40:36.491683Z",
+  "custom": {},
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus",
+    "settings": {}
+  }
+}
