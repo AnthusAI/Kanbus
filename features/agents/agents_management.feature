@@ -11,6 +11,10 @@ Feature: Manage AGENTS.md Kanbus instructions
     And CONTRIBUTING_AGENT.md should exist
     And CONTRIBUTING_AGENT.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.md should contain "As a <role>, I want <capability>, so that <benefit>."
+    And CONTRIBUTING_AGENT.md should contain "you MUST record agent provenance"
+    And CONTRIBUTING_AGENT.md should contain "KANBUS_AGENT_PLATFORM"
+    And CONTRIBUTING_AGENT.md should contain "## Git commits and pull requests"
+    And CONTRIBUTING_AGENT.md should contain "live in this repository's **AGENTS.md**"
 
   Scenario: Insert Kanbus section after H1 when missing
     Given a Kanbus repository with AGENTS.md without a Kanbus section

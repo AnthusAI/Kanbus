@@ -41,22 +41,29 @@ Direct file system access is strictly forbidden:
 
 ## Committing project state to git
 
-Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted — collaborators pulling `develop` do not see the current board state.
+Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted.
 
-To keep the board current, commit Kanbus-written issue files to `develop`:
+After you update or close cards, persist Kanbus-written issue state:
 
 ```bash
 kbs commit
-git push origin develop
 ```
+
+Then push to the branch your project uses for shared board state (see **AGENTS.md** in this repository).
 
 `kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
 
 Notes:
-- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after you update or close cards so collaborators see current board state on `develop`.
+- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after board changes so collaborators see current state.
 - `project/events/` holds event logs (LLM usage transcripts). `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
 - Do this proactively as you close/update cards, not as a separate chore — the board should stay current as you work.
-- Never manually edit the JSON content of `project/issues/` or `project/events/` files (the rule above). `kbs commit` persists Kanbus-written issue state without editing it.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files. `kbs commit` persists Kanbus-written issue state without hand-editing JSON.
+
+## Git commits and pull requests
+
+Rules for product-code commits, branch names, pull requests, reviews, and when human approval is required are **project-specific**. They live in this repository's **AGENTS.md**, not in this file.
+
+Read AGENTS.md before you push code or open a pull request. CONTRIBUTING_AGENT.md describes Kanbus workflow and board mechanics only.
 
 ## Running Kanbus (Do This Exactly)
 
@@ -99,9 +106,13 @@ Scoped `kbs now <id>` is for self-directed focus. Whole-project reinjection afte
 
 ## Agent provenance metadata
 
-When you create issues or post comments as an AI agent, Kanbus can optionally record which platform, model, and runtime settings produced the change. This goes beyond `author: agent` or `KANBUS_USER=agent` and helps distinguish Cursor from Codex, Claude Code, or Antigravity in multi-agent workflows.
+When you act as an AI coding agent (Cursor, Claude Code, Codex, Antigravity, or similar), you MUST record agent provenance on every `kbs create` and `kbs comment`. Provenance goes beyond `author: agent` or `KANBUS_USER=agent`: it identifies which platform and model produced the change so multi-agent workflows stay auditable.
 
-Agent metadata is optional. When absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
+Recording provenance is part of **Recorded** under The Discipline of Work. It is not optional polish for AI agents.
+
+Purely human authors do not need agent metadata. Omit the `agent` field when a human creates issues or comments without an AI acting on their behalf.
+
+Set session defaults once per run with environment variables; override with CLI flags when the model or tool changes mid-session. When metadata is absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
 
 ### Environment variables
 

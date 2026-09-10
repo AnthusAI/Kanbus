@@ -6,6 +6,7 @@ When: Create/update the Kanbus task before coding; close it only after the chang
 How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the mistakes to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
 Performance: Prefer kbs (Rust) when available; kanbus (Python) is equivalent but slower.
 Warning: Editing project/ directly violates The Way. Do not read or write anything in project/; work only through Kanbus.
+Git / PR policy: Rules for product-code commits, branch names, pull requests, and human approval live in this repository's AGENTS.md (outside this Kanbus section). CONTRIBUTING_AGENT.md covers Kanbus board mechanics such as `kbs commit`; follow AGENTS.md for product code and git workflow.
 
 ## Right-now WIP (`kbs now`)
 
@@ -520,16 +521,36 @@ This list is the operational detail for the behavior-spec-first rule above. Do n
 
 ## Git Flow Standards
 
-This project follows a standard Git Flow workflow:
+This repository follows a standard Git Flow workflow. **Product code** and **Kanbus board state** use different commit paths; both are documented here so agents do not infer branch or PR rules from CONTRIBUTING_AGENT.md.
 
--   **`main`**: Stable, production-ready code. Direct commits are restricted.
--   **`dev`**: The integration branch for new features. All feature branches target `dev`.
--   **Feature Branches**: Create from `dev` (e.g., `feature/my-cool-feature`). Merge back to `dev` via PR.
--   **Releases**: When `dev` is stable, merge `dev` -> `main`.
--   **Hotfixes**: Critical fixes may branch from `main` (e.g., `hotfix/urgent-fix`) and merge to both `main` and `dev`.
+### Branches
 
-**Agent Protocol:**
--   Always check which branch you are on (`git status`).
--   If implementing a feature, ensure you branch from `dev`.
--   If asked to switch branches, preserve uncommitted changes unless instructed otherwise.
--   Do not create or amend commits without explicit user approval after they have reviewed the changes.
+- **`main`**: Stable, production-ready code. Direct commits are restricted.
+- **`develop`**: Integration branch for new features. Feature branches target `develop` via pull request.
+- **Feature branches**: Branch from `develop` (for example `feature/my-change` or `cursor/descriptive-name-<id>`). Merge back through PR review.
+- **Releases**: When `develop` is stable, merge `develop` into `main`.
+- **Hotfixes**: Critical fixes may branch from `main` and merge to both `main` and `develop`.
+
+### Kanbus board state in git
+
+After you create, update, or close issues, persist board JSON with `kbs commit`, then push to the branch the team shares for board state (here: `develop`):
+
+```bash
+kbs commit
+git push origin develop
+```
+
+`kbs commit` only stages `project/issues/`. Do not hand-edit issue JSON. See CONTRIBUTING_AGENT.md for mechanics.
+
+### Product code and pull requests
+
+- Implement product changes on feature branches; open pull requests into `develop`.
+- Do not push product code directly to `main`.
+- Cloud and local coding agents may commit and push their feature branches and open draft PRs when the run instructions require it; human review (Software Director ACCEPT) is required before merge unless explicitly waived.
+
+**Agent protocol:**
+
+- Always check which branch you are on (`git status`).
+- Branch from `develop` for feature work unless instructed otherwise.
+- If asked to switch branches, preserve uncommitted changes unless instructed otherwise.
+- Do not amend or rewrite commits the user has already reviewed without explicit approval.
