@@ -227,6 +227,32 @@ apiRouter.get("/issues", async (_req, res) => {
   }
 });
 
+apiRouter.get("/now", async (_req, res) => {
+  try {
+    if (!kanbusPython) {
+      throw new Error("KANBUS_PYTHON is required to serve /api/now");
+    }
+    const pythonSnippet =
+      "import json; from pathlib import Path; from kanbus.console_snapshot import build_console_now_issues; print(json.dumps(build_console_now_issues(Path.cwd())))";
+    const { stdout } = await execFileAsync(
+      kanbusPython,
+      [...kanbusPythonArgs, "-c", pythonSnippet],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          KANBUS_NO_DAEMON: "1",
+          PYTHONPATH: pythonPath ?? process.env.PYTHONPATH
+        },
+        maxBuffer: 10 * 1024 * 1024
+      }
+    );
+    res.json(JSON.parse(stdout));
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 apiRouter.get("/issues/:id", async (req, res) => {
   try {
     const snapshot = await getSnapshotForRequest(req.query.refresh);

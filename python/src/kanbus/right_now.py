@@ -209,9 +209,7 @@ def load_child_issues(root: Path, issue_identifier: str) -> List[IssueData]:
     from kanbus.console_snapshot import get_issues_for_root
 
     return [
-        issue
-        for issue in get_issues_for_root(root)
-        if issue.parent == issue_identifier
+        issue for issue in get_issues_for_root(root) if issue.parent == issue_identifier
     ]
 
 

@@ -633,7 +633,9 @@ def when_request_console_now_snapshot(context: object) -> None:
     if port is None:
         raise AssertionError("console port not set")
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/now", timeout=30) as response:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/api/now", timeout=30
+        ) as response:
             body = response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", errors="replace")
