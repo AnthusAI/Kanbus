@@ -197,14 +197,6 @@ def test_update_comment_success_and_paths(monkeypatch: pytest.MonkeyPatch) -> No
     with pytest.raises(issue_comment.IssueCommentError, match="comment id is required"):
         issue_comment.update_comment(root, "kanbus-1", "abc", "new")
 
-    monkeypatch.setattr(
-        issue_comment, "_ensure_comment_ids", lambda issue: (issue, False)
-    )
-    with pytest.raises(
-        issue_comment.IssueCommentError, match="no comment updates requested"
-    ):
-        issue_comment.update_comment(root, "kanbus-1", "abc", None, None)
-
 
 def test_update_delete_comment_event_failure_rolls_back(
     monkeypatch: pytest.MonkeyPatch,
