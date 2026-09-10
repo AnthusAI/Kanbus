@@ -12,6 +12,7 @@ use crate::standup::{
     load_issue_event_records, load_standup_configuration, resolve_standup_profile,
 };
 use crate::standup_command::{select_standup_fact_feed, StandupCommandOptions};
+use crate::standup_rollup::{expand_issues_with_ancestors, resolve_standup_rollup};
 use crate::standup_window::{
     resolve_standup_report_time, resolve_standup_window_settings, StandupWindowOverrides,
 };
@@ -83,9 +84,11 @@ pub fn generate_standup_report(
     let window_settings =
         resolve_standup_window_settings(&configuration, Some(&profile), &window_overrides)?;
     let options = StandupCommandOptions::default();
+    let rollup_settings = resolve_standup_rollup(None, &configuration, false)?;
     let issues = select_standup_fact_feed(root, &options)?;
-    let issues = ensure_standup_summaries(root, &issues)?;
-    let right_now_texts = collect_right_now_texts(&issues)?;
+    let issues_for_summaries = expand_issues_with_ancestors(root, &issues)?;
+    let issues_for_summaries = ensure_standup_summaries(root, &issues_for_summaries)?;
+    let right_now_texts = collect_right_now_texts(&issues_for_summaries)?;
     let mut events_by_issue = HashMap::new();
     for issue in &issues {
         events_by_issue.insert(
@@ -102,6 +105,8 @@ pub fn generate_standup_report(
         report_time,
         &window_settings,
         false,
+        &configuration,
+        &rollup_settings,
     );
     let text = format_standup_text(&report);
     Ok(StandupGenerateResponse {

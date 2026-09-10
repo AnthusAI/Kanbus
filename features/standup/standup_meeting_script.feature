@@ -111,14 +111,15 @@ Feature: Standup meeting script profile
     And the standup report section "Likely questions" should mention "security review"
     And the standup report section "Likely questions" should mention "OAuth scopes"
 
-  Scenario: Likely questions flag stale in-progress work by identifier
+  Scenario: Stale in-progress work surfaces in Close-out not Likely questions
     Given standup lookback hours is 24
     And an issue "kanbus-ms-stale" exists with status "in_progress"
     And issue "kanbus-ms-stale" has updated_at older than standup lookback
     And issue "kanbus-ms-stale" has right now summary "Long-running refactor."
     When I run "kanbus standup kanbus-ms-stale --profile meeting-script"
     Then the command should succeed
-    And the standup report section "Likely questions" should mention "kanbus-ms-stale"
+    And the standup report section "Close-out" should mention "kanbus-ms-stale"
+    And the standup report section "Likely questions" should not mention "Why is kanbus-ms-stale still in progress?"
 
   Scenario: Meeting script for recursive scope covers descendant work
     Given an issue "kanbus-ms-init" of type "initiative" with status "open" and parent "kanbus-ms-missing" and title "Meeting script initiative"

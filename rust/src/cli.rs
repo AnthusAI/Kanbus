@@ -485,6 +485,7 @@ kbs standup                              board-wide meeting script\n  \
 kbs standup --profile director-brief     executive brief\n  \
 kbs standup kbs-abc kbs-def              scoped report\n  \
 kbs standup kbs-abc --no-recursive       selected issues only\n  \
+kbs standup --rollup project             one bullet per virtual project\n  \
 kbs standup kbs-abc --json               machine-readable JSON")]
     Standup {
         /// Standup profile (default: meeting-script).
@@ -508,6 +509,9 @@ kbs standup kbs-abc --json               machine-readable JSON")]
         /// Show only the named issues, without descendants.
         #[arg(long = "no-recursive")]
         no_recursive: bool,
+        /// Today rollup mode: flat, project, or tree.
+        #[arg(long)]
+        rollup: Option<String>,
         /// Issue identifiers to scope the report. Default: in-progress and blocked issues.
         #[arg(value_name = "ISSUE")]
         issue_ids: Vec<String>,
@@ -3060,6 +3064,7 @@ fn execute_command(
             no_skip_weekends,
             json,
             no_recursive,
+            rollup,
             issue_ids,
         } => {
             if skip_weekends && no_skip_weekends {
@@ -3082,6 +3087,7 @@ fn execute_command(
                 window,
                 lookback,
                 skip_weekends: skip_weekends_override,
+                rollup,
             };
             let output = run_standup_command(root, &options)?;
             Ok(Some(output))
