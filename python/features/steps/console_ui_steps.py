@@ -566,6 +566,19 @@ def then_tab_selected(context: object, tab: str) -> None:
         raise AssertionError(f"expected tab {tab} but found {state.selected_tab}")
 
 
+@then("the console board should be visible")
+def then_console_board_should_be_visible(context: object) -> None:
+    """Verify the console chrome is rendered with the board panel.
+
+    :param context: Behave context with console state.
+    :type context: object
+    :raises AssertionError: If the console is missing or not showing the board.
+    """
+    state = _require_console_state(context)
+    if state.panel_mode != "board":
+        raise AssertionError(f"expected board view, got {state.panel_mode}")
+
+
 @then("no view tab should be selected")
 def then_no_tab_selected(context: object) -> None:
     """Verify no view tab is selected."""
