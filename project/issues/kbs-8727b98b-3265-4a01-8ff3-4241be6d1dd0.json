@@ -3,7 +3,7 @@
   "title": "Add unit coverage for console screenshot",
   "description": "## Why\n`kbs console screenshot` shipped via PR #178 with Gherkin coverage, but develop has no Python unit tests and no Rust `mod tests` for the capture helpers.\n\n## What\nPort salvaged unit tests from the closed side branch `cursor/cli-board-screenshot-5624` onto current develop:\n- `python/tests/test_console_screenshot.py`\n- Rust `mod tests` in `rust/src/console_screenshot.rs`\n\nAdapt for develop env hooks (`KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE`, script search override, hide package script).",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 3,
   "assignee": "agent",
   "creator": null,
@@ -31,12 +31,19 @@
       "text": "CI: coverage-ratchet failed on ambient develop python drop (97.48% vs 98.51%), not screenshot tests (console_screenshot.py at 98.7%). Rebaselined. console-ui failures are pre-existing timezone/board-name flakes on develop.",
       "created_at": "2026-09-11T17:48:12.104412Z",
       "comment_type": "default"
+    },
+    {
+      "id": "8fd5e69a-32be-47d0-95d2-ba7f2d229feb",
+      "author": "ryan",
+      "text": "Closed after merge of https://github.com/AnthusAI/Kanbus/pull/271 into develop.",
+      "created_at": "2026-09-11T17:57:53.993908Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-11T17:08:32.246351Z",
-  "updated_at": "2026-09-11T17:48:12.104739Z",
-  "closed_at": null,
-  "right_now_summary": "Unit tests are ported in PR #271; coverage was rebaselined, and console UI failures are pre-existing flakes.",
-  "right_now_updated_at": "2026-09-11T17:48:15.967403Z",
+  "updated_at": "2026-09-11T17:57:53.993932Z",
+  "closed_at": "2026-09-11T17:57:52.280307Z",
+  "right_now_summary": "Screenshot unit tests were added and merged into develop; remaining CI failures are unrelated existing flakes.",
+  "right_now_updated_at": "2026-09-11T17:57:55.764371Z",
   "custom": {}
 }
