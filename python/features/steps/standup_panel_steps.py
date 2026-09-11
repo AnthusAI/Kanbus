@@ -148,7 +148,7 @@ def _generate_from_console_state(
     configuration = load_standup_configuration(repository)
     rollup_settings = resolve_standup_rollup(None, configuration, False)
     report = build_standup_report(
-        Path(context.working_directory),
+        repository,
         profile,
         issues,
         right_now_texts,
