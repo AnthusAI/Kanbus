@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
@@ -33,6 +33,7 @@ from kanbus.standup_window import (
     DIRECTOR_BRIEF_PROFILE,
     StandupWindowSettings,
     is_on_completed_calendar_day,
+    is_within_lookback,
     parse_standup_lookback_hours,
     parse_rfc3339_timestamp,
     start_of_report_calendar_day,
@@ -155,29 +156,6 @@ def load_issue_event_records(root: Path, issue_identifier: str) -> List[dict]:
             if payload.get("issue_id") == issue_identifier:
                 records.append(payload)
     return records
-
-
-def is_within_lookback(
-    timestamp: Optional[datetime | str],
-    report_time: datetime,
-    lookback_hours: int,
-) -> bool:
-    """Return whether a timestamp falls within the lookback window.
-
-    :param timestamp: Timestamp to evaluate.
-    :type timestamp: Optional[datetime | str]
-    :param report_time: Report generation time in UTC.
-    :type report_time: datetime
-    :param lookback_hours: Lookback window in hours.
-    :type lookback_hours: int
-    :return: True when the timestamp is within the lookback window.
-    :rtype: bool
-    """
-    parsed = parse_rfc3339_timestamp(timestamp)
-    if parsed is None:
-        return False
-    window_start = report_time - timedelta(hours=lookback_hours)
-    return window_start <= parsed <= report_time
 
 
 def had_state_transition_within_lookback(
@@ -361,6 +339,17 @@ def derive_blocked_question(summary: str) -> str:
         fragment = summary.split("Blocked on", 1)[1].strip().rstrip(".")
         return truncate_bullet(f"What is the status of {fragment}?")
     return truncate_bullet(f"What is blocking progress on {summary.rstrip('.')}? ")
+
+
+def derive_stale_question(identifier: str) -> str:
+    """Derive a staleness question for an in-progress issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :return: Staleness question text.
+    :rtype: str
+    """
+    return truncate_bullet(f"Why is {identifier} still in progress?")
 
 
 def build_meeting_script_sections(

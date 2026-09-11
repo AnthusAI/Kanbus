@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Set
 
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueData, ProjectConfiguration
-from kanbus.standup_rollup_reduce import reduce_summaries_for_standup_rollup
 from kanbus.standup_window import is_within_lookback
 from kanbus.standup_window import (
     CALENDAR_WINDOW,
@@ -360,6 +359,8 @@ def _compute_issue_rollup_summary(
     if len(combined) == 1:
         result = combined[0]
     else:
+        from kanbus.standup_rollup_reduce import reduce_summaries_for_standup_rollup
+
         result = reduce_summaries_for_standup_rollup(root, combined)
     cache[issue.identifier] = result
     return result
@@ -468,6 +469,10 @@ def roll_up_active_bullets(
             if len(root_summaries) == 1:
                 project_summary = root_summaries[0]
             else:
+                from kanbus.standup_rollup_reduce import (
+                    reduce_summaries_for_standup_rollup,
+                )
+
                 project_summary = reduce_summaries_for_standup_rollup(
                     root, root_summaries
                 )

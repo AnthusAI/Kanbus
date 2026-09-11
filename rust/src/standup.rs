@@ -358,6 +358,10 @@ fn derive_blocked_question(summary: &str) -> String {
     ))
 }
 
+fn derive_stale_question(identifier: &str) -> String {
+    truncate_bullet(&format!("Why is {identifier} still in progress?"))
+}
+
 /// Build meeting-script profile sections from fact-feed issues.
 #[allow(clippy::too_many_arguments)]
 pub fn build_meeting_script_sections(

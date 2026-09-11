@@ -44,6 +44,29 @@ def parse_rfc3339_timestamp(value: Optional[datetime | str]) -> Optional[datetim
     return parsed.astimezone(timezone.utc)
 
 
+def is_within_lookback(
+    timestamp: Optional[datetime | str],
+    report_time: datetime,
+    lookback_hours: int,
+) -> bool:
+    """Return whether a timestamp falls within the lookback window.
+
+    :param timestamp: Timestamp to evaluate.
+    :type timestamp: Optional[datetime | str]
+    :param report_time: Report generation time in UTC.
+    :type report_time: datetime
+    :param lookback_hours: Lookback window in hours.
+    :type lookback_hours: int
+    :return: True when the timestamp is within the lookback window.
+    :rtype: bool
+    """
+    parsed = parse_rfc3339_timestamp(timestamp)
+    if parsed is None:
+        return False
+    window_start = report_time - timedelta(hours=lookback_hours)
+    return window_start <= parsed <= report_time
+
+
 @dataclass(frozen=True)
 class StandupWindowOverrides:
     """Optional CLI or API overrides for standup window settings.
@@ -130,13 +153,19 @@ def resolve_standup_timezone(configuration: ProjectConfiguration) -> ZoneInfo:
     """
     timezone_name = configuration.standup.timezone
     if timezone_name:
-        return ZoneInfo(timezone_name)
+        try:
+            return ZoneInfo(timezone_name)
+        except Exception:
+            return ZoneInfo("UTC")
     local_timezone = datetime.now().astimezone().tzinfo
     if local_timezone is None:
         return ZoneInfo("UTC")
     if isinstance(local_timezone, ZoneInfo):
         return local_timezone
-    return ZoneInfo(str(local_timezone))
+    try:
+        return ZoneInfo(str(local_timezone))
+    except Exception:
+        return ZoneInfo("UTC")
 
 
 def resolve_standup_window_settings(
