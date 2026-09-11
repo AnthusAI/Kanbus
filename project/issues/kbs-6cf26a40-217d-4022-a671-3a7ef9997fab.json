@@ -34,7 +34,7 @@
     "model": "composer-2.5",
     "name": "Kanbus"
   },
-  "right_now_summary": "The base rollup shipped, and SD is tightening Composer heuristics in PR #269.",
-  "right_now_updated_at": "2026-09-11T20:25:42.172926Z",
+  "right_now_summary": "Base rollup shipped to develop; SD is tightening Composer heuristics and remaining soft nits.",
+  "right_now_updated_at": "2026-09-11T20:26:56.799386Z",
   "custom": {}
 }

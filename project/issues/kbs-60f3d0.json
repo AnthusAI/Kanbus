@@ -22,8 +22,8 @@
   "created_at": "2026-09-09T16:03:53.845499Z",
   "updated_at": "2026-09-09T17:17:24.575290Z",
   "closed_at": null,
-  "right_now_summary": "Standup reports work in the console and CLI, but missing litellm breaks `kbs now` and `kbs standup`.",
-  "right_now_updated_at": "2026-09-11T20:25:44.221520Z",
+  "right_now_summary": "Standup reports work in the console, while CLI use awaits fixing the missing litellm install.",
+  "right_now_updated_at": "2026-09-11T20:26:58.895366Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
