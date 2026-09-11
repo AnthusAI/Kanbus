@@ -1,11 +1,11 @@
 {
   "id": "kbs-84efad7e-36b2-4ee2-88ca-e4994787f791",
   "title": "Normalize multi-project partition labels (Chattic.us vs chatticus; Kanbus/kanbus/kbs)",
-  "description": "SD soft nit on #266: partition label inconsistency across projects \u2014 normalize display labels so rollup bullets use one canonical name per project.",
+  "description": "SD soft nit on #266: partition label inconsistency across projects — normalize display labels so rollup bullets use one canonical name per project.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "labels": [],
@@ -17,25 +17,22 @@
       "text": "Ryan upgraded to must-ship (2026-09-10). SD owns Composer implementation after #266.",
       "created_at": "2026-09-10T14:19:46.420774Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
         "model": "composer-2.5",
-        "name": "Kanbus",
-        "settings": {}
+        "name": "Kanbus"
       }
     }
   ],
   "created_at": "2026-09-10T14:00:04.170334Z",
-  "updated_at": "2026-09-10T14:19:46.420899Z",
+  "updated_at": "2026-09-11T20:00:41.881918Z",
   "closed_at": null,
-  "right_now_summary": "SD owns the Composer work to normalize partition labels across projects after #266.",
-  "right_now_updated_at": "2026-09-10T14:19:50.703454Z",
-  "custom": {},
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5",
-    "name": "Kanbus",
-    "settings": {}
-  }
+    "name": "Kanbus"
+  },
+  "right_now_summary": "SD is implementing canonical project labels in Composer after #266.",
+  "right_now_updated_at": "2026-09-11T20:00:43.852226Z",
+  "custom": {}
 }

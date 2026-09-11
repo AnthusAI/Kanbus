@@ -1,11 +1,11 @@
 {
   "id": "kbs-ed82a353-dd0d-45fe-9b9d-494a915ff3e0",
   "title": "director-brief Momentum: use rollup parity with meeting-script Today (not leaf-flat)",
-  "description": "SD soft nit on #266: director-brief Momentum still leaf-flat vs meeting-script Today rollup \u2014 bring Momentum bullets up to the same rollup behavior.",
+  "description": "SD soft nit on #266: director-brief Momentum still leaf-flat vs meeting-script Today rollup — bring Momentum bullets up to the same rollup behavior.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "labels": [],
@@ -17,25 +17,22 @@
       "text": "Ryan upgraded to must-ship (2026-09-10). SD owns Composer implementation after #266.",
       "created_at": "2026-09-10T14:20:58.479306Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
         "model": "composer-2.5",
-        "name": "Kanbus",
-        "settings": {}
+        "name": "Kanbus"
       }
     }
   ],
   "created_at": "2026-09-10T14:00:44.724456Z",
-  "updated_at": "2026-09-10T14:20:58.479423Z",
+  "updated_at": "2026-09-11T20:01:01.440815Z",
   "closed_at": null,
-  "right_now_summary": "SD is implementing Composer changes so director-brief Momentum matches meeting-script Today rollups.",
-  "right_now_updated_at": "2026-09-10T14:21:03.397244Z",
-  "custom": {},
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5",
-    "name": "Kanbus",
-    "settings": {}
-  }
+    "name": "Kanbus"
+  },
+  "right_now_summary": "SD is implementing rollup parity so director-brief Momentum matches meeting-script Today.",
+  "right_now_updated_at": "2026-09-11T20:01:03.394829Z",
+  "custom": {}
 }
