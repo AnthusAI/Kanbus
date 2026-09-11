@@ -3,18 +3,26 @@
   "title": "Standup rollup closeout follow-ups",
   "description": "",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "c13ec5c5-4d31-4b8c-b77b-3c7bcbfd12c5",
+      "author": "ryan",
+      "text": "Closed with epic kbs-6cf26a after PR #269 landed on develop.",
+      "created_at": "2026-09-11T20:26:51.801746Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-10T14:23:23.415487398Z",
-  "updated_at": "2026-09-10T14:23:23.425901141Z",
-  "closed_at": null,
-  "right_now_summary": "No recent updates have been reported for the standup rollup closeout follow-ups.",
-  "right_now_updated_at": "2026-09-10T14:23:26.318944840Z",
+  "updated_at": "2026-09-11T20:26:51.801765Z",
+  "closed_at": "2026-09-11T20:26:44.964244Z",
+  "right_now_summary": "PR #269 landed on develop, wrapping up the standup rollup follow-ups under epic kbs-6cf26a.",
+  "right_now_updated_at": "2026-09-11T20:26:54.143434Z",
   "custom": {}
 }
