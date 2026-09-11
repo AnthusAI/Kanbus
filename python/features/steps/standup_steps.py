@@ -80,7 +80,9 @@ def given_issue_updated_at_within_standup_lookback(
     :param identifier: Issue identifier.
     :type identifier: str
     """
-    project_dir = load_project_directory(context)
+    from features.steps.query_steps import _resolve_issue_project_directory
+
+    project_dir = _resolve_issue_project_directory(context, identifier)
     issue = read_issue_file(project_dir, identifier)
     recent = datetime.now(timezone.utc) - timedelta(hours=1)
     issue = issue.model_copy(update={"updated_at": recent})
@@ -98,7 +100,9 @@ def given_issue_updated_at_older_than_standup_lookback(
     :param identifier: Issue identifier.
     :type identifier: str
     """
-    project_dir = load_project_directory(context)
+    from features.steps.query_steps import _resolve_issue_project_directory
+
+    project_dir = _resolve_issue_project_directory(context, identifier)
     issue = read_issue_file(project_dir, identifier)
     stale = datetime.now(timezone.utc) - timedelta(hours=48)
     issue = issue.model_copy(update={"updated_at": stale})
