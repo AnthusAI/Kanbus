@@ -3,24 +3,31 @@
   "title": "Implement standup rollup + close-out dual-runtime",
   "description": "Implement after Gherkin ACCEPT: CLI flags, multi-project/congregation defaults, recursive upward summaries, project labels, dedupe, close-out section, empty Yesterday. Python + Rust parity. SD owns Composer (bc-f9b425e3).",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "8dada41c-0c61-43fb-916a-ed646c9daf0e",
+      "author": "ryan",
+      "text": "Closing: base standup rollup/close-out shipped via PR #266. Remaining must-ship soft nits stay open under kbs-6cf26a / draft PR #269.",
+      "created_at": "2026-09-11T19:52:39.161627Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-10T13:44:06.234802Z",
-  "updated_at": "2026-09-10T13:44:06.267632Z",
-  "closed_at": null,
-  "right_now_summary": "The team is adding standup rollups and close-out output with matching Python and Rust behavior.",
-  "right_now_updated_at": "2026-09-10T13:44:11.866944Z",
-  "custom": {},
+  "updated_at": "2026-09-11T19:52:39.161683Z",
+  "closed_at": "2026-09-11T19:52:33.109880Z",
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5",
-    "name": "Kanbus",
-    "settings": {}
-  }
+    "name": "Kanbus"
+  },
+  "right_now_summary": "Base standup rollup and close-out shipped; remaining soft nits are being handled in kbs-6cf26a and PR #269.",
+  "right_now_updated_at": "2026-09-11T19:52:41.848802Z",
+  "custom": {}
 }

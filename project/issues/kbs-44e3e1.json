@@ -3,18 +3,29 @@
   "title": "Gherkin: console Now-panel Standup drawer + API",
   "description": "## Spec-first\n\nAuthoritative Gherkin scenarios for Console standup embedded in the Now panel.\n\n## Scenarios to cover\n\n- Now panel exposes a Standup control (button) without adding Reports navigation.\n- Opening the control shows a standup drawer anchored to CurrentStatusPanel.\n- Drawer supports profile selection (meeting-script, director-brief) consistent with CLI standup.\n- Drawer triggers standup generation via Console API (POST /api/standup).\n- Loading, success, and fail-closed error states when right-now summaries are missing or generation fails.\n- Drawer can be dismissed without leaving the Now panel view.\n\n## Tags\n\n- `@console` / `@console-server` as appropriate for kbsc-backed scenarios.\n- No `@wip` when scenarios are ready for implementation.\n\n## Parity\n\nPython behave and Rust cucumber step definitions must stay in sync (`tools/check_spec_parity.py`).",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-164aab",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f929447a-98a5-4090-b688-2f4aa4ffbb8a",
+      "author": "ryan",
+      "text": "Closing: Console Standup Now-panel drawer/API shipped via PR #249/#251 (and follow-up #254/#258).",
+      "created_at": "2026-09-11T19:51:05.319119Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T19:59:12.833906649Z",
-  "updated_at": "2026-09-09T19:59:12.841605082Z",
-  "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "updated_at": "2026-09-11T19:51:05.330892Z",
+  "closed_at": "2026-09-11T19:50:52.876564Z",
+  "right_now_summary": "Console Standup now works in the Now panel with profile selection, API generation, and safe error handling.",
+  "right_now_updated_at": "2026-09-11T19:51:06.911563Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

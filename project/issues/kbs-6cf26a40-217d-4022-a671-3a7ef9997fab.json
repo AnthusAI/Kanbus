@@ -1,7 +1,7 @@
 {
   "id": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "title": "Standup multi-project rollup + close-out dogfood",
-  "description": "## Product ask (Ryan / SD, 2026-09-10)\n\nGherkin-first, dual Python+Rust. SD owns Composer implementation (bc-f9b425e3); no duplicate worker.\n\n### Scope\n1. Multi-project rollup shapes: `--rollup project` (one bullet per project, upward-summarized) and `--rollup tree` (nested project\u2192epic\u2192leaf). Default: project at multi-project / congregation; tree OK inside single board.\n2. Recursive upward right-now: parent/initiative/project rollup bullets recompute from children (LLM or structured reduce) \u2014 not flat leaf dump.\n3. Project labels on every multi-project bullet.\n4. Close-out section for kanban WIP control: ready-to-close / merged-but-still-in_progress / blocked-only-on-external-wait (replace or demote useless \u201cWhy is X still in progress?\u201d Likely questions).\n5. Deduplicate parent+child saying the same thing.\n6. Empty Yesterday: explicit \u201cno completions\u201d (don\u2019t leave blank).\n\n### Constraints\n- Specs first; dual-runtime\n- No admin-merge",
+  "description": "## Product ask (Ryan / SD, 2026-09-10)\n\nGherkin-first, dual Python+Rust. SD owns Composer implementation (bc-f9b425e3); no duplicate worker.\n\n### Scope\n1. Multi-project rollup shapes: `--rollup project` (one bullet per project, upward-summarized) and `--rollup tree` (nested project→epic→leaf). Default: project at multi-project / congregation; tree OK inside single board.\n2. Recursive upward right-now: parent/initiative/project rollup bullets recompute from children (LLM or structured reduce) — not flat leaf dump.\n3. Project labels on every multi-project bullet.\n4. Close-out section for kanban WIP control: ready-to-close / merged-but-still-in_progress / blocked-only-on-external-wait (replace or demote useless “Why is X still in progress?” Likely questions).\n5. Deduplicate parent+child saying the same thing.\n6. Empty Yesterday: explicit “no completions” (don’t leave blank).\n\n### Constraints\n- Specs first; dual-runtime\n- No admin-merge",
   "type": "epic",
   "status": "in_progress",
   "priority": 1,
@@ -14,13 +14,12 @@
   "created_at": "2026-09-10T13:43:11.855820Z",
   "updated_at": "2026-09-10T13:44:17.774400Z",
   "closed_at": null,
-  "right_now_summary": "SD is implementing dual-runtime standup rollups, project labels, deduplication, and close-out prompts.",
-  "right_now_updated_at": "2026-09-10T14:21:06.222451Z",
-  "custom": {},
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5",
-    "name": "Kanbus",
-    "settings": {}
-  }
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The base rollup shipped, and SD is finishing Composer fixes for project labels and remaining soft nits.",
+  "right_now_updated_at": "2026-09-11T19:52:46.945984Z",
+  "custom": {}
 }
