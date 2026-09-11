@@ -17,12 +17,19 @@
       "text": "Ported unit tests onto develop on branch feature/console-screenshot-unit-tests. Deleted stale remotes: cursor/cli-board-screenshot-5624, cursor/cli-board-screenshot-plan-5624, cursor/console-screenshot-main-3bba. Tests passing locally; awaiting commit/PR.",
       "created_at": "2026-09-11T17:18:17.159664Z",
       "comment_type": "default"
+    },
+    {
+      "id": "31d1892c-0556-412b-acf1-b341c54f39a3",
+      "author": "ryan",
+      "text": "PR: https://github.com/AnthusAI/Kanbus/pull/271",
+      "created_at": "2026-09-11T17:25:58.866689Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-11T17:08:32.246351Z",
-  "updated_at": "2026-09-11T17:18:17.160106Z",
+  "updated_at": "2026-09-11T17:25:58.867116Z",
   "closed_at": null,
-  "right_now_summary": "Unit tests were ported to a feature branch, stale remotes were deleted, and local tests pass.",
-  "right_now_updated_at": "2026-09-11T17:18:19.351373Z",
+  "right_now_summary": "Unit tests are ported and passing locally, with the changes submitted in PR #271.",
+  "right_now_updated_at": "2026-09-11T17:26:01.800626Z",
   "custom": {}
 }
