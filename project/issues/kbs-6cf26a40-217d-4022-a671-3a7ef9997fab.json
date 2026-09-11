@@ -5,21 +5,21 @@
   "type": "epic",
   "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-60f3d0",
   "labels": [],
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-10T13:43:11.855820Z",
-  "updated_at": "2026-09-10T13:44:17.774400Z",
+  "updated_at": "2026-09-11T20:00:37.833922Z",
   "closed_at": null,
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5",
     "name": "Kanbus"
   },
-  "right_now_summary": "The base rollup shipped, and SD is finishing Composer fixes for project labels and remaining soft nits.",
-  "right_now_updated_at": "2026-09-11T19:52:46.945984Z",
+  "right_now_summary": "SD owns the remaining Composer rollup, labeling, and close-out fixes in draft PR #269.",
+  "right_now_updated_at": "2026-09-11T20:01:04.710442Z",
   "custom": {}
 }

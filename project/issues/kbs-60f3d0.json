@@ -22,8 +22,8 @@
   "created_at": "2026-09-09T16:03:53.845499Z",
   "updated_at": "2026-09-09T17:17:24.575290Z",
   "closed_at": null,
-  "right_now_summary": "Standup reports work in the console, while CLI setup and remaining polish are still being fixed.",
-  "right_now_updated_at": "2026-09-11T19:53:17.248826Z",
+  "right_now_summary": "Standup reports work in the console, but fresh CLI installs still fail because litellm is missing.",
+  "right_now_updated_at": "2026-09-11T20:01:07.097076Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

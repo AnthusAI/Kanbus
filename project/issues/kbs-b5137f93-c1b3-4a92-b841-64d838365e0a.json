@@ -3,9 +3,9 @@
   "title": "Project rollup: fail-closed upward LLM/structured reduce (not semicolon join)",
   "description": "SD soft nit on #266: project rollup currently joins with semicolon rather than fail-closed upward LLM or structured reduce from children.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-6cf26a40-217d-4022-a671-3a7ef9997fab",
   "labels": [],
@@ -17,25 +17,22 @@
       "text": "Ryan upgraded to must-ship (2026-09-10). SD owns Composer implementation after #266.",
       "created_at": "2026-09-10T14:20:11.086154Z",
       "comment_type": "default",
-      "data": {},
       "agent": {
         "platform": "cursor",
         "model": "composer-2.5",
-        "name": "Kanbus",
-        "settings": {}
+        "name": "Kanbus"
       }
     }
   ],
   "created_at": "2026-09-10T14:00:19.598786Z",
-  "updated_at": "2026-09-10T14:20:11.086291Z",
+  "updated_at": "2026-09-11T20:00:49.279012Z",
   "closed_at": null,
-  "right_now_summary": "Composer work is now a must-ship item, with SD owning the fix for project rollups.",
-  "right_now_updated_at": "2026-09-10T14:20:15.067413Z",
-  "custom": {},
   "agent": {
     "platform": "cursor",
     "model": "composer-2.5",
-    "name": "Kanbus",
-    "settings": {}
-  }
+    "name": "Kanbus"
+  },
+  "right_now_summary": "SD owns the Composer fix to roll up child data with fail-closed LLM or structured reduction.",
+  "right_now_updated_at": "2026-09-11T20:00:50.717553Z",
+  "custom": {}
 }
