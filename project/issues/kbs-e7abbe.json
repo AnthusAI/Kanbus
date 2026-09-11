@@ -14,8 +14,8 @@
   "created_at": "2026-09-09T16:14:17.223285296Z",
   "updated_at": "2026-09-09T20:01:19.588435690Z",
   "closed_at": "2026-09-09T20:01:19.580330037Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "Shared right-now generation awaits JIT fail-closed KBS; console/API changes landed, and specs await implementation.",
+  "right_now_updated_at": "2026-09-11T19:51:45.627822Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

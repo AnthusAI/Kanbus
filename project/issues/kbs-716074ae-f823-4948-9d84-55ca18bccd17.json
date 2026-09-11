@@ -14,7 +14,7 @@
   "created_at": "2026-09-09T19:48:32.015762481Z",
   "updated_at": "2026-09-09T20:01:20.091671630Z",
   "closed_at": "2026-09-09T20:01:20.084611106Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "The daemon must reload on schema changes and fall back to filesystem listing when it cannot parse the config.",
+  "right_now_updated_at": "2026-09-11T19:47:21.135463Z",
   "custom": {}
 }

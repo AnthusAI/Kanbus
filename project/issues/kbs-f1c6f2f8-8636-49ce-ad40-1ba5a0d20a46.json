@@ -14,7 +14,7 @@
   "created_at": "2026-09-09T17:17:27.840977212Z",
   "updated_at": "2026-09-09T20:01:19.684132050Z",
   "closed_at": "2026-09-09T20:01:19.676328123Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "The CLI output format is set, and implementation awaits SD review of the Gherkin specs.",
+  "right_now_updated_at": "2026-09-11T19:47:33.669969Z",
   "custom": {}
 }

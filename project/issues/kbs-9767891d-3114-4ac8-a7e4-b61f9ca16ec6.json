@@ -3,18 +3,26 @@
   "title": "Standup rollup shapes and close-out section",
   "description": "Gherkin-first rollup (--rollup project|tree|flat), close-out WIP signals, empty Yesterday, dedupe parent/child summaries. platform=cursor model=composer-2.5",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-60f3d0",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "394fef34-bdfc-4fe0-9b31-96c95b9b1079",
+      "author": "ryan",
+      "text": "Closing: implementation child kbs-696a07 done via #266. Follow-up soft nits live under kbs-6cf26a.",
+      "created_at": "2026-09-11T19:53:10.742248Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-10T13:43:24.104519940Z",
-  "updated_at": "2026-09-10T13:43:24.113623918Z",
-  "closed_at": null,
-  "right_now_summary": "The team is building Gherkin-based standup rollups and close-out views across two runtimes.",
-  "right_now_updated_at": "2026-09-10T13:54:47.837693769Z",
+  "updated_at": "2026-09-11T19:53:10.742268Z",
+  "closed_at": "2026-09-11T19:53:05.764703Z",
+  "right_now_summary": "The rollup and close-out shipped, while remaining nits are tracked in kbs-6cf26a.",
+  "right_now_updated_at": "2026-09-11T19:53:14.663584Z",
   "custom": {}
 }

@@ -22,8 +22,8 @@
   "created_at": "2026-09-09T16:03:53.845499Z",
   "updated_at": "2026-09-09T17:17:24.575290Z",
   "closed_at": null,
-  "right_now_summary": "The JIT foundation is merged, and the team is building CLI and Console standup reports.",
-  "right_now_updated_at": "2026-09-11T17:44:58.334375Z",
+  "right_now_summary": "Standup reports work in the console, while CLI setup and remaining polish are still being fixed.",
+  "right_now_updated_at": "2026-09-11T19:53:17.248826Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

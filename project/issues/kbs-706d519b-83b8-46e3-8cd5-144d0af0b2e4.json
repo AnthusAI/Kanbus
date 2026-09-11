@@ -3,18 +3,26 @@
   "title": "Console Standup embedded in Now panel",
   "description": "Gherkin-first console standup drawer on Current Status panel with POST /api/standup using shared standup pipeline.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": "kbs-e7abbe",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ccf3a469-64e4-47a1-a136-32834a60cd8d",
+      "author": "ryan",
+      "text": "Closing: Console Standup Now-panel drawer/API shipped via PR #249/#251 (and follow-up #254/#258).",
+      "created_at": "2026-09-11T19:51:37.554546Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-09T19:58:30.454957720Z",
-  "updated_at": "2026-09-09T19:58:42.616473652Z",
-  "closed_at": null,
-  "right_now_summary": "The team is building a console standup drawer in the Now panel with a shared API pipeline.",
-  "right_now_updated_at": "2026-09-11T17:44:55.228007Z",
+  "updated_at": "2026-09-11T19:51:37.554573Z",
+  "closed_at": "2026-09-11T19:51:31.112133Z",
+  "right_now_summary": "The Console Standup drawer and API are shipped through PRs #249, #251, #254, and #258.",
+  "right_now_updated_at": "2026-09-11T19:51:39.229363Z",
   "custom": {}
 }

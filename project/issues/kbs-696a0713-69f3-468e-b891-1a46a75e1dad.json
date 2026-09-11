@@ -3,18 +3,26 @@
   "title": "Standup rollup and close-out implementation",
   "description": "Gherkin + dual runtime. platform=cursor model=composer-2.5",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": "kbs-9767891d-3114-4ac8-a7e4-b61f9ca16ec6",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "43397bee-9ac7-4d46-8137-f19a93a1cdf2",
+      "author": "ryan",
+      "text": "Closing: base standup rollup/close-out shipped via PR #266. Remaining must-ship soft nits stay open under kbs-6cf26a / draft PR #269.",
+      "created_at": "2026-09-11T19:52:55.748304Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-10T13:54:29.725191905Z",
-  "updated_at": "2026-09-10T13:54:41.557137227Z",
-  "closed_at": null,
-  "right_now_summary": "The team is implementing standup rollup and close-out with Gherkin across two runtimes.",
-  "right_now_updated_at": "2026-09-10T13:54:44.369367838Z",
+  "updated_at": "2026-09-11T19:52:55.748342Z",
+  "closed_at": "2026-09-11T19:52:49.386790Z",
+  "right_now_summary": "The base standup rollup and close-out shipped; remaining must-ship nits are tracked in kbs-6cf26a.",
+  "right_now_updated_at": "2026-09-11T19:52:57.989734Z",
   "custom": {}
 }

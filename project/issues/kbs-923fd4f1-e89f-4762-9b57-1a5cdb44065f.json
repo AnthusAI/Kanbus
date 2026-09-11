@@ -14,7 +14,7 @@
   "created_at": "2026-09-09T19:48:32.010879395Z",
   "updated_at": "2026-09-09T20:01:20.178704183Z",
   "closed_at": "2026-09-09T20:01:20.171882294Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "The tool install misses litellm, so `kbs now` and `kbs standup` fail without a manual install.",
+  "right_now_updated_at": "2026-09-11T19:47:19.501276Z",
   "custom": {}
 }
