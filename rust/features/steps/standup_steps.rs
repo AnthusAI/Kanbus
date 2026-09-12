@@ -66,6 +66,10 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
     let mut issue_ids = Vec::new();
     let mut profile = None;
     let mut recursive = true;
+    let mut window = None;
+    let mut lookback = None;
+    let mut skip_weekends = None;
+    let mut rollup = None;
     let tokens: Vec<&str> = command.split_whitespace().collect();
     let mut index = 0;
     while index < tokens.len() {
@@ -85,16 +89,27 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
             continue;
         }
         if token == "--rollup" && index + 1 < tokens.len() {
+            rollup = Some(tokens[index + 1].to_string());
             index += 2;
             continue;
         }
-        if token == "--skip-weekends" || token == "--no-skip-weekends" {
+        if token == "--skip-weekends" {
+            skip_weekends = Some(true);
             index += 1;
             continue;
         }
-        if (token == "--window" || token == "--lookback" || token == "--profile")
-            && index + 1 < tokens.len()
-        {
+        if token == "--no-skip-weekends" {
+            skip_weekends = Some(false);
+            index += 1;
+            continue;
+        }
+        if token == "--window" && index + 1 < tokens.len() {
+            window = Some(tokens[index + 1].to_string());
+            index += 2;
+            continue;
+        }
+        if token == "--lookback" && index + 1 < tokens.len() {
+            lookback = Some(tokens[index + 1].to_string());
             index += 2;
             continue;
         }
@@ -110,10 +125,10 @@ fn standup_options_from_last_command(world: &KanbusWorld) -> StandupCommandOptio
         profile,
         as_json: false,
         recursive,
-        window: None,
-        lookback: None,
-        skip_weekends: None,
-        rollup: None,
+        window,
+        lookback,
+        skip_weekends,
+        rollup,
     }
 }
 

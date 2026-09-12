@@ -7,26 +7,24 @@ import os
 import subprocess
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 import yaml
 from behave import given, then, when
 
+from features.steps.shared import (
+    load_project_directory,
+    read_issue_file,
+    write_issue_file,
+)
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.standup import load_standup_configuration, resolve_standup_profile
 from kanbus.standup_window import (
     StandupWindowOverrides,
     parse_standup_lookback_hours,
     resolve_standup_window_settings,
-)
-
-from features.steps.shared import (
-    load_project_directory,
-    read_issue_file,
-    write_issue_file,
 )
 
 
@@ -65,7 +63,7 @@ def _report_time(context: object) -> datetime:
     override = getattr(context, "standup_report_time", None)
     if override is not None:
         return override
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _clear_report_time() -> None:
@@ -86,7 +84,7 @@ def _ensure_live_report_time(context: object) -> None:
 
 def _resolved_window_settings(
     context: object,
-    profile: Optional[str] = None,
+    profile: str | None = None,
     apply_profile_defaults: bool = True,
 ) -> object:
     root = Path(context.working_directory)
@@ -141,7 +139,7 @@ def given_standup_timezone(context: object, timezone_name: str) -> None:
 @given("the report time is fixed")
 def given_report_time_is_fixed(context: object) -> None:
     """Pin standup report time for deterministic bucket tests."""
-    _set_report_time(context, datetime(2026, 3, 10, 15, 0, tzinfo=timezone.utc))
+    _set_report_time(context, datetime(2026, 3, 10, 15, 0, tzinfo=UTC))
 
 
 @given("the report time is {weekday} {hour:d}:00 in standup timezone")
@@ -163,7 +161,7 @@ def given_report_time_in_standup_timezone(
     base = datetime(2026, 3, 9, hour, 0, tzinfo=timezone_info)
     while base.weekday() != target_weekday:
         base += timedelta(days=1)
-    _set_report_time(context, base.astimezone(timezone.utc))
+    _set_report_time(context, base.astimezone(UTC))
 
 
 @given('issue "{identifier}" has closed_at {hours:d} hours before report time')
@@ -206,7 +204,7 @@ def given_issue_state_transition_previous_calendar_day(
         16,
         0,
         tzinfo=timezone_info,
-    ).astimezone(timezone.utc)
+    ).astimezone(UTC)
     occurred_at_text = occurred_at.isoformat(timespec="milliseconds").replace(
         "+00:00", "Z"
     )
@@ -245,7 +243,7 @@ def given_issue_closed_previous_calendar_day(context: object, identifier: str) -
         16,
         0,
         tzinfo=timezone_info,
-    ).astimezone(timezone.utc)
+    ).astimezone(UTC)
     issue = issue.model_copy(update={"closed_at": closed_at, "status": "closed"})
     write_issue_file(project_dir, issue)
 
@@ -269,7 +267,7 @@ def given_issue_closed_two_calendar_days_before(
         16,
         0,
         tzinfo=timezone_info,
-    ).astimezone(timezone.utc)
+    ).astimezone(UTC)
     issue = issue.model_copy(update={"closed_at": closed_at, "status": "closed"})
     write_issue_file(project_dir, issue)
 
@@ -302,7 +300,7 @@ def given_issue_closed_on_weekday_before_monday(
         16,
         0,
         tzinfo=timezone_info,
-    ).astimezone(timezone.utc)
+    ).astimezone(UTC)
     issue = issue.model_copy(update={"closed_at": closed_at, "status": "closed"})
     write_issue_file(project_dir, issue)
 
@@ -362,7 +360,7 @@ def when_resolve_standup_window_settings_both_runtimes(context: object) -> None:
         Path(__file__).resolve().parents[3]
         / "rust"
         / "target"
-        / "release"
+        / "debug"
         / "standup_window_probe"
     )
     if not probe_binary.is_file():

@@ -5,8 +5,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
-from typing import Optional, Set
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from kanbus.models import ProjectConfiguration, StandupConfiguration
@@ -25,7 +24,7 @@ class StandupWindowError(ValueError):
     """Raised when standup window settings are invalid."""
 
 
-def parse_rfc3339_timestamp(value: Optional[datetime | str]) -> Optional[datetime]:
+def parse_rfc3339_timestamp(value: datetime | str | None) -> datetime | None:
     """Parse an RFC3339 timestamp into UTC.
 
     :param value: Timestamp value from issue or event data.
@@ -40,12 +39,12 @@ def parse_rfc3339_timestamp(value: Optional[datetime | str]) -> Optional[datetim
     else:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def is_within_lookback(
-    timestamp: Optional[datetime | str],
+    timestamp: datetime | str | None,
     report_time: datetime,
     lookback_hours: int,
 ) -> bool:
@@ -79,9 +78,9 @@ class StandupWindowOverrides:
     :type skip_weekends: Optional[bool]
     """
 
-    window: Optional[str] = None
-    lookback: Optional[str] = None
-    skip_weekends: Optional[bool] = None
+    window: str | None = None
+    lookback: str | None = None
+    skip_weekends: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -168,10 +167,24 @@ def resolve_standup_timezone(configuration: ProjectConfiguration) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
+def canonicalize_standup_timezone_name(timezone_name: str) -> str:
+    """Normalize timezone labels for dual-runtime probe parity.
+
+    :param timezone_name: Raw timezone name from ZoneInfo or chrono-tz.
+    :type timezone_name: str
+    :return: Canonical timezone name (UTC aliases collapse to UTC).
+    :rtype: str
+    """
+    normalized = timezone_name.strip()
+    if normalized in {"UTC", "Etc/UTC", "Etc/GMT", "GMT"}:
+        return "UTC"
+    return normalized
+
+
 def resolve_standup_window_settings(
     configuration: ProjectConfiguration,
-    profile: Optional[str],
-    overrides: Optional[StandupWindowOverrides] = None,
+    profile: str | None,
+    overrides: StandupWindowOverrides | None = None,
 ) -> StandupWindowSettings:
     """Resolve standup window settings from config, profile, and overrides.
 
@@ -231,13 +244,13 @@ def resolve_standup_report_time() -> datetime:
         if parsed is None:
             raise StandupWindowError(f"invalid {STANDUP_REPORT_TIME_ENV}: {override}")
         return parsed
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def completed_calendar_dates(
     report_time: datetime,
     settings: StandupWindowSettings,
-) -> Set[date]:
+) -> set[date]:
     """Return calendar dates that qualify for the completed bucket.
 
     :param report_time: Report generation time in UTC.
@@ -259,9 +272,9 @@ def completed_calendar_dates(
 
 
 def timestamp_calendar_date(
-    timestamp: Optional[datetime | str],
+    timestamp: datetime | str | None,
     settings: StandupWindowSettings,
-) -> Optional[date]:
+) -> date | None:
     """Convert a timestamp to a local calendar date in standup timezone.
 
     :param timestamp: Timestamp to convert.
@@ -278,7 +291,7 @@ def timestamp_calendar_date(
 
 
 def is_on_completed_calendar_day(
-    timestamp: Optional[datetime | str],
+    timestamp: datetime | str | None,
     report_time: datetime,
     settings: StandupWindowSettings,
 ) -> bool:
@@ -318,7 +331,7 @@ def start_of_report_calendar_day(
         time.min,
         tzinfo=settings.timezone,
     )
-    return start_local.astimezone(timezone.utc)
+    return start_local.astimezone(UTC)
 
 
 def default_standup_configuration() -> StandupConfiguration:

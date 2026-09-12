@@ -49,6 +49,7 @@ pub mod right_now_cli_steps;
 pub mod right_now_steps;
 pub mod standup_panel_steps;
 pub mod standup_steps;
+pub mod standup_window_steps;
 pub mod text_editor_steps;
 pub mod users_steps;
 pub mod virtual_project_steps;

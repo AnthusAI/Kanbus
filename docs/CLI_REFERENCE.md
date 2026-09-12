@@ -178,9 +178,19 @@ kanbus list --all
 Generate on-demand standup reports from right-now summaries (fail-closed; no placeholder text).
 
 ```bash
-kbs standup [issue-ids...] [--profile meeting-script|director-brief] [--rollup flat|project|tree] [--json]
+kbs standup [issue-ids...] \
+  [--profile meeting-script|director-brief] \
+  [--window rolling|calendar] \
+  [--lookback 24h|8h|1d|...] \
+  [--skip-weekends|--no-skip-weekends] \
+  [--rollup flat|project|tree] \
+  [--json]
 ```
 
+- **`--window`**: `rolling` (duration lookback) or `calendar` (calendar-day buckets in `standup.timezone`).
+- **`--lookback`**: Rolling duration string (`8h`, `24h`, `1d` sugar for 24h). Ignored for calendar completed-day selection except as configured lookback metadata.
+- **`--skip-weekends` / `--no-skip-weekends`**: Calendar only. On Monday with skip enabled, completed bucket includes Friday–Sunday; otherwise previous calendar day only. No-op when `--window rolling`.
+- Profile defaults: `meeting-script` uses calendar + skip weekends; `director-brief` inherits global rolling + 24h. CLI flags override config and profile.
 - **Default fact feed** (no issue IDs): congregation scope (`in_progress` and `blocked`, cap 30).
 - **`--rollup`**: `flat` (per-leaf bullets), `project` (one labeled bullet per project with bottom-up LLM rollup of right-now facts), or `tree` (nested by hierarchy with upward rollup on parents when children differ). When omitted: `project` for `virtual_projects` boards; `flat` for single-project board-wide; `tree` for explicit scoped issue IDs.
 - **Project labels** (congregation / `virtual_projects`): bracket prefixes use one canonical display name per partition — `virtual_projects.<key>.display_name` when set, else congregation `name` for the primary board, else the partition key. Issue `project_label` metadata is normalized so the same board never appears under two labels in one report.
