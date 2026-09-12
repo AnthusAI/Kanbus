@@ -7,8 +7,11 @@ import json
 import sys
 from pathlib import Path
 
-from kanbus.standup import load_standup_configuration, resolve_standup_profile
-from kanbus.standup_window import resolve_standup_window_settings
+from kanbus.standup import load_standup_configuration
+from kanbus.standup_window import (
+    canonicalize_standup_timezone_name,
+    resolve_standup_window_settings,
+)
 
 
 def main() -> int:
@@ -28,7 +31,7 @@ def main() -> int:
         "lookback": settings.lookback,
         "lookback_hours": settings.lookback_hours,
         "skip_weekends": settings.skip_weekends,
-        "timezone": str(settings.timezone),
+        "timezone": canonicalize_standup_timezone_name(str(settings.timezone)),
     }
     print(json.dumps(payload))
     return 0

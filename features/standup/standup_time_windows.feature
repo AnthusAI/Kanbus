@@ -1,4 +1,3 @@
-@wip
 Feature: Standup time windows (rolling vs calendar)
   As a Kanbus user generating standup reports
   I want explicit window / lookback / skip_weekends controls
@@ -151,6 +150,7 @@ Feature: Standup time windows (rolling vs calendar)
     And the standup report section "Yesterday" should mention "CLI rolling include"
     And the standup report section "Yesterday" should not mention "CLI rolling exclude"
 
+  @console-server
   Scenario: Console API accepts the same window lookback skip_weekends field names
     Given the console server is running
     When I POST "/api/standup" with JSON:

@@ -4,7 +4,9 @@ use std::env;
 use std::path::PathBuf;
 
 use kanbus::standup::load_standup_configuration;
-use kanbus::standup_window::{resolve_standup_window_settings, StandupWindowOverrides};
+use kanbus::standup_window::{
+    canonicalize_standup_timezone_name, resolve_standup_window_settings, StandupWindowOverrides,
+};
 use serde_json::json;
 
 fn main() {
@@ -27,7 +29,7 @@ fn main() {
         "lookback": settings.lookback,
         "lookback_hours": settings.lookback_hours,
         "skip_weekends": settings.skip_weekends,
-        "timezone": settings.timezone.name(),
+        "timezone": canonicalize_standup_timezone_name(settings.timezone.name()),
     });
     println!("{}", payload);
 }

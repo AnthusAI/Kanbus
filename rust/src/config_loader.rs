@@ -60,6 +60,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
     handle_legacy_fields(&mut merged_value);
+    reject_standup_lookback_hours(&merged_value)?;
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
@@ -521,8 +522,26 @@ fn handle_legacy_fields(mapping: &mut Mapping) {
     }
 }
 
+const STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE: &str = "standup.lookback_hours was removed; use standup.lookback with a duration string such as 24h or 1d";
+
+fn reject_standup_lookback_hours(mapping: &Mapping) -> Result<(), KanbusError> {
+    let standup_key = Value::String("standup".to_string());
+    let lookback_hours_key = Value::String("lookback_hours".to_string());
+    if let Some(Value::Mapping(standup)) = mapping.get(&standup_key) {
+        if standup.contains_key(&lookback_hours_key) {
+            return Err(KanbusError::Configuration(
+                STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn map_configuration_error(error: &serde_yaml::Error) -> String {
     let message = error.to_string();
+    if message.contains("lookback_hours") {
+        return STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string();
+    }
     if message.contains("unknown field") {
         return "unknown configuration fields".to_string();
     }
@@ -704,5 +723,33 @@ fn set_nested_value(mapping: &mut Mapping, path: &[&str], value: Value) {
     }
     if let Some(Value::Mapping(child)) = mapping.get_mut(&key) {
         set_nested_value(child, &path[1..], value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn rejects_standup_lookback_hours_with_migration_message() {
+        let temp_dir = TempDir::new().expect("temp dir");
+        let project_dir = temp_dir.path().join("project");
+        fs::create_dir(&project_dir).expect("project dir");
+        let config_path = temp_dir.path().join(".kanbus.yml");
+        fs::write(
+            &config_path,
+            "project_directory: project\nstandup:\n  lookback_hours: 24\n",
+        )
+        .expect("write config");
+
+        let error = load_project_configuration(&config_path).expect_err("migration error");
+        match error {
+            KanbusError::Configuration(message) => {
+                assert_eq!(message, STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE);
+            }
+            other => panic!("unexpected error: {other}"),
+        }
     }
 }

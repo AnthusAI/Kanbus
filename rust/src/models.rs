@@ -151,6 +151,7 @@ fn default_standup_lookback() -> String {
 
 /// On-demand standup report configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StandupConfiguration {
     #[serde(default = "default_standup_window")]
     pub window: String,

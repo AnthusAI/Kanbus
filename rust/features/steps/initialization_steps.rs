@@ -159,6 +159,13 @@ pub struct KanbusWorld {
     pub environment_overrides: BTreeMap<String, String>,
     pub last_command: Option<String>,
     pub standup_json_by_profile: Option<BTreeMap<String, Value>>,
+    pub standup_window_settings: Option<Value>,
+    pub resolved_standup_lookback_hours: Option<u32>,
+    pub python_window_settings: Option<Value>,
+    pub rust_window_settings: Option<Value>,
+    pub standup_timezone_name: Option<String>,
+    pub last_post_path: Option<String>,
+    pub last_post_json: Option<Value>,
 }
 
 const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [
@@ -283,6 +290,7 @@ impl Drop for KanbusWorld {
                 None => std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK"),
             }
         }
+        std::env::remove_var(kanbus::standup_window::STANDUP_REPORT_TIME_ENV);
         if let Some(original) = self.ai_mock_env.take() {
             match original {
                 Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),

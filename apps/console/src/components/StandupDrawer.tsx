@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   generateStandupReport,
+  type StandupGenerateRequest,
   type StandupGenerateResponse,
   type StandupProfile,
   type StandupWindow,
@@ -12,6 +13,25 @@ interface StandupDrawerProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+type StandupWindowDefaults = {
+  window: StandupWindow;
+  lookback: string;
+  skipWeekends: boolean;
+};
+
+const PROFILE_WINDOW_DEFAULTS: Record<StandupProfile, StandupWindowDefaults> = {
+  "meeting-script": {
+    window: "calendar",
+    lookback: "24h",
+    skipWeekends: true,
+  },
+  "director-brief": {
+    window: "rolling",
+    lookback: "24h",
+    skipWeekends: false,
+  },
+};
 
 function formatReportText(response: StandupGenerateResponse): string {
   if (response.text.trim().length > 0) {
@@ -29,11 +49,35 @@ function formatReportText(response: StandupGenerateResponse): string {
   return lines.join("\n");
 }
 
+function buildStandupRequest(
+  profile: StandupProfile,
+  window: StandupWindow,
+  lookback: string,
+  skipWeekends: boolean
+): StandupGenerateRequest {
+  const defaults = PROFILE_WINDOW_DEFAULTS[profile];
+  const request: StandupGenerateRequest = { profile };
+  if (window !== defaults.window) {
+    request.window = window;
+  }
+  if (lookback !== defaults.lookback) {
+    request.lookback = lookback;
+  }
+  if (skipWeekends !== defaults.skipWeekends) {
+    request.skip_weekends = skipWeekends;
+  }
+  return request;
+}
+
 export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) {
   const [profile, setProfile] = useState<StandupProfile>("meeting-script");
-  const [window, setWindow] = useState<StandupWindow>("rolling");
-  const [lookback, setLookback] = useState("24h");
-  const [skipWeekends, setSkipWeekends] = useState(false);
+  const [window, setWindow] = useState<StandupWindow>(
+    PROFILE_WINDOW_DEFAULTS["meeting-script"].window
+  );
+  const [lookback, setLookback] = useState(PROFILE_WINDOW_DEFAULTS["meeting-script"].lookback);
+  const [skipWeekends, setSkipWeekends] = useState(
+    PROFILE_WINDOW_DEFAULTS["meeting-script"].skipWeekends
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportText, setReportText] = useState<string | null>(null);
@@ -47,16 +91,21 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
     setCopyStatus(null);
   }, []);
 
+  const applyProfileDefaults = useCallback((nextProfile: StandupProfile) => {
+    const defaults = PROFILE_WINDOW_DEFAULTS[nextProfile];
+    setWindow(defaults.window);
+    setLookback(defaults.lookback);
+    setSkipWeekends(defaults.skipWeekends);
+  }, []);
+
   const handleGenerate = useCallback(async () => {
     resetResult();
     setIsGenerating(true);
     try {
-      const response = await generateStandupReport(apiBase, {
-        profile,
-        window,
-        lookback,
-        skip_weekends: skipWeekends,
-      });
+      const response = await generateStandupReport(
+        apiBase,
+        buildStandupRequest(profile, window, lookback, skipWeekends)
+      );
       setReportText(formatReportText(response));
       setReportSections(response.sections);
     } catch (generationError) {
@@ -116,7 +165,9 @@ export function StandupDrawer({ apiBase, isOpen, onClose }: StandupDrawerProps) 
               data-testid="standup-profile-select"
               value={profile}
               onChange={(event) => {
-                setProfile(event.target.value as StandupProfile);
+                const nextProfile = event.target.value as StandupProfile;
+                setProfile(nextProfile);
+                applyProfileDefaults(nextProfile);
                 resetResult();
               }}
               disabled={isGenerating}
