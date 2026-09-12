@@ -3,7 +3,7 @@
   "title": "Short dep IDs persisted without canonicalization",
   "description": "Repro:\n  kbs dep stoney-47f48a blocked-by stoney-82e6da\n  kbs validate\n\nResult:\n  dependency target 'stoney-82e6da' does not exist\n\nBoth prefixes uniquely identified valid issues and other commands accepted them. Full UUID for the target worked.\n\nExpected: Resolve unique prefixes to full IDs before persistence, or reject short IDs instead of writing an invalid dependency.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-12T18:36:19.393501Z",
-  "updated_at": "2026-09-12T18:36:19.429990Z",
-  "closed_at": null,
-  "right_now_summary": "Short dependency IDs are saved without expansion, so validation cannot find valid targets.",
-  "right_now_updated_at": "2026-09-12T18:36:21.506550Z",
+  "updated_at": "2026-09-12T22:09:24.783715Z",
+  "closed_at": "2026-09-12T22:09:24.653691Z",
+  "right_now_summary": "Short dependency IDs are saved without expansion, creating invalid links to real issues.",
+  "right_now_updated_at": "2026-09-12T22:09:26.582117Z",
   "custom": {}
 }

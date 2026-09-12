@@ -3,7 +3,7 @@
   "title": "kbs ready semantics: status-blind and ignores closed blockers",
   "description": "Implementation appears to return every non-closed issue without a blocked-by edge, including Backlog, In Progress, and In Review—not only workflow-ready/open issues.\n\nAlso, any blocked-by edge keeps an issue excluded even after the dependency is closed; the edge must be manually removed.\n\nIf intentional, document prominently. Otherwise readiness should account for workflow status and dependency completion.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-12T18:36:37.728106Z",
-  "updated_at": "2026-09-12T18:36:37.751023Z",
-  "closed_at": null,
-  "right_now_summary": "The readiness check ignores workflow status and still excludes issues after their blockers are closed.",
-  "right_now_updated_at": "2026-09-12T18:36:39.544039Z",
+  "updated_at": "2026-09-12T22:09:39.977130Z",
+  "closed_at": "2026-09-12T22:09:39.954509Z",
+  "right_now_summary": "KBS readiness includes non-ready issues and still ignores dependencies after blockers close.",
+  "right_now_updated_at": "2026-09-12T22:09:42.455295Z",
   "custom": {}
 }
