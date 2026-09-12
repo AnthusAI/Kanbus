@@ -3,7 +3,7 @@
   "title": "Canonicalize short dependency IDs on persist",
   "description": "Fix dependency add and remove operations in Python and Rust to resolve prefixes and persist canonical issue identifiers. Add behavior coverage for short dependency prefixes and validation.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -12,13 +12,13 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-12T20:08:27.058120Z",
-  "updated_at": "2026-09-12T20:09:05.144006Z",
-  "closed_at": null,
+  "updated_at": "2026-09-12T20:22:53.310852Z",
+  "closed_at": "2026-09-12T20:22:53.181458Z",
   "agent": {
     "platform": "cursor",
     "model": "gpt-5.6-luna-none"
   },
-  "right_now_summary": "Python and Rust dependency changes resolve short prefixes and save canonical issue IDs.",
-  "right_now_updated_at": "2026-09-12T20:09:07.399274Z",
+  "right_now_summary": "The team is updating Python and Rust dependency changes to save full issue IDs and test short prefixes.",
+  "right_now_updated_at": "2026-09-12T20:22:55.205207Z",
   "custom": {}
 }
