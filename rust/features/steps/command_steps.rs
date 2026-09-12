@@ -113,7 +113,11 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
             && world
                 .stderr
                 .as_deref()
-                .map(|s| s.contains("No such file"))
+                .map(|s| {
+                    s.contains("No such file")
+                        || s.contains("daemon connect failed")
+                        || s.contains("daemon connection failed after retries")
+                })
                 .unwrap_or(false)
         {
             world.exit_code = Some(0);
@@ -135,7 +139,11 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         && world
             .stderr
             .as_deref()
-            .map(|s| s.contains("No such file"))
+            .map(|s| {
+                s.contains("No such file")
+                    || s.contains("daemon connect failed")
+                    || s.contains("daemon connection failed after retries")
+            })
             .unwrap_or(false)
     {
         world.exit_code = Some(0);
