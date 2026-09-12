@@ -280,6 +280,14 @@ def given_daemon_connection_failure(context: object) -> None:
         daemon_client.spawn_daemon = no_spawn
 
 
+@given("daemon spawning will fail")
+def given_daemon_spawning_will_fail(context: object) -> None:
+    import kanbus.daemon_client as daemon_client
+
+    context.daemon_spawn_failure_client = daemon_client
+    context.daemon_spawn_failure = True
+
+
 @given("the daemon connection fails then returns an empty response")
 def given_daemon_connection_fails_then_empty(context: object) -> None:
     context.connection_failures_remaining = 1
@@ -1117,6 +1125,29 @@ def then_daemon_request_failed(context: object, message: str) -> None:
     assert getattr(context, "daemon_error", None) == message
 
 
+@then("the daemon request should fail with a daemon connection diagnostic")
+def then_daemon_connection_diagnostic(context: object) -> None:
+    error = getattr(context, "daemon_error", "")
+    assert error.startswith("daemon connection failed after retries: ")
+    assert "Set KANBUS_NO_DAEMON=1 to bypass the daemon." in error
+    assert str(getattr(context, "daemon_socket_path")) in error
+
+
+@then("the daemon request should fail with a daemon spawn diagnostic")
+def then_daemon_spawn_diagnostic(context: object) -> None:
+    error = getattr(context, "daemon_error", "")
+    if not error:
+        import kanbus.daemon_client as daemon_client
+
+        try:
+            daemon_client.spawn_daemon(load_project_directory(context).parent)
+        except daemon_client.DaemonClientError as spawn_error:
+            error = str(spawn_error)
+    assert error.startswith("daemon spawn failed: ")
+    assert "No such file or directory" in error
+    assert "Set KANBUS_NO_DAEMON=1 to bypass the daemon." in error
+
+
 @then("the daemon request should fail")
 def then_daemon_request_should_fail(context: object) -> None:
     assert getattr(context, "daemon_error", None) is not None
@@ -1125,10 +1156,8 @@ def then_daemon_request_should_fail(context: object) -> None:
 @when("the daemon is spawned for the project")
 def when_daemon_spawned(context: object) -> None:
     import kanbus.daemon_client as daemon_client
-    import subprocess
 
     project_dir = load_project_directory(context)
-    context.original_subprocess_popen = subprocess.Popen
     context.daemon_spawn_called = False
 
     class _FakeProcess:
@@ -1139,8 +1168,21 @@ def when_daemon_spawned(context: object) -> None:
         context.daemon_spawn_called = True
         return _FakeProcess()
 
-    subprocess.Popen = fake_popen
-    daemon_client.spawn_daemon(project_dir.parent)
+    if not getattr(context, "daemon_spawn_failure", False):
+        daemon_client.subprocess.Popen = fake_popen
+    else:
+
+        def failing_popen(*args: object, **kwargs: object) -> None:
+            _ = (args, kwargs)
+            raise OSError(2, "No such file or directory")
+
+        daemon_client.subprocess.Popen = failing_popen
+    try:
+        daemon_client.spawn_daemon(project_dir.parent)
+    except daemon_client.DaemonClientError as error:
+        context.daemon_error = str(error)
+    else:
+        context.daemon_error = ""
 
 
 @then("the daemon spawn should be recorded")

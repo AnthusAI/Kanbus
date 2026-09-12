@@ -272,7 +272,10 @@ fn request_with_recovery(
                     }
                 }
             }
-            Err(last_error)
+            Err(KanbusError::Io(format!(
+                "daemon connection failed after retries: {}. Set KANBUS_NO_DAEMON=1 to bypass the daemon.",
+                socket_path.display()
+            )))
         }
     }
 }
@@ -293,8 +296,13 @@ fn send_request(
             TestDaemonResponse::Envelope(envelope) => Ok(envelope),
         };
     }
-    let mut stream =
-        UnixStream::connect(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let mut stream = UnixStream::connect(socket_path).map_err(|error| {
+        KanbusError::Io(format!(
+            "daemon connect failed: {}: {}",
+            socket_path.display(),
+            error
+        ))
+    })?;
     let payload =
         serde_json::to_string(request).map_err(|error| KanbusError::Io(error.to_string()))?;
     stream
