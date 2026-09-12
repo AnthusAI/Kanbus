@@ -71,7 +71,7 @@ def _start_daemon_server(context: object) -> None:
 def _patch_daemon_client(context: object) -> None:
     if getattr(context, "daemon_patched", False):
         return
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     context.daemon_original_spawn = daemon_client.spawn_daemon
     context.daemon_original_send = daemon_client.send_request
@@ -93,10 +93,13 @@ def _patch_daemon_client(context: object) -> None:
         if getattr(context, "empty_response_after_failures", False):
             raise daemon_client.DaemonClientError("empty daemon response")
         stale_path = getattr(context, "stale_socket_path", None)
-        if stale_path is not None and stale_path == socket_path:
-            if not getattr(context, "stale_socket_recovered", False):
-                context.stale_socket_recovered = True
-                raise daemon_client.DaemonClientError("daemon connection failed")
+        if (
+            stale_path is not None
+            and stale_path == socket_path
+            and not getattr(context, "stale_socket_recovered", False)
+        ):
+            context.stale_socket_recovered = True
+            raise daemon_client.DaemonClientError("daemon connection failed")
         return handle_request_for_testing(root, request)
 
     daemon_client.spawn_daemon = spawn_daemon
@@ -162,7 +165,8 @@ def _set_daemon_env(context: object, value: str) -> None:
 def _exercise_daemon_entry_point(context: object) -> None:
     import runpy
     import sys
-    import kanbus.daemon_server as daemon_server
+
+    from kanbus import daemon_server
 
     project_dir = load_project_directory(context)
     root = project_dir.parent
@@ -183,6 +187,7 @@ def _exercise_daemon_entry_point(context: object) -> None:
 
 def _exercise_daemon_server_wrapper(context: object) -> None:
     import socketserver
+
     from kanbus.daemon_server import DaemonServer
 
     project_dir = load_project_directory(context)
@@ -210,7 +215,7 @@ def _exercise_daemon_server_wrapper(context: object) -> None:
 
 
 def _exercise_run_daemon_loop(context: object) -> None:
-    import kanbus.daemon_server as daemon_server
+    from kanbus import daemon_server
 
     project_dir = load_project_directory(context)
     root = project_dir.parent
@@ -268,7 +273,7 @@ def given_daemon_disabled(context: object) -> None:
 @given("the daemon connection will fail")
 def given_daemon_connection_failure(context: object) -> None:
     if getattr(context, "daemon_patched", False):
-        import kanbus.daemon_client as daemon_client
+        from kanbus import daemon_client
 
         original_send = getattr(context, "daemon_original_send", None)
         if original_send is not None:
@@ -282,7 +287,7 @@ def given_daemon_connection_failure(context: object) -> None:
 
 @given("daemon spawning will fail")
 def given_daemon_spawning_will_fail(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     context.daemon_spawn_failure_client = daemon_client
     context.daemon_spawn_failure = True
@@ -440,7 +445,7 @@ def then_daemon_should_shutdown(context: object) -> None:
 
 @given("a daemon socket returns an empty response")
 def given_daemon_empty_response(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["KANBUS_NO_DAEMON"] = "0"
@@ -478,7 +483,7 @@ def given_daemon_empty_response(context: object) -> None:
 
 @given("a daemon socket returns a valid response")
 def given_daemon_valid_response(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
     overrides["KANBUS_NO_DAEMON"] = "0"
@@ -529,7 +534,7 @@ def given_daemon_valid_response(context: object) -> None:
 
 @when("I request daemon status via the client")
 def when_request_daemon_status(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
     original = os.environ.get("KANBUS_NO_DAEMON")
@@ -558,7 +563,7 @@ def when_request_daemon_status(context: object) -> None:
 
 @when("I send a daemon shutdown request via the client")
 def when_send_daemon_shutdown_via_client(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
     original = os.environ.get("KANBUS_NO_DAEMON")
@@ -642,14 +647,14 @@ def then_daemon_request_succeeds(context: object) -> None:
 
 @then("the daemon should have been restarted")
 def then_daemon_should_have_been_restarted(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     assert daemon_client.was_daemon_restarted_for_testing() is True
 
 
 @given('the daemon index list responds with "{message}"')
 def given_daemon_index_list_responds_with(context: object, message: str) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
     from kanbus.daemon_protocol import ErrorEnvelope
 
     _set_daemon_env(context, "0")
@@ -672,7 +677,7 @@ def given_daemon_index_list_responds_with(context: object, message: str) -> None
 def given_daemon_index_list_fails_once_then_succeeds(
     context: object, message: str
 ) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
     from kanbus.daemon_protocol import ErrorEnvelope
 
     _set_daemon_env(context, "0")
@@ -766,7 +771,7 @@ def then_daemon_response_error_code(context: object, code: str) -> None:
 @then("the daemon should still respond to ping")
 def then_daemon_responds_to_ping(context: object) -> None:
     if getattr(context, "real_daemon_running", False):
-        import kanbus.daemon_client as daemon_client
+        from kanbus import daemon_client
 
         project_dir = load_project_directory(context)
         payload = daemon_client.request_status(project_dir.parent)
@@ -812,7 +817,7 @@ def when_daemon_entry_started(context: object) -> None:
 
 @when("I send a daemon shutdown request")
 def when_send_daemon_shutdown(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     _set_daemon_env(context, "0")
     project_dir = load_project_directory(context)
@@ -829,7 +834,7 @@ def when_send_daemon_shutdown(context: object) -> None:
 
 @when("I send a daemon ping request")
 def when_send_daemon_ping(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     _set_daemon_env(context, "0")
     project_dir = load_project_directory(context)
@@ -869,7 +874,7 @@ def then_daemon_cli_stopped(context: object) -> None:
 
 @when("I contact a daemon that returns an empty response")
 def when_contact_empty_daemon(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     context.original_send_request = daemon_client.send_request
 
@@ -894,7 +899,7 @@ def when_contact_empty_daemon(context: object) -> None:
 
 @when("the daemon status response is an error")
 def when_daemon_status_error(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     _set_daemon_env(context, "0")
     context.original_request_with_recovery = daemon_client._request_with_recovery
@@ -920,7 +925,7 @@ def when_daemon_status_error(context: object) -> None:
 
 @when("the daemon stop response is an error")
 def when_daemon_stop_error(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     _set_daemon_env(context, "0")
     context.original_request_with_recovery = daemon_client._request_with_recovery
@@ -946,7 +951,7 @@ def when_daemon_stop_error(context: object) -> None:
 
 @when("the daemon list response is an error")
 def when_daemon_list_error(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     _set_daemon_env(context, "0")
     context.original_request_with_recovery = daemon_client._request_with_recovery
@@ -972,7 +977,7 @@ def when_daemon_list_error(context: object) -> None:
 
 @given("the daemon list response is missing issues")
 def when_daemon_list_missing_issues(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
@@ -992,7 +997,7 @@ def when_daemon_list_missing_issues(context: object) -> None:
 
 @when("I request a daemon index list")
 def when_request_daemon_index_list(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
     original = os.environ.get("KANBUS_NO_DAEMON")
@@ -1051,7 +1056,7 @@ def then_daemon_index_list_empty(context: object) -> None:
 
 @when("I request a daemon status")
 def when_request_daemon_status_command(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
     original = os.environ.get("KANBUS_NO_DAEMON")
@@ -1072,7 +1077,7 @@ def when_request_daemon_status_command(context: object) -> None:
 
 @when("I request a daemon shutdown")
 def when_request_daemon_shutdown(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
     original = os.environ.get("KANBUS_NO_DAEMON")
@@ -1130,14 +1135,14 @@ def then_daemon_connection_diagnostic(context: object) -> None:
     error = getattr(context, "daemon_error", "")
     assert error.startswith("daemon connection failed after retries: ")
     assert "Set KANBUS_NO_DAEMON=1 to bypass the daemon." in error
-    assert str(getattr(context, "daemon_socket_path")) in error
+    assert str(context.daemon_socket_path) in error
 
 
 @then("the daemon request should fail with a daemon spawn diagnostic")
 def then_daemon_spawn_diagnostic(context: object) -> None:
     error = getattr(context, "daemon_error", "")
     if not error:
-        import kanbus.daemon_client as daemon_client
+        from kanbus import daemon_client
 
         try:
             daemon_client.spawn_daemon(load_project_directory(context).parent)
@@ -1155,10 +1160,11 @@ def then_daemon_request_should_fail(context: object) -> None:
 
 @when("the daemon is spawned for the project")
 def when_daemon_spawned(context: object) -> None:
-    import kanbus.daemon_client as daemon_client
+    from kanbus import daemon_client
 
     project_dir = load_project_directory(context)
     context.daemon_spawn_called = False
+    original_popen = daemon_client.subprocess.Popen
 
     class _FakeProcess:
         def __init__(self) -> None:
@@ -1170,15 +1176,21 @@ def when_daemon_spawned(context: object) -> None:
 
     if not getattr(context, "daemon_spawn_failure", False):
         daemon_client.subprocess.Popen = fake_popen
+        spawn_fn = daemon_client.spawn_daemon
     else:
 
         def failing_popen(*args: object, **kwargs: object) -> None:
-            _ = (args, kwargs)
             raise OSError(2, "No such file or directory")
 
         daemon_client.subprocess.Popen = failing_popen
+        spawn_fn = getattr(context, "daemon_original_spawn", daemon_client.spawn_daemon)
+
+    def _restore_popen() -> None:
+        daemon_client.subprocess.Popen = original_popen
+
+    context.add_cleanup(_restore_popen)
     try:
-        daemon_client.spawn_daemon(project_dir.parent)
+        spawn_fn(project_dir.parent)
     except daemon_client.DaemonClientError as error:
         context.daemon_error = str(error)
     else:

@@ -314,9 +314,7 @@ def test_send_request_success_empty_and_connection_failures(
         raise OSError("socket down")
 
     monkeypatch.setattr(daemon_client.socket, "socket", raising_socket)
-    with pytest.raises(
-        daemon_client.DaemonClientError, match="daemon connection failed"
-    ):
+    with pytest.raises(daemon_client.DaemonClientError, match="daemon connect failed"):
         daemon_client.send_request(socket_path, request)
 
 
@@ -329,7 +327,6 @@ def test_spawn_daemon_invokes_subprocess(
     def fake_popen(cmd, **kwargs):
         captured["cmd"] = cmd
         captured["kwargs"] = kwargs
-        return None
 
     monkeypatch.setattr(daemon_client.subprocess, "Popen", fake_popen)
     daemon_client.spawn_daemon(root)
