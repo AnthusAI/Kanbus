@@ -22,7 +22,7 @@
   "created_at": "2026-09-12T18:35:31.132082Z",
   "updated_at": "2026-09-12T19:21:50.082153Z",
   "closed_at": null,
-  "right_now_summary": "The team is fixing short dependency IDs and improving daemon error messages first.",
-  "right_now_updated_at": "2026-09-12T19:21:51.478314Z",
+  "right_now_summary": "Acceptance testing found five macOS init bugs; short IDs and clearer daemon errors are the top priorities.",
+  "right_now_updated_at": "2026-09-12T20:09:09.910191Z",
   "custom": {}
 }
