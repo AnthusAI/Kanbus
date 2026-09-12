@@ -164,6 +164,7 @@ Feature: Standup time windows (rolling vs calendar)
       """
     Then the response should accept fields "window", "lookback", and "skip_weekends"
 
+  @python-parity
   Scenario: Dual-runtime parity for window settings resolution
     Given standup window is "rolling"
     And standup lookback is "8h"
