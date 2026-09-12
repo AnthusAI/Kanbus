@@ -39,15 +39,16 @@ pub fn add_dependency(
     validate_dependency_type(dependency_type)?;
     let source_lookup = load_issue_from_project(root, source_id)?;
     let target_lookup = load_issue_from_project(root, target_id)?;
+    let resolved_source_id = source_lookup.issue.identifier.clone();
+    let resolved_target_id = target_lookup.issue.identifier.clone();
 
-    // Prevent blocked-by relationships that mirror parent-child edges (cycle-like).
     if dependency_type == "blocked-by" {
-        if source_lookup.issue.parent.as_deref() == Some(target_id) {
+        if source_lookup.issue.parent.as_deref() == Some(resolved_target_id.as_str()) {
             return Err(KanbusError::IssueOperation(
                 "circular dependency: cannot block on parent".to_string(),
             ));
         }
-        if target_lookup.issue.parent.as_deref() == Some(source_id) {
+        if target_lookup.issue.parent.as_deref() == Some(resolved_source_id.as_str()) {
             return Err(KanbusError::IssueOperation(
                 "circular dependency: cannot block on child".to_string(),
             ));
@@ -55,16 +56,16 @@ pub fn add_dependency(
     }
 
     if dependency_type == "blocked-by" {
-        ensure_no_cycle(root, source_id, target_id)?;
+        ensure_no_cycle(root, &resolved_source_id, &resolved_target_id)?;
     }
 
-    if has_dependency(&source_lookup.issue, target_id, dependency_type) {
+    if has_dependency(&source_lookup.issue, &resolved_target_id, dependency_type) {
         return Ok(source_lookup.issue);
     }
 
     let mut updated_issue = source_lookup.issue.clone();
     updated_issue.dependencies.push(DependencyLink {
-        target: target_id.to_string(),
+        target: resolved_target_id.clone(),
         dependency_type: dependency_type.to_string(),
     });
     let actor_id = get_current_user();
@@ -72,7 +73,7 @@ pub fn add_dependency(
         updated_issue.identifier.clone(),
         EventType::DependencyAdded,
         actor_id.clone(),
-        dependency_payload(dependency_type, target_id),
+        dependency_payload(dependency_type, &resolved_target_id),
         now_timestamp(),
     );
     let event_id = event.event_id.clone();
@@ -128,12 +129,15 @@ pub fn remove_dependency(
         issue_path,
         project_dir,
     } = load_issue_from_project(root, source_id)?;
+    let target_lookup = load_issue_from_project(root, target_id)?;
+    let resolved_target_id = target_lookup.issue.identifier;
 
     let filtered: Vec<DependencyLink> = issue
         .dependencies
         .iter()
         .filter(|dependency| {
-            !(dependency.target == target_id && dependency.dependency_type == dependency_type)
+            !(dependency.target == resolved_target_id
+                && dependency.dependency_type == dependency_type)
         })
         .cloned()
         .collect();
@@ -145,7 +149,7 @@ pub fn remove_dependency(
         updated_issue.identifier.clone(),
         EventType::DependencyRemoved,
         actor_id.clone(),
-        dependency_payload(dependency_type, target_id),
+        dependency_payload(dependency_type, &resolved_target_id),
         now_timestamp(),
     );
     let event_id = event.event_id.clone();

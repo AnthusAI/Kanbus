@@ -4,25 +4,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
-from kanbus.issue_files import read_issue_from_file
-from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
-from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
-from kanbus.models import DependencyLink, IssueData
 from kanbus.event_history import (
     create_event,
     dependency_payload,
     now_timestamp,
 )
+from kanbus.gossip import publish_issue_mutation
+from kanbus.issue_files import read_issue_from_file
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.migration import MigrationError, load_beads_issues
+from kanbus.models import DependencyLink, IssueData
 from kanbus.project import (
     ProjectMarkerError,
     discover_project_directories,
     find_project_local_directory,
 )
-from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.users import get_current_user
-from kanbus.gossip import publish_issue_mutation
 
 ALLOWED_DEPENDENCY_TYPES = {"blocked-by", "relates-to"}
 
@@ -61,21 +60,25 @@ def add_dependency(
     _validate_dependency_type(dependency_type)
     try:
         source_lookup = load_issue_from_project(root, source_id)
-        load_issue_from_project(root, target_id)
+        target_lookup = load_issue_from_project(root, target_id)
     except (IssueLookupError, ProjectMarkerError) as error:
         raise DependencyError(str(error)) from error
 
+    resolved_source_id = source_lookup.issue.identifier
+    resolved_target_id = target_lookup.issue.identifier
     if dependency_type == "blocked-by":
-        _ensure_no_cycle(source_lookup.project_dir, source_id, target_id)
+        _ensure_no_cycle(
+            source_lookup.project_dir, resolved_source_id, resolved_target_id
+        )
 
-    if _has_dependency(source_lookup.issue, target_id, dependency_type):
+    if _has_dependency(source_lookup.issue, resolved_target_id, dependency_type):
         return source_lookup.issue
 
     updated_issue = source_lookup.issue.model_copy(
         update={
             "dependencies": [
                 *source_lookup.issue.dependencies,
-                DependencyLink(target=target_id, type=dependency_type),
+                DependencyLink(target=resolved_target_id, type=dependency_type),
             ]
         }
     )
@@ -84,7 +87,7 @@ def add_dependency(
         issue_id=updated_issue.identifier,
         event_type="dependency_added",
         actor_id=actor_id,
-        payload=dependency_payload(dependency_type, target_id),
+        payload=dependency_payload(dependency_type, resolved_target_id),
         occurred_at=now_timestamp(),
     )
     try:
@@ -99,7 +102,7 @@ def add_dependency(
                 root=root,
             )
         )
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise DependencyError(str(error)) from error
     updated_issue = result.issue
     if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
@@ -136,14 +139,16 @@ def remove_dependency(
     _validate_dependency_type(dependency_type)
     try:
         source_lookup = load_issue_from_project(root, source_id)
+        target_lookup = load_issue_from_project(root, target_id)
     except (IssueLookupError, ProjectMarkerError) as error:
         raise DependencyError(str(error)) from error
 
+    resolved_target_id = target_lookup.issue.identifier
     filtered = [
         dependency
         for dependency in source_lookup.issue.dependencies
         if not (
-            dependency.target == target_id
+            dependency.target == resolved_target_id
             and dependency.dependency_type == dependency_type
         )
     ]
@@ -153,7 +158,7 @@ def remove_dependency(
         issue_id=updated_issue.identifier,
         event_type="dependency_removed",
         actor_id=actor_id,
-        payload=dependency_payload(dependency_type, target_id),
+        payload=dependency_payload(dependency_type, resolved_target_id),
         occurred_at=now_timestamp(),
     )
     try:
@@ -168,7 +173,7 @@ def remove_dependency(
                 root=root,
             )
         )
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise DependencyError(str(error)) from error
     updated_issue = result.issue
     if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
@@ -187,7 +192,7 @@ def list_ready_issues(
     include_local: bool = True,
     local_only: bool = False,
     beads_mode: bool = False,
-) -> List[IssueData]:
+) -> list[IssueData]:
     """List issues that are not blocked by dependencies.
 
     :param root: Repository root path.
@@ -219,7 +224,7 @@ def list_ready_issues(
     if not project_dirs:
         raise DependencyError("project not initialized")
 
-    issues: List[IssueData] = []
+    issues: list[IssueData] = []
     if len(project_dirs) == 1:
         issues = _load_ready_issues_for_project(
             root, project_dirs[0], include_local, local_only, tag_project=False
@@ -246,7 +251,7 @@ def _load_ready_issues_for_project(
     include_local: bool,
     local_only: bool,
     tag_project: bool,
-) -> List[IssueData]:
+) -> list[IssueData]:
     issues_dir = project_dir / "issues"
     shared_issues = _load_issues_from_directory(issues_dir)
     shared_tagged = [_tag_issue_source(issue, "shared") for issue in shared_issues]
@@ -255,7 +260,7 @@ def _load_ready_issues_for_project(
             _tag_issue_project(issue, root, project_dir) for issue in shared_tagged
         ]
 
-    local_tagged: List[IssueData] = []
+    local_tagged: list[IssueData] = []
     if include_local or local_only:
         local_dir = find_project_local_directory(project_dir)
         if local_dir is not None:
@@ -278,7 +283,7 @@ def _load_ready_issues_for_project(
     return shared_tagged
 
 
-def _load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
+def _load_issues_from_directory(issues_dir: Path) -> list[IssueData]:
     return [
         read_issue_from_file(path)
         for path in sorted(issues_dir.glob("*.json"), key=lambda item: item.name)
