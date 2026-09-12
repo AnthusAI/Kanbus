@@ -259,7 +259,6 @@ fn request_with_recovery(
                     .map_err(|error| KanbusError::Io(error.to_string()))?;
             }
             spawn_daemon(root)?;
-            let mut last_error = error;
             for _ in 0..10 {
                 match send_request(socket_path, request) {
                     Ok(response) => return Ok(response),
@@ -267,12 +266,14 @@ fn request_with_recovery(
                         if !matches!(err, KanbusError::Io(_)) {
                             return Err(err);
                         }
-                        last_error = err;
                         std::thread::sleep(Duration::from_millis(50));
                     }
                 }
             }
-            Err(last_error)
+            Err(KanbusError::Io(format!(
+                "daemon connection failed after retries: {}. Set KANBUS_NO_DAEMON=1 to bypass the daemon.",
+                socket_path.display()
+            )))
         }
     }
 }
@@ -293,8 +294,13 @@ fn send_request(
             TestDaemonResponse::Envelope(envelope) => Ok(envelope),
         };
     }
-    let mut stream =
-        UnixStream::connect(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let mut stream = UnixStream::connect(socket_path).map_err(|error| {
+        KanbusError::Io(format!(
+            "daemon connect failed: {}: {}",
+            socket_path.display(),
+            error
+        ))
+    })?;
     let payload =
         serde_json::to_string(request).map_err(|error| KanbusError::Io(error.to_string()))?;
     stream
