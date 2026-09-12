@@ -413,6 +413,15 @@ fn then_project_management_template_contains_text(world: &mut KanbusWorld, text:
     assert!(content.contains(&normalized));
 }
 
+#[then(expr = "CONTRIBUTING_AGENT.template.md should not contain {string}")]
+fn then_project_management_template_should_not_contain_text(world: &mut KanbusWorld, text: String) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let content = fs::read_to_string(cwd.join("CONTRIBUTING_AGENT.template.md"))
+        .expect("read project management template");
+    let normalized = text.replace("\\\"", "\"");
+    assert!(!content.contains(&normalized));
+}
+
 #[then("a \"project\" directory should exist")]
 fn then_project_directory_exists(world: &mut KanbusWorld) {
     let cwd = world.working_directory.as_ref().expect("cwd");
