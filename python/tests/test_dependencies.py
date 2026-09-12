@@ -23,7 +23,8 @@ def test_dependency_type_and_lookup_helpers() -> None:
     ]
     assert dependencies._has_dependency(issue, "kanbus-2", "blocked-by") is True
     assert dependencies._has_dependency(issue, "kanbus-3", "blocked-by") is False
-    assert dependencies._blocked_by_dependency(issue) is True
+    assert dependencies._blocked_by_dependency(issue, {"kanbus-2": "open"}) is True
+    assert dependencies._blocked_by_dependency(issue, {"kanbus-2": "closed"}) is False
 
 
 def test_detect_cycle_and_ensure_no_cycle(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -260,10 +261,15 @@ def test_list_ready_issues_modes_and_errors(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(
         dependencies,
         "load_beads_issues",
-        lambda _r: [open_issue, closed_issue, blocked],
+        lambda _r: [
+            open_issue,
+            closed_issue,
+            blocked,
+            build_issue("x", status="closed"),
+        ],
     )
     ready = dependencies.list_ready_issues(Path("/repo"), beads_mode=True)
-    assert [issue.identifier for issue in ready] == ["kanbus-open"]
+    assert [issue.identifier for issue in ready] == ["kanbus-open", "kanbus-blocked"]
 
     monkeypatch.setattr(
         dependencies,

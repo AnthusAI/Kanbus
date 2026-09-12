@@ -4,25 +4,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
-from kanbus.issue_files import read_issue_from_file
-from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
-from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
-from kanbus.models import DependencyLink, IssueData
 from kanbus.event_history import (
     create_event,
     dependency_payload,
     now_timestamp,
 )
+from kanbus.gossip import publish_issue_mutation
+from kanbus.issue_files import read_issue_from_file
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.migration import MigrationError, load_beads_issues
+from kanbus.models import DependencyLink, IssueData
 from kanbus.project import (
     ProjectMarkerError,
     discover_project_directories,
     find_project_local_directory,
 )
-from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.users import get_current_user
-from kanbus.gossip import publish_issue_mutation
 
 ALLOWED_DEPENDENCY_TYPES = {"blocked-by", "relates-to"}
 
@@ -99,7 +98,7 @@ def add_dependency(
                 root=root,
             )
         )
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise DependencyError(str(error)) from error
     updated_issue = result.issue
     if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
@@ -168,7 +167,7 @@ def remove_dependency(
                 root=root,
             )
         )
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise DependencyError(str(error)) from error
     updated_issue = result.issue
     if source_lookup.issue_path.parent == source_lookup.project_dir / "issues":
@@ -187,7 +186,7 @@ def list_ready_issues(
     include_local: bool = True,
     local_only: bool = False,
     beads_mode: bool = False,
-) -> List[IssueData]:
+) -> list[IssueData]:
     """List issues that are not blocked by dependencies.
 
     :param root: Repository root path.
@@ -207,10 +206,12 @@ def list_ready_issues(
             issues = load_beads_issues(root)
         except MigrationError as error:
             raise DependencyError(str(error)) from error
+        status_by_identifier = {issue.identifier: issue.status for issue in issues}
         return [
             issue
             for issue in issues
-            if issue.status != "closed" and not _blocked_by_dependency(issue)
+            if issue.status == "open"
+            and not _blocked_by_dependency(issue, status_by_identifier)
         ]
     try:
         project_dirs = discover_project_directories(root)
@@ -219,7 +220,7 @@ def list_ready_issues(
     if not project_dirs:
         raise DependencyError("project not initialized")
 
-    issues: List[IssueData] = []
+    issues: list[IssueData] = []
     if len(project_dirs) == 1:
         issues = _load_ready_issues_for_project(
             root, project_dirs[0], include_local, local_only, tag_project=False
@@ -232,10 +233,12 @@ def list_ready_issues(
                 )
             )
 
+    status_by_identifier = {issue.identifier: issue.status for issue in issues}
     ready = [
         issue
         for issue in issues
-        if issue.status != "closed" and not _blocked_by_dependency(issue)
+        if issue.status == "open"
+        and not _blocked_by_dependency(issue, status_by_identifier)
     ]
     return ready
 
@@ -246,7 +249,7 @@ def _load_ready_issues_for_project(
     include_local: bool,
     local_only: bool,
     tag_project: bool,
-) -> List[IssueData]:
+) -> list[IssueData]:
     issues_dir = project_dir / "issues"
     shared_issues = _load_issues_from_directory(issues_dir)
     shared_tagged = [_tag_issue_source(issue, "shared") for issue in shared_issues]
@@ -255,7 +258,7 @@ def _load_ready_issues_for_project(
             _tag_issue_project(issue, root, project_dir) for issue in shared_tagged
         ]
 
-    local_tagged: List[IssueData] = []
+    local_tagged: list[IssueData] = []
     if include_local or local_only:
         local_dir = find_project_local_directory(project_dir)
         if local_dir is not None:
@@ -278,7 +281,7 @@ def _load_ready_issues_for_project(
     return shared_tagged
 
 
-def _load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
+def _load_issues_from_directory(issues_dir: Path) -> list[IssueData]:
     return [
         read_issue_from_file(path)
         for path in sorted(issues_dir.glob("*.json"), key=lambda item: item.name)
@@ -306,9 +309,13 @@ def _render_project_path(root: Path, project_dir: Path) -> str:
     return str(project_path)
 
 
-def _blocked_by_dependency(issue: IssueData) -> bool:
+def _blocked_by_dependency(
+    issue: IssueData, status_by_identifier: dict[str, str]
+) -> bool:
     return any(
-        dependency.dependency_type == "blocked-by" for dependency in issue.dependencies
+        dependency.dependency_type == "blocked-by"
+        and status_by_identifier.get(dependency.target) != "closed"
+        for dependency in issue.dependencies
     )
 
 

@@ -68,6 +68,34 @@ Feature: Issue dependencies
     Then stdout should contain "kanbus-ready"
     And stdout should not contain "kanbus-blocked"
 
+  Scenario: Ready returns only open issues
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-ready-open" exists with status "open"
+    And an issue "kanbus-ready-progress" exists with status "in_progress"
+    And an issue "kanbus-ready-blocked" exists with status "blocked"
+    And an issue "kanbus-ready-closed" exists with status "closed"
+    When I run "kanbus ready"
+    Then stdout should contain "kanbus-ready-open"
+    And stdout should not contain "kanbus-ready-progress"
+    And stdout should not contain "kanbus-ready-blocked"
+    And stdout should not contain "kanbus-ready-closed"
+
+  Scenario: Ready includes an issue when its blocker is closed
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-closed-blocker-target" exists with status "closed"
+    And an issue "kanbus-closed-blocker-source" exists with status "open"
+    And issue "kanbus-closed-blocker-source" depends on "kanbus-closed-blocker-target" with type "blocked-by"
+    When I run "kanbus ready"
+    Then stdout should contain "kanbus-closed-blocker-source"
+
+  Scenario: Ready excludes an issue when its blocker is open
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-open-blocker-target" exists with status "open"
+    And an issue "kanbus-open-blocker-source" exists with status "open"
+    And issue "kanbus-open-blocker-source" depends on "kanbus-open-blocker-target" with type "blocked-by"
+    When I run "kanbus ready"
+    Then stdout should not contain "kanbus-open-blocker-source"
+
   Scenario: Ready listing uses a single project
     Given a Kanbus project with default configuration
     And issues "kanbus-ready" exist
