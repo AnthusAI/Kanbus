@@ -29,8 +29,8 @@
   "created_at": "2026-09-09T16:03:53.845499Z",
   "updated_at": "2026-09-11T20:37:50.091320Z",
   "closed_at": null,
-  "right_now_summary": "The standup report works in the console and CLI, but install and CI fixes remain.",
-  "right_now_updated_at": "2026-09-12T11:56:24.037613Z",
+  "right_now_summary": "The standup report works in the console, while CLI setup and cleanup still need attention.",
+  "right_now_updated_at": "2026-09-12T19:21:48.347289Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

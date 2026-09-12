@@ -3,7 +3,7 @@
   "title": "Document standup window CLI flags and skip-weekends in CONFIGURATION.md",
   "description": "Update CONFIGURATION.md and CLI_REFERENCE.md for --window, --lookback, --skip-weekends, --no-skip-weekends. Align kanbus standup --help examples with locked nomenclature.",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-09T21:26:16.127927439Z",
-  "updated_at": "2026-09-12T11:33:33.913517Z",
-  "closed_at": null,
-  "right_now_summary": "The docs need updates for standup window flags, weekend skipping, and locked help terminology.",
-  "right_now_updated_at": "2026-09-12T11:33:36.097195Z",
+  "updated_at": "2026-09-12T19:21:27.594561Z",
+  "closed_at": "2026-09-12T19:21:27.570871Z",
+  "right_now_summary": "Documentation for standup window and weekend flags still needs to be updated.",
+  "right_now_updated_at": "2026-09-12T19:21:29.884336Z",
   "custom": {}
 }

@@ -3,7 +3,7 @@
   "title": "Rust standup_options_from_last_command: preserve --window flags",
   "description": "rust/features/steps/standup_steps.rs standup_options_from_last_command skips --window/--lookback/--skip-weekends instead of parsing them into StandupCommandOptions. Preserve window overrides for fact-feed and report assertions.",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-09T21:26:32.019772165Z",
-  "updated_at": "2026-09-12T11:33:46.778945Z",
-  "closed_at": null,
-  "right_now_summary": "The Rust parser skips window flags, so fact-feed and report assertions lose their overrides.",
-  "right_now_updated_at": "2026-09-12T11:33:48.477001Z",
+  "updated_at": "2026-09-12T19:21:39.477980Z",
+  "closed_at": "2026-09-12T19:21:39.449955Z",
+  "right_now_summary": "The Rust parser still skips window flags instead of preserving them for fact-feed and report checks.",
+  "right_now_updated_at": "2026-09-12T19:21:40.831940Z",
   "custom": {}
 }

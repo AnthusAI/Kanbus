@@ -3,7 +3,7 @@
   "title": "Un-@wip standup_time_windows + Rust standup_window_steps parity",
   "description": "Remove @wip from features/standup/standup_time_windows.feature once CI green on develop. Add rust/features/steps/standup_window_steps.rs mirroring Python standup_window_steps.py for dual-runtime cucumber parity.",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-09T21:25:55.264833249Z",
-  "updated_at": "2026-09-12T11:33:12.025630Z",
-  "closed_at": null,
-  "right_now_summary": "The feature awaits green CI on develop before Rust step parity is added.",
-  "right_now_updated_at": "2026-09-12T11:33:14.712160Z",
+  "updated_at": "2026-09-12T19:21:06.041290Z",
+  "closed_at": "2026-09-12T19:21:05.912607Z",
+  "right_now_summary": "Rust parity steps need adding, then the WIP tag can be removed after CI passes on develop.",
+  "right_now_updated_at": "2026-09-12T19:21:09.115514Z",
   "custom": {}
 }

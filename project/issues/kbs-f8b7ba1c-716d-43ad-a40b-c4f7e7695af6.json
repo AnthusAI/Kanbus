@@ -3,7 +3,7 @@
   "title": "Migrate standup lookback_hours to lookback (extra=forbid)",
   "description": "Document and migrate .kanbus.yml standup.lookback_hours to standup.lookback duration string. StandupConfiguration uses extra=forbid; provide clear migration error or one-time upgrade path.",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-09T21:26:09.466165941Z",
-  "updated_at": "2026-09-12T11:33:26.457848Z",
-  "closed_at": null,
-  "right_now_summary": "The configuration is being migrated from `lookback_hours` to the duration-based `lookback` setting.",
-  "right_now_updated_at": "2026-09-12T11:33:28.915280Z",
+  "updated_at": "2026-09-12T19:21:21.178881Z",
+  "closed_at": "2026-09-12T19:21:21.156695Z",
+  "right_now_summary": "The team is migrating `standup.lookback_hours` to the duration-based `standup.lookback` setting.",
+  "right_now_updated_at": "2026-09-12T19:21:22.998432Z",
   "custom": {}
 }
