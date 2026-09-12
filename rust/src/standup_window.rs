@@ -82,6 +82,23 @@ pub fn resolve_standup_timezone(configuration: &ProjectConfiguration) -> Tz {
     local_name.parse::<Tz>().unwrap_or(UTC)
 }
 
+/// Normalize timezone labels for dual-runtime probe parity.
+///
+/// # Arguments
+///
+/// * `timezone_name` - Raw timezone name from ZoneInfo or chrono-tz
+///
+/// # Returns
+///
+/// Canonical timezone name (UTC aliases collapse to `UTC`).
+pub fn canonicalize_standup_timezone_name(timezone_name: &str) -> String {
+    let normalized = timezone_name.trim();
+    match normalized {
+        "UTC" | "Etc/UTC" | "Etc/GMT" | "GMT" => String::from("UTC"),
+        other => other.to_string(),
+    }
+}
+
 /// Resolve standup window settings from config, profile, and overrides.
 ///
 /// # Errors

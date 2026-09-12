@@ -182,6 +182,28 @@ right_now:
 
 Set `OPENAI_API_KEY` in the environment, project `.env`, or `~/.kanbus.env`. Do not commit API keys to `.kanbus.yml`.
 
+## Standup windows
+
+Standup reports resolve completed vs active buckets from shared window settings. Field names are locked for config, CLI, and console API:
+
+```yaml
+standup:
+  window: rolling        # rolling | calendar
+  lookback: 24h          # rolling duration; hours required (1d = 24h sugar)
+  skip_weekends: false   # calendar only; ignored when window is rolling
+  timezone: America/New_York  # optional IANA zone; unset uses system local
+```
+
+Defaults:
+
+- Global: `window: rolling`, `lookback: 24h`, `skip_weekends: false`
+- `meeting-script` profile override: `window: calendar`, `skip_weekends: true`
+- `director-brief` profile: inherits global rolling + 24h
+
+`standup.lookback_hours` is not accepted (`extra=forbid`). Migrate to `standup.lookback` with a duration string such as `24h` or `1d`.
+
+CLI overrides (same names as config/API): `--window`, `--lookback`, `--skip-weekends` / `--no-skip-weekends`.
+
 ## Optional sync sections
 
 ```yaml
