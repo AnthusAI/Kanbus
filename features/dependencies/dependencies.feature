@@ -10,6 +10,15 @@ Feature: Issue dependencies
     Then the command should succeed
     And issue "kanbus-child" should depend on "kanbus-parent" with type "blocked-by"
 
+  Scenario: Short dependency target prefix is canonicalized on persist
+    Given a Kanbus project with default configuration
+    And issues "kanbus-source-82e6da" and "kanbus-target-91f7bc" exist
+    When I run "kanbus dep kanbus-source blocked-by kanbus-target"
+    Then the command should succeed
+    And issue "kanbus-source-82e6da" should depend on "kanbus-target-91f7bc" with type "blocked-by"
+    When I run "kanbus validate"
+    Then the command should succeed
+
   Scenario: Adding a dependency advances updated_at
     Given a Kanbus project with default configuration
     And issues "kanbus-parent" and "kanbus-child" exist

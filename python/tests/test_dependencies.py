@@ -4,11 +4,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from test_helpers import build_issue, stub_persist_issue_mutation
 
 from kanbus import dependencies
 from kanbus.models import DependencyLink
-
-from test_helpers import build_issue, stub_persist_issue_mutation
 
 
 def test_dependency_type_and_lookup_helpers() -> None:
@@ -79,11 +78,20 @@ def test_add_dependency_happy_path_and_duplicate(
     project_dir = Path("/repo/project")
     issue_path = project_dir / "issues" / "kanbus-1.json"
     source = build_issue("kanbus-1")
-    lookup = SimpleNamespace(
+    source_lookup = SimpleNamespace(
         issue=source, project_dir=project_dir, issue_path=issue_path
     )
+    target_lookup = SimpleNamespace(
+        issue=build_issue("kanbus-2"), project_dir=project_dir, issue_path=issue_path
+    )
 
-    monkeypatch.setattr(dependencies, "load_issue_from_project", lambda _r, _id: lookup)
+    monkeypatch.setattr(
+        dependencies,
+        "load_issue_from_project",
+        lambda _r, identifier: (
+            source_lookup if identifier == "kanbus-1" else target_lookup
+        ),
+    )
     monkeypatch.setattr(dependencies, "_ensure_no_cycle", lambda *_a: None)
     persist_calls: list[object] = []
     monkeypatch.setattr(
@@ -115,7 +123,7 @@ def test_add_dependency_happy_path_and_duplicate(
     assert len(persist_calls) == 1
     assert published == ["published"]
 
-    lookup.issue = updated
+    source_lookup.issue = updated
     same = dependencies.add_dependency(
         Path("/repo"), "kanbus-1", "kanbus-2", "blocked-by"
     )
@@ -136,10 +144,19 @@ def test_add_dependency_wraps_lookup_and_event_errors(
     project_dir = Path("/repo/project")
     issue_path = project_dir / "local" / "kanbus-1.json"
     source = build_issue("kanbus-1")
-    lookup = SimpleNamespace(
+    source_lookup = SimpleNamespace(
         issue=source, project_dir=project_dir, issue_path=issue_path
     )
-    monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
+    target_lookup = SimpleNamespace(
+        issue=build_issue("kanbus-2"), project_dir=project_dir, issue_path=issue_path
+    )
+    monkeypatch.setattr(
+        dependencies,
+        "load_issue_from_project",
+        lambda _r, identifier: (
+            source_lookup if identifier == "kanbus-1" else target_lookup
+        ),
+    )
     monkeypatch.setattr(dependencies, "_ensure_no_cycle", lambda *_a: None)
     monkeypatch.setattr(
         dependencies,
@@ -171,8 +188,15 @@ def test_remove_dependency_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     lookup = SimpleNamespace(
         issue=issue, project_dir=project_dir, issue_path=issue_path
     )
+    target_lookup = SimpleNamespace(
+        issue=build_issue("kanbus-2"), project_dir=project_dir, issue_path=issue_path
+    )
 
-    monkeypatch.setattr(dependencies, "load_issue_from_project", lambda *_a: lookup)
+    monkeypatch.setattr(
+        dependencies,
+        "load_issue_from_project",
+        lambda _r, identifier: lookup if identifier == "kanbus-1" else target_lookup,
+    )
     monkeypatch.setattr(
         dependencies, "persist_issue_mutation", stub_persist_issue_mutation()
     )
