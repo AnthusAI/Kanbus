@@ -452,6 +452,17 @@ pub fn regenerate_right_now_for_issue(
         }
         return Ok(());
     }
+    if configuration.ai.is_none()
+        || configuration
+            .ai
+            .as_ref()
+            .is_some_and(|ai_configuration| ai_configuration.provider != "litellm")
+    {
+        if fail_closed {
+            ensure_litellm_provider(&configuration)?;
+        }
+        return Ok(());
+    }
     let lookup = match load_issue_from_project(root, issue_identifier) {
         Ok(lookup) => lookup,
         Err(error) => {
@@ -1141,9 +1152,31 @@ mod tests {
     }
 
     #[test]
+    fn regenerate_right_now_for_issue_skips_when_ai_is_unconfigured() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.ai = Some(crate::models::AiConfiguration {
+            provider: "none".to_string(),
+            model: "unused".to_string(),
+        });
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
+        fs::create_dir_all(temp.path().join("project")).expect("create project directory");
+
+        regenerate_right_now_for_issue(temp.path(), "kanbus-unconfigured", false).expect("ok");
+        let error = regenerate_right_now_for_issue(temp.path(), "kanbus-unconfigured", true)
+            .expect_err("fail-closed generation should require AI");
+        assert_eq!(
+            error.to_string(),
+            AI_PROVIDER_NOT_CONFIGURED_MESSAGE.to_string()
+        );
+    }
+
+    #[test]
     fn regenerate_right_now_for_issue_skips_missing_issue() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let configuration = crate::config::default_project_configuration();
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.ai = None;
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
         fs::create_dir_all(temp.path().join("project/issues")).expect("mkdir");
