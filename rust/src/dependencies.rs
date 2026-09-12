@@ -222,9 +222,13 @@ pub fn list_ready_issues(
             issues.extend(project_issues);
         }
     }
+    let status_by_identifier: HashMap<String, String> = issues
+        .iter()
+        .map(|issue| (issue.identifier.clone(), issue.status.clone()))
+        .collect();
     let ready: Vec<IssueData> = issues
         .into_iter()
-        .filter(|issue| issue.status != "closed" && !is_blocked(issue))
+        .filter(|issue| issue.status == "open" && !is_blocked(issue, &status_by_identifier))
         .collect();
     Ok(ready)
 }
@@ -290,11 +294,14 @@ fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, Kanbu
     Ok(issues)
 }
 
-fn is_blocked(issue: &IssueData) -> bool {
-    issue
-        .dependencies
-        .iter()
-        .any(|dependency| dependency.dependency_type == "blocked-by")
+fn is_blocked(issue: &IssueData, status_by_identifier: &HashMap<String, String>) -> bool {
+    issue.dependencies.iter().any(|dependency| {
+        dependency.dependency_type == "blocked-by"
+            && status_by_identifier
+                .get(&dependency.target)
+                .map(|status| status != "closed")
+                .unwrap_or(true)
+    })
 }
 
 fn validate_dependency_type(dependency_type: &str) -> Result<(), KanbusError> {
