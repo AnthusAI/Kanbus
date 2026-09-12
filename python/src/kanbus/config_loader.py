@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
 from pydantic import ValidationError
@@ -62,12 +61,17 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         if isinstance(main_vp, dict) and isinstance(override_vp, dict):
             merged["virtual_projects"] = {**main_vp, **override_vp}
     _reject_legacy_fields(merged)
+    _reject_standup_lookback_hours(merged)
     _normalize_virtual_projects(merged)
     _apply_environment_overrides(merged)
 
     try:
         configuration = ProjectConfiguration.model_validate(merged)
     except ValidationError as error:
+        if _has_standup_lookback_hours(error):
+            raise ConfigurationError(
+                STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE
+            ) from error
         if _has_unknown_fields(error):
             raise ConfigurationError("unknown configuration fields") from error
         raise ConfigurationError(str(error)) from error
@@ -222,8 +226,8 @@ def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
 
 def _validate_type_workflow_bindings(
     configuration: ProjectConfiguration,
-) -> List[str]:
-    errors: List[str] = []
+) -> list[str]:
+    errors: list[str] = []
     workflows = configuration.workflows
     for issue_type in configuration.types:
         if issue_type not in workflows:
@@ -261,7 +265,7 @@ def _load_override_configuration(path: Path) -> dict:
     return data
 
 
-def validate_project_configuration(configuration: ProjectConfiguration) -> List[str]:
+def validate_project_configuration(configuration: ProjectConfiguration) -> list[str]:
     """Validate configuration rules beyond schema validation.
 
     :param configuration: Loaded configuration.
@@ -269,7 +273,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     :return: List of validation errors.
     :rtype: List[str]
     """
-    errors: List[str] = []
+    errors: list[str] = []
     if not configuration.project_directory:
         errors.append("project_directory must not be empty")
 
@@ -416,7 +420,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     return errors
 
 
-def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> None:
+def _validate_hooks(configuration: ProjectConfiguration, errors: list[str]) -> None:
     hooks_config = configuration.hooks
     for phase_name, phase_map in (
         ("before", hooks_config.before),
@@ -445,7 +449,7 @@ def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> N
 
 def _validate_right_now(
     configuration: ProjectConfiguration,
-    errors: List[str],
+    errors: list[str],
 ) -> None:
     if configuration.right_now.max_length <= 0:
         errors.append("right_now.max_length must be greater than 0")
@@ -453,7 +457,7 @@ def _validate_right_now(
 
 def _validate_sort_order(
     configuration: ProjectConfiguration,
-    errors: List[str],
+    errors: list[str],
 ) -> None:
     if not configuration.sort_order:
         return
@@ -475,7 +479,7 @@ def _validate_sort_order(
         _validate_sort_rule(f"sort_order.{status}", rule, errors)
 
 
-def _validate_sort_rule(path: str, value: object, errors: List[str]) -> None:
+def _validate_sort_rule(path: str, value: object, errors: list[str]) -> None:
     if isinstance(value, str):
         if value not in SORT_PRESETS:
             errors.append(
@@ -536,6 +540,12 @@ def _normalize_virtual_projects(data: dict) -> None:
         data["virtual_projects"] = {}
 
 
+STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE = (
+    "standup.lookback_hours was removed; use standup.lookback with a duration "
+    "string such as 24h or 1d"
+)
+
+
 def _reject_legacy_fields(data: dict) -> None:
     if "external_projects" in data:
         if "virtual_projects" not in data:
@@ -543,12 +553,32 @@ def _reject_legacy_fields(data: dict) -> None:
         data.pop("external_projects", None)
 
 
+def _reject_standup_lookback_hours(data: dict) -> None:
+    standup = data.get("standup")
+    if isinstance(standup, dict) and "lookback_hours" in standup:
+        raise ConfigurationError(STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE)
+
+
+def _has_standup_lookback_hours(error: ValidationError) -> bool:
+    for item in error.errors():
+        if item.get("type") != "extra_forbidden":
+            continue
+        location = item.get("loc") or ()
+        if (
+            len(location) >= 2
+            and location[0] == "standup"
+            and location[1] == "lookback_hours"
+        ):
+            return True
+    return False
+
+
 def _has_unknown_fields(error: ValidationError) -> bool:
     return any(item.get("type") == "extra_forbidden" for item in error.errors())
 
 
 def resolve_board_name(
-    configured_name: Optional[str],
+    configured_name: str | None,
     repository_root: Path,
     project_key: str,
 ) -> str:
