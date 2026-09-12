@@ -108,8 +108,7 @@ async fn main() {
             let feature_has_slow = feature.tags.iter().any(|tag| tag == "slow");
             let scenario_has_cloud = scenario.tags.iter().any(|tag| tag == "cloud");
             let feature_has_cloud = feature.tags.iter().any(|tag| tag == "cloud");
-            let scenario_has_python_parity =
-                scenario.tags.iter().any(|tag| tag == "python-parity");
+            let scenario_has_python_parity = scenario.tags.iter().any(|tag| tag == "python-parity");
             let feature_has_python_parity = feature.tags.iter().any(|tag| tag == "python-parity");
             if scenario_has_wip || feature_has_wip {
                 return false;
