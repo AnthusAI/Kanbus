@@ -212,10 +212,12 @@ def list_ready_issues(
             issues = load_beads_issues(root)
         except MigrationError as error:
             raise DependencyError(str(error)) from error
+        status_by_identifier = {issue.identifier: issue.status for issue in issues}
         return [
             issue
             for issue in issues
-            if issue.status != "closed" and not _blocked_by_dependency(issue)
+            if issue.status == "open"
+            and not _blocked_by_dependency(issue, status_by_identifier)
         ]
     try:
         project_dirs = discover_project_directories(root)
@@ -237,10 +239,12 @@ def list_ready_issues(
                 )
             )
 
+    status_by_identifier = {issue.identifier: issue.status for issue in issues}
     ready = [
         issue
         for issue in issues
-        if issue.status != "closed" and not _blocked_by_dependency(issue)
+        if issue.status == "open"
+        and not _blocked_by_dependency(issue, status_by_identifier)
     ]
     return ready
 
@@ -311,9 +315,13 @@ def _render_project_path(root: Path, project_dir: Path) -> str:
     return str(project_path)
 
 
-def _blocked_by_dependency(issue: IssueData) -> bool:
+def _blocked_by_dependency(
+    issue: IssueData, status_by_identifier: dict[str, str]
+) -> bool:
     return any(
-        dependency.dependency_type == "blocked-by" for dependency in issue.dependencies
+        dependency.dependency_type == "blocked-by"
+        and status_by_identifier.get(dependency.target) != "closed"
+        for dependency in issue.dependencies
     )
 
 
