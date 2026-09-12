@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from test_helpers import build_issue, build_project_configuration
 
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
-from kanbus.models import AiConfiguration, IssueComment, RightNowConfiguration
-from kanbus.overlay import load_overlay_issue, write_overlay_issue
 from kanbus.issue_listing import IssueListingError
 from kanbus.issue_lookup import IssueLookupError
+from kanbus.models import AiConfiguration, IssueComment, RightNowConfiguration
+from kanbus.overlay import load_overlay_issue, write_overlay_issue
 from kanbus.right_now import (
     AI_PROVIDER_NOT_CONFIGURED_MESSAGE,
     OPENAI_API_KEY_NOT_LOADED_MESSAGE,
@@ -42,8 +43,6 @@ from kanbus.right_now import (
     summary_contains_status_keyword,
 )
 
-from test_helpers import build_issue, build_project_configuration
-
 
 def _comment(text: str, author: str = "dev") -> IssueComment:
     return IssueComment.model_validate(
@@ -51,7 +50,7 @@ def _comment(text: str, author: str = "dev") -> IssueComment:
             "id": "abc12345",
             "author": author,
             "text": text,
-            "created_at": datetime(2026, 3, 9, tzinfo=timezone.utc).isoformat(),
+            "created_at": datetime(2026, 3, 9, tzinfo=UTC).isoformat(),
         }
     )
 
@@ -217,7 +216,7 @@ def test_persist_right_now_summary_updates_canonical_and_overlay(
         "2099-01-01T00:00:00.000Z",
         "evt-overlay",
     )
-    updated_at = datetime(2026, 9, 2, tzinfo=timezone.utc)
+    updated_at = datetime(2026, 9, 2, tzinfo=UTC)
     persist_right_now_summary(
         project_dir,
         issue_path,
@@ -601,12 +600,35 @@ def test_regenerate_right_now_for_issue_fail_closed_paths(
         regenerate_right_now_for_issue(tmp_path, "kanbus-x", fail_closed=True)
 
     configuration.right_now.enabled = True
+    configuration.ai = AiConfiguration(provider="litellm", model="gpt-4o-mini")
     monkeypatch.setattr(
         "kanbus.right_now.load_issue_from_project",
         lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing issue")),
     )
     with pytest.raises(RightNowError, match="missing issue"):
         regenerate_right_now_for_issue(tmp_path, "kanbus-x", fail_closed=True)
+
+
+def test_regenerate_right_now_skips_unconfigured_ai_before_issue_lookup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configuration = build_project_configuration()
+    configuration.ai = None
+    monkeypatch.setattr(
+        "kanbus.right_now._load_configuration", lambda _root: configuration
+    )
+    lookup_called = False
+
+    def fail_if_lookup_called(*_arguments: object) -> None:
+        nonlocal lookup_called
+        lookup_called = True
+        raise AssertionError("issue lookup should be skipped")
+
+    monkeypatch.setattr(
+        "kanbus.right_now.load_issue_from_project", fail_if_lookup_called
+    )
+    regenerate_right_now_for_issue(tmp_path, "kanbus-unconfigured")
+    assert not lookup_called
 
 
 def test_ensure_right_now_subtree_fail_closed_raises(
@@ -644,7 +666,7 @@ def test_purge_right_now_summaries_skips_issues_without_fields(
     bare = build_issue("kanbus-bare")
     with_summary = build_issue("kanbus-with")
     with_summary.right_now_summary = "Keep cleared."
-    with_summary.right_now_updated_at = datetime(2026, 3, 9, tzinfo=timezone.utc)
+    with_summary.right_now_updated_at = datetime(2026, 3, 9, tzinfo=UTC)
     monkeypatch.setattr(
         "kanbus.right_now.list_issues",
         lambda *_a: [bare, with_summary],
@@ -673,6 +695,7 @@ def test_regenerate_right_now_for_issue_fail_closed_child_and_persist_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     configuration = build_project_configuration()
+    configuration.ai = AiConfiguration(provider="litellm", model="gpt-4o-mini")
     issue = build_issue("kanbus-child-err")
     lookup = SimpleNamespace(
         project_dir=tmp_path / "project",

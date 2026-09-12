@@ -85,6 +85,13 @@ Feature: Right now summary regeneration on mutation
     When I update issue "kanbus-offline01" to status "in_progress"
     Then the command should succeed
     And issue "kanbus-offline01" should have right now summary "Preserved summary."
+    And stderr should not contain "warning: right-now generation failed"
+
+  Scenario: Creating an issue without AI configured does not warn
+    Given the Kanbus project has no AI configuration
+    When I run "kanbus create Fresh project issue"
+    Then the command should succeed
+    And stderr should not contain "warning: right-now generation failed"
 
   Scenario: Disabled right now configuration skips summary generation on mutation
     Given right now summary generation is disabled
