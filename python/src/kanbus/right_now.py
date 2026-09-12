@@ -6,9 +6,8 @@ import json
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 from kanbus.config_loader import (
     ConfigurationError,
@@ -76,10 +75,10 @@ class RightNowContext:
     title: str
     description: str
     recent_activity: str
-    child_summaries: Optional[List[RightNowChildSummary]] = field(default=None)
+    child_summaries: list[RightNowChildSummary] | None = field(default=None)
 
 
-def get_right_now_summary(issue: IssueData) -> Optional[str]:
+def get_right_now_summary(issue: IssueData) -> str | None:
     """Return the right-now summary for an issue.
 
     :param issue: Issue data to read.
@@ -114,7 +113,7 @@ def mock_right_now_summary_text(identifier: str) -> str:
     return f"Mock right-now summary for {identifier}."
 
 
-def get_child_full_summary(issue: IssueData) -> Optional[str]:
+def get_child_full_summary(issue: IssueData) -> str | None:
     """Return a child's compaction full summary when present.
 
     On this branch no compaction/full-summary tier exists, so a child
@@ -169,7 +168,7 @@ def resolve_child_summary(issue: IssueData) -> str:
 
 def build_parent_right_now_context(
     issue: IssueData,
-    children: List[IssueData],
+    children: list[IssueData],
 ) -> RightNowContext:
     """Assemble parent-issue context from own fields and child summaries.
 
@@ -198,7 +197,7 @@ def build_parent_right_now_context(
 
 def build_right_now_context(
     issue: IssueData,
-    children: List[IssueData],
+    children: list[IssueData],
 ) -> RightNowContext:
     """Assemble right-now context for a leaf or parent issue.
 
@@ -214,7 +213,7 @@ def build_right_now_context(
     return build_parent_right_now_context(issue, children)
 
 
-def load_child_issues(root: Path, issue_identifier: str) -> List[IssueData]:
+def load_child_issues(root: Path, issue_identifier: str) -> list[IssueData]:
     """Load direct child issues for a parent issue identifier.
 
     :param root: Repository root path.
@@ -380,6 +379,10 @@ def regenerate_right_now_for_issue(
         if fail_closed:
             raise RightNowError(RIGHT_NOW_DISABLED_MESSAGE)
         return
+    if configuration.ai is None or configuration.ai.provider != "litellm":
+        if fail_closed:
+            _ensure_litellm_provider(configuration)
+        return
     try:
         lookup = load_issue_from_project(root, issue_identifier)
     except IssueLookupError as error:
@@ -400,7 +403,7 @@ def regenerate_right_now_for_issue(
         if fail_closed:
             raise
         return
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(UTC)
     try:
         persist_right_now_summary(
             lookup.project_dir,
@@ -528,8 +531,8 @@ def purge_right_now_summaries(root: Path) -> int:
 def ensure_right_now_subtree(
     root: Path,
     issue_identifier: str,
-    selected_identifiers: Set[str],
-    memo: Optional[Dict[str, bool]] = None,
+    selected_identifiers: set[str],
+    memo: dict[str, bool] | None = None,
     *,
     fail_closed: bool = False,
 ) -> bool:
@@ -608,7 +611,7 @@ def ensure_right_now_subtree(
 
 def ensure_right_now_summaries(
     root: Path,
-    issue_identifiers: List[str],
+    issue_identifiers: list[str],
     *,
     fail_closed: bool = False,
 ) -> None:
@@ -625,7 +628,7 @@ def ensure_right_now_summaries(
     :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
     """
     selected_identifiers = set(issue_identifiers)
-    memo: Dict[str, bool] = {}
+    memo: dict[str, bool] = {}
     for identifier in issue_identifiers:
         ensure_right_now_subtree(
             root,
@@ -647,7 +650,7 @@ def regenerate_right_now_for_issue_and_ancestors(
     :param issue_identifier: Starting issue identifier.
     :type issue_identifier: str
     """
-    current_identifier: Optional[str] = issue_identifier
+    current_identifier: str | None = issue_identifier
     while current_identifier is not None:
         regenerate_right_now_for_issue(root, current_identifier)
         try:
@@ -659,7 +662,7 @@ def regenerate_right_now_for_issue_and_ancestors(
 
 def regenerate_right_now_ancestors(
     root: Path,
-    parent_identifier: Optional[str],
+    parent_identifier: str | None,
 ) -> None:
     """Regenerate right-now summaries for ancestors after a child deletion.
 
@@ -718,8 +721,8 @@ def _resolve_right_now_model(configuration: ProjectConfiguration) -> str:
 
 
 def _select_recent_non_summary_comments(
-    comments: List[IssueComment],
-) -> List[IssueComment]:
+    comments: list[IssueComment],
+) -> list[IssueComment]:
     filtered = [
         comment
         for comment in comments
@@ -834,7 +837,7 @@ def _record_llm_usage(
     events_dir.mkdir(parents=True, exist_ok=True)
     log_path = events_dir / LLM_USAGE_LOG
     entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "operation": RIGHT_NOW_SUMMARY_OPERATION,
         "issue_id": issue_identifier,
         "model": model,
