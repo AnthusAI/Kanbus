@@ -3,7 +3,7 @@
   "title": "CONTRIBUTING_AGENT.template recommends unsupported kbs list --long",
   "description": "CONTRIBUTING_AGENT.template.md says:\n  kbs list --status open --long\n\nResult:\n  error: unexpected argument '--long' found\n\nSupported alternatives appear to be --full-ids, --porcelain, and --all.\n\nFix: align template (and any DEFAULT copy) with current list CLI flags.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-12T18:36:23.571411Z",
-  "updated_at": "2026-09-12T18:36:23.593738Z",
-  "closed_at": null,
-  "right_now_summary": "The template uses the unsupported `--long` flag and needs updating to a valid `kbs list` option.",
-  "right_now_updated_at": "2026-09-12T18:36:26.128276Z",
+  "updated_at": "2026-09-12T22:09:31.871632Z",
+  "closed_at": "2026-09-12T22:09:31.851272Z",
+  "right_now_summary": "The template still tells agents to use the unsupported `--long` flag and needs updating.",
+  "right_now_updated_at": "2026-09-12T22:09:33.848325Z",
   "custom": {}
 }

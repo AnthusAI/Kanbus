@@ -3,7 +3,7 @@
   "title": "Fresh init: right_now.enabled true with ai null warns on every create",
   "description": "Fresh init produced:\n  right_now:\n    enabled: true\n  ai: null\n\nEvery kbs create then warned:\n  right-now generation requires ai.provider litellm in .kanbus.yml\n\nExpected: Fresh projects should either default right_now.enabled to false when no AI provider exists, or silently skip generation until configured.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-12T18:36:28.288825Z",
-  "updated_at": "2026-09-12T18:36:28.313757Z",
-  "closed_at": null,
-  "right_now_summary": "Fresh projects warn on every create because right_now is enabled without an AI provider.",
-  "right_now_updated_at": "2026-09-12T18:36:30.371486Z",
+  "updated_at": "2026-09-12T22:09:36.191225Z",
+  "closed_at": "2026-09-12T22:09:36.168497Z",
+  "right_now_summary": "Fresh projects warn on every create when right_now is enabled but no AI provider is configured.",
+  "right_now_updated_at": "2026-09-12T22:09:38.036006Z",
   "custom": {}
 }
