@@ -34,6 +34,8 @@ If it is not recorded, it did not happen.
 Use Markdown in issue descriptions and comments whenever it helps make the intent clearer.
 When relationships, flows, or state transitions are easier to grasp visually, add a Mermaid diagram.
 
+Operational discipline: use the minimum commands needed. To inspect work, run `kbs list --status open --full-ids` once to find the ID, then `kbs show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
+
 Editing project/ directly bypasses the record The Way depends on. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
 
 ## Committing project state to git

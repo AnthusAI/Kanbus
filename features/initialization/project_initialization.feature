@@ -34,6 +34,14 @@ Feature: Project initialization
     Then the command should fail with exit code 1
     And stderr should contain "already initialized"
 
+  Scenario: Template recommends only valid CLI flags
+    Given an empty git repository
+    When I run "kanbus init"
+    Then a "CONTRIBUTING_AGENT.template.md" file should be created
+    And CONTRIBUTING_AGENT.template.md should not contain "--long"
+    And CONTRIBUTING_AGENT.template.md should contain "--full-ids"
+
+
   Scenario: Refuse to initialize outside a git repository
     Given a directory that is not a git repository
     When I run "kanbus init"

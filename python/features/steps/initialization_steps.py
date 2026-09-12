@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from behave import given, then
 
 from features.steps.shared import ensure_git_repository
@@ -57,6 +58,17 @@ def then_project_management_template_contains_text(context: object, text: str) -
         encoding="utf-8"
     )
     assert normalized in content
+
+
+@then('CONTRIBUTING_AGENT.template.md should not contain "{text}"')
+def then_project_management_template_should_not_contain_text(
+    context: object, text: str
+) -> None:
+    normalized = text.replace('\\"', '"')
+    content = (context.working_directory / "CONTRIBUTING_AGENT.template.md").read_text(
+        encoding="utf-8"
+    )
+    assert normalized not in content
 
 
 @then('a "project" directory should exist')
