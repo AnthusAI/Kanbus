@@ -259,7 +259,6 @@ fn request_with_recovery(
                     .map_err(|error| KanbusError::Io(error.to_string()))?;
             }
             spawn_daemon(root)?;
-            let mut last_error = error;
             for _ in 0..10 {
                 match send_request(socket_path, request) {
                     Ok(response) => return Ok(response),
@@ -267,7 +266,6 @@ fn request_with_recovery(
                         if !matches!(err, KanbusError::Io(_)) {
                             return Err(err);
                         }
-                        last_error = err;
                         std::thread::sleep(Duration::from_millis(50));
                     }
                 }
