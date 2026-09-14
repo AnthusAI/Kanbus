@@ -10,16 +10,29 @@
   "parent": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2715f72b-9647-4d17-8974-dab3ec04ace3",
+      "author": "ubuntu",
+      "text": "Specs-only PR adds @wip coordination features under features/coordination/ including mqtt_soft_mutex.feature (REALTIME.md gossip fast path).",
+      "created_at": "2026-09-14T13:43:01.889512268Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "Composer 2.5",
+        "name": "Cloud Agent"
+      }
+    }
+  ],
   "created_at": "2026-09-14T13:32:52.684026337Z",
-  "updated_at": "2026-09-14T13:32:52.696268483Z",
+  "updated_at": "2026-09-14T13:43:01.889531810Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is defining Gherkin scenarios for claims, leases, provider selection, and failure handling.",
-  "right_now_updated_at": "2026-09-14T13:33:45.792049826Z",
+  "right_now_summary": "The Gherkin contract is drafted, with provider and coordination scenarios awaiting acceptance.",
+  "right_now_updated_at": "2026-09-14T13:44:11.001254398Z",
   "custom": {}
 }
