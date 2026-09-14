@@ -3,7 +3,7 @@
   "title": "Gherkin: strongest-available provider; Git-only remains fully functional",
   "description": "## Behavior to specify\n\nA worker asks Kanbus to claim a resource. Kanbus uses the strongest configured provider:\n\n- Git only → functional distributed Kanbus (soft lease, Git latency)\n- Git + MQTT → faster coordination + soft leases\n- Git + MQTT + Mutex API → fast coordination + hard mutual exclusion\n\nMissing MQTT or Mutex API is not an error and must not change Git-only business logic. A deployment without those extras is legitimate.\n\n## Acceptance\n\nGherkin covers provider selection, explicit empty/disabled config, and fail-closed vs degrade behavior. Dual-runtime later.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -22,17 +22,29 @@
         "model": "Composer 2.5",
         "name": "Cloud Agent"
       }
+    },
+    {
+      "id": "d4ab10a3-a75d-40c7-9aba-d0cd8fd00953",
+      "author": "ubuntu",
+      "text": "Closed: Gherkin contract drafted under features/coordination/ (@wip). Implementation stories remain separate.",
+      "created_at": "2026-09-14T13:43:49.222923007Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "Composer 2.5",
+        "name": "Cloud Agent"
+      }
     }
   ],
   "created_at": "2026-09-14T13:33:36.078080243Z",
-  "updated_at": "2026-09-14T13:42:33.905170780Z",
-  "closed_at": null,
+  "updated_at": "2026-09-14T13:43:49.222947054Z",
+  "closed_at": "2026-09-14T13:43:39.768309358Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "A Gherkin draft now covers strongest-provider selection and keeps Git-only operation fully functional.",
-  "right_now_updated_at": "2026-09-14T13:42:35.766935962Z",
+  "right_now_summary": "A Gherkin contract now defines provider selection, Git-only behavior, and fallback rules.",
+  "right_now_updated_at": "2026-09-14T13:43:51.570516337Z",
   "custom": {}
 }

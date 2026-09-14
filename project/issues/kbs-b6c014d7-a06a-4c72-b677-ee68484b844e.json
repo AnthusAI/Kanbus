@@ -19,7 +19,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is building and measuring a DynamoDB-backed mutex API with Gherkin tests and Python and Rust clients.",
-  "right_now_updated_at": "2026-09-14T13:42:57.509317556Z",
+  "right_now_summary": "The team is building and measuring the DynamoDB-backed mutex API, drafting its contract, and adding Python and Rust",
+  "right_now_updated_at": "2026-09-14T13:44:30.235629866Z",
   "custom": {}
 }
