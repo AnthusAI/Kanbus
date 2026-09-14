@@ -1,0 +1,25 @@
+{
+  "id": "kbs-9f19c9a2-e852-4223-a91b-d59bdf7f6833",
+  "title": "Implement Mutex API dual-runtime client",
+  "description": "## Implementation\n\nAfter Mutex API Gherkin and the infrastructure prototype: Python + Rust client for acquire/renew/release/inspect, selected when the Mutex API is configured. Strongest-available provider still degrades to MQTT then Git.\n\n## Acceptance\n\nGherkin green on both runtimes. Unconfigured Mutex API does not break Git-only or MQTT-only installs.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b6c014d7-a06a-4c72-b677-ee68484b844e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:34:12.920628385Z",
+  "updated_at": "2026-09-14T13:34:12.932622091Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "Python and Rust Mutex API clients are being built with MQTT and Git fallback support.",
+  "right_now_updated_at": "2026-09-14T13:34:16.097436189Z",
+  "custom": {}
+}

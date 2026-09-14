@@ -1,0 +1,25 @@
+{
+  "id": "kbs-794391e3-4b9b-4f74-93b8-d93334679b5e",
+  "title": "Gherkin: claim/lease primitives (resource, owner, claim_id, contention, TTL, renew, expire, release, collision, failure)",
+  "description": "## Behavior to specify\n\nOne protocol, independent of Git / MQTT / DynamoDB:\n\n- resource identity, owner identity, claim IDs\n- contention window (discover simultaneous claims) separate from lease TTL (winner ownership)\n- heartbeat/renewal during long work\n- expiration returns abandoned work to eligibility\n- release/completion\n- deterministic tie-break when competing claims appear in the contention window\n- failure modes (timeout, lost renewal, split brain at each provider strength)\n\n## Notes\n\nDo not reuse `kbs update --claim` for this. That command sets assignee and `in_progress`; it is not a lease.\n\n## Acceptance\n\nGherkin scenarios are the contract. Dual-runtime implementation is a later story.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c29c46d9-4948-4278-a89a-6069d081f5ef",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:33:29.142552897Z",
+  "updated_at": "2026-09-14T13:33:29.160819858Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The team is defining Gherkin scenarios for resource claims, leases, renewal, expiration, release, and failure handling.",
+  "right_now_updated_at": "2026-09-14T13:33:31.757005387Z",
+  "custom": {}
+}

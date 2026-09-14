@@ -1,0 +1,25 @@
+{
+  "id": "kbs-76148e57-cd13-49bf-aada-004949d514fd",
+  "title": "Gherkin: Mutex API acquire, renew, release, inspect; failed conditional check",
+  "description": "## Behavior to specify\n\nHard mutex primitive: atomically create/claim resource X iff nobody currently owns X.\n\nAPI shape (tiny): acquire, renew, release, inspect.\n\nFailed conditional write → claim rejected.\n\nDynamoDB stores only live lease records; delete on complete; TTL for garbage collection.\n\nNo Lambda. No AppSync. Direct API Gateway → DynamoDB.\n\n## Acceptance\n\nGherkin is the contract for the client and for the arbitration semantics. Infrastructure prototype is a separate task.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b6c014d7-a06a-4c72-b677-ee68484b844e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:33:59.563642764Z",
+  "updated_at": "2026-09-14T13:33:59.580112906Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The team is defining the Gherkin contract for the mutex API and its failed-claim behavior.",
+  "right_now_updated_at": "2026-09-14T13:34:01.749975671Z",
+  "custom": {}
+}

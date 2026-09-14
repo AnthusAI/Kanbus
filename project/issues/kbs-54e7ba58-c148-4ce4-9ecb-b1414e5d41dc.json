@@ -1,0 +1,25 @@
+{
+  "id": "kbs-54e7ba58-c148-4ce4-9ecb-b1414e5d41dc",
+  "title": "Level 1: Git soft-lease",
+  "description": "## Goal\n\nLevel 1: Git-based soft-lease so workers can announce claims through the same issue/event model. Git remains the only required communication mechanism.\n\n## Constraints\n\n- Contention windows and lease timing must accommodate Git latency (not MQTT-scale seconds unless Git has already converged).\n- Concurrent workers remain allowed. Git provides conflict detection and eventual convergence, not an efficient distributed mutex.\n- A Git-only install is fully functional.\n\n## Depends on\n\nTransport-independent protocol Gherkin under the protocol epic.\n\n## Acceptance\n\nDual-runtime (Python + Rust) implements the Git lease provider against the Gherkin. Duplicate execution remains possible; that is acceptable at this level.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:32:58.155373080Z",
+  "updated_at": "2026-09-14T13:32:58.169314279Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The Git lease provider still needs implementation in Python and Rust.",
+  "right_now_updated_at": "2026-09-14T13:33:52.049432771Z",
+  "custom": {}
+}
