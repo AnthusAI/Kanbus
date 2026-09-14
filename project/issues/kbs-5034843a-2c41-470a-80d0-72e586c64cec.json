@@ -3,23 +3,23 @@
   "title": "Gherkin: revision-aware result publication (local-first / cloud backstop)",
   "description": "## Behavior to specify\n\nKanbus tasks may update frequently. Publication is based on the logical task revision, not whichever worker finishes last.\n\nPattern: a local worker may claim first (near-zero marginal compute). If the task stays unprocessed beyond a threshold (example: 15 minutes), a cloud worker becomes eligible. An obsolete render must not overwrite a newer revision.\n\nThe cloud execution environment is not the queue or the source of truth. Git remains durable history.\n\n## Acceptance\n\nGherkin for revision compare-and-publish, stale-result reject, and eligibility after local-claim timeout. Dual-runtime later.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-c29c46d9-4948-4278-a89a-6069d081f5ef",
   "labels": [],
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-14T13:33:42.125415140Z",
-  "updated_at": "2026-09-14T13:33:42.139812318Z",
+  "updated_at": "2026-09-14T13:41:02.772809522Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "Gherkin scenarios are being defined for revision-aware publishing, stale-result rejection, and cloud fallback timing.",
-  "right_now_updated_at": "2026-09-14T13:33:44.015674557Z",
+  "right_now_summary": "The team is defining tests for revision-aware publishing, stale-result rejection, and cloud fallback after local",
+  "right_now_updated_at": "2026-09-14T13:41:04.750493269Z",
   "custom": {}
 }

@@ -19,7 +19,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is defining Gherkin scenarios for claims, leases, provider selection, and failure handling.",
-  "right_now_updated_at": "2026-09-14T13:33:45.792049826Z",
+  "right_now_summary": "The team is defining and reviewing Gherkin scenarios before dual-runtime implementation begins.",
+  "right_now_updated_at": "2026-09-14T13:41:07.511062401Z",
   "custom": {}
 }
