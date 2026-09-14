@@ -10,16 +10,29 @@
   "parent": "kbs-c29c46d9-4948-4278-a89a-6069d081f5ef",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "b2425886-a171-442c-8d8c-315836d54042",
+      "author": "ubuntu",
+      "text": "Gherkin draft: features/coordination/provider_selection.feature (@wip). Strongest provider, Git-only legitimacy, missing MQTT/Mutex API not errors, separation from kbs update --claim.",
+      "created_at": "2026-09-14T13:42:33.905148219Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "Composer 2.5",
+        "name": "Cloud Agent"
+      }
+    }
+  ],
   "created_at": "2026-09-14T13:33:36.078080243Z",
-  "updated_at": "2026-09-14T13:40:57.126027814Z",
+  "updated_at": "2026-09-14T13:42:33.905170780Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is defining Gherkin scenarios for provider selection and safe fallback to Git-only operation.",
-  "right_now_updated_at": "2026-09-14T13:40:59.946663446Z",
+  "right_now_summary": "A Gherkin draft now covers strongest-provider selection and keeps Git-only operation fully functional.",
+  "right_now_updated_at": "2026-09-14T13:42:35.766935962Z",
   "custom": {}
 }
