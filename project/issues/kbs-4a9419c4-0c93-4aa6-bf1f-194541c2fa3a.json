@@ -32,7 +32,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is defining the protocol and building Git, MQTT, and DynamoDB lease providers in Python and Rust.",
-  "right_now_updated_at": "2026-09-14T13:43:07.192720317Z",
+  "right_now_summary": "The team is refining the protocol and building Git, MQTT, and DynamoDB lease providers for both runtimes.",
+  "right_now_updated_at": "2026-09-14T13:44:34.037051990Z",
   "custom": {}
 }

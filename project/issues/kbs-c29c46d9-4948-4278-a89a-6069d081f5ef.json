@@ -32,7 +32,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "Gherkin drafts now define claims, leases, provider selection, failures, and Git-only operation.",
-  "right_now_updated_at": "2026-09-14T13:43:04.877025380Z",
+  "right_now_summary": "The Gherkin contract is drafted, with provider and coordination scenarios awaiting acceptance.",
+  "right_now_updated_at": "2026-09-14T13:44:11.001254398Z",
   "custom": {}
 }

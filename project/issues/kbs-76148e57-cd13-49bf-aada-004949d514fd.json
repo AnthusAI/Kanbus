@@ -3,7 +3,7 @@
   "title": "Gherkin: Mutex API acquire, renew, release, inspect; failed conditional check",
   "description": "## Behavior to specify\n\nHard mutex primitive: atomically create/claim resource X iff nobody currently owns X.\n\nAPI shape (tiny): acquire, renew, release, inspect.\n\nFailed conditional write → claim rejected.\n\nDynamoDB stores only live lease records; delete on complete; TTL for garbage collection.\n\nNo Lambda. No AppSync. Direct API Gateway → DynamoDB.\n\n## Acceptance\n\nGherkin is the contract for the client and for the arbitration semantics. Infrastructure prototype is a separate task.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -22,17 +22,29 @@
         "model": "Composer 2.5",
         "name": "Cloud Agent"
       }
+    },
+    {
+      "id": "c21ddae9-d81f-4969-b400-768a090ba8b0",
+      "author": "ubuntu",
+      "text": "Closed: Gherkin contract drafted under features/coordination/ (@wip). Implementation stories remain separate.",
+      "created_at": "2026-09-14T13:44:25.916648970Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "Composer 2.5",
+        "name": "Cloud Agent"
+      }
     }
   ],
   "created_at": "2026-09-14T13:33:59.563642764Z",
-  "updated_at": "2026-09-14T13:42:52.909162744Z",
-  "closed_at": null,
+  "updated_at": "2026-09-14T13:44:25.916671291Z",
+  "closed_at": "2026-09-14T13:44:13.939855387Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "A Gherkin draft now defines mutex acquire, renew, release, inspect, and failed claims.",
-  "right_now_updated_at": "2026-09-14T13:42:54.827591202Z",
+  "right_now_summary": "The Gherkin contract for the mutex API is drafted, while implementation remains a separate task.",
+  "right_now_updated_at": "2026-09-14T13:44:28.380418551Z",
   "custom": {}
 }
