@@ -1,0 +1,25 @@
+{
+  "id": "kbs-30b0332e-6a9e-47bd-a1a9-31d17b257340",
+  "title": "State the claim-id lexicographic tie-break rule in Gherkin prose",
+  "description": "SD nit #2 on PR #278: claim-id tie-break is shown in scenarios but the rule is not stated in feature prose.\n\nThe deterministic collision rule should be explicit in the Feature/Background text so implementers do not infer lexicographic order from examples alone.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4652629a-2d49-4140-885f-39d454b07b76",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T14:08:01.012201399Z",
+  "updated_at": "2026-09-14T14:08:01.024951454Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The feature prose still needs to state the lexicographic claim-id tie-break rule.",
+  "right_now_updated_at": "2026-09-14T14:08:03.222478205Z",
+  "custom": {}
+}
