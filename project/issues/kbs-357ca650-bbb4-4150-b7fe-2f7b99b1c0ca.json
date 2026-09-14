@@ -1,0 +1,25 @@
+{
+  "id": "kbs-357ca650-bbb4-4150-b7fe-2f7b99b1c0ca",
+  "title": "Prototype API Gateway REST → DynamoDB mutex; measure request cost",
+  "description": "## Work\n\nPrototype API Gateway REST API with direct DynamoDB service integration (conditional write). No Lambda, no AppSync.\n\nMeasure actual request cost. Confirm DynamoDB contains only ephemeral live leases.\n\nWorkers authenticate to the Kanbus Mutex API; they must not need AWS account credentials.\n\n## Acceptance\n\nA working prototype, recorded cost numbers, and notes on auth/IAM scope. Implementation dual-runtime client waits on Mutex API Gherkin.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b6c014d7-a06a-4c72-b677-ee68484b844e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:34:05.564680235Z",
+  "updated_at": "2026-09-14T13:34:05.577159790Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The team is building and measuring a REST API mutex backed by DynamoDB.",
+  "right_now_updated_at": "2026-09-14T13:34:07.956171236Z",
+  "custom": {}
+}

@@ -1,0 +1,25 @@
+{
+  "id": "kbs-c29c46d9-4948-4278-a89a-6069d081f5ef",
+  "title": "Transport-independent claim/lease protocol (Gherkin)",
+  "description": "## Goal\n\nSpecify one transport-independent claim/lease protocol in Gherkin. This is the source of truth. Python and Rust implement it later; no implementation-only tests, no Python-only or Rust-only PRs.\n\n## Must specify\n\n- Resource identity, owner identity, claim IDs\n- Contention window vs lease TTL (separate concepts)\n- Heartbeat/renewal, expiration, release/completion\n- Deterministic collision resolution\n- Failure and partition behavior at each provider strength\n- Git-only remains fully functional (missing MQTT or Mutex API is not an error)\n- Worker API: ask Kanbus to claim; Kanbus selects the strongest configured provider\n- Do not conflate with existing `kbs update --claim` (assignee + in_progress)\n\n## Acceptance\n\nGherkin scenarios exist and are the contract. Dual-runtime work is blocked until these scenarios are accepted.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:32:52.684026337Z",
+  "updated_at": "2026-09-14T13:32:52.696268483Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The team is defining Gherkin scenarios for claims, leases, provider selection, and failure handling.",
+  "right_now_updated_at": "2026-09-14T13:33:45.792049826Z",
+  "custom": {}
+}

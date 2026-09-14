@@ -1,0 +1,25 @@
+{
+  "id": "kbs-992d0906-5700-47ed-8f3a-f8f423ec5c5e",
+  "title": "Implement MQTT fast-path lease dual-runtime",
+  "description": "## Implementation\n\nAfter protocol Gherkin is accepted: implement MQTT CLAIM / contention / LEASE / renew / RELEASE on the existing optional gossip/overlay. Soft mutex only.\n\n## Acceptance\n\nSame Gherkin green on both runtimes. With MQTT off, behavior matches the Git provider. Do not require Mosquitto for routine CLI board work (existing `docs/REALTIME.md` policy).",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dab76577-817a-4d54-9619-fc92bb638229",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T13:33:53.621485129Z",
+  "updated_at": "2026-09-14T13:33:53.633529869Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The MQTT lease fast path still needs implementation and matching tests on both runtimes.",
+  "right_now_updated_at": "2026-09-14T13:33:56.201004604Z",
+  "custom": {}
+}
