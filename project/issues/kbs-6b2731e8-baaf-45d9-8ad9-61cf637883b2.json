@@ -3,23 +3,23 @@
   "title": "Gherkin: strongest-available provider; Git-only remains fully functional",
   "description": "## Behavior to specify\n\nA worker asks Kanbus to claim a resource. Kanbus uses the strongest configured provider:\n\n- Git only → functional distributed Kanbus (soft lease, Git latency)\n- Git + MQTT → faster coordination + soft leases\n- Git + MQTT + Mutex API → fast coordination + hard mutual exclusion\n\nMissing MQTT or Mutex API is not an error and must not change Git-only business logic. A deployment without those extras is legitimate.\n\n## Acceptance\n\nGherkin covers provider selection, explicit empty/disabled config, and fail-closed vs degrade behavior. Dual-runtime later.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
-  "assignee": null,
+  "assignee": "agent",
   "creator": null,
   "parent": "kbs-c29c46d9-4948-4278-a89a-6069d081f5ef",
   "labels": [],
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-14T13:33:36.078080243Z",
-  "updated_at": "2026-09-14T13:33:36.091171142Z",
+  "updated_at": "2026-09-14T13:40:57.126027814Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is defining Gherkin scenarios for provider selection while keeping Git-only operation fully functional.",
-  "right_now_updated_at": "2026-09-14T13:33:38.377498032Z",
+  "right_now_summary": "The team is defining Gherkin scenarios for provider selection and safe fallback to Git-only operation.",
+  "right_now_updated_at": "2026-09-14T13:40:59.946663446Z",
   "custom": {}
 }
