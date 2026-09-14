@@ -1,0 +1,25 @@
+{
+  "id": "kbs-74dee6bd-a722-4173-a8f2-247b1356af74",
+  "title": "Do not close Gherkin stories while the specs PR is still draft",
+  "description": "SD nit #5 on PR #278: Gherkin stories appeared closed while the PR was still draft.\n\nProcess: leave kbs-794391, kbs-6b2731, kbs-503484, kbs-76148e open until the specs PR is merged to develop, then close them. Specs PR #278 is already merged; close the Gherkin stories now if still open, and keep this process for the next specs-first PR.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4652629a-2d49-4140-885f-39d454b07b76",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T14:08:14.338436606Z",
+  "updated_at": "2026-09-14T14:08:14.352641083Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The specs PR is merged; close any remaining Gherkin stories and keep this process for future specs-first PRs.",
+  "right_now_updated_at": "2026-09-14T14:08:18.221465018Z",
+  "custom": {}
+}
