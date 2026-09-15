@@ -10,16 +10,29 @@
   "parent": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "48c736f7-12ea-4e61-86bd-4ba8ec6840bb",
+      "author": "ryan",
+      "text": "Progress: Created the epic and delivery story, published board state, and delegated implementation to the GPT-5.6 Luna sub-agent on `codex/close-with-comment`.\nEvidence: epic `kbs-fe1eab`; story `kbs-b0a148`; board commit `f8dc56d9` is pushed to `origin/develop`.\nNext: implement Gherkin-first CLI parity in the isolated feature worktree, then independently verify Python, Rust, and parity checks.\nRisk/Blocker: `kbs validate` currently reports pre-existing legacy board-data violations unrelated to these new records.",
+      "created_at": "2026-09-15T22:43:16.078796Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5.6",
+        "name": "close-comment-coordinator"
+      }
+    }
+  ],
   "created_at": "2026-09-15T22:42:35.136234Z",
-  "updated_at": "2026-09-15T22:42:35.159929Z",
+  "updated_at": "2026-09-15T22:43:16.078835Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "gpt-5.6",
     "name": "close-comment-planning"
   },
-  "right_now_summary": "The team is defining and testing comment-aware close behavior for Python and Rust, with matching docs.",
-  "right_now_updated_at": "2026-09-15T22:42:36.966353Z",
+  "right_now_summary": "A sub-agent is implementing the feature and will verify Python, Rust, and parity checks.",
+  "right_now_updated_at": "2026-09-15T22:43:18.192981Z",
   "custom": {}
 }
