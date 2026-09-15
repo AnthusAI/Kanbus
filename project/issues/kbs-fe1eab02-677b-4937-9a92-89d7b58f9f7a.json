@@ -1,0 +1,25 @@
+{
+  "id": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
+  "title": "Close tasks with an optional comment in one command",
+  "description": "## Intent\n\nAs an AI agent or Kanbus user, I want to close a task and record its closing note in one command, so completion history is not lost when a two-command sequence is skipped or fails midway.\n\nCanonical command: `kbs close <id> --comment \"Completed and verified.\"`\n\n## Definition of Done\n\n- Gherkin behavior specifications define the feature first.\n- Python and Rust implement identical observable behavior.\n- CLI help, documentation, and agent guidance match the delivered command.\n- Python tests, Rust tests, and spec-parity validation pass.\n\n## Product decision\n\nWhen `--comment` is supplied, validate and persist a normal comment, emit normal comment hooks, then attempt normal close and hooks. This is sequential, not transactional: a bad comment leaves the issue untouched; a close failure after comment success leaves the comment and issue unclosed. Plain `close <id>` remains unchanged.\n\n## Out of scope\n\nNo schema, API, console UI, comment-type, migration, transactional rollback, or advanced standalone-comment options added to `close`.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-15T22:42:17.516196Z",
+  "updated_at": "2026-09-15T22:42:17.545295Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5.6",
+    "name": "close-comment-planning"
+  },
+  "right_now_summary": "The team is defining and testing comment-aware close behavior in Python and Rust, with matching docs.",
+  "right_now_updated_at": "2026-09-15T22:42:39.319712Z",
+  "custom": {}
+}
