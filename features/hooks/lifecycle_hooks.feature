@@ -41,6 +41,42 @@ Feature: Lifecycle hooks
     And hook log "hook.log" should contain "after-comment"
     And hook log "hook.log" should contain "after-close"
 
+  Scenario: close with comment completes comment hooks before close hooks
+    Given the Kanbus hooks configuration is:
+      """
+      enabled: true
+      run_in_beads_mode: true
+      default_timeout_ms: 5000
+      before:
+        issue.comment:
+          - id: before-comment
+            command: ["./test-hooks/record-hook.sh", "before-comment"]
+            env: { HOOK_LOG_PATH: "./hook.log" }
+        issue.close:
+          - id: before-close
+            command: ["./test-hooks/record-hook.sh", "before-close"]
+            env: { HOOK_LOG_PATH: "./hook.log" }
+      after:
+        issue.comment:
+          - id: after-comment
+            command: ["./test-hooks/record-hook.sh", "after-comment"]
+            env: { HOOK_LOG_PATH: "./hook.log" }
+        issue.close:
+          - id: after-close
+            command: ["./test-hooks/record-hook.sh", "after-close"]
+            env: { HOOK_LOG_PATH: "./hook.log" }
+      """
+    And an issue "kanbus-hook-order" of type "task" with status "open"
+    When I run "kanbus close kanbus-hook-order --comment \"Done\""
+    Then the command should succeed
+    And hook log "hook.log" should equal:
+      """
+      before-comment
+      after-comment
+      before-close
+      after-close
+      """
+
   Scenario: before-hook blocks mutating operation on non-zero exit
     Given the Kanbus hooks configuration is:
       """
