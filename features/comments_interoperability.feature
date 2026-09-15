@@ -60,6 +60,15 @@ Feature: Comments flow interoperability
     When I run "kanbus --beads show bdx-old"
     Then stdout should contain "Comment from Kanbus"
 
+  Scenario: Close with comment via Beads mode is visible in Kanbus
+    Given a Kanbus project with beads compatibility enabled
+    And a kanbus issue "bdx-test" exists
+    When I run "kanbus --beads close bdx-test --comment 'Closing note'"
+    Then the command should succeed
+    When I run "kanbus show bdx-test"
+    Then stdout should contain "Closing note"
+    And stdout should contain "closed"
+
   Scenario: Comment with multiline text via Beads mode
     Given a Kanbus project with beads compatibility enabled
     And a kanbus issue "bdx-test" exists
