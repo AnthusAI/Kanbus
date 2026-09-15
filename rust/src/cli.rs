@@ -97,7 +97,7 @@ use crate::wiki_markus::convert_wiki_markdown_to_html;
   kbs update <id> --status in_progress         update status
   kbs move <id> epic                           change issue type
   kbs comment <id> \"Progress note\"             add a comment
-  kbs close <id>                               close an issue
+  kbs close <id> --comment \"Summary\"            close an issue with a comment
 
 Issue types:  initiative > epic > story / task / bug > sub-task
 Statuses:     open  in_progress  blocked  done  closed
@@ -283,6 +283,9 @@ enum Commands {
     Close {
         /// Issue identifier.
         identifier: String,
+        /// Add a comment before closing.
+        #[arg(long)]
+        comment: Option<String>,
     },
     /// Commit project/issues changes to git.
     Commit,
@@ -2219,7 +2222,84 @@ fn execute_command(
                 Ok(Some(format!("Updated {} issue(s)", selected.len())))
             }
         },
-        Commands::Close { identifier } => {
+        Commands::Close {
+            identifier,
+            comment,
+        } => {
+            if let Some(comment_text) = comment {
+                if comment_text.trim().is_empty() {
+                    return Err(KanbusError::IssueOperation(
+                        "comment text is required".to_string(),
+                    ));
+                }
+                let comment_quality_result = apply_text_quality_signals(&comment_text);
+                let repaired_comment_text = comment_quality_result.text.clone();
+                validate_code_blocks(&repaired_comment_text)?;
+                let before_comment_issue_for_hooks = if beads_mode {
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                } else {
+                    load_issue_from_project(root, &identifier)
+                        .ok()
+                        .map(|lookup| lookup.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "text": repaired_comment_text.clone(),
+                        "before_issue": before_comment_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+                let after_comment_issue_for_hooks: Option<IssueData> = if beads_mode {
+                    add_beads_comment(
+                        &root_for_beads,
+                        &identifier,
+                        &get_current_user(),
+                        &repaired_comment_text,
+                    )?;
+                    emit_signals(
+                        &comment_quality_result,
+                        "comment",
+                        Some(&identifier),
+                        None,
+                        false,
+                    );
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                } else {
+                    let comment_result = add_comment(
+                        root,
+                        &identifier,
+                        &get_current_user(),
+                        &repaired_comment_text,
+                        None,
+                    )?;
+                    emit_signals(
+                        &comment_quality_result,
+                        "comment",
+                        Some(&identifier),
+                        comment_result.comment.id.as_deref(),
+                        false,
+                    );
+                    Some(comment_result.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "text": repaired_comment_text,
+                        "before_issue": before_comment_issue_for_hooks.as_ref().map(serialize_issue),
+                        "after_issue": after_comment_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+            }
             let before_issue_for_hooks = if beads_mode {
                 load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {

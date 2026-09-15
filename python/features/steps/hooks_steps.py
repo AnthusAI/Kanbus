@@ -77,3 +77,9 @@ def then_hook_log_not_contains(context: object, relative_path: str, token: str) 
     log_path = root / relative_path
     content = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
     assert token not in content
+
+
+@then('hook log "{relative_path}" should equal:')
+def then_hook_log_equals(context: object, relative_path: str) -> None:
+    content = (_root(context) / relative_path).read_text(encoding="utf-8")
+    assert content == (context.text or "").strip() + "\n"

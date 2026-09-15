@@ -9,6 +9,46 @@ Feature: Issue close and delete
     And issue "kanbus-aaa" should have status "closed"
     And issue "kanbus-aaa" should have a closed_at timestamp
 
+  Scenario: Close an issue with a comment
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with status "open"
+    And the current user is "dev@example.com"
+    When I run "kanbus close kanbus-aaa --comment 'Completed and verified.'"
+    Then the command should succeed
+    And stdout should contain "Closed kanbus-aaa"
+    And issue "kanbus-aaa" should have status "closed"
+    And issue "kanbus-aaa" should have a closed_at timestamp
+    And issue "kanbus-aaa" should have 1 comments
+    And issue "kanbus-aaa" should have comment text "Completed and verified."
+
+  Scenario: Close with a whitespace comment fails without mutation
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-aaa" exists with status "open"
+    When I run "kanbus close kanbus-aaa --comment '   '"
+    Then the command should fail with exit code 1
+    And stderr should contain "comment text is required"
+    And issue "kanbus-aaa" should have status "open"
+    And issue "kanbus-aaa" should have 0 comments
+
+  Scenario: Close failure after a comment keeps the comment
+    Given a Kanbus project with default configuration
+    And the Kanbus hooks configuration is:
+      """
+      enabled: true
+      default_timeout_ms: 5000
+      before:
+        issue.close:
+          - id: reject-close
+            command: ["sh", "-c", "exit 7"]
+      """
+    And an issue "kanbus-aaa" exists with status "open"
+    When I run "kanbus close kanbus-aaa --comment 'Attempted close note'"
+    Then the command should fail with exit code 1
+    And stderr should contain "reject-close"
+    And issue "kanbus-aaa" should have status "open"
+    And issue "kanbus-aaa" should have 1 comments
+    And issue "kanbus-aaa" should have comment text "Attempted close note"
+
   Scenario: Close missing issue fails
     Given a Kanbus project with default configuration
     When I run "kanbus close kanbus-missing"
