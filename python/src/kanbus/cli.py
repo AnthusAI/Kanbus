@@ -32,6 +32,7 @@ from kanbus.issue_delete import (
 from kanbus.beads_write import (
     BeadsDeleteError,
     BeadsWriteError,
+    add_beads_comment,
     create_beads_issue,
     delete_beads_issue,
     get_beads_descendant_identifiers,
@@ -1190,8 +1191,9 @@ def bulk_update(
 
 @cli.command("close")
 @click.argument("identifier")
+@click.option("--comment", "comment_text", help="Add a comment before closing.")
 @click.pass_context
-def close(context: click.Context, identifier: str) -> None:
+def close(context: click.Context, identifier: str, comment_text: Optional[str]) -> None:
     """Close an issue.
 
     :param identifier: Issue identifier.
@@ -1201,6 +1203,84 @@ def close(context: click.Context, identifier: str) -> None:
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
         root = _resolve_beads_root(root)
+
+    # This deliberately is not transactional: a failed close retains a
+    # successfully recorded comment, matching explicit comment-then-close.
+    if comment_text is not None:
+        if not comment_text.strip():
+            raise click.ClickException("comment text is required")
+        comment_quality_result = apply_text_quality_signals(comment_text)
+        comment_text = comment_quality_result.text
+        try:
+            validate_code_blocks(comment_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+        before_comment_issue = None
+        if beads_mode:
+            try:
+                before_comment_issue = load_beads_issue(root, identifier)
+            except MigrationError:
+                before_comment_issue = None
+        else:
+            try:
+                before_comment_issue = load_issue_from_project(root, identifier).issue
+            except IssueLookupError:
+                before_comment_issue = None
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_COMMENT,
+            operation={
+                "identifier": identifier,
+                "comment_text": comment_text,
+                "comment_length": len(comment_text),
+                "before_issue": serialize_issue(before_comment_issue),
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+        result_comment = None
+        try:
+            if beads_mode:
+                add_beads_comment(root, identifier, get_current_user(), comment_text)
+                emit_signals(comment_quality_result, "comment", issue_id=identifier)
+                try:
+                    after_comment_issue = load_beads_issue(root, identifier)
+                except MigrationError:
+                    after_comment_issue = None
+            else:
+                result_comment = add_comment(
+                    root=root,
+                    identifier=identifier,
+                    author=get_current_user(),
+                    text=comment_text,
+                )
+                emit_signals(
+                    comment_quality_result,
+                    "comment",
+                    issue_id=identifier,
+                    comment_id=result_comment.comment.id,
+                )
+                after_comment_issue = result_comment.issue
+        except (IssueCommentError, BeadsWriteError, MigrationError) as error:
+            raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_COMMENT,
+            operation={
+                "identifier": identifier,
+                "issue": serialize_issue(after_comment_issue),
+                "comment_id": (
+                    result_comment.comment.id
+                    if result_comment is not None
+                    and result_comment.comment.id is not None
+                    else None
+                ),
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
 
     before_issue = None
     if beads_mode:
