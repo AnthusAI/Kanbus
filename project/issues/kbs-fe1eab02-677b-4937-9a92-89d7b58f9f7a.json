@@ -19,7 +19,7 @@
     "model": "gpt-5.6",
     "name": "close-comment-planning"
   },
-  "right_now_summary": "The feature is being implemented across Python, Rust, and parity checks.",
-  "right_now_updated_at": "2026-09-15T23:02:11.331252Z",
+  "right_now_summary": "The implementation is ready for review and merge.",
+  "right_now_updated_at": "2026-09-15T23:02:44.199270Z",
   "custom": {}
 }
