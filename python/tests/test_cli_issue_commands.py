@@ -155,6 +155,63 @@ def test_close_hook_rejection_keeps_persisted_comment_and_skips_close(
     ]
 
 
+def test_close_with_comment_supports_beads_projects(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_resolve_beads_root", lambda root: root)
+    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "get_current_user", lambda: "Codex")
+
+    issue = build_issue("kanbus-1")
+    comments: list[tuple[Path, str, str, str]] = []
+    updates: list[tuple[Path, str, str]] = []
+    signals: list[tuple[str, str]] = []
+    hooks: list[tuple[cli.HookPhase, cli.HookEvent]] = []
+
+    monkeypatch.setattr(cli, "load_beads_issue", lambda *_a: issue)
+    monkeypatch.setattr(
+        cli,
+        "add_beads_comment",
+        lambda root, identifier, author, text: comments.append((root, identifier, author, text)),
+    )
+    monkeypatch.setattr(
+        cli,
+        "update_beads_issue",
+        lambda root, identifier, *, status: updates.append((root, identifier, status)),
+    )
+    monkeypatch.setattr(
+        cli,
+        "emit_signals",
+        lambda _result, kind, **_kwargs: signals.append((kind, _kwargs["issue_id"])),
+    )
+    monkeypatch.setattr(
+        cli,
+        "_run_lifecycle_hooks_for_context",
+        lambda _context, *, phase, event, **_kwargs: hooks.append((phase, event)),
+    )
+
+    result = _run(["--beads", "close", "kanbus-1", "--comment", "Ship it"])
+
+    assert result.exit_code == 0
+    assert "Closed kanbus-1" in result.output
+    assert comments == [(tmp_path, "kanbus-1", "Codex", "Ship it")]
+    assert updates == [(tmp_path, "kanbus-1", "closed")]
+    assert signals == [("comment", "kanbus-1")]
+    assert hooks == [
+        (cli.HookPhase.BEFORE, cli.HookEvent.ISSUE_COMMENT),
+        (cli.HookPhase.AFTER, cli.HookEvent.ISSUE_COMMENT),
+        (cli.HookPhase.BEFORE, cli.HookEvent.ISSUE_CLOSE),
+        (cli.HookPhase.AFTER, cli.HookEvent.ISSUE_CLOSE),
+    ]
+
+
 def test_create_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
