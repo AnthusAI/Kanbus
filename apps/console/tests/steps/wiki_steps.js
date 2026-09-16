@@ -108,9 +108,12 @@ async function reloadIfWikiStale(world) {
       const postReloadWikiToggle = world.page.getByTestId("view-toggle-wiki");
       if ((await postReloadWikiToggle.count()) > 0) {
         const postActive = await postReloadWikiToggle.getAttribute("data-active");
-        if (postActive !== "true") {
-          await postReloadWikiToggle.click();
+        if (postActive === "true") {
+          // A reload can preserve the Wiki route. Cycle away and back so the
+          // panel's active-state refresh runs against the newly written fixture.
+          await world.page.getByTestId("view-toggle-board").click();
         }
+        await postReloadWikiToggle.click();
       }
       await expect(world.page.getByTestId("wiki-view")).toBeVisible({ timeout: 15000 });
       world.wikiStale = false;
