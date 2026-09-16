@@ -561,9 +561,12 @@ async function wikiRenderPage(relativePagePath: string): Promise<WikiCliRenderRe
   return parseWikiRenderJson(stdout.trimEnd());
 }
 
+const testWikiRateLimitMax = Number(process.env.KANBUS_TEST_WIKI_RATE_LIMIT_MAX);
 const wikiRateLimit = rateLimit({
   windowMs: 60_000,
-  max: 120,
+  max: Number.isSafeInteger(testWikiRateLimitMax) && testWikiRateLimitMax > 0
+    ? testWikiRateLimitMax
+    : 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "rate limit exceeded" }

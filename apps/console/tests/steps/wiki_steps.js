@@ -299,7 +299,8 @@ Given("the console wiki pages request hangs", async function () {
 
 Then("the wiki directory listing should show {string}", async function (text) {
   await reloadIfWikiStale(this);
-  const button = this.page.locator(".wiki-directory-listing button").filter({ hasText: text }).first();
+  const listing = this.page.locator(".wiki-directory-listing");
+  const button = listing.locator("button").filter({ hasText: text }).first();
   await expect(button).toBeVisible({ timeout: 15000 });
 });
 
