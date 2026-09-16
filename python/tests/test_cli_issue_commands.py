@@ -179,7 +179,9 @@ def test_close_with_comment_supports_beads_projects(
     monkeypatch.setattr(
         cli,
         "add_beads_comment",
-        lambda root, identifier, author, text: comments.append((root, identifier, author, text)),
+        lambda root, identifier, author, text: comments.append(
+            (root, identifier, author, text)
+        ),
     )
     monkeypatch.setattr(
         cli,
