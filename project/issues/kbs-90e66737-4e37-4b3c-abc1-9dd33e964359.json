@@ -1,0 +1,25 @@
+{
+  "id": "kbs-90e66737-4e37-4b3c-abc1-9dd33e964359",
+  "title": "Repair failing console UI wiki specifications",
+  "description": "Fix the console-ui CI failures currently blocking PR #281: 18 failed and 6 undefined wiki/Markus scenarios. Work on a separate branch from develop. Implement missing step definitions and correct the underlying console behavior where the failing tests identify it. Run `npm run test:ui`, open a PR to develop, and record exact evidence.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": "luna",
+  "creator": null,
+  "parent": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-16T00:50:55.677048Z",
+  "updated_at": "2026-09-16T00:50:55.727801Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5.6",
+    "name": "ci-remediation-coordinator"
+  },
+  "right_now_summary": "The team is fixing 18 failed and 6 undefined console UI wiki scenarios blocking PR #281.",
+  "right_now_updated_at": "2026-09-16T00:50:57.745527Z",
+  "custom": {}
+}

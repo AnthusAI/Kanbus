@@ -19,7 +19,7 @@
     "model": "gpt-5.6",
     "name": "close-comment-planning"
   },
-  "right_now_summary": "The implementation is ready for review and merge.",
-  "right_now_updated_at": "2026-09-15T23:02:44.199270Z",
+  "right_now_summary": "PR #281 is ready for review and merge while remaining tests and UI scenarios are being fixed.",
+  "right_now_updated_at": "2026-09-16T00:50:59.211655Z",
   "custom": {}
 }

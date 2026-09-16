@@ -1,0 +1,25 @@
+{
+  "id": "kbs-0967b5bd-252b-4e42-9253-adf29b766931",
+  "title": "Restore PR #281 Python coverage ratchet",
+  "description": "Add direct Python unit tests for the new `close --comment` command path so PR #281 meets the 96.93% Python coverage baseline. Cover successful native close-with-comment, blank comment rejection without mutation, and close rejection after comment persistence. Preserve the existing Gherkin contract. Run the focused test module and coverage ratchet evidence.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": "luna",
+  "creator": null,
+  "parent": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-16T00:50:50.554802Z",
+  "updated_at": "2026-09-16T00:50:50.607390Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5.6",
+    "name": "ci-remediation-coordinator"
+  },
+  "right_now_summary": "Direct Python tests are being added to restore PR #281’s 96.93% coverage baseline.",
+  "right_now_updated_at": "2026-09-16T00:50:52.847967Z",
+  "custom": {}
+}
