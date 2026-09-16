@@ -54,6 +54,7 @@ Feature: Console standup in the Now panel
     And the standup drawer should show section "Blockers"
     And the standup drawer result should mention "Board health work"
 
+  @standup-failure
   Scenario: Generation failure surfaces error
     Given no issues exist in the console
     And a status issue "Gamma task" updated at "2026-01-03T10:00:00.000Z"

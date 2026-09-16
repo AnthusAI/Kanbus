@@ -1,7 +1,7 @@
 Feature: Agent metadata on issues and comments
   As an AI agent using Kanbus
-  I want to optionally tag mutations with platform and model info
-  So that provenance is preserved without cluttering default output
+  I want mutations to record platform and model info
+  So that AI provenance is preserved while human records can omit it
 
   Scenario: Create issue with agent metadata via flags
     Given a Kanbus project with default configuration

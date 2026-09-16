@@ -55,8 +55,7 @@ Then push to the branch your project uses for shared board state (see **AGENTS.m
 
 Notes:
 - `project/issues/` is the board state Kanbus writes. Use `kbs commit` after board changes so collaborators see current state.
-- `project/events/` holds event logs (LLM usage transcripts). `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
-- Do this proactively as you close/update cards, not as a separate chore — the board should stay current as you work.
+- `project/events/` holds event logs. `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
 - Never manually edit the JSON content of `project/issues/` or `project/events/` files. `kbs commit` persists Kanbus-written issue state without hand-editing JSON.
 
 ## Git commits and pull requests
