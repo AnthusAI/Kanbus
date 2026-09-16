@@ -576,6 +576,156 @@ def test_close_move_promote_localize_comment_paths(
     assert _run(["comment", "kanbus-1", "hello"]).exit_code != 0
 
 
+def test_close_with_comment_records_comment_before_closing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The composite close path reuses normal comment persistence first."""
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+
+    issue = build_issue("kanbus-1")
+    events: list[str] = []
+    monkeypatch.setattr(
+        cli,
+        "load_issue_from_project",
+        lambda _root, _identifier: SimpleNamespace(issue=issue),
+    )
+    monkeypatch.setattr(
+        cli,
+        "_run_lifecycle_hooks_for_context",
+        lambda _context, **kwargs: events.append(
+            f"{kwargs['phase'].value}:{kwargs['event'].value}"
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "add_comment",
+        lambda **kwargs: (
+            events.append(f"comment:{kwargs['text']}")
+            or SimpleNamespace(issue=issue, comment=SimpleNamespace(id="comment-1"))
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "close_issue",
+        lambda _root, _identifier: events.append("close") or issue,
+    )
+
+    result = _run(["close", "kanbus-1", "--comment", "Completed and verified."])
+
+    assert result.exit_code == 0
+    assert "Closed kanbus-1" in result.output
+    assert events == [
+        "before:issue.comment",
+        "comment:Completed and verified.",
+        "after:issue.comment",
+        "before:issue.close",
+        "close",
+        "after:issue.close",
+    ]
+
+
+def test_close_with_whitespace_comment_rejects_before_mutating(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "add_comment",
+        lambda **_kwargs: pytest.fail("whitespace comments must not persist"),
+    )
+    monkeypatch.setattr(
+        cli,
+        "close_issue",
+        lambda *_args: pytest.fail("whitespace comments must not close issues"),
+    )
+
+    result = _run(["close", "kanbus-1", "--comment", "   "])
+
+    assert result.exit_code != 0
+    assert "comment text is required" in result.output
+
+
+def test_close_with_comment_retains_comment_when_close_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+
+    issue = build_issue("kanbus-1")
+    comments: list[str] = []
+    monkeypatch.setattr(
+        cli,
+        "load_issue_from_project",
+        lambda _root, _identifier: SimpleNamespace(issue=issue),
+    )
+    monkeypatch.setattr(
+        cli,
+        "add_comment",
+        lambda **kwargs: (
+            comments.append(kwargs["text"])
+            or SimpleNamespace(issue=issue, comment=SimpleNamespace(id="comment-1"))
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "close_issue",
+        lambda *_args: (_ for _ in ()).throw(IssueCloseError("close failed")),
+    )
+
+    result = _run(["close", "kanbus-1", "--comment", "Closing note"])
+
+    assert result.exit_code != 0
+    assert "close failed" in result.output
+    assert comments == ["Closing note"]
+
+
+def test_close_with_comment_uses_beads_comment_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_resolve_beads_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+
+    issue = build_issue("kanbus-1", status="closed")
+    comments: list[tuple[str, str]] = []
+    monkeypatch.setattr(cli, "load_beads_issue", lambda *_a: issue)
+    monkeypatch.setattr(
+        cli,
+        "add_beads_comment",
+        lambda _root, identifier, _author, text: comments.append((identifier, text)),
+    )
+    monkeypatch.setattr(cli, "update_beads_issue", lambda *_a, **_k: None)
+
+    result = _run(["--beads", "close", "kanbus-1", "--comment", "Beads note"])
+
+    assert result.exit_code == 0
+    assert comments == [("kanbus-1", "Beads note")]
+    assert "Closed kanbus-1" in result.output
+
+
 def test_update_beads_policy_signal_and_delete_beads_compat_paths(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
