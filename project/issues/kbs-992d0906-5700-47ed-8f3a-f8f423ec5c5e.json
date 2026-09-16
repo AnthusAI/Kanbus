@@ -3,16 +3,46 @@
   "title": "Implement MQTT fast-path lease dual-runtime",
   "description": "## Implementation\n\nAfter protocol Gherkin is accepted: implement MQTT CLAIM / contention / LEASE / renew / RELEASE on the existing optional gossip/overlay. Soft mutex only.\n\n## Acceptance\n\nSame Gherkin green on both runtimes. With MQTT off, behavior matches the Git provider. Do not require Mosquitto for routine CLI board work (existing `docs/REALTIME.md` policy).",
   "type": "story",
-  "status": "open",
+  "status": "backlog",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-dab76577-817a-4d54-9619-fc92bb638229",
   "labels": [],
-  "dependencies": [],
-  "comments": [],
+  "dependencies": [
+    {
+      "target": "kbs-de95e8",
+      "type": "blocked-by"
+    }
+  ],
+  "comments": [
+    {
+      "id": "bae04cf0-7ce2-439a-84e7-bbbfbd8ac372",
+      "author": "Codex",
+      "text": "Parked Level 2 until the Git soft-lease baseline is complete.",
+      "created_at": "2026-09-16T03:44:42.896674Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "31c8b55b-9f72-462d-936b-fb0bffd1d6ee",
+      "author": "Codex",
+      "text": "Parked Level 2 until the Git soft-lease baseline is complete.",
+      "created_at": "2026-09-16T03:44:45.477406Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
   "created_at": "2026-09-14T13:33:53.621485129Z",
-  "updated_at": "2026-09-14T13:33:53.633529869Z",
+  "updated_at": "2026-09-16T03:44:52.592806Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",

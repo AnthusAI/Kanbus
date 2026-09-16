@@ -3,16 +3,41 @@
   "title": "Clarify Mutex API TTL GC storage flavor in Gherkin",
   "description": "SD nit #6 on PR #278: minor TTL GC storage flavor gap on live-lease-only DynamoDB semantics.\n\nSpecify that abandoned leases expire and are garbage-collected (DynamoDB TTL when that provider is configured) without storing Kanbus history in the mutex store.",
   "type": "task",
-  "status": "open",
+  "status": "backlog",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-4652629a-2d49-4140-885f-39d454b07b76",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "e99552ac-090e-4f67-95db-2371d2c224d9",
+      "author": "Codex",
+      "text": "Mutex-specific accepted non-blocking follow-up; parked until Mutex API work is admitted.",
+      "created_at": "2026-09-16T03:44:06.777617Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "8c5c3773-ad02-4145-b3c1-93f113c7e9b3",
+      "author": "Codex",
+      "text": "Mutex-specific accepted non-blocking follow-up; parked until Mutex API work is admitted.",
+      "created_at": "2026-09-16T03:44:15.148368Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
   "created_at": "2026-09-14T14:08:24.737330742Z",
-  "updated_at": "2026-09-14T14:08:24.750013183Z",
+  "updated_at": "2026-09-16T03:44:15.148387Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",

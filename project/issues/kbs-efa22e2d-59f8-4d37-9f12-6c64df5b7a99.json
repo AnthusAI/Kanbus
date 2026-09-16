@@ -1,0 +1,38 @@
+{
+  "id": "kbs-efa22e2d-59f8-4d37-9f12-6c64df5b7a99",
+  "title": "Recover unmerged default Now active-tree CLI expansion from PR #233",
+  "description": "Closed PR #233 contains a unique dual-runtime enhancement (commits 04f9deb8 and e6cf31e7): default kbs now expands, backfills, and renders the full active association tree while explicit --status and named selections remain filtered. Port the behavior and focused Python/Rust parity tests onto current develop; do not replay stale CI fixes or lower coverage baselines.",
+  "type": "bug",
+  "status": "backlog",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "819aa90d-547e-426e-80f2-3fbc2c464631",
+      "author": "Codex",
+      "text": "Recovered by branch/PR inventory. Parked behind current standup and PR #281 closeout work.",
+      "created_at": "2026-09-16T03:56:25.990530Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
+  "created_at": "2026-09-16T03:56:08.013124Z",
+  "updated_at": "2026-09-16T03:56:28.408212Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "Issue Router planning"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
