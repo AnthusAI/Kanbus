@@ -3,7 +3,7 @@
   "title": "Repair failing console UI wiki specifications",
   "description": "Fix the console-ui CI failures currently blocking PR #281: 18 failed and 6 undefined wiki/Markus scenarios. Work on a separate branch from develop. Implement missing step definitions and correct the underlying console behavior where the failing tests identify it. Run `npm run test:ui`, open a PR to develop, and record exact evidence.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "luna",
   "creator": null,
@@ -29,11 +29,18 @@
       "text": "Recovery implementation is now in PR #284 (https://github.com/AnthusAI/Kanbus/pull/284). It ports the useful wiki delete, SSE/fixture isolation, and Markus preview coverage from closed unmerged PRs #224 and #227. It should merge before PR #281 is re-evaluated, because the existing console UI failures are shared baseline defects.",
       "created_at": "2026-09-16T10:15:49.707137Z",
       "comment_type": "default"
+    },
+    {
+      "id": "eefaf4ad-e316-4caf-9d23-1e308d18c015",
+      "author": "home",
+      "text": "Completed and merged in PR #284.",
+      "created_at": "2026-09-16T21:58:37.781557Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-16T00:50:55.677048Z",
-  "updated_at": "2026-09-16T10:15:49.707163Z",
-  "closed_at": null,
+  "updated_at": "2026-09-16T21:58:42.354822Z",
+  "closed_at": "2026-09-16T21:58:42.334758Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-5.6",
@@ -41,5 +48,8 @@
   },
   "right_now_summary": "The team is fixing 18 failed and 6 undefined console UI wiki scenarios blocking PR #281.",
   "right_now_updated_at": "2026-09-16T00:50:57.745527Z",
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
