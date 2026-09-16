@@ -3,7 +3,7 @@
   "title": "Close tasks with an optional comment in one command",
   "description": "## Intent\n\nAs an AI agent or Kanbus user, I want to close a task and record its closing note in one command, so completion history is not lost when a two-command sequence is skipped or fails midway.\n\nCanonical command: `kbs close <id> --comment \"Completed and verified.\"`\n\n## Definition of Done\n\n- Gherkin behavior specifications define the feature first.\n- Python and Rust implement identical observable behavior.\n- CLI help, documentation, and agent guidance match the delivered command.\n- Python tests, Rust tests, and spec-parity validation pass.\n\n## Product decision\n\nWhen `--comment` is supplied, validate and persist a normal comment, emit normal comment hooks, then attempt normal close and hooks. This is sequential, not transactional: a bad comment leaves the issue untouched; a close failure after comment success leaves the comment and issue unclosed. Plain `close <id>` remains unchanged.\n\n## Out of scope\n\nNo schema, API, console UI, comment-type, migration, transactional rollback, or advanced standalone-comment options added to `close`.",
   "type": "epic",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -22,10 +22,22 @@
         "model": "gpt-5.6",
         "name": "ci-remediation-coordinator"
       }
+    },
+    {
+      "id": "0f4ce677-d73f-4766-aeb8-41481a4b9927",
+      "author": "Codex",
+      "text": "Recovery audit found PR #281 contains valuable unmerged close-with-comment functionality. The epic is active until its pre-existing console baseline and new Python coverage gaps are repaired and the PR is merged.",
+      "created_at": "2026-09-16T03:48:54.636290Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
     }
   ],
   "created_at": "2026-09-15T22:42:17.516196Z",
-  "updated_at": "2026-09-16T00:51:37.188718Z",
+  "updated_at": "2026-09-16T03:48:57.053261Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
