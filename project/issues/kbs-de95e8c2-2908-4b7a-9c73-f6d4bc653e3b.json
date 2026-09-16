@@ -10,9 +10,34 @@
   "parent": "kbs-54e7ba58-c148-4ce4-9ecb-b1414e5d41dc",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "d6dc0568-0dd6-4289-8a51-4029767850fc",
+      "author": "Codex",
+      "text": "PR #278 established the merged protocol contract. This is now the sole implementation-ready coordination item: dual-runtime Git soft lease against that contract.",
+      "created_at": "2026-09-16T03:44:35.654661Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "7ca92734-daca-43fb-81b3-30c571742929",
+      "author": "Codex",
+      "text": "PR #278 established the merged protocol contract. This is now the sole implementation-ready coordination item: dual-runtime Git soft lease against that contract.",
+      "created_at": "2026-09-16T03:44:38.438233Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
   "created_at": "2026-09-14T13:33:48.772677588Z",
-  "updated_at": "2026-09-14T13:33:48.784109729Z",
+  "updated_at": "2026-09-16T03:44:38.438256Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",

@@ -3,17 +3,30 @@
   "title": "Do not close Gherkin stories while the specs PR is still draft",
   "description": "SD nit #5 on PR #278: Gherkin stories appeared closed while the PR was still draft.\n\nProcess: leave kbs-794391, kbs-6b2731, kbs-503484, kbs-76148e open until the specs PR is merged to develop, then close them. Specs PR #278 is already merged; close the Gherkin stories now if still open, and keep this process for the next specs-first PR.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-4652629a-2d49-4140-885f-39d454b07b76",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1305bd1c-0d24-49f9-86f2-93f44936c4a3",
+      "author": "Codex",
+      "text": "Resolved: PR #278 is merged and all named Gherkin stories are closed.",
+      "created_at": "2026-09-16T03:43:20.707265Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
   "created_at": "2026-09-14T14:08:14.338436606Z",
-  "updated_at": "2026-09-14T14:08:14.352641083Z",
-  "closed_at": null,
+  "updated_at": "2026-09-16T03:43:30.208466Z",
+  "closed_at": "2026-09-16T03:43:30.084270Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
