@@ -50,6 +50,8 @@ export interface WikiRenameResponse {
 export interface WikiDeleteResponse {
   path: string;
   deleted: boolean;
+  pages: WikiPageListItem[];
+  wiki_directory_exists: boolean;
 }
 
 export interface WikiRenderRequest {

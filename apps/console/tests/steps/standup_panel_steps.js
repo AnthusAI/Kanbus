@@ -15,6 +15,28 @@ Given("standup generation is configured to fail", async function () {
   });
 });
 
+Given("standup generation is configured to succeed with {string}", async function (summary) {
+  await this.page.route("**/api/standup", async (route) => {
+    const request = route.request().postDataJSON() ?? {};
+    const profile = request.profile === "director-brief" ? "director-brief" : "meeting-script";
+    const isDirectorBrief = profile === "director-brief";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        profile,
+        sections: (isDirectorBrief
+          ? ["Health", "Momentum", "Risks", "Close-out", "Blockers"]
+          : ["Yesterday", "Today", "Close-out", "Blockers", "Likely questions"]
+        ).map((name) => ({ name, bullets: [summary] })),
+        text: summary,
+        source_issues: [],
+        right_now_texts: {}
+      })
+    });
+  });
+});
+
 When("I open the standup drawer", async function () {
   await this.page.getByTestId("now-standup-button").click();
   await expect(this.page.getByTestId("standup-drawer")).toBeVisible();

@@ -26,6 +26,7 @@ Feature: Console standup in the Now panel
     Given no issues exist in the console
     And a status issue "Alpha task" updated at "2026-01-01T10:00:00.000Z"
     And the status issue "Alpha task" has right-now summary "Working on alpha"
+    And standup generation is configured to succeed with "Working on alpha"
     When I switch to the "Now" view
     And I open the standup drawer
     And I select the standup profile "meeting-script"
@@ -41,6 +42,7 @@ Feature: Console standup in the Now panel
     Given no issues exist in the console
     And a status issue "Beta task" updated at "2026-01-02T10:00:00.000Z"
     And the status issue "Beta task" has right-now summary "Board health work"
+    And standup generation is configured to succeed with "Board health work"
     When I switch to the "Now" view
     And I open the standup drawer
     And I select the standup profile "director-brief"
@@ -66,6 +68,7 @@ Feature: Console standup in the Now panel
     Given no issues exist in the console
     And a status issue "Delta task" updated at "2026-01-04T10:00:00.000Z"
     And the status issue "Delta task" has right-now summary "Copy test work"
+    And standup generation is configured to succeed with "Copy test work"
     When I switch to the "Now" view
     And I open the standup drawer
     And I generate the standup report
