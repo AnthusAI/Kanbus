@@ -90,7 +90,6 @@ async function restoreConsoleFixtures() {
   }
 
   await rm(wikiRoot, { recursive: true, force: true });
-  await mkdir(wikiRoot, { recursive: true });
   await rm(overridePath, { force: true });
   const configContents = await readFile(fixtureConfigPath, "utf-8");
   await writeFile(configPath, configContents);

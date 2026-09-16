@@ -1,11 +1,10 @@
 import { Given, When, Then, After } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
-import { writeFile, readFile, rm, mkdir, cp } from "fs/promises";
+import { writeFile, readFile, rm, mkdir } from "fs/promises";
 import path from "path";
 import yaml from "js-yaml";
 
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
-const fixtureRoot = path.resolve(process.cwd(), "tests", "fixtures", "project");
 const consoleConfigPath = process.env.CONSOLE_CONFIG_PATH
   ?? (projectRoot ? path.join(path.dirname(projectRoot), ".kanbus.yml") : null);
 const consolePort = process.env.CONSOLE_PORT ?? "5174";
@@ -98,35 +97,12 @@ async function closeFilterSidebar(page) {
     .toBe("true");
 }
 
-async function resetMetricsProjectRoot() {
-  const root = requireProjectRoot();
-  const repoRoot = path.dirname(root);
-  await rm(path.join(repoRoot, "project"), { recursive: true, force: true });
-  await rm(path.join(repoRoot, "project-local"), { recursive: true, force: true });
-  await rm(path.join(repoRoot, "virtual"), { recursive: true, force: true });
-  await cp(fixtureRoot, root, { recursive: true });
-  issueCounter = 1;
-}
-
-async function resetMetricsConfig() {
-  if (!consoleConfigPath) {
-    return;
-  }
-  const config = await loadKanbusConfigFile();
-  config.project_directory ??= "project";
-  config.project_key ??= "kanbus";
-  config.virtual_projects = {};
-  delete config.sort_order;
-  delete config.right_now;
-  await saveKanbusConfigFile(config);
-}
-
 After(async function () {
   if (!this.metricsDirty) {
     return;
   }
-  await resetMetricsConfig();
-  await resetMetricsProjectRoot();
+  // Fixture restoration in tests/support/world.js owns the next scenario's
+  // reset. Deleting the watched project here races the running console server.
   this.metricsDirty = false;
   this.metricsStale = false;
 });
