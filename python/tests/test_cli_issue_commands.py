@@ -11,6 +11,7 @@ from test_helpers import build_issue, build_project_configuration, build_update_
 from kanbus import cli
 from kanbus.content_validation import ContentValidationError
 from kanbus.issue_close import IssueCloseError
+from kanbus.issue_comment import IssueCommentError
 from kanbus.issue_creation import IssueCreationError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.issue_transfer import IssueTransferError
@@ -653,6 +654,62 @@ def test_close_with_whitespace_comment_rejects_before_mutating(
     assert "comment text is required" in result.output
 
 
+def test_close_with_comment_rejects_invalid_code_blocks(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(
+        cli,
+        "validate_code_blocks",
+        lambda _text: (_ for _ in ()).throw(
+            ContentValidationError("invalid code block")
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "add_comment",
+        lambda **_kwargs: pytest.fail("invalid comments must not persist"),
+    )
+
+    result = _run(["close", "kanbus-1", "--comment", "```broken"])
+
+    assert result.exit_code != 0
+    assert "invalid code block" in result.output
+
+
+def test_close_with_comment_reports_comment_persistence_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        cli,
+        "load_issue_from_project",
+        lambda _root, _identifier: SimpleNamespace(issue=build_issue("kanbus-1")),
+    )
+    monkeypatch.setattr(
+        cli,
+        "add_comment",
+        lambda **_kwargs: (_ for _ in ()).throw(IssueCommentError("comment failed")),
+    )
+
+    result = _run(["close", "kanbus-1", "--comment", "Closing note"])
+
+    assert result.exit_code != 0
+    assert "comment failed" in result.output
+
+
 def test_close_with_comment_retains_comment_when_close_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -723,6 +780,40 @@ def test_close_with_comment_uses_beads_comment_path(
 
     assert result.exit_code == 0
     assert comments == [("kanbus-1", "Beads note")]
+    assert "Closed kanbus-1" in result.output
+
+
+def test_close_with_comment_tolerates_beads_post_comment_reload_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_resolve_beads_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+
+    issue = build_issue("kanbus-1")
+    loads = {"count": 0}
+
+    def load_beads_issue(*_args: object) -> object:
+        loads["count"] += 1
+        if loads["count"] == 2:
+            raise MigrationError("reload unavailable")
+        return issue
+
+    monkeypatch.setattr(cli, "load_beads_issue", load_beads_issue)
+    monkeypatch.setattr(cli, "add_beads_comment", lambda *_args: None)
+    monkeypatch.setattr(cli, "update_beads_issue", lambda *_args, **_kwargs: None)
+
+    result = _run(["--beads", "close", "kanbus-1", "--comment", "Closing note"])
+
+    assert result.exit_code == 0
     assert "Closed kanbus-1" in result.output
 
 
