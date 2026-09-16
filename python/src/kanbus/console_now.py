@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
@@ -89,14 +88,3 @@ def build_now_issues(root: Path) -> List[IssueData]:
             raise ConsoleSnapshotError(f"issue not found after JIT: {identifier}")
         require_display_right_now_summary(issue)
     return refreshed_issues
-
-
-def format_now_timestamp(value: datetime) -> str:
-    """Format a timestamp for Now API responses.
-
-    :param value: Timestamp to format.
-    :type value: datetime
-    :return: RFC3339 timestamp with millisecond precision.
-    :rtype: str
-    """
-    return value.isoformat(timespec="milliseconds").replace("+00:00", "Z")

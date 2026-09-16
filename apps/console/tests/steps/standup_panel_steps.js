@@ -6,13 +6,9 @@ Given("the browser viewport is {int} by {int}", async function (width, height) {
 });
 
 Given("standup generation is configured to fail", async function () {
-  await this.page.route("**/api/standup", async (route) => {
-    await route.fulfill({
-      status: 500,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "standup generation failed" })
-    });
-  });
+  if (process.env.KANBUS_TEST_STANDUP_FAIL !== "1") {
+    throw new Error("KANBUS_TEST_STANDUP_FAIL must be set to 1 for this scenario");
+  }
 });
 
 Given("standup generation is configured to succeed with {string}", async function (summary) {

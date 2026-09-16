@@ -126,7 +126,7 @@ function logConsoleEvent(
 function kanbusCommandEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    KANBUS_NO_DAEMON: "1",
+    KANBUS_NO_DAEMON: process.env.KANBUS_NO_DAEMON ?? "1",
     PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
   };
 }
