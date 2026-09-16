@@ -179,6 +179,14 @@ fn given_standup_generation_configured_to_fail(world: &mut KanbusWorld) {
     ensure_standup_state(world).generation_should_fail = true;
 }
 
+#[given(regex = r#"^standup generation is configured to succeed with "(?P<summary>[^"]+)"$"#)]
+fn given_standup_generation_configured_to_succeed(world: &mut KanbusWorld, _summary: String) {
+    // The browser runner returns the summary from an intercepted API response.
+    // This simulation renders its own report, so the shared fixture only needs
+    // to select the normal successful path.
+    ensure_standup_state(world).generation_should_fail = false;
+}
+
 #[when("I open the standup drawer")]
 fn when_open_standup_drawer(world: &mut KanbusWorld) {
     ensure_standup_state(world).is_open = true;
