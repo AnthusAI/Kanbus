@@ -80,7 +80,9 @@ async function main() {
       `http://localhost:${process.env.CONSOLE_PORT ?? "5174"}/api`,
     KANBUS_PYTHON: kanbusPython,
     KANBUS_PYTHON_ARGS: kanbusPythonArgs,
-    KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath
+    KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath,
+    KANBUS_TEST_WIKI_RATE_LIMIT_MAX:
+      process.env.KANBUS_TEST_WIKI_RATE_LIMIT_MAX ?? "1000"
   };
   const vitePort = env.VITE_PORT ?? "5173";
 
