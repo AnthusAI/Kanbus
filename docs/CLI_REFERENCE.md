@@ -135,6 +135,11 @@ Close an issue (shortcut for `--status closed`).
 kanbus close <id> [--comment <text>]
 ```
 
+With `--comment`, Kanbus records a normal issue comment before it attempts the
+close transition. If the comment is invalid, the issue is unchanged. If the
+comment succeeds but closing is rejected, the comment remains and the issue
+keeps its prior status.
+
 ### `kanbus delete`
 
 Delete an issue (removes the file).
