@@ -16,6 +16,38 @@ function wikiFileStem(name: string): string {
   return name.replace(/\.md$/i, "");
 }
 
+function uniqueWikiPagesSortedByPath(pages: WikiPageListItem[]): WikiPageListItem[] {
+  return pages
+    .filter((candidate, index, all) => {
+      return all.findIndex((entry) => entry.path === candidate.path) === index;
+    })
+    .slice()
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+export function leftoverWikiPagesAfterDelete(
+  deletedPath: string,
+  remainingPages: WikiPageListItem[]
+): WikiPageListItem[] {
+  return uniqueWikiPagesSortedByPath(remainingPages).filter(
+    (candidate) => candidate.path !== deletedPath
+  );
+}
+
+export function wikiPageToOpenAfterDelete(
+  deletedPath: string,
+  remainingPages: WikiPageListItem[]
+): string {
+  const leftoverPages = leftoverWikiPagesAfterDelete(deletedPath, remainingPages);
+  if (leftoverPages.length === 0) {
+    return "";
+  }
+  return (
+    leftoverPages.find((page) => page.path > deletedPath)?.path
+    ?? leftoverPages[leftoverPages.length - 1].path
+  );
+}
+
 export function resolveWikiRoute(pages: WikiPageListItem[], route: string): WikiRouteResult {
   const normalizedRoute = route.replace(/^\/+/, "").replace(/\/+$/, "");
   const pagePaths = pages.map((page) => page.path);
