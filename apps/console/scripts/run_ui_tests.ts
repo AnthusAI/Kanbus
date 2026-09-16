@@ -86,18 +86,30 @@ async function main() {
   };
   const vitePort = env.VITE_PORT ?? "5173";
 
-  try {
-    await ensureUiBuild(env);
+  async function runCucumberWithTags(tags: string, testEnv: NodeJS.ProcessEnv) {
     await runCommand(
       "npx",
       [
         "start-server-and-test",
         "dev",
         `http://localhost:${vitePort}`,
-        "cucumber"
+        `npm run cucumber -- --tags ${JSON.stringify(tags)}`
       ],
-      env
+      testEnv
     );
+  }
+
+  try {
+    await ensureUiBuild(env);
+    const normalEnv = { ...env };
+    delete normalEnv.KANBUS_TEST_STANDUP_FAIL;
+    await runCucumberWithTags("not @standup-failure", normalEnv);
+
+    const failureEnv = {
+      ...env,
+      KANBUS_TEST_STANDUP_FAIL: "1"
+    };
+    await runCucumberWithTags("@standup-failure", failureEnv);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
