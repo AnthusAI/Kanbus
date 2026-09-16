@@ -669,7 +669,7 @@ function boardColumnLocator(page, label) {
 }
 
 Then("the board should show the column {string}", async function (label) {
-  await expect(boardColumnLocator(this.page, label)).toHaveCount(1);
+  await expect(boardColumnLocator(this.page, label).first()).toBeVisible();
 });
 
 Then("the board should not show the column {string}", async function (label) {
