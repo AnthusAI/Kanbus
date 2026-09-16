@@ -66,6 +66,30 @@ function buildStatusIssue({
   };
 }
 
+function buildConsoleServerIssue({ id, title, type = "task", status = "open", parent = null }) {
+  const timestamp = new Date().toISOString();
+  return {
+    id,
+    title,
+    description: "Console server fixture",
+    type,
+    status,
+    priority: 2,
+    assignee: null,
+    creator: "fixture",
+    parent,
+    labels: [],
+    dependencies: [],
+    comments: [],
+    created_at: timestamp,
+    updated_at: timestamp,
+    closed_at: null,
+    right_now_summary: null,
+    right_now_updated_at: null,
+    custom: {}
+  };
+}
+
 async function writeStatusIssue(issue) {
   const issueDir = path.join(requireProjectRoot(), "issues");
   await mkdir(issueDir, { recursive: true });
@@ -214,6 +238,53 @@ Given(
     );
   }
 );
+
+Given("mock AI is enabled", function () {
+  // The console runner starts the server with KANBUS_TEST_AI_MOCK enabled.
+});
+
+Given("right now litellm call tracking is reset", function () {
+  // The console-server scenarios assert generated output, not process-local tracking.
+});
+
+Given("the Kanbus configuration uses AI provider {string} with model {string}", async function (provider, model) {
+  const config = await loadKanbusConfigFile();
+  config.ai = { provider, model };
+  await saveKanbusConfigFile(config);
+  await refreshIssuesSnapshot();
+});
+
+Given("an issue {string} of type {string} with status {string} and title {string}", async function (id, type, status, title) {
+  markConsoleDirty(this);
+  await writeStatusIssue(buildConsoleServerIssue({ id, type, status, title }));
+  await refreshIssuesSnapshot();
+});
+
+Given("an issue {string} of type {string} with status {string} and parent {string}", async function (id, type, status, parent) {
+  markConsoleDirty(this);
+  await writeStatusIssue(buildConsoleServerIssue({ id, type, status, title: `Test ${id}`, parent }));
+  await refreshIssuesSnapshot();
+});
+
+When("I request the console now snapshot from the API", async function () {
+  const response = await fetch(`${consoleApiBase}/now`);
+  this.consoleNowApiStatus = response.status;
+  this.consoleNowApiResponse = await response.json();
+});
+
+Then("the console now API response should succeed", function () {
+  expect(this.consoleNowApiStatus).toBe(200);
+});
+
+Then("the console now API response should not contain {string}", function (text) {
+  expect(JSON.stringify(this.consoleNowApiResponse)).not.toContain(text);
+});
+
+Then("issue {string} should have a non-empty right now summary", function (id) {
+  const issue = this.consoleNowApiResponse.find((entry) => entry.id === id);
+  expect(issue?.right_now_summary).toEqual(expect.any(String));
+  expect(issue.right_now_summary.trim()).not.toBe("");
+});
 
 Given(
   "the status issue {string} has status {string}",

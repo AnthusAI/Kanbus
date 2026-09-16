@@ -284,7 +284,7 @@ apiRouter.get("/now", async (_req, res) => {
   }
 });
 
-apiRouter.post("/standup", async (req, res) => {
+apiRouter.post("/standup", express.json({ limit: "16kb" }), async (req, res) => {
   if (process.env.KANBUS_TEST_STANDUP_FAIL === "1") {
     res.status(500).json({ error: "standup generation failed" });
     return;

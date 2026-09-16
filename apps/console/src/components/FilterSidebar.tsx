@@ -153,7 +153,7 @@ export function FilterSidebar({
         />
       </div>
 
-      {hasLocalIssues ? (
+      {hasVirtualProjects || hasLocalIssues ? (
         <div className="flex flex-col gap-1" data-testid="filter-source-section">
           <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted px-3 mb-1">
             Source
