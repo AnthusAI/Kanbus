@@ -285,6 +285,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
@@ -696,12 +697,21 @@ export default function App() {
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
   const refreshSnapshot = useCallback(() => {
     if (!apiBase) {
-      return;
+      return Promise.resolve();
     }
-    fetchSnapshot(apiBase)
+    return fetchSnapshot(apiBase)
       .then((data) => setSnapshot(data))
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
+  useEffect(() => {
+    const refreshHandle = window as Window & {
+      __KANBUS_REFRESH_SNAPSHOT__?: () => Promise<void>;
+    };
+    refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ = refreshSnapshot;
+    return () => {
+      delete refreshHandle.__KANBUS_REFRESH_SNAPSHOT__;
+    };
+  }, [refreshSnapshot]);
   const showAllTypes = route.typeFilter === "all";
 
   useEffect(() => {
@@ -828,7 +838,7 @@ export default function App() {
   }, [route.basePath]);
 
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (route.basePath == null || !authReady) {
       return;
     }
     const snapshotApiBase = `${route.basePath}/api`;
@@ -853,7 +863,7 @@ export default function App() {
 
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (route.basePath == null || !authReady) {
       return;
     }
     const apiBase = `${route.basePath}/api`;

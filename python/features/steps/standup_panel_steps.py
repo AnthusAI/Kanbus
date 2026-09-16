@@ -173,6 +173,21 @@ def given_standup_generation_configured_to_fail(context: object) -> None:
     _ensure_standup_state(context).generation_should_fail = True
 
 
+@given('standup generation is configured to succeed with "{summary}"')
+def given_standup_generation_configured_to_succeed(
+    context: object, summary: str
+) -> None:
+    """Configure the simulated drawer to use its normal successful path.
+
+    The browser runner intercepts the HTTP request and returns ``summary`` as
+    a fixture.  The Python console simulation renders its report locally, so
+    it only needs to register the shared Gherkin vocabulary and ensure a
+    preceding failure fixture cannot leak into the scenario.
+    """
+    del summary
+    _ensure_standup_state(context).generation_should_fail = False
+
+
 @when("I open the standup drawer")
 def when_open_standup_drawer(context: object) -> None:
     """Open the standup drawer from the Now panel.
