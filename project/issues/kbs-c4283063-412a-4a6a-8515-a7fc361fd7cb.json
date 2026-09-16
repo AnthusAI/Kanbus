@@ -1,0 +1,38 @@
+{
+  "id": "kbs-c4283063-412a-4a6a-8515-a7fc361fd7cb",
+  "title": "Reconcile released main-only commits back into develop",
+  "description": "origin/main contains released 0.27.0 work that is not in origin/develop, while develop also has substantial unique work. Build a clean main-to-develop synchronization PR from current remote refs, inventory conflicts by feature, preserve released behavior, run full CI, and never merge or cherry-pick the dirty legacy develop worktree.",
+  "type": "chore",
+  "status": "backlog",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "23addbe4-3efb-425d-a4b0-a1ecb74527de",
+      "author": "Codex",
+      "text": "Recovered by branch inventory: use a deliberate synchronization PR after active feature recovery, not the dirty local develop checkout.",
+      "created_at": "2026-09-16T03:56:43.273955Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
+  "created_at": "2026-09-16T03:56:31.047416Z",
+  "updated_at": "2026-09-16T03:56:45.626361Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "Issue Router planning"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

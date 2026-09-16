@@ -3,7 +3,7 @@
   "title": "Hosted UI login UX + cloud auth bootstrap for console",
   "description": "Implement Cognito Hosted UI PKCE login UX for cloud console, add auth bootstrap endpoint, and guard cloud routes while preserving local mode behavior.",
   "type": "task",
-  "status": "blocked",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": "ryan.porter",
@@ -15,25 +15,44 @@
       "id": "1714f31b-765a-50b6-8599-e3ce0932a1ba",
       "author": "ryan.porter",
       "text": "Progress: Implemented cloud auth bootstrap + Hosted UI PKCE frontend adapter wiring in console app and lambda routes.\nEvidence: New /api/auth/bootstrap handlers in console_lambda+console_local, frontend cloudAuth adapter + authenticated fetch/SSE query path, npm typecheck/build + cargo test + infra pytest/synth all passing.\nNext: run browser login callback smoke in deployed env and verify tenant-claim mismatch UX handling.\nRisk/Blocker: none.",
-      "created_at": "2026-03-07T14:56:35.851441Z"
+      "created_at": "2026-03-07T14:56:35.851441Z",
+      "comment_type": "default"
     },
     {
       "id": "0fc8f24b-cde5-5261-98c8-2245fb38e45d",
       "author": "ryan.porter",
       "text": "Progress: Auth UX/bootstrap implementation landed and pushed.\nEvidence: commit 385d623 on dev; auth bootstrap routes + frontend PKCE adapter integrated; npm typecheck/build, cargo test, infra pytest/synth green.\nNext: run deployed browser login redirect/callback smoke and confirm tenant mismatch 403 UX.\nRisk/Blocker: none.",
-      "created_at": "2026-03-07T14:57:56.813698Z"
+      "created_at": "2026-03-07T14:57:56.813698Z",
+      "comment_type": "default"
     },
     {
       "id": "8e053e10-0671-576b-a10f-1ddac7db46d6",
       "author": "unknown",
       "text": "Progress: Browser Hosted UI live validation is queued but cannot execute against new code until stack is recoverable/deployed.\nEvidence: stack KanbusCloudFoundation is UPDATE_ROLLBACK_FAILED and cannot be recovered from this principal due ContinueUpdateRollback AccessDenied.\nNext: resume login/callback and tenant mismatch browser smoke immediately after stack recovery.\nRisk/Blocker: BLOCKED on CloudFormation recovery IAM permission.",
-      "created_at": "2026-03-07T15:31:12.206573Z"
+      "created_at": "2026-03-07T15:31:12.206573Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "3f6ca9ed-ec04-40ff-aa97-75dfe79305e8",
+      "author": "Codex",
+      "text": "Completed and live-validated after stack recovery: tskl-eo2.5.10 records successful Hosted UI login, tenant-scoped board loading, and a healthy deployed browser session.",
+      "created_at": "2026-09-16T03:41:50.515425Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
     }
   ],
   "created_at": "2026-03-07T14:36:13.364872Z",
-  "updated_at": "2026-03-07T15:31:12.206573Z",
-  "closed_at": null,
+  "updated_at": "2026-09-16T03:41:58.273070Z",
+  "closed_at": "2026-09-16T03:41:58.247048Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
   "custom": {
-    "beads_owner": "ryan.porter"
+    "beads_owner": "ryan.porter",
+    "project_label": "kbs",
+    "source": "shared"
   }
 }

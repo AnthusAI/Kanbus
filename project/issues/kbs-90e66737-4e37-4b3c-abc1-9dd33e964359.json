@@ -3,16 +3,36 @@
   "title": "Repair failing console UI wiki specifications",
   "description": "Fix the console-ui CI failures currently blocking PR #281: 18 failed and 6 undefined wiki/Markus scenarios. Work on a separate branch from develop. Implement missing step definitions and correct the underlying console behavior where the failing tests identify it. Run `npm run test:ui`, open a PR to develop, and record exact evidence.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": "luna",
   "creator": null,
   "parent": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a5a90222-3fd0-4579-a6f2-e74dd30aa7fe",
+      "author": "Codex",
+      "text": "Started recovery from closed, unmerged PRs #224 and #227 on codex/repair-console-wiki-specs. Port only current-tree fixes and tests; do not replay stale board records.",
+      "created_at": "2026-09-16T03:48:59.618172Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "a0922f2a-7caa-40f7-9666-d1d2082ff995",
+      "author": "home",
+      "text": "Recovery implementation is now in PR #284 (https://github.com/AnthusAI/Kanbus/pull/284). It ports the useful wiki delete, SSE/fixture isolation, and Markus preview coverage from closed unmerged PRs #224 and #227. It should merge before PR #281 is re-evaluated, because the existing console UI failures are shared baseline defects.",
+      "created_at": "2026-09-16T10:15:49.707137Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-16T00:50:55.677048Z",
-  "updated_at": "2026-09-16T00:50:55.727801Z",
+  "updated_at": "2026-09-16T10:15:49.707163Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
