@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
+from test_helpers import build_issue, build_project_configuration, build_update_result
 
 from kanbus import cli
 from kanbus.content_validation import ContentValidationError
@@ -14,12 +16,143 @@ from kanbus.issue_lookup import IssueLookupError
 from kanbus.issue_transfer import IssueTransferError
 from kanbus.issue_update import IssueUpdateError
 from kanbus.migration import MigrationError
-
-from test_helpers import build_issue, build_update_result, build_project_configuration
+from kanbus.models import IssueComment
 
 
 def _run(args: list[str]) -> object:
     return CliRunner().invoke(cli.cli, args)
+
+
+def test_close_with_comment_persists_native_comment_before_closing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "get_current_user", lambda: "Codex")
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
+
+    state = {"issue": build_issue("kanbus-1")}
+    close_calls: list[tuple[Path, str]] = []
+    comment_time = datetime(2026, 9, 15, 12, tzinfo=UTC)
+    close_time = datetime(2026, 9, 15, 13, tzinfo=UTC)
+
+    def fake_add_comment(*, root: Path, identifier: str, author: str, text: str):
+        assert root == tmp_path
+        assert identifier == "kanbus-1"
+        comment = IssueComment(
+            id="comment-1",
+            author=author,
+            text=text,
+            created_at=comment_time,
+        )
+        updated = state["issue"].model_copy(update={"comments": [comment]})
+        state["issue"] = updated
+        return SimpleNamespace(issue=updated, comment=comment)
+
+    def fake_close_issue(root: Path, identifier: str):
+        close_calls.append((root, identifier))
+        closed = state["issue"].model_copy(
+            update={"status": "closed", "closed_at": close_time}
+        )
+        state["issue"] = closed
+        return closed
+
+    monkeypatch.setattr(cli, "add_comment", fake_add_comment)
+    monkeypatch.setattr(cli, "close_issue", fake_close_issue)
+
+    result = _run(["close", "kanbus-1", "--comment", "Implemented the fix"])
+
+    assert result.exit_code == 0
+    assert "Closed kanbus-1" in result.output
+    assert close_calls == [(tmp_path, "kanbus-1")]
+    assert state["issue"].status == "closed"
+    assert state["issue"].closed_at == close_time
+    assert len(state["issue"].comments) == 1
+    assert state["issue"].comments[0].text == "Implemented the fix"
+    assert state["issue"].comments[0].author == "Codex"
+
+
+def test_close_with_blank_comment_rejects_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    calls: list[str] = []
+    monkeypatch.setattr(cli, "add_comment", lambda **_k: calls.append("comment"))
+    monkeypatch.setattr(cli, "close_issue", lambda *_a: calls.append("close"))
+    monkeypatch.setattr(
+        cli,
+        "_run_lifecycle_hooks_for_context",
+        lambda *_a, **_k: calls.append("hook"),
+    )
+
+    result = _run(["close", "kanbus-1", "--comment", " \t "])
+
+    assert result.exit_code != 0
+    assert "comment text is required" in result.output
+    assert calls == []
+
+
+def test_close_hook_rejection_keeps_persisted_comment_and_skips_close(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli,
+        "apply_text_quality_signals",
+        lambda text: SimpleNamespace(text=text, warnings=[], suggestions=[]),
+    )
+    monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
+    monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
+    monkeypatch.setattr(cli, "get_current_user", lambda: "Codex")
+
+    state = {"issue": build_issue("kanbus-1")}
+    comment_time = datetime(2026, 9, 15, 12, tzinfo=UTC)
+    hook_calls: list[tuple[cli.HookPhase, cli.HookEvent]] = []
+    close_calls: list[str] = []
+
+    def fake_hooks(_context, *, phase, event, **_kwargs):
+        hook_calls.append((phase, event))
+        if phase == cli.HookPhase.BEFORE and event == cli.HookEvent.ISSUE_CLOSE:
+            raise cli.click.ClickException("close hook rejected")
+
+    def fake_add_comment(*, root: Path, identifier: str, author: str, text: str):
+        comment = IssueComment(
+            id="comment-1",
+            author=author,
+            text=text,
+            created_at=comment_time,
+        )
+        updated = state["issue"].model_copy(update={"comments": [comment]})
+        state["issue"] = updated
+        return SimpleNamespace(issue=updated, comment=comment)
+
+    monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", fake_hooks)
+    monkeypatch.setattr(cli, "add_comment", fake_add_comment)
+    monkeypatch.setattr(cli, "close_issue", lambda *_a: close_calls.append("close"))
+
+    result = _run(["close", "kanbus-1", "--comment", "Persist this first"])
+
+    assert result.exit_code != 0
+    assert "close hook rejected" in result.output
+    assert hook_calls == [
+        (cli.HookPhase.BEFORE, cli.HookEvent.ISSUE_COMMENT),
+        (cli.HookPhase.AFTER, cli.HookEvent.ISSUE_COMMENT),
+        (cli.HookPhase.BEFORE, cli.HookEvent.ISSUE_CLOSE),
+    ]
+    assert close_calls == []
+    assert state["issue"].status == "open"
+    assert state["issue"].closed_at is None
+    assert [(comment.text, comment.author) for comment in state["issue"].comments] == [
+        ("Persist this first", "Codex")
+    ]
 
 
 def test_create_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
