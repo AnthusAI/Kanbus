@@ -10,16 +10,29 @@
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6be85356-a5c3-4257-ad48-1873ddd46e1c",
+      "author": "ryan",
+      "text": "Progress: CI remediation split into two P1 Luna-owned child stories: kbs-0967b5 adds direct Python coverage to PR #281; kbs-90e667 repairs the unrelated console wiki UI suite on a separate branch. Evidence: CI run 35033734793 has Python/Rust/parity green; coverage is 96.83% vs 96.93% baseline; console-ui has 18 failed and 6 undefined scenarios. Next: verify both fixes, merge console first, rebase #281, and merge #281 only with all required checks green. Risk/Blocker: none currently.",
+      "created_at": "2026-09-16T00:51:37.188645Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5.6",
+        "name": "ci-remediation-coordinator"
+      }
+    }
+  ],
   "created_at": "2026-09-15T22:42:17.516196Z",
-  "updated_at": "2026-09-15T22:42:17.545295Z",
+  "updated_at": "2026-09-16T00:51:37.188718Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "gpt-5.6",
     "name": "close-comment-planning"
   },
-  "right_now_summary": "PR #281 is ready for review and merge while remaining tests and UI scenarios are being fixed.",
-  "right_now_updated_at": "2026-09-16T00:50:59.211655Z",
+  "right_now_summary": "CI fixes are underway before PR #281 can merge.",
+  "right_now_updated_at": "2026-09-16T00:51:38.950239Z",
   "custom": {}
 }
