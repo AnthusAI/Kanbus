@@ -93,6 +93,7 @@ class RouterContext:
     router: IssueRouterConfiguration
     issues: list[IssueData]
     control: RouterControlState
+    source_root: Path | None = None
 
 
 @dataclass(frozen=True)

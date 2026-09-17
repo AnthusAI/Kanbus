@@ -312,25 +312,32 @@ def _find_result_payload(stdout: str) -> dict[str, Any]:
         item = decoded.get("structured_output")
         if isinstance(item, dict) and "outcome" in item and "schema_version" in item:
             payloads.append(item)
-        item = decoded.get("item")
-        if isinstance(item, dict):
+        envelope = decoded.get("payload")
+        items = [decoded.get("item")]
+        if isinstance(envelope, dict):
+            items.append(envelope.get("item"))
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            texts = [item.get("text")]
             content = item.get("content")
             if isinstance(content, list):
-                for part in content:
-                    if not isinstance(part, dict) or not isinstance(
-                        part.get("text"), str
-                    ):
-                        continue
-                    try:
-                        parsed = json.loads(part["text"])
-                    except json.JSONDecodeError:
-                        continue
-                    if (
-                        isinstance(parsed, dict)
-                        and "outcome" in parsed
-                        and "schema_version" in parsed
-                    ):
-                        payloads.append(parsed)
+                texts.extend(
+                    part.get("text") for part in content if isinstance(part, dict)
+                )
+            for text in texts:
+                if not isinstance(text, str):
+                    continue
+                try:
+                    parsed = json.loads(text)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    isinstance(parsed, dict)
+                    and "outcome" in parsed
+                    and "schema_version" in parsed
+                ):
+                    payloads.append(parsed)
     if not payloads:
         raise IssueRouterError("Codex router adapter returned invalid JSON")
     return payloads[-1]

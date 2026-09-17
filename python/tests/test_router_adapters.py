@@ -295,6 +295,19 @@ def test_adapter_result_parser_selects_last_jsonl_payload_and_validates_schema()
         )
         == codex_item
     )
+    nested_item = {
+        "type": "event_msg",
+        "payload": {
+            "type": "item_completed",
+            "item": {"type": "AgentMessage", "text": json.dumps(codex_item)},
+        },
+    }
+    assert _find_result_payload(json.dumps(nested_item)) == codex_item
+    direct_text_item = {
+        "type": "item.completed",
+        "item": {"type": "agent_message", "text": json.dumps(codex_item)},
+    }
+    assert _find_result_payload(json.dumps(direct_text_item)) == codex_item
 
     with pytest.raises(IssueRouterError, match='invalid Codex router outcome "future"'):
         _parse_result({"schema_version": 1, "outcome": "future"})

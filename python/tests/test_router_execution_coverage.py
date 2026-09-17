@@ -1839,6 +1839,8 @@ def test_router_persists_only_in_package_issue_comments(monkeypatch, tmp_path):
             RouterIssueComment(issue_id="kbs-42", text="Three paragraphs follow.")
         ],
     )
+    source_root = tmp_path / "source-checkout"
+    source_root.mkdir()
     comments = []
     fences = []
     monkeypatch.setattr(
@@ -1855,10 +1857,19 @@ def test_router_persists_only_in_package_issue_comments(monkeypatch, tmp_path):
     )
 
     router_execution._validate_result_scope(ctx, candidate_, result_)
+    ctx = ctx.__class__(
+        root=ctx.root,
+        project_dir=ctx.project_dir,
+        configuration=ctx.configuration,
+        router=ctx.router,
+        issues=ctx.issues,
+        control=ctx.control,
+        source_root=source_root,
+    )
     router_execution._apply_issue_comments(ctx, candidate_, result_, "claim", 1)
 
     assert comments == [
-        (tmp_path, "kbs-42", "Kanbus Issue Router", "Three paragraphs follow.")
+        (source_root, "kbs-42", "Kanbus Issue Router", "Three paragraphs follow.")
     ]
     assert fences == [True]
 
