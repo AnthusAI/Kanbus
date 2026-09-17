@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "b6bac378-e2c3-4a1a-890c-5b1bab6858fe",
+  "issue_id": "router:kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-17T20:35:36.461264Z",
+  "actor_id": "issue-router",
+  "payload": {
+    "claim_id": "cae12df9-f9db-461f-8101-49845b742578",
+    "revision": 3,
+    "pull_request": {
+      "number": 291,
+      "url": "https://github.com/AnthusAI/Kanbus/pull/291",
+      "head_branch": "codex/router/kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5/r3",
+      "head_sha": "9a6ffc938f6194a63db09449e9b987ce5dfb4047",
+      "state": "open",
+      "merged": false
+    },
+    "artifacts": [],
+    "outcome": "completed"
+  }
+}
