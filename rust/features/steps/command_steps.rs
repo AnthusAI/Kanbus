@@ -18,6 +18,15 @@ use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_proje
 
 fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     let normalized = command.replace("\\\"", "\"");
+    if normalized == "kanbus router run --watch" {
+        crate::step_definitions::router_contract_steps::launch_watch(world);
+        return;
+    }
+    if normalized == "kanbus router run --once" {
+        crate::step_definitions::router_contract_steps::capture_issue_statuses(world);
+    }
+    world.stdout = None;
+    world.stderr = None;
     world.last_command = Some(normalized.clone());
     if maybe_simulate_virtual_project_command(world, &normalized) {
         return;
@@ -101,9 +110,25 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
             }
         }
         Err(error) => {
-            world.exit_code = Some(1);
-            world.stdout = Some(String::new());
-            world.stderr = Some(error.to_string());
+            let (exit_code, stderr) = match error {
+                kanbus::error::KanbusError::CommandFailure { exit_code, message } => {
+                    (exit_code, format!("{message}\n"))
+                }
+                kanbus::error::KanbusError::CommandFailureWithOutput {
+                    exit_code,
+                    stdout,
+                    stderr,
+                } => {
+                    world.stdout = Some(stdout);
+                    (exit_code, format!("{stderr}\n"))
+                }
+                error => (1, error.to_string()),
+            };
+            world.exit_code = Some(exit_code);
+            if world.stdout.is_none() {
+                world.stdout = Some(String::new());
+            }
+            world.stderr = Some(stderr);
         }
     }
 

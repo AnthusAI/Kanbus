@@ -67,6 +67,7 @@ pub mod queries;
 pub mod rich_text_signals;
 pub mod right_now;
 pub mod right_now_command;
+pub mod router;
 pub mod snyk_sync;
 pub mod standup;
 pub mod standup_command;

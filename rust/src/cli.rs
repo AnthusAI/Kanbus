@@ -185,6 +185,68 @@ enum CoordinationCommands {
         #[arg(long)]
         resource: String,
     },
+    /// Publish an artifact reference for a logical task revision.
+    PublishResult {
+        /// Resource key for the logical task.
+        #[arg(long)]
+        resource: String,
+        /// Positive logical revision to publish.
+        #[arg(long)]
+        revision: u64,
+        /// Artifact reference produced by the worker.
+        #[arg(long)]
+        artifact: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum RouterCommands {
+    /// Show the deterministic router plan.
+    Plan {
+        /// Emit the versioned JSON plan.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run the router once or keep reconciling in watch mode.
+    Run {
+        /// Process at most the first eligible package.
+        #[arg(long, conflicts_with = "watch")]
+        once: bool,
+        /// Reconcile packages and forge events until stopped.
+        #[arg(long, conflicts_with = "once")]
+        watch: bool,
+    },
+    /// Show scheduler state and held routes.
+    Status,
+    /// Stop a watch-mode scheduler after its current package run.
+    Stop,
+    /// Pause new issue-router scheduling.
+    Pause,
+    /// Resume issue-router scheduling.
+    Resume,
+    /// Hold a class or provider profile from new scheduling.
+    Hold {
+        /// Class route to hold.
+        #[arg(long, group = "held_route")]
+        class: Option<String>,
+        /// Pinned provider profile to hold.
+        #[arg(long = "provider-profile", group = "held_route")]
+        provider_profile: Option<String>,
+    },
+    /// Release a held class or provider profile.
+    Unhold {
+        /// Class route to release.
+        #[arg(long, group = "held_route")]
+        class: Option<String>,
+        /// Pinned provider profile to release.
+        #[arg(long = "provider-profile", group = "held_route")]
+        provider_profile: Option<String>,
+    },
+    /// Cancel an active package while preserving its last accepted checkpoint.
+    Cancel {
+        /// Package root issue identifier.
+        issue_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -193,6 +255,11 @@ enum Commands {
     Coordination {
         #[command(subcommand)]
         command: CoordinationCommands,
+    },
+    /// Deterministically dispatch routed issue packages to Codex.
+    Router {
+        #[command(subcommand)]
+        command: RouterCommands,
     },
     /// Issue lifecycle management commands
     Lifecycle {
@@ -1505,8 +1572,58 @@ fn execute_command(
                 CoordinationCommands::Inspect { resource } => {
                     CoordinationOperation::Inspect { resource }
                 }
+                CoordinationCommands::PublishResult {
+                    resource,
+                    revision,
+                    artifact,
+                } => CoordinationOperation::PublishResult {
+                    resource,
+                    revision,
+                    artifact,
+                },
             };
             Ok(Some(run_coordination(root, operation)?))
+        }
+        Commands::Router { command } => {
+            use crate::router::IssueRouterOperation;
+            let operation = match command {
+                RouterCommands::Plan { json } => IssueRouterOperation::Plan { json },
+                RouterCommands::Run { once, watch } => {
+                    if once == watch {
+                        return Err(KanbusError::CommandFailure {
+                            exit_code: 2,
+                            message: "error: choose exactly one of --once or --watch".to_string(),
+                        });
+                    }
+                    if once {
+                        IssueRouterOperation::RunOnce
+                    } else {
+                        IssueRouterOperation::RunWatch
+                    }
+                }
+                RouterCommands::Status => IssueRouterOperation::Status,
+                RouterCommands::Stop => IssueRouterOperation::Stop,
+                RouterCommands::Pause => IssueRouterOperation::Pause,
+                RouterCommands::Resume => IssueRouterOperation::Resume,
+                RouterCommands::Hold {
+                    class,
+                    provider_profile,
+                } => IssueRouterOperation::Hold {
+                    class,
+                    provider_profile,
+                },
+                RouterCommands::Unhold {
+                    class,
+                    provider_profile,
+                } => IssueRouterOperation::Unhold {
+                    class,
+                    provider_profile,
+                },
+                RouterCommands::Cancel { issue_id } => IssueRouterOperation::Cancel { issue_id },
+            };
+            Ok(Some(crate::router::execute_issue_router_operation(
+                root, operation,
+            )?))
         }
         Commands::Init { local } => {
             ensure_git_repository(root)?;

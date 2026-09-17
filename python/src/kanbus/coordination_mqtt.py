@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ssl
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -14,6 +16,23 @@ from kanbus.gossip import CoordinationGossipEnvelope
 from kanbus.models import ProjectConfiguration
 
 DEDUPE_TTL_S = gossip.GOSSIP_DEDUPE_TTL_S
+OBSERVATION_TTL_S = 86400
+_TRANSPORT_DIAGNOSTICS_LOCK = threading.Lock()
+_TRANSPORT_DIAGNOSTICS: dict[str, dict[str, Any]] = {
+    "listener": {},
+    "publisher": {},
+}
+
+
+def transport_diagnostics() -> dict[str, dict[str, Any]]:
+    """Return non-secret diagnostics for the current process's MQTT path."""
+    with _TRANSPORT_DIAGNOSTICS_LOCK:
+        return json.loads(json.dumps(_TRANSPORT_DIAGNOSTICS))
+
+
+def _update_transport_diagnostics(channel: str, **values: Any) -> None:
+    with _TRANSPORT_DIAGNOSTICS_LOCK:
+        _TRANSPORT_DIAGNOSTICS[channel].update(values)
 
 
 def should_ignore_envelope(
@@ -36,10 +55,13 @@ def provider_available(root: Path, configuration: ProjectConfiguration) -> bool:
     """
     realtime = configuration.realtime
     if "mqtt" not in configuration.coordination.providers:
+        _update_transport_diagnostics("listener", provider_status="not_configured")
         return False
     if realtime.transport not in {"auto", "mqtt"} or realtime.broker == "off":
+        _update_transport_diagnostics("listener", provider_status="disabled")
         return False
     if realtime.transport == "auto" and gossip._uds_socket_path(realtime).exists():
+        _update_transport_diagnostics("listener", provider_status="local_uds_selected")
         return False
     try:
         import paho.mqtt.client  # noqa: F401
@@ -47,9 +69,224 @@ def provider_available(root: Path, configuration: ProjectConfiguration) -> bool:
         endpoint = gossip.mqtt_endpoint_for_realtime(
             gossip.resolve_broker_endpoint(realtime.broker), realtime
         )
-        return gossip.broker_is_reachable(endpoint)
-    except (ImportError, OSError, ValueError, gossip.GossipError):
+        reachable = gossip.broker_is_reachable(endpoint)
+        _update_transport_diagnostics(
+            "listener",
+            provider_status="tcp_reachable" if reachable else "tcp_unreachable",
+            broker_scheme=endpoint.scheme,
+            broker_host=endpoint.host,
+            broker_port=endpoint.port,
+            custom_authorizer_configured=gossip._has_mqtt_custom_authorizer(realtime),
+        )
+        return reachable
+    except ImportError:
+        _update_transport_diagnostics("listener", provider_status="paho_unavailable")
         return False
+    except (OSError, ValueError, gossip.GossipError) as error:
+        _update_transport_diagnostics(
+            "listener",
+            provider_status="endpoint_unavailable",
+            provider_error_type=type(error).__name__,
+        )
+        return False
+
+
+class CoordinationMqttListener:
+    """Lifecycle wrapper for a project-scoped coordination MQTT subscription."""
+
+    def __init__(
+        self,
+        client: Any,
+        connected: threading.Event,
+        subscribed: threading.Event,
+        received: threading.Event,
+    ) -> None:
+        self._client = client
+        self.connected = connected
+        self.subscribed = subscribed
+        self.received = received
+
+    def stop(self) -> None:
+        """Stop the background MQTT network loop and disconnect cleanly."""
+        _update_transport_diagnostics("listener", status="stopping")
+        try:
+            self._client.disconnect()
+        finally:
+            self._client.loop_stop()
+            _update_transport_diagnostics("listener", status="stopped")
+
+
+def start_listener(
+    root: Path,
+    project_dir: Path,
+    configuration: ProjectConfiguration,
+) -> CoordinationMqttListener | None:
+    """Subscribe to soft-lease envelopes and persist peers in the local overlay."""
+    if not provider_available(root, configuration):
+        return None
+    try:
+        import paho.mqtt.client as mqtt
+    except ImportError:
+        return None
+    realtime = configuration.realtime
+    endpoint = gossip.mqtt_endpoint_for_realtime(
+        gossip.resolve_broker_endpoint(realtime.broker), realtime
+    )
+    # Keep the transport identity unique per socket. The stable envelope
+    # producer_id is not a broker client ID and must never evict this listener
+    # when the same process opens a short-lived publisher connection.
+    client_id = str(uuid4())
+    client = mqtt.Client(client_id=client_id)
+    if endpoint.scheme == "mqtts":
+        if gossip._has_mqtt_custom_authorizer(realtime):
+            tls_context = ssl.create_default_context()
+            tls_context.set_alpn_protocols(["mqtt"])
+            client.tls_set_context(tls_context)
+        else:
+            client.tls_set()
+    if gossip._has_mqtt_custom_authorizer(realtime):
+        client.username_pw_set(
+            f"?x-amz-customauthorizer-name={realtime.mqtt_custom_authorizer_name}",
+            realtime.mqtt_api_token,
+        )
+    connected = threading.Event()
+    subscribed = threading.Event()
+    received = threading.Event()
+    topic = topic_for_project(root, project_dir, configuration)
+    _update_transport_diagnostics(
+        "listener",
+        status="connecting",
+        client_id=client_id,
+        broker_scheme=endpoint.scheme,
+        broker_host=endpoint.host,
+        broker_port=endpoint.port,
+        topic=topic,
+        custom_authorizer_configured=gossip._has_mqtt_custom_authorizer(realtime),
+        connect_reason_code=None,
+        subscribed=False,
+        suback_reason_codes=None,
+        peer_messages=0,
+        rejected_messages=0,
+    )
+    project_label = gossip._resolve_project_label(root, project_dir, configuration)
+    if project_label is None:
+        project_label = configuration.project_key
+
+    def on_connect(connected_client, _userdata, _flags, reason_code, *_extra):
+        code = gossip._mqtt_reason_value(reason_code)
+        _update_transport_diagnostics(
+            "listener",
+            connect_reason_code=code,
+            connected=code == 0,
+            status="connected" if code == 0 else "connect_rejected",
+        )
+        if code != 0:
+            return
+        subscribe_result = connected_client.subscribe(topic, qos=0)
+        if isinstance(subscribe_result, tuple) and subscribe_result:
+            rc = subscribe_result[0]
+            _update_transport_diagnostics("listener", subscribe_rc=rc)
+            if rc != mqtt.MQTT_ERR_SUCCESS:
+                _update_transport_diagnostics(
+                    "listener", status="subscribe_request_rejected"
+                )
+        connected.set()
+
+    def on_subscribe(_client, _userdata, mid, reason_codes, *_extra):
+        try:
+            codes = list(reason_codes or [])
+        except TypeError:
+            codes = []
+        safe_codes = [gossip._mqtt_reason_value(value) for value in codes]
+        accepted = _subscription_succeeded(reason_codes)
+        _update_transport_diagnostics(
+            "listener",
+            suback_mid=mid,
+            suback_reason_codes=safe_codes,
+            subscribed=accepted,
+            status="subscribed" if accepted else "suback_rejected",
+        )
+        if accepted:
+            subscribed.set()
+
+    def on_message(_client, _userdata, message):
+        try:
+            envelope = CoordinationGossipEnvelope.model_validate_json(message.payload)
+        except (TypeError, ValueError):
+            state = transport_diagnostics()["listener"]
+            _update_transport_diagnostics(
+                "listener",
+                rejected_messages=int(state.get("rejected_messages", 0)) + 1,
+            )
+            return
+        if envelope.project != project_label:
+            state = transport_diagnostics()["listener"]
+            _update_transport_diagnostics(
+                "listener",
+                rejected_messages=int(state.get("rejected_messages", 0)) + 1,
+            )
+            return
+        if envelope.producer_id == gossip.producer_id():
+            return
+        record_envelope(project_dir, envelope, ttl_s=configuration.overlay.ttl_s)
+        state = transport_diagnostics()["listener"]
+        _update_transport_diagnostics(
+            "listener",
+            peer_messages=int(state.get("peer_messages", 0)) + 1,
+            last_peer_message_type=envelope.type,
+            last_peer_resource=envelope.resource,
+        )
+        received.set()
+
+    client.on_connect = on_connect
+    client.on_subscribe = on_subscribe
+    client.on_message = on_message
+    try:
+        client.connect(endpoint.host, endpoint.port, 30)
+        client.loop_start()
+    except (OSError, ValueError) as error:
+        _update_transport_diagnostics(
+            "listener", status="connect_failed", error_type=type(error).__name__
+        )
+        return None
+    return CoordinationMqttListener(client, connected, subscribed, received)
+
+
+def _subscription_succeeded(reason_codes: Any) -> bool:
+    """Return whether every requested MQTT subscription was granted.
+
+    :param reason_codes: MQTT 3 granted QoS values or MQTT 5 reason codes.
+    :type reason_codes: Any
+    :return: Whether at least one subscription was granted without failure.
+    :rtype: bool
+    """
+    if reason_codes is None:
+        return False
+    try:
+        values = list(reason_codes)
+    except TypeError:
+        return False
+    if not values:
+        return False
+    for reason_code in values:
+        is_failure = getattr(reason_code, "is_failure", None)
+        if isinstance(is_failure, bool):
+            if is_failure:
+                return False
+            continue
+        value = getattr(reason_code, "value", reason_code)
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value
+            not in {
+                0,
+                1,
+                2,
+            }
+        ):
+            return False
+    return True
 
 
 def topic_for_project(
@@ -73,6 +310,7 @@ def make_claim_envelope(
     event_id: str,
     lease_ttl_s: int,
     occurred_at: datetime,
+    operation_sequence: int | None = None,
 ) -> CoordinationGossipEnvelope:
     """Build a CLAIM envelope linked to its durable Git event."""
     return _make_envelope(
@@ -86,6 +324,7 @@ def make_claim_envelope(
         event_id=event_id,
         occurred_at=occurred_at,
         lease_ttl_s=lease_ttl_s,
+        operation_sequence=operation_sequence,
     )
 
 
@@ -101,6 +340,7 @@ def make_lease_envelope(
     lease_ttl_s: int,
     expires_at: datetime,
     occurred_at: datetime,
+    operation_sequence: int | None = None,
 ) -> CoordinationGossipEnvelope:
     """Build a LEASE envelope for the selected durable claim event."""
     return _make_envelope(
@@ -115,6 +355,7 @@ def make_lease_envelope(
         occurred_at=occurred_at,
         lease_ttl_s=lease_ttl_s,
         expires_at=coordination.format_timestamp(expires_at),
+        operation_sequence=operation_sequence,
     )
 
 
@@ -128,6 +369,7 @@ def make_release_envelope(
     claim_id: str,
     event_id: str,
     occurred_at: datetime,
+    operation_sequence: int | None = None,
 ) -> CoordinationGossipEnvelope:
     """Build a RELEASE envelope linked to its durable Git event."""
     return _make_envelope(
@@ -140,6 +382,7 @@ def make_release_envelope(
         claim_id=claim_id,
         event_id=event_id,
         occurred_at=occurred_at,
+        operation_sequence=operation_sequence,
     )
 
 
@@ -156,6 +399,7 @@ def _make_envelope(
     occurred_at: datetime,
     lease_ttl_s: int | None = None,
     expires_at: str | None = None,
+    operation_sequence: int | None = None,
 ) -> CoordinationGossipEnvelope:
     project_label = gossip._resolve_project_label(root, project_dir, configuration)
     if project_label is None:
@@ -175,6 +419,8 @@ def _make_envelope(
         values["lease_ttl_s"] = lease_ttl_s
     if expires_at is not None:
         values["expires_at"] = expires_at
+    if operation_sequence is not None:
+        values["operation_sequence"] = operation_sequence
     return CoordinationGossipEnvelope(**values)
 
 
@@ -186,17 +432,41 @@ def publish_envelope(
 ) -> bool:
     """Publish a coordination envelope to the already-running MQTT broker."""
     if not provider_available(root, configuration):
+        _update_transport_diagnostics("publisher", status="provider_unavailable")
         return False
-    endpoint = gossip.resolve_broker_endpoint(configuration.realtime.broker)
+    endpoint = gossip.mqtt_endpoint_for_realtime(
+        gossip.resolve_broker_endpoint(configuration.realtime.broker),
+        configuration.realtime,
+    )
     topic = topic_for_project(root, project_dir, configuration)
     try:
         realtime = configuration.realtime
         if gossip._has_mqtt_custom_authorizer(realtime):
-            gossip._publish_mqtt(endpoint, topic, envelope, realtime)
+            publish_result = gossip._publish_mqtt(endpoint, topic, envelope, realtime)
         else:
-            gossip._publish_mqtt(endpoint, topic, envelope)
-    except Exception:  # noqa: BLE001
+            publish_result = gossip._publish_mqtt(endpoint, topic, envelope)
+    except Exception as error:  # noqa: BLE001
+        diagnostics = getattr(error, "diagnostics", None)
+        if not isinstance(diagnostics, dict):
+            diagnostics = {"status": "failed", "error_type": type(error).__name__}
+        _update_transport_diagnostics("publisher", **diagnostics)
         return False
+    if isinstance(publish_result, dict):
+        _update_transport_diagnostics("publisher", **publish_result)
+    else:
+        _update_transport_diagnostics(
+            "publisher",
+            status="published",
+            topic=topic,
+            broker_scheme=endpoint.scheme,
+            broker_host=endpoint.host,
+            broker_port=endpoint.port,
+            custom_authorizer_configured=gossip._has_mqtt_custom_authorizer(
+                configuration.realtime
+            ),
+            qos=0,
+            retain=False,
+        )
     record_envelope(project_dir, envelope, ttl_s=configuration.overlay.ttl_s)
     return True
 
@@ -256,6 +526,8 @@ def overlay_events(
             "owner": envelope.owner,
             "claim_id": envelope.claim_id,
         }
+        if envelope.operation_sequence is not None:
+            payload["operation_sequence"] = envelope.operation_sequence
         event_id = envelope.event_id or ""
         event_type = envelope.type
         if event_type == "coordination.claim":
@@ -311,6 +583,72 @@ def inspect_lease(
             ttl_s=configuration.overlay.ttl_s,
         ),
     )
+
+
+def record_contention_observation(
+    project_dir: Path,
+    resource: str,
+    claim_id: str,
+    *,
+    contention_window_s: int,
+    ttl_s: int = OBSERVATION_TTL_S,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Persist the claims visible to this worker at contention close.
+
+    The snapshot is local, ignored router telemetry for integration auditing.
+    It lets the live harness distinguish actual arbitration-time observation
+    from envelopes that arrived only after the claim decision.
+
+    :param project_dir: Project directory that owns the coordination overlay.
+    :type project_dir: Path
+    :param resource: Resource whose contention window just closed.
+    :type resource: str
+    :param claim_id: This worker's attempted claim identifier.
+    :type claim_id: str
+    :param contention_window_s: Configured contention window in seconds.
+    :type contention_window_s: int
+    :param now: Optional deterministic observation time.
+    :type now: datetime | None
+    :return: The persisted observation record.
+    :rtype: dict[str, Any]
+    """
+    observed_at = (now or coordination.utc_now()).astimezone(UTC)
+    peer_claim_ids = sorted(
+        {
+            str(event.get("payload", {}).get("claim_id", ""))
+            for event in overlay_events(
+                project_dir,
+                resource,
+                contention_window_s=contention_window_s,
+                now=observed_at,
+                ttl_s=ttl_s,
+            )
+            if event.get("event_type") == "coordination.claim"
+            and event.get("payload", {}).get("claim_id")
+            and event.get("payload", {}).get("claim_id") != claim_id
+        }
+    )
+    record = {
+        "schema_version": 1,
+        "resource": resource,
+        "claim_id": claim_id,
+        "local_claim_id": claim_id,
+        "observed_claim_ids": sorted({claim_id, *peer_claim_ids}),
+        "peer_claim_ids": peer_claim_ids,
+        "observed_at": coordination.format_timestamp(observed_at),
+        "mqtt_transport": transport_diagnostics(),
+    }
+    directory = (
+        project_dir / ".overlay" / "coordination-observations" / _sha256_hex(resource)
+    )
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{_sha256_hex(claim_id)}.json"
+    temporary_path = directory / f".{path.name}.{uuid4()}.tmp"
+    temporary_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    temporary_path.replace(path)
+    _prune_contention_observations(directory, ttl_s=ttl_s, now=observed_at)
+    return record
 
 
 def reconcile_lease(
@@ -394,6 +732,7 @@ def select_lease_envelope(
         lease_ttl_s=ttl_s,
         expires_at=state.expires_at,
         occurred_at=evaluation_time,
+        operation_sequence=state.operation_sequence,
     )
     return state, envelope
 
@@ -481,3 +820,19 @@ def _prune_overlay(directory: Path, ttl_s: int, *, now: datetime | None = None) 
                 path.unlink(missing_ok=True)
         except (OSError, ValueError):
             continue
+
+
+def _prune_contention_observations(
+    directory: Path, *, ttl_s: int, now: datetime | None = None
+) -> None:
+    """Remove stale local arbitration snapshots after the overlay TTL."""
+    evaluation_time = (now or coordination.utc_now()).astimezone(UTC)
+    cutoff = evaluation_time - timedelta(seconds=ttl_s)
+    for path in directory.glob("*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            observed_at = coordination.parse_timestamp(record["observed_at"])
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if observed_at < cutoff:
+            path.unlink(missing_ok=True)

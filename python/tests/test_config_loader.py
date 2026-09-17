@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 
+from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.config_loader import (
     STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE,
     ConfigurationError,
@@ -40,6 +42,7 @@ def test_load_configuration_applies_mqtt_environment_overrides(
 ) -> None:
     config_path = tmp_path / ".kanbus.yml"
     _write_minimal_config(config_path)
+    defaults_before = copy.deepcopy(DEFAULT_CONFIGURATION)
     monkeypatch.setenv("KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME", "env-auth")
     monkeypatch.setenv("KANBUS_REALTIME_MQTT_API_TOKEN", "env-token")
 
@@ -47,6 +50,14 @@ def test_load_configuration_applies_mqtt_environment_overrides(
 
     assert configuration.realtime.mqtt_custom_authorizer_name == "env-auth"
     assert configuration.realtime.mqtt_api_token == "env-token"
+    assert DEFAULT_CONFIGURATION == defaults_before
+
+    monkeypatch.delenv("KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME")
+    monkeypatch.delenv("KANBUS_REALTIME_MQTT_API_TOKEN")
+    subsequent = load_project_configuration(config_path)
+    assert subsequent.realtime.mqtt_custom_authorizer_name is None
+    assert subsequent.realtime.mqtt_api_token is None
+    assert DEFAULT_CONFIGURATION == defaults_before
 
 
 def test_resolve_board_name_prefers_configured_name(tmp_path: Path) -> None:

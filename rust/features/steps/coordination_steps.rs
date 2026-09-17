@@ -305,6 +305,7 @@ fn given_held_lease(world: &mut KanbusWorld, resource: String, owner: String, cl
                 claim_id: Some(claim_id),
                 lease_ttl_s: Some(ttl_s),
                 expires_at: None,
+                operation_sequence: None,
             },
         );
         envelope.ts = occurred_at.to_string();

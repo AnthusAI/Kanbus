@@ -32,6 +32,7 @@ def before_scenario(context: object, scenario: object) -> None:
     context.working_directory = None
     context.result = None
     context.last_issue_id = None
+    context.coordination_mqtt_messages = []
     context.environment_overrides = {"KANBUS_NO_DAEMON": "1"}
     context.console_server_process = None
     context.console_server_port = None

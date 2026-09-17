@@ -44,7 +44,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is building and measuring a REST API mutex backed by DynamoDB.",
-  "right_now_updated_at": "2026-09-14T13:34:07.956171236Z",
+  "right_now_summary": "The Mutex API prototype is paused to preserve the one-item coordination limit.",
+  "right_now_updated_at": "2026-09-17T09:20:01.556447Z",
   "custom": {}
 }

@@ -915,6 +915,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         standup: StandupConfiguration::default(),
         github_security: None,
         coordination: CoordinationConfiguration::default(),
+        router: None,
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

@@ -1,4 +1,3 @@
-@wip
 Feature: Revision-aware coordination result publication
   As a worker executing logical task revisions
   I want Kanbus to publish results by revision not finish order
@@ -45,3 +44,11 @@ Feature: Revision-aware coordination result publication
     When cloud worker runs "kanbus coordination publish-result --resource tts:voice-6 --revision 7 --artifact /tmp/cloud-stale.mp3"
     Then the command should fail with exit code 1
     And stderr should contain "stale revision"
+
+  Scenario: A router result publishes checkpoint and named artifact references with its revision
+    Given router package "kbs-901" has current claim "claim-r5" at logical revision 5
+    When claim "claim-r5" publishes a completed result with checkpoint "refs/kanbus/router/checkpoints/kbs-901" at revision 5
+    And claim "claim-r5" publishes artifact "test-report" as "refs/kanbus/router/artifacts/kbs-901/test-report-r5"
+    Then the published result for package "kbs-901" should include claim "claim-r5" and revision 5
+    And the published checkpoint should be "refs/kanbus/router/checkpoints/kbs-901"
+    And the published artifacts should contain "test-report=refs/kanbus/router/artifacts/kbs-901/test-report-r5"

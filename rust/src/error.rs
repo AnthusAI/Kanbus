@@ -30,6 +30,14 @@ pub enum KanbusError {
     IssueOperation(String),
     /// Protocol validation failed.
     ProtocolError(String),
+    /// A CLI operation failed with a specific process exit status.
+    CommandFailure { exit_code: i32, message: String },
+    /// A failed CLI operation that also has useful standard output.
+    CommandFailureWithOutput {
+        exit_code: i32,
+        stdout: String,
+        stderr: String,
+    },
     /// Policy violation occurred.
     PolicyViolation {
         /// Path to the policy file.
@@ -58,6 +66,8 @@ impl Display for KanbusError {
             KanbusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
             KanbusError::IssueOperation(message) => write!(formatter, "{message}"),
             KanbusError::ProtocolError(message) => write!(formatter, "{message}"),
+            KanbusError::CommandFailure { message, .. } => write!(formatter, "{message}"),
+            KanbusError::CommandFailureWithOutput { stderr, .. } => write!(formatter, "{stderr}"),
             KanbusError::PolicyViolation {
                 policy_file,
                 scenario,
@@ -102,6 +112,10 @@ mod tests {
             KanbusError::InvalidHierarchy("hierarchy".to_string()),
             KanbusError::IssueOperation("issue".to_string()),
             KanbusError::ProtocolError("protocol".to_string()),
+            KanbusError::CommandFailure {
+                exit_code: 2,
+                message: "command".to_string(),
+            },
         ];
         let rendered: Vec<String> = variants.into_iter().map(|e| e.to_string()).collect();
         assert_eq!(
@@ -114,7 +128,8 @@ mod tests {
                 "transition",
                 "hierarchy",
                 "issue",
-                "protocol"
+                "protocol",
+                "command"
             ]
         );
     }

@@ -57,6 +57,7 @@ class CoordinationGossipEnvelope(GossipEnvelope):
     claim_id: Optional[str] = Field(default=None, min_length=1)
     lease_ttl_s: Optional[int] = Field(default=None, gt=0)
     expires_at: Optional[str] = Field(default=None, min_length=1)
+    operation_sequence: Optional[int] = Field(default=None, gt=0, strict=True)
 
     @model_validator(mode="after")
     def validate_coordination_fields(self) -> "CoordinationGossipEnvelope":
@@ -116,6 +117,14 @@ class BrokerStartup:
 
 class GossipError(RuntimeError):
     """Raised when gossip operations fail."""
+
+
+class MqttPublishError(GossipError):
+    """MQTT publisher failure with safe connection diagnostics."""
+
+    def __init__(self, message: str, diagnostics: dict[str, object]) -> None:
+        super().__init__(message)
+        self.diagnostics = diagnostics
 
 
 _PRODUCER_ID: Optional[str] = None
@@ -181,7 +190,7 @@ def publish_issue_mutation(
     topic = configuration.realtime.topics.project_events.format(project=project_label)
     try:
         _publish_envelope(root, configuration, topic, envelope)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         print(
             f"warning: realtime publish failed for {issue.identifier}: {error}",
             file=sys.stderr,
@@ -695,17 +704,43 @@ def _publish_mqtt(
     topic: str,
     envelope: GossipEnvelope,
     realtime: RealtimeConfig | None = None,
-) -> None:
+) -> dict[str, object] | None:
     try:
         import paho.mqtt.client as mqtt
     except ImportError:
         return
-    client = mqtt.Client(client_id=producer_id())
     endpoint = (
         mqtt_endpoint_for_realtime(endpoint, realtime)
         if realtime is not None
         else endpoint
     )
+    # The envelope producer id is process-stable for echo suppression. MQTT
+    # client IDs must instead be unique per connection: reusing producer_id
+    # lets a transient publisher evict this process's persistent subscriber.
+    client_id = str(uuid4())
+    diagnostics: dict[str, object] = {
+        "status": "connecting",
+        "client_id": client_id,
+        "broker_scheme": endpoint.scheme,
+        "broker_host": endpoint.host,
+        "broker_port": endpoint.port,
+        "topic": topic,
+        "custom_authorizer_configured": bool(
+            realtime is not None and _has_mqtt_custom_authorizer(realtime)
+        ),
+        "qos": 0,
+        "retain": False,
+    }
+    client = mqtt.Client(client_id=client_id)
+    connected = threading.Event()
+
+    def on_connect(_client, _userdata, _flags, reason_code, *_extra) -> None:
+        code = _mqtt_reason_value(reason_code)
+        diagnostics["connect_reason_code"] = code
+        diagnostics["connected"] = code == 0
+        connected.set()
+
+    client.on_connect = on_connect
     if endpoint.scheme == "mqtts":
         if realtime is not None and _has_mqtt_custom_authorizer(realtime):
             tls_context = ssl.create_default_context()
@@ -718,17 +753,56 @@ def _publish_mqtt(
             f"?x-amz-customauthorizer-name={realtime.mqtt_custom_authorizer_name}",
             realtime.mqtt_api_token,
         )
-    client.connect(endpoint.host, endpoint.port, 30)
-    client.loop_start()
-    payload = envelope.model_dump(
-        by_alias=True,
-        mode="json",
-        exclude_none=isinstance(envelope, CoordinationGossipEnvelope),
-    )
-    result = client.publish(topic, json.dumps(payload), qos=0, retain=False)
-    result.wait_for_publish(timeout=2.0)
-    client.loop_stop()
-    client.disconnect()
+    loop_started = False
+    try:
+        client.connect(endpoint.host, endpoint.port, 30)
+        client.loop_start()
+        loop_started = True
+        if not connected.wait(5.0):
+            diagnostics.update(status="failed", error_type="ConnectTimeout")
+            raise MqttPublishError("MQTT connection timed out", diagnostics)
+        if not diagnostics.get("connected"):
+            diagnostics.update(status="failed", error_type="ConnectRejected")
+            raise MqttPublishError("MQTT connection was rejected", diagnostics)
+        payload = envelope.model_dump(
+            by_alias=True,
+            mode="json",
+            exclude_none=isinstance(envelope, CoordinationGossipEnvelope),
+        )
+        result = client.publish(topic, json.dumps(payload), qos=0, retain=False)
+        diagnostics["publish_rc"] = getattr(result, "rc", None)
+        if getattr(result, "rc", mqtt.MQTT_ERR_SUCCESS) != mqtt.MQTT_ERR_SUCCESS:
+            diagnostics.update(status="failed", error_type="PublishRejected")
+            raise MqttPublishError("MQTT publish was rejected locally", diagnostics)
+        result.wait_for_publish(timeout=5.0)
+        is_published = getattr(result, "is_published", None)
+        diagnostics["publish_completed"] = (
+            bool(is_published()) if callable(is_published) else True
+        )
+        if not diagnostics["publish_completed"]:
+            diagnostics.update(status="failed", error_type="PublishTimeout")
+            raise MqttPublishError("MQTT publish did not complete", diagnostics)
+        diagnostics["status"] = "published"
+        return diagnostics
+    except MqttPublishError:
+        raise
+    except Exception as error:  # noqa: BLE001
+        diagnostics.update(status="failed", error_type=type(error).__name__)
+        raise MqttPublishError("MQTT publish failed", diagnostics) from error
+    finally:
+        try:
+            client.disconnect()
+        finally:
+            if loop_started:
+                client.loop_stop()
+
+
+def _mqtt_reason_value(reason_code: object) -> int | str:
+    """Normalize Paho reason codes without exposing authentication material."""
+    value = getattr(reason_code, "value", reason_code)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return type(reason_code).__name__
 
 
 def run_mqtt_subscription(
@@ -743,7 +817,7 @@ def run_mqtt_subscription(
     except ImportError as exc:
         raise GossipError("paho-mqtt is required for MQTT transport") from exc
 
-    client = mqtt.Client(client_id=producer_id())
+    client = mqtt.Client(client_id=str(uuid4()))
     endpoint = (
         mqtt_endpoint_for_realtime(endpoint, realtime)
         if realtime is not None

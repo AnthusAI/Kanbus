@@ -148,6 +148,31 @@ Delete an issue (removes the file).
 kanbus delete <id>
 ```
 
+## Issue Router
+
+The optional Issue Router dispatches labeled issue packages through the configured Codex adapter. See the [Issue Router operator guide](ISSUE_ROUTER_OPERATOR_GUIDE.md) for configuration and recovery, and the [Issue Router design](ISSUE_ROUTER_DESIGN.md) for exact planning, result, and lifecycle contracts.
+
+```bash
+kanbus router plan [--json]
+kanbus router run --once
+kanbus router run --watch
+kanbus router pause
+kanbus router resume
+kanbus router hold --class <name>
+kanbus router hold --provider-profile <name>
+kanbus router unhold --class <name>
+kanbus router unhold --provider-profile <name>
+kanbus router status
+kanbus router cancel <package-id>
+kanbus router stop
+```
+
+`plan --json` prints a stable, two-space indented plan object. `run` requires exactly one of `--once` or `--watch`; `--once` processes at most the first eligible package and exits. `--watch` reconciles immediately, then polls router state and GitHub pull request state at `router.watch_interval` (default `30s`). The current watcher does not subscribe to MQTT for early wake-ups.
+
+`hold` and `unhold` require exactly one of `--class <name>` or `--provider-profile <name>`. Pause, resume, holds, and watch state are local to the current clone; their router events are published for audit, but another clone does not inherit the effective control state. `stop` targets the local watch process and lets its active adapter call finish before exit. The Rust executable is available as both `kanbus` and `kbs`; the Python executable is `kanbus`.
+
+The router publishes event history and router-owned issue status records to `refs/heads/kanbus/router-state` through an isolated hidden worktree. A usable `origin` is needed to share that branch with other clones. Checkpoint and artifact references are recorded in router history, but the current implementation does not separately push those refs or arbitrary artifact objects to `origin`; see the [Issue Router design](ISSUE_ROUTER_DESIGN.md) for details. Router commands fail with exit code 2 and `error: issue router is not configured` when the project has no `router:` block.
+
 ## Queries
 
 ### `kanbus list`

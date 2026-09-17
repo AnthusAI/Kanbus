@@ -54,6 +54,22 @@ def test_load_project_configuration_merges_override_virtual_projects(
     assert set(cfg.virtual_projects.keys()) >= {"alpha", "beta"}
 
 
+def test_environment_overrides_do_not_mutate_process_wide_nested_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / ".kanbus.yml"
+    config_path.write_text("project_key: isolated\n", encoding="utf-8")
+    defaults_before = copy.deepcopy(DEFAULT_CONFIGURATION)
+    monkeypatch.setenv("KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME", "test-auth")
+    monkeypatch.setenv("KANBUS_REALTIME_MQTT_API_TOKEN", "test-token")
+
+    configuration = config_loader.load_project_configuration(config_path)
+
+    assert configuration.realtime.mqtt_custom_authorizer_name == "test-auth"
+    assert configuration.realtime.mqtt_api_token == "test-token"
+    assert DEFAULT_CONFIGURATION == defaults_before
+
+
 def test_load_project_configuration_unknown_and_validation_errors(
     tmp_path: Path,
 ) -> None:

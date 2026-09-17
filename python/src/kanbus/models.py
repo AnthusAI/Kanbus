@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -14,6 +15,32 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+
+
+def _is_loopback_http_url(value: str) -> bool:
+    """Return whether an HTTP URL targets an explicitly loopback host.
+
+    :param value: Absolute HTTP URL to inspect.
+    :type value: str
+    :return: Whether the URL host is localhost or an IP loopback address.
+    :rtype: bool
+    """
+    parsed = urlparse(value)
+    if (
+        parsed.scheme != "http"
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        return False
+    hostname = parsed.hostname
+    if hostname is None:
+        return False
+    if hostname.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 class AgentMetadata(BaseModel):
@@ -364,6 +391,10 @@ class MutexApiConfiguration(BaseModel):
         parsed = urlparse(endpoint)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("must be an absolute http(s) URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("must not include URL credentials")
+        if parsed.scheme == "http" and not _is_loopback_http_url(endpoint):
+            raise ValueError("must use HTTPS unless the host is loopback")
         return endpoint
 
     @field_validator("bearer_token")
@@ -408,6 +439,170 @@ class CoordinationConfiguration(BaseModel):
     @classmethod
     def validate_duration(cls, value: str) -> str:
         """Require a positive integer followed by a supported unit."""
+        import re
+
+        if not re.fullmatch(r"[1-9][0-9]*[smh]", value):
+            raise ValueError(
+                "duration must be a positive integer followed by s, m, or h"
+            )
+        return value
+
+
+class RouterWorkflowRoles(BaseModel):
+    """Explicit workflow statuses used by the deterministic issue router."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pending: str = Field(min_length=1)
+    active: str = Field(min_length=1)
+    review: str = Field(min_length=1)
+    blocked: str = Field(min_length=1)
+    terminal: List[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_distinct_roles(self) -> "RouterWorkflowRoles":
+        """Reject ambiguous role assignments."""
+        roles = [self.pending, self.active, self.review, self.blocked, *self.terminal]
+        if len(roles) != len(set(roles)):
+            raise ValueError("router workflow roles must use distinct statuses")
+        return self
+
+
+class RouterLimits(BaseModel):
+    """Router-owned WIP and retry limits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_wip: int = Field(ge=1, strict=True)
+    review_wip: int = Field(ge=1, strict=True)
+    class_wip: Dict[str, int] = Field(default_factory=dict)
+    provider_wip: Dict[str, int] = Field(default_factory=dict)
+
+    @field_validator("class_wip", "provider_wip")
+    @classmethod
+    def validate_positive_limits(cls, value: Dict[str, int]) -> Dict[str, int]:
+        """Require named limits to be positive integers."""
+        if any(
+            not key.strip()
+            or isinstance(limit, bool)
+            or not isinstance(limit, int)
+            or limit < 1
+            for key, limit in value.items()
+        ):
+            raise ValueError("router named limits must be positive integers")
+        return value
+
+
+class RouterAgentProfile(BaseModel):
+    """Structured execution profile for one agent provider."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    adapter: str
+    command: str = "codex"
+    args: List[str] = Field(default_factory=list)
+
+    @field_validator("adapter")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        """Require the configured adapter supported by this slice."""
+        normalized = value.strip().lower()
+        if normalized != "codex":
+            raise ValueError("router provider adapter must be codex")
+        return normalized
+
+
+class RouterAgentClass(BaseModel):
+    """Ordered provider profiles available to a routed agent class."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    providers: List[str] = Field(min_length=1)
+
+
+class RouterRetryConfiguration(BaseModel):
+    """Retry limit for an issue package."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_attempts: int = Field(default=3, ge=1)
+
+
+class RouterForgeConfiguration(BaseModel):
+    """Forge-neutral pull request integration settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str = "github"
+    repository: str = Field(min_length=3)
+    base_branch: str = "main"
+    api_url: str = "https://api.github.com"
+    token_env: str = "GITHUB_TOKEN"
+
+    @model_validator(mode="after")
+    def validate_forge(self) -> "RouterForgeConfiguration":
+        """Require repository coordinates for GitHub operation."""
+        if self.provider != "github":
+            raise ValueError("router forge provider must be github")
+        if len(self.repository.split("/")) != 2 or not all(self.repository.split("/")):
+            raise ValueError("router forge repository must use owner/repository")
+        import re
+
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.token_env):
+            raise ValueError(
+                "router forge token_env must be a valid environment variable name"
+            )
+        parsed_api_url = urlparse(self.api_url)
+        if parsed_api_url.scheme not in {"http", "https"} or not parsed_api_url.netloc:
+            raise ValueError("router forge api_url must be an absolute http(s) URL")
+        if parsed_api_url.username is not None or parsed_api_url.password is not None:
+            raise ValueError("router forge api_url must not include URL credentials")
+        if parsed_api_url.scheme == "http" and not _is_loopback_http_url(self.api_url):
+            raise ValueError(
+                "router forge api_url must use HTTPS unless the host is loopback"
+            )
+        return self
+
+
+class IssueRouterConfiguration(BaseModel):
+    """Optional deterministic issue router configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    workflow: RouterWorkflowRoles | None = None
+    limits: RouterLimits | None = None
+    providers: Dict[str, RouterAgentProfile] = Field(default_factory=dict)
+    classes: Dict[str, RouterAgentClass] = Field(default_factory=dict)
+    retries: RouterRetryConfiguration = Field(default_factory=RouterRetryConfiguration)
+    forge: Optional[RouterForgeConfiguration] = None
+    watch_interval: str = "30s"
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_enabled_fields(cls, value: Any) -> Any:
+        """Allow an explicit disabled marker without requiring execution settings."""
+        if isinstance(value, dict) and value.get("enabled", True) is not False:
+            missing = [
+                key for key in ("workflow", "limits", "providers") if key not in value
+            ]
+            if missing:
+                raise ValueError("router workflow, limits, and providers are required")
+        return value
+
+    @model_validator(mode="after")
+    def validate_enabled_configuration(self) -> "IssueRouterConfiguration":
+        """Require usable routes on enabled router configurations."""
+        if self.enabled and (
+            self.workflow is None or self.limits is None or not self.providers
+        ):
+            raise ValueError("router workflow, limits, and providers are required")
+        return self
+
+    @field_validator("watch_interval")
+    @classmethod
+    def validate_watch_interval(cls, value: str) -> str:
+        """Require a positive duration using seconds, minutes, or hours."""
         import re
 
         if not re.fullmatch(r"[1-9][0-9]*[smh]", value):
@@ -535,6 +730,7 @@ class ProjectConfiguration(BaseModel):
     coordination: CoordinationConfiguration = Field(
         default_factory=CoordinationConfiguration
     )
+    router: Optional[IssueRouterConfiguration] = None
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
     hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
     github_security: Optional[GithubSecurityConfiguration] = None
