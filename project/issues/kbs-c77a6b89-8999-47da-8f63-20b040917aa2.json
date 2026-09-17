@@ -1,0 +1,20 @@
+{
+  "id": "kbs-c77a6b89-8999-47da-8f63-20b040917aa2",
+  "title": "Run hard-lease integration with isolated router workers and test tasks",
+  "description": "Provision an isolated Kanbus test project and one routed test task. Run two independent router-worker processes against the same MQTT broker and Mutex API. Assert one hard acquire/transition succeeds, the competitor receives the documented contention response and performs no task transition, expiry permits takeover, and disabling Mutex permits documented soft duplicate work. Capture logs and clean only generated fixture data.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-63679c63-d6de-4d75-927b-c50322dc0254",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-17T00:55:24.620070Z",
+  "updated_at": "2026-09-17T00:56:01.484518Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

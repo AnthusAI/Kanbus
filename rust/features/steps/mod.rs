@@ -39,6 +39,8 @@ pub mod list_format_steps;
 pub mod local_issue_steps;
 pub mod maintenance_steps;
 pub mod migration_steps;
+pub mod mqtt_coordination_steps;
+pub mod mutex_api_steps;
 pub mod output_steps;
 pub mod policy_steps;
 pub mod project_steps;

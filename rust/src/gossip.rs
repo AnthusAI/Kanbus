@@ -25,7 +25,7 @@ use uuid::Uuid;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{get_configuration_path, resolve_labeled_projects};
-use crate::models::{IssueData, ProjectConfiguration, RealtimeConfig};
+use crate::models::{IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig};
 use crate::overlay::{write_overlay_issue, write_tombstone, OverlayTombstone};
 
 /// Realtime gossip envelope.
@@ -45,6 +45,28 @@ pub struct GossipEnvelope {
     pub origin_cluster_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub issue: Option<IssueData>,
+    #[serde(flatten)]
+    pub coordination: CoordinationGossipFields,
+}
+
+/// Optional top-level fields used by coordination gossip envelopes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CoordinationGossipFields {
+    /// Resource identifier carried by CLAIM, LEASE, and RELEASE messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    /// Worker that issued the coordination message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    /// Stable claim identifier associated with the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_id: Option<String>,
+    /// Lease TTL in seconds, present on CLAIM and LEASE messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_ttl_s: Option<u64>,
+    /// Lease expiry timestamp, present on LEASE messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -110,6 +132,16 @@ impl DedupeSet {
     }
 }
 
+/// Return true when a receiver should process the envelope under REALTIME rules.
+pub fn should_accept_gossip(
+    envelope: &GossipEnvelope,
+    local_producer_id: &str,
+    dedupe: &mut DedupeSet,
+) -> bool {
+    let duplicate = dedupe.seen(&envelope.id);
+    !duplicate && envelope.producer_id != local_producer_id
+}
+
 #[cfg(test)]
 mod dedupe_tests {
     use super::DedupeSet;
@@ -161,6 +193,7 @@ pub fn publish_issue_mutation(
         producer_id: producer_id(),
         origin_cluster_id: None,
         issue: Some(issue.clone()),
+        coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_label);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
@@ -200,11 +233,136 @@ pub fn publish_issue_deleted(
         producer_id: producer_id(),
         origin_cluster_id: None,
         issue: None,
+        coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_label);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
         eprintln!("warning: realtime publish failed: {error}");
     }
+}
+
+/// Publish a coordination envelope through MQTT only.
+///
+/// Coordination gossip is an optional fast path. A missing or unreachable
+/// broker returns `false` so the caller can continue with Git history.
+pub fn publish_coordination_gossip(
+    root: &Path,
+    project_dir: &Path,
+    event_type: &str,
+    event_id: &str,
+    message_ts: Option<&str>,
+    fields: CoordinationGossipFields,
+) -> bool {
+    let Ok(config_path) = get_configuration_path(root) else {
+        return false;
+    };
+    let Ok(configuration) = load_project_configuration(&config_path) else {
+        return false;
+    };
+    if !coordination_mqtt_available(&configuration.realtime) {
+        return false;
+    }
+    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
+        return false;
+    };
+    let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
+        return false;
+    };
+    // MQTT coordination must never silently cross over to the local UDS bus.
+    if !broker_is_reachable_for_realtime(&endpoint, &configuration.realtime) {
+        return false;
+    }
+
+    let mut envelope =
+        build_coordination_gossip_envelope(&project_label, event_type, event_id, fields);
+    if let Some(message_ts) = message_ts {
+        envelope.ts = message_ts.to_string();
+    }
+    if !coordination_gossip_envelope_is_valid(&envelope) {
+        return false;
+    }
+    let topic = project_topic(&configuration.realtime, &project_label);
+    if publish_mqtt(&endpoint, &topic, &envelope, &configuration.realtime).is_err() {
+        return false;
+    }
+    let _ = crate::overlay::write_coordination_overlay(
+        project_dir,
+        &envelope,
+        configuration.overlay.ttl_s,
+    );
+    true
+}
+
+/// Build a coordination gossip envelope using the common REALTIME fields.
+pub fn build_coordination_gossip_envelope(
+    project: &str,
+    event_type: &str,
+    event_id: &str,
+    fields: CoordinationGossipFields,
+) -> GossipEnvelope {
+    GossipEnvelope {
+        id: Uuid::new_v4().to_string(),
+        ts: now_iso(),
+        project: project.to_string(),
+        event_type: event_type.to_string(),
+        issue_id: None,
+        event_id: Some(event_id.to_string()),
+        producer_id: producer_id(),
+        origin_cluster_id: None,
+        issue: None,
+        coordination: fields,
+    }
+}
+
+/// Validate the per-type required fields for coordination gossip messages.
+pub fn coordination_gossip_envelope_is_valid(envelope: &GossipEnvelope) -> bool {
+    let fields = &envelope.coordination;
+    let common_fields_present = envelope.event_id.as_ref().is_some_and(|id| !id.is_empty())
+        && fields
+            .resource
+            .as_ref()
+            .is_some_and(|value| !value.is_empty())
+        && fields.owner.as_ref().is_some_and(|value| !value.is_empty())
+        && fields
+            .claim_id
+            .as_ref()
+            .is_some_and(|value| !value.is_empty());
+    if !common_fields_present {
+        return false;
+    }
+    match envelope.event_type.as_str() {
+        "coordination.claim" => {
+            fields.lease_ttl_s.is_some_and(|ttl| ttl > 0) && fields.expires_at.is_none()
+        }
+        "coordination.lease" => {
+            fields.lease_ttl_s.is_some_and(|ttl| ttl > 0)
+                && fields
+                    .expires_at
+                    .as_deref()
+                    .and_then(parse_broker_timestamp)
+                    .is_some()
+        }
+        "coordination.release" => fields.lease_ttl_s.is_none() && fields.expires_at.is_none(),
+        _ => false,
+    }
+}
+
+fn parse_broker_timestamp(value: &str) -> Option<chrono::DateTime<chrono::Utc>> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|timestamp| timestamp.with_timezone(&chrono::Utc))
+}
+
+/// Check whether the configured MQTT endpoint is reachable for coordination.
+pub fn coordination_mqtt_available(realtime: &RealtimeConfig) -> bool {
+    if realtime.broker == "off"
+        || !matches!(realtime.transport.as_str(), "auto" | "mqtt")
+        || (realtime.transport == "auto" && uds_socket_path(Some(realtime)).exists())
+    {
+        return false;
+    }
+    resolve_broker_endpoint(&realtime.broker)
+        .is_ok_and(|endpoint| broker_is_reachable_for_realtime(&endpoint, realtime))
 }
 
 /// Subscribe to gossip notifications and update overlays.
@@ -269,6 +427,48 @@ struct GossipConsumerOptions {
     broker_off_is_error: bool,
 }
 
+/// Persist an accepted gossip envelope in the appropriate local cache.
+///
+/// Coordination records are intentionally independent of the optional issue
+/// overlay: workers must see speculative lease candidates even when a project
+/// disables cached issue mutations.
+fn persist_gossip_overlay(
+    project_dir: &Path,
+    envelope: &GossipEnvelope,
+    overlay_config: &OverlayConfig,
+) {
+    if matches!(
+        envelope.event_type.as_str(),
+        "coordination.claim" | "coordination.lease" | "coordination.release"
+    ) {
+        let _ =
+            crate::overlay::write_coordination_overlay(project_dir, envelope, overlay_config.ttl_s);
+    } else if overlay_config.enabled {
+        if envelope.event_type == "issue.mutated" {
+            if let Some(issue) = envelope.issue.as_ref() {
+                let _ = write_overlay_issue(
+                    project_dir,
+                    issue,
+                    &envelope.ts,
+                    envelope.event_id.clone(),
+                );
+            }
+        } else if envelope.event_type == "issue.deleted" {
+            if let Some(issue_id) = envelope.issue_id.clone() {
+                let tombstone = OverlayTombstone {
+                    op: "delete".to_string(),
+                    project: envelope.project.clone(),
+                    id: issue_id,
+                    event_id: envelope.event_id.clone(),
+                    ts: envelope.ts.clone(),
+                    ttl_s: overlay_config.ttl_s,
+                };
+                let _ = write_tombstone(project_dir, &tombstone);
+            }
+        }
+    }
+}
+
 fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<(), KanbusError> {
     let configuration = load_project_configuration(&get_configuration_path(root)?)?;
     let realtime = &configuration.realtime;
@@ -304,11 +504,13 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
     let overlay_config = configuration.overlay.clone();
     let on_envelope_handler = options.on_envelope.clone();
     let handler = Arc::new(move |envelope: GossipEnvelope| {
-        if envelope.producer_id == local_producer {
+        if envelope.event_type.starts_with("coordination.")
+            && !coordination_gossip_envelope_is_valid(&envelope)
+        {
             return;
         }
         if let Ok(mut guard) = dedupe.lock() {
-            if guard.seen(&envelope.id) {
+            if !should_accept_gossip(&envelope, &local_producer, &mut guard) {
                 return;
             }
         }
@@ -322,30 +524,7 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
             }
         }
 
-        if overlay_config.enabled {
-            if envelope.event_type == "issue.mutated" {
-                if let Some(issue) = envelope.issue.as_ref() {
-                    let _ = write_overlay_issue(
-                        project_dir,
-                        issue,
-                        &envelope.ts,
-                        envelope.event_id.clone(),
-                    );
-                }
-            } else if envelope.event_type == "issue.deleted" {
-                if let Some(issue_id) = envelope.issue_id.clone() {
-                    let tombstone = OverlayTombstone {
-                        op: "delete".to_string(),
-                        project: envelope.project.clone(),
-                        id: issue_id,
-                        event_id: envelope.event_id.clone(),
-                        ts: envelope.ts.clone(),
-                        ttl_s: overlay_config.ttl_s,
-                    };
-                    let _ = write_tombstone(project_dir, &tombstone);
-                }
-            }
-        }
+        persist_gossip_overlay(project_dir, &envelope, &overlay_config);
 
         if let Some(callback) = on_envelope_handler.as_ref() {
             callback(envelope);
@@ -404,7 +583,7 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
 
     let mut endpoint = resolve_broker_endpoint(&broker)?;
     let mut broker_process: Option<Child> = None;
-    if !broker_is_reachable(&endpoint) {
+    if !broker_is_reachable_for_realtime(&endpoint, realtime) {
         if broker == "auto" {
             endpoint = parse_broker_url("mqtt://127.0.0.1:1883")?;
         }
@@ -449,7 +628,7 @@ fn run_mqtt_subscription_resilient(
             }
         };
         let mut broker_process: Option<Child> = None;
-        if !broker_is_reachable(&endpoint) {
+        if !broker_is_reachable_for_realtime(&endpoint, realtime) {
             if broker == "auto" {
                 match parse_broker_url("mqtt://127.0.0.1:1883") {
                     Ok(parsed) => endpoint = parsed,
@@ -752,7 +931,7 @@ fn publish_with_transport(
     }
     let mut endpoint = resolve_broker_endpoint(broker)?;
     let mut broker_process: Option<Child> = None;
-    if !broker_is_reachable(&endpoint) {
+    if !broker_is_reachable_for_realtime(&endpoint, realtime) {
         if broker == "auto" {
             endpoint = parse_broker_url("mqtt://127.0.0.1:1883")?;
         }
@@ -842,24 +1021,32 @@ fn publish_mqtt(
         serde_json::to_vec(envelope).map_err(|error| KanbusError::Io(error.to_string()))?;
     let options = mqtt_options(endpoint, realtime);
     let (client, mut eventloop) = AsyncClient::new(options, 10);
+    let mut network_options = eventloop.network_options();
+    // Match the 15s connection window used by the Python Paho client. AWS IoT
+    // custom-authorizer setup can take longer than the crate's 5s default.
+    network_options.set_connection_timeout(15);
+    eventloop.set_network_options(network_options);
     let runtime =
         tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
     runtime.block_on(async move {
-        let mut connected = false;
-        let connect_deadline = Instant::now() + Duration::from_secs(3);
-        while Instant::now() < connect_deadline {
-            match tokio::time::timeout(Duration::from_millis(250), eventloop.poll()).await {
-                Ok(Ok(Event::Incoming(Packet::ConnAck(_)))) => {
-                    connected = true;
-                    break;
+        // `EventLoop::poll` owns the in-progress TCP/TLS handshake. Do not put
+        // short per-poll timeouts around it: dropping poll cancels that handshake
+        // and can prevent custom-authorizer brokers from ever reaching CONNACK.
+        let connect_result = tokio::time::timeout(Duration::from_secs(16), async {
+            loop {
+                match eventloop.poll().await {
+                    Ok(Event::Incoming(Packet::ConnAck(_))) => return Ok(()),
+                    Ok(_) => {}
+                    Err(error) => {
+                        return Err(KanbusError::Io(format!("mqtt connect failed: {error}")))
+                    }
                 }
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => return Err(KanbusError::Io(error.to_string())),
-                Err(_) => {}
             }
-        }
-        if !connected {
-            return Err(KanbusError::Io("mqtt connect timeout".to_string()));
+        })
+        .await;
+        match connect_result {
+            Ok(result) => result?,
+            Err(_) => return Err(KanbusError::Io("mqtt connect timeout".to_string())),
         }
 
         client
@@ -867,23 +1054,29 @@ fn publish_mqtt(
             .await
             .map_err(|error| KanbusError::Io(error.to_string()))?;
 
-        // Drive the event loop briefly after queueing publish so the outgoing
+        // Keep driving the event loop briefly after queueing publish so the outgoing
         // packet has a chance to flush without indefinite blocking.
-        let flush_deadline = Instant::now() + Duration::from_secs(2);
-        let mut published = false;
-        while Instant::now() < flush_deadline {
-            match tokio::time::timeout(Duration::from_millis(150), eventloop.poll()).await {
-                Ok(Ok(Event::Outgoing(Outgoing::Publish(_)))) => {
-                    published = true;
-                    break;
+        let publish_result = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match eventloop.poll().await {
+                    Ok(Event::Outgoing(Outgoing::Publish(_))) => {
+                        // QoS 0 has no broker acknowledgement. rumqttc emits this
+                        // only after its network write has completed; cross-runtime
+                        // watcher validation remains the end-to-end receipt check.
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        return Err(KanbusError::Io(format!("mqtt publish failed: {error}")))
+                    }
                 }
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => return Err(KanbusError::Io(error.to_string())),
-                Err(_) => {}
             }
-        }
-        if !published {
-            return Err(KanbusError::Io("mqtt publish flush timeout".to_string()));
+            Ok(())
+        })
+        .await;
+        match publish_result {
+            Ok(result) => result?,
+            Err(_) => return Err(KanbusError::Io("mqtt publish flush timeout".to_string())),
         }
         Ok(())
     })
@@ -922,14 +1115,9 @@ fn run_mqtt_subscription(
 }
 
 fn mqtt_options(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> MqttOptions {
-    let has_custom_authorizer =
-        realtime.mqtt_custom_authorizer_name.is_some() && realtime.mqtt_api_token.is_some();
-    let port = if endpoint.scheme == "mqtts" && has_custom_authorizer && endpoint.port == 8883 {
-        443
-    } else {
-        endpoint.port
-    };
-    let mut options = MqttOptions::new(producer_id(), endpoint.host.clone(), port);
+    let endpoint = effective_broker_endpoint(endpoint, realtime);
+    let has_custom_authorizer = has_custom_authorizer(realtime);
+    let mut options = MqttOptions::new(producer_id(), endpoint.host.clone(), endpoint.port);
     options.set_keep_alive(Duration::from_secs(30));
     if endpoint.scheme == "mqtts" {
         if has_custom_authorizer {
@@ -966,6 +1154,31 @@ fn resolve_broker_endpoint(broker: &str) -> Result<BrokerEndpoint, KanbusError> 
         return parse_broker_url("mqtt://127.0.0.1:1883");
     }
     parse_broker_url(broker)
+}
+
+fn has_custom_authorizer(realtime: &RealtimeConfig) -> bool {
+    realtime.mqtt_custom_authorizer_name.is_some() && realtime.mqtt_api_token.is_some()
+}
+
+fn effective_broker_endpoint(
+    endpoint: &BrokerEndpoint,
+    realtime: &RealtimeConfig,
+) -> BrokerEndpoint {
+    let custom_authorizer_uses_websocket_port =
+        endpoint.scheme == "mqtts" && has_custom_authorizer(realtime) && endpoint.port == 8883;
+    BrokerEndpoint {
+        scheme: endpoint.scheme.clone(),
+        host: endpoint.host.clone(),
+        port: if custom_authorizer_uses_websocket_port {
+            443
+        } else {
+            endpoint.port
+        },
+    }
+}
+
+fn broker_is_reachable_for_realtime(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> bool {
+    broker_is_reachable(&effective_broker_endpoint(endpoint, realtime))
 }
 
 fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
@@ -1248,7 +1461,106 @@ mod tests {
             producer_id: Uuid::new_v4().to_string(),
             origin_cluster_id: None,
             issue: None,
+            coordination: CoordinationGossipFields::default(),
         }
+    }
+
+    #[test]
+    fn coordination_envelopes_use_top_level_realtime_fields_and_receiver_rules() {
+        let first = build_coordination_gossip_envelope(
+            "KAN",
+            "coordination.claim",
+            "claim-event-1",
+            CoordinationGossipFields {
+                resource: Some("job:fast-1".to_string()),
+                owner: Some("worker-a".to_string()),
+                claim_id: Some("claim-a".to_string()),
+                lease_ttl_s: Some(300),
+                expires_at: None,
+            },
+        );
+        let second = build_coordination_gossip_envelope(
+            "KAN",
+            "coordination.release",
+            "release-event-1",
+            CoordinationGossipFields {
+                resource: Some("job:fast-1".to_string()),
+                owner: Some("worker-a".to_string()),
+                claim_id: Some("claim-a".to_string()),
+                lease_ttl_s: None,
+                expires_at: None,
+            },
+        );
+        let serialized = serde_json::to_value(&first).expect("serialize claim envelope");
+        for field in [
+            "id",
+            "ts",
+            "project",
+            "type",
+            "event_id",
+            "producer_id",
+            "resource",
+            "owner",
+            "claim_id",
+            "lease_ttl_s",
+        ] {
+            assert!(serialized.get(field).is_some(), "missing top-level {field}");
+        }
+        assert_eq!(serialized["type"], "coordination.claim");
+        assert_eq!(serialized["event_id"], "claim-event-1");
+        assert_eq!(serialized["resource"], "job:fast-1");
+        assert!(serialized.get("coordination").is_none());
+        assert_eq!(first.producer_id, second.producer_id);
+        assert_ne!(first.id, second.id);
+
+        let mut dedupe = DedupeSet::new(Duration::from_secs(3600));
+        assert!(!should_accept_gossip(
+            &first,
+            &first.producer_id,
+            &mut dedupe
+        ));
+        let mut receiver_dedupe = DedupeSet::new(Duration::from_secs(3600));
+        assert!(should_accept_gossip(
+            &first,
+            "another-producer",
+            &mut receiver_dedupe
+        ));
+        assert!(!should_accept_gossip(
+            &first,
+            "another-producer",
+            &mut receiver_dedupe
+        ));
+    }
+
+    #[test]
+    fn coordination_gossip_is_stored_when_issue_overlay_is_disabled() {
+        let temp = TempDir::new().expect("temp dir");
+        let envelope = build_coordination_gossip_envelope(
+            "KAN",
+            "coordination.claim",
+            "claim-event-1",
+            CoordinationGossipFields {
+                resource: Some("job:fast-1".to_string()),
+                owner: Some("worker-a".to_string()),
+                claim_id: Some("claim-a".to_string()),
+                lease_ttl_s: Some(300),
+                expires_at: None,
+            },
+        );
+
+        persist_gossip_overlay(
+            temp.path(),
+            &envelope,
+            &OverlayConfig {
+                enabled: false,
+                ttl_s: 77,
+            },
+        );
+
+        let stored = crate::overlay::load_coordination_overlay(temp.path(), "job:fast-1", 77)
+            .expect("load coordination overlay");
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].id, envelope.id);
     }
 
     fn write_test_config(root: &Path, broker: &str, transport: &str) {
@@ -1287,9 +1599,9 @@ mod tests {
 
         std::thread::sleep(std::time::Duration::from_millis(150));
 
-        let _ = publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
+        publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
 
-        let _ = publish_issue_deleted(root, root, "id", None);
+        publish_issue_deleted(root, root, "id", None);
 
         #[cfg(unix)]
         {
@@ -1524,6 +1836,77 @@ mod tests {
     }
 
     #[test]
+    fn publish_mqtt_preserves_slow_connack_and_flushes_qos0_publish() {
+        use std::io::{Read, Write};
+
+        fn read_mqtt_packet(stream: &mut std::net::TcpStream) -> (u8, Vec<u8>) {
+            let mut header = [0_u8; 1];
+            stream.read_exact(&mut header).expect("read MQTT header");
+            let mut multiplier = 1_usize;
+            let mut remaining_length = 0_usize;
+            loop {
+                let mut byte = [0_u8; 1];
+                stream
+                    .read_exact(&mut byte)
+                    .expect("read MQTT remaining length");
+                remaining_length += usize::from(byte[0] & 0x7f) * multiplier;
+                if byte[0] & 0x80 == 0 {
+                    break;
+                }
+                multiplier *= 128;
+                assert!(multiplier <= 128_usize.pow(4), "invalid MQTT length");
+            }
+            let mut body = vec![0_u8; remaining_length];
+            stream.read_exact(&mut body).expect("read MQTT packet body");
+            (header[0], body)
+        }
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let port = listener.local_addr().expect("listener address").port();
+        let (tx, rx) = mpsc::channel();
+        let broker = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept MQTT connection");
+            let (connect_header, _) = read_mqtt_packet(&mut stream);
+            assert_eq!(connect_header >> 4, 1, "expected MQTT CONNECT");
+
+            // Exceed the old 250ms per-poll timeout. Cancelling rumqttc's first
+            // poll here dropped the in-flight connection and restarted CONNECT.
+            thread::sleep(Duration::from_millis(400));
+            stream
+                .write_all(&[0x20, 0x02, 0x00, 0x00])
+                .expect("write MQTT CONNACK");
+
+            let (publish_header, body) = read_mqtt_packet(&mut stream);
+            let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+            let topic_end = 2 + topic_length;
+            let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic UTF-8");
+            let payload = body[topic_end..].to_vec();
+            tx.send((publish_header, topic, payload))
+                .expect("send observed publish");
+        });
+
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtt".to_string(),
+            host: "127.0.0.1".to_string(),
+            port,
+        };
+        let realtime = sample_realtime(None);
+        let envelope = sample_envelope();
+        publish_mqtt(&endpoint, "projects/test/events", &envelope, &realtime)
+            .expect("MQTT publish should complete after delayed CONNACK");
+
+        let (publish_header, topic, payload) = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("broker should receive publish");
+        assert_eq!(publish_header >> 4, 3, "expected MQTT PUBLISH");
+        assert_eq!((publish_header >> 1) & 0x03, 0, "publish must remain QoS 0");
+        assert_eq!(topic, "projects/test/events");
+        let payload: serde_json::Value = serde_json::from_slice(&payload).expect("JSON payload");
+        assert_eq!(payload["type"], "issue.mutated");
+        broker.join().expect("mock broker thread");
+    }
+
+    #[test]
     fn find_free_port_returns_bindable_port() {
         let port = find_free_port(1883).expect("free port");
         let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind");
@@ -1543,6 +1926,7 @@ mod tests {
 
         let options = mqtt_options(&endpoint, &realtime);
         assert_eq!(options.broker_address(), ("example.com".to_string(), 443));
+        assert_eq!(effective_broker_endpoint(&endpoint, &realtime).port, 443);
         assert_eq!(
             options
                 .credentials()
@@ -1563,6 +1947,45 @@ mod tests {
         let options = mqtt_options(&endpoint, &realtime);
         assert_eq!(options.broker_address(), ("example.com".to_string(), 8883));
         assert!(options.credentials().is_none());
+    }
+
+    #[test]
+    fn effective_reachability_endpoint_maps_only_custom_auth_mqtts_8883_to_443() {
+        let mut realtime = sample_realtime(None);
+        realtime.mqtt_custom_authorizer_name = Some("authz".to_string());
+        realtime.mqtt_api_token = Some("token-123".to_string());
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "broker.example".to_string(),
+            port: 8883,
+        };
+
+        let effective = effective_broker_endpoint(&endpoint, &realtime);
+
+        assert_eq!(effective.host, endpoint.host);
+        assert_eq!(effective.scheme, endpoint.scheme);
+        assert_eq!(effective.port, 443);
+
+        let mut cases = Vec::new();
+        let mut missing_token = realtime.clone();
+        missing_token.mqtt_api_token = None;
+        cases.push((endpoint.clone(), missing_token, 8883));
+        let mut missing_authorizer = realtime.clone();
+        missing_authorizer.mqtt_custom_authorizer_name = None;
+        cases.push((endpoint.clone(), missing_authorizer, 8883));
+        let mut plain_mqtt = endpoint.clone();
+        plain_mqtt.scheme = "mqtt".to_string();
+        cases.push((plain_mqtt, realtime.clone(), 8883));
+        let mut other_port = endpoint.clone();
+        other_port.port = 8884;
+        cases.push((other_port, realtime, 8884));
+
+        for (endpoint, realtime, expected_port) in cases {
+            assert_eq!(
+                effective_broker_endpoint(&endpoint, &realtime).port,
+                expected_port
+            );
+        }
     }
 
     #[test]

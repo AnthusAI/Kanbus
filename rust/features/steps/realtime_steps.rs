@@ -153,6 +153,7 @@ fn when_build_envelope(world: &mut KanbusWorld) {
         producer_id: "producer-1".to_string(),
         origin_cluster_id: None,
         issue: Some(issue),
+        coordination: Default::default(),
     };
     world.gossip_envelope = Some(envelope);
 }
@@ -350,6 +351,7 @@ fn when_publish_uds(world: &mut KanbusWorld, topic: String) {
         producer_id: "producer-uds".to_string(),
         origin_cluster_id: None,
         issue: Some(issue),
+        coordination: Default::default(),
     };
     world.uds_published_id = Some(envelope.id.clone());
     let payload = serde_json::json!({"op": "pub", "topic": topic, "msg": envelope});
@@ -437,6 +439,7 @@ fn when_publish_two_without_broker(world: &mut KanbusWorld) {
         producer_id: "producer-1".to_string(),
         origin_cluster_id: None,
         issue: None,
+        coordination: Default::default(),
     };
     let _ =
         attempt_mqtt_publish_without_broker(&configuration, "projects/kanbus/events", &envelope);

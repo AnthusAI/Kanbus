@@ -6,7 +6,11 @@
       "git"
     ],
     "contention_window": "5s",
-    "default_lease_ttl": "300s"
+    "default_lease_ttl": "300s",
+    "mutex_api": {
+      "endpoint": null,
+      "bearer_token": null
+    }
   },
   "hierarchy": [
     "initiative",

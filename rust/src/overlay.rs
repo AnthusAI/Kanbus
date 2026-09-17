@@ -3,6 +3,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,6 +12,7 @@ use std::process::Command;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{get_configuration_path, resolve_labeled_projects};
+use crate::gossip::{coordination_gossip_envelope_is_valid, GossipEnvelope};
 use crate::issue_files::read_issue_from_file;
 use crate::models::{IssueData, OverlayConfig};
 
@@ -49,6 +51,151 @@ pub fn overlay_tombstone_path(project_dir: &Path, issue_id: &str) -> PathBuf {
     overlay_root(project_dir)
         .join("tombstones")
         .join(format!("{issue_id}.json"))
+}
+
+fn coordination_overlay_directory(project_dir: &Path, resource: &str) -> PathBuf {
+    overlay_root(project_dir)
+        .join("coordination")
+        .join(sha256_hex(resource))
+}
+
+fn sha256_hex(value: &str) -> String {
+    Sha256::digest(value.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+/// Store an incoming coordination gossip envelope in the local, Git-ignored overlay.
+pub fn write_coordination_overlay(
+    project_dir: &Path,
+    envelope: &GossipEnvelope,
+    ttl_s: u64,
+) -> Result<(), KanbusError> {
+    let Some(resource) = envelope.coordination.resource.as_deref() else {
+        return Ok(());
+    };
+    if !is_valid_coordination_overlay_envelope(envelope) {
+        return Ok(());
+    }
+    let directory = coordination_overlay_directory(project_dir, resource);
+    fs::create_dir_all(&directory).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let path = directory.join(format!("{}.json", sha256_hex(&envelope.id)));
+    let contents = serde_json::to_string_pretty(envelope)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::write(path, contents).map_err(|error| KanbusError::Io(error.to_string()))?;
+    prune_coordination_overlay_directory(&directory, ttl_s, Utc::now())
+}
+
+/// Load unexpired coordination gossip envelopes for a resource.
+pub fn load_coordination_overlay(
+    project_dir: &Path,
+    resource: &str,
+    ttl_s: u64,
+) -> Result<Vec<GossipEnvelope>, KanbusError> {
+    let directory = coordination_overlay_directory(project_dir, resource);
+    if !directory.exists() {
+        return Ok(Vec::new());
+    }
+    let mut paths = fs::read_dir(directory)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("json"))
+        .collect::<Vec<_>>();
+    paths.sort();
+    let now = Utc::now();
+    let mut envelopes = Vec::new();
+    for path in paths {
+        let Ok(contents) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(envelope) = serde_json::from_str::<GossipEnvelope>(&contents) else {
+            continue;
+        };
+        if !is_valid_coordination_overlay_envelope(&envelope)
+            || !is_canonical_coordination_overlay_path(&path, &envelope)
+            || envelope.coordination.resource.as_deref() != Some(resource)
+        {
+            continue;
+        }
+        if coordination_overlay_is_expired(&envelope, ttl_s, now) {
+            let _ = fs::remove_file(path);
+            continue;
+        }
+        envelopes.push(envelope);
+    }
+    Ok(envelopes)
+}
+
+fn is_canonical_coordination_overlay_path(path: &Path, envelope: &GossipEnvelope) -> bool {
+    let resource_hash = envelope.coordination.resource.as_deref().map(sha256_hex);
+    let expected_filename = format!("{}.json", sha256_hex(&envelope.id));
+    path.parent()
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str())
+        == resource_hash.as_deref()
+        && path.file_name().and_then(|name| name.to_str()) == Some(expected_filename.as_str())
+}
+
+fn is_valid_coordination_overlay_envelope(envelope: &GossipEnvelope) -> bool {
+    !envelope.id.is_empty()
+        && !envelope.project.is_empty()
+        && !envelope.producer_id.is_empty()
+        && parse_ts(&envelope.ts).is_some()
+        && coordination_gossip_envelope_is_valid(envelope)
+}
+
+fn coordination_overlay_is_expired(
+    envelope: &GossipEnvelope,
+    ttl_s: u64,
+    now: DateTime<Utc>,
+) -> bool {
+    let Some(occurred_at) = parse_ts(&envelope.ts) else {
+        return false;
+    };
+    let lease_expires_at = match envelope.event_type.as_str() {
+        "coordination.claim" => envelope.coordination.lease_ttl_s.map(|lease_ttl_s| {
+            occurred_at + Duration::seconds(lease_ttl_s.min(i64::MAX as u64) as i64)
+        }),
+        "coordination.lease" => envelope
+            .coordination
+            .expires_at
+            .as_deref()
+            .and_then(parse_ts),
+        _ => None,
+    };
+    if lease_expires_at.is_some_and(|expires_at| expires_at > now) {
+        return false;
+    }
+    occurred_at + Duration::seconds(ttl_s.min(i64::MAX as u64) as i64) < now
+}
+
+fn prune_coordination_overlay_directory(
+    directory: &Path,
+    ttl_s: u64,
+    now: DateTime<Utc>,
+) -> Result<(), KanbusError> {
+    let entries = fs::read_dir(directory).map_err(|error| KanbusError::Io(error.to_string()))?;
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(contents) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(envelope) = serde_json::from_str::<GossipEnvelope>(&contents) else {
+            continue;
+        };
+        if is_valid_coordination_overlay_envelope(&envelope)
+            && is_canonical_coordination_overlay_path(&path, &envelope)
+            && coordination_overlay_is_expired(&envelope, ttl_s, now)
+        {
+            let _ = fs::remove_file(path);
+        }
+    }
+    Ok(())
 }
 
 pub fn write_overlay_issue(
@@ -723,6 +870,96 @@ mod tests {
     use std::collections::BTreeMap;
     use tempfile::TempDir;
 
+    #[test]
+    fn coordination_overlay_uses_shared_hashed_plain_envelope_fixture() {
+        let fixture = include_str!("../../testdata/coordination_gossip_envelope.json");
+        let expected: Value = serde_json::from_str(fixture).expect("parse shared fixture");
+        let envelope: GossipEnvelope =
+            serde_json::from_value(expected.clone()).expect("deserialize shared fixture");
+        let resource = envelope
+            .coordination
+            .resource
+            .as_deref()
+            .expect("fixture resource");
+        let occurred_at = parse_ts(&envelope.ts).expect("fixture timestamp");
+        assert!(!coordination_overlay_is_expired(
+            &envelope,
+            1,
+            occurred_at + Duration::seconds(2)
+        ));
+        assert!(coordination_overlay_is_expired(
+            &envelope,
+            1,
+            occurred_at + Duration::seconds(302)
+        ));
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+
+        write_coordination_overlay(project_dir, &envelope, 1).expect("write overlay");
+
+        let expected_path = coordination_overlay_directory(project_dir, resource)
+            .join(format!("{}.json", sha256_hex(&envelope.id)));
+        assert!(expected_path.exists());
+        assert!(!expected_path.to_string_lossy().contains(resource));
+        assert!(!expected_path.to_string_lossy().contains(&envelope.id));
+        let stored: Value =
+            serde_json::from_slice(&fs::read(&expected_path).expect("read stored envelope"))
+                .expect("parse stored envelope");
+        assert_eq!(stored, expected);
+        let loaded = load_coordination_overlay(project_dir, resource, 1).expect("load fixture");
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(
+            serde_json::to_value(&loaded[0]).expect("serialize loaded envelope"),
+            expected
+        );
+    }
+
+    #[test]
+    fn coordination_overlay_ignores_invalid_records_and_prunes_expired_ts_records() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let project_dir = temp_dir.path();
+        let resource = "job:overlay-expiry";
+        let directory = coordination_overlay_directory(project_dir, resource);
+        fs::create_dir_all(&directory).expect("create overlay directory");
+        fs::write(directory.join("invalid.json"), "not json").expect("write invalid record");
+        fs::write(
+            directory.join("wrapped.json"),
+            r#"{"overlay_expires_at":"2099-01-02T03:04:05Z","envelope":{}}"#,
+        )
+        .expect("write unsupported wrapped record");
+
+        let expired = GossipEnvelope {
+            id: "expired-message".to_string(),
+            ts: (Utc::now() - Duration::seconds(10))
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            project: "kanbus".to_string(),
+            event_type: "coordination.release".to_string(),
+            issue_id: None,
+            event_id: Some("release-event".to_string()),
+            producer_id: "producer".to_string(),
+            origin_cluster_id: None,
+            issue: None,
+            coordination: crate::gossip::CoordinationGossipFields {
+                resource: Some(resource.to_string()),
+                owner: Some("worker".to_string()),
+                claim_id: Some("claim".to_string()),
+                lease_ttl_s: None,
+                expires_at: None,
+            },
+        };
+        let expired_path = directory.join(format!("{}.json", sha256_hex(&expired.id)));
+        fs::write(
+            &expired_path,
+            serde_json::to_string(&expired).expect("serialize expired envelope"),
+        )
+        .expect("write expired envelope");
+
+        assert!(load_coordination_overlay(project_dir, resource, 1)
+            .expect("load with invalid files")
+            .is_empty());
+        assert!(!expired_path.exists());
+    }
+
     fn issue(identifier: &str, updated_at: DateTime<Utc>) -> IssueData {
         IssueData {
             identifier: identifier.to_string(),
@@ -1026,7 +1263,7 @@ mod tests {
         .expect("disabled resolve")
         .expect("issue");
         assert_eq!(disabled.identifier, "kanbus-10");
-        assert!(disabled.custom.get("project_label").is_none());
+        assert!(!disabled.custom.contains_key("project_label"));
 
         let tombstone = OverlayTombstone {
             op: "delete".to_string(),

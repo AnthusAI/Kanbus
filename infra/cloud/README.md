@@ -58,6 +58,58 @@ AWS_PROFILE=anthus npx cdk synth \
   -c region=us-east-1
 ```
 
+## Disposable coordination integration stack
+
+For full remote Python/Rust coordination tests, select the small isolated stack by name:
+
+```bash
+cd infra/cloud
+npx cdk synth \
+  -c stack_name=KanbusCoordinationIntegration \
+  -c env_name=coordination-it
+```
+
+Deploy it to the test account with the `anthus` profile when ready:
+
+```bash
+AWS_PROFILE=anthus npx cdk deploy \
+  -c stack_name=KanbusCoordinationIntegration \
+  -c env_name=coordination-it
+```
+
+The stack contains Cognito (immutable `custom:account` and `custom:project` claims), a
+Cognito-authorized REST API with direct DynamoDB lease operations and token-admin routes,
+the MQTT token table and generated pepper, the two MQTT token Lambdas, and an IoT custom
+authorizer. It does not create the console foundation's VPC, EFS, S3, queues, or console
+runtime. `CoordinationLeaseApiBaseUrl` is the API stage root; clients append
+`api/coordination/leases/{resource}`. `MqttTokenAuthorizerName` and
+`IotDataEndpointAddress` provide the remaining MQTT connection settings.
+The test workers must use the token's tenant-scoped topic
+`projects/{account}/{project}/events`; the integration harness takes those two
+scope values explicitly and configures that topic without writing credentials
+to the fixture repository.
+
+Harness outputs are `CoordinationLeaseApiBaseUrl` (API stage root), `UserPoolId`,
+`UserPoolClientId`, `UserPoolIssuerUrl`, `IotDataEndpointAddress`,
+`MqttTokenAuthorizerName`, `MqttTokenTableName`, and `CoordinationLeaseTableName`.
+
+Lease methods read tenant scope only from Cognito `custom:account` and `custom:project`
+claims. If either claim is missing or empty, the request template emits a deliberately
+invalid DynamoDB request without a table name or key, so DynamoDB cannot read or mutate a
+row; the integration response maps that guard path to HTTP 403 `tenant scope missing`.
+
+All stack-owned stateful resources use `RemovalPolicy.DESTROY` where supported. When the
+remote test run is complete, delete the isolated resources with the same context:
+
+```bash
+AWS_PROFILE=anthus npx cdk destroy \
+  -c stack_name=KanbusCoordinationIntegration \
+  -c env_name=coordination-it
+```
+
+CloudFormation deletes the disposable user pool and token/lease tables with the stack.
+Secrets Manager may keep the deleted pepper in its recovery window before final erasure.
+
 ## Outputs
 
 - `ApiBaseUrl`
@@ -69,6 +121,8 @@ AWS_PROFILE=anthus npx cdk synth \
 - `IotDataEndpointAddress`
 - `MqttTokenAuthorizerName`
 - `MqttTokenTableName`
+- `CoordinationLeaseApiBaseUrl`
+- `CoordinationLeaseTableName`
 - `TenantEfsFileSystemId`
 - `TenantEfsAccessPointId`
 - `TenantEfsMountPath`
@@ -96,6 +150,59 @@ Hosted UI + identity pool principal tag mapping now uses Cognito custom attribut
 Current limitation: one user currently maps to one tenant pair (`account` + `project`) per session.
 Supporting one user across multiple tenants requires a membership-based authorization model
 instead of single-value claim parity.
+
+## Mutex lease API prototype
+
+The stack exposes a hard mutex API at:
+
+- POST {CoordinationLeaseApiBaseUrl}api/coordination/leases/{resource} to acquire
+- PUT {CoordinationLeaseApiBaseUrl}api/coordination/leases/{resource} to renew
+- DELETE {CoordinationLeaseApiBaseUrl}api/coordination/leases/{resource} to release
+- GET {CoordinationLeaseApiBaseUrl}api/coordination/leases/{resource} to inspect
+
+Every route uses the existing Cognito User Pool authorizer. Clients send the Cognito JWT as
+Authorization: Bearer <token>; they do not need AWS account credentials. Tenant scope is
+derived only from the trusted custom:account and custom:project authorizer claims. The
+resource name comes from the path. The API rejects requests whose token lacks either tenant
+claim and never accepts tenant scope in the request body.
+
+The DynamoDB key encodes account and project into the partition key and the resource into the
+sort key. Base64 encoding keeps the separator unambiguous. Lease rows contain owner,
+claim_id, revision, claimed_at, expires_at, plus the tenant/resource values used by
+the API. revision is copied exactly from the acquire request; the issue router owns its
+logical monotonic revision/fencing protocol. claimed_at and expires_at are server-generated
+Unix epoch seconds. DynamoDB TTL is enabled on expires_at itself, so cleanup is asynchronous;
+the API checks expires_at against server request time synchronously on acquire, renew,
+release, and inspect. Renew adds the requested duration to the currently stored expiration.
+
+Request bodies are JSON and reject unknown fields:
+
+    POST  {"owner":"router-a","claim_id":"claim-001","revision":7,"ttl_seconds":300}
+    PUT   {"owner":"router-a","claim_id":"claim-001","extend_seconds":120}
+    DELETE {"owner":"router-a","claim_id":"claim-001"}
+    GET   no body
+
+Acquire returns 201 and a normalized JSON lease object. A live contention returns 409
+with {"error":"lease already held"}. Renew returns 200; release returns 204; inspect
+returns 200 for a live lease. Renew and release return 403 with
+{"error":"lease owner mismatch"} when a different owner or claim ID holds a live lease.
+Missing or expired leases return 404 with {"error":"no live lease"} for renew, release,
+and inspect. Lease responses contain resource, owner, claim_id, revision,
+claimed_at, and expires_at; timestamps are numeric Unix epoch seconds for client
+normalization to RFC3339.
+
+The lease table stores only the current live row per tenant/resource. It does not write
+Kanbus event history or retain claim/release records. API Gateway integrates directly with
+DynamoDB UpdateItem, DeleteItem, and GetItem; no Lambda or AppSync function sits in the
+lease request path. Its service role has only GetItem, UpdateItem, and DeleteItem on the
+lease table.
+
+For renew and release, API Gateway uses DynamoDB ReturnValuesOnConditionCheckFailure to
+distinguish a live lease owned by another claimant (403) from a missing/expired row (404).
+API Gateway response mapping overrides the status for an expired row found before
+asynchronous TTL deletion. Requests use REST API VTL templates and require
+Content-Type: application/json for body-bearing methods. The API Gateway request models
+cap acquire and renewal durations at 86,400 seconds.
 
 ## Webhook sync note
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -31,6 +31,11 @@ class LeaseState:
     claim_id: str | None = None
     expires_at: datetime | None = None
     active: bool = False
+    event_id: str | None = None
+    operation_event_id: str | None = None
+    claimed_at: datetime | None = None
+    contention_window_ends_at: datetime | None = None
+    revision: int | None = None
 
 
 def parse_duration(value: str) -> int:
@@ -103,7 +108,11 @@ def _load_coordination_events(events_dir: Path, resource: str) -> list[dict[str,
 
 
 def inspect_lease(
-    events_dir: Path, resource: str, *, now: datetime | None = None
+    events_dir: Path,
+    resource: str,
+    *,
+    now: datetime | None = None,
+    additional_events: list[dict[str, Any]] | None = None,
 ) -> LeaseState:
     """Reduce immutable coordination events to the current soft lease state.
 
@@ -123,7 +132,11 @@ def inspect_lease(
     evaluation_time = (now or utc_now()).astimezone(UTC)
     events = [
         record
-        for record in _load_coordination_events(events_dir, resource)
+        for record in _merge_coordination_events(
+            _load_coordination_events(events_dir, resource),
+            additional_events or [],
+            resource,
+        )
         if record["_occurred_at"] <= evaluation_time
     ]
 
@@ -132,6 +145,7 @@ def inspect_lease(
     owner: str | None = None
     claim_id: str | None = None
     selected_event_id: str | None = None
+    claimed_at: datetime | None = None
     expires_at: datetime | None = None
     released = False
 
@@ -152,6 +166,7 @@ def inspect_lease(
                 owner = str(payload["owner"])
                 claim_id = str(payload["claim_id"])
                 selected_event_id = str(event.get("event_id", ""))
+                claimed_at = occurred_at
                 released = False
                 continue
 
@@ -171,6 +186,7 @@ def inspect_lease(
                     owner = str(winner_payload["owner"])
                     claim_id = str(winner_payload["claim_id"])
                     selected_event_id = winner_event_id
+                    claimed_at = winner["_occurred_at"]
                     expires_at = parse_timestamp(winner_payload["lease_expires_at"])
                     released = False
             continue
@@ -192,6 +208,9 @@ def inspect_lease(
             claim_id=claim_id,
             expires_at=expires_at,
             active=True,
+            event_id=selected_event_id,
+            claimed_at=claimed_at,
+            contention_window_ends_at=window_ends_at,
         )
     return LeaseState(resource=resource)
 
@@ -205,7 +224,7 @@ def _record_event(
     claim_id: str,
     payload: dict[str, Any],
     occurred_at: datetime,
-) -> None:
+) -> str:
     record = create_event(
         issue_id=resource,
         event_type=event_type,
@@ -217,6 +236,47 @@ def _record_event(
         write_events_batch(events_dir, [record])
     except (OSError, RuntimeError) as error:
         raise CoordinationError(str(error)) from error
+    return record.event_id
+
+
+def _merge_coordination_events(
+    durable_events: list[dict[str, Any]],
+    additional_events: list[dict[str, Any]],
+    resource: str,
+) -> list[dict[str, Any]]:
+    """Merge derived/speculative coordination events with durable history.
+
+    Durable records take precedence when a gossip event carries the same
+    event ID. This lets MQTT provide cross-machine visibility without turning
+    speculative messages into Git history.
+    """
+    by_id = {str(event.get("event_id", "")): event for event in durable_events}
+    for source in additional_events:
+        if (
+            not isinstance(source, dict)
+            or source.get("issue_id") != resource
+            or source.get("event_type")
+            not in {
+                "coordination.claim",
+                "coordination.renew",
+                "coordination.release",
+            }
+            or not isinstance(source.get("payload"), dict)
+        ):
+            continue
+        event_id = str(source.get("event_id", ""))
+        if not event_id or event_id in by_id:
+            continue
+        try:
+            event = dict(source)
+            event["_occurred_at"] = parse_timestamp(event["occurred_at"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        by_id[event_id] = event
+    return sorted(
+        by_id.values(),
+        key=lambda event: (event["_occurred_at"], str(event.get("event_id", ""))),
+    )
 
 
 def claim(
@@ -226,13 +286,16 @@ def claim(
     resource: str,
     owner: str,
     claim_id: str,
+    revision: int = 1,
     now: datetime | None = None,
 ) -> LeaseState:
     """Append a soft claim and return the derived current owner."""
     _validate_identifiers(resource, owner, claim_id)
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision <= 0:
+        raise CoordinationError("revision must be a positive integer")
     occurred_at = (now or utc_now()).astimezone(UTC)
     ttl_seconds = parse_duration(configuration.default_lease_ttl)
-    _record_event(
+    operation_event_id = _record_event(
         events_dir,
         resource=resource,
         event_type="coordination.claim",
@@ -244,10 +307,12 @@ def claim(
             ),
             "contention_window_s": parse_duration(configuration.contention_window),
             "ttl_s": ttl_seconds,
+            "revision": revision,
         },
         occurred_at=occurred_at,
     )
-    return inspect_lease(events_dir, resource, now=occurred_at)
+    state = inspect_lease(events_dir, resource, now=occurred_at)
+    return replace(state, operation_event_id=operation_event_id)
 
 
 def renew(
@@ -273,7 +338,7 @@ def renew(
     new_expiry = max(state.expires_at, occurred_at) + timedelta(
         seconds=extension_seconds
     )
-    _record_event(
+    operation_event_id = _record_event(
         events_dir,
         resource=resource,
         event_type="coordination.renew",
@@ -282,7 +347,8 @@ def renew(
         payload={"lease_expires_at": format_timestamp(new_expiry)},
         occurred_at=occurred_at,
     )
-    return inspect_lease(events_dir, resource, now=occurred_at)
+    renewed_state = inspect_lease(events_dir, resource, now=occurred_at)
+    return replace(renewed_state, operation_event_id=operation_event_id)
 
 
 def release(
@@ -292,14 +358,14 @@ def release(
     owner: str,
     claim_id: str,
     now: datetime | None = None,
-) -> None:
+) -> str:
     """Append a release for the current winner."""
     _validate_identifiers(resource, owner, claim_id)
     occurred_at = (now or utc_now()).astimezone(UTC)
     state = inspect_lease(events_dir, resource, now=occurred_at)
     if not state.active or state.owner != owner or state.claim_id != claim_id:
         raise CoordinationError("lease owner mismatch")
-    _record_event(
+    return _record_event(
         events_dir,
         resource=resource,
         event_type="coordination.release",

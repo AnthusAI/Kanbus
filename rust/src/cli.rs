@@ -148,6 +148,9 @@ enum CoordinationCommands {
         /// Stable claim identifier.
         #[arg(long = "claim-id")]
         claim_id: String,
+        /// Positive logical revision supplied by the router.
+        #[arg(long, default_value_t = 1)]
+        revision: u64,
     },
     /// Renew the selected owner's soft lease.
     Renew {
@@ -1472,10 +1475,12 @@ fn execute_command(
                     resource,
                     owner,
                     claim_id,
+                    revision,
                 } => CoordinationOperation::Claim {
                     resource,
                     owner,
                     claim_id,
+                    revision,
                 },
                 CoordinationCommands::Renew {
                     resource,

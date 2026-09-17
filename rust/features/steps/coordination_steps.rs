@@ -5,8 +5,12 @@ use chrono::{Duration, Utc};
 use cucumber::{given, then, when};
 use serde_json::Value;
 
-use kanbus::coordination::parse_duration_seconds;
+use kanbus::coordination::{
+    coordination_gossip_event, coordination_lease_gossip_if_closed, parse_duration_seconds,
+    publish_coordination_lease_if_ready,
+};
 use kanbus::file_io::{get_configuration_path, load_project_directory};
+use kanbus::gossip::{build_coordination_gossip_envelope, CoordinationGossipFields};
 
 use crate::step_definitions::initialization_steps::{
     run_from_args_in_blocking_thread, KanbusWorld,
@@ -258,6 +262,56 @@ fn given_worker_claim_in_window(
 #[given(expr = "coordination lease {string} is held by owner {string} with claim id {string}")]
 fn given_held_lease(world: &mut KanbusWorld, resource: String, owner: String, claim_id: String) {
     seed_claim(world, &resource, &owner, &claim_id);
+    let configuration_path = get_configuration_path(root(world)).expect("config path");
+    let configuration = kanbus::config_loader::load_project_configuration(&configuration_path)
+        .expect("project configuration");
+    if configuration
+        .coordination
+        .providers
+        .iter()
+        .any(|provider| provider == "mqtt")
+    {
+        let claim = event_records(world, &resource)
+            .into_iter()
+            .rev()
+            .find(|(_, record)| {
+                record.get("event_type").and_then(Value::as_str) == Some("coordination.claim")
+                    && record.pointer("/payload/owner").and_then(Value::as_str)
+                        == Some(owner.as_str())
+                    && record.pointer("/payload/claim_id").and_then(Value::as_str)
+                        == Some(claim_id.as_str())
+            })
+            .map(|(_, record)| record)
+            .expect("durable held claim");
+        let event_id = claim
+            .get("event_id")
+            .and_then(Value::as_str)
+            .expect("claim event ID");
+        let occurred_at = claim
+            .get("occurred_at")
+            .and_then(Value::as_str)
+            .expect("claim timestamp");
+        let ttl_s = claim
+            .pointer("/payload/ttl_s")
+            .and_then(Value::as_u64)
+            .expect("claim TTL");
+        let mut envelope = build_coordination_gossip_envelope(
+            &configuration.project_key,
+            "coordination.claim",
+            event_id,
+            CoordinationGossipFields {
+                resource: Some(resource.clone()),
+                owner: Some(owner),
+                claim_id: Some(claim_id),
+                lease_ttl_s: Some(ttl_s),
+                expires_at: None,
+            },
+        );
+        envelope.ts = occurred_at.to_string();
+        kanbus::overlay::write_coordination_overlay(&project_dir(world), &envelope, 3600)
+            .expect("write held-claim MQTT overlay");
+        world.coordination_gossip_messages.push(envelope);
+    }
 }
 
 #[given(expr = "the lease expires at {string}")]
@@ -346,11 +400,36 @@ fn when_contention_window_closes(world: &mut KanbusWorld, resource: String) {
         .pointer("/payload/contention_window_s")
         .and_then(Value::as_u64)
         .unwrap_or(5);
-    set_coordination_clock(
-        world,
-        (started_at + Duration::seconds(window_s as i64 + 1))
-            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-    );
+    let closes_at = started_at + Duration::seconds(window_s as i64 + 1);
+    let closes_at_text = closes_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    set_coordination_clock(world, closes_at_text.clone());
+
+    let mqtt_claims = world
+        .coordination_gossip_messages
+        .iter()
+        .filter(|envelope| {
+            envelope.event_type == "coordination.claim"
+                && envelope.coordination.resource.as_deref() == Some(resource.as_str())
+        })
+        .filter_map(|envelope| coordination_gossip_event(envelope.clone(), window_s))
+        .collect::<Vec<_>>();
+    if let Some((event_id, fields)) =
+        coordination_lease_gossip_if_closed(&mqtt_claims, closes_at, &resource)
+    {
+        let _ = publish_coordination_lease_if_ready(root(world), &resource, closes_at)
+            .expect("publish MQTT lease when contention closes");
+        let configuration_path = get_configuration_path(root(world)).expect("config path");
+        let configuration = kanbus::config_loader::load_project_configuration(&configuration_path)
+            .expect("project configuration");
+        let mut envelope = build_coordination_gossip_envelope(
+            &configuration.project_key,
+            "coordination.lease",
+            &event_id,
+            fields,
+        );
+        envelope.ts = closes_at_text;
+        world.coordination_gossip_messages.push(envelope);
+    }
 }
 
 #[when(expr = "simulated time advances past the lease expiration")]

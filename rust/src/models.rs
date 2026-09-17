@@ -344,11 +344,11 @@ pub struct HooksConfiguration {
     pub after: BTreeMap<String, Vec<HookDefinition>>,
 }
 
-/// Git-backed coordination provider settings for soft resource leases.
+/// Ordered coordination provider settings for soft resource leases.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CoordinationConfiguration {
-    /// Ordered coordination providers; Level 1 currently uses Git only.
+    /// Strongest-first provider chain: `git`, `mqtt,git`, or `mutex_api,mqtt,git`.
     #[serde(default = "default_coordination_providers")]
     pub providers: Vec<String>,
     /// Duration during which competing claims may be compared, such as `5s`.
@@ -357,6 +357,21 @@ pub struct CoordinationConfiguration {
     /// Lease duration used when a claim or renewal omits an override.
     #[serde(default = "default_coordination_lease_ttl")]
     pub default_lease_ttl: String,
+    /// Optional authenticated hard-mutex API connection.
+    #[serde(default)]
+    pub mutex_api: MutexApiConfiguration,
+}
+
+/// Optional connection settings for the hard coordination mutex API.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MutexApiConfiguration {
+    /// Base URL of the API, such as `https://mutex.example.test`.
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    /// Bearer token sent to the API.
+    #[serde(default)]
+    pub bearer_token: Option<String>,
 }
 
 fn default_coordination_providers() -> Vec<String> {
@@ -377,6 +392,7 @@ impl Default for CoordinationConfiguration {
             providers: default_coordination_providers(),
             contention_window: default_coordination_contention_window(),
             default_lease_ttl: default_coordination_lease_ttl(),
+            mutex_api: MutexApiConfiguration::default(),
         }
     }
 }

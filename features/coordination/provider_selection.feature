@@ -29,18 +29,16 @@ Feature: Strongest-available coordination provider
 
   @wip
   Scenario: Git plus MQTT uses MQTT for fast-path coordination when configured
-    Given coordination providers are configured as "git,mqtt"
+    Given coordination providers are configured as "mqtt,git"
     And realtime MQTT gossip is available per docs REALTIME.md
     When I run "kanbus coordination claim --resource job:dispatch-4 --owner worker-1 --claim-id claim-fast"
     Then the command should succeed
     And coordination provider used should be "mqtt"
     And Git history for resource "job:dispatch-4" should contain a durable claim event
 
-  @wip
   Scenario: Git plus MQTT plus Mutex API uses Mutex API for hard exclusion when configured
-    Given coordination providers are configured as "git,mqtt,mutex_api"
+    Given coordination providers are configured as "mutex_api,mqtt,git"
     And coordination mutex API endpoint is "https://mutex.example.test"
-    And mutex API accepts acquire for resource "job:dispatch-5"
     When I run "kanbus coordination claim --resource job:dispatch-5 --owner worker-1 --claim-id claim-hard"
     Then the command should succeed
     And coordination provider used should be "mutex_api"
