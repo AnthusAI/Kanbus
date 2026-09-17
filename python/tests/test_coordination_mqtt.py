@@ -37,6 +37,11 @@ def _stamp(value: datetime) -> str:
     return coordination.format_timestamp(value)
 
 
+def _current_test_time() -> datetime:
+    """Return a stable-in-test timestamp that remains inside overlay TTLs."""
+    return coordination.utc_now().replace(microsecond=0)
+
+
 def _durable_claim(
     events_dir: Path,
     *,
@@ -351,7 +356,7 @@ def test_mqtt_overlay_claims_choose_stable_winner_then_publish_lease(
     project_dir.mkdir()
     events_dir = project_dir / "events"
     config = _configuration(providers=["mqtt", "git"])
-    start = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    start = _current_test_time()
     _durable_claim(
         events_dir,
         resource="job:collision",
@@ -418,7 +423,7 @@ def test_overlay_deduplicates_durable_event_ids_and_release_clears_visibility(
     project_dir.mkdir()
     events_dir = project_dir / "events"
     config = _configuration(providers=["mqtt", "git"])
-    start = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    start = _current_test_time()
     _durable_claim(
         events_dir,
         resource="job:release",
@@ -479,7 +484,7 @@ def test_overlay_deduplicates_durable_event_ids_and_release_clears_visibility(
 
 
 def test_lease_overlay_extends_expiry_and_dedupe_uses_producer_and_id() -> None:
-    timestamp = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    timestamp = _current_test_time()
     envelope = CoordinationGossipEnvelope(
         id="env-1",
         ts=_stamp(timestamp),
@@ -521,7 +526,7 @@ def test_publish_uses_configured_project_topic_and_records_overlay(
         owner="worker-a",
         claim_id="claim-a",
         event_id="evt-publish",
-        occurred_at=datetime(2026, 9, 16, 13, tzinfo=UTC),
+        occurred_at=_current_test_time(),
     )
     calls: list[tuple[str, str, str, object]] = []
     monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)

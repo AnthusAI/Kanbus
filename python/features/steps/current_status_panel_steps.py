@@ -675,3 +675,28 @@ def then_console_now_api_response_has_no_placeholder(context: object) -> None:
     serialized = json.dumps(response) if not isinstance(response, str) else response
     if RIGHT_NOW_PLACEHOLDER in serialized:
         raise AssertionError("now API response contains right-now placeholder text")
+
+
+@when("I request the console now snapshot")
+def when_request_console_now_snapshot_legacy(context: object) -> None:
+    """Fetch the console Now endpoint for the associated-tree scenario."""
+    when_request_console_now_snapshot(context)
+    context.console_now_issues = getattr(context, "now_api_response", None)
+
+
+@then(
+    'the console now response should include issue "{issue_id}" with right-now summary "{expected}"'
+)
+def then_console_now_response_includes_summary(
+    context: object, issue_id: str, expected: str
+) -> None:
+    """Assert a generated summary for an issue in the console Now payload."""
+    issues = getattr(context, "console_now_issues", None)
+    if not isinstance(issues, list):
+        raise AssertionError("console now response not loaded")
+    match = next((item for item in issues if item.get("id") == issue_id), None)
+    if match is None:
+        raise AssertionError(f"issue not found in now response: {issue_id}")
+    actual = match.get("right_now_summary") or ""
+    if actual != expected:
+        raise AssertionError(f"expected summary {expected}, got {actual}")
