@@ -24,6 +24,15 @@ class RouterIssueUpdate(BaseModel):
     status: str = Field(min_length=1)
 
 
+class RouterIssueComment(BaseModel):
+    """Agent-proposed comment to persist on an issue in its package."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    issue_id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+
+
 class RouterCheckpoint(BaseModel):
     """Agent-reported checkpoint reference."""
 
@@ -51,6 +60,7 @@ class RouterAgentResult(BaseModel):
     outcome: str
     summary: str = ""
     issue_updates: list[RouterIssueUpdate] = Field(default_factory=list)
+    issue_comments: list[RouterIssueComment] = Field(default_factory=list)
     checkpoint: RouterCheckpoint | None = None
     artifacts: list[RouterArtifact] = Field(default_factory=list)
 
@@ -262,8 +272,10 @@ def _result_contract_prompt(request: RouterExecutionRequest) -> str:
         f"in this package: {allowed_updates}. Current claim {request.claim_id} has "
         f"logical revision {request.revision}. Latest accepted checkpoint: {checkpoint}. "
         "Return one JSON object with keys schema_version, outcome, summary, "
-        "issue_updates, checkpoint, and artifacts. Allowed outcomes are completed, "
-        "blocked, and retryable_failure."
+        "issue_updates, issue_comments, checkpoint, and artifacts. Put each requested "
+        "issue comment in issue_comments with issue_id and text; do not edit the "
+        "project's issue files directly. Allowed outcomes are completed, blocked, "
+        "and retryable_failure."
     )
 
 

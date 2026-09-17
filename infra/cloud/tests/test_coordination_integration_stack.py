@@ -5,7 +5,10 @@ import unittest
 from aws_cdk import App
 from aws_cdk.assertions import Template
 
-from kanbus_cloud.coordination_stack import KanbusCoordinationIntegrationStack
+from kanbus_cloud.coordination_stack import (
+    KanbusCoordinationIntegrationStack,
+    KanbusCoordinationProductionStack,
+)
 
 
 class CoordinationIntegrationStackTests(unittest.TestCase):
@@ -14,6 +17,16 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
         app = App()
         stack = KanbusCoordinationIntegrationStack(
             app, "KanbusCoordinationIntegrationTest", env_name="coordination-it"
+        )
+        return Template.from_stack(stack)
+
+    @staticmethod
+    def _production_template() -> Template:
+        app = App()
+        stack = KanbusCoordinationProductionStack(
+            app,
+            "KanbusCoordinationProductionTest",
+            env_name="prod",
         )
         return Template.from_stack(stack)
 
@@ -104,11 +117,13 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
         self.assertFalse(attributes["account"]["Mutable"])
         self.assertFalse(attributes["project"]["Mutable"])
         self.assertEqual(
-            resources[next(
-                logical_id
-                for logical_id, item in resources.items()
-                if item["Type"] == "AWS::Cognito::UserPool"
-            )]["DeletionPolicy"],
+            resources[
+                next(
+                    logical_id
+                    for logical_id, item in resources.items()
+                    if item["Type"] == "AWS::Cognito::UserPool"
+                )
+            ]["DeletionPolicy"],
             "Delete",
         )
 
@@ -117,9 +132,7 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
         resources = rendered["Resources"]
         outputs = rendered["Outputs"]
         self.assertIn("CoordinationLeaseApiBaseUrl", outputs)
-        base_url = self._joined(
-            outputs["CoordinationLeaseApiBaseUrl"]["Value"]
-        )
+        base_url = self._joined(outputs["CoordinationLeaseApiBaseUrl"]["Value"])
         self.assertNotIn("/api/coordination/leases", base_url)
         base_parts = outputs["CoordinationLeaseApiBaseUrl"]["Value"]["Fn::Join"][1]
         stage_ref = base_parts[-2]["Ref"]
@@ -161,7 +174,9 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
         self.assertEqual(len(token_admin_lambdas), 1)
         self.assertEqual(len(authorizer_lambdas), 1)
 
-    def test_lease_routes_preserve_direct_dynamodb_contract_and_error_mapping(self) -> None:
+    def test_lease_routes_preserve_direct_dynamodb_contract_and_error_mapping(
+        self,
+    ) -> None:
         resources = self._template().to_json()["Resources"]
         routes = self._routes(resources)
         expected = {
@@ -185,16 +200,12 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
                 self.assertIn('"InvalidTenantScope":true', request)
                 self.assertIn("$account == ''", request)
                 self.assertIn("$project == ''", request)
-                self.assertIn(
-                    "$util.urlDecode($input.params('resource'))", request
-                )
+                self.assertIn("$util.urlDecode($input.params('resource'))", request)
                 errors = integration["IntegrationResponses"][0]
                 error_template = errors["ResponseTemplates"]["application/json"]
                 self.assertIn('"error":"tenant scope missing"', error_template)
                 self.assertIn("= 403", error_template)
-                self.assertEqual(
-                    errors["SelectionPattern"], "4\\d{2}"
-                )
+                self.assertEqual(errors["SelectionPattern"], "4\\d{2}")
                 self.assertIn(
                     "403",
                     [response["StatusCode"] for response in method["MethodResponses"]],
@@ -204,8 +215,13 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
         acquire_request = self._joined(
             acquire["Integration"]["RequestTemplates"]["application/json"]
         )
-        self.assertIn('"ConditionExpression":"attribute_not_exists(#owner) OR #expires_at <= :now"', acquire_request)
-        self.assertIn('":revision":{"N":"$input.path(\'$.revision\')"}', acquire_request)
+        self.assertIn(
+            '"ConditionExpression":"attribute_not_exists(#owner) OR #expires_at <= :now"',
+            acquire_request,
+        )
+        self.assertIn(
+            '":revision":{"N":"$input.path(\'$.revision\')"}', acquire_request
+        )
         acquire_error = acquire["Integration"]["IntegrationResponses"][0][
             "ResponseTemplates"
         ]["application/json"]
@@ -218,32 +234,95 @@ class CoordinationIntegrationStackTests(unittest.TestCase):
         )
         self.assertIn("SET #expires_at = #expires_at + :extension", renew_request)
         self.assertNotIn("#revision", renew_request)
-        self.assertIn('"error":"lease owner mismatch"', self._joined(
-            renew["Integration"]["IntegrationResponses"][0]["ResponseTemplates"]["application/json"]
-        ))
+        self.assertIn(
+            '"error":"lease owner mismatch"',
+            self._joined(
+                renew["Integration"]["IntegrationResponses"][0]["ResponseTemplates"][
+                    "application/json"
+                ]
+            ),
+        )
         release = routes[("DELETE", "/api/coordination/leases/{resource}")]
-        self.assertIn('"error":"lease owner mismatch"', self._joined(
-            release["Integration"]["IntegrationResponses"][0]["ResponseTemplates"]["application/json"]
-        ))
+        self.assertIn(
+            '"error":"lease owner mismatch"',
+            self._joined(
+                release["Integration"]["IntegrationResponses"][0]["ResponseTemplates"][
+                    "application/json"
+                ]
+            ),
+        )
         inspect = routes[("GET", "/api/coordination/leases/{resource}")]
         for template in (
             self._joined(
-                renew["Integration"]["IntegrationResponses"][0]["ResponseTemplates"]["application/json"]
+                renew["Integration"]["IntegrationResponses"][0]["ResponseTemplates"][
+                    "application/json"
+                ]
             ),
             self._joined(
-                release["Integration"]["IntegrationResponses"][0]["ResponseTemplates"]["application/json"]
+                release["Integration"]["IntegrationResponses"][0]["ResponseTemplates"][
+                    "application/json"
+                ]
             ),
             self._joined(
-                inspect["Integration"]["IntegrationResponses"][-1]["ResponseTemplates"]["application/json"]
+                inspect["Integration"]["IntegrationResponses"][-1]["ResponseTemplates"][
+                    "application/json"
+                ]
             ),
         ):
             self.assertIn("$util.parseJson($item.expires_at.N)", template)
         for method in (renew, release):
             error_template = self._joined(
-                method["Integration"]["IntegrationResponses"][0]["ResponseTemplates"]["application/json"]
+                method["Integration"]["IntegrationResponses"][0]["ResponseTemplates"][
+                    "application/json"
+                ]
             )
             self.assertIn('"error":"no live lease"', error_template)
             self.assertIn("= 404", error_template)
+
+    def test_production_stack_retains_state_and_enables_point_in_time_recovery(
+        self,
+    ) -> None:
+        resources = self._production_template().to_json()["Resources"]
+        resource_types = [item["Type"] for item in resources.values()]
+        self.assertNotIn("AWS::EC2::VPC", resource_types)
+        self.assertNotIn("AWS::EFS::FileSystem", resource_types)
+
+        for item in resources.values():
+            if item["Type"] in (
+                "AWS::Cognito::UserPool",
+                "AWS::IoT::Authorizer",
+                "AWS::SecretsManager::Secret",
+            ):
+                self.assertEqual(item["DeletionPolicy"], "Retain")
+                self.assertEqual(item["UpdateReplacePolicy"], "Retain")
+
+        tables = [
+            item
+            for item in resources.values()
+            if item["Type"] == "AWS::DynamoDB::Table"
+        ]
+        self.assertEqual(len(tables), 2)
+        for table in tables:
+            self.assertEqual(table["DeletionPolicy"], "Retain")
+            self.assertEqual(table["UpdateReplacePolicy"], "Retain")
+            self.assertTrue(
+                table["Properties"]["PointInTimeRecoverySpecification"][
+                    "PointInTimeRecoveryEnabled"
+                ]
+            )
+            self.assertEqual(table["Properties"]["BillingMode"], "PAY_PER_REQUEST")
+
+        table_names = {item["Properties"]["TableName"] for item in tables}
+        self.assertEqual(
+            table_names,
+            {"kanbus-coordination-leases-prod", "kanbus-coordination-mqtt-tokens-prod"},
+        )
+        authorizer = next(
+            item["Properties"]
+            for item in resources.values()
+            if item["Type"] == "AWS::IoT::Authorizer"
+        )
+        self.assertEqual(authorizer["AuthorizerName"], "kanbus-mqtt-token-prod")
 
 
 if __name__ == "__main__":

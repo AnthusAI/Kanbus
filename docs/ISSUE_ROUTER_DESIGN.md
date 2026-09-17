@@ -146,6 +146,7 @@ The adapter returns one JSON object with these keys in this order:
   "outcome": "completed",
   "summary": "Implementation is ready for review.",
   "issue_updates": [],
+  "issue_comments": [],
   "checkpoint": {
     "ref": "refs/kanbus/router/checkpoints/kbs-101",
     "revision": 5
@@ -156,7 +157,7 @@ The adapter returns one JSON object with these keys in this order:
 }
 ```
 
-`outcome` is `completed`, `blocked`, or `retryable_failure`. `issue_updates` contains `{issue_id, status}` proposals only. The router rejects an issue outside package scope and any transition that is not allowed by the configured workflow. `checkpoint` is either `null` or `{ref, revision}`. `artifacts` is a list of named refs. The adapter cannot publish a pull request, change the current claim, or move the package to a terminal state.
+`outcome` is `completed`, `blocked`, or `retryable_failure`. `issue_updates` contains `{issue_id, status}` proposals only. `issue_comments` contains `{issue_id, text}` proposals; the router validates package scope and writes them through Kanbus's canonical comment mutation path after it accepts the result. Agents must not edit issue files directly in the isolated worktree. The router rejects an issue outside package scope and any transition that is not allowed by the configured workflow. `checkpoint` is either `null` or `{ref, revision}`. `artifacts` is a list of named refs. The adapter cannot publish a pull request, change the current claim, or move the package to a terminal state.
 
 Every claim has a unique claim ID and a monotonically increasing logical package revision. A checkpoint or result is accepted only when both values match the current claim. The current claim fences issue transitions, checkpoint movement, artifact publication, branch push, and pull request updates. GitHub does not offer a transaction that can atomically test the Kanbus lease while creating a PR. The router therefore checks its exact claim immediately before and after the branch push and PR API call, and uses `--force-with-lease` compare-and-swap rollback if it loses the claim. A claim lost during an in-flight API request can leave a PR briefly visible; when remote branch state has concurrently changed, best-effort rollback may fail and requires operator inspection. Such an operation is not accepted into Kanbus router state. A stale claim may leave its temporary worktree but cannot move a durable router ref.
 

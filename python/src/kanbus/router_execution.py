@@ -59,6 +59,7 @@ from kanbus.coordination_runtime import (
     select_soft_provider,
     start_soft_listener,
 )
+from kanbus.issue_comment import add_comment as add_issue_comment
 from kanbus.issue_router import (
     IssueRouterError,
     RouterContext,
@@ -373,6 +374,7 @@ def run_router_once(
             context, candidate, checkpoint, claim_id, revision
         )
         _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+        _apply_issue_comments(context, candidate, result, claim_id, revision)
         _transition_package(
             context,
             candidate.issue_id,
@@ -692,6 +694,8 @@ def publish_router_result(
     candidate = _candidate_for_package(context, package_id, package_issue_ids)
     _validate_result_scope(context, candidate, result)
     _apply_issue_updates(context, candidate, result, claim_id, revision)
+    if result.outcome == "completed":
+        _apply_issue_comments(context, candidate, result, claim_id, revision)
     _publish_checkpoint(context, candidate, result, claim_id, revision)
 
 
@@ -1141,6 +1145,31 @@ def _apply_issue_updates(
     publish_router_state(context.root, set(candidate.package_issue_ids))
 
 
+def _apply_issue_comments(
+    context: RouterContext,
+    candidate: RouterPlanEligiblePackage,
+    result: RouterAgentResult,
+    claim_id: str,
+    revision: int,
+) -> None:
+    """Persist validated agent comments through Kanbus's canonical mutation path."""
+    for comment in result.issue_comments:
+        if comment.issue_id not in candidate.package_issue_ids:
+            raise IssueRouterError(
+                f"issue {comment.issue_id} is outside router package {candidate.issue_id}"
+            )
+        if not comment.text.strip():
+            raise IssueRouterError("router issue comment text must not be blank")
+    for comment in result.issue_comments:
+        _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+        add_issue_comment(
+            context.root,
+            comment.issue_id,
+            "Kanbus Issue Router",
+            comment.text,
+        )
+
+
 def _validate_result_scope(
     context: RouterContext,
     candidate: RouterPlanEligiblePackage,
@@ -1181,6 +1210,15 @@ def _validate_result_scope(
             raise IssueRouterError(
                 f"router result cannot transition package {candidate.issue_id} from {issue.status} to {update.status}"
             ) from error
+    for comment in result.issue_comments:
+        if comment.issue_id not in allowed or not any(
+            item.identifier == comment.issue_id for item in context.issues
+        ):
+            raise IssueRouterError(
+                f"issue {comment.issue_id} is outside router package {candidate.issue_id}"
+            )
+        if not comment.text.strip():
+            raise IssueRouterError("router issue comment text must not be blank")
 
 
 def _transition_package(
@@ -2435,9 +2473,6 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
 
 def _commit_isolated_worktree(worktree: Path, package_id: str, revision: int) -> None:
     """Commit validated agent changes on the isolated router branch."""
-    status = _git(worktree, ["status", "--porcelain", "--untracked-files=all"])
-    if not status:
-        return
     try:
         subprocess.run(
             ["git", "add", "-A"],
@@ -2454,6 +2489,7 @@ def _commit_isolated_worktree(worktree: Path, package_id: str, revision: int) ->
                 "-c",
                 "user.email=issue-router@localhost",
                 "commit",
+                "--allow-empty",
                 "-m",
                 f"[{package_id}] router checkpoint r{revision}",
             ],

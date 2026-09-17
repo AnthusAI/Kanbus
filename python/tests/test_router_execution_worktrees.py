@@ -87,12 +87,16 @@ def test_router_refuses_to_detach_same_branch_from_user_worktree(tmp_path):
 
 def test_isolated_checkpoint_noop_and_user_changes_are_committed(tmp_path):
     _initialized_repository(tmp_path)
+    initial = _git(tmp_path, "rev-parse", "HEAD")
 
     _commit_isolated_worktree(tmp_path, "kbs-1", 4)
-    assert _git(tmp_path, "log", "-1", "--format=%s") == "initial"
+    assert _git(tmp_path, "log", "-1", "--format=%s") == "[kbs-1] router checkpoint r4"
+    empty_checkpoint = _git(tmp_path, "rev-parse", "HEAD")
+    assert _git(tmp_path, "rev-parse", "HEAD^") == initial
 
     (tmp_path / "untracked.txt").write_text("agent output\n", encoding="utf-8")
     _commit_isolated_worktree(tmp_path, "kbs-1", 4)
 
     assert _git(tmp_path, "log", "-1", "--format=%s") == "[kbs-1] router checkpoint r4"
+    assert _git(tmp_path, "rev-parse", "HEAD^") == empty_checkpoint
     assert _git(tmp_path, "show", "HEAD:untracked.txt") == "agent output"

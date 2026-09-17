@@ -21,10 +21,23 @@ from aws_cdk import (
 
 
 class KanbusCoordinationIntegrationStack(Stack):
-    """Small, disposable Cognito/API/DynamoDB/IoT environment for coordination tests."""
+    """Small Cognito/API/DynamoDB/IoT stack for coordination services and tests."""
 
-    def __init__(self, scope: Construct, construct_id: str, *, env_name: str, **kwargs) -> None:
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        *,
+        env_name: str,
+        production: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        resource_prefix = (
+            "kanbus-coordination" if production else "kanbus-coordination-it"
+        )
+        removal_policy = RemovalPolicy.RETAIN if production else RemovalPolicy.DESTROY
 
         project_root = Path(__file__).resolve().parents[3]
         lambda_directory = str(project_root / "infra" / "cloud" / "lambda")
@@ -32,8 +45,12 @@ class KanbusCoordinationIntegrationStack(Stack):
         api = apigw.RestApi(
             self,
             "CoordinationApi",
-            rest_api_name=f"kanbus-coordination-it-{env_name}",
-            description="Disposable Kanbus coordination integration API",
+            rest_api_name=f"{resource_prefix}-{env_name}",
+            description=(
+                "Kanbus coordination API"
+                if production
+                else "Disposable Kanbus coordination integration API"
+            ),
             endpoint_types=[apigw.EndpointType.REGIONAL],
             deploy_options=apigw.StageOptions(stage_name=env_name),
             cloud_watch_role=False,
@@ -43,7 +60,7 @@ class KanbusCoordinationIntegrationStack(Stack):
         user_pool = cognito.UserPool(
             self,
             "CoordinationUserPool",
-            user_pool_name=f"kanbus-coordination-it-{env_name}-users",
+            user_pool_name=f"{resource_prefix}-{env_name}-users",
             self_sign_up_enabled=False,
             sign_in_aliases=cognito.SignInAliases(email=True, username=False),
             password_policy=cognito.PasswordPolicy(
@@ -55,14 +72,18 @@ class KanbusCoordinationIntegrationStack(Stack):
             ),
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
             custom_attributes={
-                "account": cognito.StringAttribute(mutable=False, min_len=1, max_len=128),
-                "project": cognito.StringAttribute(mutable=False, min_len=1, max_len=128),
+                "account": cognito.StringAttribute(
+                    mutable=False, min_len=1, max_len=128
+                ),
+                "project": cognito.StringAttribute(
+                    mutable=False, min_len=1, max_len=128
+                ),
             },
-            removal_policy=RemovalPolicy.DESTROY,
+            removal_policy=removal_policy,
         )
         user_pool_client = user_pool.add_client(
             "CoordinationUserPoolClient",
-            user_pool_client_name=f"kanbus-coordination-it-{env_name}-client",
+            user_pool_client_name=f"{resource_prefix}-{env_name}-client",
             auth_flows=cognito.AuthFlow(user_password=True, user_srp=True),
             generate_secret=False,
             prevent_user_existence_errors=True,
@@ -78,22 +99,26 @@ class KanbusCoordinationIntegrationStack(Stack):
             self,
             "CoordinationApiAuthorizer",
             cognito_user_pools=[user_pool],
-            authorizer_name=f"kanbus-coordination-it-{env_name}-authorizer",
+            authorizer_name=f"{resource_prefix}-{env_name}-authorizer",
             identity_source="method.request.header.Authorization",
         )
 
         lease_table = dynamodb.Table(
             self,
             "CoordinationLeaseTable",
-            table_name=f"kanbus-coordination-it-leases-{env_name}",
+            table_name=f"{resource_prefix}-leases-{env_name}",
             partition_key=dynamodb.Attribute(
                 name="tenant_key", type=dynamodb.AttributeType.STRING
             ),
-            sort_key=dynamodb.Attribute(name="resource_key", type=dynamodb.AttributeType.STRING),
+            sort_key=dynamodb.Attribute(
+                name="resource_key", type=dynamodb.AttributeType.STRING
+            ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="expires_at",
-            point_in_time_recovery=False,
-            removal_policy=RemovalPolicy.DESTROY,
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
+                point_in_time_recovery_enabled=production
+            ),
+            removal_policy=removal_policy,
         )
         _add_lease_routes(
             self,
@@ -106,24 +131,34 @@ class KanbusCoordinationIntegrationStack(Stack):
         token_table = dynamodb.Table(
             self,
             "MqttApiTokenTable",
-            table_name=f"kanbus-coordination-it-mqtt-tokens-{env_name}",
+            table_name=f"{resource_prefix}-mqtt-tokens-{env_name}",
             partition_key=dynamodb.Attribute(
                 name="token_id", type=dynamodb.AttributeType.STRING
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            point_in_time_recovery=False,
-            removal_policy=RemovalPolicy.DESTROY,
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
+                point_in_time_recovery_enabled=production
+            ),
+            removal_policy=removal_policy,
         )
         token_pepper = secretsmanager.Secret(
             self,
             "MqttApiTokenPepper",
-            secret_name=f"kanbus/coordination-it/mqtt-token-pepper/{env_name}",
-            description="Generated pepper for disposable Kanbus MQTT token tests",
+            secret_name=(
+                f"kanbus/mqtt-token-pepper/{env_name}"
+                if production
+                else f"kanbus/coordination-it/mqtt-token-pepper/{env_name}"
+            ),
+            description=(
+                "Generated pepper for production Kanbus MQTT tokens"
+                if production
+                else "Generated pepper for disposable Kanbus MQTT token tests"
+            ),
             generate_secret_string=secretsmanager.SecretStringGenerator(
                 exclude_punctuation=True,
                 password_length=40,
             ),
-            removal_policy=RemovalPolicy.DESTROY,
+            removal_policy=removal_policy,
         )
         token_admin = lambda_.Function(
             self,
@@ -138,7 +173,11 @@ class KanbusCoordinationIntegrationStack(Stack):
                 "KANBUS_TOKEN_PEPPER_SECRET_ARN": token_pepper.secret_arn,
                 "KANBUS_ADMIN_GROUP": "kanbus-admin",
             },
-            description="Create, list, and revoke disposable MQTT API tokens",
+            description=(
+                "Create, list, and revoke production MQTT API tokens"
+                if production
+                else "Create, list, and revoke disposable MQTT API tokens"
+            ),
         )
         token_admin.node.add_dependency(admin_group)
         token_table.grant_read_write_data(token_admin)
@@ -161,7 +200,11 @@ class KanbusCoordinationIntegrationStack(Stack):
                 "KANBUS_TENANT_ACCOUNT_CLAIM_KEY": "custom:account",
                 "KANBUS_TENANT_PROJECT_CLAIM_KEY": "custom:project",
             },
-            description="AWS IoT custom authorizer for disposable MQTT API tokens",
+            description=(
+                "AWS IoT custom authorizer for production Kanbus MQTT tokens"
+                if production
+                else "AWS IoT custom authorizer for disposable MQTT API tokens"
+            ),
         )
         token_table.grant_read_data(mqtt_authorizer_handler)
         token_pepper.grant_read(mqtt_authorizer_handler)
@@ -174,12 +217,17 @@ class KanbusCoordinationIntegrationStack(Stack):
         mqtt_authorizer = iot.CfnAuthorizer(
             self,
             "MqttTokenAuthorizer",
-            authorizer_name=f"kanbus-mqtt-coordination-it-{env_name}",
+            authorizer_name=(
+                f"kanbus-mqtt-token-{env_name}"
+                if production
+                else f"kanbus-mqtt-coordination-it-{env_name}"
+            ),
             authorizer_function_arn=mqtt_authorizer_handler.function_arn,
             signing_disabled=True,
             status="ACTIVE",
             enable_caching_for_http=False,
         )
+        mqtt_authorizer.apply_removal_policy(removal_policy)
         lambda_.CfnPermission(
             self,
             "MqttTokenAuthorizerInvokePermission",
@@ -249,9 +297,26 @@ class KanbusCoordinationIntegrationStack(Stack):
             "IotDataEndpointAddress",
             value=iot_endpoint.get_response_field("endpointAddress"),
         )
-        CfnOutput(self, "MqttTokenAuthorizerName", value=mqtt_authorizer.authorizer_name)
+        CfnOutput(
+            self, "MqttTokenAuthorizerName", value=mqtt_authorizer.authorizer_name
+        )
         CfnOutput(self, "MqttTokenTableName", value=token_table.table_name)
         CfnOutput(self, "CoordinationLeaseTableName", value=lease_table.table_name)
+
+
+class KanbusCoordinationProductionStack(KanbusCoordinationIntegrationStack):
+    """Production coordination services with retained, recoverable state."""
+
+    def __init__(
+        self, scope: Construct, construct_id: str, *, env_name: str, **kwargs
+    ) -> None:
+        super().__init__(
+            scope,
+            construct_id,
+            env_name=env_name,
+            production=True,
+            **kwargs,
+        )
 
 
 def _add_lease_routes(
@@ -275,8 +340,10 @@ def _add_lease_routes(
             resources=[table.table_arn],
         )
     )
-    resource = api_root.add_resource("coordination").add_resource("leases").add_resource(
-        "{resource}"
+    resource = (
+        api_root.add_resource("coordination")
+        .add_resource("leases")
+        .add_resource("{resource}")
     )
     resource.add_cors_preflight(
         allow_origins=apigw.Cors.ALL_ORIGINS,
@@ -306,7 +373,9 @@ def _add_lease_routes(
             properties={
                 "owner": string_schema(),
                 "claim_id": string_schema(),
-                "revision": apigw.JsonSchema(type=apigw.JsonSchemaType.INTEGER, minimum=1),
+                "revision": apigw.JsonSchema(
+                    type=apigw.JsonSchemaType.INTEGER, minimum=1
+                ),
                 "ttl_seconds": apigw.JsonSchema(
                     type=apigw.JsonSchemaType.NUMBER,
                     exclusive_minimum=True,
@@ -352,14 +421,14 @@ def _add_lease_routes(
         # If claims are absent, deliberately emit no DynamoDB operation fields. DynamoDB
         # rejects that malformed request before reading or writing any table item; the
         # integration response below maps this exact guard path to a stable 403.
-        return '''#set($account = $context.authorizer.claims.get('custom:account'))
+        return """#set($account = $context.authorizer.claims.get('custom:account'))
 #set($project = $context.authorizer.claims.get('custom:project'))
 #if(!$account || $account == '' || !$project || $project == '')
   {"InvalidTenantScope":true}
 #else
 #set($tenantKey = "ACCOUNT#$util.base64Encode($account)#PROJECT#$util.base64Encode($project)")
 #set($resourceName = $util.urlDecode($input.params('resource')))
-#set($resourceKey = "RESOURCE#$util.base64Encode($resourceName)")'''
+#set($resourceKey = "RESOURCE#$util.base64Encode($resourceName)")"""
 
     def escaped(expression: str) -> str:
         return f"$util.escapeJavaScript({expression})" + r""".replaceAll("\\'", "'")"""
@@ -380,7 +449,7 @@ def _add_lease_routes(
         )
 
     def conditional_failure() -> str:
-        return '''#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
+        return """#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
   #set($context.responseOverride.status = 403)
   {"error":"tenant scope missing"}
 #else
@@ -405,7 +474,7 @@ def _add_lease_routes(
   #set($context.responseOverride.status = 500)
   {"error":"coordination lease request failed"}
 #end
-#end'''
+#end"""
 
     def request_template(operation: str) -> str:
         scope = scope_template()
@@ -492,7 +561,7 @@ def _add_lease_routes(
         operation: str, action: str, success_status: str, success_template: str
     ) -> apigw.Integration:
         if operation == "acquire":
-            error_template = '''#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
+            error_template = """#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
   #set($context.responseOverride.status = 403)
   {"error":"tenant scope missing"}
 #elseif($input.path('$.__type').contains('ConditionalCheckFailedException'))
@@ -501,17 +570,17 @@ def _add_lease_routes(
 #else
   #set($context.responseOverride.status = 500)
   {"error":"coordination lease request failed"}
-#end'''
+#end"""
         elif operation in {"renew", "release"}:
             error_template = conditional_failure()
         else:
-            error_template = '''#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
+            error_template = """#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
   #set($context.responseOverride.status = 403)
   {"error":"tenant scope missing"}
 #else
   #set($context.responseOverride.status = 500)
   {"error":"coordination lease inspect failed"}
-#end'''
+#end"""
         return apigw.Integration(
             type=apigw.IntegrationType.AWS,
             integration_http_method="POST",
@@ -594,12 +663,12 @@ def _add_lease_routes(
             "#set($item = $input.path('$.Item'))",
             "#set($now = $context.requestTimeEpoch / 1000)",
             "#if(!$item || $item.isEmpty() || !$item.expires_at)",
-            '  #set($context.responseOverride.status = 404)',
+            "  #set($context.responseOverride.status = 404)",
             '  {"error":"no live lease"}',
             "#else",
             "  #set($expiresAt = $util.parseJson($item.expires_at.N))",
             "  #if($expiresAt <= $now)",
-            '    #set($context.responseOverride.status = 404)',
+            "    #set($context.responseOverride.status = 404)",
             '    {"error":"no live lease"}',
             "  #else",
             *item_response("$.Item").splitlines(),

@@ -165,6 +165,8 @@ struct RouterAgentResult {
     summary: String,
     #[serde(default)]
     issue_updates: Vec<RouterIssueUpdate>,
+    #[serde(default)]
+    issue_comments: Vec<RouterIssueComment>,
     checkpoint: Option<RouterCheckpoint>,
     #[serde(default)]
     artifacts: Vec<RouterArtifact>,
@@ -175,6 +177,13 @@ struct RouterAgentResult {
 struct RouterIssueUpdate {
     issue_id: String,
     status: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RouterIssueComment {
+    issue_id: String,
+    text: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -2598,6 +2607,46 @@ fn validate_router_issue_updates(
     Ok(())
 }
 
+fn validate_router_issue_comments(
+    package_id: &str,
+    package_issue_ids: &[String],
+    comments: &[RouterIssueComment],
+) -> Result<(), KanbusError> {
+    for comment in comments {
+        if !package_issue_ids.contains(&comment.issue_id) {
+            return Err(KanbusError::IssueOperation(format!(
+                "issue {} is outside router package {package_id}",
+                comment.issue_id
+            )));
+        }
+        if comment.text.trim().is_empty() {
+            return Err(KanbusError::IssueOperation(
+                "router issue comment text must not be blank".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn apply_router_issue_comments(
+    root: &Path,
+    package_id: &str,
+    package_issue_ids: &[String],
+    comments: &[RouterIssueComment],
+) -> Result<(), KanbusError> {
+    validate_router_issue_comments(package_id, package_issue_ids, comments)?;
+    for comment in comments {
+        crate::issue_comment::add_comment(
+            root,
+            &comment.issue_id,
+            "Kanbus Issue Router",
+            &comment.text,
+            None,
+        )?;
+    }
+    Ok(())
+}
+
 /// Return the default provider profile selected by the first configured class.
 ///
 /// # Arguments
@@ -3175,6 +3224,11 @@ fn run_issue_router_once(
                     &package.package_issue_ids,
                     &requested_updates,
                 )?;
+                validate_router_issue_comments(
+                    &package.issue_id,
+                    &package.package_issue_ids,
+                    &result.issue_comments,
+                )?;
                 let (proposed_checkpoint_ref, proposed_checkpoint_revision) = result
                     .checkpoint
                     .as_ref()
@@ -3256,6 +3310,12 @@ fn run_issue_router_once(
                     &[&published_branch, &published_checkpoint_ref],
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
+                apply_router_issue_comments(
+                    root,
+                    &package.issue_id,
+                    &package.package_issue_ids,
+                    &result.issue_comments,
+                )?;
                 let accepted_checkpoint = RouterCheckpoint {
                     reference: proposed_checkpoint_ref,
                     revision: proposed_checkpoint_revision,
@@ -4473,7 +4533,7 @@ fn execute_router_adapter(
     let worktree = create_router_worktree(root, issue_id, claim, checkpoint.as_ref())?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
     let prompt = format!(
-        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, checkpoint, and artifacts. Allowed outcomes are completed, blocked, and retryable_failure.",
+        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure.",
         package_issue_ids.join(", "),
         claim.claim_id,
         claim.revision,
@@ -4672,6 +4732,7 @@ fn invalid_json_retryable_result(message: String) -> RouterAgentResult {
         outcome: "retryable_failure".to_string(),
         summary: message,
         issue_updates: Vec::new(),
+        issue_comments: Vec::new(),
         checkpoint: None,
         artifacts: Vec::new(),
     }
@@ -7304,6 +7365,45 @@ mod tests {
                 .expect("syntactically valid outcome parses before allowlist validation");
         assert_eq!(unknown.outcome, "done");
         assert!(!["completed", "blocked", "retryable_failure"].contains(&unknown.outcome.as_str()));
+    }
+
+    #[test]
+    fn router_issue_comments_are_package_scoped_and_nonblank() {
+        let package_issue_ids = vec!["kbs-701".to_string()];
+        let comment = RouterIssueComment {
+            issue_id: "kbs-701".to_string(),
+            text: "Three paragraphs follow.".to_string(),
+        };
+        validate_router_issue_comments("kbs-701", &package_issue_ids, &[comment.clone()])
+            .expect("a nonblank comment on a package issue is valid");
+        assert!(validate_router_issue_comments(
+            "kbs-701",
+            &package_issue_ids,
+            &[RouterIssueComment {
+                issue_id: "kbs-702".to_string(),
+                text: "Out of package".to_string(),
+            }]
+        )
+        .expect_err("comments must stay inside the package")
+        .to_string()
+        .contains("outside router package"));
+        assert!(validate_router_issue_comments(
+            "kbs-701",
+            &package_issue_ids,
+            &[RouterIssueComment {
+                issue_id: "kbs-701".to_string(),
+                text: "  \n".to_string(),
+            }]
+        )
+        .expect_err("blank comments are rejected")
+        .to_string()
+        .contains("must not be blank"));
+
+        let parsed = parse_router_result(
+            r#"{"schema_version":1,"outcome":"completed","issue_comments":[{"issue_id":"kbs-701","text":"Comment"}],"checkpoint":null}"#,
+        )
+        .expect("structured comments are accepted from Codex");
+        assert_eq!(parsed.issue_comments.len(), 1);
     }
 
     #[test]
