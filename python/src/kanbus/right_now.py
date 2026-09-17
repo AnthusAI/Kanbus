@@ -22,6 +22,7 @@ from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay
 from kanbus.project import ProjectMarkerError, get_configuration_path
 
 RIGHT_NOW_SUMMARY_OPERATION = "right_now_summary"
+DEFAULT_RIGHT_NOW_STATUS = "in_progress"
 LLM_USAGE_LOG = "llm_usage.jsonl"
 MOCK_PROMPT_TOKENS = 42
 MOCK_COMPLETION_TOKENS = 12
@@ -609,6 +610,81 @@ def ensure_right_now_subtree(
     return memo[issue_identifier]
 
 
+def association_trees_for_seeds(
+    issues: list[IssueData],
+    seed_identifiers: set[str],
+) -> tuple[list[str], set[str]]:
+    """Return roots and every issue in association trees for the given seeds.
+
+    Each matching seed contributes its ancestors, then every descendant of
+    those ancestors.  This matches the console's tree display, where a
+    selected in-progress issue must retain its complete context.
+    """
+    parents = {issue.identifier: issue.parent for issue in issues}
+    children_by_parent: dict[str, list[str]] = {}
+    for issue in issues:
+        if issue.parent is not None:
+            children_by_parent.setdefault(issue.parent, []).append(issue.identifier)
+
+    selected_identifiers: set[str] = set()
+    for seed in seed_identifiers:
+        if seed not in parents:
+            continue
+        current = seed
+        visited: set[str] = set()
+        while current not in visited:
+            visited.add(current)
+            selected_identifiers.add(current)
+            parent = parents.get(current)
+            if parent is None or parent not in parents:
+                break
+            current = parent
+
+    pending = list(selected_identifiers)
+    while pending:
+        identifier = pending.pop()
+        for child in children_by_parent.get(identifier, []):
+            if child not in selected_identifiers:
+                selected_identifiers.add(child)
+                pending.append(child)
+
+    roots = sorted(
+        identifier
+        for identifier in selected_identifiers
+        if parents.get(identifier) not in selected_identifiers
+    )
+    if not roots and selected_identifiers:
+        roots = sorted(selected_identifiers)
+    return roots, selected_identifiers
+
+
+def active_right_now_tree(issues: list[IssueData]) -> tuple[list[str], set[str]]:
+    """Return complete trees containing in-progress issues for the Now view."""
+    seeds = {
+        issue.identifier for issue in issues if issue.status == DEFAULT_RIGHT_NOW_STATUS
+    }
+    return association_trees_for_seeds(issues, seeds)
+
+
+def ensure_right_now_summary_subtrees(
+    root: Path,
+    root_identifiers: list[str],
+    selected_identifiers: set[str],
+    *,
+    fail_closed: bool = False,
+) -> None:
+    """Backfill the selected Now trees from their actual roots."""
+    memo: dict[str, bool] = {}
+    for identifier in root_identifiers:
+        ensure_right_now_subtree(
+            root,
+            identifier,
+            selected_identifiers,
+            memo,
+            fail_closed=fail_closed,
+        )
+
+
 def ensure_right_now_summaries(
     root: Path,
     issue_identifiers: list[str],
@@ -628,15 +704,12 @@ def ensure_right_now_summaries(
     :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
     """
     selected_identifiers = set(issue_identifiers)
-    memo: dict[str, bool] = {}
-    for identifier in issue_identifiers:
-        ensure_right_now_subtree(
-            root,
-            identifier,
-            selected_identifiers,
-            memo,
-            fail_closed=fail_closed,
-        )
+    ensure_right_now_summary_subtrees(
+        root,
+        issue_identifiers,
+        selected_identifiers,
+        fail_closed=fail_closed,
+    )
 
 
 def regenerate_right_now_for_issue_and_ancestors(
