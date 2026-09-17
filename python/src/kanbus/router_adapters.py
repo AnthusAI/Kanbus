@@ -312,6 +312,25 @@ def _find_result_payload(stdout: str) -> dict[str, Any]:
         item = decoded.get("structured_output")
         if isinstance(item, dict) and "outcome" in item and "schema_version" in item:
             payloads.append(item)
+        item = decoded.get("item")
+        if isinstance(item, dict):
+            content = item.get("content")
+            if isinstance(content, list):
+                for part in content:
+                    if not isinstance(part, dict) or not isinstance(
+                        part.get("text"), str
+                    ):
+                        continue
+                    try:
+                        parsed = json.loads(part["text"])
+                    except json.JSONDecodeError:
+                        continue
+                    if (
+                        isinstance(parsed, dict)
+                        and "outcome" in parsed
+                        and "schema_version" in parsed
+                    ):
+                        payloads.append(parsed)
     if not payloads:
         raise IssueRouterError("Codex router adapter returned invalid JSON")
     return payloads[-1]

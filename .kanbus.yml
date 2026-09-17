@@ -242,7 +242,7 @@ router:
     token_env: GITHUB_TOKEN
   watch_interval: 30s
   retries:
-    max_attempts: 1
+    max_attempts: 3
 
 # Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
 # snyk:
