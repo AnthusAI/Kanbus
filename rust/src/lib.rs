@@ -53,6 +53,7 @@ pub mod litellm_completion;
 pub mod maintenance;
 pub mod migration;
 pub mod models;
+pub mod mutex_api;
 pub mod notification_events;
 pub mod overlay;
 pub mod policy_context;

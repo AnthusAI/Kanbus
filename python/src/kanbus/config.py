@@ -27,6 +27,10 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "providers": ["git"],
         "contention_window": "5s",
         "default_lease_ttl": "300s",
+        "mutex_api": {
+            "endpoint": None,
+            "bearer_token": None,
+        },
     },
     "overlay": {
         "enabled": True,

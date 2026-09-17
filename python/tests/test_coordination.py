@@ -87,9 +87,17 @@ def test_configuration_defaults_to_git_with_independent_durations() -> None:
     assert configuration.contention_window == "5s"
     assert configuration.default_lease_ttl == "300s"
     with pytest.raises(
-        ValidationError, match="coordination providers must be exactly git"
+        ValidationError,
+        match="coordination providers must be one of: git; mqtt,git; mutex_api,mqtt,git",
     ):
         CoordinationConfiguration(providers=["git", "mqtt"])
+    assert CoordinationConfiguration(providers=["mqtt", "git"]).providers == [
+        "mqtt",
+        "git",
+    ]
+    assert CoordinationConfiguration(
+        providers=["mutex_api", "mqtt", "git"]
+    ).providers == ["mutex_api", "mqtt", "git"]
 
 
 def test_claims_choose_stable_contender_and_closed_window_winner(
@@ -351,7 +359,7 @@ def test_cli_rejects_mismatched_renewal_with_exact_error(
     assert "lease owner mismatch" in result.stderr
 
 
-def test_cli_rejects_non_git_provider_config(
+def test_cli_rejects_noncanonical_provider_order(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project_dir = tmp_path / "project"
@@ -382,7 +390,10 @@ def test_cli_rejects_non_git_provider_config(
     )
 
     assert result.exit_code == 1
-    assert "coordination providers must be exactly git" in result.output
+    assert (
+        "coordination providers must be one of: git; mqtt,git; mutex_api,mqtt,git"
+        in result.output
+    )
 
 
 def test_configuration_loader_reports_field_qualified_duration_error(

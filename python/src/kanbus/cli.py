@@ -28,6 +28,7 @@ from kanbus.coordination import (
     inspect_lease as inspect_coordination_lease,
     release as coordination_release,
     renew as coordination_renew,
+    utc_now,
 )
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment
@@ -3970,28 +3971,78 @@ cli.add_command(lifecycle)
 
 @cli.group("coordination")
 def coordination_group() -> None:
-    """Manage Git-backed soft coordination leases."""
+    """Manage soft coordination leases."""
 
 
-def _coordination_context() -> tuple[Path, ProjectConfiguration]:
+def _coordination_context() -> tuple[Path, Path, ProjectConfiguration]:
     """Load the current project directory and coordination configuration."""
+    root = Path.cwd()
     try:
-        config_path = get_configuration_path(Path.cwd())
+        config_path = get_configuration_path(root)
         configuration = load_project_configuration(config_path)
     except (ProjectMarkerError, ConfigurationError) as error:
         raise click.ClickException(str(error)) from error
-    if configuration.coordination.providers != ["git"]:
-        raise click.ClickException("coordination providers must be exactly git")
-    return config_path.parent / configuration.project_directory, configuration
+    return (
+        root,
+        config_path.parent / configuration.project_directory,
+        configuration,
+    )
 
 
-def _echo_coordination_state(state: LeaseState) -> None:
-    click.echo("provider: git")
+def _coordination_provider(root: Path, configuration: ProjectConfiguration) -> str:
+    """Select the first available configured provider, falling back to Git."""
+    from kanbus.coordination_mutex_api import is_configured
+
+    if "mutex_api" in configuration.coordination.providers and is_configured(
+        configuration.coordination.mutex_api
+    ):
+        return "mutex_api"
+    return _coordination_fallback_provider(root, configuration)
+
+
+def _coordination_fallback_provider(
+    root: Path, configuration: ProjectConfiguration
+) -> str:
+    """Select MQTT when it is usable, otherwise retain Git as the fallback."""
+    if "mqtt" not in configuration.coordination.providers:
+        return "git"
+    from kanbus.coordination_mqtt import provider_available
+
+    return "mqtt" if provider_available(root, configuration) else "git"
+
+
+def _mutex_lease_state(lease, *, operation_event_id: str | None = None) -> LeaseState:
+    return LeaseState(
+        resource=lease.resource,
+        owner=lease.owner,
+        claim_id=lease.claim_id,
+        expires_at=lease.expires_at,
+        active=True,
+        event_id=operation_event_id,
+        operation_event_id=operation_event_id,
+        claimed_at=lease.claimed_at,
+        revision=lease.revision,
+    )
+
+
+def _echo_coordination_state(state: LeaseState, provider: str) -> None:
+    click.echo(f"provider: {provider}")
     click.echo(f"resource: {state.resource}")
     if state.active:
-        click.echo("state: active soft ownership")
+        click.echo(
+            "state: active hard mutex"
+            if provider == "mutex_api"
+            else "state: active soft ownership"
+        )
         click.echo(f"owner: {state.owner}")
         click.echo(f"claim_id: {state.claim_id}")
+        if state.revision is not None:
+            click.echo(f"revision: {state.revision}")
+        if provider == "mutex_api" and state.claimed_at is not None:
+            click.echo(
+                "claimed_at: "
+                f"{state.claimed_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
+            )
         click.echo(
             f"expires_at: {state.expires_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
         )
@@ -4003,9 +4054,80 @@ def _echo_coordination_state(state: LeaseState) -> None:
 @click.option("--resource", required=True, help="Resource to claim.")
 @click.option("--owner", required=True, help="Stable worker identifier.")
 @click.option("--claim-id", required=True, help="Unique claim identifier.")
-def coordination_claim_command(resource: str, owner: str, claim_id: str) -> None:
-    """Record a Git-backed soft claim for a resource."""
-    project_dir, configuration = _coordination_context()
+@click.option(
+    "--revision",
+    type=click.IntRange(min=1),
+    default=1,
+    show_default=True,
+    help="Positive fencing revision for hard mutex providers.",
+)
+def coordination_claim_command(
+    resource: str, owner: str, claim_id: str, revision: int
+) -> None:
+    """Record a durable soft claim and announce it over MQTT when available."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus.coordination import parse_duration
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            acquire as acquire_mutex_lease,
+            release as release_mutex_lease,
+        )
+
+        try:
+            lease = acquire_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+                revision=revision,
+                ttl_seconds=parse_duration(
+                    configuration.coordination.default_lease_ttl
+                ),
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                state = coordination_claim(
+                    project_dir / "events",
+                    configuration.coordination,
+                    resource=resource,
+                    owner=owner,
+                    claim_id=claim_id,
+                    revision=revision,
+                    # The mutex service supplies the authoritative lease epoch.
+                    # Persist it so Python and Rust write the same hard-claim
+                    # timestamp and derived expiry from an API response.
+                    now=lease.claimed_at,
+                )
+            except CoordinationError as error:
+                rollback_error = None
+                try:
+                    release_mutex_lease(
+                        configuration.coordination.mutex_api,
+                        resource=resource,
+                        owner=owner,
+                        claim_id=claim_id,
+                    )
+                except CoordinationError as release_error:
+                    rollback_error = release_error
+                message = (
+                    "mutex api acquired lease but durable Git claim could not be recorded: "
+                    f"{error}"
+                )
+                if rollback_error is not None:
+                    message += f"; best-effort mutex release failed: {rollback_error}"
+                raise click.ClickException(message) from error
+            state = _mutex_lease_state(
+                lease, operation_event_id=state.operation_event_id
+            )
+            _echo_coordination_state(state, "mutex_api")
+            return
     try:
         state = coordination_claim(
             project_dir / "events",
@@ -4013,10 +4135,41 @@ def coordination_claim_command(resource: str, owner: str, claim_id: str) -> None
             resource=resource,
             owner=owner,
             claim_id=claim_id,
+            revision=revision,
+            now=occurred_at,
         )
     except CoordinationError as error:
         raise click.ClickException(str(error)) from error
-    _echo_coordination_state(state)
+    if provider == "mqtt" and state.operation_event_id:
+        from kanbus.coordination_mqtt import (
+            inspect_lease as inspect_mqtt_lease,
+            make_claim_envelope,
+            publish_envelope,
+        )
+        from kanbus.coordination import parse_duration
+
+        envelope = make_claim_envelope(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=state.operation_event_id,
+            lease_ttl_s=parse_duration(configuration.coordination.default_lease_ttl),
+            occurred_at=occurred_at,
+        )
+        if publish_envelope(root, project_dir, configuration, envelope):
+            state = inspect_mqtt_lease(
+                project_dir / "events",
+                project_dir,
+                resource,
+                configuration,
+                now=occurred_at,
+            )
+        else:
+            provider = "git"
+    _echo_coordination_state(state, provider)
 
 
 @coordination_group.command("renew")
@@ -4033,7 +4186,53 @@ def coordination_renew_command(
     resource: str, owner: str, claim_id: str, extend_duration: str | None
 ) -> None:
     """Extend the current winning soft lease."""
-    project_dir, configuration = _coordination_context()
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus import coordination
+        from kanbus.coordination import format_timestamp, parse_duration
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            renew as renew_mutex_lease,
+        )
+
+        try:
+            extension_seconds = parse_duration(
+                extend_duration or configuration.coordination.default_lease_ttl
+            )
+            lease = renew_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+                extend_seconds=extension_seconds,
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                coordination._record_event(
+                    project_dir / "events",
+                    resource=resource,
+                    event_type="coordination.renew",
+                    owner=owner,
+                    claim_id=claim_id,
+                    payload={
+                        "lease_expires_at": format_timestamp(lease.expires_at),
+                        "revision": lease.revision,
+                    },
+                    occurred_at=occurred_at,
+                )
+            except CoordinationError as error:
+                raise click.ClickException(
+                    "mutex api renewed lease but durable Git renewal could not be "
+                    f"recorded: {error}"
+                ) from error
+            _echo_coordination_state(_mutex_lease_state(lease), "mutex_api")
+            return
     try:
         state = coordination_renew(
             project_dir / "events",
@@ -4042,10 +4241,38 @@ def coordination_renew_command(
             owner=owner,
             claim_id=claim_id,
             extend=extend_duration,
+            now=occurred_at,
         )
     except CoordinationError as error:
         raise click.ClickException(str(error)) from error
-    _echo_coordination_state(state)
+    if (
+        provider == "mqtt"
+        and state.active
+        and state.event_id
+        and state.claimed_at
+        and state.expires_at
+        and state.contention_window_ends_at
+        and occurred_at >= state.contention_window_ends_at
+    ):
+        from kanbus.coordination_mqtt import make_lease_envelope, publish_envelope
+
+        envelope = make_lease_envelope(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=state.event_id,
+            lease_ttl_s=max(
+                1, int((state.expires_at - state.claimed_at).total_seconds())
+            ),
+            expires_at=state.expires_at,
+            occurred_at=occurred_at,
+        )
+        if not publish_envelope(root, project_dir, configuration, envelope):
+            provider = "git"
+    _echo_coordination_state(state, provider)
 
 
 @coordination_group.command("release")
@@ -4053,18 +4280,74 @@ def coordination_renew_command(
 @click.option("--owner", required=True, help="Current lease owner.")
 @click.option("--claim-id", required=True, help="Current claim identifier.")
 def coordination_release_command(resource: str, owner: str, claim_id: str) -> None:
-    """Release the current winning soft lease."""
-    project_dir, _configuration = _coordination_context()
+    """Release the current soft lease and publish the visibility change."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus import coordination
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            release as release_mutex_lease,
+        )
+
+        try:
+            release_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                coordination._record_event(
+                    project_dir / "events",
+                    resource=resource,
+                    event_type="coordination.release",
+                    owner=owner,
+                    claim_id=claim_id,
+                    payload={},
+                    occurred_at=occurred_at,
+                )
+            except CoordinationError as error:
+                raise click.ClickException(
+                    "mutex api released lease but durable Git release could not be "
+                    f"recorded: {error}"
+                ) from error
+            click.echo("provider: mutex_api")
+            click.echo(f"resource: {resource}")
+            click.echo("state: released")
+            return
     try:
-        coordination_release(
+        release_event_id = coordination_release(
             project_dir / "events",
             resource=resource,
             owner=owner,
             claim_id=claim_id,
+            now=occurred_at,
         )
     except CoordinationError as error:
         raise click.ClickException(str(error)) from error
-    click.echo("provider: git")
+    if provider == "mqtt":
+        from kanbus.coordination_mqtt import make_release_envelope, publish_envelope
+
+        envelope = make_release_envelope(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=release_event_id,
+            occurred_at=occurred_at,
+        )
+        if not publish_envelope(root, project_dir, configuration, envelope):
+            provider = "git"
+    click.echo(f"provider: {provider}")
     click.echo(f"resource: {resource}")
     click.echo("state: released")
 
@@ -4073,11 +4356,50 @@ def coordination_release_command(resource: str, owner: str, claim_id: str) -> No
 @click.option("--resource", required=True, help="Resource to inspect.")
 def coordination_inspect_command(resource: str) -> None:
     """Inspect a resource's derived soft coordination lease."""
-    project_dir, _configuration = _coordination_context()
-    state = inspect_coordination_lease(project_dir / "events", resource)
-    _echo_coordination_state(state)
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    events_dir = project_dir / "events"
+    if provider == "mutex_api":
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            inspect as inspect_mutex_lease,
+        )
+
+        try:
+            lease = inspect_mutex_lease(
+                configuration.coordination.mutex_api, resource=resource
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            state = (
+                _mutex_lease_state(lease)
+                if lease is not None
+                else LeaseState(resource=resource)
+            )
+            _echo_coordination_state(state, "mutex_api")
+            return
+    try:
+        if provider == "mqtt":
+            from kanbus.coordination_mqtt import reconcile_lease
+
+            state, published = reconcile_lease(
+                root,
+                project_dir,
+                events_dir,
+                resource,
+                configuration,
+            )
+            if not published:
+                provider = "git"
+        else:
+            state = inspect_coordination_lease(events_dir, resource)
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    _echo_coordination_state(state, provider)
 
 
 if __name__ == "__main__":
-
     cli()

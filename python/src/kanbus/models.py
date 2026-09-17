@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from pydantic import (
     BaseModel,
@@ -346,8 +347,35 @@ class OverlayConfig(BaseModel):
     ttl_s: int = 86400
 
 
+class MutexApiConfiguration(BaseModel):
+    """Optional hard coordination API connection settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: Optional[str] = None
+    bearer_token: Optional[str] = None
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        endpoint = value.strip()
+        parsed = urlparse(endpoint)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("must be an absolute http(s) URL")
+        return endpoint
+
+    @field_validator("bearer_token")
+    @classmethod
+    def normalize_bearer_token(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        return value.strip()
+
+
 class CoordinationConfiguration(BaseModel):
-    """Git-backed soft coordination defaults and provider preferences.
+    """Soft coordination defaults and provider preferences.
 
     :param providers: Configured coordination providers, ordered strongest first.
     :type providers: List[str]
@@ -362,13 +390,18 @@ class CoordinationConfiguration(BaseModel):
     providers: List[str] = Field(default_factory=lambda: ["git"])
     contention_window: str = "5s"
     default_lease_ttl: str = "300s"
+    mutex_api: MutexApiConfiguration = Field(default_factory=MutexApiConfiguration)
 
     @field_validator("providers")
     @classmethod
     def validate_providers(cls, value: List[str]) -> List[str]:
-        """Limit Level 1 coordination to the Git event-history provider."""
-        if value != ["git"]:
-            raise ValueError("coordination providers must be exactly git")
+        """Require the canonical strongest-first provider fallback chain."""
+        allowed = (["git"], ["mqtt", "git"], ["mutex_api", "mqtt", "git"])
+        if value not in allowed:
+            raise ValueError(
+                "coordination providers must be one of: git; mqtt,git; "
+                "mutex_api,mqtt,git"
+            )
         return value
 
     @field_validator("contention_window", "default_lease_ttl")

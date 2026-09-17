@@ -181,6 +181,7 @@ class KanbusCloudFoundationStack(Stack):
         console_base_url = (
             f"https://{api.rest_api_id}.execute-api.{self.region}.{self.url_suffix}/{env_name}/"
         )
+        api_root_resource = api.root.add_resource("api")
 
         user_pool = cognito.UserPool(
             self,
@@ -196,6 +197,14 @@ class KanbusCloudFoundationStack(Stack):
                 require_symbols=False,
             ),
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
+            custom_attributes={
+                "account": cognito.StringAttribute(
+                    mutable=False, min_len=1, max_len=128
+                ),
+                "project": cognito.StringAttribute(
+                    mutable=False, min_len=1, max_len=128
+                ),
+            },
             removal_policy=RemovalPolicy.RETAIN,
         )
 
@@ -243,6 +252,452 @@ class KanbusCloudFoundationStack(Stack):
             identity_source="method.request.header.Authorization",
         )
 
+        coordination_lease_table = dynamodb.Table(
+            self,
+            "CoordinationLeaseTable",
+            table_name=f"kanbus-coordination-leases-{env_name}",
+            partition_key=dynamodb.Attribute(
+                name="tenant_key", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="resource_key", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            time_to_live_attribute="expires_at",
+            point_in_time_recovery=False,
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+
+        coordination_api_role = iam.Role(
+            self,
+            "CoordinationLeaseApiRole",
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            description="API Gateway role limited to live Kanbus coordination lease rows",
+        )
+        coordination_api_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "dynamodb:DeleteItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                ],
+                resources=[coordination_lease_table.table_arn],
+            )
+        )
+
+        coordination_lease_resource = (
+            api_root_resource.add_resource("coordination")
+            .add_resource("leases")
+            .add_resource("{resource}")
+        )
+        coordination_lease_resource.add_cors_preflight(
+            allow_origins=apigw.Cors.ALL_ORIGINS,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type"],
+        )
+
+        coordination_request_validator = api.add_request_validator(
+            "CoordinationLeaseRequestValidator",
+            request_validator_name=f"kanbus-coordination-lease-{env_name}",
+            validate_request_body=True,
+            validate_request_parameters=True,
+        )
+
+        acquire_request_model = api.add_model(
+            "CoordinationLeaseAcquireRequest",
+            model_name="CoordinationLeaseAcquireRequest",
+            content_type="application/json",
+            schema=apigw.JsonSchema(
+                type=apigw.JsonSchemaType.OBJECT,
+                required=["owner", "claim_id", "revision", "ttl_seconds"],
+                additional_properties=False,
+                properties={
+                    "owner": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.STRING, min_length=1, max_length=256
+                    ),
+                    "claim_id": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.STRING, min_length=1, max_length=256
+                    ),
+                    "revision": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.INTEGER, minimum=1
+                    ),
+                    "ttl_seconds": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.NUMBER,
+                        exclusive_minimum=True,
+                        minimum=0,
+                        maximum=86400,
+                    ),
+                },
+            ),
+        )
+        renew_request_model = api.add_model(
+            "CoordinationLeaseRenewRequest",
+            model_name="CoordinationLeaseRenewRequest",
+            content_type="application/json",
+            schema=apigw.JsonSchema(
+                type=apigw.JsonSchemaType.OBJECT,
+                required=["owner", "claim_id", "extend_seconds"],
+                additional_properties=False,
+                properties={
+                    "owner": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.STRING, min_length=1, max_length=256
+                    ),
+                    "claim_id": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.STRING, min_length=1, max_length=256
+                    ),
+                    "extend_seconds": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.NUMBER,
+                        exclusive_minimum=True,
+                        minimum=0,
+                        maximum=86400,
+                    ),
+                },
+            ),
+        )
+        release_request_model = api.add_model(
+            "CoordinationLeaseReleaseRequest",
+            model_name="CoordinationLeaseReleaseRequest",
+            content_type="application/json",
+            schema=apigw.JsonSchema(
+                type=apigw.JsonSchemaType.OBJECT,
+                required=["owner", "claim_id"],
+                additional_properties=False,
+                properties={
+                    "owner": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.STRING, min_length=1, max_length=256
+                    ),
+                    "claim_id": apigw.JsonSchema(
+                        type=apigw.JsonSchemaType.STRING, min_length=1, max_length=256
+                    ),
+                },
+            ),
+        )
+
+        def lease_scope_template() -> str:
+            """Derive collision-free tenant/resource keys only from trusted claims/path."""
+            return """#set($account = $context.authorizer.claims.get('custom:account'))
+#set($project = $context.authorizer.claims.get('custom:project'))
+#if(!$account || $account == '' || !$project || $project == '')
+  {"InvalidTenantScope":true}
+#else
+#set($tenantKey = "ACCOUNT#$util.base64Encode($account)#PROJECT#$util.base64Encode($project)")
+#set($resourceName = $util.urlDecode($input.params('resource')))
+#set($resourceKey = "RESOURCE#$util.base64Encode($resourceName)")"""
+
+        def escape_vtl_string(expression: str) -> str:
+            """Escape a VTL string for JSON without leaving invalid apostrophe escapes."""
+            return (
+                f"$util.escapeJavaScript({expression})" + r""".replaceAll("\\'", "'")"""
+            )
+
+        def lease_item_response_template(attributes_path: str) -> str:
+            """Convert DynamoDB AttributeValues to stable JSON field names and types."""
+            resource_value = escape_vtl_string("$item.resource.S")
+            owner_value = escape_vtl_string("$item.owner.S")
+            claim_id_value = escape_vtl_string("$item.claim_id.S")
+            return "\n".join(
+                [
+                    f"#set($item = $input.path('{attributes_path}'))",
+                    "{",
+                    f'  "resource": "{resource_value}",',
+                    f'  "owner": "{owner_value}",',
+                    f'  "claim_id": "{claim_id_value}",',
+                    '  "revision": $item.revision.N,',
+                    '  "claimed_at": $item.claimed_at.N,',
+                    '  "expires_at": $item.expires_at.N',
+                    "}",
+                ]
+            )
+
+        def conditional_failure_template(*, default_status: int) -> str:
+            """Map conditional write failure using the old item DynamoDB returns."""
+            return "\n".join(
+                [
+                    "#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')",
+                    "  #set($context.responseOverride.status = 403)",
+                    '  {"error":"tenant scope missing"}',
+                    "#else",
+                    "  #set($failureType = $input.path('$.__type'))",
+                    "  #if($failureType.contains('ConditionalCheckFailedException'))",
+                    "    #set($item = $input.path('$.Item'))",
+                    "    #set($now = $context.requestTimeEpoch / 1000)",
+                    "    #if(!$item || $item.isEmpty() || !$item.expires_at)",
+                    "      #set($context.responseOverride.status = 404)",
+                    '      {"error":"no live lease"}',
+                    "    #else",
+                    "      #set($expiresAt = $util.parseJson($item.expires_at.N))",
+                    "      #if($expiresAt <= $now)",
+                    "        #set($context.responseOverride.status = 404)",
+                    '        {"error":"no live lease"}',
+                    "      #else",
+                    "        #set($context.responseOverride.status = 403)",
+                    '        {"error":"lease owner mismatch"}',
+                    "      #end",
+                    "    #end",
+                    "  #else",
+                    f"    #set($context.responseOverride.status = {default_status})",
+                    '    {"error":"coordination lease request failed"}',
+                    "  #end",
+                    "#end",
+                ]
+            )
+
+        acquire_failure_template = """#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
+  #set($context.responseOverride.status = 403)
+  {"error":"tenant scope missing"}
+#elseif($input.path('$.__type').contains('ConditionalCheckFailedException'))
+  #set($context.responseOverride.status = 409)
+  {"error":"lease already held"}
+#else
+  #set($context.responseOverride.status = 500)
+  {"error":"coordination lease request failed"}
+#end"""
+
+        def dynamodb_integration(
+            action: str,
+            request_template: str,
+            *,
+            success_status: str,
+            success_template: str,
+            error_status: str | None = None,
+            error_template: str | None = None,
+        ) -> apigw.Integration:
+            responses = []
+            if error_status and error_template:
+                responses.append(
+                    apigw.IntegrationResponse(
+                        status_code=error_status,
+                        selection_pattern="4\\d{2}",
+                        response_templates={"application/json": error_template},
+                    )
+                )
+            responses.append(
+                apigw.IntegrationResponse(
+                    status_code=success_status,
+                    response_templates={"application/json": success_template},
+                )
+            )
+            return apigw.Integration(
+                type=apigw.IntegrationType.AWS,
+                integration_http_method="POST",
+                uri=(
+                    f"arn:{self.partition}:apigateway:{self.region}:dynamodb:action/{action}"
+                ),
+                options=apigw.IntegrationOptions(
+                    credentials_role=coordination_api_role,
+                    passthrough_behavior=apigw.PassthroughBehavior.NEVER,
+                    request_parameters={
+                        "integration.request.header.Content-Type": "'application/x-amz-json-1.0'"
+                    },
+                    request_templates={"application/json": request_template},
+                    integration_responses=responses,
+                ),
+            )
+
+        def lease_request_template(operation: str) -> str:
+            """Build the direct DynamoDB request using server time and API body fields."""
+            scope = lease_scope_template()
+            table_name = coordination_lease_table.table_name
+            key = (
+                '"Key":{"tenant_key":{"S":"$tenantKey"},'
+                '"resource_key":{"S":"$resourceKey"}}'
+            )
+            if operation == "acquire":
+                account_value = escape_vtl_string("$account")
+                project_value = escape_vtl_string("$project")
+                resource_value = escape_vtl_string("$resourceName")
+                owner_value = escape_vtl_string("$input.path('$.owner')")
+                claim_id_value = escape_vtl_string("$input.path('$.claim_id')")
+                return "\n".join(
+                    [
+                        scope,
+                        "#set($now = $context.requestTimeEpoch / 1000)",
+                        "#set($expiresAt = $now + $input.path('$.ttl_seconds'))",
+                        "{",
+                        f'  "TableName":"{table_name}",',
+                        f"  {key},",
+                        '  "UpdateExpression":"SET #account = :account, #project = :project, #resource = :resource, #owner = :owner, #claim_id = :claim_id, #revision = :revision, #claimed_at = :now, #expires_at = :expires_at",',
+                        '  "ConditionExpression":"attribute_not_exists(#owner) OR #expires_at <= :now",',
+                        '  "ExpressionAttributeNames":{"#account":"account_id","#project":"project_id","#resource":"resource","#owner":"owner","#claim_id":"claim_id","#revision":"revision","#claimed_at":"claimed_at","#expires_at":"expires_at"},',
+                        '  "ExpressionAttributeValues":{',
+                        f'    ":account":{{"S":"{account_value}"}}, ":project":{{"S":"{project_value}"}},',
+                        f'    ":resource":{{"S":"{resource_value}"}},',
+                        f'    ":owner":{{"S":"{owner_value}"}},',
+                        f'    ":claim_id":{{"S":"{claim_id_value}"}},',
+                        '    ":revision":{"N":"$input.path(\'$.revision\')"},',
+                        '    ":now":{"N":"$now"}, ":expires_at":{"N":"$expiresAt"}',
+                        "  },",
+                        '  "ReturnValues":"ALL_NEW",',
+                        '  "ReturnValuesOnConditionCheckFailure":"ALL_OLD"',
+                        "}",
+                        "#end",
+                    ]
+                )
+            if operation == "renew":
+                owner_value = escape_vtl_string("$input.path('$.owner')")
+                claim_id_value = escape_vtl_string("$input.path('$.claim_id')")
+                return "\n".join(
+                    [
+                        scope,
+                        "#set($now = $context.requestTimeEpoch / 1000)",
+                        "#set($extension = $input.path('$.extend_seconds'))",
+                        "{",
+                        f'  "TableName":"{table_name}",',
+                        f"  {key},",
+                        '  "UpdateExpression":"SET #expires_at = #expires_at + :extension",',
+                        '  "ConditionExpression":"#owner = :owner AND #claim_id = :claim_id AND #expires_at > :now",',
+                        '  "ExpressionAttributeNames":{"#owner":"owner","#claim_id":"claim_id","#expires_at":"expires_at"},',
+                        '  "ExpressionAttributeValues":{',
+                        f'    ":owner":{{"S":"{owner_value}"}},',
+                        f'    ":claim_id":{{"S":"{claim_id_value}"}},',
+                        '    ":now":{"N":"$now"}, ":extension":{"N":"$extension"}',
+                        "  },",
+                        '  "ReturnValues":"ALL_NEW",',
+                        '  "ReturnValuesOnConditionCheckFailure":"ALL_OLD"',
+                        "}",
+                        "#end",
+                    ]
+                )
+            if operation == "release":
+                owner_value = escape_vtl_string("$input.path('$.owner')")
+                claim_id_value = escape_vtl_string("$input.path('$.claim_id')")
+                return "\n".join(
+                    [
+                        scope,
+                        "#set($now = $context.requestTimeEpoch / 1000)",
+                        "{",
+                        f'  "TableName":"{table_name}",',
+                        f"  {key},",
+                        '  "ConditionExpression":"#owner = :owner AND #claim_id = :claim_id AND #expires_at > :now",',
+                        '  "ExpressionAttributeNames":{"#owner":"owner","#claim_id":"claim_id","#expires_at":"expires_at"},',
+                        '  "ExpressionAttributeValues":{',
+                        f'    ":owner":{{"S":"{owner_value}"}},',
+                        f'    ":claim_id":{{"S":"{claim_id_value}"}},',
+                        '    ":now":{"N":"$now"}',
+                        "  },",
+                        '  "ReturnValuesOnConditionCheckFailure":"ALL_OLD"',
+                        "}",
+                        "#end",
+                    ]
+                )
+            return "\n".join(
+                [
+                    scope,
+                    "#set($now = $context.requestTimeEpoch / 1000)",
+                    "{",
+                    f'  "TableName":"{table_name}",',
+                    f"  {key},",
+                    '  "ConsistentRead":true',
+                    "}",
+                    "#end",
+                ]
+            )
+
+        def add_lease_method(
+            http_method: str,
+            operation: str,
+            *,
+            model: apigw.IModel | None = None,
+            success_status: str,
+            success_template: str,
+            error_status: str | None = None,
+            error_template: str | None = None,
+        ) -> None:
+            integration = dynamodb_integration(
+                {
+                    "acquire": "UpdateItem",
+                    "renew": "UpdateItem",
+                    "release": "DeleteItem",
+                    "inspect": "GetItem",
+                }[operation],
+                lease_request_template(operation),
+                success_status=success_status,
+                success_template=success_template,
+                error_status=error_status,
+                error_template=error_template,
+            )
+            method_statuses = {success_status}
+            if error_status:
+                method_statuses.add(error_status)
+                method_statuses.add("500")
+            if operation in {"renew", "release", "inspect"}:
+                method_statuses.add("404")
+            coordination_lease_resource.add_method(
+                http_method,
+                integration,
+                authorization_type=apigw.AuthorizationType.COGNITO,
+                authorizer=api_authorizer,
+                request_parameters={"method.request.path.resource": True},
+                request_models={"application/json": model} if model else None,
+                request_validator=coordination_request_validator if model else None,
+                method_responses=[
+                    apigw.MethodResponse(status_code=status)
+                    for status in sorted(method_statuses)
+                ],
+            )
+
+        add_lease_method(
+            "POST",
+            "acquire",
+            model=acquire_request_model,
+            success_status="201",
+            success_template=lease_item_response_template("$.Attributes"),
+            error_status="409",
+            error_template=acquire_failure_template,
+        )
+        add_lease_method(
+            "PUT",
+            "renew",
+            model=renew_request_model,
+            success_status="200",
+            success_template=lease_item_response_template("$.Attributes"),
+            error_status="403",
+            error_template=conditional_failure_template(default_status=500),
+        )
+        add_lease_method(
+            "DELETE",
+            "release",
+            model=release_request_model,
+            success_status="204",
+            success_template="",
+            error_status="403",
+            error_template=conditional_failure_template(default_status=500),
+        )
+        inspect_response_template = "\n".join(
+            [
+                "#set($item = $input.path('$.Item'))",
+                "#set($now = $context.requestTimeEpoch / 1000)",
+                "#if(!$item || $item.isEmpty() || !$item.expires_at)",
+                "  #set($context.responseOverride.status = 404)",
+                '  {"error":"no live lease"}',
+                "#else",
+                "  #set($expiresAt = $util.parseJson($item.expires_at.N))",
+                "  #if($expiresAt <= $now)",
+                "    #set($context.responseOverride.status = 404)",
+                '    {"error":"no live lease"}',
+                "  #else",
+                *lease_item_response_template("$.Item").splitlines(),
+                "  #end",
+                "#end",
+            ]
+        )
+        inspect_failure_template = """#if(!$context.authorizer.claims.get('custom:account') || $context.authorizer.claims.get('custom:account') == '' || !$context.authorizer.claims.get('custom:project') || $context.authorizer.claims.get('custom:project') == '')
+  #set($context.responseOverride.status = 403)
+  {"error":"tenant scope missing"}
+#else
+  #set($context.responseOverride.status = 500)
+  {"error":"coordination lease inspect failed"}
+#end"""
+        add_lease_method(
+            "GET",
+            "inspect",
+            success_status="200",
+            success_template=inspect_response_template,
+            error_status="500",
+            error_template=inspect_failure_template,
+        )
+
         lambda_integration = apigw.LambdaIntegration(console_lambda, proxy=True)
         api.root.add_method(
             "ANY",
@@ -254,7 +709,6 @@ class KanbusCloudFoundationStack(Stack):
             lambda_integration,
             authorization_type=apigw.AuthorizationType.NONE,
         )
-        api_root_resource = api.root.add_resource("api")
         api_auth_resource = api_root_resource.add_resource("auth")
         api_auth_resource.add_resource("bootstrap").add_method(
             "GET",
@@ -747,6 +1201,21 @@ class KanbusCloudFoundationStack(Stack):
         CfnOutput(self, "IdentityPoolId", value=identity_pool.ref)
         CfnOutput(self, "MqttTokenAuthorizerName", value=mqtt_token_authorizer.authorizer_name)
         CfnOutput(self, "MqttTokenTableName", value=token_table.table_name)
+        CfnOutput(
+            self,
+            "CoordinationLeaseApiBaseUrl",
+            value=api.url,
+            description=(
+                "Cognito-authenticated API stage base URL; clients append "
+                "api/coordination/leases/{resource}"
+            ),
+        )
+        CfnOutput(
+            self,
+            "CoordinationLeaseTableName",
+            value=coordination_lease_table.table_name,
+            description="Ephemeral live coordination lease table",
+        )
         CfnOutput(
             self,
             "IotDataEndpointAddress",

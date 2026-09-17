@@ -3,7 +3,7 @@
   "title": "Specify MQTT CLAIM/LEASE/RELEASE envelope fields in Gherkin (do not defer to REALTIME.md)",
   "description": "SD nit #3 on PR #278: some MQTT Then steps defer to docs/REALTIME.md instead of naming concrete envelope fields.\n\nGherkin is the source of truth. Cite topic/envelope fields in the scenarios so dual-runtime steps can be written without reading the docs as a spec.",
   "type": "task",
-  "status": "backlog",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -37,7 +37,7 @@
     }
   ],
   "created_at": "2026-09-14T14:08:07.668351272Z",
-  "updated_at": "2026-09-16T03:44:07.960571Z",
+  "updated_at": "2026-09-17T00:37:04.439622Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",

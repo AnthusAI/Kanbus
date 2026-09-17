@@ -632,6 +632,24 @@ fn apply_overrides(mut value: Mapping, overrides: Mapping) -> Mapping {
 }
 
 fn apply_environment_overrides(mapping: &mut Mapping) {
+    if let Ok(value) = env::var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["coordination", "mutex_api", "endpoint"],
+                Value::String(value),
+            );
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["coordination", "mutex_api", "bearer_token"],
+                Value::String(value),
+            );
+        }
+    }
     if let Ok(value) = env::var("KANBUS_REALTIME_TRANSPORT") {
         if !value.trim().is_empty() {
             set_nested_value(mapping, &["realtime", "transport"], Value::String(value));
@@ -735,6 +753,24 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    struct MutexApiEnvironmentRestore {
+        endpoint: Option<std::ffi::OsString>,
+        token: Option<std::ffi::OsString>,
+    }
+
+    impl Drop for MutexApiEnvironmentRestore {
+        fn drop(&mut self) {
+            match self.endpoint.take() {
+                Some(value) => env::set_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT", value),
+                None => env::remove_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            }
+            match self.token.take() {
+                Some(value) => env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", value),
+                None => env::remove_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+            }
+        }
+    }
+
     #[test]
     fn rejects_standup_lookback_hours_with_migration_message() {
         let temp_dir = TempDir::new().expect("temp dir");
@@ -754,5 +790,43 @@ mod tests {
             }
             other => panic!("unexpected error: {other}"),
         }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn applies_mutex_api_environment_overrides_to_nested_config() {
+        let _restore = MutexApiEnvironmentRestore {
+            endpoint: env::var_os("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            token: env::var_os("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+        };
+        env::set_var(
+            "KANBUS_COORDINATION_MUTEX_API_ENDPOINT",
+            "https://env.example.test",
+        );
+        env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", "env-secret");
+        let mut mapping = serde_yaml::to_value(default_project_configuration())
+            .expect("default config value")
+            .as_mapping()
+            .expect("config mapping")
+            .clone();
+
+        apply_environment_overrides(&mut mapping);
+
+        assert_eq!(
+            mapping
+                .get("coordination")
+                .and_then(|value| value.get("mutex_api"))
+                .and_then(|value| value.get("endpoint"))
+                .and_then(Value::as_str),
+            Some("https://env.example.test")
+        );
+        assert_eq!(
+            mapping
+                .get("coordination")
+                .and_then(|value| value.get("mutex_api"))
+                .and_then(|value| value.get("bearer_token"))
+                .and_then(Value::as_str),
+            Some("env-secret")
+        );
     }
 }

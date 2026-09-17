@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -11,6 +12,7 @@ use tempfile::TempDir;
 use crate::step_definitions::console_ui_steps::{
     ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
 };
+use crate::step_definitions::mutex_api_steps::MutexApiFixture;
 use crate::step_definitions::standup_panel_steps::StandupPanelState;
 use chrono::{DateTime, Utc};
 use kanbus::cli::{run_from_args_with_output, CommandOutput};
@@ -168,6 +170,10 @@ pub struct KanbusWorld {
     pub last_post_json: Option<Value>,
     pub coordination_now_override: Option<String>,
     pub coordination_original_clock: Option<Option<std::ffi::OsString>>,
+    pub coordination_gossip_messages: Vec<kanbus::gossip::GossipEnvelope>,
+    pub coordination_mqtt_topic: Option<String>,
+    pub mutex_api_fixture: Option<MutexApiFixture>,
+    pub mutex_api_original_env: Option<(Option<OsString>, Option<OsString>)>,
 }
 
 const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [
@@ -229,6 +235,19 @@ impl Drop for KanbusWorld {
                 None => std::env::remove_var("KANBUS_TEST_COORDINATION_NOW"),
             }
         }
+        if let Some((endpoint, token)) = self.mutex_api_original_env.take() {
+            match endpoint {
+                Some(value) => std::env::set_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT", value),
+                None => std::env::remove_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            }
+            match token {
+                Some(value) => {
+                    std::env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", value)
+                }
+                None => std::env::remove_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+            }
+        }
+        self.mutex_api_fixture.take();
         crate::step_definitions::console_ui_state_steps::stop_console_server(self);
         kanbus::beads_write::set_test_beads_slug_sequence(None);
         kanbus::ids::set_test_uuid_sequence(None);

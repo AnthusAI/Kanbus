@@ -1,0 +1,12 @@
+{
+  "id": "../../message-id",
+  "ts": "2099-01-02T03:04:05.000Z",
+  "project": "kanbus",
+  "type": "coordination.claim",
+  "event_id": "event-1",
+  "producer_id": "producer-1",
+  "resource": "job:shared/../../resource",
+  "owner": "worker-a",
+  "claim_id": "claim-a",
+  "lease_ttl_s": 300
+}

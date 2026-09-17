@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import socket
 import sys
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from types import SimpleNamespace
 
-from kanbus import gossip
 from test_helpers import build_issue
+
+from kanbus import coordination_mqtt, gossip
 
 
 def test_dedupe_set_expires_entries() -> None:
@@ -1243,6 +1244,80 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
     assert '"id": "dup"' in capsys.readouterr().out
 
 
+def test_run_gossip_consumer_records_coordination_when_issue_overlay_is_disabled(
+    monkeypatch, tmp_path: Path
+) -> None:
+    project_dir = tmp_path / "alpha"
+    configuration = SimpleNamespace(
+        realtime=SimpleNamespace(
+            transport="mqtt",
+            broker="auto",
+            autostart=True,
+            keepalive=False,
+            topics=SimpleNamespace(project_events="projects/{project}/events"),
+        ),
+        overlay=SimpleNamespace(enabled=False, ttl_s=77),
+    )
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(
+        gossip,
+        "resolve_labeled_projects",
+        lambda _root: [SimpleNamespace(label="alpha", project_dir=project_dir)],
+    )
+    monkeypatch.setattr(
+        gossip,
+        "resolve_broker_endpoint",
+        lambda _broker: gossip.BrokerEndpoint(
+            scheme="mqtt", host="127.0.0.1", port=1883, url="mqtt://127.0.0.1:1883"
+        ),
+    )
+    monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: True)
+    monkeypatch.setattr(gossip, "producer_id", lambda: "self-producer")
+    received: list[gossip.CoordinationGossipEnvelope] = []
+    monkeypatch.setattr(
+        coordination_mqtt,
+        "record_envelope",
+        lambda _project, envelope, ttl_s: received.append(envelope),
+    )
+
+    def _run_mqtt(_endpoint, _topics, handler) -> None:
+        handler(
+            gossip.CoordinationGossipEnvelope(
+                id="claim-message",
+                ts="2026-01-01T00:00:00Z",
+                project="alpha",
+                type="coordination.claim",
+                event_id="claim-event",
+                producer_id="other-producer",
+                resource="job:fast-1",
+                owner="worker-a",
+                claim_id="claim-a",
+                lease_ttl_s=300,
+            )
+        )
+
+    monkeypatch.setattr(gossip, "run_mqtt_subscription", _run_mqtt)
+    gossip._run_gossip_consumer(
+        root=tmp_path,
+        project_filter=None,
+        transport_override=None,
+        broker_override=None,
+        autostart_override=None,
+        keepalive_override=None,
+        print_envelopes=False,
+        on_envelope=None,
+        autostart_local_uds=False,
+        broker_off_is_error=True,
+    )
+
+    assert [envelope.id for envelope in received] == ["claim-message"]
+
+
 def test_run_gossip_consumer_returns_when_target_project_missing(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -1588,6 +1663,8 @@ def test_publish_envelope_handles_uds_publish_oserror(monkeypatch) -> None:
 
 
 def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None:
+    clients = []
+
     class _PublishResult:
         def __init__(self) -> None:
             self.wait_timeout = None
@@ -1603,17 +1680,26 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
         def __init__(self, client_id: str) -> None:
             self.client_id = client_id
             self.tls_called = False
+            self.tls_context = None
+            self.credentials = None
             self.connected = None
             self.subscribed: list[str] = []
             self.on_message = None
-            self.published: list[tuple[str, str]] = []
+            self.published: list[tuple[str, str, int, bool]] = []
             self.publish_result = _PublishResult()
             self.loop_started = False
             self.loop_stopped = False
             self.disconnected = False
+            clients.append(self)
 
         def tls_set(self) -> None:
             self.tls_called = True
+
+        def tls_set_context(self, context) -> None:
+            self.tls_context = context
+
+        def username_pw_set(self, username: str, password: str) -> None:
+            self.credentials = (username, password)
 
         def connect(self, host: str, port: int, keepalive: int) -> None:
             self.connected = (host, port, keepalive)
@@ -1621,8 +1707,10 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
         def loop_start(self) -> None:
             self.loop_started = True
 
-        def publish(self, topic: str, payload: str) -> _PublishResult:
-            self.published.append((topic, payload))
+        def publish(
+            self, topic: str, payload: str, *, qos: int, retain: bool
+        ) -> _PublishResult:
+            self.published.append((topic, payload, qos, retain))
             return self.publish_result
 
         def loop_stop(self) -> None:
@@ -1631,11 +1719,14 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
         def disconnect(self) -> None:
             self.disconnected = True
 
-        def subscribe(self, topic: str) -> None:
+        def subscribe(self, topic: str, *, qos: int = 0) -> None:
+            assert qos == 0
             self.subscribed.append(topic)
 
         def loop_forever(self) -> None:
+            assert self.on_connect is not None
             assert self.on_message is not None
+            self.on_connect(self, None, None, 0)
             self.on_message(self, None, _Message(b"{invalid-json"))
             self.on_message(
                 self,
@@ -1645,7 +1736,9 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
                 ),
             )
 
-    module_client = SimpleNamespace(Client=_Client, MQTTMessage=object)
+    module_client = SimpleNamespace(
+        Client=_Client, MQTTMessage=object, MQTT_ERR_SUCCESS=0
+    )
     module_mqtt = SimpleNamespace(client=module_client)
     module_paho = SimpleNamespace(mqtt=module_mqtt)
     monkeypatch.setitem(sys.modules, "paho", module_paho)
@@ -1665,6 +1758,7 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
         producer_id="p40",
     )
     gossip._publish_mqtt(endpoint_secure, "projects/alpha/events", envelope)
+    assert clients[0].published[0][2:] == (0, False)
 
     seen: list[str] = []
     gossip.run_mqtt_subscription(
@@ -1673,6 +1767,40 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
         lambda env: seen.append(env.id),
     )
     assert seen == ["env-41"]
+    assert clients[1].subscribed == ["projects/alpha/events"]
+
+    alpn_protocols: list[list[str]] = []
+
+    class _TlsContext:
+        def set_alpn_protocols(self, protocols: list[str]) -> None:
+            alpn_protocols.append(protocols)
+
+    monkeypatch.setattr(gossip.ssl, "create_default_context", _TlsContext)
+    realtime = gossip.RealtimeConfig(
+        mqtt_custom_authorizer_name="kanbus-auth",
+        mqtt_api_token="api-token",
+    )
+    gossip._publish_mqtt(endpoint_secure, "projects/alpha/events", envelope, realtime)
+    assert clients[2].connected == ("broker", 443, 30)
+    assert clients[2].tls_context is not None
+    assert clients[2].credentials == (
+        "?x-amz-customauthorizer-name=kanbus-auth",
+        "api-token",
+    )
+
+    gossip.run_mqtt_subscription(
+        endpoint_secure,
+        ["projects/alpha/events"],
+        lambda _env: None,
+        realtime,
+    )
+    assert clients[3].connected == ("broker", 443, 30)
+    assert clients[3].tls_context is not None
+    assert clients[3].credentials == (
+        "?x-amz-customauthorizer-name=kanbus-auth",
+        "api-token",
+    )
+    assert alpn_protocols == [["mqtt"], ["mqtt"]]
 
 
 def test_publish_mqtt_and_subscription_handle_missing_paho(monkeypatch) -> None:

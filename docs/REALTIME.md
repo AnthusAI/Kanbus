@@ -115,6 +115,41 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
 - Ignore any envelope where `producer_id` matches the current process.
 - `origin_cluster_id` is reserved for future broker bridging.
 
+## Coordination MQTT envelopes
+
+Level 2 coordination uses the configured `realtime.topics.project_events`
+topic, which defaults to `projects/{project}/events` with `{project}` replaced
+by the project label. MQTT publishes use QoS 0 and `retain=false`; messages are
+best-effort hints, while Git event history remains durable. Coordination fields
+are top-level envelope fields, not a nested payload.
+
+Every coordination envelope includes the common `id` (unique message UUID),
+`ts` (UTC RFC3339 timestamp), `project`, `type`, `event_id`, and `producer_id`
+fields. `origin_cluster_id` is optional. `event_id` identifies the immutable
+Git event: it identifies the claim event in a CLAIM, the winning claim event in
+a LEASE, and the release event in a RELEASE. `producer_id` is stable for the
+publishing process.
+
+The type-specific top-level fields are:
+
+| Type | Required fields |
+| --- | --- |
+| `coordination.claim` | `resource`, `owner`, `claim_id`, `lease_ttl_s` (positive integer seconds) |
+| `coordination.lease` | `resource`, `owner`, `claim_id`, `lease_ttl_s`, `expires_at` (UTC RFC3339) |
+| `coordination.release` | `resource`, `owner`, `claim_id` |
+
+Receivers deduplicate envelopes by `id` for 3600 seconds and ignore echoes from
+their own `producer_id`. MQTT arrival order does not decide claim ownership:
+receivers consider unique claim events received in the contention window and
+select the lexicographically lowest `(claim_id, owner, event_id)` tuple. A
+LEASE reports that selected claim; its `expires_at` is the claim event time
+plus its `lease_ttl_s`. A later claim does not displace a selected active
+lease. Multiple workers may publish equivalent LEASE envelopes; global
+exactly-once publication is not guaranteed. A RELEASE clears soft visibility
+only when its `resource`, `owner`, and `claim_id` match the selected lease.
+MQTT partitions can still allow duplicate work; these envelopes do not provide
+a hard mutex.
+
 ## Overlay merge
 
 Overlay lives under each project directory and is ignored by Git:

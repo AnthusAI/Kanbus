@@ -1,11 +1,11 @@
-@wip
 Feature: Mutex API acquire renew release inspect
   As a Kanbus Mutex API client
   I want hard mutual exclusion for live leases only
   So that exactly one worker owns a resource until release or expiration
 
   Background:
-    Given coordination mutex API endpoint is "https://mutex.example.test"
+    Given a Kanbus project with default configuration
+    And coordination mutex API endpoint is "https://mutex.example.test"
     And mutex API live lease storage is empty
 
   Scenario: Acquire creates a live lease when the resource is free

@@ -74,10 +74,15 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             ) from error
         if any(item["loc"] == ("coordination", "providers") for item in error.errors()):
             raise ConfigurationError(
-                "coordination providers must be exactly git"
+                "coordination providers must be one of: git; mqtt,git; "
+                "mutex_api,mqtt,git"
             ) from error
         for item in error.errors():
             location = item["loc"]
+            if location == ("coordination", "mutex_api", "endpoint"):
+                raise ConfigurationError(
+                    "coordination.mutex_api.endpoint: must be an absolute http(s) URL"
+                ) from error
             if (
                 len(location) == 2
                 and location[0] == "coordination"
@@ -107,6 +112,18 @@ def _apply_environment_overrides(merged: dict) -> None:
     realtime = merged.setdefault("realtime", {})
     overlay = merged.setdefault("overlay", {})
     topics = realtime.setdefault("topics", {})
+    coordination = merged.setdefault("coordination", {})
+    mutex_api = coordination.setdefault("mutex_api", {})
+
+    mutex_api_endpoint = os.environ.get("KANBUS_COORDINATION_MUTEX_API_ENDPOINT")
+    if mutex_api_endpoint:
+        mutex_api["endpoint"] = mutex_api_endpoint
+
+    mutex_api_bearer_token = os.environ.get(
+        "KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"
+    )
+    if mutex_api_bearer_token:
+        mutex_api["bearer_token"] = mutex_api_bearer_token
 
     transport = os.environ.get("KANBUS_REALTIME_TRANSPORT")
     if transport:
