@@ -82,7 +82,9 @@ def publish_router_state(source_root: Path, issue_ids: set[str] | None = None) -
     configuration = load_project_configuration(config_path)
     project_path = Path(configuration.project_directory)
     event_path = project_path / "events"
-    add_args = ["add", "--", event_path.as_posix()]
+    # Kanbus keeps the local event stream ignored in user checkouts, but the
+    # router's isolated state branch is its deliberate cross-clone publisher.
+    add_args = ["add", "-f", "--", event_path.as_posix()]
     if issue_ids:
         add_args.extend(
             (project_path / "issues" / f"{issue_id}.json").as_posix()

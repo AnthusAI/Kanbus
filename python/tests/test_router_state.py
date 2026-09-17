@@ -181,6 +181,7 @@ def test_second_clone_observes_claim_without_harness_push(
         "classes": {},
     }
     (source / ".kanbus.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
+    (source / ".gitignore").write_text("project/events/\n", encoding="utf-8")
     (source / "project" / "issues").mkdir(parents=True)
     (source / "project" / "events").mkdir(parents=True)
     now = datetime.now(UTC)
@@ -198,7 +199,7 @@ def test_second_clone_observes_claim_without_harness_push(
     (source / "project" / "issues" / "kbs-claim.json").write_text(
         issue.model_dump_json(indent=2, by_alias=True), encoding="utf-8"
     )
-    _run(source, "add", ".kanbus.yml", "project")
+    _run(source, "add", ".kanbus.yml", ".gitignore", "project")
     _run(source, "commit", "-m", "initial board")
     _run(source, "remote", "add", "origin", str(bare))
     _run(source, "push", "-u", "origin", "main")
