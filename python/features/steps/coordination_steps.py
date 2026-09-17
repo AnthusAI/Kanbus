@@ -730,6 +730,8 @@ def when_contention_window_closes(context: object, resource: str) -> None:
         coordination_mqtt.record_envelope(
             project_dir, envelope, ttl_s=configuration.overlay.ttl_s
         )
+        if not hasattr(context, "coordination_mqtt_messages"):
+            context.coordination_mqtt_messages = []
         context.coordination_mqtt_messages.append(envelope)
 
 
