@@ -3,7 +3,7 @@
   "title": "Implement Git soft-lease dual-runtime",
   "description": "## Implementation\n\nAfter protocol Gherkin is accepted: implement the Git lease provider in both Python and Rust against those scenarios. Claims are announced through the issue/event model. Timing must tolerate Git latency.\n\n## Acceptance\n\nSame Gherkin green on both runtimes. Git-only install has no MQTT or AWS dependency.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -37,7 +37,7 @@
     }
   ],
   "created_at": "2026-09-14T13:33:48.772677588Z",
-  "updated_at": "2026-09-16T03:44:38.438256Z",
+  "updated_at": "2026-09-16T23:45:55.133888Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
