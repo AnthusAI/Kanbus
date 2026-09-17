@@ -82,7 +82,8 @@ async function main() {
     KANBUS_PYTHON_ARGS: kanbusPythonArgs,
     KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath,
     KANBUS_TEST_WIKI_RATE_LIMIT_MAX:
-      process.env.KANBUS_TEST_WIKI_RATE_LIMIT_MAX ?? "1000"
+      process.env.KANBUS_TEST_WIKI_RATE_LIMIT_MAX ?? "1000",
+    KANBUS_TEST_AI_MOCK: process.env.KANBUS_TEST_AI_MOCK ?? "1"
   };
   const vitePort = env.VITE_PORT ?? "5173";
 

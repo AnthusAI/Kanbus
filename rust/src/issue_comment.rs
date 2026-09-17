@@ -4,6 +4,7 @@ use chrono::Utc;
 use std::path::Path;
 use uuid::Uuid;
 
+use crate::agent_metadata::assign_agent_metadata_if_incomplete;
 use crate::error::KanbusError;
 use crate::event_history::{
     comment_payload, comment_updated_payload, now_timestamp, EventRecord, EventType,
@@ -11,7 +12,7 @@ use crate::event_history::{
 use crate::issue_files::write_issue_to_file;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
-use crate::models::{IssueComment, IssueData};
+use crate::models::{AgentMetadata, IssueComment, IssueData};
 use crate::users::get_current_user;
 
 /// Result of adding a comment to an issue.
@@ -206,7 +207,8 @@ pub fn update_comment(
     root: &Path,
     identifier: &str,
     comment_id_prefix: &str,
-    text: &str,
+    text: Option<&str>,
+    agent: Option<AgentMetadata>,
 ) -> Result<IssueData, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let (mut issue, _) = ensure_comment_ids(&lookup.issue);
@@ -216,8 +218,23 @@ pub fn update_comment(
         .get(index)
         .cloned()
         .ok_or_else(|| KanbusError::IssueOperation("comment not found".to_string()))?;
+    let assigned_agent =
+        assign_agent_metadata_if_incomplete(existing_comment.agent.clone(), agent)?;
+    let mut changed = false;
     if let Some(comment) = issue.comments.get_mut(index) {
-        comment.text = Some(text.to_string());
+        if let Some(new_text) = text {
+            comment.text = Some(new_text.to_string());
+            changed = true;
+        }
+        if assigned_agent != comment.agent {
+            comment.agent = assigned_agent;
+            changed = true;
+        }
+    }
+    if !changed {
+        return Err(KanbusError::IssueOperation(
+            "no comment updates requested".to_string(),
+        ));
     }
     let comment_id = existing_comment
         .id

@@ -97,7 +97,7 @@ Recording provenance is part of **Recorded** under The Discipline of Work. It is
 
 Purely human authors do not need agent metadata. Omit the `agent` field when a human creates issues or comments without an AI acting on their behalf.
 
-Set session defaults once per run with environment variables; override with CLI flags when the model or tool changes mid-session. When metadata is absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
+Set session defaults once per run with environment variables; override with CLI flags when the model or tool changes mid-session. Complete provenance is platform + model + name; settings stay optional. Missing or incomplete provenance still permits the write but emits a ready `kbs update` or `kbs comment update` command on stderr. Use `--no-agent-provenance` only when tagging does not apply. When metadata is absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
 
 ### Environment variables
 
@@ -105,34 +105,35 @@ Set defaults once per session; CLI flags override environment values. Empty or w
 
 | Variable | Purpose |
 | --- | --- |
-| `KANBUS_AGENT_PLATFORM` | Default agent platform |
-| `KANBUS_AGENT_MODEL` | Default model identifier |
+| `KANBUS_AGENT_PLATFORM` | Default agent product name |
+| `KANBUS_AGENT_MODEL` | Default model name |
 | `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
-| `KANBUS_AGENT_NAME` | Optional session or bot name for display |
+| `KANBUS_AGENT_NAME` | Session or bot name (required for complete provenance) |
 
 Platform and model must both be present or both absent. Partial metadata fails with `agent metadata requires both platform and model`.
 
 ### CLI flags
 
-These flags are available on `create` and `comment` only:
+These flags are available on `create`, `comment`, `update`, and `comment update`:
 
-- `--agent-platform <id>`
-- `--agent-model <id>`
+- `--agent-platform <name>` — Coding agent product name in Title Case
+- `--agent-model <name>` — Model name in Title Case
 - `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
-- `--agent-name <name>` — Optional session or bot display name
+- `--agent-name <name>` — Session or bot display name (required for complete provenance)
 
-`kanbus update` does not accept agent flags. Issue `agent` metadata is set at create only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance on comments.
+`update` and `comment update` fill missing provenance only; complete metadata is not replaced. `close` has no agent flags.
 
-### Canonical platforms
+### Product and model names
 
-Prefer these platform identifiers:
+Use plain Title Case product and model names. Kanbus normalizes platforms for storage (lowercase, with spaces as underscores); model is stored as passed. Preferred products include:
 
-- `claude_code`
-- `codex`
-- `antigravity`
-- `cursor`
+- Cursor
+- Codex
+- Claude Code
+- Antigravity
+- Grok Bot
 
-Kanbus accepts any lowercase string matching `^[a-z0-9_-]{1,64}$`. The canonical list is for consistency and autocomplete; storage is not a closed enum.
+Model examples: Composer 2.5, GPT-5.6, Claude Sonnet 4, Grok 4. The list is not a closed allowlist.
 
 ### Settings
 
@@ -161,8 +162,9 @@ Use native Kanbus issue storage when you need agent provenance.
 ### Example workflow
 
 ```bash
-export KANBUS_AGENT_PLATFORM=cursor
-export KANBUS_AGENT_MODEL=composer-2.5
+export KANBUS_AGENT_PLATFORM="Codex"
+export KANBUS_AGENT_MODEL="GPT-5.6"
+export KANBUS_AGENT_NAME="Cloud Agent"
 
 kbs create "Implement feature X" --type task --parent <epic-id>
 kbs comment <id> "Progress: schema drafted"
@@ -172,8 +174,9 @@ Override defaults for a single comment:
 
 ```bash
 kbs comment <id> "Deep review done" \
-  --agent-platform codex \
-  --agent-model gpt-5 \
+  --agent-platform "Codex" \
+  --agent-model "GPT-5.6" \
+  --agent-name "Cloud Agent" \
   --agent-settings '{"thinking_level":"high"}'
 ```
 
