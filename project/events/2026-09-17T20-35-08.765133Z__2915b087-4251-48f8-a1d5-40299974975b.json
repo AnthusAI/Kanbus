@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "2915b087-4251-48f8-a1d5-40299974975b",
+  "issue_id": "router:kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5",
+  "event_type": "router.forge",
+  "occurred_at": "2026-09-17T20:35:08.765133Z",
+  "actor_id": "issue-router",
+  "payload": {
+    "number": 291,
+    "head_sha": "9a6ffc938f6194a63db09449e9b987ce5dfb4047",
+    "repository": "AnthusAI/Kanbus",
+    "url": "https://github.com/AnthusAI/Kanbus/pull/291",
+    "branch": "codex/router/kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5/r3",
+    "action": "opened",
+    "head_branch": "codex/router/kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5/r3"
+  }
+}
