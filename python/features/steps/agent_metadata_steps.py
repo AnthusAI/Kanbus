@@ -101,6 +101,51 @@ def given_issue_with_agent_metadata(
     write_issue_file(project_dir, issue)
 
 
+@given(
+    'an issue "{identifier}" exists with agent metadata platform "{platform}" model "{model}" and name "{name}"'
+)
+def given_issue_with_complete_agent_metadata(
+    context: object, identifier: str, platform: str, model: str, name: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = build_issue(identifier, "Agent tagged issue", "task", "open", None, [])
+    issue = issue.model_copy(
+        update={
+            "agent": AgentMetadata(platform=platform, model=model, name=name),
+        }
+    )
+    write_issue_file(project_dir, issue)
+
+
+@then("the created issue should not have agent metadata")
+def then_created_issue_has_no_agent_metadata(context: object) -> None:
+    identifier = capture_issue_identifier(context)
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.agent is None
+
+
+@then(
+    'issue "{identifier}" should have agent metadata platform "{platform}" and model "{model}"'
+)
+def then_issue_has_agent_metadata(
+    context: object, identifier: str, platform: str, model: str
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.agent is not None
+    assert issue.agent.platform == platform
+    assert issue.agent.model == model
+
+
+@then('issue "{identifier}" should have agent name "{name}"')
+def then_issue_has_agent_name(context: object, identifier: str, name: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.agent is not None
+    assert issue.agent.name == name
+
+
 @then(
     'the created issue should have agent metadata platform "{platform}" and model "{model}"'
 )
@@ -125,6 +170,13 @@ def then_latest_comment_has_agent_metadata(
     assert latest.agent is not None
     assert latest.agent.platform == platform
     assert latest.agent.model == model
+
+
+@then('the latest comment should have text "Done"')
+def then_latest_comment_has_text_done(context: object) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, "kanbus-aaa")
+    assert issue.comments[-1].text == "Done"
 
 
 @then('the latest comment should have agent settings speed "{speed}"')
@@ -171,11 +223,49 @@ def given_issue_comment_with_agent_metadata(
     write_issue_file(project_dir, issue)
 
 
+@given(
+    'issue "{identifier}" has a comment from "{author}" with text "{text}" with complete agent metadata platform "{platform}" model "{model}" name "{name}"'
+)
+def given_issue_comment_with_complete_agent_metadata(
+    context: object,
+    identifier: str,
+    author: str,
+    text: str,
+    platform: str,
+    model: str,
+    name: str,
+) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    comment = IssueComment(
+        id="abc123def456",
+        author=author,
+        text=text,
+        created_at=datetime(2026, 2, 11, tzinfo=timezone.utc),
+        agent=AgentMetadata(platform=platform, model=model, name=name),
+    )
+    issue = issue.model_copy(update={"comments": [comment]})
+    write_issue_file(project_dir, issue)
+
+
 @when("I resolve agent metadata with no CLI overrides")
 def when_resolve_agent_metadata(context: object) -> None:
     _apply_env_overrides(context)
     try:
         context.resolved_agent_metadata = resolve_agent_metadata(AgentMetadataRequest())
+    finally:
+        _restore_env_overrides(context)
+
+
+@when('I resolve agent metadata with platform "{platform}" and model "{model}"')
+def when_resolve_agent_metadata_with_platform_and_model(
+    context: object, platform: str, model: str
+) -> None:
+    _apply_env_overrides(context)
+    try:
+        context.resolved_agent_metadata = resolve_agent_metadata(
+            AgentMetadataRequest(platform=platform, model=model)
+        )
     finally:
         _restore_env_overrides(context)
 

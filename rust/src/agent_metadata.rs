@@ -38,7 +38,8 @@ fn normalize_optional_text(value: Option<&str>) -> Option<String> {
 }
 
 fn normalize_platform(platform: &str) -> Result<String, KanbusError> {
-    let normalized = platform.trim().to_ascii_lowercase();
+    let slug = platform.split_whitespace().collect::<Vec<_>>().join("_");
+    let normalized = slug.to_ascii_lowercase();
     if !PLATFORM_PATTERN.is_match(&normalized) {
         return Err(KanbusError::IssueOperation(
             "invalid agent platform".to_string(),
@@ -194,6 +195,109 @@ pub fn agent_metadata_to_event_value(agent: &AgentMetadata) -> Value {
     serde_json::to_value(agent).unwrap_or(Value::Null)
 }
 
+/// Example product name used in follow-up commands.
+pub const EXAMPLE_AGENT_PLATFORM: &str = "Cursor";
+/// Example model name used in follow-up commands.
+pub const EXAMPLE_AGENT_MODEL: &str = "Composer 2.5";
+/// Example session name used in follow-up commands.
+pub const EXAMPLE_AGENT_NAME: &str = "Cloud Agent";
+/// Error when complete agent metadata would be replaced.
+pub const AGENT_METADATA_ALREADY_SET: &str = "agent metadata is already set";
+
+/// Return whether platform, model, and session name are all present.
+pub fn agent_provenance_is_complete(agent: Option<&AgentMetadata>) -> bool {
+    agent.is_some_and(|metadata| {
+        metadata
+            .name
+            .as_deref()
+            .is_some_and(|name| !name.is_empty())
+    })
+}
+
+/// List required provenance fields that are not set.
+pub fn missing_agent_provenance_fields(agent: Option<&AgentMetadata>) -> Vec<&'static str> {
+    match agent {
+        None => vec!["platform", "model", "name"],
+        Some(metadata)
+            if metadata
+                .name
+                .as_deref()
+                .is_some_and(|name| !name.is_empty()) =>
+        {
+            Vec::new()
+        }
+        Some(_) => vec!["name"],
+    }
+}
+
+/// Set agent metadata when the existing record is incomplete.
+///
+/// # Errors
+/// Returns `KanbusError` when complete metadata would be replaced.
+pub fn assign_agent_metadata_if_incomplete(
+    existing: Option<AgentMetadata>,
+    incoming: Option<AgentMetadata>,
+) -> Result<Option<AgentMetadata>, KanbusError> {
+    let Some(incoming_metadata) = incoming else {
+        return Ok(existing);
+    };
+    if agent_provenance_is_complete(existing.as_ref()) {
+        return Err(KanbusError::IssueOperation(
+            AGENT_METADATA_ALREADY_SET.to_string(),
+        ));
+    }
+    Ok(Some(incoming_metadata))
+}
+
+/// Build a warning that includes a one-step follow-up command.
+pub fn format_agent_provenance_warning(
+    issue_identifier: &str,
+    agent: Option<&AgentMetadata>,
+    comment_id: Option<&str>,
+) -> String {
+    let missing = missing_agent_provenance_fields(agent);
+    let missing_text = missing.join(", ");
+    let issue_key = crate::ids::format_issue_key(issue_identifier, false);
+    let mut command = if let Some(comment_identifier) = comment_id {
+        format!("kbs comment update {issue_key} {comment_identifier}")
+    } else {
+        format!("kbs update {issue_key}")
+    };
+    if missing.contains(&"platform") {
+        command.push_str(&format!(" --agent-platform \"{EXAMPLE_AGENT_PLATFORM}\""));
+    }
+    if missing.contains(&"model") {
+        command.push_str(&format!(" --agent-model \"{EXAMPLE_AGENT_MODEL}\""));
+    }
+    if missing.contains(&"name") {
+        command.push_str(&format!(" --agent-name \"{EXAMPLE_AGENT_NAME}\""));
+    }
+    format!(
+        "WARNING: agent provenance is incomplete (missing: {missing_text}).\n\
+See CONTRIBUTING_AGENT.md (Agent provenance metadata).\n\
+To add it in one step:\n\
+  {command}\n\
+To skip tagging this time, re-run with --no-agent-provenance."
+    )
+}
+
+/// Write the incomplete-provenance warning to stderr when needed.
+pub fn emit_agent_provenance_warning(
+    issue_identifier: &str,
+    agent: Option<&AgentMetadata>,
+    comment_id: Option<&str>,
+    silenced: bool,
+) {
+    if silenced || agent_provenance_is_complete(agent) {
+        return;
+    }
+    crate::rich_text_signals::emit_stderr_message(&format_agent_provenance_warning(
+        issue_identifier,
+        agent,
+        comment_id,
+    ));
+}
+
 /// Reject agent metadata mutations in Beads compatibility mode.
 pub fn reject_agent_metadata_in_beads_mode(agent_present: bool) -> Result<(), KanbusError> {
     if agent_present {
@@ -239,6 +343,29 @@ mod tests {
             error.to_string(),
             "agent settings must not contain secret-like keys"
         );
+    }
+
+    #[test]
+    fn title_case_platform_with_spaces_normalizes() {
+        let agent = build_agent_metadata(
+            Some("Claude Code"),
+            Some("Composer 2.5"),
+            &BTreeMap::new(),
+            None,
+        )
+        .expect("expected metadata")
+        .expect("metadata present");
+        assert_eq!(agent.platform, "claude_code");
+        assert_eq!(agent.model, "Composer 2.5");
+    }
+
+    #[test]
+    fn format_agent_provenance_warning_includes_follow_up() {
+        let warning = format_agent_provenance_warning("kanbus-aaa", None, None);
+        assert!(warning.contains("agent provenance is incomplete (missing: platform, model, name)"));
+        assert!(warning.contains("CONTRIBUTING_AGENT.md"));
+        assert!(warning.contains("kbs update kanbus-aaa --agent-platform \"Cursor\""));
+        assert!(warning.contains("--agent-name \"Cloud Agent\""));
     }
 
     #[test]

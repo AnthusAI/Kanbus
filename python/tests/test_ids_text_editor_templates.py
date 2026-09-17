@@ -173,3 +173,7 @@ def test_template_constants_are_expected() -> None:
         "{{ project_key }}"
         in project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
     )
+    assert (
+        "Agent provenance metadata"
+        in project_management_template.DEFAULT_PROJECT_MANAGEMENT_TEMPLATE
+    )

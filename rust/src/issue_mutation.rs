@@ -13,6 +13,7 @@ use crate::event_history::{
 };
 use crate::issue_files::write_issue_to_file;
 use crate::models::IssueData;
+use crate::overlay::replace_overlay_issue_if_present;
 use crate::right_now::{
     regenerate_right_now_ancestors, regenerate_right_now_for_issue_and_ancestors,
 };
@@ -61,6 +62,7 @@ pub fn persist_issue_mutation(
     let mut persisted_issue = request.issue.clone();
     persisted_issue.updated_at = current_time;
     write_issue_to_file(&persisted_issue, &request.issue_path)?;
+    replace_overlay_issue_if_present(&request.project_dir, &persisted_issue)?;
     let mut final_issue_path = request.issue_path.clone();
     if let Some(relocate_to) = &request.relocate_to {
         fs::rename(&request.issue_path, relocate_to)

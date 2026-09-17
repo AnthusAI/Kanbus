@@ -48,6 +48,28 @@ def build_console_snapshot(root: Path) -> Dict[str, object]:
     }
 
 
+def build_console_now_issues(root: Path) -> List[Dict[str, object]]:
+    """Backfill right-now summaries and return issues for the console Now view.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Issue payloads after just-in-time backfill.
+    :rtype: List[Dict[str, object]]
+    :raises ConsoleSnapshotError: If loading or backfill fails.
+    """
+    from kanbus.right_now import (
+        active_right_now_tree,
+        ensure_right_now_summary_subtrees,
+    )
+
+    project_dir, config = _load_project_context(root)
+    issues = _load_console_issues(root, project_dir, config)
+    roots, selected_identifiers = active_right_now_tree(issues)
+    ensure_right_now_summary_subtrees(root, roots, selected_identifiers)
+    issues = _load_console_issues(root, project_dir, config)
+    return [issue.model_dump(by_alias=True, mode="json") for issue in issues]
+
+
 def get_issues_for_root(root: Path) -> List[IssueData]:
     """Load issues for the given repository root using the same logic as the console.
 
