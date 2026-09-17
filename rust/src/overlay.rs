@@ -945,6 +945,7 @@ mod tests {
                 claim_id: Some("claim".to_string()),
                 lease_ttl_s: None,
                 expires_at: None,
+                operation_sequence: None,
             },
         };
         let expired_path = directory.join(format!("{}.json", sha256_hex(&expired.id)));

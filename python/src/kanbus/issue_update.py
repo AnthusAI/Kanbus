@@ -66,6 +66,7 @@ def update_issue(
     set_labels: Optional[list[str]] = None,
     parent: Optional[str] = None,
     issue_type: Optional[str] = None,
+    regenerate_right_now: bool = True,
 ) -> IssueUpdateResult:
     """Update an issue and persist it to disk.
 
@@ -93,6 +94,8 @@ def update_issue(
     :type set_labels: Optional[list[str]]
     :param parent: Updated parent identifier.
     :type parent: Optional[str]
+    :param regenerate_right_now: Whether to regenerate AI summaries after persisting.
+    :type regenerate_right_now: bool
     :return: Updated issue data and whether disk state changed.
     :rtype: IssueUpdateResult
     :raises IssueUpdateError: If the update fails.
@@ -343,6 +346,7 @@ def update_issue(
                 events=events,
                 before_issue=before_issue,
                 root=root,
+                regenerate_right_now=regenerate_right_now,
             )
         )
     except Exception as error:  # noqa: BLE001

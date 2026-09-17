@@ -44,7 +44,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The MQTT Gherkin scenarios still need concrete CLAIM, LEASE, and RELEASE envelope fields.",
-  "right_now_updated_at": "2026-09-14T14:08:10.350837659Z",
+  "right_now_summary": "The MQTT Gherkin field details are accepted as a follow-up and await the Git lease baseline.",
+  "right_now_updated_at": "2026-09-17T09:20:14.008494Z",
   "custom": {}
 }

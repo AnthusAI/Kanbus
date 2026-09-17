@@ -143,7 +143,10 @@ def test_event_id_breaks_duplicate_claim_ties_and_selects_matching_expiry(
         events_dir,
         event_type="coordination.claim",
         at=start,
-        payload=_claim_payload("worker", "same-claim", start, ttl_s=300),
+        payload={
+            **_claim_payload("worker", "same-claim", start, ttl_s=300),
+            "operation_sequence": 7,
+        },
         event_id="z-event",
     )
     second_claim_at = start + timedelta(seconds=1)
@@ -151,7 +154,10 @@ def test_event_id_breaks_duplicate_claim_ties_and_selects_matching_expiry(
         events_dir,
         event_type="coordination.claim",
         at=second_claim_at,
-        payload=_claim_payload("worker", "same-claim", second_claim_at, ttl_s=600),
+        payload={
+            **_claim_payload("worker", "same-claim", second_claim_at, ttl_s=600),
+            "operation_sequence": 7,
+        },
         event_id="a-event",
     )
 
@@ -272,6 +278,119 @@ def test_release_and_expiry_make_resource_eligible(tmp_path: Path) -> None:
     assert not inspect_lease(
         events_dir, "job:1", now=start + timedelta(seconds=400)
     ).active
+
+
+def test_operation_sequence_preserves_same_millisecond_local_causality(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events_dir = tmp_path / "events"
+    at = datetime(2026, 9, 16, 12, tzinfo=UTC)
+    monkeypatch.setattr("kanbus.coordination.utc_now", lambda: at)
+    configuration = CoordinationConfiguration(default_lease_ttl="300s")
+
+    claim(
+        events_dir,
+        configuration,
+        resource="job:1",
+        owner="worker-a",
+        claim_id="claim-a",
+        now=at,
+    )
+    release(
+        events_dir,
+        resource="job:1",
+        owner="worker-a",
+        claim_id="claim-a",
+        now=at,
+    )
+    claim(
+        events_dir,
+        configuration,
+        resource="job:1",
+        owner="worker-b",
+        claim_id="claim-b",
+        now=at,
+    )
+
+    state = inspect_lease(events_dir, "job:1", now=at + timedelta(seconds=1))
+    records = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in events_dir.glob("*.json")
+    ]
+    operations = sorted(
+        records,
+        key=lambda record: record["payload"]["operation_sequence"],
+    )
+
+    assert state.active
+    assert (state.owner, state.claim_id) == ("worker-b", "claim-b")
+    assert [record["payload"]["operation_sequence"] for record in operations] == [
+        1,
+        2,
+        3,
+    ]
+
+
+def test_legacy_coordination_events_keep_timestamp_and_event_id_order(
+    tmp_path: Path,
+) -> None:
+    events_dir = tmp_path / "events"
+    start = datetime(2026, 9, 16, 12, tzinfo=UTC)
+    _write_event(
+        events_dir,
+        event_type="coordination.claim",
+        at=start,
+        payload=_claim_payload("worker", "claim", start),
+        event_id="a-claim",
+    )
+    _write_event(
+        events_dir,
+        event_type="coordination.release",
+        at=start + timedelta(seconds=1),
+        payload={"owner": "worker", "claim_id": "claim"},
+        event_id="z-release",
+    )
+
+    state = inspect_lease(events_dir, "job:1", now=start + timedelta(seconds=2))
+
+    assert not state.active
+
+
+@pytest.mark.parametrize("invalid_sequence", [0, -1, 1.5, True, "1"])
+def test_invalid_operation_sequence_is_ignored_and_not_allocated(
+    tmp_path: Path, invalid_sequence: object
+) -> None:
+    events_dir = tmp_path / "events"
+    start = datetime(2026, 9, 16, 12, tzinfo=UTC)
+    payload = _claim_payload("invalid-worker", "invalid-claim", start)
+    payload["operation_sequence"] = invalid_sequence
+    _write_event(
+        events_dir,
+        event_type="coordination.claim",
+        at=start,
+        payload=payload,
+        event_id="invalid-sequence",
+    )
+
+    state = claim(
+        events_dir,
+        CoordinationConfiguration(),
+        resource="job:1",
+        owner="valid-worker",
+        claim_id="valid-claim",
+        now=start + timedelta(seconds=1),
+    )
+    records = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in events_dir.glob("*.json")
+    ]
+
+    assert state.active
+    assert (state.owner, state.claim_id) == ("valid-worker", "valid-claim")
+    valid_event = next(
+        record for record in records if record["event_id"] != "invalid-sequence"
+    )
+    assert valid_event["payload"]["operation_sequence"] == 1
 
 
 def test_cli_emits_locked_output_and_writes_resource_event(

@@ -416,6 +416,7 @@ fn when_publish_two_without_broker(world: &mut KanbusWorld) {
         snyk: None,
         github_security: None,
         coordination: Default::default(),
+        router: None,
         realtime: RealtimeConfig {
             transport: "mqtt".to_string(),
             broker: "auto".to_string(),

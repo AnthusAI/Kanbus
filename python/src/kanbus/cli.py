@@ -26,7 +26,9 @@ from kanbus.coordination import (
     CoordinationError,
     claim as coordination_claim,
     inspect_lease as inspect_coordination_lease,
+    operation_sequence_for_event,
     release as coordination_release,
+    publish_result as publish_coordination_result,
     renew as coordination_renew,
     utc_now,
 )
@@ -163,6 +165,7 @@ from kanbus.standup_command import (
     StandupCommandOptions,
     run_standup_command,
 )
+from kanbus.router_cli import router_group
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -4004,11 +4007,9 @@ def _coordination_fallback_provider(
     root: Path, configuration: ProjectConfiguration
 ) -> str:
     """Select MQTT when it is usable, otherwise retain Git as the fallback."""
-    if "mqtt" not in configuration.coordination.providers:
-        return "git"
-    from kanbus.coordination_mqtt import provider_available
+    from kanbus.coordination_runtime import select_soft_provider
 
-    return "mqtt" if provider_available(root, configuration) else "git"
+    return select_soft_provider(root, configuration)
 
 
 def _mutex_lease_state(lease, *, operation_event_id: str | None = None) -> LeaseState:
@@ -4141,14 +4142,11 @@ def coordination_claim_command(
     except CoordinationError as error:
         raise click.ClickException(str(error)) from error
     if provider == "mqtt" and state.operation_event_id:
-        from kanbus.coordination_mqtt import (
-            inspect_lease as inspect_mqtt_lease,
-            make_claim_envelope,
-            publish_envelope,
-        )
+        from kanbus.coordination_mqtt import inspect_lease as inspect_mqtt_lease
+        from kanbus.coordination_runtime import publish_claim_visibility
         from kanbus.coordination import parse_duration
 
-        envelope = make_claim_envelope(
+        published = publish_claim_visibility(
             root,
             project_dir,
             configuration,
@@ -4156,10 +4154,11 @@ def coordination_claim_command(
             owner=owner,
             claim_id=claim_id,
             event_id=state.operation_event_id,
-            lease_ttl_s=parse_duration(configuration.coordination.default_lease_ttl),
             occurred_at=occurred_at,
+            lease_ttl_s=parse_duration(configuration.coordination.default_lease_ttl),
+            operation_sequence=state.operation_sequence,
         )
-        if publish_envelope(root, project_dir, configuration, envelope):
+        if published:
             state = inspect_mqtt_lease(
                 project_dir / "events",
                 project_dir,
@@ -4254,23 +4253,19 @@ def coordination_renew_command(
         and state.contention_window_ends_at
         and occurred_at >= state.contention_window_ends_at
     ):
-        from kanbus.coordination_mqtt import make_lease_envelope, publish_envelope
+        from kanbus.coordination_runtime import publish_renewal_visibility
 
-        envelope = make_lease_envelope(
+        published = publish_renewal_visibility(
             root,
             project_dir,
             configuration,
             resource=resource,
             owner=owner,
             claim_id=claim_id,
-            event_id=state.event_id,
-            lease_ttl_s=max(
-                1, int((state.expires_at - state.claimed_at).total_seconds())
-            ),
-            expires_at=state.expires_at,
             occurred_at=occurred_at,
+            state=state,
         )
-        if not publish_envelope(root, project_dir, configuration, envelope):
+        if not published:
             provider = "git"
     _echo_coordination_state(state, provider)
 
@@ -4333,9 +4328,9 @@ def coordination_release_command(resource: str, owner: str, claim_id: str) -> No
     except CoordinationError as error:
         raise click.ClickException(str(error)) from error
     if provider == "mqtt":
-        from kanbus.coordination_mqtt import make_release_envelope, publish_envelope
+        from kanbus.coordination_runtime import publish_release_visibility
 
-        envelope = make_release_envelope(
+        published = publish_release_visibility(
             root,
             project_dir,
             configuration,
@@ -4344,8 +4339,11 @@ def coordination_release_command(resource: str, owner: str, claim_id: str) -> No
             claim_id=claim_id,
             event_id=release_event_id,
             occurred_at=occurred_at,
+            operation_sequence=operation_sequence_for_event(
+                project_dir / "events", resource, release_event_id
+            ),
         )
-        if not publish_envelope(root, project_dir, configuration, envelope):
+        if not published:
             provider = "git"
     click.echo(f"provider: {provider}")
     click.echo(f"resource: {resource}")
@@ -4399,6 +4397,39 @@ def coordination_inspect_command(resource: str) -> None:
     except CoordinationError as error:
         raise click.ClickException(str(error)) from error
     _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("publish-result")
+@click.option("--resource", required=True, help="Logical resource being published.")
+@click.option(
+    "--revision",
+    required=True,
+    type=click.IntRange(min=1),
+    help="Positive logical task revision.",
+)
+@click.option("--artifact", required=True, help="Artifact reference to publish.")
+def coordination_publish_result_command(
+    resource: str, revision: int, artifact: str
+) -> None:
+    """Publish an artifact reference only when its logical revision is current."""
+    _, project_dir, _ = _coordination_context()
+    try:
+        publication = publish_coordination_result(
+            project_dir / "events",
+            resource=resource,
+            revision=revision,
+            artifact=artifact,
+            actor_id=get_current_user(),
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("provider: git")
+    click.echo(f"resource: {publication.resource}")
+    click.echo(f"revision: {publication.revision}")
+    click.echo("state: published")
+
+
+cli.add_command(router_group)
 
 
 if __name__ == "__main__":

@@ -94,12 +94,29 @@ async fn main() {
     }
     let include_console = env_flag("KANBUS_CUCUMBER_INCLUDE_CONSOLE");
     let only_console = env_flag("KANBUS_CUCUMBER_ONLY_CONSOLE");
+    let feature_filters = std::env::var("KANBUS_CUCUMBER_FEATURE_FILTER")
+        .ok()
+        .map(|value| {
+            value
+                .split(',')
+                .map(|filter| filter.trim().to_ascii_lowercase())
+                .filter(|filter| !filter.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     #[cfg(tarpaulin)]
     cover_additional_paths();
     KanbusWorld::cucumber::<PathBuf>()
         .with_parser(RecursiveFeatureParser::default())
         .max_concurrent_scenarios(1)
         .filter_run_and_exit(features_dir, move |feature, _, scenario| {
+            if !feature_filters.is_empty()
+                && !feature_filters
+                    .iter()
+                    .any(|filter| feature.name.to_ascii_lowercase().contains(filter))
+            {
+                return false;
+            }
             let scenario_has_wip = scenario.tags.iter().any(|tag| tag == "wip");
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");

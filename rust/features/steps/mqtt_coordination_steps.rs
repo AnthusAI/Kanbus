@@ -168,6 +168,7 @@ fn publish_message(
             claim_id: Some(claim_id.to_string()),
             lease_ttl_s: ttl_s,
             expires_at: None,
+            operation_sequence: None,
         },
     );
     envelope.ts = event_ts.to_string();

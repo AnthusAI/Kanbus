@@ -1668,9 +1668,13 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
     class _PublishResult:
         def __init__(self) -> None:
             self.wait_timeout = None
+            self.rc = 0
 
         def wait_for_publish(self, timeout: float) -> None:
             self.wait_timeout = timeout
+
+        def is_published(self) -> bool:
+            return True
 
     class _Message:
         def __init__(self, payload: bytes) -> None:
@@ -1684,6 +1688,7 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
             self.credentials = None
             self.connected = None
             self.subscribed: list[str] = []
+            self.on_connect = None
             self.on_message = None
             self.published: list[tuple[str, str, int, bool]] = []
             self.publish_result = _PublishResult()
@@ -1706,6 +1711,8 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
 
         def loop_start(self) -> None:
             self.loop_started = True
+            assert self.on_connect is not None
+            self.on_connect(self, None, None, 0)
 
         def publish(
             self, topic: str, payload: str, *, qos: int, retain: bool
@@ -1759,6 +1766,8 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
     )
     gossip._publish_mqtt(endpoint_secure, "projects/alpha/events", envelope)
     assert clients[0].published[0][2:] == (0, False)
+    assert clients[0].client_id != "producer-fixed"
+    assert clients[0].publish_result.wait_timeout == 5.0
 
     seen: list[str] = []
     gossip.run_mqtt_subscription(
@@ -1768,6 +1777,7 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
     )
     assert seen == ["env-41"]
     assert clients[1].subscribed == ["projects/alpha/events"]
+    assert clients[1].client_id != clients[0].client_id
 
     alpn_protocols: list[list[str]] = []
 
@@ -1781,6 +1791,7 @@ def test_publish_mqtt_and_run_subscription_with_fake_client(monkeypatch) -> None
         mqtt_api_token="api-token",
     )
     gossip._publish_mqtt(endpoint_secure, "projects/alpha/events", envelope, realtime)
+    assert clients[2].client_id != "producer-fixed"
     assert clients[2].connected == ("broker", 443, 30)
     assert clients[2].tls_context is not None
     assert clients[2].credentials == (

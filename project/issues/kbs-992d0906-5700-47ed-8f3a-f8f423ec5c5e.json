@@ -49,7 +49,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The MQTT lease fast path still needs implementation and matching tests on both runtimes.",
-  "right_now_updated_at": "2026-09-14T13:33:56.201004604Z",
+  "right_now_summary": "The team is finishing the Git soft-lease baseline before implementing the MQTT lease fast path.",
+  "right_now_updated_at": "2026-09-17T09:20:07.520838Z",
   "custom": {}
 }

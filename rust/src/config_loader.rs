@@ -8,7 +8,7 @@ use serde_yaml::{Mapping, Value};
 
 use crate::config::default_project_configuration;
 use crate::error::KanbusError;
-use crate::models::ProjectConfiguration;
+use crate::models::{validate_http_endpoint, HttpEndpointError, ProjectConfiguration};
 
 /// Filename for the user congregation env file in the home directory.
 pub const CONGREGATION_ENV_FILENAME: &str = ".kanbus.env";
@@ -63,6 +63,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     reject_standup_lookback_hours(&merged_value)?;
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
+    validate_router_yaml(&merged_value)?;
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
 
@@ -72,6 +73,165 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
+    let router_key = Value::String("router".to_string());
+    let Some(router) = configuration.get(&router_key) else {
+        return Ok(());
+    };
+    if router.is_null() {
+        return Ok(());
+    }
+    let Some(router_mapping) = router.as_mapping() else {
+        return Err(KanbusError::Configuration(
+            "router must be a mapping".to_string(),
+        ));
+    };
+    validate_yaml_fields(
+        router_mapping,
+        "router",
+        &[
+            "enabled",
+            "workflow",
+            "limits",
+            "providers",
+            "classes",
+            "retries",
+            "watch_interval",
+            "forge",
+        ],
+    )?;
+    if let Some(workflow) = router_mapping.get(Value::String("workflow".to_string())) {
+        if let Some(mapping) = workflow.as_mapping() {
+            validate_yaml_fields(
+                mapping,
+                "router.workflow",
+                &["pending", "active", "review", "blocked", "terminal"],
+            )?;
+        }
+    }
+    if let Some(limits) = router_mapping.get(Value::String("limits".to_string())) {
+        if let Some(mapping) = limits.as_mapping() {
+            validate_yaml_fields(
+                mapping,
+                "router.limits",
+                &["project_wip", "review_wip", "class_wip", "provider_wip"],
+            )?;
+            for key in ["project_wip", "review_wip"] {
+                if let Some(value) = mapping.get(Value::String(key.to_string())) {
+                    if !is_positive_integer(value) {
+                        return Err(KanbusError::Configuration(format!(
+                            "router.limits.{key} must be a positive integer"
+                        )));
+                    }
+                }
+            }
+            for key in ["class_wip", "provider_wip"] {
+                if let Some(value) = mapping.get(Value::String(key.to_string())) {
+                    if let Some(entries) = value.as_mapping() {
+                        for (name, limit) in entries {
+                            if !is_positive_integer(limit) {
+                                let name = name.as_str().unwrap_or("unknown");
+                                return Err(KanbusError::Configuration(format!(
+                                    "router.limits.{key}.{name} must be a positive integer"
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(providers) = router_mapping.get(Value::String("providers".to_string())) {
+        if let Some(profiles) = providers.as_mapping() {
+            for (name, profile) in profiles {
+                let name = name.as_str().unwrap_or("unknown");
+                if let Some(profile) = profile.as_mapping() {
+                    validate_yaml_fields(
+                        profile,
+                        &format!("router.providers.{name}"),
+                        &["adapter", "command", "args"],
+                    )?;
+                }
+            }
+        }
+    }
+    if let Some(classes) = router_mapping.get(Value::String("classes".to_string())) {
+        if let Some(class_values) = classes.as_mapping() {
+            for (name, class) in class_values {
+                let name = name.as_str().unwrap_or("unknown");
+                if let Some(class) = class.as_mapping() {
+                    validate_yaml_fields(class, &format!("router.classes.{name}"), &["providers"])?;
+                }
+            }
+        }
+    }
+    if let Some(retries) = router_mapping.get(Value::String("retries".to_string())) {
+        if let Some(mapping) = retries.as_mapping() {
+            validate_yaml_fields(mapping, "router.retries", &["max_attempts"])?;
+            if let Some(value) = mapping.get(Value::String("max_attempts".to_string())) {
+                if !is_positive_integer(value) {
+                    return Err(KanbusError::Configuration(
+                        "router.retries.max_attempts must be a positive integer".to_string(),
+                    ));
+                }
+            }
+        }
+    }
+    if let Some(interval) = router_mapping.get(Value::String("watch_interval".to_string())) {
+        let valid = interval
+            .as_str()
+            .is_some_and(|value| crate::coordination::parse_duration_seconds(value).is_ok());
+        if !valid {
+            return Err(KanbusError::Configuration(
+                "router.watch_interval must be a positive duration".to_string(),
+            ));
+        }
+    }
+    if let Some(forge) = router_mapping.get(Value::String("forge".to_string())) {
+        if let Some(mapping) = forge.as_mapping() {
+            if !mapping.contains_key(Value::String("repository".to_string())) {
+                return Err(KanbusError::Configuration(
+                    "router.forge.repository is required".to_string(),
+                ));
+            }
+            validate_yaml_fields(
+                mapping,
+                "router.forge",
+                &[
+                    "provider",
+                    "repository",
+                    "base_branch",
+                    "api_url",
+                    "token_env",
+                ],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_yaml_fields(
+    mapping: &Mapping,
+    prefix: &str,
+    allowed_fields: &[&str],
+) -> Result<(), KanbusError> {
+    for key in mapping.keys() {
+        let Some(name) = key.as_str() else {
+            continue;
+        };
+        if !allowed_fields.contains(&name) {
+            return Err(KanbusError::Configuration(format!(
+                "{prefix}.{name} is an unknown field"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn is_positive_integer(value: &Value) -> bool {
+    value.as_u64().is_some_and(|number| number > 0)
 }
 
 fn user_home_directory() -> PathBuf {
@@ -342,6 +502,24 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     validate_sort_order(configuration, &mut errors);
     validate_right_now(configuration, &mut errors);
     errors.extend(crate::coordination::validate_coordination_configuration(
+        configuration,
+    ));
+    if let Some(forge) = configuration
+        .router
+        .as_ref()
+        .and_then(|router| router.forge.as_ref())
+    {
+        match validate_http_endpoint(&forge.api_url) {
+            Err(HttpEndpointError::Credentials) => {
+                errors.push("router.forge.api_url must not include URL credentials".to_string())
+            }
+            Err(HttpEndpointError::Insecure) => errors.push(
+                "router.forge.api_url must use HTTPS unless the host is loopback".to_string(),
+            ),
+            Err(HttpEndpointError::Invalid) | Ok(()) => {}
+        }
+    }
+    errors.extend(crate::router::validate_issue_router_configuration(
         configuration,
     ));
 
@@ -750,6 +928,11 @@ fn set_nested_value(mapping: &mut Mapping, path: &[&str], value: Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::{
+        IssueRouterConfiguration, IssueRouterForgeConfiguration, IssueRouterLimitsConfiguration,
+        IssueRouterProviderConfiguration, IssueRouterWorkflowConfiguration,
+    };
+    use std::collections::BTreeMap;
     use std::fs;
     use tempfile::TempDir;
 
@@ -828,5 +1011,69 @@ mod tests {
                 .and_then(Value::as_str),
             Some("env-secret")
         );
+    }
+
+    fn project_configuration_with_forge_url(api_url: &str) -> ProjectConfiguration {
+        let mut configuration = default_project_configuration();
+        configuration.router = Some(IssueRouterConfiguration {
+            enabled: true,
+            workflow: IssueRouterWorkflowConfiguration {
+                pending: "backlog".to_string(),
+                active: "in_progress".to_string(),
+                review: "open".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: IssueRouterLimitsConfiguration {
+                project_wip: 3,
+                review_wip: 2,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "default".to_string(),
+                IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: "codex".to_string(),
+                    args: Vec::new(),
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: Default::default(),
+            watch_interval: "30s".to_string(),
+            forge: Some(IssueRouterForgeConfiguration {
+                provider: "github".to_string(),
+                repository: "example/repository".to_string(),
+                base_branch: "main".to_string(),
+                api_url: api_url.to_string(),
+                token_env: "GITHUB_TOKEN".to_string(),
+            }),
+        });
+        configuration
+    }
+
+    #[test]
+    fn forge_api_url_requires_tls_except_for_loopback_and_rejects_credentials() {
+        for endpoint in [
+            "https://api.github.com",
+            "http://localhost:8080",
+            "http://[::1]:8080",
+        ] {
+            let configuration = project_configuration_with_forge_url(endpoint);
+            assert!(
+                validate_project_configuration(&configuration).is_empty(),
+                "expected valid endpoint: {endpoint}"
+            );
+        }
+
+        let insecure = project_configuration_with_forge_url("http://forge.example.test/api");
+        assert!(validate_project_configuration(&insecure).contains(
+            &"router.forge.api_url must use HTTPS unless the host is loopback".to_string()
+        ));
+
+        let credentials =
+            project_configuration_with_forge_url("https://user:secret@forge.example.test/api");
+        assert!(validate_project_configuration(&credentials)
+            .contains(&"router.forge.api_url must not include URL credentials".to_string()));
     }
 }

@@ -20,7 +20,13 @@ from kanbus import (
     event_history,
 )
 from kanbus.config_loader import load_project_configuration
-from kanbus.coordination import claim, inspect_lease, parse_duration
+from kanbus.coordination import (
+    claim,
+    inspect_lease,
+    inspect_published_result,
+    parse_duration,
+    publish_result,
+)
 from kanbus.gossip import CoordinationGossipEnvelope, DedupeSet
 from kanbus.models import MutexApiConfiguration
 from kanbus.project import get_configuration_path, load_project_directory
@@ -761,6 +767,80 @@ def given_held_coordination_lease(
         claim_id,
         expires_at="2099-06-01T00:05:00Z",
     )
+
+
+@given('logical task revision for resource "{resource}" is {revision:d}')
+def given_logical_task_revision(context: object, resource: str, revision: int) -> None:
+    context.logical_task = (resource, revision)
+
+
+@given('published revision for resource "{resource}" is {revision:d}')
+def given_published_result_revision(
+    context: object, resource: str, revision: int
+) -> None:
+    publish_result(
+        _events_dir(context),
+        resource=resource,
+        revision=revision,
+        artifact=f"fixture-artifact-r{revision}",
+        actor_id="fixture-worker",
+    )
+
+
+@given('backstop eligibility threshold is "{threshold}"')
+def given_backstop_threshold(context: object, threshold: str) -> None:
+    context.backstop_threshold_seconds = parse_duration(threshold)
+
+
+@when('simulated time advances by "{duration}" without a published result')
+def when_backstop_time_advances(context: object, duration: str) -> None:
+    elapsed = parse_duration(duration)
+    context.backstop_elapsed_seconds = elapsed
+    start = context.coordination_claim_start
+    _set_clock(context, start + timedelta(seconds=elapsed))
+
+
+@then('published revision for resource "{resource}" should be {revision:d}')
+def then_published_result_revision(
+    context: object, resource: str, revision: int
+) -> None:
+    result = inspect_published_result(_events_dir(context), resource)
+    assert result is not None and result.revision == revision
+
+
+@then('cloud backstop worker should not yet be eligible for resource "{resource}"')
+def then_backstop_not_eligible(context: object, resource: str) -> None:
+    assert getattr(context, "logical_task", (resource, None))[0] == resource
+    threshold = getattr(context, "backstop_threshold_seconds", 15 * 60)
+    assert context.backstop_elapsed_seconds < threshold
+    assert inspect_published_result(_events_dir(context), resource) is None
+
+
+@then('cloud backstop worker should be eligible for resource "{resource}"')
+def then_backstop_eligible(context: object, resource: str) -> None:
+    threshold = getattr(context, "backstop_threshold_seconds", 15 * 60)
+    elapsed = getattr(context, "backstop_elapsed_seconds", threshold)
+    assert elapsed >= threshold
+    assert inspect_published_result(_events_dir(context), resource) is None
+
+
+@given('cloud backstop worker is eligible for resource "{resource}"')
+def given_backstop_eligible(context: object, resource: str) -> None:
+    context.backstop_eligible_resource = resource
+
+
+@then('Git remains the durable history for resource "{resource}"')
+def then_git_remains_durable_history(context: object, resource: str) -> None:
+    assert any(
+        event["issue_id"] == resource
+        for event in _event_records(context, resource)
+        if event["event_type"] == "coordination.claim"
+    )
+
+
+@when('cloud worker runs "{command}"')
+def when_cloud_worker_runs(context: object, command: str) -> None:
+    run_cli(context, command)
 
 
 @given('the lease expires at "{expires_at}"')

@@ -4,6 +4,38 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HttpEndpointError {
+    Invalid,
+    Credentials,
+    Insecure,
+}
+
+/// Validate an HTTP(S) endpoint, allowing plain HTTP only for loopback hosts.
+pub(crate) fn validate_http_endpoint(value: &str) -> Result<(), HttpEndpointError> {
+    let url = reqwest::Url::parse(value).map_err(|_| HttpEndpointError::Invalid)?;
+    let host = url.host_str().ok_or(HttpEndpointError::Invalid)?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(HttpEndpointError::Invalid);
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(HttpEndpointError::Credentials);
+    }
+    if url.scheme() == "http" {
+        let is_loopback = host.eq_ignore_ascii_case("localhost")
+            || host
+                .strip_prefix('[')
+                .and_then(|address| address.strip_suffix(']'))
+                .unwrap_or(host)
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|address| address.is_loopback());
+        if !is_loopback {
+            return Err(HttpEndpointError::Insecure);
+        }
+    }
+    Ok(())
+}
+
 /// Category definition for grouping statuses.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategoryDefinition {
@@ -374,6 +406,152 @@ pub struct MutexApiConfiguration {
     pub bearer_token: Option<String>,
 }
 
+/// Issue Router lifecycle status roles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterWorkflowConfiguration {
+    /// Status assigned while a package awaits a router worker.
+    pub pending: String,
+    /// Status assigned while a router worker owns a package.
+    pub active: String,
+    /// Status assigned after a change is published for review.
+    pub review: String,
+    /// Status assigned when a package cannot proceed.
+    pub blocked: String,
+    /// Statuses that indicate a completed package.
+    pub terminal: Vec<String>,
+}
+
+/// Project, review, class, and provider work-in-progress limits.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterLimitsConfiguration {
+    /// Maximum packages active, in review, or blocked across the project.
+    pub project_wip: usize,
+    /// Maximum packages in the configured review status.
+    pub review_wip: usize,
+    /// Optional per-class package limits.
+    #[serde(default)]
+    pub class_wip: BTreeMap<String, usize>,
+    /// Optional per-provider-profile package limits.
+    #[serde(default)]
+    pub provider_wip: BTreeMap<String, usize>,
+}
+
+/// A configured Codex command profile used to execute an issue package.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterProviderConfiguration {
+    /// Adapter protocol for the profile.
+    pub adapter: String,
+    /// Executable used to launch the adapter.
+    #[serde(default = "default_issue_router_command")]
+    pub command: String,
+    /// Arguments preceding the adapter's `exec --json` arguments.
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+/// Ordered provider profiles available to an issue class.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterClassConfiguration {
+    /// Provider profiles tried in order when a new claim begins.
+    pub providers: Vec<String>,
+}
+
+/// Retry policy for a package after a retryable worker failure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterRetryConfiguration {
+    /// Maximum number of worker attempts before the package is blocked.
+    #[serde(default = "default_issue_router_max_attempts")]
+    pub max_attempts: u32,
+}
+
+/// Forge configuration for pull request publication and observation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterForgeConfiguration {
+    /// Forge implementation name, currently `github`.
+    #[serde(default = "default_issue_router_forge_provider")]
+    pub provider: String,
+    /// Repository in `owner/name` form.
+    pub repository: String,
+    /// Base branch used for new pull requests.
+    #[serde(default = "default_issue_router_base_branch")]
+    pub base_branch: String,
+    /// Forge API base URL.
+    #[serde(default = "default_issue_router_api_url")]
+    pub api_url: String,
+    /// Environment variable containing the forge token.
+    #[serde(default = "default_issue_router_token_environment")]
+    pub token_env: String,
+}
+
+/// Optional configuration for the deterministic issue router.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueRouterConfiguration {
+    /// Whether the configured router is enabled.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Workflow statuses assigned to router lifecycle roles.
+    pub workflow: IssueRouterWorkflowConfiguration,
+    /// WIP limits that gate package scheduling.
+    pub limits: IssueRouterLimitsConfiguration,
+    /// Named provider profiles.
+    pub providers: BTreeMap<String, IssueRouterProviderConfiguration>,
+    /// Optional ordered provider groups keyed by issue class.
+    #[serde(default)]
+    pub classes: BTreeMap<String, IssueRouterClassConfiguration>,
+    /// Worker retry policy.
+    #[serde(default)]
+    pub retries: IssueRouterRetryConfiguration,
+    /// Polling interval used by `router run --watch`.
+    #[serde(default = "default_issue_router_watch_interval")]
+    pub watch_interval: String,
+    /// Optional forge used to publish and observe pull requests.
+    #[serde(default)]
+    pub forge: Option<IssueRouterForgeConfiguration>,
+}
+
+fn default_issue_router_command() -> String {
+    "codex".to_string()
+}
+
+fn default_issue_router_max_attempts() -> u32 {
+    3
+}
+
+fn default_issue_router_watch_interval() -> String {
+    "30s".to_string()
+}
+
+fn default_issue_router_forge_provider() -> String {
+    "github".to_string()
+}
+
+fn default_issue_router_base_branch() -> String {
+    "main".to_string()
+}
+
+fn default_issue_router_api_url() -> String {
+    "https://api.github.com".to_string()
+}
+
+fn default_issue_router_token_environment() -> String {
+    "GITHUB_TOKEN".to_string()
+}
+
+impl Default for IssueRouterRetryConfiguration {
+    fn default() -> Self {
+        Self {
+            max_attempts: default_issue_router_max_attempts(),
+        }
+    }
+}
+
 fn default_coordination_providers() -> Vec<String> {
     vec!["git".to_string()]
 }
@@ -472,6 +650,9 @@ pub struct ProjectConfiguration {
     /// Git-backed soft-lease coordination settings.
     #[serde(default)]
     pub coordination: CoordinationConfiguration,
+    /// Optional deterministic issue routing configuration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub router: Option<IssueRouterConfiguration>,
 }
 
 #[cfg(test)]

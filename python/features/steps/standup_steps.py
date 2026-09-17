@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import re
+from contextlib import contextmanager
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,6 +14,7 @@ import yaml
 from behave import given, then
 
 from kanbus.config import DEFAULT_CONFIGURATION
+from kanbus.models import IssueData
 from kanbus.right_now_command import (
     RightNowCommandOptions,
     RightNowOutputFormat,
@@ -200,14 +203,43 @@ def _standup_options_from_last_command(context: object) -> StandupCommandOptions
 def _current_standup_fact_feed(context: object) -> list[str]:
     root = Path(context.working_directory)
     options = _standup_options_from_last_command(context)
-    issues = select_standup_fact_feed(root, options)
+    issues = _select_standup_fact_feed_for_scenario(context, root, options)
     return [issue.identifier for issue in issues]
 
 
 def _expected_default_fact_feed(context: object) -> list[str]:
     root = Path(context.working_directory)
     options = StandupCommandOptions()
-    return [issue.identifier for issue in select_standup_fact_feed(root, options)]
+    return [
+        issue.identifier
+        for issue in _select_standup_fact_feed_for_scenario(context, root, options)
+    ]
+
+
+def _select_standup_fact_feed_for_scenario(
+    context: object, root: Path, options: StandupCommandOptions
+) -> list[IssueData]:
+    """Select facts under the scenario's daemon override without leaking env."""
+    with _scenario_environment_override(context, "KANBUS_NO_DAEMON"):
+        return select_standup_fact_feed(root, options)
+
+
+@contextmanager
+def _scenario_environment_override(context: object, name: str) -> Iterator[None]:
+    """Temporarily apply one scenario-local environment override."""
+    overrides = getattr(context, "environment_overrides", None) or {}
+    if name not in overrides:
+        yield
+        return
+    original = os.environ.get(name)
+    os.environ[name] = overrides[name]
+    try:
+        yield
+    finally:
+        if original is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = original
 
 
 def _kanbus_now_fact_feed(context: object, status_filter: str) -> list[str]:
@@ -217,7 +249,8 @@ def _kanbus_now_fact_feed(context: object, status_filter: str) -> list[str]:
         output_format=RightNowOutputFormat.YAML,
         status=status_filter,
     )
-    issues = select_right_now_issues(root, options)
+    with _scenario_environment_override(context, "KANBUS_NO_DAEMON"):
+        issues = select_right_now_issues(root, options)
     return [issue.identifier for issue in issues]
 
 

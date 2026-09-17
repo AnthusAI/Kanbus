@@ -36,6 +36,17 @@ class LeaseState:
     claimed_at: datetime | None = None
     contention_window_ends_at: datetime | None = None
     revision: int | None = None
+    operation_sequence: int | None = None
+
+
+@dataclass(frozen=True)
+class PublishedResult:
+    """Latest immutable result publication for a logical resource."""
+
+    resource: str
+    revision: int
+    artifact: str
+    event_id: str
 
 
 def parse_duration(value: str) -> int:
@@ -96,6 +107,8 @@ def _load_coordination_events(events_dir: Path, resource: str) -> list[dict[str,
             }
             and isinstance(record.get("payload"), dict)
         ):
+            if not _has_valid_operation_sequence(record["payload"]):
+                continue
             try:
                 record["_occurred_at"] = parse_timestamp(record["occurred_at"])
             except (KeyError, TypeError, ValueError):
@@ -103,8 +116,58 @@ def _load_coordination_events(events_dir: Path, resource: str) -> list[dict[str,
             records.append(record)
     return sorted(
         records,
-        key=lambda record: (record["_occurred_at"], str(record.get("event_id", ""))),
+        key=_coordination_event_order_key,
     )
+
+
+def _has_valid_operation_sequence(payload: dict[str, Any]) -> bool:
+    """Return whether a present operation sequence is a positive integer."""
+    if "operation_sequence" not in payload:
+        return True
+    sequence = payload["operation_sequence"]
+    return isinstance(sequence, int) and not isinstance(sequence, bool) and sequence > 0
+
+
+def _coordination_event_order_key(
+    record: dict[str, Any],
+) -> tuple[int, datetime, str]:
+    """Order legacy history first, then sequenced operations causally."""
+    sequence = record["payload"].get("operation_sequence", 0)
+    return (
+        sequence,
+        record["_occurred_at"],
+        str(record.get("event_id", "")),
+    )
+
+
+def _next_operation_sequence(events_dir: Path, resource: str) -> int:
+    """Allocate the next sequence after the highest valid durable operation."""
+    sequences = [
+        record["payload"]["operation_sequence"]
+        for record in _load_coordination_events(events_dir, resource)
+        if "operation_sequence" in record["payload"]
+    ]
+    return max(sequences, default=0) + 1
+
+
+def operation_sequence_for_event(
+    events_dir: Path, resource: str, event_id: str
+) -> int | None:
+    """Return the sequence assigned to one durable coordination event.
+
+    :param events_dir: Directory containing coordination event records.
+    :type events_dir: Path
+    :param resource: Resource identifier associated with the event.
+    :type resource: str
+    :param event_id: Immutable event identifier to locate.
+    :type event_id: str
+    :return: Positive sequence, or ``None`` for a legacy or missing event.
+    :rtype: int | None
+    """
+    for event in _load_coordination_events(events_dir, resource):
+        if event.get("event_id") == event_id:
+            return event["payload"].get("operation_sequence")
+    return None
 
 
 def inspect_lease(
@@ -145,6 +208,7 @@ def inspect_lease(
     owner: str | None = None
     claim_id: str | None = None
     selected_event_id: str | None = None
+    selected_operation_sequence: int | None = None
     claimed_at: datetime | None = None
     expires_at: datetime | None = None
     released = False
@@ -166,6 +230,7 @@ def inspect_lease(
                 owner = str(payload["owner"])
                 claim_id = str(payload["claim_id"])
                 selected_event_id = str(event.get("event_id", ""))
+                selected_operation_sequence = payload.get("operation_sequence")
                 claimed_at = occurred_at
                 released = False
                 continue
@@ -186,6 +251,9 @@ def inspect_lease(
                     owner = str(winner_payload["owner"])
                     claim_id = str(winner_payload["claim_id"])
                     selected_event_id = winner_event_id
+                    selected_operation_sequence = winner_payload.get(
+                        "operation_sequence"
+                    )
                     claimed_at = winner["_occurred_at"]
                     expires_at = parse_timestamp(winner_payload["lease_expires_at"])
                     released = False
@@ -197,6 +265,7 @@ def inspect_lease(
             continue
         if event_type == "coordination.renew":
             expires_at = parse_timestamp(payload["lease_expires_at"])
+            selected_operation_sequence = payload.get("operation_sequence")
         elif event_type == "coordination.release":
             released = True
             expires_at = occurred_at
@@ -211,6 +280,7 @@ def inspect_lease(
             event_id=selected_event_id,
             claimed_at=claimed_at,
             contention_window_ends_at=window_ends_at,
+            operation_sequence=selected_operation_sequence,
         )
     return LeaseState(resource=resource)
 
@@ -225,11 +295,17 @@ def _record_event(
     payload: dict[str, Any],
     occurred_at: datetime,
 ) -> str:
+    operation_sequence = _next_operation_sequence(events_dir, resource)
     record = create_event(
         issue_id=resource,
         event_type=event_type,
         actor_id=owner,
-        payload={"owner": owner, "claim_id": claim_id, **payload},
+        payload={
+            "owner": owner,
+            "claim_id": claim_id,
+            **payload,
+            "operation_sequence": operation_sequence,
+        },
         occurred_at=format_timestamp(occurred_at),
     )
     try:
@@ -267,6 +343,8 @@ def _merge_coordination_events(
         event_id = str(source.get("event_id", ""))
         if not event_id or event_id in by_id:
             continue
+        if not _has_valid_operation_sequence(source["payload"]):
+            continue
         try:
             event = dict(source)
             event["_occurred_at"] = parse_timestamp(event["occurred_at"])
@@ -275,7 +353,7 @@ def _merge_coordination_events(
         by_id[event_id] = event
     return sorted(
         by_id.values(),
-        key=lambda event: (event["_occurred_at"], str(event.get("event_id", ""))),
+        key=_coordination_event_order_key,
     )
 
 
@@ -312,7 +390,13 @@ def claim(
         occurred_at=occurred_at,
     )
     state = inspect_lease(events_dir, resource, now=occurred_at)
-    return replace(state, operation_event_id=operation_event_id)
+    return replace(
+        state,
+        operation_event_id=operation_event_id,
+        operation_sequence=operation_sequence_for_event(
+            events_dir, resource, operation_event_id
+        ),
+    )
 
 
 def renew(
@@ -348,7 +432,13 @@ def renew(
         occurred_at=occurred_at,
     )
     renewed_state = inspect_lease(events_dir, resource, now=occurred_at)
-    return replace(renewed_state, operation_event_id=operation_event_id)
+    return replace(
+        renewed_state,
+        operation_event_id=operation_event_id,
+        operation_sequence=operation_sequence_for_event(
+            events_dir, resource, operation_event_id
+        ),
+    )
 
 
 def release(
@@ -374,6 +464,106 @@ def release(
         payload={},
         occurred_at=occurred_at,
     )
+
+
+def inspect_published_result(events_dir: Path, resource: str) -> PublishedResult | None:
+    """Reduce immutable result events to the highest published revision.
+
+    :param events_dir: Directory containing project event records.
+    :type events_dir: Path
+    :param resource: Logical resource whose result should be inspected.
+    :type resource: str
+    :return: The latest result, or ``None`` when no result is published.
+    :rtype: PublishedResult | None
+    """
+    candidates: list[tuple[int, str, PublishedResult]] = []
+    if not events_dir.is_dir():
+        return None
+    for path in events_dir.glob("*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            payload = record.get("payload", {})
+            revision = payload.get("revision")
+            artifact = payload.get("artifact")
+            event_id = record.get("event_id")
+            if (
+                record.get("issue_id") != resource
+                or record.get("event_type") != "coordination.result_published"
+                or not isinstance(revision, int)
+                or isinstance(revision, bool)
+                or revision < 1
+                or not isinstance(artifact, str)
+                or not artifact
+                or not isinstance(event_id, str)
+            ):
+                continue
+            occurred_at = str(record.get("occurred_at", ""))
+        except (OSError, ValueError, AttributeError):
+            continue
+        candidates.append(
+            (
+                revision,
+                occurred_at,
+                PublishedResult(resource, revision, artifact, event_id),
+            )
+        )
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: (item[0], item[1], item[2].event_id))[2]
+
+
+def publish_result(
+    events_dir: Path,
+    *,
+    resource: str,
+    revision: int,
+    artifact: str,
+    actor_id: str,
+    occurred_at: datetime | None = None,
+) -> PublishedResult:
+    """Append a result only when its logical revision is not stale.
+
+    :param events_dir: Directory in which the immutable publication is stored.
+    :type events_dir: Path
+    :param resource: Logical resource being published.
+    :type resource: str
+    :param revision: Positive logical task revision.
+    :type revision: int
+    :param artifact: Published artifact reference.
+    :type artifact: str
+    :param actor_id: Identifier of the publishing worker.
+    :type actor_id: str
+    :param occurred_at: Optional timestamp for deterministic tests.
+    :type occurred_at: datetime | None
+    :return: The accepted immutable publication.
+    :rtype: PublishedResult
+    :raises CoordinationError: If the revision is invalid or stale.
+    """
+    _validate_identifiers(resource, actor_id, f"revision-{revision}")
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
+        raise CoordinationError("revision must be a positive integer")
+    if not artifact.strip():
+        raise CoordinationError("artifact must not be empty")
+    current = inspect_published_result(events_dir, resource)
+    if current is not None and revision < current.revision:
+        raise CoordinationError("stale revision")
+    if current is not None and revision == current.revision:
+        if artifact != current.artifact:
+            raise CoordinationError("stale revision")
+        return current
+    timestamp = (occurred_at or utc_now()).astimezone(UTC)
+    event = create_event(
+        issue_id=resource,
+        event_type="coordination.result_published",
+        actor_id=actor_id,
+        payload={"resource": resource, "revision": revision, "artifact": artifact},
+        occurred_at=format_timestamp(timestamp),
+    )
+    try:
+        write_events_batch(events_dir, [event])
+    except (OSError, RuntimeError) as error:
+        raise CoordinationError(str(error)) from error
+    return PublishedResult(resource, revision, artifact, event.event_id)
 
 
 def _validate_identifiers(resource: str, owner: str, claim_id: str) -> None:

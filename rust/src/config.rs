@@ -269,6 +269,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         hooks: HooksConfiguration::default(),
         github_security: None,
         coordination: CoordinationConfiguration::default(),
+        router: None,
     }
 }
 

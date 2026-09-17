@@ -3,9 +3,10 @@ from __future__ import annotations
 import copy
 import json
 import sys
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pytest
 import yaml
@@ -28,6 +29,8 @@ def _configuration(*, providers: list[str] | None = None) -> ProjectConfiguratio
             "transport": "mqtt",
             "broker": "mqtt://broker.example:1883",
             "autostart": False,
+            "mqtt_custom_authorizer_name": None,
+            "mqtt_api_token": None,
         }
     )
     return ProjectConfiguration.model_validate(data)
@@ -186,6 +189,45 @@ def test_coordination_envelopes_have_type_specific_top_level_fields(
         )
 
 
+def test_operation_sequence_survives_mqtt_overlay_reduction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        gossip,
+        "_resolve_project_label",
+        lambda _root, _project, config: config.project_key,
+    )
+    root = tmp_path
+    project_dir = root / "project"
+    project_dir.mkdir()
+    config = _configuration()
+    timestamp = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    envelope = coordination_mqtt.make_claim_envelope(
+        root,
+        project_dir,
+        config,
+        resource="job:sequence",
+        owner="worker-a",
+        claim_id="claim-a",
+        event_id="evt-claim",
+        lease_ttl_s=300,
+        occurred_at=timestamp,
+        operation_sequence=7,
+    )
+    coordination_mqtt.record_envelope(project_dir, envelope, ttl_s=2_000_000_000)
+
+    events = coordination_mqtt.overlay_events(
+        project_dir,
+        "job:sequence",
+        contention_window_s=5,
+        now=timestamp + timedelta(seconds=1),
+        ttl_s=2_000_000_000,
+    )
+
+    assert envelope.operation_sequence == 7
+    assert events[0]["payload"]["operation_sequence"] == 7
+
+
 def test_python_reads_and_writes_the_shared_plain_envelope_fixture(
     tmp_path: Path,
 ) -> None:
@@ -277,6 +319,170 @@ def test_python_overlay_ignores_invalid_records_and_prunes_by_envelope_ts(
     assert (directory / "invalid.json").exists()
 
 
+def test_contention_observation_uses_only_claims_received_before_its_timestamp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    project_dir = root / "project"
+    project_dir.mkdir()
+    config = _configuration(providers=["mqtt", "git"])
+    monkeypatch.setattr(
+        gossip, "_resolve_project_label", lambda *_args: config.project_key
+    )
+    resource = "router:issue:kbs-observation-time"
+    now = datetime.now(UTC)
+    local = _claim_envelope(
+        root,
+        project_dir,
+        config,
+        resource=resource,
+        owner="worker-a",
+        claim_id="claim-a",
+        event_id="event-a",
+        occurred_at=now,
+    ).model_copy(update={"producer_id": "worker-a"})
+    coordination_mqtt.record_envelope(project_dir, local)
+
+    before_peer = coordination_mqtt.record_contention_observation(
+        project_dir,
+        resource,
+        "claim-a",
+        contention_window_s=3,
+        ttl_s=60,
+        now=now + timedelta(seconds=1),
+    )
+    assert before_peer["local_claim_id"] == "claim-a"
+    assert before_peer["observed_claim_ids"] == ["claim-a"]
+    assert before_peer["peer_claim_ids"] == []
+
+    peer = _claim_envelope(
+        root,
+        project_dir,
+        config,
+        resource=resource,
+        owner="worker-b",
+        claim_id="claim-b",
+        event_id="event-b",
+        occurred_at=now + timedelta(seconds=2),
+    ).model_copy(update={"producer_id": "worker-b"})
+    coordination_mqtt.record_envelope(project_dir, peer)
+    assert {
+        event["payload"]["claim_id"]
+        for event in coordination_mqtt.overlay_events(
+            project_dir,
+            resource,
+            contention_window_s=3,
+            ttl_s=60,
+            now=now + timedelta(seconds=2),
+        )
+        if event["event_type"] == "coordination.claim"
+    } == {"claim-a", "claim-b"}
+    # The earlier snapshot remains proof of what arbitration actually saw;
+    # a later envelope cannot retroactively become a peer observation.
+    assert before_peer["peer_claim_ids"] == []
+
+
+def test_fake_two_worker_mqtt_contention_snapshots_each_received_peer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _configuration(providers=["mqtt", "git"])
+    monkeypatch.setattr(
+        gossip, "_resolve_project_label", lambda *_args: config.project_key
+    )
+    monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)
+    clients = []
+
+    class FakeBrokerClient:
+        def __init__(self, *_args, **_kwargs):
+            self.client_id = _kwargs.get("client_id") or (_args[0] if _args else None)
+            self.on_connect = None
+            self.on_subscribe = None
+            self.on_message = None
+            clients.append(self)
+
+        def connect(self, *_args):
+            return None
+
+        def username_pw_set(self, *_args):
+            return None
+
+        def loop_start(self):
+            self.on_connect(self, None, None, 0)
+            self.on_subscribe(self, None, 1, [0])
+
+        def subscribe(self, *_args, **_kwargs):
+            return None
+
+        def disconnect(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+    paho_module = ModuleType("paho")
+    mqtt_module = ModuleType("paho.mqtt")
+    client_module = ModuleType("paho.mqtt.client")
+    client_module.Client = FakeBrokerClient
+    client_module.MQTT_ERR_SUCCESS = 0
+    paho_module.mqtt = mqtt_module
+    mqtt_module.client = client_module
+    monkeypatch.setitem(sys.modules, "paho", paho_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt", mqtt_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt.client", client_module)
+
+    projects = [tmp_path / "worker-a" / "project", tmp_path / "worker-b" / "project"]
+    for project in projects:
+        (project / "events").mkdir(parents=True)
+    listeners = [
+        coordination_mqtt.start_listener(project.parent, project, config)
+        for project in projects
+    ]
+    assert all(
+        listener is not None and listener.subscribed.is_set() for listener in listeners
+    )
+
+    occurred = datetime.now(UTC)
+    resource = "router:issue:kbs-fake-broker-race"
+    envelopes = [
+        _claim_envelope(
+            projects[index].parent,
+            projects[index],
+            config,
+            resource=resource,
+            owner=f"worker-{letter}",
+            claim_id=f"claim-{letter}",
+            event_id=f"event-{letter}",
+            occurred_at=occurred,
+        ).model_copy(update={"producer_id": f"worker-{letter}"})
+        for index, letter in enumerate(("a", "b"))
+    ]
+    # This models two subscribed clients receiving each publication before
+    # either worker records its contention-close observation.
+    for envelope in envelopes:
+        payload = envelope.model_dump_json(by_alias=True).encode()
+        for client in clients:
+            client.on_message(client, None, SimpleNamespace(payload=payload))
+
+    observations = [
+        coordination_mqtt.record_contention_observation(
+            project,
+            resource,
+            f"claim-{letter}",
+            contention_window_s=1,
+            ttl_s=60,
+            now=occurred + timedelta(seconds=1),
+        )
+        for project, letter in zip(projects, ("a", "b"), strict=True)
+    ]
+    assert observations[0]["local_claim_id"] == "claim-a"
+    assert observations[0]["peer_claim_ids"] == ["claim-b"]
+    assert observations[1]["local_claim_id"] == "claim-b"
+    assert observations[1]["peer_claim_ids"] == ["claim-a"]
+    for listener in listeners:
+        assert listener is not None and listener.received.is_set()
+        listener.stop()
+
+
 def test_provider_availability_does_not_start_a_local_broker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -352,6 +558,7 @@ def test_mqtt_overlay_claims_choose_stable_winner_then_publish_lease(
     events_dir = project_dir / "events"
     config = _configuration(providers=["mqtt", "git"])
     start = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    monkeypatch.setattr(coordination, "utc_now", lambda: start + timedelta(seconds=5))
     _durable_claim(
         events_dir,
         resource="job:collision",
@@ -419,6 +626,7 @@ def test_overlay_deduplicates_durable_event_ids_and_release_clears_visibility(
     events_dir = project_dir / "events"
     config = _configuration(providers=["mqtt", "git"])
     start = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    monkeypatch.setattr(coordination, "utc_now", lambda: start + timedelta(seconds=3))
     _durable_claim(
         events_dir,
         resource="job:release",
@@ -513,6 +721,8 @@ def test_publish_uses_configured_project_topic_and_records_overlay(
     config = _configuration(providers=["mqtt", "git"])
     config.realtime.mqtt_custom_authorizer_name = "kanbus-auth"
     config.realtime.mqtt_api_token = "api-token"
+    start = datetime(2026, 9, 16, 13, tzinfo=UTC)
+    monkeypatch.setattr(coordination, "utc_now", lambda: start)
     envelope = _claim_envelope(
         root,
         project_dir,
@@ -521,7 +731,7 @@ def test_publish_uses_configured_project_topic_and_records_overlay(
         owner="worker-a",
         claim_id="claim-a",
         event_id="evt-publish",
-        occurred_at=datetime(2026, 9, 16, 13, tzinfo=UTC),
+        occurred_at=start,
     )
     calls: list[tuple[str, str, str, object]] = []
     monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)
@@ -653,6 +863,243 @@ def test_cli_selects_mqtt_and_inspect_reconciles_after_window_close(
     assert len(published) == 2
 
 
+def test_router_listener_ingests_peer_claims_into_shared_lease_reducer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    project_dir = root / "project"
+    events_dir = project_dir / "events"
+    events_dir.mkdir(parents=True)
+    config = _configuration(providers=["mqtt", "git"])
+    monkeypatch.setattr(
+        gossip, "_resolve_project_label", lambda *_args: config.project_key
+    )
+    monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)
+
+    clients = []
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.client_id = kwargs.get("client_id") or (args[0] if args else None)
+            self.subscriptions = []
+            clients.append(self)
+
+        def connect(self, *_args):
+            return None
+
+        def username_pw_set(self, *_args):
+            return None
+
+        def loop_start(self):
+            self.on_connect(self, None, None, 0)
+            self.on_subscribe(self, None, 1, [0])
+
+        def subscribe(self, topic, qos=0):
+            self.subscriptions.append((topic, qos))
+
+        def disconnect(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+    paho_module = ModuleType("paho")
+    mqtt_module = ModuleType("paho.mqtt")
+    client_module = ModuleType("paho.mqtt.client")
+    client_module.Client = FakeClient
+    client_module.MQTT_ERR_SUCCESS = 0
+    paho_module.mqtt = mqtt_module
+    mqtt_module.client = client_module
+    monkeypatch.setitem(sys.modules, "paho", paho_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt", mqtt_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt.client", client_module)
+
+    listener = coordination_mqtt.start_listener(root, project_dir, config)
+    assert (
+        listener is not None
+        and listener.connected.is_set()
+        and listener.subscribed.is_set()
+    )
+    assert clients[0].client_id != gossip.producer_id()
+    assert clients[0].subscriptions
+    envelope = _claim_envelope(
+        root,
+        project_dir,
+        config,
+        resource="router:issue:kbs-peer",
+        owner="peer-worker",
+        claim_id="peer-claim",
+        event_id="peer-event",
+        occurred_at=datetime.now(UTC),
+    ).model_copy(update={"producer_id": "peer-worker"})
+    clients[0].on_message(
+        clients[0],
+        None,
+        SimpleNamespace(payload=envelope.model_dump_json(by_alias=True).encode()),
+    )
+
+    state = coordination_mqtt.inspect_lease(
+        events_dir, project_dir, envelope.resource or "", config
+    )
+    assert state.active and state.claim_id == "peer-claim"
+    assert listener.received.is_set()
+    listener.stop()
+
+
+def test_simultaneous_router_claims_converge_after_both_listeners_subscribe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _configuration(providers=["mqtt", "git"])
+    monkeypatch.setattr(
+        gossip, "_resolve_project_label", lambda *_args: config.project_key
+    )
+    monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)
+    clients = []
+
+    class FakeBrokerClient:
+        def __init__(self, *_args, **_kwargs):
+            self.client_id = _kwargs.get("client_id") or (_args[0] if _args else None)
+            self.on_connect = None
+            self.on_subscribe = None
+            self.on_message = None
+            clients.append(self)
+
+        def connect(self, *_args):
+            return None
+
+        def username_pw_set(self, *_args):
+            return None
+
+        def loop_start(self):
+            self.on_connect(self, None, None, 0)
+            self.on_subscribe(self, None, 1, [0])
+
+        def subscribe(self, *_args, **_kwargs):
+            return None
+
+        def disconnect(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+    paho_module = ModuleType("paho")
+    mqtt_module = ModuleType("paho.mqtt")
+    client_module = ModuleType("paho.mqtt.client")
+    client_module.Client = FakeBrokerClient
+    client_module.MQTT_ERR_SUCCESS = 0
+    paho_module.mqtt = mqtt_module
+    mqtt_module.client = client_module
+    monkeypatch.setitem(sys.modules, "paho", paho_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt", mqtt_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt.client", client_module)
+
+    projects = [tmp_path / "worker-a" / "project", tmp_path / "worker-b" / "project"]
+    for project in projects:
+        (project / "events").mkdir(parents=True)
+    listeners = [
+        coordination_mqtt.start_listener(project.parent, project, config)
+        for project in projects
+    ]
+    assert all(
+        listener is not None and listener.subscribed.is_set() for listener in listeners
+    )
+    assert len({client.client_id for client in clients}) == 2
+
+    occurred = datetime.now(UTC)
+    envelopes = [
+        _claim_envelope(
+            projects[index].parent,
+            projects[index],
+            config,
+            resource="router:issue:kbs-concurrent",
+            owner=f"worker-{letter}",
+            claim_id=f"claim-{letter}",
+            event_id=f"event-{letter}",
+            occurred_at=occurred,
+        ).model_copy(update={"producer_id": f"worker-{letter}"})
+        for index, letter in enumerate(("a", "b"))
+    ]
+    for envelope in envelopes:
+        payload = envelope.model_dump_json(by_alias=True).encode()
+        for client in clients:
+            client.on_message(client, None, SimpleNamespace(payload=payload))
+
+    states = [
+        coordination_mqtt.inspect_lease(
+            project / "events", project, "router:issue:kbs-concurrent", config
+        )
+        for project in projects
+    ]
+    assert [(state.owner, state.claim_id) for state in states] == [
+        ("worker-a", "claim-a"),
+        ("worker-a", "claim-a"),
+    ]
+    for listener in listeners:
+        assert listener is not None and listener.received.is_set()
+        listener.stop()
+
+
+def test_router_listener_waits_for_delayed_suback_within_separate_setup_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from kanbus.coordination_runtime import start_soft_listener
+
+    config = _configuration(providers=["mqtt", "git"])
+    monkeypatch.setattr(
+        gossip, "_resolve_project_label", lambda *_args: config.project_key
+    )
+    monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)
+
+    class DelayedSubackClient:
+        def __init__(self, *_args, **_kwargs):
+            self.on_connect = None
+            self.on_subscribe = None
+
+        def connect(self, *_args):
+            return None
+
+        def username_pw_set(self, *_args):
+            return None
+
+        def loop_start(self):
+            self.on_connect(self, None, None, 0)
+            timer = threading.Timer(
+                1.05,
+                lambda: self.on_subscribe(self, None, 1, [0]),
+            )
+            timer.start()
+
+        def subscribe(self, *_args, **_kwargs):
+            return 0, 1
+
+        def disconnect(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+    paho_module = ModuleType("paho")
+    mqtt_module = ModuleType("paho.mqtt")
+    client_module = ModuleType("paho.mqtt.client")
+    client_module.Client = DelayedSubackClient
+    client_module.MQTT_ERR_SUCCESS = 0
+    paho_module.mqtt = mqtt_module
+    mqtt_module.client = client_module
+    monkeypatch.setitem(sys.modules, "paho", paho_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt", mqtt_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt.client", client_module)
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    listener = start_soft_listener(tmp_path, project_dir, config)
+    assert listener is not None and listener.subscribed.is_set()
+    assert coordination_mqtt.transport_diagnostics()["listener"][
+        "suback_reason_codes"
+    ] == [0]
+    listener.stop()
+
+
 def test_cli_renew_before_window_close_does_not_publish_lease(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -693,6 +1140,7 @@ def test_cli_renew_before_window_close_does_not_publish_lease(
     monkeypatch.setattr(coordination_mqtt, "publish_envelope", fake_publish)
     start = datetime(2026, 9, 16, 13, tzinfo=UTC)
     monkeypatch.setattr("kanbus.cli.utc_now", lambda: start)
+    monkeypatch.setattr(coordination, "utc_now", lambda: start)
     monkeypatch.chdir(root)
     runner = CliRunner()
     claimed = runner.invoke(
@@ -712,6 +1160,7 @@ def test_cli_renew_before_window_close_does_not_publish_lease(
     assert [envelope.type for envelope in published] == ["coordination.claim"]
 
     monkeypatch.setattr("kanbus.cli.utc_now", lambda: start + timedelta(seconds=2))
+    monkeypatch.setattr(coordination, "utc_now", lambda: start + timedelta(seconds=2))
     renewed = runner.invoke(
         cli,
         [
@@ -733,3 +1182,160 @@ def test_cli_renew_before_window_close_does_not_publish_lease(
         for path in (project_dir / "events").glob("*.json")
     }
     assert "coordination.renew" in durable_types
+
+
+def test_mqtt_subscription_failure_is_not_reported_as_ready(monkeypatch, tmp_path):
+    from kanbus import coordination_runtime
+
+    assert coordination_mqtt._subscription_succeeded([0])
+    assert coordination_mqtt._subscription_succeeded([1])
+    assert not coordination_mqtt._subscription_succeeded([128])
+    assert not coordination_mqtt._subscription_succeeded([])
+
+    listener = type(
+        "Listener",
+        (),
+        {
+            "connected": threading.Event(),
+            "subscribed": threading.Event(),
+            "stop": lambda self: setattr(self, "stopped", True),
+        },
+    )()
+    listener.connected.set()
+    monkeypatch.setattr(
+        coordination_runtime, "select_soft_provider", lambda *_args: "mqtt"
+    )
+    monkeypatch.setattr(
+        coordination_runtime.coordination_mqtt,
+        "start_listener",
+        lambda *_args: listener,
+    )
+
+    selected = coordination_runtime.start_soft_listener(
+        tmp_path,
+        tmp_path / "project",
+        _configuration(providers=["mqtt", "git"]),
+        ready_timeout=0,
+    )
+
+    assert selected is None
+    assert listener.stopped
+
+
+def test_listener_validates_connection_subscription_and_peer_envelopes(
+    monkeypatch, tmp_path: Path
+) -> None:
+    config = _configuration(providers=["mqtt", "git"])
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: True)
+    monkeypatch.setattr(
+        gossip, "_resolve_project_label", lambda *_args: config.project_key
+    )
+    monkeypatch.setattr(gossip, "producer_id", lambda: "local-worker")
+
+    class Client:
+        instances = []
+
+        def __init__(self, *args, **kwargs):
+            self.client_id = kwargs["client_id"]
+            self.connected = False
+            self.subscriptions = []
+            type(self).instances.append(self)
+
+        def connect(self, *_args):
+            return None
+
+        def loop_start(self):
+            return None
+
+        def loop_stop(self):
+            return None
+
+        def disconnect(self):
+            return None
+
+        def subscribe(self, topic, qos):
+            self.subscriptions.append((topic, qos))
+            return 0, 1
+
+    mqtt_client_module = ModuleType("paho.mqtt.client")
+    mqtt_client_module.Client = Client
+    mqtt_client_module.MQTT_ERR_SUCCESS = 0
+    mqtt_module = ModuleType("paho.mqtt")
+    mqtt_module.client = mqtt_client_module
+    paho_module = ModuleType("paho")
+    paho_module.mqtt = mqtt_module
+    monkeypatch.setitem(sys.modules, "paho", paho_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt", mqtt_module)
+    monkeypatch.setitem(sys.modules, "paho.mqtt.client", mqtt_client_module)
+
+    listener = coordination_mqtt.start_listener(tmp_path, project_dir, config)
+    assert listener is not None
+    client = Client.instances[-1]
+    client.on_connect(client, None, None, 5)
+    assert not listener.connected.is_set()
+    client.on_connect(client, None, None, 0)
+    assert listener.connected.is_set()
+    assert client.subscriptions == [
+        (coordination_mqtt.topic_for_project(tmp_path, project_dir, config), 0)
+    ]
+    client.on_subscribe(client, None, 1, [128])
+    assert not listener.subscribed.is_set()
+    client.on_subscribe(client, None, 2, [0])
+    assert listener.subscribed.is_set()
+
+    client.on_message(client, None, SimpleNamespace(payload=b"not-json"))
+    wrong_project = _claim_envelope(
+        tmp_path,
+        project_dir,
+        config,
+        resource="router:issue:kbs-peer",
+        owner="peer",
+        claim_id="wrong-project",
+        event_id="wrong-project-event",
+        occurred_at=datetime.now(UTC),
+    ).model_copy(update={"project": "another-project"})
+    client.on_message(
+        client,
+        None,
+        SimpleNamespace(payload=wrong_project.model_dump_json(by_alias=True).encode()),
+    )
+    own_message = _claim_envelope(
+        tmp_path,
+        project_dir,
+        config,
+        resource="router:issue:kbs-peer",
+        owner="local-worker",
+        claim_id="own-claim",
+        event_id="own-event",
+        occurred_at=datetime.now(UTC),
+    )
+    client.on_message(
+        client,
+        None,
+        SimpleNamespace(payload=own_message.model_dump_json(by_alias=True).encode()),
+    )
+    peer_message = own_message.model_copy(
+        update={
+            "id": "peer-envelope-id",
+            "event_id": "peer-event",
+            "producer_id": "peer-worker",
+            "owner": "peer-worker",
+            "claim_id": "peer-claim",
+        }
+    )
+    client.on_message(
+        client,
+        None,
+        SimpleNamespace(payload=peer_message.model_dump_json(by_alias=True).encode()),
+    )
+
+    assert listener.received.is_set()
+    assert len(coordination_mqtt.load_envelopes(project_dir)) == 1
+    diagnostics = coordination_mqtt.transport_diagnostics()["listener"]
+    assert diagnostics["connected"] is True
+    assert diagnostics["subscribed"] is True
+    assert diagnostics["rejected_messages"] == 2
+    assert diagnostics["peer_messages"] == 1
+    listener.stop()

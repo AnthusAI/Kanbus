@@ -2,21 +2,31 @@
 
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use uuid::Uuid;
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::event_history::{events_dir_for_project, write_events_batch, EventRecord, EventType};
+use crate::event_history::{
+    events_dir_for_project, now_timestamp, write_events_batch, EventRecord, EventType,
+};
 use crate::file_io::{get_configuration_path, load_project_directory};
 use crate::gossip::{
-    coordination_gossip_envelope_is_valid, coordination_mqtt_available,
-    publish_coordination_gossip, CoordinationGossipFields, GossipEnvelope,
+    collect_coordination_gossip_window_with, coordination_gossip_envelope_is_valid,
+    coordination_mqtt_available, publish_coordination_gossip, CoordinationGossipFields,
+    GossipEnvelope,
 };
-use crate::models::{CoordinationConfiguration, ProjectConfiguration};
+use crate::models::{
+    validate_http_endpoint, CoordinationConfiguration, HttpEndpointError, ProjectConfiguration,
+};
 use crate::mutex_api::{self, MutexApiError, MutexLease};
 use crate::overlay::load_coordination_overlay;
+use crate::users::get_current_user;
 
 /// Parse a positive integer duration expressed in seconds, minutes, or hours.
 ///
@@ -28,7 +38,12 @@ pub fn parse_duration_seconds(value: &str) -> Result<u64, String> {
         return Err("duration must be a positive integer followed by s, m, or h".to_string());
     }
     let (digits, unit) = value.split_at(value.len() - 1);
-    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+    let mut digit_bytes = digits.bytes();
+    if !digit_bytes
+        .next()
+        .is_some_and(|byte| (b'1'..=b'9').contains(&byte))
+        || !digit_bytes.all(|byte| byte.is_ascii_digit())
+    {
         return Err("duration must be a positive integer followed by s, m, or h".to_string());
     }
     let amount = digits
@@ -47,6 +62,28 @@ pub fn parse_duration_seconds(value: &str) -> Result<u64, String> {
     Ok(seconds)
 }
 
+/// Return the additional seconds needed to keep a lease alive through `now + ttl`.
+///
+/// Router renewal loops use this to maintain a fixed lease horizon without
+/// cumulatively extending the expiry on every heartbeat. A missing expiry or
+/// an already-sufficient lease requires no renewal.
+pub fn lease_renewal_extension_seconds(
+    current_expiry: Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+    ttl_seconds: u64,
+) -> u64 {
+    let Some(current_expiry) = current_expiry else {
+        return 0;
+    };
+    let target_expiry = now + duration(ttl_seconds);
+    let remaining = target_expiry - current_expiry;
+    if remaining <= Duration::zero() {
+        return 0;
+    }
+    let seconds = remaining.num_seconds().max(0) as u64;
+    seconds.saturating_add(u64::from(remaining.subsec_nanos() > 0))
+}
+
 /// Derived soft ownership for a resource at a given instant.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoordinationLease {
@@ -62,6 +99,8 @@ pub struct CoordinationLease {
     pub lease_ttl_s: Option<u64>,
     /// Instant at which the selected epoch's contention window closes.
     pub contention_closes_at: Option<DateTime<Utc>>,
+    /// Logical order assigned to the selected claim/renewal event, when known.
+    pub operation_sequence: Option<u64>,
 }
 
 impl CoordinationLease {
@@ -78,6 +117,7 @@ struct Candidate {
     event_id: String,
     lease_expires_at: DateTime<Utc>,
     occurred_at: DateTime<Utc>,
+    operation_sequence: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +127,7 @@ struct Epoch {
     candidates: Vec<Candidate>,
     winner: Candidate,
     expires_at: DateTime<Utc>,
+    operation_sequence: Option<u64>,
 }
 
 fn parse_timestamp(value: &str) -> Option<DateTime<Utc>> {
@@ -125,6 +166,13 @@ fn event_kind(event: &EventRecord) -> Option<&'static str> {
         })
 }
 
+fn with_optional_operation_sequence(mut payload: Value, sequence: Option<u64>) -> Value {
+    if let Some(sequence) = sequence {
+        payload["operation_sequence"] = json!(sequence);
+    }
+    payload
+}
+
 fn candidate_from_event(event: &EventRecord, occurred_at: DateTime<Utc>) -> Option<Candidate> {
     Some(Candidate {
         claim_id: payload_string(event, "claim_id")?.to_string(),
@@ -133,7 +181,53 @@ fn candidate_from_event(event: &EventRecord, occurred_at: DateTime<Utc>) -> Opti
         lease_expires_at: parse_timestamp(payload_string(event, "lease_expires_at")?)
             .unwrap_or(occurred_at),
         occurred_at,
+        operation_sequence: event
+            .payload
+            .get("operation_sequence")
+            .and_then(Value::as_u64)
+            .filter(|sequence| *sequence > 0),
     })
+}
+
+fn effective_operation_sequence(event: &EventRecord) -> Option<u64> {
+    match event.payload.get("operation_sequence") {
+        None => Some(0),
+        Some(value) => value.as_u64().filter(|sequence| *sequence > 0),
+    }
+}
+
+fn observed_operation_sequence(project_dir: &Path, resource: &str) -> Result<u64, KanbusError> {
+    let events_dir = events_dir_for_project(project_dir);
+    let mut maximum = 0_u64;
+    if !events_dir.exists() {
+        return Ok(maximum);
+    }
+    for entry in fs::read_dir(events_dir).map_err(|error| KanbusError::Io(error.to_string()))? {
+        let path = entry
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(bytes) = fs::read(path) else {
+            continue;
+        };
+        let Ok(event) = serde_json::from_slice::<EventRecord>(&bytes) else {
+            continue;
+        };
+        if event.issue_id != resource || event_kind(&event).is_none() {
+            continue;
+        }
+        if let Some(sequence) = event
+            .payload
+            .get("operation_sequence")
+            .and_then(Value::as_u64)
+            .filter(|sequence| *sequence > 0)
+        {
+            maximum = maximum.max(sequence);
+        }
+    }
+    Ok(maximum)
 }
 
 fn candidate_order(candidate: &Candidate) -> (&str, &str, &str) {
@@ -155,11 +249,14 @@ fn candidate_order(candidate: &Candidate) -> (&str, &str, &str) {
 pub fn reduce_coordination_events(events: &[EventRecord], now: DateTime<Utc>) -> CoordinationLease {
     let mut ordered: Vec<&EventRecord> = events
         .iter()
-        .filter(|event| event_kind(event).is_some())
+        .filter(|event| {
+            event_kind(event).is_some() && effective_operation_sequence(event).is_some()
+        })
         .collect();
     ordered.sort_by(|left, right| {
-        left.occurred_at
-            .cmp(&right.occurred_at)
+        effective_operation_sequence(left)
+            .cmp(&effective_operation_sequence(right))
+            .then_with(|| left.occurred_at.cmp(&right.occurred_at))
             .then_with(|| left.event_id.cmp(&right.event_id))
     });
 
@@ -196,6 +293,11 @@ pub fn reduce_coordination_events(events: &[EventRecord], now: DateTime<Utc>) ->
                             expires_at: candidate.lease_expires_at,
                             winner: candidate.clone(),
                             candidates: vec![candidate],
+                            operation_sequence: event
+                                .payload
+                                .get("operation_sequence")
+                                .and_then(Value::as_u64)
+                                .filter(|sequence| *sequence > 0),
                         });
                     }
                     Some(current)
@@ -208,6 +310,7 @@ pub fn reduce_coordination_events(events: &[EventRecord], now: DateTime<Utc>) ->
                         }) {
                             current.winner = winner.clone();
                             current.expires_at = winner.lease_expires_at;
+                            current.operation_sequence = winner.operation_sequence;
                         }
                     }
                     Some(_) => {}
@@ -229,6 +332,11 @@ pub fn reduce_coordination_events(events: &[EventRecord], now: DateTime<Utc>) ->
                             parse_timestamp(payload_string(event, "lease_expires_at").unwrap_or(""))
                         {
                             current.expires_at = expiry;
+                            current.operation_sequence = event
+                                .payload
+                                .get("operation_sequence")
+                                .and_then(Value::as_u64)
+                                .filter(|sequence| *sequence > 0);
                         }
                     }
                     Some("release") => epoch = None,
@@ -251,6 +359,7 @@ pub fn reduce_coordination_events(events: &[EventRecord], now: DateTime<Utc>) ->
                     .max(1) as u64,
             ),
             contention_closes_at: Some(current.started_at + duration(current.contention_window_s)),
+            operation_sequence: current.operation_sequence,
         },
         _ => CoordinationLease {
             owner: None,
@@ -259,8 +368,165 @@ pub fn reduce_coordination_events(events: &[EventRecord], now: DateTime<Utc>) ->
             event_id: None,
             lease_ttl_s: None,
             contention_closes_at: None,
+            operation_sequence: None,
         },
     }
+}
+
+/// Reduce immutable result publication events to the greatest published revision.
+///
+/// # Arguments
+/// * `events` - Event history that may include result publication records.
+///
+/// # Returns
+/// The greatest positive revision represented by a valid publication event.
+pub fn reduce_published_revision(events: &[EventRecord]) -> Option<u64> {
+    events
+        .iter()
+        .filter(|event| matches!(&event.event_type, EventType::CoordinationResultPublished))
+        .filter_map(|event| event.payload.get("revision").and_then(Value::as_u64))
+        .filter(|revision| *revision > 0)
+        .max()
+}
+
+fn published_artifact(events: &[EventRecord], revision: u64) -> Option<&str> {
+    events
+        .iter()
+        .filter(|event| matches!(&event.event_type, EventType::CoordinationResultPublished))
+        .filter(|event| event.payload.get("revision").and_then(Value::as_u64) == Some(revision))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+        .and_then(|event| event.payload.get("artifact").and_then(Value::as_str))
+}
+
+fn load_result_publication_events(
+    project_dir: &Path,
+    resource: &str,
+) -> Result<Vec<EventRecord>, KanbusError> {
+    let events_dir = events_dir_for_project(project_dir);
+    let mut events = Vec::new();
+    if events_dir.exists() {
+        let mut paths = fs::read_dir(events_dir)
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension().and_then(|extension| extension.to_str()) == Some("json")
+            })
+            .collect::<Vec<_>>();
+        paths.sort();
+        for path in paths {
+            let bytes = fs::read(path).map_err(|error| KanbusError::Io(error.to_string()))?;
+            let Ok(event) = serde_json::from_slice::<EventRecord>(&bytes) else {
+                continue;
+            };
+            if event.issue_id == resource
+                && matches!(&event.event_type, EventType::CoordinationResultPublished)
+            {
+                events.push(event);
+            }
+        }
+    }
+    if resource.starts_with("router:") {
+        let root = Command::new("git")
+            .args(["rev-parse", "--show-toplevel"])
+            .current_dir(project_dir)
+            .output()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if root.status.success() {
+            let root = String::from_utf8_lossy(&root.stdout).trim().to_string();
+            for event in crate::router::read_shared_router_events(Path::new(&root))? {
+                if event.issue_id == resource
+                    && matches!(&event.event_type, EventType::CoordinationResultPublished)
+                    && !events
+                        .iter()
+                        .any(|existing| existing.event_id == event.event_id)
+                {
+                    events.push(event);
+                }
+            }
+        }
+    }
+    Ok(events)
+}
+
+/// Return the greatest published revision for a coordination resource.
+///
+/// # Arguments
+/// * `project_dir` - Project directory containing the immutable event history.
+/// * `resource` - Coordination resource identifier.
+///
+/// # Errors
+/// Returns `KanbusError::Io` when the event history cannot be read.
+pub fn published_revision(project_dir: &Path, resource: &str) -> Result<Option<u64>, KanbusError> {
+    Ok(reduce_published_revision(&load_result_publication_events(
+        project_dir,
+        resource,
+    )?))
+}
+
+/// Publish an artifact reference unless a newer logical revision already exists.
+///
+/// The publication is stored as an immutable coordination event, and the
+/// revision is reduced from event history rather than mutable local state.
+///
+/// # Arguments
+/// * `project_dir` - Project directory containing the event history.
+/// * `resource` - Coordination resource identifier.
+/// * `revision` - Positive logical task revision.
+/// * `artifact` - Artifact reference recorded with the publication.
+///
+/// # Errors
+/// Returns `KanbusError` for invalid values, stale revisions, or event-store failures.
+pub fn publish_coordination_result(
+    project_dir: &Path,
+    resource: &str,
+    revision: u64,
+    artifact: &str,
+) -> Result<(), KanbusError> {
+    if resource.trim().is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "resource must not be empty".to_string(),
+        ));
+    }
+    if revision == 0 {
+        return Err(KanbusError::IssueOperation(
+            "revision must be a positive integer".to_string(),
+        ));
+    }
+    if artifact.trim().is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "artifact must not be empty".to_string(),
+        ));
+    }
+    let current_events = load_result_publication_events(project_dir, resource)?;
+    if let Some(current_revision) = reduce_published_revision(&current_events) {
+        if revision < current_revision {
+            return Err(KanbusError::IssueOperation(format!(
+                "stale revision {revision}; published revision is {current_revision}"
+            )));
+        }
+        if revision == current_revision {
+            if published_artifact(&current_events, current_revision) == Some(artifact) {
+                return Ok(());
+            }
+            return Err(KanbusError::IssueOperation(format!(
+                "revision {revision} already published with a different artifact"
+            )));
+        }
+    }
+    let event = EventRecord::new(
+        resource,
+        EventType::CoordinationResultPublished,
+        get_current_user(),
+        json!({"resource": resource, "revision": revision, "artifact": artifact}),
+        now_timestamp(),
+    );
+    persist_router_coordination_event(project_dir, resource, &event)?;
+    Ok(())
 }
 
 fn load_coordination_events(
@@ -324,6 +590,83 @@ fn load_coordination_events(
     Ok(events)
 }
 
+fn write_router_claim_observation(
+    project_dir: &Path,
+    resource: &str,
+    claim_id: &str,
+    overlay_ttl_s: u64,
+) -> Result<(), KanbusError> {
+    let peer_claim_ids = load_coordination_overlay(project_dir, resource, overlay_ttl_s)?
+        .into_iter()
+        .filter(|envelope| envelope.event_type == "coordination.claim")
+        .filter_map(|envelope| envelope.coordination.claim_id)
+        .filter(|observed_id| observed_id != claim_id)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let mut observed_claim_ids = peer_claim_ids.clone();
+    observed_claim_ids.push(claim_id.to_string());
+    observed_claim_ids.sort();
+
+    let directory = project_dir
+        .join(".overlay")
+        .join("coordination-observations")
+        .join(sha256_hex(resource));
+    fs::create_dir_all(&directory).map_err(|error| KanbusError::Io(error.to_string()))?;
+    prune_router_claim_observations(&directory, overlay_ttl_s);
+    let claim_hash = sha256_hex(claim_id);
+    let destination = directory.join(format!("{claim_hash}.json"));
+    let temporary = directory.join(format!(".{claim_hash}.{}.tmp", Uuid::new_v4()));
+    let contents = serde_json::to_vec_pretty(&json!({
+        "schema_version": 1,
+        "resource": resource,
+        "claim_id": claim_id,
+        "local_claim_id": claim_id,
+        "observed_claim_ids": observed_claim_ids,
+        "peer_claim_ids": peer_claim_ids,
+        "observed_at": format_time(coordination_now()),
+    }))
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::write(&temporary, contents).map_err(|error| KanbusError::Io(error.to_string()))?;
+    if let Err(error) = fs::rename(&temporary, &destination) {
+        let _ = fs::remove_file(&temporary);
+        return Err(KanbusError::Io(error.to_string()));
+    }
+    Ok(())
+}
+
+fn prune_router_claim_observations(directory: &Path, ttl_s: u64) {
+    let cutoff = coordination_now() - duration(ttl_s);
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(contents) = fs::read(&path) else {
+            continue;
+        };
+        let Ok(value) = serde_json::from_slice::<Value>(&contents) else {
+            continue;
+        };
+        let Some(observed_at) = value.get("observed_at").and_then(Value::as_str) else {
+            continue;
+        };
+        if parse_timestamp(observed_at).is_some_and(|timestamp| timestamp < cutoff) {
+            let _ = fs::remove_file(path);
+        }
+    }
+}
+
+fn sha256_hex(value: &str) -> String {
+    Sha256::digest(value.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
 /// Convert a valid CLAIM, LEASE, or RELEASE envelope into the shared reducer's event shape.
 pub fn coordination_gossip_event(
     envelope: GossipEnvelope,
@@ -337,6 +680,7 @@ pub fn coordination_gossip_event(
     let resource = fields.resource?;
     let owner = fields.owner?;
     let claim_id = fields.claim_id?;
+    let operation_sequence = fields.operation_sequence;
     let (event_type, occurred_at, expires_at, ttl_payload) = match envelope.event_type.as_str() {
         "coordination.claim" => {
             let ttl_s = fields.lease_ttl_s?;
@@ -347,6 +691,14 @@ pub fn coordination_gossip_event(
         "coordination.lease" => {
             let expiry = fields.expires_at?;
             fields.lease_ttl_s?;
+            let payload = with_optional_operation_sequence(
+                json!({
+                    "owner": owner,
+                    "claim_id": claim_id,
+                    "lease_expires_at": expiry,
+                }),
+                operation_sequence,
+            );
             return Some(EventRecord {
                 schema_version: crate::event_history::EVENT_SCHEMA_VERSION,
                 event_id: format!("mqtt-{}", envelope.id),
@@ -354,14 +706,14 @@ pub fn coordination_gossip_event(
                 event_type: EventType::CoordinationRenew,
                 occurred_at: envelope.ts,
                 actor_id: owner.clone(),
-                payload: json!({
-                    "owner": owner,
-                    "claim_id": claim_id,
-                    "lease_expires_at": expiry,
-                }),
+                payload,
             });
         }
         "coordination.release" => {
+            let payload = with_optional_operation_sequence(
+                json!({"owner": owner, "claim_id": claim_id}),
+                operation_sequence,
+            );
             return Some(EventRecord {
                 schema_version: crate::event_history::EVENT_SCHEMA_VERSION,
                 event_id,
@@ -369,11 +721,21 @@ pub fn coordination_gossip_event(
                 event_type: EventType::CoordinationRelease,
                 occurred_at: envelope.ts,
                 actor_id: owner.clone(),
-                payload: json!({"owner": owner, "claim_id": claim_id}),
+                payload,
             });
         }
         _ => return None,
     };
+    let payload = with_optional_operation_sequence(
+        json!({
+            "owner": owner,
+            "claim_id": claim_id,
+            "lease_expires_at": format_time(expires_at),
+            "contention_window_s": contention_window_s,
+            "ttl_s": ttl_payload,
+        }),
+        operation_sequence,
+    );
     Some(EventRecord {
         schema_version: crate::event_history::EVENT_SCHEMA_VERSION,
         event_id,
@@ -381,13 +743,7 @@ pub fn coordination_gossip_event(
         event_type,
         occurred_at: format_time(occurred_at),
         actor_id: owner.clone(),
-        payload: json!({
-            "owner": owner,
-            "claim_id": claim_id,
-            "lease_expires_at": format_time(expires_at),
-            "contention_window_s": contention_window_s,
-            "ttl_s": ttl_payload,
-        }),
+        payload,
     })
 }
 
@@ -410,6 +766,7 @@ pub fn coordination_lease_gossip_if_closed(
             claim_id: lease.claim_id,
             lease_ttl_s: lease.lease_ttl_s,
             expires_at: lease.expires_at.map(format_time),
+            operation_sequence: lease.operation_sequence,
         },
     ))
 }
@@ -472,15 +829,55 @@ fn append_event(
     kind: EventType,
     payload: Value,
 ) -> Result<EventRecord, KanbusError> {
-    let record = EventRecord::new(
+    append_event_at(
+        project_dir,
         resource,
-        kind,
         owner,
+        kind,
         payload,
         format_time(coordination_now()),
-    );
-    write_events_batch(&events_dir_for_project(project_dir), &[record.clone()])?;
-    Ok(record)
+    )
+}
+
+fn append_event_at(
+    project_dir: &Path,
+    resource: &str,
+    owner: &str,
+    kind: EventType,
+    payload: Value,
+    occurred_at: String,
+) -> Result<EventRecord, KanbusError> {
+    let record = EventRecord::new(resource, kind, owner, payload, occurred_at);
+    persist_router_coordination_event(project_dir, resource, &record)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn append_soft_claim_event(
+    project_dir: &Path,
+    resource: &str,
+    owner: &str,
+    claim_id: &str,
+    revision: u64,
+    contention_window_s: u64,
+    ttl_s: u64,
+    occurred_at: DateTime<Utc>,
+) -> Result<EventRecord, KanbusError> {
+    let lease_expires_at = occurred_at + duration(ttl_s);
+    append_event_at(
+        project_dir,
+        resource,
+        owner,
+        EventType::CoordinationClaim,
+        json!({
+            "owner": owner,
+            "claim_id": claim_id,
+            "lease_expires_at": format_time(lease_expires_at),
+            "contention_window_s": contention_window_s,
+            "ttl_s": ttl_s,
+            "revision": revision,
+        }),
+        format_time(occurred_at),
+    )
 }
 
 fn format_time(value: DateTime<Utc>) -> String {
@@ -515,7 +912,18 @@ fn mutex_error(error: MutexApiError) -> KanbusError {
     }
 }
 
-fn append_hard_claim_event(
+/// Persist an API-issued hard lease in the Git coordination event history.
+///
+/// # Arguments
+/// * `project_dir` - Project directory containing immutable coordination events.
+/// * `resource` - Resource key protected by the lease.
+/// * `lease` - Lease returned by the hard mutex API.
+/// * `contention_window_s` - Soft coordination comparison window.
+/// * `ttl_s` - Lease lifetime in seconds.
+///
+/// # Errors
+/// Returns `KanbusError` if the durable event cannot be written.
+pub fn append_hard_claim_event(
     project_dir: &Path,
     resource: &str,
     lease: &MutexLease,
@@ -536,11 +944,106 @@ fn append_hard_claim_event(
         }),
         format_time(lease.claimed_at),
     );
-    write_events_batch(&events_dir_for_project(project_dir), &[event]).map(|_| ())
+    persist_router_coordination_event(project_dir, resource, &event).map(|_| ())
+}
+
+/// Persist a release event for a successfully released API-issued hard lease.
+///
+/// # Arguments
+/// * `project_dir` - Project directory containing immutable coordination events.
+/// * `resource` - Resource key protected by the lease.
+/// * `owner` - Owner that released the lease.
+/// * `claim_id` - Stable claim identifier.
+///
+/// # Errors
+/// Returns `KanbusError` if the release event cannot be written.
+pub fn append_hard_release_event(
+    project_dir: &Path,
+    resource: &str,
+    owner: &str,
+    claim_id: &str,
+) -> Result<(), KanbusError> {
+    let event = EventRecord::new(
+        resource,
+        EventType::CoordinationRelease,
+        owner,
+        json!({"owner": owner, "claim_id": claim_id}),
+        format_time(coordination_now()),
+    );
+    persist_router_coordination_event(project_dir, resource, &event).map(|_| ())
+}
+
+/// Persist a lease renewal returned by the hard mutex API.
+pub fn append_hard_renew_event(
+    project_dir: &Path,
+    resource: &str,
+    lease: &MutexLease,
+) -> Result<(), KanbusError> {
+    let event = EventRecord::new(
+        resource,
+        EventType::CoordinationRenew,
+        &lease.owner,
+        json!({
+            "owner": lease.owner,
+            "claim_id": lease.claim_id,
+            "revision": lease.revision,
+            "lease_expires_at": format_time(lease.expires_at),
+        }),
+        format_time(coordination_now()),
+    );
+    persist_router_coordination_event(project_dir, resource, &event).map(|_| ())
+}
+
+fn persist_router_coordination_event(
+    project_dir: &Path,
+    resource: &str,
+    event: &EventRecord,
+) -> Result<EventRecord, KanbusError> {
+    let mut event = event.clone();
+    if event_kind(&event).is_some() {
+        match event.payload.get("operation_sequence") {
+            None => {
+                let sequence = observed_operation_sequence(project_dir, resource)?
+                    .checked_add(1)
+                    .ok_or_else(|| {
+                        KanbusError::IssueOperation(
+                            "coordination operation sequence overflow".to_string(),
+                        )
+                    })?;
+                event.payload["operation_sequence"] = json!(sequence);
+            }
+            Some(value) if value.as_u64().is_some_and(|sequence| sequence > 0) => {}
+            Some(_) => {
+                return Err(KanbusError::IssueOperation(
+                    "coordination operation_sequence must be a positive integer".to_string(),
+                ));
+            }
+        }
+    }
+    write_events_batch(
+        &events_dir_for_project(project_dir),
+        std::slice::from_ref(&event),
+    )?;
+    if resource.starts_with("router:") {
+        let root = Command::new("git")
+            .args(["rev-parse", "--show-toplevel"])
+            .current_dir(project_dir)
+            .output()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if root.status.success() {
+            let root = String::from_utf8_lossy(&root.stdout).trim().to_string();
+            crate::router::publish_shared_router_event(Path::new(&root), &event)?;
+        }
+    }
+    Ok(event)
 }
 
 fn basic_output(provider: &str, resource: &str, state: &str) -> String {
     format!("provider: {provider}\nresource: {resource}\nstate: {state}\n")
+}
+
+fn published_result_output(provider: &str, resource: &str, revision: u64) -> String {
+    format!("provider: {provider}\nresource: {resource}\nrevision: {revision}\nstate: published\n")
 }
 
 fn validate_runtime_configuration(
@@ -651,41 +1154,94 @@ pub fn run_coordination(
                     Err(error) => return Err(mutex_error(error)),
                 }
             }
-            let now = coordination_now();
-            let expires_at = now + duration(default_ttl_s);
-            let claim_event = append_event(
-                &project_dir,
-                &resource,
-                &owner,
-                EventType::CoordinationClaim,
-                json!({
-                    "owner": owner,
-                    "claim_id": claim_id,
-                    "lease_expires_at": format_time(expires_at),
-                    "contention_window_s": contention_window_s,
-                    "ttl_s": default_ttl_s,
-                    "revision": revision,
-                }),
-            )?;
-            let provider = if mqtt_configured
-                && publish_coordination_gossip(
+            let claim_event_result = Arc::new(Mutex::new(None));
+            let provider = if mqtt_configured {
+                let claim_event_result = Arc::clone(&claim_event_result);
+                let claim_resource = resource.clone();
+                let claim_owner = owner.clone();
+                let stable_claim_id = claim_id.clone();
+                let (_, published) = collect_coordination_gossip_window_with(
                     root,
                     &project_dir,
-                    "coordination.claim",
-                    &claim_event.event_id,
-                    Some(&claim_event.occurred_at),
-                    CoordinationGossipFields {
-                        resource: Some(resource.clone()),
-                        owner: Some(owner.clone()),
-                        claim_id: Some(claim_id.clone()),
-                        lease_ttl_s: Some(default_ttl_s),
-                        expires_at: None,
+                    std::time::Duration::from_secs(contention_window_s),
+                    project_configuration.overlay.ttl_s,
+                    || {
+                        let event = append_soft_claim_event(
+                            &project_dir,
+                            &claim_resource,
+                            &claim_owner,
+                            &stable_claim_id,
+                            revision,
+                            contention_window_s,
+                            default_ttl_s,
+                            coordination_now(),
+                        );
+                        let event = match event {
+                            Ok(event) => event,
+                            Err(error) => {
+                                if let Ok(mut slot) = claim_event_result.lock() {
+                                    *slot = Some(Err(error.to_string()));
+                                }
+                                return false;
+                            }
+                        };
+                        if let Ok(mut slot) = claim_event_result.lock() {
+                            *slot = Some(Ok(event.clone()));
+                        } else {
+                            return false;
+                        }
+                        publish_coordination_gossip(
+                            root,
+                            &project_dir,
+                            "coordination.claim",
+                            &event.event_id,
+                            Some(&event.occurred_at),
+                            CoordinationGossipFields {
+                                resource: Some(claim_resource),
+                                owner: Some(claim_owner),
+                                claim_id: Some(stable_claim_id),
+                                lease_ttl_s: Some(default_ttl_s),
+                                expires_at: None,
+                                operation_sequence: event
+                                    .payload
+                                    .get("operation_sequence")
+                                    .and_then(Value::as_u64),
+                            },
+                        )
                     },
-                ) {
-                "mqtt"
+                );
+                if published {
+                    "mqtt"
+                } else {
+                    "git"
+                }
             } else {
                 "git"
             };
+            match claim_event_result
+                .lock()
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "coordination claim event result is unavailable".to_string(),
+                    )
+                })?
+                .take()
+            {
+                Some(Ok(_)) => {}
+                Some(Err(error)) => return Err(KanbusError::IssueOperation(error)),
+                None => {
+                    append_soft_claim_event(
+                        &project_dir,
+                        &resource,
+                        &owner,
+                        &claim_id,
+                        revision,
+                        contention_window_s,
+                        default_ttl_s,
+                        coordination_now(),
+                    )?;
+                }
+            }
             let events = load_coordination_events(
                 &project_dir,
                 &resource,
@@ -693,6 +1249,16 @@ pub fn run_coordination(
                 contention_window_s,
                 project_configuration.overlay.ttl_s,
             )?;
+            if mqtt_configured && resource.starts_with("router:issue:") {
+                if let Err(error) = write_router_claim_observation(
+                    &project_dir,
+                    &resource,
+                    &claim_id,
+                    project_configuration.overlay.ttl_s,
+                ) {
+                    eprintln!("warning: router claim observation could not be recorded: {error}");
+                }
+            }
             let lease = reduce_coordination_events(&events, coordination_now());
             Ok(if lease.is_active() {
                 active_output(provider, &resource, &lease)
@@ -835,7 +1401,15 @@ pub fn run_coordination(
                 &resource,
                 EventType::CoordinationRelease,
                 &owner,
-                json!({ "owner": owner, "claim_id": claim_id }),
+                json!({
+                    "owner": owner,
+                    "claim_id": claim_id,
+                    "operation_sequence": observed_operation_sequence(&project_dir, &resource)?
+                        .checked_add(1)
+                        .ok_or_else(|| KanbusError::IssueOperation(
+                            "coordination operation sequence overflow".to_string()
+                        ))?,
+                }),
                 format_time(coordination_now()),
             );
             let provider = if mqtt_configured
@@ -851,13 +1425,17 @@ pub fn run_coordination(
                         claim_id: Some(claim_id.clone()),
                         lease_ttl_s: None,
                         expires_at: None,
+                        operation_sequence: release_event
+                            .payload
+                            .get("operation_sequence")
+                            .and_then(Value::as_u64),
                     },
                 ) {
                 "mqtt"
             } else {
                 "git"
             };
-            write_events_batch(&events_dir_for_project(&project_dir), &[release_event])?;
+            persist_router_coordination_event(&project_dir, &resource, &release_event)?;
             Ok(basic_output(provider, &resource, "released"))
         }
         CoordinationOperation::Inspect { resource } => {
@@ -894,6 +1472,14 @@ pub fn run_coordination(
             } else {
                 basic_output(provider, &resource, "eligible")
             })
+        }
+        CoordinationOperation::PublishResult {
+            resource,
+            revision,
+            artifact,
+        } => {
+            publish_coordination_result(&project_dir, &resource, revision, &artifact)?;
+            Ok(published_result_output("git", &resource, revision))
         }
     }
 }
@@ -937,6 +1523,15 @@ pub enum CoordinationOperation {
         /// Resource key to inspect.
         resource: String,
     },
+    /// Publish an artifact reference for a logical task revision.
+    PublishResult {
+        /// Resource key for the logical task.
+        resource: String,
+        /// Positive logical revision to publish.
+        revision: u64,
+        /// Artifact reference produced by the worker.
+        artifact: String,
+    },
 }
 
 /// Validate coordination duration fields in a loaded project configuration.
@@ -956,14 +1551,20 @@ pub fn validate_coordination_configuration(config: &ProjectConfiguration) -> Vec
     }
     if let Some(endpoint) = config.coordination.mutex_api.endpoint.as_deref() {
         let endpoint = endpoint.trim();
-        if !endpoint.is_empty()
-            && !reqwest::Url::parse(endpoint).is_ok_and(|url| {
-                matches!(url.scheme(), "http" | "https") && url.host_str().is_some()
-            })
-        {
-            errors.push(
-                "coordination.mutex_api.endpoint: must be an absolute http(s) URL".to_string(),
-            );
+        if !endpoint.is_empty() {
+            match validate_http_endpoint(endpoint) {
+                Ok(()) => {}
+                Err(HttpEndpointError::Invalid) => errors.push(
+                    "coordination.mutex_api.endpoint: must be an absolute http(s) URL".to_string(),
+                ),
+                Err(HttpEndpointError::Credentials) => errors.push(
+                    "coordination.mutex_api.endpoint: must not include URL credentials".to_string(),
+                ),
+                Err(HttpEndpointError::Insecure) => errors.push(
+                    "coordination.mutex_api.endpoint: must use HTTPS unless the host is loopback"
+                        .to_string(),
+                ),
+            }
         }
     }
     errors.extend(validate_coordination_provider_settings(
@@ -1018,6 +1619,51 @@ mod tests {
         )
     }
 
+    #[test]
+    fn router_claim_observation_snapshot_records_sorted_peer_claims() {
+        let temp = tempfile::tempdir().expect("temporary project");
+        let resource = "router:issue:kbs-observation";
+        let now = format_time(Utc::now());
+        for (message_id, event_id, claim_id) in [
+            ("mqtt-own", "event-own", "claim-own"),
+            ("mqtt-peer", "event-peer", "claim-peer"),
+        ] {
+            let mut envelope = gossip(
+                message_id,
+                "coordination.claim",
+                event_id,
+                &now,
+                "worker",
+                claim_id,
+                Some(3600),
+            );
+            envelope.coordination.resource = Some(resource.to_string());
+            envelope.coordination.expires_at = None;
+            crate::overlay::write_coordination_overlay(temp.path(), &envelope, 3600)
+                .expect("write MQTT claim overlay");
+        }
+        write_router_claim_observation(temp.path(), resource, "claim-own", 3600)
+            .expect("write contention snapshot");
+
+        let path = temp
+            .path()
+            .join(".overlay/coordination-observations")
+            .join(sha256_hex(resource))
+            .join(format!("{}.json", sha256_hex("claim-own")));
+        let snapshot: Value =
+            serde_json::from_slice(&fs::read(path).expect("read contention snapshot"))
+                .expect("parse contention snapshot");
+        assert_eq!(snapshot["resource"], resource);
+        assert_eq!(snapshot["claim_id"], "claim-own");
+        assert_eq!(snapshot["local_claim_id"], "claim-own");
+        assert_eq!(
+            snapshot["observed_claim_ids"],
+            json!(["claim-own", "claim-peer"])
+        );
+        assert_eq!(snapshot["peer_claim_ids"], json!(["claim-peer"]));
+        assert!(snapshot["observed_at"].as_str().is_some());
+    }
+
     fn gossip(
         message_id: &str,
         event_type: &str,
@@ -1039,6 +1685,7 @@ mod tests {
                 claim_id: Some(claim_id.to_string()),
                 lease_ttl_s: ttl_s,
                 expires_at,
+                operation_sequence: None,
             },
         );
         envelope.id = message_id.to_string();
@@ -1051,9 +1698,135 @@ mod tests {
         assert_eq!(parse_duration_seconds("5s"), Ok(5));
         assert_eq!(parse_duration_seconds("2m"), Ok(120));
         assert_eq!(parse_duration_seconds("1h"), Ok(3_600));
-        for invalid in ["0s", "-1s", "1d", "1.5m", "s", "5"] {
+        for invalid in ["0s", "00s", "01s", "0003m", "-1s", "1d", "1.5m", "s", "5"] {
             assert!(parse_duration_seconds(invalid).is_err(), "{invalid}");
         }
+    }
+
+    #[test]
+    fn result_publication_reducer_uses_maximum_immutable_revision() {
+        let first = record(
+            "tts:voice-1",
+            EventType::CoordinationResultPublished,
+            "event-1",
+            "2026-01-01T00:00:00Z",
+            json!({"revision": 3, "artifact": "/tmp/render-r3.mp3"}),
+        );
+        let second = record(
+            "tts:voice-1",
+            EventType::CoordinationResultPublished,
+            "event-2",
+            "2026-01-01T00:01:00Z",
+            json!({"revision": 5, "artifact": "/tmp/render-r5.mp3"}),
+        );
+        let invalid = record(
+            "tts:voice-1",
+            EventType::CoordinationResultPublished,
+            "event-3",
+            "2026-01-01T00:02:00Z",
+            json!({"revision": 0, "artifact": "/tmp/invalid.mp3"}),
+        );
+
+        assert_eq!(
+            reduce_published_revision(&[first, second, invalid]),
+            Some(5)
+        );
+    }
+
+    #[test]
+    fn stale_result_publication_is_rejected_without_mutating_event_history() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let project_dir = temp.path().join("project");
+        let first = EventRecord::new(
+            "tts:voice-2",
+            EventType::CoordinationResultPublished,
+            "coordination",
+            json!({"revision": 5, "artifact": "/tmp/render-r5.mp3"}),
+            now_timestamp(),
+        );
+        let events_dir = events_dir_for_project(&project_dir);
+        write_events_batch(&events_dir, &[first]).expect("write initial event");
+
+        let error = publish_coordination_result(&project_dir, "tts:voice-2", 4, "/tmp/stale.mp3")
+            .expect_err("older result must be rejected");
+
+        assert_eq!(
+            error.to_string(),
+            "stale revision 4; published revision is 5"
+        );
+        assert_eq!(
+            published_revision(&project_dir, "tts:voice-2").unwrap(),
+            Some(5)
+        );
+        assert_eq!(fs::read_dir(events_dir).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn result_publication_accepts_newer_revision_and_records_immutable_event() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let project_dir = temp.path().join("project");
+        let first = EventRecord::new(
+            "tts:voice-3",
+            EventType::CoordinationResultPublished,
+            "coordination",
+            json!({"revision": 2, "artifact": "/tmp/render-r2.mp3"}),
+            now_timestamp(),
+        );
+        let events_dir = events_dir_for_project(&project_dir);
+        write_events_batch(&events_dir, &[first]).expect("write initial event");
+
+        publish_coordination_result(&project_dir, "tts:voice-3", 3, "/tmp/render-r3.mp3")
+            .expect("publish newer revision");
+
+        assert_eq!(
+            published_revision(&project_dir, "tts:voice-3").unwrap(),
+            Some(3)
+        );
+        assert_eq!(fs::read_dir(events_dir).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn identical_same_revision_publication_is_idempotent_and_different_artifact_is_rejected() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let project_dir = temp.path().join("project");
+        let events_dir = events_dir_for_project(&project_dir);
+
+        publish_coordination_result(&project_dir, "tts:voice-idempotent", 7, "/tmp/a.wav")
+            .expect("first publication");
+        publish_coordination_result(&project_dir, "tts:voice-idempotent", 7, "/tmp/a.wav")
+            .expect("identical publication is idempotent");
+        assert_eq!(fs::read_dir(&events_dir).unwrap().count(), 1);
+
+        let error = publish_coordination_result(
+            &project_dir,
+            "tts:voice-idempotent",
+            7,
+            "/tmp/different.wav",
+        )
+        .expect_err("same revision cannot publish a different artifact");
+        assert_eq!(
+            error.to_string(),
+            "revision 7 already published with a different artifact"
+        );
+        let path = fs::read_dir(&events_dir)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let event: EventRecord = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+        assert_eq!(event.payload["resource"], "tts:voice-idempotent");
+        assert_eq!(event.payload["artifact"], "/tmp/a.wav");
+        assert_ne!(event.actor_id, "coordination");
+        assert_eq!(fs::read_dir(events_dir).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn publish_result_output_includes_provider_resource_revision_and_state() {
+        assert_eq!(
+            published_result_output("git", "tts:voice-1", 3),
+            "provider: git\nresource: tts:voice-1\nrevision: 3\nstate: published\n"
+        );
     }
 
     #[test]
@@ -1084,6 +1857,111 @@ mod tests {
             lease.expires_at,
             parse_timestamp("2026-01-01T00:10:01.000Z")
         );
+    }
+
+    #[test]
+    fn concurrent_same_sequence_claims_keep_stable_arbitration() {
+        let mut first = claim("claim-b", "worker-b", "z-event", "2026-01-01T00:00:00Z");
+        first.payload["operation_sequence"] = json!(12);
+        let mut second = claim("claim-a", "worker-a", "a-event", "2026-01-01T00:00:00Z");
+        second.payload["operation_sequence"] = json!(12);
+        let now = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 6).unwrap();
+
+        for ordered in [[first.clone(), second.clone()], [second, first]] {
+            let lease = reduce_coordination_events(&ordered, now);
+            assert_eq!(lease.claim_id.as_deref(), Some("claim-a"));
+            assert_eq!(lease.owner.as_deref(), Some("worker-a"));
+        }
+    }
+
+    #[test]
+    fn operation_sequence_replays_same_millisecond_claim_release_claim_causally() {
+        let timestamp = "2026-01-01T00:00:00.000Z";
+        let mut first = claim("claim-a", "worker-a", "z-claim-a", timestamp);
+        first.payload["operation_sequence"] = json!(1);
+        let release = record(
+            "job:unit-test",
+            EventType::CoordinationRelease,
+            "a-release-a",
+            timestamp,
+            json!({"owner":"worker-a", "claim_id":"claim-a", "operation_sequence":2}),
+        );
+        let mut second = claim("claim-b", "worker-b", "m-claim-b", timestamp);
+        second.payload["operation_sequence"] = json!(3);
+
+        let now = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 1).unwrap();
+        let lease = reduce_coordination_events(&[second, release, first], now);
+
+        assert_eq!(lease.owner.as_deref(), Some("worker-b"));
+        assert_eq!(lease.claim_id.as_deref(), Some("claim-b"));
+        assert_eq!(lease.operation_sequence, Some(3));
+    }
+
+    #[test]
+    fn legacy_unsequenced_events_keep_timestamp_and_event_id_order() {
+        let timestamp = "2026-01-01T00:00:00.000Z";
+        let mut claim_event = claim("legacy-claim", "worker", "z-claim", timestamp);
+        claim_event
+            .payload
+            .as_object_mut()
+            .unwrap()
+            .remove("operation_sequence");
+        let release_event = record(
+            "job:unit-test",
+            EventType::CoordinationRelease,
+            "a-release",
+            timestamp,
+            json!({"owner":"worker", "claim_id":"legacy-claim"}),
+        );
+        let now = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 1).unwrap();
+
+        // The legacy release sorts before the claim by event ID, so it cannot
+        // release a lease that has not yet been claimed.
+        assert!(reduce_coordination_events(&[claim_event, release_event], now).is_active());
+    }
+
+    #[test]
+    fn invalid_operation_sequences_are_ignored_and_not_used_for_allocation() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let project_dir = temp.path().join("project");
+        let events_dir = events_dir_for_project(&project_dir);
+        let mut valid = claim("valid", "worker-a", "event-valid", "2026-01-01T00:00:00Z");
+        valid.payload["operation_sequence"] = json!(4);
+        let invalid_values = [json!(0), json!(-2), json!(true), json!("5"), json!(1.5)];
+        let invalid_events = invalid_values
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let mut event = claim(
+                    &format!("invalid-{index}"),
+                    "worker-b",
+                    &format!("event-invalid-{index}"),
+                    "2026-01-01T00:00:00Z",
+                );
+                event.payload["operation_sequence"] = value;
+                event
+            })
+            .collect::<Vec<_>>();
+        let mut all_events = vec![valid.clone()];
+        all_events.extend(invalid_events.clone());
+        let now = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 1).unwrap();
+        let reduced = reduce_coordination_events(&all_events, now);
+        assert_eq!(reduced.claim_id.as_deref(), Some("valid"));
+
+        write_events_batch(&events_dir, &all_events).expect("write test events");
+        assert_eq!(
+            observed_operation_sequence(&project_dir, "job:unit-test").unwrap(),
+            4
+        );
+        let next = append_event(
+            &project_dir,
+            "job:unit-test",
+            "worker-c",
+            EventType::CoordinationRelease,
+            json!({"owner":"worker-c", "claim_id":"new"}),
+        )
+        .expect("append sequenced event");
+        assert_eq!(next.payload["operation_sequence"], 5);
     }
 
     #[test]
@@ -1210,7 +2088,7 @@ mod tests {
 
     #[test]
     fn coordination_gossip_claim_requires_contract_fields_and_reuses_durable_event_id() {
-        let envelope = GossipEnvelope {
+        let mut envelope = GossipEnvelope {
             id: "envelope-1".to_string(),
             ts: "2026-01-01T00:00:00.000Z".to_string(),
             project: "KAN".to_string(),
@@ -1226,13 +2104,24 @@ mod tests {
                 claim_id: Some("claim-a".to_string()),
                 lease_ttl_s: Some(300),
                 expires_at: None,
+                operation_sequence: None,
             },
         };
+        envelope.coordination.operation_sequence = Some(7);
+        let invalid = GossipEnvelope {
+            coordination: CoordinationGossipFields {
+                operation_sequence: Some(0),
+                ..envelope.coordination.clone()
+            },
+            ..envelope.clone()
+        };
+        assert!(coordination_gossip_event(invalid, 3).is_none());
         let event = coordination_gossip_event(envelope, 3).expect("valid claim message");
         assert_eq!(event.event_id, "event-1");
         assert_eq!(event.issue_id, "job:unit-test");
         assert_eq!(event_kind(&event), Some("claim"));
         assert_eq!(event.payload["contention_window_s"], 3);
+        assert_eq!(event.payload["operation_sequence"], 7);
         assert_eq!(
             event.payload["lease_expires_at"],
             "2026-01-01T00:05:00.000Z"
@@ -1349,6 +2238,41 @@ mod tests {
             validate_coordination_configuration(&configuration),
             vec!["coordination.mutex_api.endpoint: must be an absolute http(s) URL".to_string()]
         );
+    }
+
+    #[test]
+    fn mutex_api_endpoint_requires_tls_except_for_loopback_and_rejects_credentials() {
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.coordination.mutex_api.endpoint =
+            Some("http://mutex.example.test/api".to_string());
+        assert_eq!(
+            validate_coordination_configuration(&configuration),
+            vec!["coordination.mutex_api.endpoint: must use HTTPS unless the host is loopback"]
+        );
+
+        for endpoint in ["http://localhost:8080/api", "http://127.0.0.1:8080/api"] {
+            configuration.coordination.mutex_api.endpoint = Some(endpoint.to_string());
+            assert!(validate_coordination_configuration(&configuration).is_empty());
+        }
+
+        configuration.coordination.mutex_api.endpoint =
+            Some("https://user:secret@mutex.example.test".to_string());
+        assert_eq!(
+            validate_coordination_configuration(&configuration),
+            vec!["coordination.mutex_api.endpoint: must not include URL credentials"]
+        );
+    }
+
+    #[test]
+    fn renewal_extension_targets_a_fixed_now_plus_ttl_horizon() {
+        let now = parse_timestamp("2026-01-01T00:00:00.500Z").unwrap();
+        let current = parse_timestamp("2026-01-01T00:04:00.500Z");
+        assert_eq!(lease_renewal_extension_seconds(current, now, 300), 60);
+        assert_eq!(
+            lease_renewal_extension_seconds(parse_timestamp("2026-01-01T00:05:01Z"), now, 300),
+            0
+        );
+        assert_eq!(lease_renewal_extension_seconds(None, now, 300), 0);
     }
 
     #[test]

@@ -228,6 +228,19 @@ mod tests {
     use crate::config::default_project_configuration;
 
     #[test]
+    fn semantic_categories_validate_known_values_and_reject_unknown_values() {
+        for category in [SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE] {
+            validate_semantic_category(category).expect("known semantic category");
+        }
+        assert_eq!(
+            validate_semantic_category("paused")
+                .unwrap_err()
+                .to_string(),
+            "invalid semantic_category 'paused': must be one of todo, in_progress, done"
+        );
+    }
+
+    #[test]
     fn resolve_primary_status_key_returns_first_match() {
         let configuration = default_project_configuration();
         let key =
@@ -249,5 +262,116 @@ mod tests {
         let configuration = default_project_configuration();
         let status = map_jira_status_to_key(&configuration, "In Development").expect("status");
         assert_eq!(status, "in_progress");
+    }
+
+    #[test]
+    fn preferred_status_keys_must_belong_to_the_requested_category() {
+        let configuration = default_project_configuration();
+        assert_eq!(
+            resolve_preferred_status_key_for_semantic_category(
+                &configuration,
+                SEMANTIC_IN_PROGRESS,
+                &["open", "blocked"],
+            )
+            .expect("matching preferred status"),
+            "blocked"
+        );
+        assert_eq!(
+            resolve_preferred_status_key_for_semantic_category(
+                &configuration,
+                SEMANTIC_IN_PROGRESS,
+                &["open"],
+            )
+            .expect("primary fallback"),
+            "in_progress"
+        );
+        assert!(resolve_preferred_status_key_for_semantic_category(
+            &configuration,
+            "paused",
+            &["open"]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn missing_semantic_categories_and_unknown_status_keys_are_reported() {
+        let mut configuration = default_project_configuration();
+        configuration.statuses.clear();
+        assert_eq!(
+            resolve_primary_status_key_for_semantic_category(&configuration, SEMANTIC_TODO)
+                .unwrap_err()
+                .to_string(),
+            "no status configured with semantic_category 'todo'"
+        );
+        assert!(status_keys_for_semantic_category(&configuration, "paused").is_err());
+        assert_eq!(
+            semantic_category_for_status_key(&configuration, "missing"),
+            None
+        );
+    }
+
+    #[test]
+    fn semantic_color_and_beads_mappings_cover_known_and_fallback_values() {
+        assert_eq!(default_color_for_semantic_category(SEMANTIC_TODO), "cyan");
+        assert_eq!(
+            default_color_for_semantic_category(SEMANTIC_IN_PROGRESS),
+            "blue"
+        );
+        assert_eq!(default_color_for_semantic_category(SEMANTIC_DONE), "green");
+        assert_eq!(default_color_for_semantic_category("custom"), "white");
+
+        for status in ["in_progress", "blocked"] {
+            assert_eq!(
+                semantic_category_for_beads_status_key(status),
+                SEMANTIC_IN_PROGRESS
+            );
+        }
+        for status in ["closed", "done"] {
+            assert_eq!(
+                semantic_category_for_beads_status_key(status),
+                SEMANTIC_DONE
+            );
+        }
+        assert_eq!(
+            semantic_category_for_beads_status_key("backlog"),
+            SEMANTIC_TODO
+        );
+    }
+
+    #[test]
+    fn beads_and_jira_status_mappings_handle_passthrough_preference_and_missing_categories() {
+        let configuration = default_project_configuration();
+        assert_eq!(
+            map_beads_status(&configuration, "in-progress").expect("semantic mapping"),
+            "in_progress"
+        );
+        assert_eq!(
+            map_beads_status(&configuration, "custom-status").expect("passthrough"),
+            "custom-status"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "BACKLOG").expect("backlog preference"),
+            "backlog"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "Blocked").expect("blocked preference"),
+            "blocked"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "Done").expect("closed preference"),
+            "closed"
+        );
+        assert_eq!(
+            map_jira_status_to_key(&configuration, "Some unknown status")
+                .expect("unknown statuses map to the todo preference"),
+            "open"
+        );
+
+        let mut incomplete = configuration;
+        incomplete
+            .statuses
+            .retain(|status| status.semantic_category != SEMANTIC_IN_PROGRESS);
+        assert!(map_beads_status(&incomplete, "in-progress").is_err());
+        assert!(map_jira_status_to_key(&incomplete, "in progress").is_err());
     }
 }

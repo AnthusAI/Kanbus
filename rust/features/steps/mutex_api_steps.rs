@@ -31,7 +31,7 @@ pub struct MutexApiFixture {
 }
 
 impl MutexApiFixture {
-    fn start() -> std::io::Result<Self> {
+    pub(crate) fn start() -> std::io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         let address = listener.local_addr()?;
         listener.set_nonblocking(true)?;

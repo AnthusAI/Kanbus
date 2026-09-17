@@ -44,7 +44,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The Git lease provider still needs implementation in Python and Rust after the Gherkin protocol is accepted.",
-  "right_now_updated_at": "2026-09-14T13:33:50.689555626Z",
+  "right_now_summary": "The Git soft-lease provider is being implemented in Python and Rust against the merged protocol contract.",
+  "right_now_updated_at": "2026-09-17T09:20:18.770364Z",
   "custom": {}
 }

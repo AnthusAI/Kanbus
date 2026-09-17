@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 
@@ -51,7 +52,9 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
-    merged = {**DEFAULT_CONFIGURATION, **data}
+    # Nested defaults are mutated by normalization and environment overrides;
+    # keep each loaded project isolated from the process-wide template.
+    merged = {**copy.deepcopy(DEFAULT_CONFIGURATION), **data}
     # Apply overrides, merging virtual_projects additively so the override
     # adds entries rather than replacing the entire map.
     if override:
@@ -60,6 +63,8 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         merged.update(override)
         if isinstance(main_vp, dict) and isinstance(override_vp, dict):
             merged["virtual_projects"] = {**main_vp, **override_vp}
+    if merged.get("router") is not None and not isinstance(merged["router"], dict):
+        raise ConfigurationError("router must be a mapping")
     _reject_legacy_fields(merged)
     _reject_standup_lookback_hours(merged)
     _normalize_virtual_projects(merged)
@@ -68,6 +73,9 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     try:
         configuration = ProjectConfiguration.model_validate(merged)
     except ValidationError as error:
+        router_error = _router_validation_error(error)
+        if router_error is not None:
+            raise ConfigurationError(router_error) from error
         if _has_standup_lookback_hours(error):
             raise ConfigurationError(
                 STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE
@@ -80,6 +88,12 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         for item in error.errors():
             location = item["loc"]
             if location == ("coordination", "mutex_api", "endpoint"):
+                if "must use HTTPS unless the host is loopback" in str(
+                    item.get("msg", "")
+                ):
+                    raise ConfigurationError(
+                        "coordination.mutex_api.endpoint: must use HTTPS unless the host is loopback"
+                    ) from error
                 raise ConfigurationError(
                     "coordination.mutex_api.endpoint: must be an absolute http(s) URL"
                 ) from error
@@ -98,6 +112,11 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
 
     errors = validate_project_configuration(configuration)
     if errors:
+        router_error = next(
+            (message for message in errors if message.startswith("router.")), None
+        )
+        if router_error is not None:
+            raise ConfigurationError(router_error)
         raise ConfigurationError("; ".join(errors))
 
     if path.name == "kanbus.yml":
@@ -348,6 +367,31 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> list[
     if configuration.default_priority not in configuration.priorities:
         errors.append("default priority must be in priorities map")
 
+    router = configuration.router
+    if router is not None and router.enabled:
+        if router.limits.review_wip > router.limits.project_wip:
+            errors.append("router.limits.review_wip must not exceed project_wip")
+        for class_name, agent_class in router.classes.items():
+            for profile in agent_class.providers:
+                if profile not in router.providers:
+                    errors.append(
+                        "router.classes."
+                        f"{class_name}.providers references undefined provider profile "
+                        f'"{profile}"'
+                    )
+        for profile in router.limits.provider_wip:
+            if profile not in router.providers:
+                errors.append(
+                    "router.limits.provider_wip references undefined provider profile "
+                    f'"{profile}"'
+                )
+        for class_name in router.limits.class_wip:
+            if class_name not in router.classes:
+                errors.append(
+                    "router.limits.class_wip references undefined class "
+                    f'"{class_name}"'
+                )
+
     # Validate categories
     if not configuration.categories:
         errors.append("categories must not be empty")
@@ -389,6 +433,19 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> list[
 
     # Build set of valid status keys
     valid_statuses = {s.key for s in configuration.statuses}
+
+    if router is not None and router.enabled and router.workflow is not None:
+        for role in ("pending", "active", "review", "blocked"):
+            status = getattr(router.workflow, role)
+            if status not in valid_statuses:
+                errors.append(
+                    f'router.workflow.{role} references undefined status "{status}"'
+                )
+        for status in router.workflow.terminal:
+            if status not in valid_statuses:
+                errors.append(
+                    f'router.workflow.terminal references undefined status "{status}"'
+                )
 
     # Validate that initial_status exists in statuses
     if configuration.initial_status not in valid_statuses:
@@ -607,6 +664,95 @@ def _has_standup_lookback_hours(error: ValidationError) -> bool:
 
 def _has_unknown_fields(error: ValidationError) -> bool:
     return any(item.get("type") == "extra_forbidden" for item in error.errors())
+
+
+def _router_validation_error(error: ValidationError) -> str | None:
+    """Translate router model errors to stable user-facing validation text."""
+    for item in error.errors():
+        location = item.get("loc") or ()
+        if not location or location[0] != "router":
+            continue
+        error_type = item.get("type")
+        if error_type == "extra_forbidden":
+            field_path = ".".join(str(part) for part in location)
+            return f"{field_path} is an unknown field"
+        if len(location) == 1 and error_type == "model_type":
+            return "router must be a mapping"
+        if len(location) == 1 and error_type == "value_error":
+            if "workflow, limits, and providers are required" in str(
+                item.get("msg", "")
+            ):
+                return (
+                    "router.workflow, router.limits, and router.providers are required"
+                )
+        if location == ("router", "workflow") and error_type == "value_error":
+            return "router.workflow roles must use distinct statuses"
+        if location == ("router", "workflow", "terminal") and error_type == "too_short":
+            return "router.workflow.terminal must be a nonempty list"
+        if location == ("router", "providers") and error_type == "too_short":
+            return "router.providers must be a nonempty mapping"
+        if len(location) == 2 and location[1] == "watch_interval":
+            return "router.watch_interval must be a positive duration"
+        if (
+            len(location) == 2
+            and location[1] == "forge"
+            and error_type == "value_error"
+        ):
+            message = str(item.get("msg", ""))
+            if "router forge provider must be github" in message:
+                return "router.forge.provider must be github"
+            if "router forge repository must use owner/repository" in message:
+                return "router.forge.repository must use owner/repository format"
+            if "router forge token_env" in message:
+                return (
+                    "router.forge.token_env must be a valid environment variable name"
+                )
+            if "router forge api_url must use HTTPS" in message:
+                return "router.forge.api_url must use HTTPS unless the host is loopback"
+            if "router forge api_url must not include URL credentials" in message:
+                return "router.forge.api_url must not include URL credentials"
+            if "router forge api_url" in message:
+                return "router.forge.api_url must be an absolute http(s) URL"
+        if (
+            len(location) == 3
+            and location[1] == "forge"
+            and location[2] == "repository"
+            and error_type == "missing"
+        ):
+            return "router.forge.repository is required"
+        if len(location) == 3 and location[1] == "forge" and location[2] == "token_env":
+            return "router.forge.token_env must be a valid environment variable name"
+        if (
+            len(location) == 4
+            and location[1] == "providers"
+            and location[3] == "adapter"
+        ):
+            profile = location[2]
+            return f"router.providers.{profile}.adapter must be codex"
+        if (
+            len(location) == 4
+            and location[1] == "classes"
+            and location[3] == "providers"
+            and error_type == "too_short"
+        ):
+            return f"router.classes.{location[2]}.providers must be a nonempty list"
+        if (
+            len(location) == 3
+            and location[1] == "limits"
+            and error_type in {"int_type", "greater_than_equal"}
+        ):
+            field_name = location[2]
+            if field_name in {"project_wip", "review_wip"}:
+                return f"router.limits.{field_name} must be a positive integer"
+        if len(location) == 3 and location[1] == "limits":
+            field_name = location[2]
+            if field_name in {"project_wip", "review_wip"}:
+                return f"router.limits.{field_name} must be a positive integer"
+        if error_type == "value_error" and len(location) == 1:
+            message = str(item.get("msg", ""))
+            if "review WIP" in message:
+                return "router.limits.review_wip must not exceed project_wip"
+    return None
 
 
 def resolve_board_name(
