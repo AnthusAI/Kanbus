@@ -344,6 +344,43 @@ pub struct HooksConfiguration {
     pub after: BTreeMap<String, Vec<HookDefinition>>,
 }
 
+/// Git-backed coordination provider settings for soft resource leases.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CoordinationConfiguration {
+    /// Ordered coordination providers; Level 1 currently uses Git only.
+    #[serde(default = "default_coordination_providers")]
+    pub providers: Vec<String>,
+    /// Duration during which competing claims may be compared, such as `5s`.
+    #[serde(default = "default_coordination_contention_window")]
+    pub contention_window: String,
+    /// Lease duration used when a claim or renewal omits an override.
+    #[serde(default = "default_coordination_lease_ttl")]
+    pub default_lease_ttl: String,
+}
+
+fn default_coordination_providers() -> Vec<String> {
+    vec!["git".to_string()]
+}
+
+fn default_coordination_contention_window() -> String {
+    "5s".to_string()
+}
+
+fn default_coordination_lease_ttl() -> String {
+    "300s".to_string()
+}
+
+impl Default for CoordinationConfiguration {
+    fn default() -> Self {
+        Self {
+            providers: default_coordination_providers(),
+            contention_window: default_coordination_contention_window(),
+            default_lease_ttl: default_coordination_lease_ttl(),
+        }
+    }
+}
+
 impl Default for HooksConfiguration {
     fn default() -> Self {
         Self {
@@ -416,6 +453,9 @@ pub struct ProjectConfiguration {
     pub hooks: HooksConfiguration,
     #[serde(default)]
     pub github_security: Option<GithubSecurityConfiguration>,
+    /// Git-backed soft-lease coordination settings.
+    #[serde(default)]
+    pub coordination: CoordinationConfiguration,
 }
 
 #[cfg(test)]

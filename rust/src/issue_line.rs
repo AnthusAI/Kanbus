@@ -327,6 +327,7 @@ mod tests {
             overlay: Default::default(),
             hooks: Default::default(),
             github_security: None,
+            coordination: Default::default(),
             right_now: Default::default(),
             standup: Default::default(),
         }

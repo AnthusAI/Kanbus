@@ -16,6 +16,7 @@ pub mod console_telemetry;
 pub mod console_ui_state;
 pub mod console_wiki;
 pub mod content_validation;
+pub mod coordination;
 pub mod daemon_client;
 pub mod daemon_paths;
 pub mod daemon_protocol;

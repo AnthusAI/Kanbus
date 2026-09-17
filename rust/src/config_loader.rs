@@ -341,6 +341,9 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     validate_hooks(configuration, &mut errors);
     validate_sort_order(configuration, &mut errors);
     validate_right_now(configuration, &mut errors);
+    errors.extend(crate::coordination::validate_coordination_configuration(
+        configuration,
+    ));
 
     errors
 }

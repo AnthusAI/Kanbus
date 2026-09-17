@@ -29,6 +29,15 @@ pub enum EventType {
     IssueDeleted,
     IssueLocalized,
     IssuePromoted,
+    /// A worker appended a soft claim for a coordination resource.
+    #[serde(rename = "coordination.claim")]
+    CoordinationClaim,
+    /// The selected worker extended a coordination lease.
+    #[serde(rename = "coordination.renew")]
+    CoordinationRenew,
+    /// The selected worker released a coordination lease.
+    #[serde(rename = "coordination.release")]
+    CoordinationRelease,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

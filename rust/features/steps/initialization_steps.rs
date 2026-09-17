@@ -166,6 +166,8 @@ pub struct KanbusWorld {
     pub standup_timezone_name: Option<String>,
     pub last_post_path: Option<String>,
     pub last_post_json: Option<Value>,
+    pub coordination_now_override: Option<String>,
+    pub coordination_original_clock: Option<Option<std::ffi::OsString>>,
 }
 
 const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [
@@ -221,6 +223,12 @@ pub fn restore_environment(saved: BTreeMap<String, Option<String>>) {
 
 impl Drop for KanbusWorld {
     fn drop(&mut self) {
+        if let Some(original) = self.coordination_original_clock.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_COORDINATION_NOW", value),
+                None => std::env::remove_var("KANBUS_TEST_COORDINATION_NOW"),
+            }
+        }
         crate::step_definitions::console_ui_state_steps::stop_console_server(self);
         kanbus::beads_write::set_test_beads_slug_sequence(None);
         kanbus::ids::set_test_uuid_sequence(None);
