@@ -270,6 +270,32 @@ def test_adapter_result_parser_selects_last_jsonl_payload_and_validates_schema()
     )
     assert payload == last
 
+    codex_item = {
+        "schema_version": 1,
+        "outcome": "completed",
+        "summary": "comment ready",
+        "issue_updates": [],
+        "issue_comments": [
+            {"issue_id": "kbs-1", "text": "Three paragraphs of lorem ipsum."}
+        ],
+        "checkpoint": None,
+        "artifacts": [],
+    }
+    assert (
+        _find_result_payload(
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {
+                        "type": "agent_message",
+                        "content": [{"type": "text", "text": json.dumps(codex_item)}],
+                    },
+                }
+            )
+        )
+        == codex_item
+    )
+
     with pytest.raises(IssueRouterError, match='invalid Codex router outcome "future"'):
         _parse_result({"schema_version": 1, "outcome": "future"})
     with pytest.raises(IssueRouterError, match="invalid result"):
