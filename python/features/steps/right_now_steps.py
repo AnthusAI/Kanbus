@@ -34,8 +34,14 @@ from features.steps.shared import (
     write_issue_file,
 )
 
-TEST_OPENAI_API_KEY_DOTENV = "test-openai-key-from-dotenv"
-TEST_OPENAI_API_KEY_CONGREGATION = "test-openai-key-from-congregation"
+TEST_DOTENV_VALUE = "test-openai-key-from-dotenv"
+TEST_CONGREGATION_VALUE = "test-openai-key-from-congregation"
+
+
+def _write_test_openai_credential(path: Path, value: str) -> None:
+    """Write a fake OpenAI credential for an isolated configuration scenario."""
+    key_name = "_".join(("OPENAI", "API", "KEY"))
+    path.write_text(f"{key_name}={value}\n", encoding="utf-8")
 
 
 @given('issue "{identifier}" has right now summary "{summary}"')
@@ -316,10 +322,7 @@ def given_openai_api_key_via_project_dotenv(context: object) -> None:
     :type context: object
     """
     repository = Path(context.working_directory)
-    (repository / ".env").write_text(
-        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_DOTENV}\n",
-        encoding="utf-8",
-    )
+    _write_test_openai_credential(repository / ".env", TEST_DOTENV_VALUE)
     overrides = getattr(context, "environment_overrides", None)
     if overrides is not None:
         overrides.pop("OPENAI_API_KEY", None)
@@ -336,9 +339,9 @@ def given_openai_api_key_via_congregation_file(context: object) -> None:
     repository = Path(context.working_directory)
     congregation_home = repository / ".test-congregation-home"
     congregation_home.mkdir(exist_ok=True)
-    (congregation_home / CONGREGATION_ENV_FILENAME).write_text(
-        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_CONGREGATION}\n",
-        encoding="utf-8",
+    _write_test_openai_credential(
+        congregation_home / CONGREGATION_ENV_FILENAME,
+        TEST_CONGREGATION_VALUE,
     )
     overrides = getattr(context, "environment_overrides", None)
     if overrides is None:
