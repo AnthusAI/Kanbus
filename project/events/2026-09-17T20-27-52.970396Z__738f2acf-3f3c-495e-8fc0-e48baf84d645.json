@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "738f2acf-3f3c-495e-8fc0-e48baf84d645",
+  "issue_id": "router:kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-17T20:27:52.970396Z",
+  "actor_id": "issue-router",
+  "payload": {
+    "claim_id": "eb449ef0-19f7-4e75-a647-e9f6eeaf5de2",
+    "revision": 2,
+    "failed_attempt": 1,
+    "next_attempt": 2,
+    "retry_at": "2026-09-17T20:28:22Z",
+    "delay_seconds": 30,
+    "diagnostic": "Codex router adapter returned invalid JSON",
+    "checkpoint": null,
+    "action": "retryable_failure",
+    "attempt": 1
+  }
+}
