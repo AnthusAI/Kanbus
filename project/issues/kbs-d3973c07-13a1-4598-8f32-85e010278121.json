@@ -1,0 +1,20 @@
+{
+  "id": "kbs-d3973c07-13a1-4598-8f32-85e010278121",
+  "title": "Issue Router Testing",
+  "description": "Validate single-worker production issue routing with the production MQTT transport and hard coordination mutex.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-17T20:01:34.387959Z",
+  "updated_at": "2026-09-17T20:09:39.190611Z",
+  "closed_at": null,
+  "right_now_summary": "The three lorem ipsum paragraphs still need to be generated and posted as an issue comment.",
+  "right_now_updated_at": "2026-09-17T20:09:41.948485Z",
+  "custom": {}
+}
