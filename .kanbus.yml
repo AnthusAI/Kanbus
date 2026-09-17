@@ -220,7 +220,7 @@ router:
     blocked: blocked
     terminal: [closed]
   limits:
-    project_wip: 1
+    project_wip: 10
     review_wip: 1
     class_wip:
       implementation: 1
