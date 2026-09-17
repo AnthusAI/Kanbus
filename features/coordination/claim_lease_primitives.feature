@@ -1,4 +1,3 @@
-@wip
 Feature: Coordination claim and lease primitives
   As a distributed worker
   I want a transport-independent claim and lease protocol

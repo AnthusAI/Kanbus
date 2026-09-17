@@ -5,9 +5,9 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::models::{
-    AiConfiguration, CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
-    ProjectConfiguration, RealtimeConfig, RightNowConfiguration, StandupConfiguration,
-    StatusDefinition,
+    AiConfiguration, CategoryDefinition, CoordinationConfiguration, HooksConfiguration,
+    OverlayConfig, PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
+    StandupConfiguration, StatusDefinition,
 };
 
 /// Return the default project configuration.
@@ -268,6 +268,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         standup: StandupConfiguration::default(),
         hooks: HooksConfiguration::default(),
         github_security: None,
+        coordination: CoordinationConfiguration::default(),
     }
 }
 

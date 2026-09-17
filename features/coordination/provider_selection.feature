@@ -1,4 +1,3 @@
-@wip
 Feature: Strongest-available coordination provider
   As a Kanbus operator
   I want Kanbus to pick the strongest configured coordination provider automatically
@@ -28,6 +27,7 @@ Feature: Strongest-available coordination provider
     Then the command should succeed
     And stderr should not contain "mutex api required"
 
+  @wip
   Scenario: Git plus MQTT uses MQTT for fast-path coordination when configured
     Given coordination providers are configured as "git,mqtt"
     And realtime MQTT gossip is available per docs REALTIME.md
@@ -36,6 +36,7 @@ Feature: Strongest-available coordination provider
     And coordination provider used should be "mqtt"
     And Git history for resource "job:dispatch-4" should contain a durable claim event
 
+  @wip
   Scenario: Git plus MQTT plus Mutex API uses Mutex API for hard exclusion when configured
     Given coordination providers are configured as "git,mqtt,mutex_api"
     And coordination mutex API endpoint is "https://mutex.example.test"

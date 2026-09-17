@@ -116,7 +116,22 @@ realtime:
 overlay:
   enabled: true
   ttl_s: 86400
+
+coordination:
+  providers: [git]             # Level 1 supports Git soft coordination only
+  contention_window: 5s        # Competing claims use this window for tie-break
+  default_lease_ttl: 300s      # Initial claim lifetime and default renewal step
 ```
+
+Coordination durations are positive integer values followed by `s`, `m`, or
+`h` (for example `5s`, `2m`, or `1h`). Level 1 requires the provider list to be
+exactly `[git]`. Claims, renewals, and releases are immutable records in
+`project/events/`, keyed by the resource in the event's `issue_id` subject field.
+These events do not change issue assignees or statuses and do not contact MQTT,
+AWS, or a remote coordination service. Git coordination is soft: workers can
+record competing claims, and the winner is selected from claims in the initial
+contention window by `(claim_id, owner, event_id)`. Later claims do not replace
+an active winner; expiry or release makes the resource eligible again.
 
 Notes:
 

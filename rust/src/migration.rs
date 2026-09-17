@@ -18,9 +18,9 @@ use crate::file_io::{
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{
-    CategoryDefinition, DependencyLink, HooksConfiguration, IssueComment, IssueData, OverlayConfig,
-    PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
-    StandupConfiguration, StatusDefinition,
+    CategoryDefinition, CoordinationConfiguration, DependencyLink, HooksConfiguration,
+    IssueComment, IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration,
+    RealtimeConfig, RightNowConfiguration, StandupConfiguration, StatusDefinition,
 };
 use crate::status_semantics::{map_beads_status, semantic_category_for_beads_status_key};
 use crate::workflows::get_workflow_for_issue_type;
@@ -914,6 +914,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         right_now: RightNowConfiguration::default(),
         standup: StandupConfiguration::default(),
         github_security: None,
+        coordination: CoordinationConfiguration::default(),
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

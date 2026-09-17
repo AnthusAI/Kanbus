@@ -28,3 +28,7 @@ priorities:
   4: trivial
 default_priority: 2
 beads_compatibility: false
+coordination:
+  providers: [git]
+  contention_window: "5s"
+  default_lease_ttl: "300s"

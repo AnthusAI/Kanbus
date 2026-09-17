@@ -72,6 +72,21 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
             raise ConfigurationError(
                 STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE
             ) from error
+        if any(item["loc"] == ("coordination", "providers") for item in error.errors()):
+            raise ConfigurationError(
+                "coordination providers must be exactly git"
+            ) from error
+        for item in error.errors():
+            location = item["loc"]
+            if (
+                len(location) == 2
+                and location[0] == "coordination"
+                and location[1] in {"contention_window", "default_lease_ttl"}
+            ):
+                raise ConfigurationError(
+                    f"coordination.{location[1]}: duration must be a positive integer "
+                    "followed by s, m, or h"
+                ) from error
         if _has_unknown_fields(error):
             raise ConfigurationError("unknown configuration fields") from error
         raise ConfigurationError(str(error)) from error

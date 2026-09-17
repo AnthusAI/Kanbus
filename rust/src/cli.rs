@@ -25,6 +25,7 @@ use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
+use crate::coordination::{run_coordination, CoordinationOperation};
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -135,7 +136,61 @@ pub enum LifecycleCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum CoordinationCommands {
+    /// Record a Git-backed soft claim for a resource.
+    Claim {
+        /// Resource key to claim.
+        #[arg(long)]
+        resource: String,
+        /// Claim owner identifier.
+        #[arg(long)]
+        owner: String,
+        /// Stable claim identifier.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+    },
+    /// Renew the selected owner's soft lease.
+    Renew {
+        /// Resource key to renew.
+        #[arg(long)]
+        resource: String,
+        /// Claim owner identifier.
+        #[arg(long)]
+        owner: String,
+        /// Stable claim identifier.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Replacement TTL (positive integer followed by s, m, or h).
+        #[arg(long)]
+        extend: Option<String>,
+    },
+    /// Release the selected owner's soft lease.
+    Release {
+        /// Resource key to release.
+        #[arg(long)]
+        resource: String,
+        /// Claim owner identifier.
+        #[arg(long)]
+        owner: String,
+        /// Stable claim identifier.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+    },
+    /// Inspect current soft ownership for a resource.
+    Inspect {
+        /// Resource key to inspect.
+        #[arg(long)]
+        resource: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum Commands {
+    /// Coordinate distributed workers using Git-backed soft leases.
+    Coordination {
+        #[command(subcommand)]
+        command: CoordinationCommands,
+    },
     /// Issue lifecycle management commands
     Lifecycle {
         #[command(subcommand)]
@@ -1411,6 +1466,43 @@ fn execute_command(
         no_guidance,
     };
     match command {
+        Commands::Coordination { command } => {
+            let operation = match command {
+                CoordinationCommands::Claim {
+                    resource,
+                    owner,
+                    claim_id,
+                } => CoordinationOperation::Claim {
+                    resource,
+                    owner,
+                    claim_id,
+                },
+                CoordinationCommands::Renew {
+                    resource,
+                    owner,
+                    claim_id,
+                    extend,
+                } => CoordinationOperation::Renew {
+                    resource,
+                    owner,
+                    claim_id,
+                    extend,
+                },
+                CoordinationCommands::Release {
+                    resource,
+                    owner,
+                    claim_id,
+                } => CoordinationOperation::Release {
+                    resource,
+                    owner,
+                    claim_id,
+                },
+                CoordinationCommands::Inspect { resource } => {
+                    CoordinationOperation::Inspect { resource }
+                }
+            };
+            Ok(Some(run_coordination(root, operation)?))
+        }
         Commands::Init { local } => {
             ensure_git_repository(root)?;
             initialize_project(root, local)?;

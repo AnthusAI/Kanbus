@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 
 class AgentMetadata(BaseModel):
@@ -339,6 +346,44 @@ class OverlayConfig(BaseModel):
     ttl_s: int = 86400
 
 
+class CoordinationConfiguration(BaseModel):
+    """Git-backed soft coordination defaults and provider preferences.
+
+    :param providers: Configured coordination providers, ordered strongest first.
+    :type providers: List[str]
+    :param contention_window: Claim contention duration (for example ``5s``).
+    :type contention_window: str
+    :param default_lease_ttl: Default soft lease duration (for example ``300s``).
+    :type default_lease_ttl: str
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    providers: List[str] = Field(default_factory=lambda: ["git"])
+    contention_window: str = "5s"
+    default_lease_ttl: str = "300s"
+
+    @field_validator("providers")
+    @classmethod
+    def validate_providers(cls, value: List[str]) -> List[str]:
+        """Limit Level 1 coordination to the Git event-history provider."""
+        if value != ["git"]:
+            raise ValueError("coordination providers must be exactly git")
+        return value
+
+    @field_validator("contention_window", "default_lease_ttl")
+    @classmethod
+    def validate_duration(cls, value: str) -> str:
+        """Require a positive integer followed by a supported unit."""
+        import re
+
+        if not re.fullmatch(r"[1-9][0-9]*[smh]", value):
+            raise ValueError(
+                "duration must be a positive integer followed by s, m, or h"
+            )
+        return value
+
+
 class HookDefinition(BaseModel):
     """Hook definition for an event/phase binding."""
 
@@ -454,6 +499,9 @@ class ProjectConfiguration(BaseModel):
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
+    coordination: CoordinationConfiguration = Field(
+        default_factory=CoordinationConfiguration
+    )
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
     hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
     github_security: Optional[GithubSecurityConfiguration] = None

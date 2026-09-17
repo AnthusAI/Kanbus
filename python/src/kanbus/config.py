@@ -23,6 +23,11 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
             "project_events": "projects/{project}/events",
         },
     },
+    "coordination": {
+        "providers": ["git"],
+        "contention_window": "5s",
+        "default_lease_ttl": "300s",
+    },
     "overlay": {
         "enabled": True,
         "ttl_s": 86400,

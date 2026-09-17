@@ -22,6 +22,13 @@ from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
+from kanbus.coordination import (
+    CoordinationError,
+    claim as coordination_claim,
+    inspect_lease as inspect_coordination_lease,
+    release as coordination_release,
+    renew as coordination_renew,
+)
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment
 from kanbus.issue_delete import (
@@ -39,7 +46,8 @@ from kanbus.beads_write import (
     update_beads_issue,
 )
 from kanbus.issue_display import format_issue_for_display
-from kanbus.models import IssueData
+from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.coordination import LeaseState
 from kanbus.ids import format_issue_key
 from kanbus.issue_line import compute_widths, format_issue_line
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
@@ -3958,6 +3966,116 @@ def compact_command(
 
 
 cli.add_command(lifecycle)
+
+
+@cli.group("coordination")
+def coordination_group() -> None:
+    """Manage Git-backed soft coordination leases."""
+
+
+def _coordination_context() -> tuple[Path, ProjectConfiguration]:
+    """Load the current project directory and coordination configuration."""
+    try:
+        config_path = get_configuration_path(Path.cwd())
+        configuration = load_project_configuration(config_path)
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise click.ClickException(str(error)) from error
+    if configuration.coordination.providers != ["git"]:
+        raise click.ClickException("coordination providers must be exactly git")
+    return config_path.parent / configuration.project_directory, configuration
+
+
+def _echo_coordination_state(state: LeaseState) -> None:
+    click.echo("provider: git")
+    click.echo(f"resource: {state.resource}")
+    if state.active:
+        click.echo("state: active soft ownership")
+        click.echo(f"owner: {state.owner}")
+        click.echo(f"claim_id: {state.claim_id}")
+        click.echo(
+            f"expires_at: {state.expires_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
+        )
+    else:
+        click.echo("state: eligible")
+
+
+@coordination_group.command("claim")
+@click.option("--resource", required=True, help="Resource to claim.")
+@click.option("--owner", required=True, help="Stable worker identifier.")
+@click.option("--claim-id", required=True, help="Unique claim identifier.")
+def coordination_claim_command(resource: str, owner: str, claim_id: str) -> None:
+    """Record a Git-backed soft claim for a resource."""
+    project_dir, configuration = _coordination_context()
+    try:
+        state = coordination_claim(
+            project_dir / "events",
+            configuration.coordination,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    _echo_coordination_state(state)
+
+
+@coordination_group.command("renew")
+@click.option("--resource", required=True, help="Resource to renew.")
+@click.option("--owner", required=True, help="Current lease owner.")
+@click.option("--claim-id", required=True, help="Current claim identifier.")
+@click.option(
+    "--extend",
+    "extend_duration",
+    default=None,
+    help="Duration to add to the current expiry (for example 120s).",
+)
+def coordination_renew_command(
+    resource: str, owner: str, claim_id: str, extend_duration: str | None
+) -> None:
+    """Extend the current winning soft lease."""
+    project_dir, configuration = _coordination_context()
+    try:
+        state = coordination_renew(
+            project_dir / "events",
+            configuration.coordination,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            extend=extend_duration,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    _echo_coordination_state(state)
+
+
+@coordination_group.command("release")
+@click.option("--resource", required=True, help="Resource to release.")
+@click.option("--owner", required=True, help="Current lease owner.")
+@click.option("--claim-id", required=True, help="Current claim identifier.")
+def coordination_release_command(resource: str, owner: str, claim_id: str) -> None:
+    """Release the current winning soft lease."""
+    project_dir, _configuration = _coordination_context()
+    try:
+        coordination_release(
+            project_dir / "events",
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("provider: git")
+    click.echo(f"resource: {resource}")
+    click.echo("state: released")
+
+
+@coordination_group.command("inspect")
+@click.option("--resource", required=True, help="Resource to inspect.")
+def coordination_inspect_command(resource: str) -> None:
+    """Inspect a resource's derived soft coordination lease."""
+    project_dir, _configuration = _coordination_context()
+    state = inspect_coordination_lease(project_dir / "events", resource)
+    _echo_coordination_state(state)
 
 
 if __name__ == "__main__":

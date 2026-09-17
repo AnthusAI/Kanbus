@@ -799,6 +799,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         jira: None,
         snyk: None,
         github_security: None,
+        coordination: Default::default(),
         transition_labels: BTreeMap::new(),
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
