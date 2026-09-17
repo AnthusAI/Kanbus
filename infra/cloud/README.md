@@ -110,6 +110,37 @@ AWS_PROFILE=anthus npx cdk destroy \
 CloudFormation deletes the disposable user pool and token/lease tables with the stack.
 Secrets Manager may keep the deleted pepper in its recovery window before final erasure.
 
+## Production coordination stack
+
+The production-only coordination stack deploys the MQTT token registry/custom IoT
+authorizer and hard mutex API without the console VPC, EFS, or S3 resources. Production
+tables enable point-in-time recovery, and the user pool, tables, authorizer, and pepper
+are retained if the stack is removed or replaced.
+
+Synthesize and deploy it separately from the disposable integration stack:
+
+```bash
+cd infra/cloud
+AWS_PROFILE=anthus npx cdk synth \
+  -c stack_name=KanbusCoordinationProduction \
+  -c env_name=prod \
+  -c account=335163751677 \
+  -c region=us-east-1 \
+  -a '/path/to/python app.py'
+
+AWS_PROFILE=anthus npx cdk deploy KanbusCoordinationProduction \
+  -c stack_name=KanbusCoordinationProduction \
+  -c env_name=prod \
+  -c account=335163751677 \
+  -c region=us-east-1 \
+  -a '/path/to/python app.py'
+```
+
+This stack has its own Cognito user pool and MQTT token registry. It does not reuse the
+dev authorizer or token table. Record its outputs in the deployment secret manager; issue
+router clients need the API base URL, user-pool IDs, IoT endpoint, authorizer name, and
+tenant scope. Do not put MQTT or mutex credentials in the project configuration.
+
 ## Outputs
 
 - `ApiBaseUrl`

@@ -148,16 +148,18 @@ def test_second_clone_observes_claim_without_harness_push(
     config = yaml.safe_load(
         (REPOSITORY_ROOT / ".kanbus.yml").read_text(encoding="utf-8")
     )
-    config["statuses"].append(
-        {
-            "key": "review",
-            "name": "Review",
-            "category": "In progress",
-            "semantic_category": "in_progress",
-        }
-    )
-    config["workflows"]["default"]["open"].append("review")
-    config["workflows"]["default"]["in_progress"].append("review")
+    if not any(status.get("key") == "review" for status in config["statuses"]):
+        config["statuses"].append(
+            {
+                "key": "review",
+                "name": "Review",
+                "category": "In progress",
+                "semantic_category": "in_progress",
+            }
+        )
+    for status in ("open", "in_progress"):
+        if "review" not in config["workflows"]["default"][status]:
+            config["workflows"]["default"][status].append("review")
     config["workflows"]["default"]["review"] = ["in_progress", "closed"]
     labels = config.setdefault("transition_labels", {}).setdefault("default", {})
     labels["open"] = {**labels.get("open", {}), "review": "Ready for review"}
@@ -447,16 +449,18 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
         "providers": {"codex-default": {"adapter": "codex"}},
         "classes": {},
     }
-    config["statuses"].append(
-        {
-            "key": "review",
-            "name": "Review",
-            "category": "In progress",
-            "semantic_category": "in_progress",
-        }
-    )
-    config["workflows"]["default"]["open"].append("review")
-    config["workflows"]["default"]["in_progress"].append("review")
+    if not any(status.get("key") == "review" for status in config["statuses"]):
+        config["statuses"].append(
+            {
+                "key": "review",
+                "name": "Review",
+                "category": "In progress",
+                "semantic_category": "in_progress",
+            }
+        )
+    for status in ("open", "in_progress"):
+        if "review" not in config["workflows"]["default"][status]:
+            config["workflows"]["default"][status].append("review")
     config["workflows"]["default"]["review"] = ["in_progress", "closed"]
     labels = config.setdefault("transition_labels", {}).setdefault("default", {})
     labels["open"] = {**labels.get("open", {}), "review": "Ready for review"}

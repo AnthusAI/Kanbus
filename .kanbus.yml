@@ -20,7 +20,8 @@ workflows:
   default:
     backlog: [open, closed]
     open: [in_progress, closed, backlog]
-    in_progress: [open, blocked, closed, backlog]
+    in_progress: [open, review, blocked, closed, backlog]
+    review: [in_progress, closed]
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
     Discovery: [open, backlog]
@@ -29,7 +30,8 @@ workflows:
     deferred: [open, backlog]
   epic:
     open: [in_progress, closed, done]
-    in_progress: [open, closed, done]
+    in_progress: [open, review, closed, done]
+    review: [in_progress, closed, done]
     closed: [open]
     done: [open]
 
@@ -57,6 +59,11 @@ statuses:
     name: In Progress
     category: In progress
     semantic_category: in_progress
+  - key: review
+    name: Review
+    category: In progress
+    semantic_category: in_progress
+    collapsed: true
   - key: blocked
     name: Blocked
     category: In progress
@@ -97,9 +104,13 @@ transition_labels:
       backlog: Back to backlog
     in_progress:
       open: Pause
+      review: Ready for review
       blocked: Block
       closed: Complete
       backlog: Back to backlog
+    review:
+      in_progress: Request changes
+      closed: Approve and close
     blocked:
       in_progress: Unblock
       closed: Drop
@@ -126,6 +137,11 @@ transition_labels:
       done: Complete
     in_progress:
       open: Pause
+      review: Ready for review
+      closed: Complete
+      done: Complete
+    review:
+      in_progress: Request changes
       closed: Complete
       done: Complete
     closed:
@@ -175,6 +191,58 @@ ai:
 # summaries. Other fields use defaults (enabled, collapsed tree, 120 chars).
 right_now:
   model: gpt-5.6-luna
+
+# Production coordination endpoints are supplied as process environment
+# variables by the worker host; only the provider policy is stored here.
+coordination:
+  providers: [mutex_api, mqtt, git]
+  contention_window: 5s
+  default_lease_ttl: 300s
+
+realtime:
+  transport: mqtt
+  broker: auto
+  autostart: false
+  keepalive: false
+  uds_socket_path: null
+  mqtt_custom_authorizer_name: null
+  mqtt_api_token: null
+  topics:
+    project_events: projects/anthus/Kanbus/events
+
+# Single-worker production smoke test. Flex is requested explicitly in the
+# Codex profile and must be validated against the installed Codex runtime.
+router:
+  workflow:
+    pending: open
+    active: in_progress
+    review: review
+    blocked: blocked
+    terminal: [closed]
+  limits:
+    project_wip: 1
+    review_wip: 1
+    class_wip:
+      implementation: 1
+    provider_wip:
+      codex-luna-flex: 1
+  providers:
+    codex-luna-flex:
+      adapter: codex
+      command: codex
+      args: [--model, gpt-5.6-luna, -c, 'service_tier="flex"']
+  classes:
+    implementation:
+      providers: [codex-luna-flex]
+  forge:
+    provider: github
+    repository: AnthusAI/Kanbus
+    base_branch: develop
+    api_url: https://api.github.com
+    token_env: GITHUB_TOKEN
+  watch_interval: 30s
+  retries:
+    max_attempts: 1
 
 # Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
 # snyk:

@@ -11,7 +11,12 @@ from kanbus import router_execution
 from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.coordination import CoordinationError
 from kanbus.issue_router import IssueRouterError, RouterPlanEligiblePackage
-from kanbus.router_adapters import RouterAgentResult, RouterArtifact, RouterCheckpoint
+from kanbus.router_adapters import (
+    RouterAgentResult,
+    RouterArtifact,
+    RouterCheckpoint,
+    RouterIssueComment,
+)
 from kanbus.router_execution import _ClaimHandle
 
 
@@ -1820,6 +1825,67 @@ def test_result_scope_reports_unknown_issue_and_router_owned_status(
                 schema_version=1,
                 outcome="completed",
                 issue_updates=[{"issue_id": "kbs-42", "status": "review"}],
+            ),
+        )
+
+
+def test_router_persists_only_in_package_issue_comments(monkeypatch, tmp_path):
+    ctx = context(tmp_path)
+    candidate_ = candidate()
+    result_ = RouterAgentResult(
+        schema_version=1,
+        outcome="completed",
+        issue_comments=[
+            RouterIssueComment(issue_id="kbs-42", text="Three paragraphs follow.")
+        ],
+    )
+    comments = []
+    fences = []
+    monkeypatch.setattr(
+        router_execution,
+        "_assert_claim_fence",
+        lambda *_args: fences.append(True),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "add_issue_comment",
+        lambda root, issue_id, author, text: comments.append(
+            (root, issue_id, author, text)
+        ),
+    )
+
+    router_execution._validate_result_scope(ctx, candidate_, result_)
+    router_execution._apply_issue_comments(ctx, candidate_, result_, "claim", 1)
+
+    assert comments == [
+        (tmp_path, "kbs-42", "Kanbus Issue Router", "Three paragraphs follow.")
+    ]
+    assert fences == [True]
+
+
+def test_router_rejects_blank_and_out_of_package_issue_comments(tmp_path):
+    ctx = context(tmp_path)
+    with pytest.raises(IssueRouterError, match="outside router package"):
+        router_execution._validate_result_scope(
+            ctx,
+            candidate(),
+            RouterAgentResult(
+                schema_version=1,
+                outcome="completed",
+                issue_comments=[
+                    {"issue_id": "kbs-outside", "text": "Not in this package."}
+                ],
+            ),
+        )
+
+    with pytest.raises(IssueRouterError, match="must not be blank"):
+        router_execution._validate_result_scope(
+            ctx,
+            candidate(),
+            RouterAgentResult(
+                schema_version=1,
+                outcome="completed",
+                issue_comments=[{"issue_id": "kbs-42", "text": "  \n"}],
             ),
         )
 
