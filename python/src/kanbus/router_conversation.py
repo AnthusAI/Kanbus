@@ -111,7 +111,9 @@ def latest_conversation(project_dir: Path, package_id: str) -> dict[str, Any] | 
             events.append(record)
     if not events:
         return None
-    return max(events, key=lambda item: (item.get("occurred_at", ""), item.get("event_id", "")))
+    return max(
+        events, key=lambda item: (item.get("occurred_at", ""), item.get("event_id", ""))
+    )
 
 
 def require_session(project_dir: Path, package_id: str) -> str:
@@ -119,5 +121,7 @@ def require_session(project_dir: Path, package_id: str) -> str:
     record = latest_conversation(project_dir, package_id)
     session_id = (record or {}).get("payload", {}).get("session_id")
     if not isinstance(session_id, str) or not session_id:
-        raise IssueRouterError(f'no recoverable agent session for package "{package_id}"')
+        raise IssueRouterError(
+            f'no recoverable agent session for package "{package_id}"'
+        )
     return session_id
