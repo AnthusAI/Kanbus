@@ -214,3 +214,13 @@ kanbus router run --once`}</CodeBlock>
 };
 
 export default IssueRouterPage;
+
+export const Head = () => (
+  <>
+    <title>Issue Router — Kanbus</title>
+    <meta
+      name="description"
+      content="Dispatch explicitly labeled Kanbus issue packages through Codex with Git-backed state, progressive coordination, and a pull-request review gate."
+    />
+  </>
+);
