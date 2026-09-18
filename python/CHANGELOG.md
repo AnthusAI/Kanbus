@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.28.1 (2026-09-18)
+
+### Bug Fixes
+
+- **site**: Include all features in footer
+  ([`38692b6`](https://github.com/AnthusAI/Kanbus/commit/38692b6a6a40ccd3d255a02f2c9418d7e1c9df59))
+
+- **site**: List Issue Router last
+  ([`c29cdae`](https://github.com/AnthusAI/Kanbus/commit/c29cdaee313f784ff938918be785117a4d22f5bb))
+
+### Refactoring
+
+- **site**: Reuse Issue Router pictogram in hero
+  ([`1849082`](https://github.com/AnthusAI/Kanbus/commit/1849082008733ed01913ea902cc0be73088d6078))
+
+
 ## v0.28.0 (2026-09-18)
 
 ### Bug Fixes
