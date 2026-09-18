@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "d85d484d-15c1-4290-b9c6-765109aa646f",
+  "issue_id": "router:capacity:provider-profile:codex-luna-flex:0",
+  "event_type": "coordination.renew",
+  "occurred_at": "2026-09-17T20:27:52.650Z",
+  "actor_id": "issue-router:35767",
+  "payload": {
+    "owner": "issue-router:35767",
+    "claim_id": "eb449ef0-19f7-4e75-a647-e9f6eeaf5de2",
+    "lease_expires_at": "2026-09-17T20:32:53.570Z",
+    "operation_sequence": 9
+  }
+}
