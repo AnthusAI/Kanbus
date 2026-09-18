@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from kanbus.issue_router import IssueRouterError
 from kanbus.models import RouterAgentProfile
+from kanbus.router_conversation import codex_session_id
 
 
 class RouterIssueUpdate(BaseModel):
@@ -107,6 +108,9 @@ class CodexExecAdapter:
         self.profile = profile
         self.process_record_path = process_record_path
         self.process: subprocess.Popen[str] | None = None
+        self.last_output = ""
+        self.last_error = ""
+        self.session_id: str | None = None
 
     def execute(self, request: RouterExecutionRequest) -> RouterAgentResult:
         """Invoke Codex with a package-bounded structured-result prompt.
@@ -135,7 +139,10 @@ class CodexExecAdapter:
                 text=True,
             )
             self._record_process(request)
-            stdout, _ = self.process.communicate(timeout=3600)
+            stdout, stderr = self.process.communicate(timeout=3600)
+            self.last_output = stdout
+            self.last_error = stderr
+            self.session_id = codex_session_id(stdout)
             return_code = self.process.returncode
         except (OSError, subprocess.TimeoutExpired) as error:
             if self.process is not None and self.process.poll() is None:
