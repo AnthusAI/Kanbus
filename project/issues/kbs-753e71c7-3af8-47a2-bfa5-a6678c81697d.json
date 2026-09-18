@@ -24,8 +24,8 @@
     "model": "gpt-5",
     "name": "Issue Router planning"
   },
-  "right_now_summary": "Two isolated router workers are testing hard-lease contention with disposable tasks and captured logs.",
-  "right_now_updated_at": "2026-09-18T10:57:55.422304Z",
+  "right_now_summary": "The router is being tested with isolated workers, live integration runs, and lease contention checks.",
+  "right_now_updated_at": "2026-09-18T11:31:06.582819Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
