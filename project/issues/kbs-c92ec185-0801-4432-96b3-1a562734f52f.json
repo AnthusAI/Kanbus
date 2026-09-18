@@ -1,0 +1,25 @@
+{
+  "id": "kbs-c92ec185-0801-4432-96b3-1a562734f52f",
+  "title": "Codex adapter resume and preserved review flow",
+  "description": "Implement Codex session capture, question publication, same-session reply via codex exec resume, validation feedback, and draft-PR/checkpoint preservation for every pause/final turn.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T21:53:50.524123Z",
+  "updated_at": "2026-09-18T21:53:50.590735Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "transparent-delegation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,31 @@
+{
+  "id": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "title": "Transparent issue-agent delegation",
+  "description": "Make delegated coding-agent work visible, resumable, and reviewable from its Kanbus issue. The router must preserve every agent turn, question, test result, branch, and failure rather than treating a malformed final response as grounds to discard work.\n\nDefinition of done:\n- Codex sessions are attached to issues and can be resumed from human replies.\n- Questions become visible issue comments and move the issue to Blocked.\n- Every completed, uncertain, or tapped-out run moves to Review with preserved branch, draft PR, transcript, and evidence.\n- The board exposes the conversation and supports human replies.\n- Python and Rust behavior remain identical.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T21:50:38.862048Z",
+  "updated_at": "2026-09-18T21:54:09.545267Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "transparent-delegation",
+    "settings": {
+      "thinking_level": "high"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
