@@ -8,10 +8,7 @@ if (typeof window !== "undefined") {
 
 import type {
   KanbanConfig,
-  KanbanIssue,
-  KanbanSortFieldRule,
-  KanbanSortPreset,
-  KanbanSortRule
+  KanbanIssue
 } from "./types";
 import { BoardColumn } from "./BoardColumn";
 import { useBoardTransitions } from "./useBoardTransitions";
@@ -36,8 +33,6 @@ interface BoardProps {
 
 type IssueComparator = (a: KanbanIssue, b: KanbanIssue) => number;
 
-const DONE_NAMES = new Set(["done", "closed", "complete", "completed", "resolved"]);
-
 function compareNullableString(
   a: string | undefined,
   b: string | undefined,
@@ -49,21 +44,6 @@ function compareNullableString(
   if (!hasA && hasB) return 1;
   if (!hasA && !hasB) return 0;
   const order = a! < b! ? -1 : a! > b! ? 1 : 0;
-  return direction === "asc" ? order : -order;
-}
-
-function compareNullableNumber(
-  a: number | undefined,
-  b: number | undefined,
-  direction: "asc" | "desc"
-): number {
-  const hasA = Number.isFinite(a);
-  const hasB = Number.isFinite(b);
-  if (hasA && !hasB) return -1;
-  if (!hasA && hasB) return 1;
-  if (!hasA && !hasB) return 0;
-  const order = (a ?? 0) - (b ?? 0);
-  if (order === 0) return 0;
   return direction === "asc" ? order : -order;
 }
 
@@ -108,141 +88,11 @@ function chainComparators(comparators: IssueComparator[]): IssueComparator {
   };
 }
 
-function isSortPreset(value: unknown): value is KanbanSortPreset {
-  return value === "fifo"
-    || value === "priority-first"
-    || value === "recently-updated";
-}
-
-function isSortField(value: unknown): value is KanbanSortFieldRule["field"] {
-  return value === "priority"
-    || value === "created_at"
-    || value === "updated_at"
-    || value === "id";
-}
-
-function isSortDirection(value: unknown): value is KanbanSortFieldRule["direction"] {
-  return value === "asc" || value === "desc";
-}
-
-function parseSortRule(value: unknown): KanbanSortRule | null {
-  if (isSortPreset(value)) {
-    return value;
-  }
-  if (!Array.isArray(value) || value.length === 0) {
-    return null;
-  }
-
-  const parsed: KanbanSortFieldRule[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object") {
-      return null;
-    }
-    const field = (entry as Record<string, unknown>).field;
-    const direction = (entry as Record<string, unknown>).direction;
-    if (!isSortField(field) || !isSortDirection(direction)) {
-      return null;
-    }
-    parsed.push({ field, direction });
-  }
-  return parsed;
-}
-
-function compareByField(
-  rule: KanbanSortFieldRule
-): IssueComparator {
-  if (rule.field === "priority") {
-    return (a, b) => compareNullableNumber(a.priority, b.priority, rule.direction);
-  }
-  if (rule.field === "created_at") {
-    return (a, b) => compareTimestamp(a.created_at, b.created_at, rule.direction);
-  }
-  if (rule.field === "updated_at") {
-    return (a, b) => compareTimestamp(a.updated_at, b.updated_at, rule.direction);
-  }
-  return (a, b) => compareNullableString(a.id, b.id, rule.direction);
-}
-
-function comparatorForPreset(preset: KanbanSortPreset): IssueComparator {
-  if (preset === "priority-first") {
-    return chainComparators([
-      (a, b) => compareNullableNumber(a.priority, b.priority, "asc"),
-      (a, b) => compareTimestamp(a.created_at, b.created_at, "asc"),
-      compareIdAsc
-    ]);
-  }
-  if (preset === "recently-updated") {
-    return chainComparators([
-      (a, b) => compareTimestamp(a.updated_at, b.updated_at, "desc"),
-      compareIdAsc
-    ]);
-  }
+function comparatorForPreset(): IssueComparator {
   return chainComparators([
-    (a, b) => compareTimestamp(a.created_at, b.created_at, "asc"),
+    (a, b) => compareTimestamp(a.updated_at, b.updated_at, "desc"),
     compareIdAsc
   ]);
-}
-
-function comparatorForRule(rule: KanbanSortRule): IssueComparator {
-  if (typeof rule === "string") {
-    return comparatorForPreset(rule);
-  }
-
-  const comparators = rule.map(compareByField);
-  const hasIdRule = rule.some((entry) => entry.field === "id");
-  if (!hasIdRule) {
-    comparators.push(compareIdAsc);
-  }
-  return chainComparators(comparators);
-}
-
-function resolveConfiguredSortRule(
-  column: string,
-  config?: KanbanConfig
-): KanbanSortRule | null {
-  const sortOrder = config?.sort_order;
-  if (!sortOrder) {
-    return null;
-  }
-
-  const statusRule = parseSortRule((sortOrder as Record<string, unknown>)[column]);
-  if (statusRule) {
-    return statusRule;
-  }
-
-  const statusDefinition = config?.statuses.find((status) => status.key === column);
-  const categoryName = statusDefinition?.category;
-  if (!categoryName) {
-    return null;
-  }
-
-  const categories = (sortOrder as { categories?: unknown }).categories;
-  if (!categories || typeof categories !== "object" || Array.isArray(categories)) {
-    return null;
-  }
-  return parseSortRule((categories as Record<string, unknown>)[categoryName]);
-}
-
-function resolveColumnComparator(column: string, config?: KanbanConfig): IssueComparator {
-  if (isDoneColumn(column, config)) {
-    return comparatorForPreset("recently-updated");
-  }
-  const configuredRule = resolveConfiguredSortRule(column, config);
-  if (configuredRule) {
-    return comparatorForRule(configuredRule);
-  }
-  return comparatorForPreset("fifo");
-}
-
-function isDoneColumn(column: string, config?: KanbanConfig): boolean {
-  const status = config?.statuses.find((item) => item.key === column);
-  if (status?.category) {
-    const normalizedCategory = status.category.trim().toLowerCase();
-    if (DONE_NAMES.has(normalizedCategory)) {
-      return true;
-    }
-  }
-  return DONE_NAMES.has(column.trim().toLowerCase());
 }
 
 function BoardComponent({
@@ -376,8 +226,7 @@ function BoardComponent({
     <div ref={setBoardRef} className="kb-grid gap-2">
       {columns.map((column) => {
         const columnIssues = renderedIssues.filter((issue) => issue.status === column);
-        const comparator = resolveColumnComparator(column, config);
-        const orderedIssues = [...columnIssues].sort(comparator);
+        const orderedIssues = [...columnIssues].sort(comparatorForPreset());
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;
         return (
