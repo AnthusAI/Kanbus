@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Layout, Section, Hero, CodeBlock } from "../../components";
+import { FeaturePictogram } from "../../components/FeaturePictogram";
 import { Card, CardContent, CardHeader } from "@kanbus/ui";
 
 const designHref = "https://github.com/AnthusAI/Kanbus/blob/develop/docs/ISSUE_ROUTER_DESIGN.md";
@@ -23,11 +24,11 @@ const IssueRouterPage = () => {
           </>
         }
         rightPane={
-          <figure className="w-full overflow-hidden rounded-2xl border border-border bg-[#061b42] shadow-2xl shadow-blue-950/25">
-            <img
-              src="/images/issue-router-hero.png"
-              alt="A Kanban issue being routed through an isolated coding workspace to a review gate"
-              className="block h-auto w-full"
+          <figure className="w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-blue-950/25">
+            <FeaturePictogram
+              type="issue-router"
+              className="min-h-[240px]"
+              style={{ minHeight: 240 }}
             />
           </figure>
         }
