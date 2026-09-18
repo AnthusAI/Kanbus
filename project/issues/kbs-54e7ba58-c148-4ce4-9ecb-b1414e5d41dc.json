@@ -3,23 +3,34 @@
   "title": "Level 1: Git soft-lease",
   "description": "## Goal\n\nLevel 1: Git-based soft-lease so workers can announce claims through the same issue/event model. Git remains the only required communication mechanism.\n\n## Constraints\n\n- Contention windows and lease timing must accommodate Git latency (not MQTT-scale seconds unless Git has already converged).\n- Concurrent workers remain allowed. Git provides conflict detection and eventual convergence, not an efficient distributed mutex.\n- A Git-only install is fully functional.\n\n## Depends on\n\nTransport-independent protocol Gherkin under the protocol epic.\n\n## Acceptance\n\nDual-runtime (Python + Rust) implements the Git lease provider against the Gherkin. Duplicate execution remains possible; that is acceptable at this level.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "762e2a7a-0621-417c-9d27-f7ebbeb57c9d",
+      "author": "home",
+      "text": "The Level 1 Git soft-lease implementation and its dual-runtime Gherkin/tests are complete and merged to develop.",
+      "created_at": "2026-09-18T10:40:03.360565Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-14T13:32:58.155373080Z",
-  "updated_at": "2026-09-14T13:32:58.169314279Z",
-  "closed_at": null,
+  "updated_at": "2026-09-18T10:40:08.235614Z",
+  "closed_at": "2026-09-18T10:40:08.169825Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The Git lease provider still needs implementation in Python and Rust.",
-  "right_now_updated_at": "2026-09-14T13:33:52.049432771Z",
-  "custom": {}
+  "right_now_summary": "The Git soft-lease implementation and its Python and Rust tests are complete and merged into develop.",
+  "right_now_updated_at": "2026-09-18T10:40:09.756982Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

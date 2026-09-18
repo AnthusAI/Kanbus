@@ -1,0 +1,28 @@
+{
+  "id": "kbs-2730ccba-8e44-4449-8496-c490fc5926c5",
+  "title": "Containerized Issue Router Full-Integration Test Suite",
+  "description": "Build a reusable, opt-in full-integration suite that runs isolated Issue Router workers in containers and exercises real Kanbus board issues. The suite must support repeatable hard-Mutex contention, expiry/takeover, and explicitly scoped soft-provider behavior, capture/redact worker logs and board/router-state evidence, and enforce disposable test-task boundaries. Successful tasks must remain visible in the configured Review stage; failed issues and diagnostic fixtures must remain available for inspection rather than being closed. Use separate worker containers with independent checkouts and no shared UDS. Keep production service credentials external to source/config files; default and CI-safe runs must not contact live cloud services. Provide documented prerequisites, bounded timeouts, safe failure handling, and an explicit live gate. The suite targets the fixed Issue Router Testing epic ID kbs-d3973c07-13a1-4598-8f32-85e010278121: reuse it when it exists with the expected identity, create it just-in-time if absent, and fail closed on an ID/type/title mismatch.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "kbs-d3973c07-13a1-4598-8f32-85e010278121",
+      "type": "relates-to"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-09-18T11:30:16.239605Z",
+  "updated_at": "2026-09-18T14:06:51.952140Z",
+  "closed_at": null,
+  "right_now_summary": "The reusable containerized integration runner is being designed with safe live testing and cleanup.",
+  "right_now_updated_at": "2026-09-18T11:31:04.533704Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

@@ -1163,7 +1163,7 @@ def _apply_issue_comments(
     for comment in result.issue_comments:
         _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
         add_issue_comment(
-            context.root,
+            context.source_root or context.root,
             comment.issue_id,
             "Kanbus Issue Router",
             comment.text,
