@@ -382,7 +382,7 @@ fn configured_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
 }
 
 fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
-    let output = Command::new("git")
+    let output = router_git_command()
         .args(["rev-parse", "--show-toplevel"])
         .current_dir(path)
         .output()
@@ -397,8 +397,18 @@ fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
     ))
 }
 
+/// Construct Git commands used by coordination without allowing an invisible
+/// credential prompt to wedge a worker before it has even started an agent.
+fn router_git_command() -> Command {
+    let mut command = Command::new("git");
+    command
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_ASKPASS", "/bin/false");
+    command
+}
+
 fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, KanbusError> {
-    let remote = Command::new("git")
+    let remote = router_git_command()
         .args(["remote", "get-url", "origin"])
         .current_dir(root)
         .output()
@@ -407,7 +417,7 @@ fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, K
         return Ok(None);
     }
     let remote_branch = format!("refs/heads/{ROUTER_STATE_BRANCH}");
-    let listed = Command::new("git")
+    let listed = router_git_command()
         .args(["ls-remote", "--heads", "origin", &remote_branch])
         .current_dir(root)
         .output()
@@ -423,7 +433,7 @@ fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, K
     if fetch {
         let tracking_ref = format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}");
         let refspec = format!("+{remote_branch}:{tracking_ref}");
-        let fetched = Command::new("git")
+        let fetched = router_git_command()
             .args(["fetch", "--quiet", "origin", &refspec])
             .current_dir(root)
             .output()
@@ -450,7 +460,7 @@ fn read_router_state_ref_events(
 ) -> Result<Vec<EventRecord>, KanbusError> {
     let events_path = configured_project_directory(root)?.join("events");
     let events_path = events_path.to_string_lossy().to_string();
-    let listed = Command::new("git")
+    let listed = router_git_command()
         .args([
             "ls-tree",
             "-r",
@@ -467,20 +477,70 @@ fn read_router_state_ref_events(
             "could not read shared router state".to_string(),
         ));
     }
-    let mut events = Vec::new();
-    for path in String::from_utf8_lossy(&listed.stdout).lines() {
-        let shown = Command::new("git")
-            .args(["show", &format!("{state_ref}:{path}")])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
-        if !shown.status.success() {
-            continue;
+    // A router-state branch can contain thousands of immutable records.  One
+    // `git show` process per record made claim acquisition look like a hung
+    // worker and prevented Codex from ever starting.  Ask Git for every blob
+    // in one batch instead.
+    let paths = String::from_utf8_lossy(&listed.stdout)
+        .lines()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let mut child = router_git_command()
+        .args(["cat-file", "--batch"])
+        .current_dir(root)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if let Some(mut input) = child.stdin.take() {
+        for path in &paths {
+            input
+                .write_all(format!("{state_ref}:{path}\n").as_bytes())
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
         }
-        if let Ok(event) = serde_json::from_slice::<EventRecord>(&shown.stdout) {
+    }
+    let mut output = Vec::new();
+    if let Some(mut stdout) = child.stdout.take() {
+        stdout
+            .read_to_end(&mut output)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    if !child
+        .wait()
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .success()
+    {
+        return Err(KanbusError::IssueOperation(
+            "could not read shared router state".to_string(),
+        ));
+    }
+    let mut events = Vec::new();
+    let mut cursor = 0usize;
+    while cursor < output.len() {
+        let Some(header_end) = output[cursor..].iter().position(|byte| *byte == b'\n') else {
+            break;
+        };
+        let header_end = cursor + header_end;
+        let header = String::from_utf8_lossy(&output[cursor..header_end]);
+        cursor = header_end + 1;
+        let Some(size) = header
+            .split_whitespace()
+            .nth(2)
+            .and_then(|value| value.parse::<usize>().ok())
+        else {
+            continue;
+        };
+        if cursor.saturating_add(size) > output.len() {
+            break;
+        }
+        if let Ok(event) = serde_json::from_slice::<EventRecord>(&output[cursor..cursor + size]) {
             if is_shared_router_event(&event) {
                 events.push(event);
             }
+        }
+        cursor += size;
+        if output.get(cursor) == Some(&b'\n') {
+            cursor += 1;
         }
     }
     events.sort_by(|left, right| {
