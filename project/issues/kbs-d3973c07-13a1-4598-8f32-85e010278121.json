@@ -3,19 +3,29 @@
   "title": "Issue Router Testing",
   "description": "Validate single-worker production issue routing with the production MQTT transport and hard coordination mutex.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2cd80a79-c63e-45ce-bc53-25cf8388485b",
+      "author": "home",
+      "text": "The single-worker production dispatch test task completed and its exact requested comment was reviewed. Multi-router hard-lease validation remains separately tracked for the next stage.",
+      "created_at": "2026-09-18T10:39:58.610015Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-17T20:01:34.387959Z",
-  "updated_at": "2026-09-17T20:09:39.190611Z",
-  "closed_at": null,
-  "right_now_summary": "Three distinct lorem ipsum paragraphs were generated and posted as a comment.",
-  "right_now_updated_at": "2026-09-17T20:40:47.647722Z",
-  "custom": {},
-  "agent": null
+  "updated_at": "2026-09-18T10:40:01.092293Z",
+  "closed_at": "2026-09-18T10:40:01.009530Z",
+  "right_now_summary": "Single-worker production routing was tested; multi-router hard-lease validation is next.",
+  "right_now_updated_at": "2026-09-18T10:40:03.184268Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

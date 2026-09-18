@@ -10,11 +10,29 @@
   "parent": "kbs-63679c63-d6de-4d75-927b-c50322dc0254",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a5f0b724-9df0-4ffd-86c5-7ea179f6b0ba",
+      "author": "home",
+      "text": "Defer the two-worker hard-lease integration run until after the single-worker milestone; there is not yet a recorded live multi-worker run.",
+      "created_at": "2026-09-18T10:39:51.525655Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "d98b707a-9aef-4a83-8700-e2c8fe1045e9",
+      "author": "home",
+      "text": "Activated after the successful single-worker router test. Begin isolated-worker hard-lease integration using disposable test tasks; capture acquire contention, expiry/takeover, and soft-provider behavior without changing real board tasks.",
+      "created_at": "2026-09-18T10:57:48.800630Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-17T00:55:24.620070Z",
-  "updated_at": "2026-09-17T00:56:01.484518Z",
+  "updated_at": "2026-09-18T10:57:48.800682Z",
   "closed_at": null,
-  "right_now_summary": "The isolated hard-lease test is planned, but no execution results or logs have been reported yet.",
-  "right_now_updated_at": "2026-09-17T09:19:46.407298Z",
-  "custom": {}
+  "right_now_summary": "The isolated two-worker hard-lease test is starting with disposable tasks and captured contention logs.",
+  "right_now_updated_at": "2026-09-18T10:57:51.422491Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

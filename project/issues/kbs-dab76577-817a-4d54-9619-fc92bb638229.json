@@ -3,23 +3,34 @@
   "title": "Level 2: MQTT fast-path soft leases",
   "description": "## Goal\n\nLevel 2: When MQTT is available, workers coordinate claims over the existing optional gossip/overlay (`docs/REALTIME.md`) much faster than Git propagation.\n\n## Protocol sketch\n\nCLAIM → short contention window (seconds, not minutes) → deterministic tie-break → LEASE → renewals → RELEASE/COMPLETE.\n\nMQTT is a **soft** mutex. Partitions, delayed messages, and disconnected clients can still duplicate work. Git remains authoritative durable state; MQTT is faster knowledge of what is happening now.\n\n## Constraints\n\n- Missing MQTT must not break Git-only deployments.\n- Reuse the existing envelope/topic model where it fits; do not invent a second bus.\n\n## Depends on\n\nProtocol Gherkin, then Git lease (Git remains fallback).\n\n## Acceptance\n\nDual-runtime MQTT lease path against Gherkin. When MQTT is off, behavior matches Level 1.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "349dee91-4ae0-4393-b38c-a96c7af735d6",
+      "author": "home",
+      "text": "The Level 2 MQTT soft-lease implementation, envelope contract, and dual-runtime tests are complete and merged to develop.",
+      "created_at": "2026-09-18T10:40:13.195058Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-14T13:33:04.763323631Z",
-  "updated_at": "2026-09-14T13:33:04.775158666Z",
-  "closed_at": null,
+  "updated_at": "2026-09-18T10:40:17.055233Z",
+  "closed_at": "2026-09-18T10:40:16.988404Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The MQTT lease fast path and matching tests still need implementation for both runtimes.",
-  "right_now_updated_at": "2026-09-14T13:33:57.548962223Z",
-  "custom": {}
+  "right_now_summary": "The MQTT fast-path lease and dual-runtime tests are complete and merged into develop.",
+  "right_now_updated_at": "2026-09-18T10:40:18.756864Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

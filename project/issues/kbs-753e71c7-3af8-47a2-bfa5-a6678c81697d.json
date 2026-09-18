@@ -24,8 +24,8 @@
     "model": "gpt-5",
     "name": "Issue Router planning"
   },
-  "right_now_summary": "The team is defining a deterministic router to dispatch coding-agent work through Kanbus safely.",
-  "right_now_updated_at": "2026-09-17T09:21:09.292337Z",
+  "right_now_summary": "Two isolated router workers are testing hard-lease contention with disposable tasks and captured logs.",
+  "right_now_updated_at": "2026-09-18T10:57:55.422304Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
