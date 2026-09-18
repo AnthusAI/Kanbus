@@ -8,6 +8,15 @@ export type FeatureEntry = {
 
 export const FEATURE_ENTRIES: FeatureEntry[] = [
   {
+    title: "Issue Router",
+    description: "Dispatch labeled issue packages through Codex with deterministic capacity controls, Git-backed state, and a pull-request review gate.",
+    detailedDescription: [
+      "The Issue Router turns one eligible, explicitly labeled Kanbus package into one controlled Codex run. It plans deterministically, works in an isolated Git worktree, validates a structured result, and opens or updates a pull request for review.",
+      "Start with a single Git-coordinated worker, add MQTT for faster visibility, or require a Mutex API lease when multiple workers need hard exclusion. Git remains the durable source of truth at every level."
+    ],
+    href: "/features/issue-router"
+  },
+  {
     title: "Agent-Ready CLI",
     description: "A fast, scriptable CLI tool that lets your coding agents read requirements, update statuses, and track issues natively.",
     detailedDescription: [
