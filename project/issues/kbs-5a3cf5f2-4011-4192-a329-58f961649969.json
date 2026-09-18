@@ -1,0 +1,22 @@
+{
+  "id": "kbs-5a3cf5f2-4011-4192-a329-58f961649969",
+  "title": "Make MQTT overlay edge coverage time-safe",
+  "description": "The full Python quality suite currently fails on develop in tests/test_router_edge_coverage.py::test_mqtt_import_connect_publish_and_overlay_edge_paths. The test creates an envelope with a fixed 2026-09-17 timestamp and a 60-second lease, then record_envelope prunes it against real current time before overlay_events is evaluated at event_time + 1 second. Make the test deterministic without weakening the intended coverage; retain meaningful expiry behavior. Add focused validation and report tests. This is a live issue-router test: preserve all agent reasoning and results on the issue, use a draft PR, and leave the issue in Review when finished.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "agent-class:value"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T23:09:54.767378Z",
+  "updated_at": "2026-09-18T23:09:54.833698Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
