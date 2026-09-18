@@ -3924,9 +3924,13 @@ fn acquire_router_claims(
             revision,
         },
     )?;
-    if !coordination_output_claim_matches(&issue_claim, owner, claim_id) {
-        return Ok((false, Vec::new(), false, None));
-    }
+    // A Git lease is deliberately soft.  A different candidate may win the
+    // deterministic inspection window, but this worker's immutable claim is
+    // still valid evidence and may proceed; later claim fencing prevents it
+    // from publishing a stale result.  Treating a non-winning inspection as
+    // "no start" silently defeated the single-worker path whenever historic
+    // shared state was briefly ahead of the local checkout.
+    let _ = issue_claim;
     resources.push(issue_resource);
 
     let mut capacity_specs = vec![("project", String::new(), router.limits.project_wip)];
