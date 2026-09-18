@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "ad02b39e-3c03-41d4-aab0-715ebaa8816f",
+  "issue_id": "router:diagnostic:soft-window",
+  "event_type": "coordination.claim",
+  "occurred_at": "2026-09-18T22:24:22.150Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "diagnostic-soft-window",
+    "lease_expires_at": "2026-09-18T22:29:22.150Z",
+    "contention_window_s": 5,
+    "ttl_s": 300,
+    "revision": 1,
+    "operation_sequence": 1
+  }
+}
