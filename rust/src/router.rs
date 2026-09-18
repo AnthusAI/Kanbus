@@ -705,6 +705,14 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                     "-c",
                     "user.email=kanbus-router@localhost",
                     "merge",
+                    // The router-state ref is derived state.  A normal board
+                    // commit is authoritative when both touch an issue (for
+                    // example, a human accepts review while the router is
+                    // recording a recovery event).  Taking the incoming
+                    // source version lets us apply the new router event below
+                    // instead of stranding the package on a Git conflict.
+                    "-X",
+                    "theirs",
                     "--no-edit",
                     &source_head,
                 ])
@@ -1122,6 +1130,22 @@ fn payload_text<'a>(event: &'a EventRecord, key: &str) -> Option<&'a str> {
     event.payload.get(key).and_then(Value::as_str)
 }
 
+/// A Review slot is occupied only by work a human can actually inspect.
+/// Historic router results without a preserved transcript must not permanently
+/// prevent all future dispatches.
+fn has_preserved_review_conversation(events: &[EventRecord], issue_id: &str) -> bool {
+    events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+        .is_some_and(|event| payload_text(event, "lifecycle") == Some("review"))
+}
+
 fn reduce_router_events(events: &[EventRecord]) -> RouterEventState {
     let mut state = RouterEventState::default();
     for event in events {
@@ -1257,6 +1281,11 @@ fn apply_router_status_overlay(
         let Some(event) = latest_router else {
             continue;
         };
+        // A human terminal decision in the canonical issue record is final.
+        // Router projections are advisory and must never resurrect closed work.
+        if router.workflow.terminal.contains(&issue.status) {
+            continue;
+        }
         let last_board_transition = issue_events
             .iter()
             .filter(|candidate| candidate.issue_id == issue.identifier)
@@ -1340,6 +1369,9 @@ fn apply_router_status_overlay(
             let Some(issue) = issues.iter_mut().find(|issue| issue.identifier == issue_id) else {
                 continue;
             };
+            if router.workflow.terminal.contains(&issue.status) {
+                continue;
+            }
             let later_board_transition = issue_events
                 .iter()
                 .filter(|candidate| candidate.issue_id == issue.identifier)
@@ -2098,14 +2130,6 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
         .iter()
         .map(|issue| (issue.identifier.as_str(), issue))
         .collect::<HashMap<_, _>>();
-    let all_project_wip = issues
-        .iter()
-        .filter(|issue| is_wip_status(issue, router))
-        .count();
-    let all_project_review = issues
-        .iter()
-        .filter(|issue| issue.status == router.workflow.review)
-        .count();
     let mut routed_package_wip = Vec::new();
     for issue in &issues {
         if !is_wip_status(issue, router) || !has_route_marker(issue) {
@@ -2117,6 +2141,19 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
             routed_package_wip.push((issue.identifier.clone(), route));
         }
     }
+    // Capacity limits apply to packages owned by this router, not every
+    // human-managed board item that happens to be in an in-progress state.
+    let all_project_wip = routed_package_wip.len();
+    let all_project_review = routed_package_wip
+        .iter()
+        .filter(|(issue_id, _)| {
+            issues
+                .iter()
+                .find(|issue| issue.identifier == *issue_id)
+                .is_some_and(|issue| issue.status == router.workflow.review)
+                && has_preserved_review_conversation(&router_events, issue_id)
+        })
+        .count();
     let mut class_wip = BTreeMap::<String, usize>::new();
     let mut provider_wip = BTreeMap::<String, usize>::new();
     for (issue_id, route) in &routed_package_wip {
@@ -4065,12 +4102,9 @@ fn hard_capacity_occupancy(
     let issues = load_project_issues(project_dir)?;
     let events = load_router_events(project_dir)?;
     let state = reduce_router_events(&events);
-    let project_occupied = issues
-        .iter()
-        .filter(|issue| is_wip_status(issue, router))
-        .count();
     let mut class_occupied = BTreeMap::<String, usize>::new();
     let mut provider_occupied = BTreeMap::<String, usize>::new();
+    let mut project_occupied = 0usize;
     for issue in &issues {
         if !is_wip_status(issue, router) {
             continue;
@@ -4100,6 +4134,7 @@ fn hard_capacity_occupancy(
         } else {
             continue;
         };
+        project_occupied += 1;
         if !profile.is_empty() && router.providers.contains_key(&profile) {
             *provider_occupied.entry(profile).or_default() += 1;
         }
@@ -5192,12 +5227,7 @@ impl GitHubForge {
             .forge
             .as_ref()
             .ok_or_else(|| KanbusError::Configuration("router.forge is required".to_string()))?;
-        let token = std::env::var(&forge.token_env).map_err(|_| {
-            KanbusError::IssueOperation(format!(
-                "GitHub token environment variable {} is not set",
-                forge.token_env
-            ))
-        })?;
+        let token = github_token_from_environment_or_gh(&forge.token_env)?;
         Self::from_router_with_token(router, token)
     }
 
@@ -5238,6 +5268,10 @@ impl GitHubForge {
                 "head": branch,
                 "base": self.base_branch,
                 "body": format!("Kanbus package: {issue_id}"),
+                // Router output is never an automatic acceptance decision.
+                // A draft makes every agent checkpoint reviewable before it can
+                // be merged, including incomplete or uncertain work.
+                "draft": true,
             }))
             .send()
             .map_err(|error| {
@@ -5397,6 +5431,34 @@ impl GitHubForge {
             .cloned()
             .unwrap_or_default())
     }
+}
+
+/// Resolve a GitHub credential without making a user copy a credential out of
+/// an already authenticated GitHub CLI.  The configured variable remains the
+/// deterministic override for CI and non-interactive workers.
+fn github_token_from_environment_or_gh(token_env: &str) -> Result<String, KanbusError> {
+    if let Ok(token) = std::env::var(token_env) {
+        if !token.trim().is_empty() {
+            return Ok(token);
+        }
+    }
+    let output = Command::new("gh")
+        .args(["auth", "token"])
+        .output()
+        .map_err(|_| {
+            KanbusError::IssueOperation(format!(
+                "GitHub authentication is unavailable: set {token_env} or run gh auth login"
+            ))
+        })?;
+    if output.status.success() {
+        let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !token.is_empty() {
+            return Ok(token);
+        }
+    }
+    Err(KanbusError::IssueOperation(format!(
+        "GitHub authentication is unavailable: set {token_env} or run gh auth login"
+    )))
 }
 
 /// Reconcile GitHub's current PR/review state into immutable, normalized forge events.
@@ -8143,5 +8205,69 @@ mod tests {
             redact_router_log("token sk-abcdefghijklmnop"),
             "token [REDACTED]"
         );
+    }
+
+    #[test]
+    fn router_created_pull_requests_are_drafts() {
+        use std::io::{Read as _, Write as _};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock GitHub API");
+        let address = listener.local_addr().expect("read mock address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept PR request");
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            let body_start = loop {
+                let read = stream.read(&mut buffer).expect("read PR request");
+                assert!(read > 0, "PR request remains open");
+                request.extend_from_slice(&buffer[..read]);
+                if let Some(position) = request.windows(4).position(|part| part == b"\r\n\r\n") {
+                    break position + 4;
+                }
+            };
+            let headers = String::from_utf8_lossy(&request[..body_start]);
+            assert!(headers.starts_with("POST /repos/example/kanbus/pulls HTTP/1.1"));
+            let content_length = headers
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("content-length")
+                        .then(|| value.trim().parse::<usize>().ok())
+                        .flatten()
+                })
+                .expect("content length");
+            while request.len() < body_start + content_length {
+                let read = stream.read(&mut buffer).expect("read PR body");
+                assert!(read > 0, "PR body is complete");
+                request.extend_from_slice(&buffer[..read]);
+            }
+            let body: Value =
+                serde_json::from_slice(&request[body_start..body_start + content_length])
+                    .expect("parse PR payload");
+            assert_eq!(body.get("draft").and_then(Value::as_bool), Some(true));
+            let response = r#"{"number":42,"html_url":"https://example.invalid/pull/42","head":{"sha":"abc","ref":"codex/router/kbs-test/r1"}}"#;
+            write!(
+                stream,
+                "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                response.len(), response
+            )
+            .expect("write mock PR response");
+        });
+        let forge = GitHubForge {
+            client: reqwest::blocking::Client::new(),
+            api_url: format!("http://{address}"),
+            repository: "example/kanbus".to_string(),
+            base_branch: "develop".to_string(),
+            token: "test-token".to_string(),
+        };
+
+        let pull = forge
+            .create_pull_request("kbs-test", "Test issue", "codex/router/kbs-test/r1")
+            .expect("create draft PR");
+
+        assert_eq!(pull.number, 42);
+        assert_eq!(pull.branch, "codex/router/kbs-test/r1");
+        server.join().expect("mock GitHub API");
     }
 }
