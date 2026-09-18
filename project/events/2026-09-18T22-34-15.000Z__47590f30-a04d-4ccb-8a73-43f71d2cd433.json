@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "47590f30-a04d-4ccb-8a73-43f71d2cd433",
+  "issue_id": "router:kbs-683397b0-e23e-46d3-ae9b-01ab9d687833",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-18T22:34:15.000Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Implemented stale UDS gossip socket recovery in Python and Rust, preserving live brokers and adding tests. Python gossip tests pass; Rust formatting passes, but Rust tests were blocked by outdated Cargo 1.81 dependency support.",
+    "claim_id": "1802d0fc-dd2c-4b32-aec0-c4898ddfd5b4",
+    "revision": 3,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-683397b0-e23e-46d3-ae9b-01ab9d687833",
+    "checkpoint_revision": 3,
+    "artifacts": [],
+    "issue_updates": [
+      {
+        "issue_id": "kbs-683397b0-e23e-46d3-ae9b-01ab9d687833",
+        "status": "review"
+      }
+    ]
+  }
+}
