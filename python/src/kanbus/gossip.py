@@ -358,10 +358,15 @@ def _run_gossip_consumer(
         if on_envelope is not None:
             on_envelope(envelope)
 
-    use_uds = transport == "uds" or (
-        transport == "auto" and _uds_socket_path(realtime).exists()
+    socket_path = (
+        _uds_socket_path(realtime)
+        if autostart_local_uds or transport in {"auto", "uds"}
+        else None
     )
-    if autostart_local_uds and not use_uds and transport in {"auto", "uds"}:
+    use_uds = transport == "uds" or (
+        transport == "auto" and socket_path is not None and socket_path.exists()
+    )
+    if autostart_local_uds and transport in {"auto", "uds"}:
         _ensure_local_uds_broker(realtime)
         use_uds = True
     if use_uds:
@@ -396,7 +401,9 @@ def _run_gossip_consumer(
 def _ensure_local_uds_broker(realtime: RealtimeConfig) -> None:
     socket_path = _uds_socket_path(realtime)
     if socket_path.exists():
-        return
+        if _uds_broker_is_reachable(socket_path):
+            return
+        socket_path.unlink(missing_ok=True)
     broker_socket = socket_path
     threading.Thread(
         target=run_uds_broker,
@@ -408,6 +415,17 @@ def _ensure_local_uds_broker(realtime: RealtimeConfig) -> None:
             return
         time.sleep(0.05)
     raise GossipError(f"failed to start local UDS broker at {socket_path}")
+
+
+def _uds_broker_is_reachable(socket_path: Path) -> bool:
+    """Return whether a local UDS path has a broker accepting connections."""
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.2)
+            probe.connect(str(socket_path))
+        return True
+    except OSError:
+        return False
 
 
 def run_gossip_broker(root: Path, socket_override: Optional[Path]) -> None:
