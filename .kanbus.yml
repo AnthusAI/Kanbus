@@ -221,7 +221,7 @@ router:
     terminal: [closed]
   limits:
     project_wip: 10
-    review_wip: 1
+    review_wip: 2
     class_wip:
       implementation: 1
       value: 1
