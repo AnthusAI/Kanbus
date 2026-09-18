@@ -1,0 +1,23 @@
+{
+  "id": "kbs-993f2c48-1be9-41eb-a3ec-56073f990217",
+  "title": "Implement reusable containerized integration runner for real board dispatch",
+  "description": "Implement a repeatable opt-in suite that targets the fixed Issue Router Testing epic kbs-d3973c07-13a1-4598-8f32-85e010278121. If the epic is absent, create it just-in-time with that exact ID and identity; if the ID exists but is not the expected epic, fail before mutation. Create unique disposable routed issues beneath it, run separate router containers with independent checkouts and no shared UDS, and assert actual board status/comment effects, hard-lease winner/loser behavior, expiry/takeover, evidence capture, and cleanup. Require an explicit live flag and validate service inputs before creating issues or starting workers. Keep CI-safe offline coverage independent of live cloud credentials. Never mount broad host credential directories into workers; document narrowly scoped credential injection. Use bounded timeouts, redact secrets from logs, and close generated issues on success or failure without deleting their history.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-2730ccba-8e44-4449-8496-c490fc5926c5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T11:30:32.569018Z",
+  "updated_at": "2026-09-18T11:31:00.769554Z",
+  "closed_at": null,
+  "right_now_summary": "The reusable containerized integration runner is being designed with safe live testing and cleanup.",
+  "right_now_updated_at": "2026-09-18T11:31:03.372055Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
