@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.29.0 (2026-09-18)
+
+### Features
+
+- **site**: Add Kanbus pricing options
+  ([`ace9547`](https://github.com/AnthusAI/Kanbus/commit/ace9547a211a519a1248b22a82cb13540e699762))
+
+
 ## v0.28.1 (2026-09-18)
 
 ### Bug Fixes
