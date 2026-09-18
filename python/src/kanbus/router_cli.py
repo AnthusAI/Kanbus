@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import NoReturn
 
@@ -189,7 +190,8 @@ def _load_context() -> RouterContext:
             raise IssueRouterError("issue router is not configured")
         from kanbus.router_state import router_state_root
 
-        return load_router_context(router_state_root(source_root))
+        context = load_router_context(router_state_root(source_root))
+        return replace(context, source_root=source_root)
     except (ConfigurationError, IssueRouterError, ProjectMarkerError) as error:
         message = str(error)
         _fail(message, 2 if message == "issue router is not configured" else 1)
