@@ -1,0 +1,20 @@
+{
+  "id": "kbs-c250c38c-3dbb-489f-a7d6-c7bd63771cef",
+  "title": "Event-driven GitHub integrations for Kanbus",
+  "description": "## Purpose\nMake GitHub events a dependable trigger for keeping Kanbus cloud data current and, later, for reacting to pull-request, review, and CI lifecycle changes.\n\n## Why this exists\nThe single-worker Issue Router can dispatch from Kanbus issue state without GitHub webhooks. Webhooks are a complementary integration surface for changes originating in GitHub, not a prerequisite for task dispatch and not a replacement queue.\n\n## Direction\n- Start with signed GitHub push events that trigger an idempotent tenant-repository sync and publish a Kanbus-visible change signal.\n- Preserve Git as the durable source of truth; treat webhook deliveries and SQS messages as triggers that request reconciliation.\n- Tolerate duplicate, delayed, and reordered delivery through verification, deduplication, retries, and a dead-letter path.\n- Enforce tenant isolation and least-privilege access to webhook secrets and cloud resources.\n- Add PR, review, and CI triggers only as separate, explicit follow-up slices when a concrete router or board behavior needs them.\n\n## Success\nA reproducible signed webhook test causes the correct tenant repository to reconcile and the resulting change to become visible through Kanbus, with observable retry/failure behavior and no cross-tenant access.\n\n## Out of scope\nThis initiative is not required for the first single-worker dispatch milestone, does not make GitHub the Kanbus issue source of truth, and does not authorize automatic pull-request merging.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T10:48:50.181524Z",
+  "updated_at": "2026-09-18T10:48:50.246827Z",
+  "closed_at": null,
+  "right_now_summary": "The deployed webhook path works, but signed testing awaits secret access and evidence review.",
+  "right_now_updated_at": "2026-09-18T10:49:46.178403Z",
+  "custom": {}
+}

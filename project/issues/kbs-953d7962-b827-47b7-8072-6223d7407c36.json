@@ -1,0 +1,20 @@
+{
+  "id": "kbs-953d7962-b827-47b7-8072-6223d7407c36",
+  "title": "Signed GitHub webhook ingestion and tenant repository reconciliation",
+  "description": "## Objective\nMaintain and verify the deployed GitHub webhook path that reconciles cloud-hosted tenant repositories and publishes the resulting Kanbus change signal.\n\n## Existing context\nThe cloud stack already contains webhook ingress, Secrets Manager, SQS/DLQ, an EFS-backed Git sync worker, and IoT publishing. Historical records conflict: the cloud-backend epic reports the webhook sync validation as complete, while task tskl-eo2.5.4 still reports a signed webhook check blocked on secret permissions. Reconcile the existing deployment and validation artifacts first; do not rebuild components that are already working.\n\n## Scope\n- Verify GitHub signatures and bind each delivery to the correct tenant.\n- Deduplicate/retry deliveries safely through SQS and the sync worker.\n- Reconcile the tenant Git checkout on EFS and publish a change notification.\n- Verify failure alarms, DLQ behavior, and an auditable recovery path.\n- Keep the Kanbus Git checkout authoritative; webhooks only trigger reconciliation.\n\n## Definition of done\n- A signed GitHub test event is traced through ingress, queue, tenant sync, and the resulting Kanbus-visible event.\n- Duplicate/retry behavior and tenant isolation are evidenced.\n- The runbook records the test and the precise credentials/permissions required.\n- If existing evidence already proves these criteria, close the remaining child task with references rather than repeating deployment work.\n\n## Non-goal\nThis integration is not required for single-worker Issue Router dispatch. Pull-request, review, and CI-triggered router actions require separate scoped stories.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c250c38c-3dbb-489f-a7d6-c7bd63771cef",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T10:49:03.265978Z",
+  "updated_at": "2026-09-18T10:49:03.330140Z",
+  "closed_at": null,
+  "right_now_summary": "The deployed webhook path works, but signed webhook testing awaits secret access and evidence review.",
+  "right_now_updated_at": "2026-09-18T10:49:44.333347Z",
+  "custom": {}
+}

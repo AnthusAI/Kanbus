@@ -3,7 +3,7 @@
   "title": "Specify MQTT CLAIM/LEASE/RELEASE envelope fields in Gherkin (do not defer to REALTIME.md)",
   "description": "SD nit #3 on PR #278: some MQTT Then steps defer to docs/REALTIME.md instead of naming concrete envelope fields.\n\nGherkin is the source of truth. Cite topic/envelope fields in the scenarios so dual-runtime steps can be written without reading the docs as a spec.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -34,17 +34,27 @@
         "model": "gpt-5",
         "name": "Issue Router planning"
       }
+    },
+    {
+      "id": "c2d6df0f-0e48-458c-967f-5c9e2510cf61",
+      "author": "home",
+      "text": "The MQTT Gherkin now specifies concrete top-level CLAIM, LEASE, and RELEASE envelope fields in features/coordination/mqtt_soft_mutex.feature; merged in 36ce1a9f.",
+      "created_at": "2026-09-18T10:38:00.047519Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-14T14:08:07.668351272Z",
-  "updated_at": "2026-09-17T00:37:04.439622Z",
-  "closed_at": null,
+  "updated_at": "2026-09-18T10:38:07.825563Z",
+  "closed_at": "2026-09-18T10:38:07.757665Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The MQTT Gherkin field details are accepted as a follow-up and await the Git lease baseline.",
-  "right_now_updated_at": "2026-09-17T09:20:14.008494Z",
-  "custom": {}
+  "right_now_summary": "The MQTT Gherkin now names concrete CLAIM, LEASE, and RELEASE envelope fields.",
+  "right_now_updated_at": "2026-09-18T10:38:10.093103Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
