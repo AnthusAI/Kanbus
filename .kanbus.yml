@@ -192,10 +192,8 @@ ai:
 right_now:
   model: gpt-5.6-luna
 
-# Production coordination endpoints are supplied as process environment
-# variables by the worker host; only the provider policy is stored here.
 coordination:
-  providers: [mutex_api, mqtt, git]
+  providers: [git]
   contention_window: 5s
   default_lease_ttl: 300s
 
@@ -221,9 +219,11 @@ router:
     terminal: [closed]
   limits:
     project_wip: 10
-    review_wip: 1
+    review_wip: 2
     class_wip:
       implementation: 1
+      value: 1
+      smart: 1
     provider_wip:
       codex-luna-flex: 1
   providers:
@@ -231,9 +231,21 @@ router:
       adapter: codex
       command: codex
       args: [--model, gpt-5.6-luna, -c, 'service_tier="flex"']
+    codex-value:
+      adapter: codex
+      command: codex
+      args: [--profile, value]
+    codex-smart:
+      adapter: codex
+      command: codex
+      args: [--profile, smart]
   classes:
     implementation:
       providers: [codex-luna-flex]
+    value:
+      providers: [codex-value]
+    smart:
+      providers: [codex-smart]
   forge:
     provider: github
     repository: AnthusAI/Kanbus

@@ -4696,16 +4696,18 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
                     candidates.push(item.clone());
                 }
             }
-            if let Some(item) = value.pointer("/item/content") {
-                if let Some(content) = item.as_array() {
-                    for part in content {
-                        if let Some(text) = part.get("text").and_then(Value::as_str) {
-                            if let Ok(parsed) = serde_json::from_str::<Value>(text) {
-                                if parsed.get("outcome").is_some() {
-                                    candidates.push(parsed);
-                                }
-                            }
-                        }
+        }
+        for item_path in ["/item", "/payload/item"] {
+            let Some(item) = value.pointer(item_path) else {
+                continue;
+            };
+            if let Some(text) = item.get("text").and_then(Value::as_str) {
+                push_codex_result_text(text, &mut candidates);
+            }
+            if let Some(content) = item.get("content").and_then(Value::as_array) {
+                for part in content {
+                    if let Some(text) = part.get("text").and_then(Value::as_str) {
+                        push_codex_result_text(text, &mut candidates);
                     }
                 }
             }
@@ -4724,6 +4726,14 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
                 )
             })
         })
+}
+
+fn push_codex_result_text(text: &str, candidates: &mut Vec<Value>) {
+    if let Ok(parsed) = serde_json::from_str::<Value>(text) {
+        if parsed.get("outcome").is_some() && parsed.get("schema_version").is_some() {
+            candidates.push(parsed);
+        }
+    }
 }
 
 fn invalid_json_retryable_result(message: String) -> RouterAgentResult {
@@ -7428,6 +7438,22 @@ mod tests {
         });
         assert_eq!(
             parse_router_result(&envelope.to_string()).unwrap().outcome,
+            "completed"
+        );
+        let nested_envelope = json!({
+            "type":"event_msg",
+            "payload":{
+                "type":"item_completed",
+                "item":{
+                    "type":"AgentMessage",
+                    "text":result.to_string()
+                }
+            }
+        });
+        assert_eq!(
+            parse_router_result(&nested_envelope.to_string())
+                .unwrap()
+                .outcome,
             "completed"
         );
     }

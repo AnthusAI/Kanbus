@@ -19,7 +19,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is clarifying Gherkin specs, fixing MQTT details, and closing remaining follow-ups.",
-  "right_now_updated_at": "2026-09-14T14:08:29.673420570Z",
+  "right_now_summary": "The merged specs need follow-ups on tie-breaks, TTL cleanup, and the MQTT epic and story.",
+  "right_now_updated_at": "2026-09-18T10:38:12.703306Z",
   "custom": {}
 }

@@ -3,7 +3,7 @@
   "title": "Implement MQTT fast-path lease dual-runtime",
   "description": "## Implementation\n\nAfter protocol Gherkin is accepted: implement MQTT CLAIM / contention / LEASE / renew / RELEASE on the existing optional gossip/overlay. Soft mutex only.\n\n## Acceptance\n\nSame Gherkin green on both runtimes. With MQTT off, behavior matches the Git provider. Do not require Mosquitto for routine CLI board work (existing `docs/REALTIME.md` policy).",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -39,17 +39,27 @@
         "model": "gpt-5",
         "name": "Issue Router planning"
       }
+    },
+    {
+      "id": "e15a5a3d-6e88-47a6-806b-8990f3d0578a",
+      "author": "home",
+      "text": "Implemented in both runtimes with MQTT soft-lease scenarios and tests; merged to develop in 36ce1a9f.",
+      "created_at": "2026-09-18T10:37:05.727867Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-14T13:33:53.621485129Z",
-  "updated_at": "2026-09-17T00:37:18.862095Z",
-  "closed_at": null,
+  "updated_at": "2026-09-18T10:37:11.238729Z",
+  "closed_at": "2026-09-18T10:37:11.173968Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The team is finishing the Git soft-lease baseline before implementing the MQTT lease fast path.",
-  "right_now_updated_at": "2026-09-17T09:20:07.520838Z",
-  "custom": {}
+  "right_now_summary": "The MQTT fast-path lease runs in both runtimes, with scenarios and tests merged into develop.",
+  "right_now_updated_at": "2026-09-18T10:37:13.112292Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
