@@ -165,6 +165,27 @@ def router_cancel_command(issue_id: str) -> None:
     click.echo(f"Cancelled router package {issue_id}{suffix}.")
 
 
+@router_group.command("recover")
+@click.argument("issue_id")
+@click.option("--json", "json_output", is_flag=True, help="Print saved run metadata as JSON.")
+def router_recover_command(issue_id: str, json_output: bool) -> None:
+    """Surface an orphaned or paused agent run without losing its evidence."""
+    context = _load_context()
+    from kanbus.router_execution import recover_router_package
+
+    try:
+        recovered = recover_router_package(context, issue_id)
+    except IssueRouterError as error:
+        _fail(str(error), 1)
+    if json_output:
+        click.echo(json.dumps(recovered, sort_keys=True))
+        return
+    click.echo(
+        f"Recovered {recovered['issue_id']}: provider={recovered['provider']} "
+        f"lifecycle={recovered['lifecycle']} branch={recovered['branch'] or 'none'}"
+    )
+
+
 @router_group.command("stop")
 def router_stop_command() -> None:
     """Stop future scheduler starts after the current package finishes."""

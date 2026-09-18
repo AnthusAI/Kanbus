@@ -247,6 +247,11 @@ enum RouterCommands {
         /// Package root issue identifier.
         issue_id: String,
     },
+    /// Surface a preserved agent session, branch, and transcript metadata.
+    Recover {
+        /// Package root issue identifier.
+        issue_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1620,6 +1625,7 @@ fn execute_command(
                     provider_profile,
                 },
                 RouterCommands::Cancel { issue_id } => IssueRouterOperation::Cancel { issue_id },
+                RouterCommands::Recover { issue_id } => IssueRouterOperation::Recover { issue_id },
             };
             Ok(Some(crate::router::execute_issue_router_operation(
                 root, operation,

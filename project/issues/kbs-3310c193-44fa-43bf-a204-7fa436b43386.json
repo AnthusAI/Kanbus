@@ -1,0 +1,25 @@
+{
+  "id": "kbs-3310c193-44fa-43bf-a204-7fa436b43386",
+  "title": "Console agent conversation timeline and reply composer",
+  "description": "Expose agent conversation state, summaries, redacted logs, run metadata, and a normal-comment composer that resumes awaiting Codex sessions. Add realtime plus Git-backed refresh.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T21:53:55.261293Z",
+  "updated_at": "2026-09-18T21:53:55.328194Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "transparent-delegation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
