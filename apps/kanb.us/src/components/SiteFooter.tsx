@@ -3,7 +3,7 @@ import AnthusFooter from "anthus-footer";
 import { FEATURE_ENTRIES } from "../content/features";
 
 const SiteFooter = () => {
-  const featureLinks = FEATURE_ENTRIES.slice(0, 8).map((feature) => ({
+  const featureLinks = FEATURE_ENTRIES.map((feature) => ({
     label: feature.title,
     href: feature.href,
     external: false,
