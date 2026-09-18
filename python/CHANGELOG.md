@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.28.0 (2026-09-18)
+
+### Bug Fixes
+
+- **site**: Add Issue Router feature pictogram
+  ([`0b363fe`](https://github.com/AnthusAI/Kanbus/commit/0b363fe4da258eea536a2aad480145ecd11bbad1))
+
+### Chores
+
+- **site**: Add Issue Router page metadata
+  ([`e7b305d`](https://github.com/AnthusAI/Kanbus/commit/e7b305d64dcc10e44335113841965c8a2608848e))
+
+### Features
+
+- **site**: Add Issue Router launch page
+  ([`65f5493`](https://github.com/AnthusAI/Kanbus/commit/65f549376ed6a7c42e36e61e0c73f51282af7107))
+
+
 ## v0.27.0 (2026-09-10)
 
 ### Bug Fixes
