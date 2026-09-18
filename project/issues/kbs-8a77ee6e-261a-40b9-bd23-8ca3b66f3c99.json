@@ -1,0 +1,23 @@
+{
+  "id": "kbs-8a77ee6e-261a-40b9-bd23-8ca3b66f3c99",
+  "title": "Show the most recently updated cards first in every Kanbus board column",
+  "description": "## Behavior\n\nIn every Kanbus board column, list issue cards in reverse chronological order by updated_at: the most recently updated issue is at the top of that column.\n\nThis applies to every configured status, including Done; it is not limited to a particular semantic category. Moving an issue between columns or updating it should cause it to appear at the correct position in its destination column.\n\n## Acceptance criteria\n\n- Each column is ordered by updated_at descending.\n- The first card in Done is the most recently updated issue in Done.\n- The same rule applies independently to all other columns.\n- Sorting updates correctly when issue data changes and does not change issue status or timestamps.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "agent-class:value"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T16:40:51.185588Z",
+  "updated_at": "2026-09-18T16:40:51.260589Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": null
+}
