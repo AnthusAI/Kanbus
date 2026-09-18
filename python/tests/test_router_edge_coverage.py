@@ -968,6 +968,13 @@ def test_mqtt_import_connect_publish_and_overlay_edge_paths(
     assert coordination_mqtt.inspect_lease(
         tmp_path / "events", project_dir, "job:mqtt", config, now=event_time
     ).active
+    assert not coordination_mqtt.inspect_lease(
+        tmp_path / "events",
+        project_dir,
+        "job:mqtt",
+        config,
+        now=event_time + timedelta(seconds=121),
+    ).active
 
 
 def test_mqtt_publisher_selects_and_records_the_lease_envelope(
