@@ -24,6 +24,7 @@ const SiteFooter = () => {
           title: "Reference",
           links: [
             { label: "What Is This?", href: "/what-is-this", external: false },
+            { label: "Pricing", href: "/pricing", external: false },
             { label: "Documentation", href: "/docs", external: false },
             { label: "Philosophy", href: "/philosophy", external: false },
             { label: "GitHub", href: "https://github.com/AnthusAI/Kanbus" },
