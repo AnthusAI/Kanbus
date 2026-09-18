@@ -167,7 +167,9 @@ def router_cancel_command(issue_id: str) -> None:
 
 @router_group.command("recover")
 @click.argument("issue_id")
-@click.option("--json", "json_output", is_flag=True, help="Print saved run metadata as JSON.")
+@click.option(
+    "--json", "json_output", is_flag=True, help="Print saved run metadata as JSON."
+)
 def router_recover_command(issue_id: str, json_output: bool) -> None:
     """Surface an orphaned or paused agent run without losing its evidence."""
     context = _load_context()

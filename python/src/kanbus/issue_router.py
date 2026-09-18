@@ -170,20 +170,18 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
             candidate.issue.identifier,
         )
     )
-    current_wip = sum(
-        issue.status
-        in {
-            context.router.workflow.active,
-            context.router.workflow.review,
-            context.router.workflow.blocked,
-        }
-        for issue in context.issues
-    )
-    current_review = sum(
-        issue.status == context.router.workflow.review for issue in context.issues
-    )
     active_counts, class_counts, provider_counts = _current_route_counts(
         context, issues_by_id, events
+    )
+    # Router capacity is about work the router owns.  Counting every board
+    # item in an in-progress semantic state makes active initiatives, epics,
+    # and manually managed work consume all worker slots.
+    current_wip = sum(active_counts.values())
+    current_review = sum(
+        issue.status == context.router.workflow.review
+        and _route_error(context.router, issue) is None
+        and _has_preserved_review_conversation(events, issue.identifier)
+        for issue in context.issues
     )
     eligible: list[RouterPlanEligiblePackage] = []
     deferred: list[RouterPlanDeferredPackage] = []
@@ -854,6 +852,19 @@ def _latest_router_event(
             str(event.get("event_id", "")),
         ),
         default=None,
+    )
+
+
+def _has_preserved_review_conversation(
+    events: list[dict[str, Any]], issue_id: str
+) -> bool:
+    """Return whether a review slot has visible, durable agent evidence."""
+    conversation = _latest_router_event(events, issue_id, "router_conversation")
+    if conversation is None:
+        conversation = _latest_router_event(events, issue_id, "router.conversation")
+    return (
+        conversation is not None
+        and conversation.get("payload", {}).get("lifecycle") == "review"
     )
 
 
