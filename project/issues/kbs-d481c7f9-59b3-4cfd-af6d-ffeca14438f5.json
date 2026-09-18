@@ -3,7 +3,7 @@
   "title": "Generate and comment three lorem ipsum paragraphs",
   "description": "Generate exactly three distinct paragraphs of lorem ipsum. When complete, post those exact three paragraphs as a comment on this issue using the router result issue_comments field. Do not modify issue files directly. Return a concise completion summary; make no source-code changes.",
   "type": "task",
-  "status": "review",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -18,24 +18,28 @@
       "author": "Kanbus Issue Router",
       "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vitae sem at arcu posuere gravida, sed feugiat nibh tincidunt. Donec vel lectus at sapien malesuada fermentum.\n\nCurabitur blandit, nisl eget consequat luctus, justo erat posuere massa, vitae tincidunt arcu sem non est. Mauris suscipit, neque at commodo faucibus, sapien nisl hendrerit lorem, sit amet laoreet massa lectus non purus.\n\nPraesent euismod libero a risus tincidunt, non interdum justo dignissim. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Sed laoreet, mi sed egestas pretium, erat augue feugiat nunc, a congue dolor ex a nibh.",
       "created_at": "2026-09-17T20:40:40.733533Z",
-      "comment_type": "default",
-      "data": {},
-      "agent": null
+      "comment_type": "default"
+    },
+    {
+      "id": "69fc2166-7aac-4e6f-ae43-362b406839dc",
+      "author": "home",
+      "text": "Reviewed the router-authored comment: it contains the requested three distinct lorem ipsum paragraphs, so the test task is complete.",
+      "created_at": "2026-09-18T10:38:32.168570Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-17T20:01:46.730501Z",
-  "updated_at": "2026-09-17T20:40:40.733604Z",
-  "closed_at": null,
-  "right_now_summary": "Three distinct lorem ipsum paragraphs were generated and posted as a comment.",
-  "right_now_updated_at": "2026-09-17T20:40:45.378328Z",
-  "custom": {
-    "source": "shared",
-    "project_label": "kbs"
-  },
+  "updated_at": "2026-09-18T10:38:36.745061Z",
+  "closed_at": "2026-09-18T10:38:36.678868Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-5.6-luna",
-    "name": "issue-router-production-smoke",
-    "settings": {}
+    "name": "issue-router-production-smoke"
+  },
+  "right_now_summary": "Three lorem ipsum paragraphs were posted as a comment and reviewed.",
+  "right_now_updated_at": "2026-09-18T10:38:40.155659Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
   }
 }
