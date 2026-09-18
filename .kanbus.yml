@@ -192,10 +192,8 @@ ai:
 right_now:
   model: gpt-5.6-luna
 
-# Production coordination endpoints are supplied as process environment
-# variables by the worker host; only the provider policy is stored here.
 coordination:
-  providers: [mutex_api, mqtt, git]
+  providers: [git]
   contention_window: 5s
   default_lease_ttl: 300s
 
