@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "793f00bb-2fb3-4da7-a51a-ccd4362a0979",
+  "issue_id": "router:diagnostic:soft-window",
+  "event_type": "coordination.release",
+  "occurred_at": "2026-09-18T22:24:30.470Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "diagnostic-soft-window",
+    "operation_sequence": 2
+  }
+}
