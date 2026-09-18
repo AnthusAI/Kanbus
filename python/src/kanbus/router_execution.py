@@ -327,8 +327,11 @@ def run_router_once(
                     f"Review the attached agent conversation and branch. Router detail: {error}",
                 )
                 _transition_package(
-                    context, candidate.issue_id, context.router.workflow.review,
-                    claim_id=claim_id, revision=revision,
+                    context,
+                    candidate.issue_id,
+                    context.router.workflow.review,
+                    claim_id=claim_id,
+                    revision=revision,
                 )
                 publish_router_state(context.root, set(candidate.package_issue_ids))
                 return RouterRunResult(started=1, review=1, failed=1, error=str(error))
@@ -339,8 +342,11 @@ def run_router_once(
                 f"The router could not start an agent session: {error}",
             )
             _transition_package(
-                context, candidate.issue_id, context.router.workflow.blocked,
-                claim_id=claim_id, revision=revision,
+                context,
+                candidate.issue_id,
+                context.router.workflow.blocked,
+                claim_id=claim_id,
+                revision=revision,
             )
             publish_router_state(context.root, set(candidate.package_issue_ids))
             return RouterRunResult(started=1, failed=1, error=str(error))
@@ -824,7 +830,8 @@ def _run_adapter(
                 revision=revision,
                 session_id=adapter.session_id,
                 lifecycle="review",
-                message=result.summary or "Agent turn completed; review the preserved branch and log.",
+                message=result.summary
+                or "Agent turn completed; review the preserved branch and log.",
                 worktree=request.worktree_path,
                 branch=branch,
                 log=adapter.last_output + adapter.last_error,
