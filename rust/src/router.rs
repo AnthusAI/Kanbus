@@ -141,6 +141,11 @@ pub enum IssueRouterOperation {
         /// Package root issue identifier.
         issue_id: String,
     },
+    /// Surface durable evidence for an orphaned or paused provider run.
+    Recover {
+        /// Package root issue identifier.
+        issue_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -3061,7 +3066,42 @@ fn execute_issue_router_operation_inner(
         IssueRouterOperation::Cancel { issue_id } => {
             cancel_router_package(root, &router, &project_dir, &issue_id)
         }
+        IssueRouterOperation::Recover { issue_id } => {
+            recover_router_package(&project_dir, &issue_id)
+        }
     }
+}
+
+fn recover_router_package(project_dir: &Path, issue_id: &str) -> Result<String, KanbusError> {
+    let events = load_router_events(project_dir)?;
+    let latest = events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .max_by_key(|event| (&event.occurred_at, &event.event_id))
+        .ok_or_else(|| {
+            KanbusError::IssueOperation(format!(
+                "no recoverable agent run for package \"{issue_id}\""
+            ))
+        })?;
+    let provider = payload_text(latest, "provider").unwrap_or("unknown");
+    let lifecycle = payload_text(latest, "lifecycle").unwrap_or("unknown");
+    let branch = payload_text(latest, "branch").unwrap_or("none");
+    append_router_event(
+        project_dir,
+        &format!("router:{issue_id}"),
+        EventType::RouterConversation,
+        json!({
+            "action":"recovered", "provider":provider, "lifecycle":lifecycle,
+            "claim_id":payload_text(latest, "claim_id").unwrap_or("recovered"),
+            "revision":latest.payload.get("revision").and_then(Value::as_u64).unwrap_or(1),
+            "session_id":payload_text(latest, "session_id"), "branch":branch,
+            "worktree":payload_text(latest, "worktree"),
+        }),
+    )?;
+    Ok(format!(
+        "Recovered {issue_id}: provider={provider} lifecycle={lifecycle} branch={branch}\n"
+    ))
 }
 
 fn run_issue_router_once(
@@ -4531,6 +4571,16 @@ fn execute_router_adapter(
     external_renewer: Option<&RouterLeaseRenewalGuard>,
 ) -> Result<RouterAgentResult, KanbusError> {
     let worktree = create_router_worktree(root, issue_id, claim, checkpoint.as_ref())?;
+    append_router_event(
+        project_dir,
+        &format!("router:{issue_id}"),
+        EventType::RouterConversation,
+        json!({
+            "action":"started", "provider":"codex", "lifecycle":"in_progress",
+            "claim_id":claim.claim_id, "revision":claim.revision,
+            "worktree":worktree, "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+        }),
+    )?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
     let prompt = format!(
         "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure.",
@@ -4636,7 +4686,19 @@ fn execute_router_adapter(
             let stderr = stderr_reader
                 .and_then(|reader| reader.join().ok())
                 .unwrap_or_default();
-            let _ = stderr;
+            let session_id = codex_session_id(&stdout);
+            append_router_event(
+                project_dir,
+                &format!("router:{issue_id}"),
+                EventType::RouterConversation,
+                json!({
+                    "action":"agent_turn", "provider":"codex", "lifecycle":"review",
+                    "claim_id":claim.claim_id, "revision":claim.revision,
+                    "session_id":session_id, "worktree":worktree,
+                    "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+                    "log":redact_router_log(&format!("{stdout}\n{stderr}")),
+                }),
+            )?;
             if !status.success() {
                 return Err(KanbusError::IssueOperation(
                     "Codex router adapter failed".to_string(),
@@ -4667,6 +4729,46 @@ fn execute_router_adapter(
         )));
     }
     Ok(result)
+}
+
+fn codex_session_id(stdout: &str) -> Option<String> {
+    for line in stdout.lines() {
+        let Ok(value) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        for candidate in [
+            value.get("thread_id"),
+            value.get("session_id"),
+            value.get("conversation_id"),
+            value.pointer("/item/thread_id"),
+            value.pointer("/item/session_id"),
+            value.pointer("/payload/thread_id"),
+            value.pointer("/payload/session_id"),
+        ] {
+            if let Some(id) = candidate
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+            {
+                return Some(id.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn redact_router_log(value: &str) -> String {
+    // Keep review evidence in Git without copying likely bearer or OpenAI keys.
+    value
+        .split_whitespace()
+        .map(|word| {
+            if word.starts_with("sk-") && word.len() > 12 {
+                "[REDACTED]"
+            } else {
+                word
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
@@ -7966,6 +8068,16 @@ mod tests {
                 "/api/coordination/leases/router%3Acapacity%3Aproject%3A0",
                 "/api/coordination/leases/router%3Aissue%3Akbs-cleanup",
             ]
+        );
+    }
+
+    #[test]
+    fn conversation_helpers_extract_a_session_and_redact_key_material() {
+        let output = "{\"type\":\"thread.started\",\"thread_id\":\"session-123\"}\n";
+        assert_eq!(codex_session_id(output).as_deref(), Some("session-123"));
+        assert_eq!(
+            redact_router_log("token sk-abcdefghijklmnop"),
+            "token [REDACTED]"
         );
     }
 }

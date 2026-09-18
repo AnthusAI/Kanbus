@@ -1,0 +1,28 @@
+{
+  "id": "kbs-e57e3be7-9872-46f0-8687-d8bbb9db2a45",
+  "title": "Durable router conversation state and recovery",
+  "description": "Add provider-neutral conversation records, immutable event persistence, recovery for orphaned sessions, and Python/Rust parity. Preserve session IDs, worktree/branch, ordered messages, log references, and lifecycle transitions.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T21:53:45.760392Z",
+  "updated_at": "2026-09-18T21:54:14.238374Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "transparent-delegation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
