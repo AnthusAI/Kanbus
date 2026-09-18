@@ -937,6 +937,11 @@ def _encode_router_event(
         else:
             value["action"] = "observed"
         return "router.attempt", value
+    if event_type == "router_conversation":
+        # Conversation records are append-only evidence.  Do not fold them
+        # into a router result: a malformed result must never erase an agent
+        # turn, question, command summary, or diagnostic.
+        return "router.conversation", value
     if event_type in {"router_completed", "router_blocked", "router_retry_exhausted"}:
         value["outcome"] = (
             "completed" if event_type == "router_completed" else "blocked"
