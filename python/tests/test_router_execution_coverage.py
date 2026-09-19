@@ -2650,7 +2650,9 @@ def test_completed_turn_publication_failure_is_preserved_for_review(
     events = []
     transitions = []
     publications = []
-    monkeypatch.setattr(router_execution, "_assert_claim_fence", lambda *_a, **_kw: None)
+    monkeypatch.setattr(
+        router_execution, "_assert_claim_fence", lambda *_a, **_kw: None
+    )
     monkeypatch.setattr(
         router_execution,
         "add_issue_comment",
@@ -2664,7 +2666,9 @@ def test_completed_turn_publication_failure_is_preserved_for_review(
     monkeypatch.setattr(
         router_execution,
         "_transition_package",
-        lambda _ctx, issue_id, status, **_kwargs: transitions.append((issue_id, status)),
+        lambda _ctx, issue_id, status, **_kwargs: transitions.append(
+            (issue_id, status)
+        ),
     )
     monkeypatch.setattr(
         router_execution,
