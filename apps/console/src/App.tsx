@@ -705,7 +705,9 @@ export default function App() {
     if (snapshotFallbackRequestRef.current) {
       return snapshotFallbackRequestRef.current;
     }
-    const request = fetchSnapshot(apiBase)
+    // This path is used when realtime delivery is unavailable. Rebuild the
+    // backend snapshot from its Git checkout instead of reading stale memory.
+    const request = fetchSnapshot(apiBase, { refresh: true })
       .then((data) => {
         lastSnapshotSuccessAtRef.current = Date.now();
         snapshotRef.current = data;
