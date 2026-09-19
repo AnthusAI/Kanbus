@@ -12,9 +12,17 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ac773844-22d7-4660-be0d-71a4ee6b2d69",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent run recovered\n\nThe Issue Router recovered preserved agent evidence without starting a replacement session.\n\n- Provider: `codex`\n- Lifecycle: `review`\n- Branch: `codex/router/kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac/r1`\n- Session: `01a0ba35-440c-7711-9d05-f3c1b7a0a9c1`\n- Worktree: `/var/folders/h8/bff490w93nl9c87021k92f0m0000gp/T/kanbus-router-worktrees/kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac-2947fa6f-c2a0-4cae-91fe-9e48ef1c4e65`",
+      "created_at": "2026-09-19T17:23:11.334442Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:25:19.741701Z",
-  "updated_at": "2026-09-19T15:33:04.486024Z",
+  "updated_at": "2026-09-19T17:23:11.334518Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
