@@ -5105,8 +5105,18 @@ fn execute_router_adapter(
     );
     let opencode = profile.adapter == "opencode";
     let adapter_name = if opencode { "OpenCode" } else { "Codex" };
+    // Concurrent OpenCode processes share one SQLite session database and fail
+    // with "database is locked", so each run gets a private data directory.
+    let data_home = if opencode && !profile.env.contains_key("XDG_DATA_HOME") {
+        Some(isolated_opencode_data_home()?)
+    } else {
+        None
+    };
     let mut command = Command::new(profile.resolved_command());
     command.args(&profile.args);
+    if let Some(data_home) = &data_home {
+        command.env("XDG_DATA_HOME", data_home.path());
+    }
     if opencode {
         command.arg("run").arg("--format").arg("json");
     } else {
@@ -5274,7 +5284,28 @@ fn execute_router_adapter(
     Ok(result)
 }
 
-const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Leave issue_updates empty: the router moves finished packages to review itself and rejects agent status changes such as closing an issue. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+
+/// Create a private OpenCode data dir, copying `auth.json` so other providers work.
+fn isolated_opencode_data_home() -> Result<tempfile::TempDir, KanbusError> {
+    let directory = tempfile::Builder::new()
+        .prefix("kanbus-opencode-")
+        .tempdir()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let shared = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local").join("share"))
+        });
+    if let Some(auth) = shared.map(|base| base.join("opencode").join("auth.json")) {
+        if auth.is_file() {
+            let target = directory.path().join("opencode");
+            fs::create_dir_all(&target).map_err(|error| KanbusError::Io(error.to_string()))?;
+            let _ = fs::copy(&auth, target.join("auth.json"));
+        }
+    }
+    Ok(directory)
+}
 
 /// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
 ///

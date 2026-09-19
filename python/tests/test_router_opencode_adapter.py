@@ -124,3 +124,11 @@ def test_service_tier_validation():
         RouterAgentProfile(adapter="codex", model="a/b", service_tier="flex")
     with pytest.raises(ValueError, match="provider/model"):
         RouterAgentProfile(adapter="opencode", model="b", service_tier="flex")
+
+
+def test_each_run_gets_a_private_data_home_that_is_cleaned_up(monkeypatch, tmp_path):
+    adapter, _, calls = _run(monkeypatch, tmp_path, _events(json.dumps(RESULT)))
+    data_home = calls[0][1]["env"]["XDG_DATA_HOME"]
+    assert "kanbus-opencode-" in data_home
+    assert not __import__("pathlib").Path(data_home).exists()
+    assert adapter._data_home is None
