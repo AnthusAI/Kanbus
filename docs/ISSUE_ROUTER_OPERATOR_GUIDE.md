@@ -151,6 +151,7 @@ router:
       adapter: opencode
       model: amazon-bedrock/openai.gpt-oss-20b-1:0
       env: {AWS_REGION: us-east-1, AWS_PROFILE: my-profile}
+      service_tier: flex   # optional: flex (about half price, slower), priority, default
   classes:
     implementation: {providers: [gpt-oss-bedrock]}
 ```
@@ -160,6 +161,15 @@ Requirements: the `opencode` CLI on `PATH`, AWS credentials with
 runs `opencode run --format json` with stdin closed and `PWD` set to the worktree
 (OpenCode otherwise waits on stdin and uses a stale `PWD` as its project root).
 The result JSON is taken from the last matching object in the model's text.
+
+`service_tier` is sent to Bedrock through OpenCode's per-model `serviceTier` option
+(provider-level options are ignored by OpenCode). It requires `adapter: opencode`
+and a `provider/model` model, and the model must support the tier. Confirm requests
+resolved to it in CloudWatch (`AWS/Bedrock`, dimension `ResolvedServiceTier`).
+
+Concurrency note: parallel OpenCode processes share one local session database and
+occasionally fail with `database is locked`; the router reports that as an adapter
+failure and retries under its normal retry policy.
 
 Reliability note: `openai.gpt-oss-20b-1:0` is a weak agent. In live trials it
 sometimes ended without a result, emitted malformed tool calls, or returned issue

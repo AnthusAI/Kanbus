@@ -1985,6 +1985,19 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
                 "router.providers.{profile}.adapter must be codex or opencode"
             ));
         }
+        if let Some(tier) = &provider.service_tier {
+            if !["flex", "priority", "default"].contains(&tier.as_str()) {
+                errors.push(format!(
+                    "router.providers.{profile}.service_tier must be flex, priority or default"
+                ));
+            } else if provider.adapter != "opencode"
+                || !provider.model.as_deref().is_some_and(|m| m.contains('/'))
+            {
+                errors.push(format!(
+                    "router.providers.{profile}.service_tier requires adapter opencode and a provider/model model"
+                ));
+            }
+        }
         if provider.resolved_command().trim().is_empty() {
             errors.push(format!(
                 "router.providers.{profile}.command must not be empty"
@@ -5113,6 +5126,7 @@ fn execute_router_adapter(
         })
         .envs(&profile.env)
         .envs(opencode.then(|| ("PWD", worktree.clone())))
+        .envs(opencode_config_content(profile).map(|content| ("OPENCODE_CONFIG_CONTENT", content)))
         .stdin(if opencode {
             Stdio::null()
         } else {
@@ -5260,7 +5274,27 @@ fn execute_router_adapter(
     Ok(result)
 }
 
-const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+
+/// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
+///
+/// OpenCode only honours `serviceTier` in per-model options; provider-level
+/// options are silently ignored (verified against Bedrock's ResolvedServiceTier).
+fn opencode_config_content(
+    profile: &crate::models::IssueRouterProviderConfiguration,
+) -> Option<String> {
+    let tier = profile.service_tier.as_ref()?;
+    let (provider, model_id) = profile.model.as_deref()?.split_once('/')?;
+    let mut config = profile
+        .env
+        .get("OPENCODE_CONFIG_CONTENT")
+        .or(std::env::var("OPENCODE_CONFIG_CONTENT").ok().as_ref())
+        .and_then(|text| serde_json::from_str::<Value>(text).ok())
+        .filter(Value::is_object)
+        .unwrap_or_else(|| json!({}));
+    config["provider"][provider]["models"][model_id]["options"]["serviceTier"] = json!(tier);
+    Some(config.to_string())
+}
 
 fn adapter_session_id(opencode: bool, stdout: &str) -> Option<String> {
     if !opencode {
@@ -7244,6 +7278,7 @@ mod tests {
                     args: Vec::new(),
                     model: None,
                     env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),
@@ -8271,6 +8306,7 @@ mod tests {
                     args: Vec::new(),
                     model: None,
                     env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::from([(
@@ -8969,6 +9005,7 @@ mod tests {
                     args: Vec::new(),
                     model: None,
                     env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),

@@ -456,6 +456,9 @@ pub struct IssueRouterProviderConfiguration {
     /// Environment variables merged over the parent environment for the adapter.
     #[serde(default)]
     pub env: BTreeMap<String, String>,
+    /// Bedrock service tier (`flex`, `priority`, `default`) for OpenCode profiles.
+    #[serde(default)]
+    pub service_tier: Option<String>,
 }
 
 impl IssueRouterProviderConfiguration {
