@@ -382,20 +382,36 @@ fn configured_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
         })
 }
 
-fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
+/// Resolve the enclosing Git repository root for an Issue Router command.
+///
+/// Router commands establish this boundary before loading Kanbus
+/// configuration or shared state, so a caller may safely start from any
+/// repository subdirectory.
+pub fn resolve_router_root(path: &Path) -> Result<PathBuf, KanbusError> {
     let mut command = router_git_command();
     command
         .args(["rev-parse", "--show-toplevel"])
         .current_dir(path);
-    let output = router_git_output(command)?;
+    let output = router_git_output(command).map_err(|_| {
+        KanbusError::IssueOperation("issue router requires a Git repository".to_string())
+    })?;
     if !output.status.success() {
         return Err(KanbusError::IssueOperation(
             "issue router requires a Git repository".to_string(),
         ));
     }
-    Ok(PathBuf::from(
-        String::from_utf8_lossy(&output.stdout).trim(),
-    ))
+    let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if root.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "issue router requires a Git repository".to_string(),
+        ));
+    }
+    let root = PathBuf::from(root);
+    Ok(root.canonicalize().unwrap_or(root))
+}
+
+fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
+    resolve_router_root(path)
 }
 
 /// Construct Git commands used by coordination without allowing an invisible
@@ -5035,12 +5051,50 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
             KanbusError::IssueOperation("Codex router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(value).map_err(|_| {
+            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
                 KanbusError::IssueOperation(
                     "Codex router adapter returned invalid result".to_string(),
                 )
             })
         })
+}
+
+/// Normalize advisory artifact metadata without relaxing the result contract.
+///
+/// A completed agent turn may include a local `path` plus descriptive or
+/// verification fields rather than the router's canonical named reference.
+/// Artifacts do not authorize issue mutation, so retain canonical entries,
+/// translate the known path form, and drop only entries that cannot be safely
+/// represented. The rest of the result is still deserialized strictly.
+fn normalize_router_artifacts(mut value: Value) -> Value {
+    let Some(object) = value.as_object_mut() else {
+        return value;
+    };
+    let Some(artifacts) = object.get("artifacts") else {
+        return value;
+    };
+    let normalized = artifacts
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(normalize_router_artifact)
+        .collect::<Vec<_>>();
+    object.insert("artifacts".to_string(), Value::Array(normalized));
+    value
+}
+
+fn normalize_router_artifact(item: &Value) -> Option<Value> {
+    let object = item.as_object()?;
+    let name = object.get("name").and_then(Value::as_str);
+    let reference = object.get("ref").and_then(Value::as_str);
+    if let (Some(name), Some(reference)) = (name, reference) {
+        if !name.trim().is_empty() && !reference.trim().is_empty() {
+            return Some(json!({"name": name, "ref": reference}));
+        }
+    }
+    let path = object.get("path").and_then(Value::as_str)?.trim();
+    let name = Path::new(path).file_name()?.to_str()?.trim();
+    (!name.is_empty()).then(|| json!({"name": name, "ref": path}))
 }
 
 fn push_codex_result_text(text: &str, candidates: &mut Vec<Value>) {
@@ -6906,6 +6960,40 @@ mod tests {
         String::from_utf8_lossy(&output.stdout).trim().to_string()
     }
 
+    #[test]
+    fn router_root_resolves_from_a_repository_subdirectory() {
+        let temp = tempfile::tempdir().expect("router root temp dir");
+        let root = temp.path().join("checkout");
+        std::fs::create_dir_all(root.join("rust").join("src")).expect("create nested path");
+        let initialized = Command::new("git")
+            .args(["init", "--initial-branch=main"])
+            .current_dir(&root)
+            .output()
+            .expect("initialize Git repository");
+        assert!(initialized.status.success());
+
+        let resolved = resolve_router_root(&root.join("rust").join("src"))
+            .expect("resolve enclosing Git root");
+
+        assert_eq!(
+            resolved,
+            root.canonicalize().expect("canonicalize fixture root")
+        );
+    }
+
+    #[test]
+    fn router_root_rejects_non_git_directories_with_actionable_diagnostic() {
+        let temp = tempfile::tempdir().expect("router root temp dir");
+
+        let error = resolve_router_root(temp.path()).expect_err("non-Git path must fail");
+
+        assert!(matches!(
+            error,
+            KanbusError::IssueOperation(message)
+                if message == "issue router requires a Git repository"
+        ));
+    }
+
     fn git_remote_fixture() -> (tempfile::TempDir, PathBuf, PathBuf, String) {
         let temp = tempfile::tempdir().expect("Git fixture temp dir");
         let root = temp.path().join("checkout");
@@ -7854,6 +7942,51 @@ mod tests {
                 .outcome,
             "completed"
         );
+    }
+
+    #[test]
+    fn normalizes_optional_artifacts_without_discarding_a_completed_turn() {
+        let output = json!({
+            "schema_version": 1,
+            "outcome": "completed",
+            "summary": "completed with evidence",
+            "issue_updates": [],
+            "issue_comments": [{"issue_id": "kbs-701", "text": "Review evidence is ready."}],
+            "checkpoint": null,
+            "artifacts": [
+                {"name": "report", "ref": "refs/reports/r1"},
+                {
+                    "path": "artifacts/verification/report.json",
+                    "description": "Verification report",
+                    "verification": {"command": "pytest"}
+                },
+                {"description": "No usable reference"}
+            ]
+        });
+
+        let envelope = json!({
+            "type": "item.completed",
+            "item": {"type": "AgentMessage", "text": output.to_string()}
+        });
+        let result = parse_router_result(&envelope.to_string())
+            .expect("optional artifact metadata must not reject a valid result");
+        assert_eq!(result.outcome, "completed");
+        assert_eq!(result.summary, "completed with evidence");
+        assert_eq!(result.issue_comments.len(), 1);
+        assert_eq!(result.artifacts.len(), 2);
+        assert_eq!(result.artifacts[0].name, "report");
+        assert_eq!(result.artifacts[0].reference, "refs/reports/r1");
+        assert_eq!(result.artifacts[1].name, "report.json");
+        assert_eq!(
+            result.artifacts[1].reference,
+            "artifacts/verification/report.json"
+        );
+        assert!(parse_router_result(
+            r#"{"schema_version":1,"outcome":"completed","artifacts":"invalid"}"#
+        )
+        .expect("a malformed optional artifact list is omitted")
+        .artifacts
+        .is_empty());
     }
 
     #[test]

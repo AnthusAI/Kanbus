@@ -313,3 +313,50 @@ def test_adapter_result_parser_selects_last_jsonl_payload_and_validates_schema()
         _parse_result({"schema_version": 1, "outcome": "future"})
     with pytest.raises(IssueRouterError, match="invalid result"):
         _parse_result({"schema_version": 1, "outcome": "completed", "extra": True})
+
+
+def test_adapter_result_parser_normalizes_optional_artifacts_without_relaxing_result_schema():
+    result_payload = {
+        "schema_version": 1,
+        "outcome": "completed",
+        "summary": "completed with evidence",
+        "issue_updates": [],
+        "issue_comments": [{"issue_id": "kbs-1", "text": "Review evidence is ready."}],
+        "checkpoint": None,
+        "artifacts": [
+            {"name": "report", "ref": "refs/reports/r1"},
+            {
+                "path": "artifacts/verification/report.json",
+                "description": "Verification report",
+                "verification": {"command": "pytest"},
+            },
+            {"description": "No usable reference"},
+        ],
+    }
+    result = _parse_result(
+        _find_result_payload(
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {
+                        "type": "AgentMessage",
+                        "text": json.dumps(result_payload),
+                    },
+                }
+            )
+        )
+    )
+
+    assert result.outcome == "completed"
+    assert result.summary == "completed with evidence"
+    assert result.issue_comments[0].text == "Review evidence is ready."
+    assert [(artifact.name, artifact.ref) for artifact in result.artifacts] == [
+        ("report", "refs/reports/r1"),
+        ("report.json", "artifacts/verification/report.json"),
+    ]
+    assert (
+        _parse_result(
+            {"schema_version": 1, "outcome": "completed", "artifacts": "invalid"}
+        ).artifacts
+        == []
+    )
