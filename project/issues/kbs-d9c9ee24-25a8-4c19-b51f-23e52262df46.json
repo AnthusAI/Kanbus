@@ -3,7 +3,7 @@
   "title": "Remove empty Todo (Legacy) board state",
   "description": "The live Kanbus board still renders an empty `Todo (Legacy)` column. No project issue currently uses the `todo` status. Remove only the unused `todo` status definition and its workflow/transition-label references from the project configuration and the matching console board fixture. Preserve active statuses and semantic categories. Add or update focused validation as needed. Do not migrate issues because the column count is zero. Leave the completed work in Review with a visible summary and test evidence; do not merge or close it.",
   "type": "story",
-  "status": "open",
+  "status": "review",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,11 +12,22 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "5aa826e4-afeb-4797-941e-9af60cbe9ade",
+      "author": "home",
+      "text": "Router recovery: the value worker completed the configuration cleanup, but its use of the required `kbs commit` workflow caused the launcher to stop before publishing the normal result. The durable conversation record preserves the raw turn. Recovered result: removed the unused `todo` status, its workflow transitions, and transition labels from `.kanbus.yml` and `apps/console/tests/fixtures/kanbus.board-columns.yml`; YAML validation passed and both files retain seven active statuses with no `todo` references. Full board validation encountered unrelated pre-existing issue-data integrity errors. A clean review branch is being prepared from the preserved patch.",
+      "created_at": "2026-09-19T23:31:03.045667Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T19:12:07.643287Z",
-  "updated_at": "2026-09-19T19:12:07.712490Z",
+  "updated_at": "2026-09-19T23:31:12.737765Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
