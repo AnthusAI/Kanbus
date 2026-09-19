@@ -1,7 +1,7 @@
 {
   "id": "kbs-894b0cac-fc4a-475f-a333-06bdc24cff72",
-  "title": "Reconcile orphaned merged router PRs into Review",
-  "description": "## Problem\n\nA real router task (`kbs-683397b0-e23e-46d3-ae9b-01ab9d687833`) has a merged router-created PR (#294), but lacks durable conversation state because it predates conversation capture. `kbs router recover` reports no recoverable run; `kbs router plan` then offers it again, and `kbs router run --once` exits without a visible issue transition or diagnostic.\n\n## Required behavior\n\nBefore scheduling an Open routed issue, reconcile any router-named draft or merged PR for that issue. A merged PR must be surfaced on the issue with its branch and PR evidence and moved to the configured Review state. It must never be dispatched again. If reconciliation cannot determine a safe state, add an exact visible system diagnostic and move the issue to Blocked.\n\n## Acceptance criteria\n\n- Python and Rust planner/executor parity recognizes an orphaned merged `codex/router/<issue>/rN` PR.\n- The issue moves to Review, preserves PR/branch evidence, and is absent from future eligible plans.\n- An ambiguous or unreachable forge result produces a visible Blocked diagnostic; no silent exit.\n- Tests cover the actual `kbs-683397` recovery shape using a fake forge and no MQTT dependency.\n- Do not automatically close any issue.",
+  "title": "Make router invocation from a repository subdirectory safe",
+  "description": "## Problem\n\nA real operator test invoked kbs router run --once from the repository rust subdirectory. The CLI found configuration relative to that subdirectory and failed only after attempting shared-router publication: shared router state requires project_directory inside the repository. No agent session, issue transition, or visible diagnostic was recorded.\n\n## Required behavior\n\nkbs router must resolve the enclosing Git repository root before loading Kanbus configuration and router state, so an invocation from any repository subdirectory behaves exactly like one from the root. If the repository cannot be resolved, fail before claiming or launching with a clear user-facing diagnostic.\n\n## Acceptance criteria\n\n- Python and Rust router commands invoked from a repository subdirectory use the enclosing root configuration and project directory.\n- plan, run --once, and status remain equivalent to root invocation; no duplicated worktrees or claims.\n- An invocation outside a repository fails early with an exact actionable message.\n- Tests cover the subdirectory invocation path and preserve Git-only coordination.\n- A successful routed agent run ends in Review and never terminally closes the issue.",
   "type": "story",
   "status": "open",
   "priority": 2,
@@ -12,11 +12,22 @@
     "agent-class:implementation"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7ade9e03-c471-48b9-9063-7cb920f8d8ec",
+      "author": "home",
+      "text": "Correction from the live test: the earlier orphaned-PR hypothesis was wrong. The run was launched from rust/, causing the router to resolve project_directory against the wrong root. This story now tracks the actual subdirectory-invocation hardening required for a smooth operator workflow.",
+      "created_at": "2026-09-19T11:58:41.134945Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T11:52:21.304932Z",
-  "updated_at": "2026-09-19T11:52:21.377317Z",
+  "updated_at": "2026-09-19T11:58:41.134993Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
