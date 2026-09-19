@@ -835,6 +835,22 @@ def test_transition_package_noop_unknown_and_update_failure(monkeypatch, tmp_pat
         )
 
 
+def test_router_transition_path_uses_configured_intermediate_status():
+    configuration = SimpleNamespace(
+        workflows={
+            "default": {
+                "open": ["in_progress"],
+                "in_progress": ["review"],
+                "review": [],
+            }
+        }
+    )
+
+    assert router_execution._workflow_transition_path(
+        configuration, "task", "open", "review"
+    ) == ["in_progress", "review"]
+
+
 def test_run_once_scheduler_branches_and_hard_initial_renewal(monkeypatch, tmp_path):
     ctx = context(tmp_path)
     scheduler = _ClaimHandle("git", "router:scheduler", "owner", "scheduler", None)

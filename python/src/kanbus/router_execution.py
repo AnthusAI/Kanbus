@@ -11,6 +11,7 @@ import signal
 import subprocess
 import threading
 import uuid
+from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
@@ -77,6 +78,7 @@ from kanbus.issue_router import (
     write_router_control,
 )
 from kanbus.issue_update import IssueUpdateError, update_issue
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.router_adapters import (
     CodexExecAdapter,
     RouterAdapter,
@@ -1389,27 +1391,70 @@ def _transition_package(
     _assert_claim_fence(
         context, package_id, claim_id, revision, allow_cancel=allow_cancel
     )
-    issue = next(
-        (item for item in context.issues if item.identifier == package_id), None
+    try:
+        # The context is intentionally a planning snapshot.  A router event can
+        # outlive that snapshot (notably after a Git-only refresh), so derive
+        # the transition from the canonical card that is about to be mutated.
+        issue = load_issue_from_project(context.root, package_id).issue
+    except IssueLookupError:
+        # Lightweight callers and focused tests can supply an in-memory
+        # planning context.  Production router contexts always reload above.
+        issue = next(
+            (item for item in context.issues if item.identifier == package_id), None
+        )
+        if issue is None:
+            raise IssueRouterError(f'unknown router package "{package_id}"')
+    steps = _workflow_transition_path(
+        context.configuration, issue.issue_type, issue.status, status
     )
-    if issue is None:
-        raise IssueRouterError(f'unknown router package "{package_id}"')
-    if issue.status == status:
+    if not steps:
         return
     try:
-        update_issue(
-            context.root,
-            package_id,
-            title=None,
-            description=None,
-            status=status,
-            assignee=None,
-            claim=False,
-            regenerate_right_now=False,
-        )
+        for next_status in steps:
+            update_issue(
+                context.root,
+                package_id,
+                title=None,
+                description=None,
+                status=next_status,
+                assignee=None,
+                claim=False,
+                regenerate_right_now=False,
+            )
     except IssueUpdateError as error:
         raise IssueRouterError(str(error)) from error
     publish_router_state(context.root, {package_id})
+
+
+def _workflow_transition_path(
+    configuration,
+    issue_type: str,
+    current_status: str,
+    target_status: str,
+) -> list[str]:
+    """Return the shortest configured route, excluding ``current_status``."""
+    if current_status == target_status:
+        return []
+    workflows = getattr(configuration, "workflows", None)
+    if not isinstance(workflows, dict):
+        return [target_status]
+    workflow = workflows.get(issue_type, workflows.get("default", {}))
+    queue: deque[tuple[str, list[str]]] = deque([(current_status, [])])
+    visited = {current_status}
+    while queue:
+        status, path = queue.popleft()
+        for next_status in workflow.get(status, []):
+            if next_status in visited:
+                continue
+            next_path = [*path, next_status]
+            if next_status == target_status:
+                return next_path
+            visited.add(next_status)
+            queue.append((next_status, next_path))
+    raise IssueRouterError(
+        f"router cannot transition package from {current_status} to {target_status} "
+        "through the configured workflow"
+    )
 
 
 def _schedule_retry(
