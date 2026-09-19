@@ -1,0 +1,25 @@
+{
+  "id": "kbs-4a320b12-8a2a-4a17-b26d-c803179a43de",
+  "title": "Add validated console issue write API for comments and state transitions",
+  "description": "Add authenticated/local console mutation endpoints and client support for normal Kanbus comments and configured status transitions. Reuse canonical Python/Rust validation and event history; enforce workflow transitions, conflict/fencing behavior, and useful errors. Successful writes update the snapshot/realtime path and Git refresh fallback. Do not add arbitrary direct JSON editing.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fc24ca81-f05c-43a8-920f-150061027ba1",
+  "labels": [
+    "agent-class:smart"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-19T14:32:05.250404Z",
+  "updated_at": "2026-09-19T14:32:16.904422Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
