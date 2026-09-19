@@ -679,9 +679,7 @@ def test_router_cli_loads_configuration_from_the_enclosing_repository_root(
         "kanbus.router_cli.load_project_configuration", lambda _path: configuration
     )
     monkeypatch.setattr("kanbus.router_cli.router_state_root", lambda path: path)
-    monkeypatch.setattr(
-        "kanbus.router_cli.load_router_context", lambda _path: context
-    )
+    monkeypatch.setattr("kanbus.router_cli.load_router_context", lambda _path: context)
 
     loaded = _load_context()
 
