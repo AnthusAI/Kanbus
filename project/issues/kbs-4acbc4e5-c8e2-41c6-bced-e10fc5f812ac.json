@@ -12,13 +12,22 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "642c9c6e-ce65-4330-8895-27f53787b47f",
+      "author": "home",
+      "text": "## Router run recovered\n\nThe issue router completed a Codex value-profile run and created draft PR #324: https://github.com/AnthusAI/Kanbus/pull/324\n\n**Worker branch:** `codex/router/kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac/r1`  \n**Worker commit:** `0894153d`\n\n### Submitted change\n\n- Removes the unused `deferred` and `done` legacy status definitions.\n- Removes only the workflow and transition-label entries that referenced those statuses.\n- Updates the corresponding console board fixture.\n- Leaves the active Backlog, Discovery, Ready, In Progress, Review, Blocked, and Done workflow intact.\n\n### Current verification\n\nThe PR is deliberately still a draft for review. Python, Rust, console UI/parity, performance, and installation checks have passed. The later **coverage-ratchet** CI check failed; **binary-smoke** is still running. Please use the PR and those checks as the review evidence.\n\n> Router note: this comment was recovered after the router incorrectly moved the issue to Review without publishing its normal agent summary. That missing publication is a process defect being fixed; no work was discarded.",
+      "created_at": "2026-09-19T15:32:28.833010Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:25:19.741701Z",
-  "updated_at": "2026-09-19T15:12:55.643881Z",
+  "updated_at": "2026-09-19T15:32:28.833056Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
+    "project_label": "kbs",
     "source": "shared"
   }
 }
