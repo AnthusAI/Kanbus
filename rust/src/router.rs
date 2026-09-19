@@ -7367,6 +7367,62 @@ mod tests {
                         .and_then(Value::as_bool)
                         == Some(true)
             }));
+
+        // A preserved run can be surfaced even when no board state transition
+        // is needed; recovery must still add its issue-visible summary.
+        append_router_event(
+            &project_dir,
+            &format!("router:{issue_id}"),
+            EventType::RouterConversation,
+            json!({
+                "action":"agent_turn", "provider":"codex", "lifecycle":"unknown",
+                "claim_id":"claim-recovery", "revision":1,
+                "session_id":"session-954", "branch":"codex/router/kbs-954/r1",
+                "worktree":"/tmp/kbs-954"
+            }),
+        )
+        .expect("append recoverable evidence");
+
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::new(),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        recover_router_package(root, &configuration, &router, &project_dir, issue_id)
+            .expect("recover preserved turn");
+        recover_router_package(root, &configuration, &router, &project_dir, issue_id)
+            .expect("recovery is idempotent");
+
+        let recovered = read_issue_from_file(&issue_path).expect("read recovery comment");
+        assert_eq!(
+            recovered
+                .comments
+                .iter()
+                .filter(|comment| {
+                    comment
+                        .text
+                        .as_deref()
+                        .is_some_and(|text| text.contains("## Agent run recovered"))
+                })
+                .count(),
+            1
+        );
     }
 
     #[test]

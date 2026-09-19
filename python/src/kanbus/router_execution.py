@@ -62,7 +62,7 @@ from kanbus.coordination_runtime import (
 )
 from kanbus.issue_comment import (
     IssueCommentError,
-    add_comment as add_issue_comment,
+    add_comment as _add_issue_comment,
 )
 from kanbus.issue_router import (
     IssueRouterError,
@@ -96,6 +96,18 @@ from kanbus.router_forge import (
     record_github_pull_request_event,
 )
 from kanbus.router_state import publish_router_start_event, publish_router_state
+
+
+def add_issue_comment(root: Path, identifier: str, author: str, text: str):
+    """Publish router evidence without starting unrelated AI summary work."""
+    return _add_issue_comment(
+        root,
+        identifier,
+        author,
+        text,
+        regenerate_right_now=False,
+    )
+
 
 HARD_COORDINATION_ERROR = (
     "hard router coordination requires Mutex API; provider mutex_api is "
