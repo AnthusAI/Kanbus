@@ -55,7 +55,7 @@ def test_isolated_worktree_reuses_router_branch_only_under_managed_root(tmp_path
 
     first = _create_isolated_worktree(context, "kbs-1", "claim-1", 1)
     (first / "router-change.txt").write_text("work\n", encoding="utf-8")
-    _commit_isolated_worktree(first, "kbs-1", 1)
+    _commit_isolated_worktree(first, "project", "kbs-1", 1)
     first_commit = _git(first, "rev-parse", "HEAD")
 
     second = _create_isolated_worktree(context, "kbs-1", "claim-2", 1)
@@ -89,14 +89,32 @@ def test_isolated_checkpoint_noop_and_user_changes_are_committed(tmp_path):
     _initialized_repository(tmp_path)
     initial = _git(tmp_path, "rev-parse", "HEAD")
 
-    _commit_isolated_worktree(tmp_path, "kbs-1", 4)
+    _commit_isolated_worktree(tmp_path, "project", "kbs-1", 4)
     assert _git(tmp_path, "log", "-1", "--format=%s") == "[kbs-1] router checkpoint r4"
     empty_checkpoint = _git(tmp_path, "rev-parse", "HEAD")
     assert _git(tmp_path, "rev-parse", "HEAD^") == initial
 
     (tmp_path / "untracked.txt").write_text("agent output\n", encoding="utf-8")
-    _commit_isolated_worktree(tmp_path, "kbs-1", 4)
+    _commit_isolated_worktree(tmp_path, "project", "kbs-1", 4)
 
     assert _git(tmp_path, "log", "-1", "--format=%s") == "[kbs-1] router checkpoint r4"
     assert _git(tmp_path, "rev-parse", "HEAD^") == empty_checkpoint
     assert _git(tmp_path, "show", "HEAD:untracked.txt") == "agent output"
+
+
+def test_isolated_checkpoint_excludes_ignored_router_events(tmp_path):
+    _initialized_repository(tmp_path)
+    (tmp_path / ".gitignore").write_text("project/events/\n", encoding="utf-8")
+    _git(tmp_path, "add", ".gitignore")
+    _git(tmp_path, "commit", "-m", "ignore router events")
+    (tmp_path / "tracked.txt").write_text("agent change\n", encoding="utf-8")
+    (tmp_path / "new_agent_test.py").write_text("assert True\n", encoding="utf-8")
+    event_path = tmp_path / "project" / "events" / "router.jsonl"
+    event_path.parent.mkdir(parents=True)
+    event_path.write_text("router event\n", encoding="utf-8")
+
+    _commit_isolated_worktree(tmp_path, "project", "kbs-1", 5)
+
+    assert _git(tmp_path, "show", "HEAD:tracked.txt") == "agent change"
+    assert _git(tmp_path, "show", "HEAD:new_agent_test.py") == "assert True"
+    assert _git(tmp_path, "status", "--porcelain") == ""

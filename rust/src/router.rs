@@ -1478,6 +1478,14 @@ fn apply_router_status_overlay(
         };
         if let Some(status) = status {
             issue.status = status.to_string();
+            // The board orders cards by an issue's effective `updated_at`.
+            // Router lifecycle transitions are issue updates even though they
+            // are projected from durable router events instead of rewriting a
+            // user's checkout. Carry the winning event time into the
+            // projection so the card appears at the top of its new column.
+            if let Some(occurred_at) = parse_timestamp(&event.occurred_at) {
+                issue.updated_at = occurred_at;
+            }
         }
     }
     for event in router_events {
@@ -1513,6 +1521,9 @@ fn apply_router_status_overlay(
                 .is_none_or(|transition| transition.occurred_at < event.occurred_at)
             {
                 issue.status = status.to_string();
+                if let Some(occurred_at) = parse_timestamp(&event.occurred_at) {
+                    issue.updated_at = occurred_at;
+                }
             }
         }
     }
@@ -6011,18 +6022,7 @@ fn publish_router_branch(
     revision: u64,
 ) -> Result<PublishedRouterRef, KanbusError> {
     let project_relative = configured_project_directory(root)?;
-    let excluded_issues = format!(":(exclude){}/issues", project_relative.display());
-    let excluded_events = format!(":(exclude){}/events", project_relative.display());
-    let add = Command::new("git")
-        .args(["add", "-A", "--", ".", &excluded_issues, &excluded_events])
-        .current_dir(worktree)
-        .status()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-    if !add.success() {
-        return Err(KanbusError::IssueOperation(
-            "could not stage router checkpoint".to_string(),
-        ));
-    }
+    stage_router_checkpoint(worktree, &project_relative)?;
     let commit = Command::new("git")
         .args([
             "-c",
@@ -6104,6 +6104,65 @@ fn publish_router_branch(
         previous_local_sha: None,
         remote_published,
     })
+}
+
+/// Stage only agent-owned source changes for an isolated router checkpoint.
+///
+/// Shared project events are intentionally Git-ignored in normal Kanbus
+/// checkouts. `git add -A` treats an ignored path as a fatal error even when an
+/// exclusion pathspec accompanies it, which could strand an otherwise complete
+/// agent turn. Stage tracked edits separately, then add only nonignored,
+/// non-project untracked paths.
+fn stage_router_checkpoint(worktree: &Path, project_relative: &Path) -> Result<(), KanbusError> {
+    let tracked = Command::new("git")
+        .args(["add", "-u", "--", "."])
+        .current_dir(worktree)
+        .status()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !tracked.success() {
+        return Err(KanbusError::IssueOperation(
+            "could not stage router checkpoint".to_string(),
+        ));
+    }
+    let untracked = Command::new("git")
+        .args([
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            ".",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !untracked.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "could not stage router checkpoint".to_string(),
+        ));
+    }
+    let paths = untracked
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| PathBuf::from(String::from_utf8_lossy(path).into_owned()))
+        .filter(|path| !path.starts_with(project_relative))
+        .collect::<Vec<_>>();
+    if !paths.is_empty() {
+        let add = Command::new("git")
+            .arg("add")
+            .arg("--")
+            .args(paths)
+            .current_dir(worktree)
+            .status()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if !add.success() {
+            return Err(KanbusError::IssueOperation(
+                "could not stage router checkpoint".to_string(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn push_router_branch_with_fence(
@@ -7052,6 +7111,12 @@ mod tests {
         apply_router_status_overlay(&mut issues, &[started.clone(), review], &router, &[]);
 
         assert_eq!(issues[0].status, "review");
+        assert_eq!(
+            issues[0].updated_at,
+            DateTime::parse_from_rfc3339("2026-09-18T23:01:00Z")
+                .expect("valid timestamp")
+                .with_timezone(&Utc)
+        );
 
         issues[0].updated_at = DateTime::parse_from_rfc3339("2026-09-18T23:02:00Z")
             .expect("valid timestamp")
@@ -7080,6 +7145,37 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn checkpoint_staging_excludes_ignored_router_events() {
+        let temp = tempfile::tempdir().expect("checkpoint staging temp dir");
+        let root = temp.path();
+        git_success(root, &["init", "--initial-branch=main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(root, &["config", "user.email", "router@example.invalid"]);
+        fs::write(root.join(".gitignore"), "project/events/\n").expect("write ignore");
+        fs::write(root.join("tracked.rs"), "fn original() {}\n").expect("write source");
+        git_success(root, &["add", ".gitignore", "tracked.rs"]);
+        git_success(root, &["commit", "-m", "initial"]);
+
+        fs::write(root.join("tracked.rs"), "fn changed() {}\n").expect("edit source");
+        fs::write(root.join("new_agent_test.rs"), "#[test] fn works() {}\n")
+            .expect("write agent test");
+        let event_dir = root.join("project/events");
+        fs::create_dir_all(&event_dir).expect("create event directory");
+        fs::write(event_dir.join("router.jsonl"), "event\n").expect("write event");
+
+        stage_router_checkpoint(root, Path::new("project")).expect("stage checkpoint");
+
+        assert_eq!(
+            git_success(root, &["diff", "--cached", "--name-only"]),
+            "new_agent_test.rs\ntracked.rs"
+        );
+        assert_eq!(
+            git_success(root, &["status", "--porcelain"]),
+            "A  new_agent_test.rs\nM  tracked.rs"
+        );
     }
 
     #[test]
