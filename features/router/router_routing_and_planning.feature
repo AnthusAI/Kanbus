@@ -99,7 +99,7 @@ Feature: Deterministic Issue Router planning
     When I run "kanbus router plan --json"
     Then eligible package order should be "kbs-150, kbs-151, kbs-152"
 
-  Scenario: Project WIP includes human-owned active, review, and blocked issues
+  Scenario: Human-owned active, review, and blocked issues do not consume router WIP
     Given project WIP limit is 3
     And project issues in router WIP statuses are:
       | issue_id | status      | assignee          |
@@ -108,7 +108,7 @@ Feature: Deterministic Issue Router planning
       | kbs-162  | blocked     |                 |
     And pending issue "kbs-163" has routing label "agent-provider:codex-default"
     When I run "kanbus router plan --json"
-    Then issue "kbs-163" should be deferred with reason "project_wip_limit"
+    Then issue "kbs-163" should be eligible with provider profile "codex-default"
 
   Scenario Outline: Each WIP limit has a stable deferral reason
     Given pending issue "kbs-170" has routing label "<route>"

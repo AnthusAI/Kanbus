@@ -170,20 +170,16 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
             candidate.issue.identifier,
         )
     )
-    current_wip = sum(
-        issue.status
-        in {
-            context.router.workflow.active,
-            context.router.workflow.review,
-            context.router.workflow.blocked,
-        }
-        for issue in context.issues
-    )
-    current_review = sum(
-        issue.status == context.router.workflow.review for issue in context.issues
-    )
     active_counts, class_counts, provider_counts = _current_route_counts(
         context, issues_by_id, events
+    )
+    # Human-managed board work must not consume the router's worker capacity.
+    current_wip = sum(active_counts.values())
+    current_review = sum(
+        issue.status == context.router.workflow.review
+        and _route_error(context.router, issue) is None
+        and _has_preserved_review_conversation(events, issue.identifier)
+        for issue in context.issues
     )
     eligible: list[RouterPlanEligiblePackage] = []
     deferred: list[RouterPlanDeferredPackage] = []
@@ -857,6 +853,19 @@ def _latest_router_event(
     )
 
 
+def _has_preserved_review_conversation(
+    events: list[dict[str, Any]], issue_id: str
+) -> bool:
+    """Return whether a review slot has visible, durable agent evidence."""
+    conversation = _latest_router_event(events, issue_id, "router_conversation")
+    if conversation is None:
+        conversation = _latest_router_event(events, issue_id, "router.conversation")
+    return (
+        conversation is not None
+        and conversation.get("payload", {}).get("lifecycle") == "review"
+    )
+
+
 def _read_events(events_dir: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     if not events_dir.is_dir():
@@ -937,6 +946,11 @@ def _encode_router_event(
         else:
             value["action"] = "observed"
         return "router.attempt", value
+    if event_type == "router_conversation":
+        # Conversation records are append-only evidence.  Do not fold them
+        # into a router result: a malformed result must never erase an agent
+        # turn, question, command summary, or diagnostic.
+        return "router.conversation", value
     if event_type in {"router_completed", "router_blocked", "router_retry_exhausted"}:
         value["outcome"] = (
             "completed" if event_type == "router_completed" else "blocked"
