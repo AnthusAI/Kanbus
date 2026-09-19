@@ -764,6 +764,29 @@ def recover_router_package(context: RouterContext, issue_id: str) -> dict[str, s
     session = payload.get("session_id")
     if isinstance(session, str) and session:
         result["session_id"] = session
+    recovery_comment = (
+        "## Agent run recovered\n\n"
+        "The Issue Router recovered preserved agent evidence without starting a "
+        "replacement session.\n\n"
+        f"- Provider: `{result['provider']}`\n"
+        f"- Lifecycle: `{result['lifecycle']}`\n"
+        f"- Branch: `{result['branch'] or 'unknown'}`\n"
+        f"- Session: `{result.get('session_id', 'unknown')}`\n"
+        f"- Worktree: `{result['worktree'] or 'unknown'}`"
+    )
+    recovered_before = any(
+        event.get("payload", {}).get("action") == "recovered"
+        and event.get("payload", {}).get("claim_id") == payload.get("claim_id")
+        and event.get("payload", {}).get("revision") == payload.get("revision")
+        for event in read_router_events(context.project_dir, package_id)
+    )
+    if not recovered_before:
+        add_issue_comment(
+            getattr(context, "source_root", None) or context.root,
+            package_id,
+            "Kanbus Issue Router",
+            recovery_comment,
+        )
     record_conversation(
         context.project_dir,
         package_id,
