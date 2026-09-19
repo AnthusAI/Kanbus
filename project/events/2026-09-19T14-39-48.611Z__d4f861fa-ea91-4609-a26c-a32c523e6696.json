@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "d4f861fa-ea91-4609-a26c-a32c523e6696",
+  "issue_id": "router:capacity:class:smart:0",
+  "event_type": "coordination.renew",
+  "occurred_at": "2026-09-19T14:39:48.611Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "78540121-2966-4734-b8c8-12eabee32899",
+    "lease_expires_at": "2026-09-19T14:44:46.788Z",
+    "operation_sequence": 16
+  }
+}
