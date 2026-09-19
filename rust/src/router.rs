@@ -1352,7 +1352,14 @@ fn apply_router_status_overlay(
             continue;
         }
         let status = match &event.event_type {
-            EventType::RouterAttempt if payload_text(event, "action") == Some("started") => {
+            EventType::RouterAttempt
+                if matches!(
+                    payload_text(event, "action"),
+                    Some("started" | "retryable_failure")
+                ) =>
+            {
+                // A retry is not a terminal agent decision: the package stays
+                // active while the backoff clock prevents another start.
                 Some(router.workflow.active.as_str())
             }
             EventType::RouterResult => match payload_text(event, "outcome") {
@@ -4882,15 +4889,7 @@ fn execute_router_adapter(
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = match parse_router_result(&output) {
-        Ok(result) => result,
-        Err(KanbusError::IssueOperation(message))
-            if message == "Codex router adapter returned invalid JSON" =>
-        {
-            invalid_json_retryable_result(message)
-        }
-        Err(error) => return Err(error),
-    };
+    let result = parse_router_result(&output)?;
     if result.schema_version != 1 {
         return Err(KanbusError::IssueOperation(
             "Codex router adapter returned invalid result".to_string(),
@@ -5009,18 +5008,6 @@ fn push_codex_result_text(text: &str, candidates: &mut Vec<Value>) {
         if parsed.get("outcome").is_some() && parsed.get("schema_version").is_some() {
             candidates.push(parsed);
         }
-    }
-}
-
-fn invalid_json_retryable_result(message: String) -> RouterAgentResult {
-    RouterAgentResult {
-        schema_version: 1,
-        outcome: "retryable_failure".to_string(),
-        summary: message,
-        issue_updates: Vec::new(),
-        issue_comments: Vec::new(),
-        checkpoint: None,
-        artifacts: Vec::new(),
     }
 }
 
@@ -7733,7 +7720,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_adapter_json_is_retryable_but_unknown_outcomes_stay_validation_errors() {
+    fn malformed_adapter_json_and_unknown_outcomes_are_validation_errors() {
         let error =
             parse_router_result("not JSON").expect_err("malformed adapter output must not parse");
         let message = match error {
@@ -7741,9 +7728,6 @@ mod tests {
             other => panic!("unexpected adapter parse error: {other}"),
         };
         assert_eq!(message, "Codex router adapter returned invalid JSON");
-        let retry = invalid_json_retryable_result(message);
-        assert_eq!(retry.outcome, "retryable_failure");
-
         let unknown =
             parse_router_result(r#"{"schema_version":1,"outcome":"done","checkpoint":null}"#)
                 .expect("syntactically valid outcome parses before allowlist validation");
