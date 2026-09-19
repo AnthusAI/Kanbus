@@ -25,11 +25,13 @@ from kanbus.issue_router import (
     RouterContext,
     RouterControlState,
     _Candidate,
+    _apply_router_status_overlay,
     _collect_candidates,
     _defer_reason,
     _encode_router_event,
     _has_blocking_dependency,
     _pending_since,
+    _planning_events,
     _policy_rejects,
     _read_events,
     _resolve_route,
@@ -128,6 +130,84 @@ def _context(
         issues=issues or [_issue()],
         control=RouterControlState(),
     )
+
+
+def test_candidate_collection_skips_only_children_owned_by_routed_ancestors(
+    tmp_path: Path,
+) -> None:
+    routed_parent = _issue(identifier="kbs-routed", labels=["agent-provider:codex"])
+    routed_child = _issue(identifier="kbs-routed-child", labels=[], parent="kbs-routed")
+    plain_parent = _issue(identifier="kbs-plain", labels=[])
+    plain_child = _issue(identifier="kbs-plain-child", labels=[], parent="kbs-plain")
+    context = _context(
+        tmp_path,
+        issues=[routed_parent, routed_child, plain_parent, plain_child],
+    )
+
+    candidates = _collect_candidates(
+        context,
+        {issue.identifier: issue for issue in context.issues},
+        [],
+    )
+
+    assert [candidate.issue.identifier for candidate in candidates] == [
+        "kbs-routed",
+        "kbs-plain",
+        "kbs-plain-child",
+    ]
+
+
+def test_newer_conversation_review_overrides_an_older_router_start(
+    tmp_path: Path,
+) -> None:
+    context = _context(tmp_path, issues=[_issue(status="in_progress")])
+    issues = [issue.model_copy(deep=True) for issue in context.issues]
+    _apply_router_status_overlay(
+        issues,
+        [
+            _router_event(
+                "router_claimed",
+                {"action": "started"},
+                event_id="started",
+            ),
+            {
+                "event_id": "review",
+                "issue_id": "router:kbs-router-test",
+                "event_type": "router.conversation",
+                "occurred_at": "2026-09-17T00:01:00Z",
+                "payload": {"action": "agent_turn", "lifecycle": "review"},
+            },
+        ],
+        context.router,
+    )
+
+    assert issues[0].status == "review"
+
+
+def test_planning_events_include_source_events_not_yet_on_shared_state(
+    monkeypatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "source"
+    shared = tmp_path / "shared"
+    context = _context(shared)
+    context = replace(context, source_root=source)
+    shared_event = _router_event("router_claimed", {}, event_id="shared")
+    source_event = _router_event("router_completed", {}, event_id="source")
+    duplicate = _router_event("router_claimed", {}, event_id="shared")
+
+    monkeypatch.setattr(
+        "kanbus.issue_router._read_events",
+        lambda path: (
+            [shared_event]
+            if path == context.project_dir / "events"
+            else [duplicate, source_event]
+        ),
+    )
+
+    assert [event["event_id"] for event in _planning_events(context)] == [
+        "shared",
+        "source",
+    ]
 
 
 def _router_event(
