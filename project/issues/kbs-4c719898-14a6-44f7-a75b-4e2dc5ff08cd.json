@@ -3,7 +3,7 @@
   "title": "Write a short board-dispatch test report and post it as a comment",
   "description": "Disposable real-board smoke-test task for the containerized Issue Router. Read the parent epic description, write a concise report of the safe multi-worker dispatch goals in 3 short paragraphs, and post those exact paragraphs as a comment on this issue using the router result issue_comments field. Do not modify source code, documentation, issue files, or any other board issue. Do not claim that integration tests passed; this task only verifies real issue dispatch and comment publication. A human will review the comment and close the task after the router run.",
   "type": "task",
-  "status": "in_progress",
+  "status": "review",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -29,7 +29,7 @@
     }
   ],
   "created_at": "2026-09-18T11:19:17.503779Z",
-  "updated_at": "2026-09-18T23:22:46.941802Z",
+  "updated_at": "2026-09-19T00:43:46.215650Z",
   "closed_at": null,
   "right_now_summary": "A real-board smoke test is waiting for a concise dispatch report to be posted as a comment.",
   "right_now_updated_at": "2026-09-18T11:19:20.209407Z",
