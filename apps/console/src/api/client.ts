@@ -221,10 +221,21 @@ async function fetchCognitoIdentityCredentials(
   };
 }
 
-export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
+/**
+ * Fetch a board snapshot.
+ *
+ * Normal requests use the backend snapshot cache. The Git-backed fallback must
+ * opt out of that cache because a synchronized checkout can advance without a
+ * filesystem watcher event in the console server process.
+ */
+export async function fetchSnapshot(
+  apiBase: string,
+  options: { refresh?: boolean } = {}
+): Promise<IssuesSnapshot> {
+  const refreshQuery = options.refresh ? "?refresh=1" : "";
   const [configResponse, issuesResponse] = await Promise.all([
-    fetchWithAuth(`${apiBase}/config`),
-    fetchWithAuth(`${apiBase}/issues`)
+    fetchWithAuth(`${apiBase}/config${refreshQuery}`),
+    fetchWithAuth(`${apiBase}/issues${refreshQuery}`)
   ]);
 
   if (!configResponse.ok) {
@@ -579,7 +590,10 @@ export function subscribeToRealtimeFeed(
     })
     .catch((error) => {
       console.warn("[realtime] bootstrap failed", error);
-      onError?.(new Event("bootstrap-error"));
+      // A local kbsc server may intentionally omit the optional MQTT bootstrap
+      // endpoint while still exposing both SSE feeds.  That is not a server
+      // outage: fall back to SSE and let its own connection errors report a
+      // real failure.
       startSseFallback("bootstrap-error");
     });
 
