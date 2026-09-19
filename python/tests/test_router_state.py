@@ -565,9 +565,6 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
         "renew-claim",
     )
     sleep(2.0)
-    stopped.set()
-    thread.join(timeout=2)
-
     state_b = router_state_root(clone_b)
     observed_context = load_router_context(state_b)
     evaluation_time = claim_start + timedelta(seconds=1.8)
@@ -578,6 +575,8 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
     )
     assert lease.active, "the peer must see a renewal after the original one-second TTL"
     assert not build_router_plan(observed_context).eligible
+    stopped.set()
+    thread.join(timeout=2)
 
 
 def test_concurrent_shared_start_publication_accepts_only_selected_claim(
