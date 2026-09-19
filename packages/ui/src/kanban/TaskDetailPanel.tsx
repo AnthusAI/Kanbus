@@ -474,6 +474,32 @@ export function TaskDetailPanel({
         return `Issue moved from ${String(payload.from_location)} to ${String(payload.to_location)}`;
       case "issue_promoted":
         return `Issue moved from ${String(payload.from_location)} to ${String(payload.to_location)}`;
+      case "router.conversation": {
+        const provider = typeof payload.provider === "string" ? payload.provider : "agent";
+        const lifecycle = typeof payload.lifecycle === "string" ? payload.lifecycle : "recorded";
+        const session = typeof payload.session_id === "string" ? payload.session_id : null;
+        const branch = typeof payload.branch === "string" ? payload.branch : null;
+        const log = typeof payload.log === "string" ? payload.log : null;
+        return (
+          <div className="grid gap-2">
+            <div>
+              Agent conversation: {provider} · {lifecycle}
+            </div>
+            {session ? <div className="text-xs text-muted">Session: {session}</div> : null}
+            {branch ? <div className="text-xs text-muted">Branch: {branch}</div> : null}
+            {log ? (
+              <details className="rounded-lg bg-[var(--card-muted)] p-2 text-xs text-muted">
+                <summary className="cursor-pointer font-semibold text-foreground">
+                  Redacted agent output
+                </summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+                  {log}
+                </pre>
+              </details>
+            ) : null}
+          </div>
+        );
+      }
       default:
         return event.event_type;
     }
