@@ -1793,7 +1793,7 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
     returned = router_execution._run_adapter(ctx, package, "claim-run", 3)
 
     assert returned is result_value
-    assert commits == [(worktree, "kbs-42", 3)]
+    assert commits == [(worktree, "board", "kbs-42", 3)]
     assert router_execution._WORKTREE_HEADS["claim-run"] == "head-sha"
     assert "kbs-42" not in router_execution._ACTIVE_ADAPTERS
 
@@ -2431,12 +2431,12 @@ def test_worktree_change_inspection_and_checkpoint_commit_failures(
         calls.append(args)
         if "commit" in args:
             raise router_execution.subprocess.CalledProcessError(1, args)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=b"")
 
     monkeypatch.setattr(router_execution.subprocess, "run", fail_commit)
     with pytest.raises(IssueRouterError, match="create an isolated checkpoint"):
-        router_execution._commit_isolated_worktree(worktree, "kbs-42", 3)
-    assert calls[0][1:3] == ["add", "-A"]
+        router_execution._commit_isolated_worktree(worktree, "project", "kbs-42", 3)
+    assert calls[0][1:4] == ["add", "-u", "--"]
 
 
 def test_update_checkpoint_ref_validates_namespace_and_rolls_back_failed_push(
