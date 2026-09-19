@@ -3,7 +3,7 @@
   "title": "Add console composer and status controls to issue detail",
   "description": "Add a normal comment composer and an allowed-transition status control to issue detail, using the validated write API. When a blocked issue awaits an agent reply, a normal comment must resume its saved conversation as specified by the router; otherwise it remains a normal visible Kanbus comment. Render pending/error/success states and confirm updates arrive via realtime or Git fallback.",
   "type": "story",
-  "status": "review",
+  "status": "open",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,24 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "169d39ca-6add-45c1-924c-9efce2010381",
+      "author": "Kanbus Issue Router",
+      "text": "Implemented issue-detail comment composer and allowed status controls with validated Kanbus CLI writes, pending/error/success states, blocked-agent reply resumption, and realtime/Git snapshot refresh. Validation passed: UI build, console typecheck, and production Vite build.",
+      "created_at": "2026-09-19T22:55:47.102547Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "0ba54edc-742f-4d8e-bd43-975ca0bc4886",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent turn complete\n\nImplemented console issue comments, validated status transitions, blocked-agent resume handling, mutation feedback, and realtime snapshot refreshes. UI build and typecheck pass.\n\n- Draft PR: https://github.com/AnthusAI/Kanbus/pull/332\n- Branch: `codex/router/kbs-80e79aca-84a5-44e6-91d4-80669a4f5045/r1`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-80e79aca-84a5-44e6-91d4-80669a4f5045`",
+      "created_at": "2026-09-19T22:55:52.966899Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:32:06.793324Z",
-  "updated_at": "2026-09-19T22:55:37.628707Z",
+  "updated_at": "2026-09-19T22:55:52.966939Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
