@@ -401,6 +401,14 @@ def _apply_router_status_overlay(
                 status = router.workflow.review
         if status is not None:
             issue.status = status
+            # The board orders cards by the issue's effective `updated_at`.
+            # A router lifecycle transition is an issue update, even though it
+            # is recorded in the durable router event stream rather than by
+            # rewriting the source checkout's issue file. Preserve that event
+            # time in the projection so an issue moved to In Progress, Review,
+            # or Blocked appears at the top of its new column.
+            if event_time is not None:
+                issue.updated_at = event_time
 
 
 def format_router_plan_text(plan: RouterPlan) -> str:

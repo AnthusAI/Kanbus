@@ -70,6 +70,7 @@ const SHOW_SHARED_STORAGE_KEY = "kanbus.console.showShared";
 const SHOW_TYPE_FILTER_TOOLBAR_KEY = "kanbus.console.showTypeFilterToolbar";
 const SHOW_INITIATIVES_IN_TYPE_FILTER_KEY = "kanbus.console.showInitiativesInTypeFilter";
 const PANEL_MODE_STORAGE_KEY = "kanbus.console.panelMode";
+const SNAPSHOT_FALLBACK_INTERVAL_MS = 15_000;
 
 function loadStoredEnabledProjects(): Set<string> | null {
   if (typeof window === "undefined") {
@@ -680,6 +681,8 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
+  const snapshotFallbackTimerRef = React.useRef<number | null>(null);
+  const snapshotFallbackRequestRef = React.useRef<Promise<void> | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -699,10 +702,48 @@ export default function App() {
     if (!apiBase) {
       return Promise.resolve();
     }
-    return fetchSnapshot(apiBase)
-      .then((data) => setSnapshot(data))
-      .catch((err) => console.warn("[snapshot] refresh failed", err));
+    if (snapshotFallbackRequestRef.current) {
+      return snapshotFallbackRequestRef.current;
+    }
+    const request = fetchSnapshot(apiBase)
+      .then((data) => {
+        lastSnapshotSuccessAtRef.current = Date.now();
+        snapshotRef.current = data;
+        setSnapshot(data);
+        setError(null);
+        setErrorTime(null);
+      })
+      .catch((err) => {
+        console.warn("[snapshot] refresh failed", err);
+        setError("Unable to reach the server. Showing stale data.");
+        setErrorTime(Date.now());
+      });
+    snapshotFallbackRequestRef.current = request;
+    void request.finally(() => {
+      if (snapshotFallbackRequestRef.current === request) {
+        snapshotFallbackRequestRef.current = null;
+      }
+    });
+    return request;
   }, [apiBase]);
+  const stopSnapshotFallback = useCallback(() => {
+    if (snapshotFallbackTimerRef.current !== null) {
+      window.clearInterval(snapshotFallbackTimerRef.current);
+      snapshotFallbackTimerRef.current = null;
+    }
+  }, []);
+  const startSnapshotFallback = useCallback(() => {
+    if (!apiBase || snapshotFallbackTimerRef.current !== null) {
+      return;
+    }
+    setError("Realtime updates unavailable. Refreshing from Git.");
+    setErrorTime(Date.now());
+    void refreshSnapshot();
+    snapshotFallbackTimerRef.current = window.setInterval(() => {
+      void refreshSnapshot();
+    }, SNAPSHOT_FALLBACK_INTERVAL_MS);
+  }, [apiBase, refreshSnapshot]);
+  useEffect(() => stopSnapshotFallback, [stopSnapshotFallback]);
   useEffect(() => {
     const refreshHandle = window as Window & {
       __KANBUS_REFRESH_SNAPSHOT__?: () => Promise<void>;
@@ -842,24 +883,31 @@ export default function App() {
       return;
     }
     const snapshotApiBase = `${route.basePath}/api`;
-    return subscribeToSnapshots(
+    const unsubscribe = subscribeToSnapshots(
       snapshotApiBase,
       (nextSnapshot) => {
         lastSnapshotSuccessAtRef.current = Date.now();
+        snapshotRef.current = nextSnapshot;
         setSnapshot(nextSnapshot);
         setError(null);
         setErrorTime(null);
+        stopSnapshotFallback();
       },
       () => {
         const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
-        if (staleMs < 15_000) {
+        startSnapshotFallback();
+        if (staleMs < SNAPSHOT_FALLBACK_INTERVAL_MS) {
           return;
         }
-        setError("SSE connection issue. Attempting to reconnect.");
+        setError("Unable to reach the server. Showing stale data.");
         setErrorTime(Date.now());
       }
     );
-  }, [route.basePath, authReady]);
+    return () => {
+      unsubscribe();
+      stopSnapshotFallback();
+    };
+  }, [route.basePath, authReady, startSnapshotFallback, stopSnapshotFallback]);
 
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
@@ -928,13 +976,15 @@ export default function App() {
       },
       (error) => {
         console.warn("[notifications] connection error", error);
+        startSnapshotFallback();
       }
     );
 
     return () => {
       unsubscribe();
+      stopSnapshotFallback();
     };
-  }, [route.basePath, authReady]);
+  }, [route.basePath, authReady, startSnapshotFallback, stopSnapshotFallback]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {
