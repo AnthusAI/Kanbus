@@ -1236,7 +1236,7 @@ fn given_only_wip_limit(world: &mut KanbusWorld, limit: String) {
                 world,
                 "kbs-wip-review",
                 "review",
-                Vec::new(),
+                vec!["agent-provider:codex-default".into()],
                 None,
                 None,
                 Utc.with_ymd_and_hms(2026, 9, 16, 10, 0, 0).unwrap(),
@@ -1244,7 +1244,7 @@ fn given_only_wip_limit(world: &mut KanbusWorld, limit: String) {
             );
             router_event(
                 world,
-                "kbs-wip-review",
+                "router:kbs-wip-review",
                 EventType::RouterConversation,
                 json!({"lifecycle": "review"}),
                 &now_timestamp(),
