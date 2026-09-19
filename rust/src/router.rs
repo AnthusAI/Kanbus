@@ -1,6 +1,6 @@
 //! Deterministic Issue Router configuration, planning, and coordination.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -1154,26 +1154,62 @@ fn apply_shared_issue_status(
         return Ok(());
     }
     let issue = read_issue_from_file(&issue_path)?;
-    if issue.status == status {
-        return Ok(());
+    for next_status in
+        router_status_transition_path(configuration, &issue.issue_type, &issue.status, status)?
+    {
+        crate::issue_update::update_issue(
+            worktree,
+            issue_id,
+            None,
+            None,
+            Some(&next_status),
+            None,
+            None,
+            false,
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            None,
+        )?;
     }
-    crate::issue_update::update_issue(
-        worktree,
-        issue_id,
-        None,
-        None,
-        Some(status),
-        None,
-        None,
-        false,
-        true,
-        &[],
-        &[],
-        None,
-        None,
-        None,
-    )?;
     Ok(())
+}
+
+/// Resolve a router lifecycle target through the issue's configured workflow.
+///
+/// Router events may be replayed after a Git-only refresh, when the canonical
+/// card is still Open but the durable stream already records completion.  Do
+/// not bypass workflow validation with an invalid Open -> Review shortcut.
+fn router_status_transition_path(
+    configuration: &ProjectConfiguration,
+    issue_type: &str,
+    current_status: &str,
+    target_status: &str,
+) -> Result<Vec<String>, KanbusError> {
+    if current_status == target_status {
+        return Ok(Vec::new());
+    }
+    let workflow = crate::workflows::get_workflow_for_issue_type(configuration, issue_type)?;
+    let mut queue = VecDeque::from([(current_status.to_string(), Vec::<String>::new())]);
+    let mut visited = BTreeSet::from([current_status.to_string()]);
+    while let Some((status, path)) = queue.pop_front() {
+        for next_status in workflow.get(&status).into_iter().flatten() {
+            if !visited.insert(next_status.clone()) {
+                continue;
+            }
+            let mut next_path = path.clone();
+            next_path.push(next_status.clone());
+            if next_status == target_status {
+                return Ok(next_path);
+            }
+            queue.push_back((next_status.clone(), next_path));
+        }
+    }
+    Err(KanbusError::IssueOperation(format!(
+        "router cannot transition package from {current_status} to {target_status} through the configured workflow"
+    )))
 }
 
 fn parse_timestamp(value: &str) -> Option<DateTime<Utc>> {
