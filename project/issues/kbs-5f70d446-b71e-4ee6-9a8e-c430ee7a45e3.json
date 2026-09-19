@@ -3,7 +3,7 @@
   "title": "Preserve completed router turns when checkpoint events are ignored",
   "description": "## Problem\n\nThe real Codex run for kbs-894b0c completed valid Python and Rust changes, but its router failed after the agent session while staging the checkpoint event. The exact error was: project/events is ignored and the checkpoint staging path did not force-add it. The branch and draft PR had to be preserved manually.\n\n## Required behavior\n\nEvery router checkpoint and agent-turn event must be force-added through the same safe, scoped Git path used for shared router events. A completed or paused agent turn must publish its transcript metadata, checkpoint, branch, draft PR, summary/comment, and configured Review or Blocked state even when project/events is ignored. Nothing may be silently discarded.\n\n## Acceptance criteria\n\n- Python and Rust force-add only the configured event/checkpoint artifact, never unrelated ignored files.\n- A completed agent result with an ignored project/events directory creates or updates its draft PR, adds the summary to the issue, and moves the issue to Review.\n- A publication failure after a session exists produces a visible issue diagnostic and Review, preserving branch/session/log references.\n- Tests exercise the ignored-event failure shape that occurred in kbs-894b0c.\n- Git-only coordination remains sufficient; no MQTT, AWS, or automatic closure.",
   "type": "bug",
-  "status": "review",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -47,10 +47,24 @@
       "text": "New live reproduction: KBS-d9c9ee produced a valid completed Codex result and committed its required Kanbus state with `kbs commit`, but the router wrote `router.conversation` and released all leases without publishing `router.result`, the Review transition, or the agent summary. Recovery required a visible manual Review/comment. The durable record is event `68fb6a5a-b78c-4df6-a8be-adce50b0b06e`, session `01a0bbfe-06c8-7f40-854d-17404253271b`. Extend this recovery work so a valid turn survives this normal agent workflow automatically in both runtimes.",
       "created_at": "2026-09-19T23:34:30.096390Z",
       "comment_type": "default"
+    },
+    {
+      "id": "5e33e9eb-bcf7-4a7f-81d2-4b1e53f1b313",
+      "author": "Kanbus Issue Router",
+      "text": "Implemented recovery for the live failure shape: Rust and Python now route review-lifecycle adapter validation failures through completed-turn preservation, publishing diagnostics, Review, and router-result evidence. Verified Rust focused recovery test and formatting; Python compiled successfully, but pytest could not run because the required py311 environment and system pytest are unavailable.",
+      "created_at": "2026-09-19T23:43:15.722331Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "23eb7b8f-3333-4417-837a-3492b9b7152d",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent turn complete\n\nImplemented cross-runtime recovery for completed Codex turns whose final result validation fails: both routers now preserve diagnostics, Review state, and canonical router result evidence instead of silently releasing the claim. Added Python regression coverage.\n\n- Draft PR: https://github.com/AnthusAI/Kanbus/pull/334\n- Branch: `codex/router/kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3/r5`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3`\n- Artifacts:\n  - `rust-focused-test`: `cargo test --lib publication_failure_after_completed_turn_preserves_review_evidence`\n  - `modified-files`: `python/src/kanbus/router_execution.py, python/tests/test_router_execution_coverage.py, rust/src/router.rs`",
+      "created_at": "2026-09-19T23:43:21.585274Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T12:17:21.814359Z",
-  "updated_at": "2026-09-19T23:43:06.718851Z",
+  "updated_at": "2026-09-19T23:43:21.585317Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
