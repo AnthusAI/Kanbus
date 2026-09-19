@@ -40,10 +40,17 @@
       "text": "Review rejected draft PR #318: it adds post-session publication recovery only in Python. Rust production `run_issue_router_once` still returns the publication error, releases the claim, and does not preserve the completed turn in Review. Keep #318 and its branch as evidence; continue this issue with equivalent Rust recovery behavior and cross-runtime regression coverage before requesting review again.",
       "created_at": "2026-09-19T14:35:57.618100Z",
       "comment_type": "default"
+    },
+    {
+      "id": "6309b075-39e8-4110-973f-caa57e882476",
+      "author": "home",
+      "text": "New live reproduction: KBS-d9c9ee produced a valid completed Codex result and committed its required Kanbus state with `kbs commit`, but the router wrote `router.conversation` and released all leases without publishing `router.result`, the Review transition, or the agent summary. Recovery required a visible manual Review/comment. The durable record is event `68fb6a5a-b78c-4df6-a8be-adce50b0b06e`, session `01a0bbfe-06c8-7f40-854d-17404253271b`. Extend this recovery work so a valid turn survives this normal agent workflow automatically in both runtimes.",
+      "created_at": "2026-09-19T23:34:30.096390Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T12:17:21.814359Z",
-  "updated_at": "2026-09-19T23:15:19.053487Z",
+  "updated_at": "2026-09-19T23:34:30.096430Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
