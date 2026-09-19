@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -148,6 +150,7 @@ class _SubprocessAdapter:
         finally:
             self.process = None
             self._remove_process_record(request.claim_id)
+            self._cleanup()
         if return_code != 0:
             raise IssueRouterError(f"{self.display_name} router adapter failed")
         payload = self._result_payload(stdout)
@@ -164,6 +167,9 @@ class _SubprocessAdapter:
 
     def _popen_extras(self) -> dict[str, Any]:
         return {}
+
+    def _cleanup(self) -> None:
+        """Release per-run resources after the subprocess exits."""
 
     def _parse(self, payload: dict[str, Any]) -> RouterAgentResult:
         return _parse_result(payload, self.display_name)
@@ -238,7 +244,9 @@ _OPENCODE_FORMAT_HINT = (
     "schema_version must be the JSON number 1 (not a string). Each issue_updates "
     'item is {"issue_id": "<id>", "status": "<status>"} and each issue_comments '
     'item is {"issue_id": "<id>", "text": "<text>"}; use empty lists when there '
-    "is nothing to report. Example: "
+    "is nothing to report. Leave issue_updates empty: the router moves finished "
+    "packages to review itself and rejects agent status changes such as closing "
+    "an issue. Example: "
     '{"schema_version": 1, "outcome": "completed", "summary": "what you did", '
     '"issue_updates": [], "issue_comments": [], "checkpoint": null, "artifacts": []}'
 )
@@ -252,6 +260,8 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
     def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
         # Popen's cwd does not update PWD, which OpenCode uses as its project root.
         environment = {**os.environ, **self.profile.env, "PWD": request.worktree_path}
+        if "XDG_DATA_HOME" not in self.profile.env:
+            environment["XDG_DATA_HOME"] = self._isolated_data_home(environment)
         if self.profile.service_tier:
             environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(
                 environment.get("OPENCODE_CONFIG_CONTENT"),
@@ -259,6 +269,30 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
                 self.profile.service_tier,
             )
         return environment
+
+    def _isolated_data_home(self, environment: dict[str, str]) -> str:
+        """Give this run a private OpenCode data dir.
+
+        Concurrent OpenCode processes share one SQLite session database and fail
+        with "database is locked". Provider credentials (auth.json) are copied so
+        non-AWS providers keep working.
+        """
+        self._data_home = tempfile.mkdtemp(prefix="kanbus-opencode-")
+        shared = Path(
+            environment.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+        )
+        auth = shared / "opencode" / "auth.json"
+        if auth.is_file():
+            target = Path(self._data_home) / "opencode"
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(auth, target / "auth.json")
+        return self._data_home
+
+    def _cleanup(self) -> None:
+        data_home = getattr(self, "_data_home", None)
+        if data_home:
+            shutil.rmtree(data_home, ignore_errors=True)
+            self._data_home = None
 
     def _popen_extras(self) -> dict[str, Any]:
         # `opencode run` appends piped stdin to the prompt and waits for EOF.
