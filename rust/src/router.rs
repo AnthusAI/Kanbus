@@ -1718,6 +1718,29 @@ fn is_terminal_status(issue: &IssueData, configuration: &IssueRouterConfiguratio
     configuration.workflow.terminal.contains(&issue.status)
 }
 
+/// Return the active packages that have a valid router route.
+///
+/// WIP limits are router admission limits, so an unrelated active board item
+/// (including an initiative/epic without a valid route) must not consume a
+/// router slot.  Resolve routes without applying capacity counts: existing
+/// work is what establishes those counts, and capacity is enforced only for
+/// pending candidates below.
+fn current_routed_package_wip(
+    issues: &[IssueData],
+    router: &IssueRouterConfiguration,
+    state: &RouterEventState,
+) -> Vec<(String, IssueRouterRoute)> {
+    issues
+        .iter()
+        .filter(|issue| is_wip_status(issue, router) && has_route_marker(issue))
+        .filter_map(|issue| {
+            route_for_issue(issue, router, state, &BTreeMap::new(), &BTreeMap::new())
+                .ok()
+                .map(|route| (issue.identifier.clone(), route))
+        })
+        .collect()
+}
+
 fn package_issue_ids(root: &IssueData, issues: &[IssueData]) -> Vec<String> {
     let by_id = issues
         .iter()
@@ -2311,17 +2334,7 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
         .iter()
         .map(|issue| (issue.identifier.as_str(), issue))
         .collect::<HashMap<_, _>>();
-    let mut routed_package_wip = Vec::new();
-    for issue in &issues {
-        if !is_wip_status(issue, router) || !has_route_marker(issue) {
-            continue;
-        }
-        if let Ok(route) =
-            route_for_issue(issue, router, &state, &BTreeMap::new(), &BTreeMap::new())
-        {
-            routed_package_wip.push((issue.identifier.clone(), route));
-        }
-    }
+    let routed_package_wip = current_routed_package_wip(&issues, router, &state);
     let all_project_wip = routed_package_wip.len();
     let all_project_review = routed_package_wip
         .iter()
@@ -6685,6 +6698,212 @@ fn publish_router_checkpoint_ref(
 mod tests {
     use super::*;
     use std::process::Output;
+
+    #[test]
+    fn current_route_wip_ignores_active_unroutable_items_but_counts_routed_work() {
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "codex".to_string(),
+                IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: "codex".to_string(),
+                    args: Vec::new(),
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        let now = Utc::now();
+        let issue = |identifier: &str, issue_type: &str, labels: Vec<&str>| IssueData {
+            identifier: identifier.to_string(),
+            title: identifier.to_string(),
+            description: String::new(),
+            issue_type: issue_type.to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: labels.into_iter().map(str::to_string).collect(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+
+        let issues = vec![
+            issue("kbs-active-routed", "task", vec!["agent-provider:codex"]),
+            issue("kbs-active-epic", "epic", vec!["agent-provider:unknown"]),
+            issue("kbs-active-unrouted", "initiative", Vec::new()),
+        ];
+        let routed = current_routed_package_wip(&issues, &router, &RouterEventState::default());
+
+        assert_eq!(
+            routed
+                .iter()
+                .map(|(identifier, _)| identifier.as_str())
+                .collect::<Vec<_>>(),
+            vec!["kbs-active-routed"]
+        );
+    }
+
+    #[test]
+    fn planner_capacity_ignores_active_unroutable_hierarchy_items() {
+        let temp = tempfile::tempdir().expect("router planner fixture");
+        let root = temp.path();
+        crate::file_io::initialize_project(root, false).expect("initialize project");
+        let project_dir = load_project_directory(root).expect("project directory");
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "codex".to_string(),
+                crate::models::IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: "codex".to_string(),
+                    args: Vec::new(),
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        let mut configuration = crate::config::default_project_configuration();
+        configuration
+            .statuses
+            .push(crate::models::StatusDefinition {
+                key: "review".to_string(),
+                name: "Review".to_string(),
+                category: "In progress".to_string(),
+                semantic_category: "in_progress".to_string(),
+                color: None,
+                collapsed: false,
+            });
+        configuration.router = Some(router);
+        fs::write(
+            get_configuration_path(root).expect("configuration path"),
+            serde_yaml::to_string(&configuration).expect("serialize configuration"),
+        )
+        .expect("write configuration");
+        git_success(root, &["init", "-b", "main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(
+            root,
+            &["config", "user.email", "router-test@example.invalid"],
+        );
+
+        let now = Utc::now();
+        let issue =
+            |identifier: &str, issue_type: &str, status: &str, labels: Vec<&str>| IssueData {
+                identifier: identifier.to_string(),
+                title: identifier.to_string(),
+                description: String::new(),
+                issue_type: issue_type.to_string(),
+                status: status.to_string(),
+                priority: 2,
+                assignee: None,
+                creator: None,
+                parent: None,
+                labels: labels.into_iter().map(str::to_string).collect(),
+                dependencies: Vec::new(),
+                comments: Vec::new(),
+                created_at: now,
+                updated_at: now,
+                closed_at: None,
+                agent: None,
+                right_now_summary: None,
+                right_now_updated_at: None,
+                custom: BTreeMap::new(),
+            };
+        let write_issues = |issues: &[IssueData]| {
+            for issue in issues {
+                fs::write(
+                    project_dir
+                        .join("issues")
+                        .join(format!("{}.json", issue.identifier)),
+                    serde_json::to_vec_pretty(issue).expect("serialize issue"),
+                )
+                .expect("write issue");
+            }
+        };
+
+        write_issues(&[
+            issue(
+                "kbs-active-epic",
+                "epic",
+                "in_progress",
+                vec!["agent-provider:unknown"],
+            ),
+            issue(
+                "kbs-active-initiative",
+                "initiative",
+                "in_progress",
+                Vec::new(),
+            ),
+            issue("kbs-pending", "task", "open", vec!["agent-provider:codex"]),
+        ]);
+        let plan = build_issue_router_plan(root).expect("build plan with unroutable WIP");
+        assert_eq!(
+            plan.eligible
+                .iter()
+                .map(|item| item.issue_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["kbs-pending"]
+        );
+
+        write_issues(&[issue(
+            "kbs-active-routed",
+            "task",
+            "in_progress",
+            vec!["agent-provider:codex"],
+        )]);
+        let plan = build_issue_router_plan(root).expect("build plan with routed WIP");
+        assert!(plan
+            .eligible
+            .iter()
+            .any(|item| item.issue_id == "kbs-active-routed"));
+        assert_eq!(
+            plan.deferred
+                .iter()
+                .find(|item| item.issue_id == "kbs-pending")
+                .map(|item| item.reason.as_str()),
+            Some("project_wip_limit")
+        );
+    }
 
     #[test]
     fn router_git_output_times_out_a_stalled_child() {
