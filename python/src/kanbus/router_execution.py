@@ -59,7 +59,10 @@ from kanbus.coordination_runtime import (
     select_soft_provider,
     start_soft_listener,
 )
-from kanbus.issue_comment import add_comment as add_issue_comment
+from kanbus.issue_comment import (
+    IssueCommentError,
+    add_comment as add_issue_comment,
+)
 from kanbus.issue_router import (
     IssueRouterError,
     RouterContext,
@@ -320,7 +323,7 @@ def run_router_once(
             session_id = (conversation or {}).get("payload", {}).get("session_id")
             if isinstance(session_id, str) and session_id:
                 add_issue_comment(
-                    context.source_root or context.root,
+                    getattr(context, "source_root", None) or context.root,
                     candidate.issue_id,
                     "Kanbus Issue Router",
                     "Agent work was preserved but its automatic result could not be validated. "
@@ -335,21 +338,29 @@ def run_router_once(
                 )
                 publish_router_state(context.root, set(candidate.package_issue_ids))
                 return RouterRunResult(started=1, review=1, failed=1, error=str(error))
-            add_issue_comment(
-                context.source_root or context.root,
-                candidate.issue_id,
-                "Kanbus Issue Router",
-                f"The router could not start an agent session: {error}",
-            )
-            _transition_package(
-                context,
-                candidate.issue_id,
-                context.router.workflow.blocked,
-                claim_id=claim_id,
-                revision=revision,
-            )
-            publish_router_state(context.root, set(candidate.package_issue_ids))
-            return RouterRunResult(started=1, failed=1, error=str(error))
+            try:
+                add_issue_comment(
+                    getattr(context, "source_root", None) or context.root,
+                    candidate.issue_id,
+                    "Kanbus Issue Router",
+                    f"The router could not start an agent session: {error}",
+                )
+                _transition_package(
+                    context,
+                    candidate.issue_id,
+                    context.router.workflow.blocked,
+                    claim_id=claim_id,
+                    revision=revision,
+                )
+                publish_router_state(context.root, set(candidate.package_issue_ids))
+                return RouterRunResult(started=1, failed=1, error=str(error))
+            except (IssueCommentError, IssueUpdateError, IssueRouterError):
+                # If the board itself cannot accept the visible diagnostic,
+                # retain the established retry path rather than losing work.
+                _schedule_retry(
+                    context, candidate.issue_id, claim_id, revision, str(error)
+                )
+                return RouterRunResult(started=1, failed=1, error=str(error))
         if scheduler_claim_handles is not None:
             scheduler_error = next(
                 (
@@ -820,7 +831,8 @@ def _run_adapter(
     )
     try:
         result = adapter.execute(request).validate_outcome()
-        if isinstance(adapter, CodexExecAdapter):
+        session_id = getattr(adapter, "session_id", None)
+        if isinstance(session_id, str) and session_id:
             record_conversation(
                 context.project_dir,
                 candidate.issue_id,
@@ -828,7 +840,7 @@ def _run_adapter(
                 provider="codex",
                 claim_id=claim_id,
                 revision=revision,
-                session_id=adapter.session_id,
+                session_id=session_id,
                 lifecycle="review",
                 message=result.summary
                 or "Agent turn completed; review the preserved branch and log.",
@@ -848,7 +860,8 @@ def _run_adapter(
     except IssueRouterError as error:
         # Evidence is written before the error reaches scheduling logic.  This
         # is what prevents a malformed final object from becoming a black hole.
-        if isinstance(adapter, CodexExecAdapter):
+        session_id = getattr(adapter, "session_id", None)
+        if isinstance(session_id, str) and session_id:
             record_conversation(
                 context.project_dir,
                 candidate.issue_id,
@@ -856,7 +869,7 @@ def _run_adapter(
                 provider="codex",
                 claim_id=claim_id,
                 revision=revision,
-                session_id=adapter.session_id,
+                session_id=session_id,
                 lifecycle="review",
                 message="The router could not validate the agent result; the raw turn is preserved for review.",
                 worktree=request.worktree_path,
