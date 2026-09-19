@@ -12,9 +12,17 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "101f7153-3e8b-4d19-9fbd-06093fd866b8",
+      "author": "Kanbus Issue Router",
+      "text": "Implemented automatic stale local gossip socket recovery in Python and Rust. Live brokers are preserved; stale sockets are removed and replaced. Python gossip tests pass (60 passed). Rust formatting passes; Rust tests require a newer Cargo toolchain than the installed 1.81.",
+      "created_at": "2026-09-18T22:33:56.777535Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-18T20:37:06.902634Z",
-  "updated_at": "2026-09-18T20:37:06.992793Z",
+  "updated_at": "2026-09-18T22:33:56.777572Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -26,5 +34,8 @@
   },
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

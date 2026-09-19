@@ -1566,6 +1566,7 @@ def test_ensure_local_uds_broker_returns_when_socket_already_exists(
     socket_path = tmp_path / "existing.sock"
     socket_path.write_text("", encoding="utf-8")
     monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: socket_path)
+    monkeypatch.setattr(gossip, "_uds_broker_is_reachable", lambda _path: True)
     started = {"value": False}
     monkeypatch.setattr(
         gossip.threading,
@@ -1574,6 +1575,28 @@ def test_ensure_local_uds_broker_returns_when_socket_already_exists(
     )
     gossip._ensure_local_uds_broker(SimpleNamespace(uds_socket_path=None))
     assert started["value"] is False
+
+
+def test_ensure_local_uds_broker_removes_stale_socket_and_restarts(
+    monkeypatch, tmp_path: Path
+) -> None:
+    socket_path = tmp_path / "stale.sock"
+    socket_path.write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(gossip, "_uds_socket_path", lambda _realtime: socket_path)
+    monkeypatch.setattr(gossip, "_uds_broker_is_reachable", lambda _path: False)
+    started = {"value": False}
+
+    class _Thread:
+        def __init__(self, *_args, **_kwargs) -> None:
+            started["value"] = True
+
+        def start(self) -> None:
+            socket_path.touch()
+
+    monkeypatch.setattr(gossip.threading, "Thread", _Thread)
+    gossip._ensure_local_uds_broker(SimpleNamespace(uds_socket_path=None))
+    assert started["value"] is True
+    assert socket_path.exists()
 
 
 def test_run_gossip_broker_uses_configured_realtime_socket(
