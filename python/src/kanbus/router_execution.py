@@ -1299,7 +1299,19 @@ def _apply_issue_updates(
 ) -> None:
     package_ids = set(candidate.package_issue_ids)
     issues_by_id = {issue.identifier: issue for issue in context.issues}
-    for update in result.issue_updates:
+    # A completed turn is always transitioned by the router to its configured
+    # review state.  Agents frequently echo that outcome in issue_updates as
+    # the non-status hint "completed"; accept the useful turn rather than
+    # treating that hint as an invalid attempt to close the issue.
+    issue_updates = [
+        update
+        for update in result.issue_updates
+        if not (
+            result.outcome == "completed"
+            and update.status.strip().lower() in {"completed", "complete"}
+        )
+    ]
+    for update in issue_updates:
         if update.issue_id not in package_ids:
             raise IssueRouterError(
                 f"issue {update.issue_id} is outside router package {candidate.issue_id}"
@@ -1331,7 +1343,7 @@ def _apply_issue_updates(
             raise IssueRouterError(
                 f"router result cannot transition package {candidate.issue_id} from {issue.status} to {update.status}"
             ) from error
-    for update in result.issue_updates:
+    for update in issue_updates:
         _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
         issue = issues_by_id[update.issue_id]
         if issue.status != update.status:

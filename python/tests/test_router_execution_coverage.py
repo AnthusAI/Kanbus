@@ -853,6 +853,16 @@ def test_apply_issue_updates_rejects_terminal_status_and_wraps_update_failure(
     with pytest.raises(IssueRouterError, match="cannot transition"):
         router_execution._apply_issue_updates(ctx, candidate(), terminal, "claim", 1)
 
+    monkeypatch.setattr(router_execution, "publish_router_state", lambda *_args: None)
+    completed_hint = RouterAgentResult(
+        schema_version=1,
+        outcome="completed",
+        issue_updates=[{"issue_id": "kbs-42", "status": "completed"}],
+    )
+    # Completion is router-owned: it becomes the configured Review transition
+    # later in the turn rather than a literal project status from the agent.
+    router_execution._apply_issue_updates(ctx, candidate(), completed_hint, "claim", 1)
+
     issue_update_error = router_execution.IssueUpdateError("bad update")
     monkeypatch.setattr(
         router_execution,
