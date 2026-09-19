@@ -2886,6 +2886,65 @@ fn apply_router_issue_comments(
     Ok(())
 }
 
+/// Preserve visible evidence when a completed agent turn fails during later
+/// checkpoint, branch, forge, or result publication.
+fn preserve_completed_turn_after_publication_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    publication_error: &KanbusError,
+) -> Result<KanbusError, KanbusError> {
+    let conversation = load_router_events(project_dir)?
+        .into_iter()
+        .filter(|event| event.issue_id == format!("router:{}", claim.issue_id))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .filter(|event| payload_text(event, "lifecycle") == Some("review"))
+        .filter(|event| payload_text(event, "claim_id") == Some(claim.claim_id.as_str()))
+        .filter(|event| {
+            event.payload.get("revision").and_then(Value::as_u64) == Some(claim.revision)
+        })
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        });
+    let Some(conversation) = conversation else {
+        return Err(KanbusError::IssueOperation(
+            "no completed agent turn is available for publication recovery".to_string(),
+        ));
+    };
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    let branch = payload_text(&conversation, "branch").unwrap_or("unknown");
+    let session_id = payload_text(&conversation, "session_id").unwrap_or("unknown");
+    let worktree = payload_text(&conversation, "worktree").unwrap_or("unknown");
+    let diagnostic = format!(
+        "## Agent turn preserved for review\n\nThe agent completed work, but automatic publication failed. \n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
+    );
+    crate::issue_comment::add_comment(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &diagnostic,
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    append_router_event(
+        project_dir,
+        &format!("router:{}", claim.issue_id),
+        EventType::RouterResult,
+        json!({
+            "outcome":"completed", "summary":"Completed agent turn preserved for review after publication failure",
+            "diagnostic":diagnostic, "publication_failed":true,
+            "claim_id":claim.claim_id, "revision":claim.revision,
+            "session_id":session_id, "branch":branch, "worktree":worktree,
+        }),
+    )?;
+    Ok(KanbusError::IssueOperation(format!(
+        "{publication_error}; completed agent turn was preserved in Review"
+    )))
+}
+
 /// Render the mandatory, issue-visible review record for a completed agent turn.
 ///
 /// Agent-provided `issue_comments` are optional supplemental notes. They must
@@ -3766,6 +3825,17 @@ fn run_issue_router_once(
     let (completed, review, failed, outcome_error) = match processing {
         Ok(result) => result,
         Err(error) => {
+            // The adapter records its completed conversation before this
+            // publication phase. Do not let a later publication failure turn
+            // that completed work into an invisible active card.
+            let error = preserve_completed_turn_after_publication_failure(
+                root,
+                project_dir,
+                &configuration,
+                &claim,
+                &error,
+            )
+            .unwrap_or(error);
             if let Some(renewer) = lease_renewer.as_mut() {
                 let renew_result = renewer.stop();
                 if let Err(renew_error) = renew_result {
@@ -7176,6 +7246,109 @@ mod tests {
             git_success(root, &["status", "--porcelain"]),
             "A  new_agent_test.rs\nM  tracked.rs"
         );
+    }
+
+    #[test]
+    fn publication_failure_after_completed_turn_preserves_review_evidence() {
+        let temp = tempfile::tempdir().expect("router recovery temp dir");
+        let root = temp.path();
+        crate::file_io::initialize_project(root, false).expect("initialize project");
+        git_success(root, &["init", "-b", "main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(
+            root,
+            &["config", "user.email", "router-test@example.invalid"],
+        );
+        git_success(root, &["add", "-A"]);
+        git_success(root, &["commit", "-m", "router recovery fixture"]);
+        let project_dir = load_project_directory(root).expect("project directory");
+        let issue_id = "kbs-954";
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: issue_id.to_string(),
+            title: "Preserve publication failure".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+        let issue_path = project_dir.join("issues").join(format!("{issue_id}.json"));
+        fs::write(
+            &issue_path,
+            serde_json::to_vec_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write issue");
+        let claim = RouterClaim {
+            issue_id: issue_id.to_string(),
+            claim_id: "claim-recovery".to_string(),
+            revision: 1,
+            resource: format!("router:issue:{issue_id}"),
+            hard: false,
+            owner: "worker-recovery".to_string(),
+            resources: Vec::new(),
+        };
+        let events = vec![
+            event(
+                &format!("router:{issue_id}"),
+                EventType::RouterAttempt,
+                json!({"action":"started", "claim_id":"claim-recovery", "revision":1}),
+                "2026-09-19T12:00:00Z",
+            ),
+            event(
+                &format!("router:{issue_id}"),
+                EventType::RouterConversation,
+                json!({"action":"agent_turn", "lifecycle":"review", "claim_id":"claim-recovery", "revision":1,
+                    "session_id":"session-954", "branch":"codex/router/kbs-954/r1", "worktree":"/tmp/kbs-954"}),
+                "2026-09-19T12:01:00Z",
+            ),
+        ];
+        crate::event_history::write_events_batch(&events_dir_for_project(&project_dir), &events)
+            .expect("write completed conversation");
+        let configuration = crate::config_loader::load_project_configuration(
+            &get_configuration_path(root).expect("configuration path"),
+        )
+        .expect("load configuration");
+
+        let error = preserve_completed_turn_after_publication_failure(
+            root,
+            &project_dir,
+            &configuration,
+            &claim,
+            &KanbusError::IssueOperation("could not publish draft pull request".to_string()),
+        )
+        .expect("preserve completed turn");
+        assert!(error
+            .to_string()
+            .contains("completed agent turn was preserved in Review"));
+        let stored = read_issue_from_file(&issue_path).expect("read diagnostic comment");
+        assert!(stored.comments.iter().any(|comment| comment
+            .text
+            .as_deref()
+            .is_some_and(|text| text.contains("codex/router/kbs-954/r1"))));
+        assert!(load_router_events(&project_dir)
+            .expect("load recovery event")
+            .iter()
+            .any(|event| {
+                matches!(&event.event_type, EventType::RouterResult)
+                    && event
+                        .payload
+                        .get("publication_failed")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            }));
     }
 
     #[test]
