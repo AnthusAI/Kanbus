@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "a4f5f651-7f67-43d8-a109-72e83b9bf53d",
+  "issue_id": "router:kbs-4c719898-14a6-44f7-a75b-4e2dc5ff08cd",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-19T00:44:06.838Z",
+  "actor_id": "home",
+  "payload": {
+    "action": "checkpoint_accepted",
+    "attempt": 1,
+    "claim_id": "d55df57b-e707-4864-bdbc-a72c298910bb",
+    "revision": 1,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-4c719898-14a6-44f7-a75b-4e2dc5ff08cd",
+    "checkpoint_revision": 1
+  }
+}
