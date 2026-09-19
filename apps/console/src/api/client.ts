@@ -244,6 +244,48 @@ export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
   };
 }
 
+export type IssueMutationResponse = { issue: Issue; resumed?: boolean };
+
+async function issueMutation(
+  apiBase: string,
+  issueId: string,
+  path: string,
+  body: Record<string, unknown>
+): Promise<IssueMutationResponse> {
+  const response = await fetchWithAuth(`${apiBase}/issues/${encodeURIComponent(issueId)}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    let message = `issue mutation request failed: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) message = payload.error;
+    } catch {
+      // Keep the HTTP status when the server did not return JSON.
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as IssueMutationResponse;
+}
+
+export function addIssueComment(
+  apiBase: string,
+  issueId: string,
+  text: string
+): Promise<IssueMutationResponse> {
+  return issueMutation(apiBase, issueId, "comments", { text });
+}
+
+export function transitionIssue(
+  apiBase: string,
+  issueId: string,
+  status: string
+): Promise<IssueMutationResponse> {
+  return issueMutation(apiBase, issueId, "status", { status });
+}
+
 export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
   const response = await fetchWithAuth(`${apiBase}/now`);
   if (!response.ok) {
