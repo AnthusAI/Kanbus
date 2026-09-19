@@ -589,7 +589,7 @@ def _collect_candidates(
         # un-routed parent, however, must not make its children disappear
         # from planning: they remain independently diagnosable (and receive
         # the same invalid-route outcome as the Rust runtime).
-        if _has_routed_ancestor(issue, issues_by_id):
+        if not _has_route_label(issue) and _has_routed_ancestor(issue, issues_by_id):
             continue
         if _has_live_package_claim(context, issue.identifier, events):
             continue
