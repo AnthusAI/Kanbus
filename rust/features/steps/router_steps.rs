@@ -836,11 +836,12 @@ fn configure_multi_retryable_adapter(world: &KanbusWorld) {
 }
 
 fn configure_multi_active_adapter(world: &KanbusWorld) {
-    // The invalid defined-outcome fixture intentionally leaves the package
-    // active without scheduling a retry, allowing WIP policy to be observed.
+    // A retryable result leaves the package in its active state during the
+    // retry window, allowing the shared WIP policy to be observed without
+    // relying on an invalid adapter response.
     configure_multi_adapter_result(
         world,
-        r#"{"schema_version":1,"outcome":"done","summary":"fixture active worker","issue_updates":[],"checkpoint":null,"artifacts":[]}"#,
+        r#"{"schema_version":1,"outcome":"retryable_failure","summary":"fixture active worker","issue_updates":[],"checkpoint":null,"artifacts":[]}"#,
     );
 }
 
