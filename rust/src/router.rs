@@ -812,6 +812,30 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                     "router state reconciliation conflicted; no package was started".to_string(),
                 ));
             }
+            // Router-owned comments and transitions are intentionally made in
+            // the caller's checkout, but only the shared state worktree is
+            // committed.  Bring the package record across explicitly: never
+            // stage the caller's whole tree, yet never strand agent evidence
+            // in one machine's dirty checkout.
+            if let Some(issue_id) = event.issue_id.strip_prefix("router:") {
+                let project_directory = configured_project_directory(root)?;
+                let source_issue = root
+                    .join(&project_directory)
+                    .join("issues")
+                    .join(format!("{issue_id}.json"));
+                let target_issue = worktree
+                    .join(&project_directory)
+                    .join("issues")
+                    .join(format!("{issue_id}.json"));
+                if source_issue.exists() {
+                    if let Some(parent) = target_issue.parent() {
+                        fs::create_dir_all(parent)
+                            .map_err(|error| KanbusError::Io(error.to_string()))?;
+                    }
+                    fs::copy(&source_issue, &target_issue)
+                        .map_err(|error| KanbusError::Io(error.to_string()))?;
+                }
+            }
             apply_shared_router_event_status(&worktree, event)?;
             let project_directory = configured_project_directory(root)?;
             let mut events_to_write = related_claim_events(&load_project_directory(root)?, event)?;
@@ -2864,6 +2888,18 @@ fn validate_router_issue_updates(
     Ok(())
 }
 
+/// A completed agent turn owns the package's lifecycle transition: it always
+/// goes to the configured Review state.  Codex commonly echoes its outcome as
+/// an `issue_updates[].status = "completed"` hint.  That is not a project
+/// status and must not turn a useful turn into a publication failure.
+fn completed_outcome_issue_updates(issue_updates: &[RouterIssueUpdate]) -> Vec<RouterIssueUpdate> {
+    issue_updates
+        .iter()
+        .filter(|update| !matches!(update.status.trim(), "completed" | "complete"))
+        .cloned()
+        .collect()
+}
+
 fn validate_router_issue_comments(
     package_id: &str,
     package_issue_ids: &[String],
@@ -2946,6 +2982,15 @@ fn preserve_completed_turn_after_publication_failure(
         &diagnostic,
         None,
     )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    if let Some(router) = configuration.router.as_ref() {
+        apply_shared_issue_status(
+            root,
+            configuration,
+            &claim.issue_id,
+            &router.workflow.review,
+        )?;
+    }
     assert_current_router_claim(project_dir, configuration, claim)?;
     append_router_event(
         project_dir,
@@ -3636,8 +3681,8 @@ fn run_issue_router_once(
         let mut outcome_error = None;
         match result.outcome.as_str() {
             "completed" => {
-                let requested_updates = result
-                    .issue_updates
+                let accepted_updates = completed_outcome_issue_updates(&result.issue_updates);
+                let requested_updates = accepted_updates
                     .iter()
                     .map(|update| (update.issue_id.clone(), update.status.clone()))
                     .collect::<Vec<_>>();
@@ -3765,6 +3810,16 @@ fn run_issue_router_once(
                     Some(&accepted_checkpoint),
                     &package.issue_id,
                 )?;
+                // Keep the actual issue record in the same configured Review
+                // state that the event reducer exposes.  The reducer remains
+                // useful for recovery, but it must never create a second,
+                // overlay-only status for a live card.
+                apply_shared_issue_status(
+                    root,
+                    &configuration,
+                    &package.issue_id,
+                    &router.workflow.review,
+                )?;
                 append_router_event(
                     project_dir,
                     &format!("router:{}", package.issue_id),
@@ -3777,7 +3832,7 @@ fn run_issue_router_once(
                         "checkpoint_ref": checkpoint_ref,
                         "checkpoint_revision": checkpoint_revision,
                         "artifacts": result.artifacts.iter().map(|artifact| json!({"name": artifact.name, "ref": artifact.reference})).collect::<Vec<_>>(),
-                        "issue_updates": result.issue_updates.iter().map(|update| json!({"issue_id":update.issue_id,"status":update.status})).collect::<Vec<_>>(),
+                        "issue_updates": accepted_updates.iter().map(|update| json!({"issue_id":update.issue_id,"status":update.status})).collect::<Vec<_>>(),
                     }),
                 )?;
                 completed = 1;
@@ -3808,6 +3863,12 @@ fn run_issue_router_once(
                     None,
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
+                apply_shared_issue_status(
+                    root,
+                    &configuration,
+                    &package.issue_id,
+                    &router.workflow.blocked,
+                )?;
                 append_router_event(
                     project_dir,
                     &format!("router:{}", package.issue_id),
@@ -7171,6 +7232,26 @@ mod tests {
             payload,
             occurred_at.to_string(),
         )
+    }
+
+    #[test]
+    fn completed_issue_update_is_a_router_owned_review_hint() {
+        let updates = vec![
+            RouterIssueUpdate {
+                issue_id: "kbs-42".to_string(),
+                status: "completed".to_string(),
+            },
+            RouterIssueUpdate {
+                issue_id: "kbs-43".to_string(),
+                status: "blocked".to_string(),
+            },
+        ];
+
+        let accepted = completed_outcome_issue_updates(&updates);
+
+        assert_eq!(accepted.len(), 1);
+        assert_eq!(accepted[0].issue_id, "kbs-43");
+        assert_eq!(accepted[0].status, "blocked");
     }
 
     #[test]
