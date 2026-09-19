@@ -5051,12 +5051,50 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
             KanbusError::IssueOperation("Codex router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(value).map_err(|_| {
+            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
                 KanbusError::IssueOperation(
                     "Codex router adapter returned invalid result".to_string(),
                 )
             })
         })
+}
+
+/// Normalize advisory artifact metadata without relaxing the result contract.
+///
+/// A completed agent turn may include a local `path` plus descriptive or
+/// verification fields rather than the router's canonical named reference.
+/// Artifacts do not authorize issue mutation, so retain canonical entries,
+/// translate the known path form, and drop only entries that cannot be safely
+/// represented. The rest of the result is still deserialized strictly.
+fn normalize_router_artifacts(mut value: Value) -> Value {
+    let Some(object) = value.as_object_mut() else {
+        return value;
+    };
+    let Some(artifacts) = object.get("artifacts") else {
+        return value;
+    };
+    let normalized = artifacts
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(normalize_router_artifact)
+        .collect::<Vec<_>>();
+    object.insert("artifacts".to_string(), Value::Array(normalized));
+    value
+}
+
+fn normalize_router_artifact(item: &Value) -> Option<Value> {
+    let object = item.as_object()?;
+    let name = object.get("name").and_then(Value::as_str);
+    let reference = object.get("ref").and_then(Value::as_str);
+    if let (Some(name), Some(reference)) = (name, reference) {
+        if !name.trim().is_empty() && !reference.trim().is_empty() {
+            return Some(json!({"name": name, "ref": reference}));
+        }
+    }
+    let path = object.get("path").and_then(Value::as_str)?.trim();
+    let name = Path::new(path).file_name()?.to_str()?.trim();
+    (!name.is_empty()).then(|| json!({"name": name, "ref": path}))
 }
 
 fn push_codex_result_text(text: &str, candidates: &mut Vec<Value>) {
@@ -7904,6 +7942,51 @@ mod tests {
                 .outcome,
             "completed"
         );
+    }
+
+    #[test]
+    fn normalizes_optional_artifacts_without_discarding_a_completed_turn() {
+        let output = json!({
+            "schema_version": 1,
+            "outcome": "completed",
+            "summary": "completed with evidence",
+            "issue_updates": [],
+            "issue_comments": [{"issue_id": "kbs-701", "text": "Review evidence is ready."}],
+            "checkpoint": null,
+            "artifacts": [
+                {"name": "report", "ref": "refs/reports/r1"},
+                {
+                    "path": "artifacts/verification/report.json",
+                    "description": "Verification report",
+                    "verification": {"command": "pytest"}
+                },
+                {"description": "No usable reference"}
+            ]
+        });
+
+        let envelope = json!({
+            "type": "item.completed",
+            "item": {"type": "AgentMessage", "text": output.to_string()}
+        });
+        let result = parse_router_result(&envelope.to_string())
+            .expect("optional artifact metadata must not reject a valid result");
+        assert_eq!(result.outcome, "completed");
+        assert_eq!(result.summary, "completed with evidence");
+        assert_eq!(result.issue_comments.len(), 1);
+        assert_eq!(result.artifacts.len(), 2);
+        assert_eq!(result.artifacts[0].name, "report");
+        assert_eq!(result.artifacts[0].reference, "refs/reports/r1");
+        assert_eq!(result.artifacts[1].name, "report.json");
+        assert_eq!(
+            result.artifacts[1].reference,
+            "artifacts/verification/report.json"
+        );
+        assert!(parse_router_result(
+            r#"{"schema_version":1,"outcome":"completed","artifacts":"invalid"}"#
+        )
+        .expect("a malformed optional artifact list is omitted")
+        .artifacts
+        .is_empty());
     }
 
     #[test]

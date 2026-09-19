@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -359,9 +359,56 @@ def _parse_result(payload: dict[str, Any]) -> RouterAgentResult:
     }:
         raise IssueRouterError(f'invalid Codex router outcome "{outcome}"')
     try:
-        result = RouterAgentResult.model_validate(payload)
+        result = RouterAgentResult.model_validate(_normalize_artifacts(payload))
     except ValidationError as error:
         raise IssueRouterError(
             "Codex router adapter returned invalid result"
         ) from error
     return result.validate_outcome()
+
+
+def _normalize_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep a valid result when optional agent artifact metadata is non-canonical.
+
+    Artifact references are advisory evidence, rather than authority to mutate an
+    issue. Codex commonly reports a local ``path`` with descriptive or
+    verification metadata, while the router contract stores named refs. Preserve
+    canonical artifacts exactly, normalize that known shape, and omit entries that
+    cannot name and reference an artifact. All non-artifact result fields remain
+    strictly validated by ``RouterAgentResult``.
+    """
+    normalized = dict(payload)
+    artifacts = payload.get("artifacts")
+    if artifacts is None:
+        return normalized
+    if not isinstance(artifacts, list):
+        normalized["artifacts"] = []
+        return normalized
+    normalized["artifacts"] = [
+        artifact
+        for item in artifacts
+        if (artifact := _normalize_artifact(item)) is not None
+    ]
+    return normalized
+
+
+def _normalize_artifact(item: Any) -> dict[str, str] | None:
+    """Return the canonical representation of one optional artifact entry."""
+    if not isinstance(item, dict):
+        return None
+    name = item.get("name")
+    reference = item.get("ref")
+    if (
+        isinstance(name, str)
+        and name.strip()
+        and isinstance(reference, str)
+        and reference.strip()
+    ):
+        return {"name": name, "ref": reference}
+    path = item.get("path")
+    if not isinstance(path, str) or not path.strip():
+        return None
+    path_name = Path(path).name.strip()
+    if not path_name:
+        return None
+    return {"name": path_name, "ref": path}
