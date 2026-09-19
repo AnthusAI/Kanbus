@@ -26,11 +26,18 @@
       "text": "Reviewed the router-authored comment: it contains the requested three distinct lorem ipsum paragraphs, so the test task is complete.",
       "created_at": "2026-09-18T10:38:32.168570Z",
       "comment_type": "default"
+    },
+    {
+      "id": "5f726c43-5ef6-4c17-98b2-72f906f4dd46",
+      "author": "home",
+      "text": "Reviewed and accepted: the requested three lorem ipsum paragraphs were posted successfully. Closing this disposable smoke test to free the router review slot.",
+      "created_at": "2026-09-19T10:27:37.570061Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-17T20:01:46.730501Z",
-  "updated_at": "2026-09-18T19:52:17.000000Z",
-  "closed_at": "2026-09-18T19:52:17.000000Z",
+  "updated_at": "2026-09-19T10:27:37.570144Z",
+  "closed_at": "2026-09-18T19:52:17Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-5.6-luna",

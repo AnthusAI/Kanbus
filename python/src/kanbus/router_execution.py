@@ -320,8 +320,8 @@ def run_router_once(
                     started=1, failed=1, error="router run was cancelled"
                 )
             conversation = latest_conversation(context.project_dir, candidate.issue_id)
-            session_id = (conversation or {}).get("payload", {}).get("session_id")
-            if isinstance(session_id, str) and session_id:
+            lifecycle = (conversation or {}).get("payload", {}).get("lifecycle")
+            if lifecycle == "review":
                 add_issue_comment(
                     getattr(context, "source_root", None) or context.root,
                     candidate.issue_id,
@@ -744,6 +744,18 @@ def recover_router_package(context: RouterContext, issue_id: str) -> dict[str, s
         branch=result["branch"],
         worktree=result["worktree"],
     )
+    target_status = {
+        "review": context.router.workflow.review,
+        "blocked": context.router.workflow.blocked,
+    }.get(result["lifecycle"])
+    if target_status is not None:
+        _transition_package(
+            context,
+            package_id,
+            target_status,
+            claim_id=str(payload.get("claim_id", "recovered")),
+            revision=int(payload.get("revision", 1)),
+        )
     publish_router_state(context.root, {package_id})
     return result
 
@@ -861,7 +873,17 @@ def _run_adapter(
         # Evidence is written before the error reaches scheduling logic.  This
         # is what prevents a malformed final object from becoming a black hole.
         session_id = getattr(adapter, "session_id", None)
-        if isinstance(session_id, str) and session_id:
+        raw_output = str(getattr(adapter, "last_output", ""))
+        raw_error = str(getattr(adapter, "last_error", ""))
+        # A malformed result proves that the agent did run even when its
+        # output did not include a resumable Codex session ID. Preserve that
+        # turn for human review instead of treating it like a launcher error.
+        has_preserved_turn = (
+            (isinstance(session_id, str) and bool(session_id))
+            or str(error) == "Codex router adapter returned invalid JSON"
+            or bool(raw_output or raw_error)
+        )
+        if has_preserved_turn:
             record_conversation(
                 context.project_dir,
                 candidate.issue_id,
@@ -874,7 +896,7 @@ def _run_adapter(
                 message="The router could not validate the agent result; the raw turn is preserved for review.",
                 worktree=request.worktree_path,
                 branch=branch,
-                log=adapter.last_output + adapter.last_error,
+                log=raw_output + raw_error,
                 error=str(error),
             )
         raise
