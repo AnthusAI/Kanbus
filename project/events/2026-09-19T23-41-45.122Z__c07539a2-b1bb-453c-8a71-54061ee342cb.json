@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "c07539a2-b1bb-453c-8a71-54061ee342cb",
+  "issue_id": "router:package:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3:artifact:rust-focused-test",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-19T23:41:45.122Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3:artifact:rust-focused-test",
+    "revision": 5,
+    "artifact": "cargo test --lib publication_failure_after_completed_turn_preserves_review_evidence"
+  }
+}
