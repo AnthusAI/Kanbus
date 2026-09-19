@@ -175,6 +175,14 @@ class ConsoleAgentMetadata:
 
 
 @dataclass
+class ConsoleAgentAssignment:
+    kind: str
+    name: str
+    provider_profile: str | None = None
+    effective: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
 class ConsoleIssue:
     title: str
     issue_type: str
@@ -190,6 +198,7 @@ class ConsoleIssue:
     identifier: str | None = None
     priority: int = 2
     agent: ConsoleAgentMetadata | None = None
+    agent_assignment: ConsoleAgentAssignment | None = None
     right_now_summary: str | None = None
 
 
@@ -754,6 +763,16 @@ def given_console_task_without_agent_metadata(context: object, title: str) -> No
     raise AssertionError(f"task not found: {title}")
 
 
+@given('the console has a task "{title}" without agent assignment')
+def given_console_task_without_agent_assignment(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.agent_assignment = None
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
 @given(
     'the console has a comment from "{author}" on task "{title}" with agent platform "{platform}" model "{model}"'
 )
@@ -812,6 +831,41 @@ def then_issue_agent_metadata_not_visible(context: object) -> None:
     issue = _get_selected_issue(context)
     if issue.agent is not None:
         raise AssertionError(f"expected no agent metadata but found {issue.agent}")
+
+
+@then('the issue agent assignment should show route "{route}"')
+def then_issue_assignment_route(context: object, route: str) -> None:
+    issue = _get_selected_issue(context)
+    assignment = issue.agent_assignment
+    if assignment is None:
+        raise AssertionError("expected an agent assignment")
+    actual_kind = (
+        "provider" if assignment.kind == "provider_profile" else assignment.kind
+    )
+    actual = (
+        f"{actual_kind.title()} · {assignment.name}"
+        if actual_kind in {"class", "provider"}
+        else assignment.name
+    )
+    if actual != route:
+        raise AssertionError(f"expected route {route} but found {actual}")
+
+
+@then('the issue agent assignment should show effective "{value}"')
+def then_issue_assignment_effective(context: object, value: str) -> None:
+    issue = _get_selected_issue(context)
+    assignment = issue.agent_assignment
+    if assignment is None or value not in str(assignment.effective):
+        raise AssertionError(f"expected effective configuration to include {value}")
+
+
+@then("the issue agent assignment should show unassigned")
+def then_issue_assignment_unassigned(context: object) -> None:
+    issue = _get_selected_issue(context)
+    if issue.agent_assignment is not None:
+        raise AssertionError(
+            f"expected unassigned issue but found {issue.agent_assignment}"
+        )
 
 
 @then('the comment agent metadata should include platform "{platform}"')
@@ -1029,7 +1083,20 @@ def _default_issues() -> list[ConsoleIssue]:
     return [
         ConsoleIssue(title="Observability overhaul", issue_type="epic"),
         ConsoleIssue(title="Increase reliability", issue_type="initiative"),
-        ConsoleIssue(title="Add structured logging", issue_type="task"),
+        ConsoleIssue(
+            title="Add structured logging",
+            issue_type="task",
+            agent_assignment=ConsoleAgentAssignment(
+                kind="class",
+                name="implementation",
+                provider_profile="codex-default",
+                effective={
+                    "platform": "codex",
+                    "model": "gpt-5.6-luna",
+                    "settings": {"thinking_level": "high"},
+                },
+            ),
+        ),
         ConsoleIssue(title="Fix crash on startup", issue_type="task"),
         ConsoleIssue(
             title="Wire logger middleware",
