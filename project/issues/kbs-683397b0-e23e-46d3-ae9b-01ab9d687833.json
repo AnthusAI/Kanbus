@@ -3,7 +3,7 @@
   "title": "Recover automatically from stale local gossip sockets",
   "description": "## Problem\n\n`kbsc` can find an old Unix-domain gossip socket at `~/.kanbus/run/bus.sock` even though no broker is listening. It treats the file as a live broker, attempts to subscribe, and repeatedly logs `warning: realtime bridge stopped: Connection refused`. Local issue mutations then do not reach the board in realtime.\n\n## Required behavior\n\nWhen the console bridge detects a stale or refused local gossip socket, it must safely recover by removing the stale socket, starting a fresh local UDS gossip broker, and reconnecting its subscription. A running broker must never be interrupted.\n\n## Acceptance criteria\n\n- A stale socket with no listener is recovered automatically.\n- A live local broker is preserved.\n- A subsequent local issue mutation reaches the console SSE stream without a browser reload.\n- Recovery is covered by behavior specs and both Python and Rust implementations remain equivalent.\n- The router moves successful work to Review; it must not close this issue.",
   "type": "bug",
-  "status": "closed",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -14,16 +14,16 @@
   "dependencies": [],
   "comments": [
     {
-      "id": "32aba400-98ca-4587-aba5-1cc327405072",
-      "author": "home",
-      "text": "Reviewed and accepted. PR #294 was merged after confirming its sole failing Python check is reproducible on the prior develop baseline and unrelated to this patch.",
-      "created_at": "2026-09-18T23:20:16.042385Z",
+      "id": "101f7153-3e8b-4d19-9fbd-06093fd866b8",
+      "author": "Kanbus Issue Router",
+      "text": "Implemented automatic stale local gossip socket recovery in Python and Rust. Live brokers are preserved; stale sockets are removed and replaced. Python gossip tests pass (60 passed). Rust formatting passes; Rust tests require a newer Cargo toolchain than the installed 1.81.",
+      "created_at": "2026-09-18T22:33:56.777535Z",
       "comment_type": "default"
     }
   ],
   "created_at": "2026-09-18T20:37:06.902634Z",
-  "updated_at": "2026-09-18T23:20:16.042426Z",
-  "closed_at": "2026-09-18T23:20:15.483784Z",
+  "updated_at": "2026-09-18T22:33:56.777572Z",
+  "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "gpt-5",
