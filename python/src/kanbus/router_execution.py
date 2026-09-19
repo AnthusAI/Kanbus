@@ -885,7 +885,10 @@ def _run_adapter(
         _validate_worktree_changes(context.configuration.project_directory, claim_id)
         if result.outcome == "completed":
             _commit_isolated_worktree(
-                Path(request.worktree_path), candidate.issue_id, revision
+                Path(request.worktree_path),
+                context.configuration.project_directory,
+                candidate.issue_id,
+                revision,
             )
             _WORKTREE_HEADS[claim_id] = _git(
                 Path(request.worktree_path), ["rev-parse", "HEAD"]
@@ -2711,16 +2714,46 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
             )
 
 
-def _commit_isolated_worktree(worktree: Path, package_id: str, revision: int) -> None:
+def _commit_isolated_worktree(
+    worktree: Path, project_directory: str, package_id: str, revision: int
+) -> None:
     """Commit validated agent changes on the isolated router branch."""
     try:
+        # Stage tracked edits first. This cannot add ignored shared router
+        # events, while preserving deletes and modifications to tracked source.
         subprocess.run(
-            ["git", "add", "-A"],
+            ["git", "add", "-u", "--", "."],
             cwd=worktree,
             check=True,
             capture_output=True,
             text=True,
         )
+        untracked = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", "-z", "--", "."],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+        ).stdout.split(b"\0")
+        project_path = PurePosixPath(
+            posixpath.normpath(project_directory.replace("\\", "/"))
+        )
+        source_paths = [
+            os.fsdecode(path)
+            for path in untracked
+            if path
+            and not (
+                (candidate := PurePosixPath(os.fsdecode(path))) == project_path
+                or project_path in candidate.parents
+            )
+        ]
+        if source_paths:
+            subprocess.run(
+                ["git", "add", "--", *source_paths],
+                cwd=worktree,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         subprocess.run(
             [
                 "git",
