@@ -326,6 +326,15 @@ def _apply_router_status_overlay(
                 str(candidate.get("event_id", "")),
             ),
         )
+        # The card itself is canonical.  A durable router event can survive
+        # after a human (or the router) has already written the card, so an
+        # older projection must not resurrect stale work for scheduling.
+        try:
+            event_time = parse_timestamp(str(event.get("occurred_at", "")))
+        except (TypeError, ValueError):
+            event_time = None
+        if event_time is not None and issue.updated_at > event_time:
+            continue
         board_transition = max(
             (
                 candidate
