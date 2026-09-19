@@ -3566,6 +3566,29 @@ fn run_issue_router_once(
             }
             "blocked" => {
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
+                // A paused agent must be able to speak directly to the person
+                // reviewing the issue.  Preserve any agent-supplied comments,
+                // then publish its exact question as a canonical issue comment
+                // before the RouterResult event moves the card to Blocked.
+                apply_router_issue_comments(
+                    root,
+                    &package.issue_id,
+                    &package.package_issue_ids,
+                    &result.issue_comments,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
+                crate::issue_comment::add_comment(
+                    root,
+                    &package.issue_id,
+                    "Kanbus Issue Router",
+                    if result.summary.trim().is_empty() {
+                        "The agent is awaiting a human reply."
+                    } else {
+                        &result.summary
+                    },
+                    None,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
                 append_router_event(
                     project_dir,
                     &format!("router:{}", package.issue_id),
@@ -4900,6 +4923,23 @@ fn execute_router_adapter(
             "invalid Codex router outcome \"{}\"",
             result.outcome
         )));
+    }
+    if result.outcome == "blocked" {
+        // The raw agent turn above is deliberately recorded before parsing so
+        // malformed output is never discarded.  Once parsing establishes a
+        // genuine agent pause, append the authoritative lifecycle overlay so
+        // board status and recovery agree that a human reply is awaited.
+        append_router_event(
+            project_dir,
+            &format!("router:{issue_id}"),
+            EventType::RouterConversation,
+            json!({
+                "action":"awaiting_reply", "provider":"codex", "lifecycle":"blocked",
+                "claim_id":claim.claim_id, "revision":claim.revision,
+                "session_id":codex_session_id(&output), "worktree":worktree,
+                "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+            }),
+        )?;
     }
     Ok(result)
 }
