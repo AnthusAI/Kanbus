@@ -3,7 +3,7 @@
   "title": "Preserve completed router turns when checkpoint events are ignored",
   "description": "## Problem\n\nThe real Codex run for kbs-894b0c completed valid Python and Rust changes, but its router failed after the agent session while staging the checkpoint event. The exact error was: project/events is ignored and the checkpoint staging path did not force-add it. The branch and draft PR had to be preserved manually.\n\n## Required behavior\n\nEvery router checkpoint and agent-turn event must be force-added through the same safe, scoped Git path used for shared router events. A completed or paused agent turn must publish its transcript metadata, checkpoint, branch, draft PR, summary/comment, and configured Review or Blocked state even when project/events is ignored. Nothing may be silently discarded.\n\n## Acceptance criteria\n\n- Python and Rust force-add only the configured event/checkpoint artifact, never unrelated ignored files.\n- A completed agent result with an ignored project/events directory creates or updates its draft PR, adds the summary to the issue, and moves the issue to Review.\n- A publication failure after a session exists produces a visible issue diagnostic and Review, preserving branch/session/log references.\n- Tests exercise the ignored-event failure shape that occurred in kbs-894b0c.\n- Git-only coordination remains sufficient; no MQTT, AWS, or automatic closure.",
   "type": "bug",
-  "status": "open",
+  "status": "review",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -26,10 +26,17 @@
       "text": "Review found the preserved patch incomplete: it does not implement the required force-add checkpoint path in both runtimes. Re-queueing this same issue for another router turn; preserve the existing session, branch, transcript, and draft PR, and continue rather than discarding prior work.",
       "created_at": "2026-09-19T13:33:37.096692Z",
       "comment_type": "default"
+    },
+    {
+      "id": "7e82ce30-07e6-4370-84d4-362aef1caeba",
+      "author": "home",
+      "text": "Recovered revision 2 is preserved in draft PR #318. It includes the publication-failure recovery path plus scoped force-add of exact router event artifacts. Local verification: 81 focused Python tests, Rust formatting, and the Rust lifecycle transition test. No issue was closed.",
+      "created_at": "2026-09-19T14:23:56.139176Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T12:17:21.814359Z",
-  "updated_at": "2026-09-19T13:33:52.925444Z",
+  "updated_at": "2026-09-19T14:23:56.139219Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
