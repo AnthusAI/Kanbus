@@ -2875,6 +2875,40 @@ fn apply_router_issue_comments(
     Ok(())
 }
 
+/// Render the mandatory, issue-visible review record for a completed agent turn.
+///
+/// Agent-provided `issue_comments` are optional supplemental notes. They must
+/// never be the only route by which a completed turn becomes visible: a model
+/// can legitimately omit them while still returning a useful summary. This
+/// record is published after the branch, checkpoint, and draft PR exist and
+/// before the router transitions the package to Review.
+fn completed_router_review_comment(
+    summary: &str,
+    pull: &PullRequestInfo,
+    checkpoint_ref: &str,
+    artifacts: &[RouterArtifact],
+) -> String {
+    let summary = if summary.trim().is_empty() {
+        "The agent completed a turn. Review the preserved branch and draft pull request."
+    } else {
+        summary.trim()
+    };
+    let mut comment = format!(
+        "## Agent turn complete\n\n{summary}\n\n- Draft PR: {}\n- Branch: `{}`\n- Checkpoint: `{}`",
+        pull.url, pull.branch, checkpoint_ref
+    );
+    if !artifacts.is_empty() {
+        comment.push_str("\n- Artifacts:");
+        for artifact in artifacts {
+            comment.push_str(&format!(
+                "\n  - `{}`: `{}`",
+                artifact.name, artifact.reference
+            ));
+        }
+    }
+    comment
+}
+
 /// Return the default provider profile selected by the first configured class.
 ///
 /// # Arguments
@@ -3595,6 +3629,21 @@ fn run_issue_router_once(
                     &package.package_issue_ids,
                     &result.issue_comments,
                 )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
+                let review_comment = completed_router_review_comment(
+                    &result.summary,
+                    &pull,
+                    &published_checkpoint_ref.reference,
+                    &result.artifacts,
+                );
+                crate::issue_comment::add_comment(
+                    root,
+                    &package.issue_id,
+                    "Kanbus Issue Router",
+                    &review_comment,
+                    None,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
                 let accepted_checkpoint = RouterCheckpoint {
                     reference: proposed_checkpoint_ref,
                     revision: proposed_checkpoint_revision,
@@ -8060,6 +8109,30 @@ mod tests {
         .expect("a malformed optional artifact list is omitted")
         .artifacts
         .is_empty());
+    }
+
+    #[test]
+    fn completed_turn_review_record_is_visible_without_agent_supplied_comments() {
+        let pull = PullRequestInfo {
+            number: 42,
+            head_sha: "abc123".to_string(),
+            url: "https://example.test/pull/42".to_string(),
+            branch: "codex/router/kbs-701/r1".to_string(),
+        };
+        let comment = completed_router_review_comment(
+            "",
+            &pull,
+            "refs/kanbus/router/checkpoints/kbs-701",
+            &[RouterArtifact {
+                name: "tests".to_string(),
+                reference: "artifacts/tests.txt".to_string(),
+            }],
+        );
+
+        assert_eq!(
+            comment,
+            "## Agent turn complete\n\nThe agent completed a turn. Review the preserved branch and draft pull request.\n\n- Draft PR: https://example.test/pull/42\n- Branch: `codex/router/kbs-701/r1`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-701`\n- Artifacts:\n  - `tests`: `artifacts/tests.txt`"
+        );
     }
 
     #[test]
