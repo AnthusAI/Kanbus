@@ -827,7 +827,7 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                     .join(&project_directory)
                     .join("issues")
                     .join(format!("{issue_id}.json"));
-                if source_issue.exists() {
+                if source_issue.exists() && source_issue != target_issue {
                     if let Some(parent) = target_issue.parent() {
                         fs::create_dir_all(parent)
                             .map_err(|error| KanbusError::Io(error.to_string()))?;
