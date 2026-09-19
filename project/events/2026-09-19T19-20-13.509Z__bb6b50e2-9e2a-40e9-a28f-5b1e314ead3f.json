@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "bb6b50e2-9e2a-40e9-a28f-5b1e314ead3f",
+  "issue_id": "router:capacity:project:0",
+  "event_type": "coordination.release",
+  "occurred_at": "2026-09-19T19:20:13.509Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "084491f7-a3bf-44f3-9a20-f11b896b7b3b",
+    "operation_sequence": 38
+  }
+}
