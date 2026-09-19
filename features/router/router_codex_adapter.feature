@@ -43,12 +43,12 @@ Feature: Structured outcomes from the Codex router adapter
       | failed         |
       | cancelled      |
 
-  Scenario: Malformed Codex JSON is a retryable adapter failure
+  Scenario: Malformed Codex JSON is preserved for review
     Given the Codex adapter writes malformed JSON to standard output
     When I run "kanbus router run --once"
     Then the command should fail with exit code 1
     And stderr should equal "error: Codex router adapter returned invalid JSON\n"
-    And package "kbs-401" should receive a retry time
+    And package "kbs-401" should transition to status "review"
 
   Scenario: A Codex issue update must remain inside the current package and workflow
     Given the Codex adapter returns issue update "kbs-999" to status "closed"
