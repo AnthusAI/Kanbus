@@ -510,6 +510,7 @@ class RouterLimits(BaseModel):
 
 
 ROUTER_ADAPTERS = ("codex", "opencode")
+ROUTER_SERVICE_TIERS = ("flex", "priority", "default")
 
 
 class RouterAgentProfile(BaseModel):
@@ -522,6 +523,7 @@ class RouterAgentProfile(BaseModel):
     args: List[str] = Field(default_factory=list)
     model: Optional[str] = None
     env: Dict[str, str] = Field(default_factory=dict)
+    service_tier: Optional[str] = None
 
     @field_validator("adapter")
     @classmethod
@@ -537,6 +539,13 @@ class RouterAgentProfile(BaseModel):
         """Default the executable to the adapter name."""
         if self.command is None:
             self.command = self.adapter
+        if self.service_tier is not None:
+            if self.service_tier not in ROUTER_SERVICE_TIERS:
+                raise ValueError("router provider service_tier must be flex, priority or default")
+            if self.adapter != "opencode" or not self.model or "/" not in self.model:
+                raise ValueError(
+                    "router provider service_tier requires adapter opencode and a provider/model model"
+                )
         return self
 
 

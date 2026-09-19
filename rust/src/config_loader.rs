@@ -151,7 +151,7 @@ fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
                     validate_yaml_fields(
                         profile,
                         &format!("router.providers.{name}"),
-                        &["adapter", "command", "args", "model", "env"],
+                        &["adapter", "command", "args", "model", "env", "service_tier"],
                     )?;
                 }
             }
@@ -1038,6 +1038,7 @@ mod tests {
                     args: Vec::new(),
                     model: None,
                     env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),

@@ -103,3 +103,24 @@ def test_invalid_output_and_exit_errors(monkeypatch, tmp_path):
         _run(monkeypatch, tmp_path, _events("no json here"))
     with pytest.raises(IssueRouterError, match="OpenCode router adapter failed"):
         _run(monkeypatch, tmp_path, "", returncode=1)
+
+
+def test_service_tier_is_sent_as_per_model_opencode_config(monkeypatch, tmp_path):
+    profile = RouterAgentProfile(
+        adapter="opencode",
+        model="amazon-bedrock/minimax.minimax-m2.5",
+        service_tier="flex",
+    )
+    _, _, calls = _run(monkeypatch, tmp_path, _events(json.dumps(RESULT)), profile)
+    config = json.loads(calls[0][1]["env"]["OPENCODE_CONFIG_CONTENT"])
+    options = config["provider"]["amazon-bedrock"]["models"]["minimax.minimax-m2.5"]
+    assert options["options"] == {"serviceTier": "flex"}
+
+
+def test_service_tier_validation():
+    with pytest.raises(ValueError, match="flex, priority or default"):
+        RouterAgentProfile(adapter="opencode", model="a/b", service_tier="fast")
+    with pytest.raises(ValueError, match="requires adapter opencode"):
+        RouterAgentProfile(adapter="codex", model="a/b", service_tier="flex")
+    with pytest.raises(ValueError, match="provider/model"):
+        RouterAgentProfile(adapter="opencode", model="b", service_tier="flex")

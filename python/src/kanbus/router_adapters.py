@@ -235,7 +235,10 @@ class CodexExecAdapter(_SubprocessAdapter):
 
 _OPENCODE_FORMAT_HINT = (
     " Reply with the JSON object as your final message and no other text. "
-    "schema_version must be the JSON number 1 (not a string). Example: "
+    "schema_version must be the JSON number 1 (not a string). Each issue_updates "
+    'item is {"issue_id": "<id>", "status": "<status>"} and each issue_comments '
+    'item is {"issue_id": "<id>", "text": "<text>"}; use empty lists when there '
+    "is nothing to report. Example: "
     '{"schema_version": 1, "outcome": "completed", "summary": "what you did", '
     '"issue_updates": [], "issue_comments": [], "checkpoint": null, "artifacts": []}'
 )
@@ -248,7 +251,14 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
 
     def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
         # Popen's cwd does not update PWD, which OpenCode uses as its project root.
-        return {**os.environ, **self.profile.env, "PWD": request.worktree_path}
+        environment = {**os.environ, **self.profile.env, "PWD": request.worktree_path}
+        if self.profile.service_tier:
+            environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(
+                environment.get("OPENCODE_CONFIG_CONTENT"),
+                str(self.profile.model),
+                self.profile.service_tier,
+            )
+        return environment
 
     def _popen_extras(self) -> dict[str, Any]:
         # `opencode run` appends piped stdin to the prompt and waits for EOF.
@@ -284,6 +294,28 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         if payload is None:
             raise IssueRouterError("OpenCode router adapter returned invalid JSON")
         return payload
+
+
+def _opencode_config_content(existing: str | None, model: str, tier: str) -> str:
+    """Return OpenCode inline config selecting a Bedrock service tier for one model.
+
+    OpenCode only honours ``serviceTier`` in per-model options; setting it on the
+    provider is silently ignored (verified against Bedrock's ResolvedServiceTier).
+    """
+    try:
+        config = json.loads(existing) if existing else {}
+    except json.JSONDecodeError:
+        config = {}
+    provider, _, model_id = model.partition("/")
+    entry = (
+        config.setdefault("provider", {})
+        .setdefault(provider, {})
+        .setdefault("models", {})
+        .setdefault(model_id, {})
+        .setdefault("options", {})
+    )
+    entry["serviceTier"] = tier
+    return json.dumps(config)
 
 
 def _opencode_text_parts(stdout: str) -> list[str]:
