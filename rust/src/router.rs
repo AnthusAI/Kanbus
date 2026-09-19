@@ -3418,16 +3418,40 @@ fn recover_router_package(
     let provider = payload_text(latest, "provider").unwrap_or("unknown");
     let lifecycle = payload_text(latest, "lifecycle").unwrap_or("unknown");
     let branch = payload_text(latest, "branch").unwrap_or("none");
+    let claim_id = payload_text(latest, "claim_id").unwrap_or("recovered");
+    let revision = latest
+        .payload
+        .get("revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let session_id = payload_text(latest, "session_id").unwrap_or("unknown");
+    let worktree = payload_text(latest, "worktree").unwrap_or("unknown");
+    let recovered_before = events.iter().any(|event| {
+        event.issue_id == format!("router:{issue_id}")
+            && matches!(&event.event_type, EventType::RouterConversation)
+            && payload_text(event, "action") == Some("recovered")
+            && payload_text(event, "claim_id") == Some(claim_id)
+            && event.payload.get("revision").and_then(Value::as_u64) == Some(revision)
+    });
+    if !recovered_before {
+        crate::issue_comment::add_comment(
+            root,
+            issue_id,
+            "Kanbus Issue Router",
+            &format!(
+                "## Agent run recovered\n\nThe Issue Router recovered preserved agent evidence without starting a replacement session.\n\n- Provider: `{provider}`\n- Lifecycle: `{lifecycle}`\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`"
+            ),
+            None,
+        )?;
+    }
     append_router_event(
         project_dir,
         &format!("router:{issue_id}"),
         EventType::RouterConversation,
         json!({
             "action":"recovered", "provider":provider, "lifecycle":lifecycle,
-            "claim_id":payload_text(latest, "claim_id").unwrap_or("recovered"),
-            "revision":latest.payload.get("revision").and_then(Value::as_u64).unwrap_or(1),
-            "session_id":payload_text(latest, "session_id"), "branch":branch,
-            "worktree":payload_text(latest, "worktree"),
+            "claim_id":claim_id, "revision":revision,
+            "session_id":session_id, "branch":branch, "worktree":worktree,
         }),
     )?;
     let target_status = match lifecycle {
