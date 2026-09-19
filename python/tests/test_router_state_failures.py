@@ -150,4 +150,6 @@ def test_reconciliation_conflict_aborts_merge_and_prevents_router_start(
         _merge_ref(tmp_path, REMOTE_REF)
 
     assert "CONFLICT in project/issues/kbs-1.json" in str(error.value)
+    assert "-X" in commands[0][0]
+    assert "theirs" in commands[0][0]
     assert commands[1] == (("merge", "--abort"), True)

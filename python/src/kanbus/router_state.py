@@ -282,6 +282,14 @@ def _merge_ref(root: Path, ref: str) -> None:
             "-c",
             "user.email=issue-router@localhost",
             "merge",
+            # The incoming revision is authoritative: it is either the
+            # latest shared router-state tip or the caller's committed board
+            # head.  Router records are append-only, so preferring it for an
+            # overlapping issue snapshot avoids stranding a scheduler merely
+            # because a human status change and a router event touched the
+            # same JSON file.
+            "-X",
+            "theirs",
             "--no-edit",
             ref,
         ],

@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -31,6 +31,7 @@ use crate::policy_evaluator::evaluate_policies;
 use crate::policy_loader::load_policies;
 
 const ROUTER_ROUTE_LABEL_PREFIXES: [&str; 2] = ["agent-class:", "agent-provider:"];
+const ROUTER_GIT_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// A resolved package route used by the planner and worker scheduler.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -382,11 +383,11 @@ fn configured_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
 }
 
 fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
-    let output = router_git_command()
+    let mut command = router_git_command();
+    command
         .args(["rev-parse", "--show-toplevel"])
-        .current_dir(path)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+        .current_dir(path);
+    let output = router_git_output(command)?;
     if !output.status.success() {
         return Err(KanbusError::IssueOperation(
             "issue router requires a Git repository".to_string(),
@@ -407,21 +408,70 @@ fn router_git_command() -> Command {
     command
 }
 
-fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, KanbusError> {
-    let remote = router_git_command()
-        .args(["remote", "get-url", "origin"])
-        .current_dir(root)
-        .output()
+/// Run a router Git command with bounded wait time so a remote transport stall
+/// is reported as a recoverable router failure rather than wedging a worker.
+fn router_git_output(command: Command) -> Result<Output, KanbusError> {
+    router_git_output_with_timeout(command, ROUTER_GIT_TIMEOUT)
+}
+
+fn router_git_output_with_timeout(
+    mut command: Command,
+    timeout: Duration,
+) -> Result<Output, KanbusError> {
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command
+        .spawn()
         .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+        {
+            let mut stdout = Vec::new();
+            if let Some(mut stream) = child.stdout.take() {
+                stream
+                    .read_to_end(&mut stdout)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            }
+            let mut stderr = Vec::new();
+            if let Some(mut stream) = child.stderr.take() {
+                stream
+                    .read_to_end(&mut stderr)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            }
+            return Ok(Output {
+                status,
+                stdout,
+                stderr,
+            });
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(KanbusError::IssueOperation(
+                "router Git operation timed out".to_string(),
+            ));
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, KanbusError> {
+    let mut remote_command = router_git_command();
+    remote_command
+        .args(["remote", "get-url", "origin"])
+        .current_dir(root);
+    let remote = router_git_output(remote_command)?;
     if !remote.status.success() {
         return Ok(None);
     }
     let remote_branch = format!("refs/heads/{ROUTER_STATE_BRANCH}");
-    let listed = router_git_command()
+    let mut listed_command = router_git_command();
+    listed_command
         .args(["ls-remote", "--heads", "origin", &remote_branch])
-        .current_dir(root)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+        .current_dir(root);
+    let listed = router_git_output(listed_command)?;
     if !listed.status.success() {
         return Err(KanbusError::IssueOperation(
             "could not inspect shared router state".to_string(),
@@ -433,11 +483,11 @@ fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, K
     if fetch {
         let tracking_ref = format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}");
         let refspec = format!("+{remote_branch}:{tracking_ref}");
-        let fetched = router_git_command()
+        let mut fetch_command = router_git_command();
+        fetch_command
             .args(["fetch", "--quiet", "origin", &refspec])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+            .current_dir(root);
+        let fetched = router_git_output(fetch_command)?;
         if !fetched.status.success() {
             return Err(KanbusError::IssueOperation(
                 "could not fetch shared router state".to_string(),
@@ -460,7 +510,8 @@ fn read_router_state_ref_events(
 ) -> Result<Vec<EventRecord>, KanbusError> {
     let events_path = configured_project_directory(root)?.join("events");
     let events_path = events_path.to_string_lossy().to_string();
-    let listed = router_git_command()
+    let mut list_command = router_git_command();
+    list_command
         .args([
             "ls-tree",
             "-r",
@@ -469,9 +520,8 @@ fn read_router_state_ref_events(
             "--",
             &events_path,
         ])
-        .current_dir(root)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+        .current_dir(root);
+    let listed = router_git_output(list_command)?;
     if !listed.status.success() {
         return Err(KanbusError::IssueOperation(
             "could not read shared router state".to_string(),
@@ -1268,7 +1318,10 @@ fn apply_router_status_overlay(
             .filter(|event| {
                 matches!(
                     &event.event_type,
-                    EventType::RouterAttempt | EventType::RouterResult | EventType::RouterForge
+                    EventType::RouterAttempt
+                        | EventType::RouterResult
+                        | EventType::RouterForge
+                        | EventType::RouterConversation
                 )
             })
             .max_by(|left, right| {
@@ -1299,7 +1352,14 @@ fn apply_router_status_overlay(
             continue;
         }
         let status = match &event.event_type {
-            EventType::RouterAttempt if payload_text(event, "action") == Some("started") => {
+            EventType::RouterAttempt
+                if matches!(
+                    payload_text(event, "action"),
+                    Some("started" | "retryable_failure")
+                ) =>
+            {
+                // A retry is not a terminal agent decision: the package stays
+                // active while the backoff clock prevents another start.
                 Some(router.workflow.active.as_str())
             }
             EventType::RouterResult => match payload_text(event, "outcome") {
@@ -1342,6 +1402,16 @@ fn apply_router_status_overlay(
                         }
                     }
                 }
+                _ => None,
+            },
+            // Conversation events are the durable source of an agent run's
+            // lifecycle.  They must participate in the projection: otherwise
+            // a prior `router.attempt started` can incorrectly overwrite a
+            // newer agent turn that has already been handed to Review.
+            EventType::RouterConversation => match payload_text(event, "lifecycle") {
+                Some("in_progress") => Some(router.workflow.active.as_str()),
+                Some("blocked") => Some(router.workflow.blocked.as_str()),
+                Some("review") => Some(router.workflow.review.as_str()),
                 _ => None,
             },
             _ => None,
@@ -3122,7 +3192,7 @@ fn execute_issue_router_operation_inner(
         write_local_router_state(root, &local)?;
         return Ok("Issue Router stop requested.\n".to_string());
     }
-    let (_, router, project_dir) = load_issue_router(root)?;
+    let (configuration, router, project_dir) = load_issue_router(root)?;
     match operation {
         IssueRouterOperation::Plan { json } => {
             let plan = build_issue_router_plan(root)?;
@@ -3160,12 +3230,18 @@ fn execute_issue_router_operation_inner(
             cancel_router_package(root, &router, &project_dir, &issue_id)
         }
         IssueRouterOperation::Recover { issue_id } => {
-            recover_router_package(&project_dir, &issue_id)
+            recover_router_package(root, &configuration, &router, &project_dir, &issue_id)
         }
     }
 }
 
-fn recover_router_package(project_dir: &Path, issue_id: &str) -> Result<String, KanbusError> {
+fn recover_router_package(
+    root: &Path,
+    configuration: &ProjectConfiguration,
+    router: &IssueRouterConfiguration,
+    project_dir: &Path,
+    issue_id: &str,
+) -> Result<String, KanbusError> {
     let events = load_router_events(project_dir)?;
     let latest = events
         .iter()
@@ -3192,6 +3268,16 @@ fn recover_router_package(project_dir: &Path, issue_id: &str) -> Result<String, 
             "worktree":payload_text(latest, "worktree"),
         }),
     )?;
+    let target_status = match lifecycle {
+        "review" => Some(router.workflow.review.as_str()),
+        "blocked" => Some(router.workflow.blocked.as_str()),
+        _ => None,
+    };
+    if let Some(status) = target_status {
+        // Recovering a completed or paused turn must put the actual board card
+        // where the human can act on it, not merely emit hidden router state.
+        apply_shared_issue_status(root, configuration, issue_id, status)?;
+    }
     Ok(format!(
         "Recovered {issue_id}: provider={provider} lifecycle={lifecycle} branch={branch}\n"
     ))
@@ -4803,15 +4889,7 @@ fn execute_router_adapter(
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = match parse_router_result(&output) {
-        Ok(result) => result,
-        Err(KanbusError::IssueOperation(message))
-            if message == "Codex router adapter returned invalid JSON" =>
-        {
-            invalid_json_retryable_result(message)
-        }
-        Err(error) => return Err(error),
-    };
+    let result = parse_router_result(&output)?;
     if result.schema_version != 1 {
         return Err(KanbusError::IssueOperation(
             "Codex router adapter returned invalid result".to_string(),
@@ -4930,18 +5008,6 @@ fn push_codex_result_text(text: &str, candidates: &mut Vec<Value>) {
         if parsed.get("outcome").is_some() && parsed.get("schema_version").is_some() {
             candidates.push(parsed);
         }
-    }
-}
-
-fn invalid_json_retryable_result(message: String) -> RouterAgentResult {
-    RouterAgentResult {
-        schema_version: 1,
-        outcome: "retryable_failure".to_string(),
-        summary: message,
-        issue_updates: Vec::new(),
-        issue_comments: Vec::new(),
-        checkpoint: None,
-        artifacts: Vec::new(),
     }
 }
 
@@ -6205,6 +6271,15 @@ mod tests {
     use std::process::Output;
 
     #[test]
+    fn router_git_output_times_out_a_stalled_child() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "sleep 1"]);
+        let error = router_git_output_with_timeout(command, Duration::from_millis(10))
+            .expect_err("stalled router Git child must time out");
+        assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[test]
     fn hard_lease_renewer_runs_while_start_publication_is_delayed() {
         let renewals = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let renewal_counter = Arc::clone(&renewals);
@@ -6709,6 +6784,68 @@ mod tests {
             payload,
             occurred_at.to_string(),
         )
+    }
+
+    #[test]
+    fn latest_conversation_review_overrides_an_older_started_attempt() {
+        let mut issues = vec![IssueData {
+            identifier: "kbs-review".to_string(),
+            title: "Preserved agent work".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        }];
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::new(),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        let started = event(
+            "router:kbs-review",
+            EventType::RouterAttempt,
+            json!({"action":"started"}),
+            "2026-09-18T23:00:00Z",
+        );
+        let review = event(
+            "router:kbs-review",
+            EventType::RouterConversation,
+            json!({"action":"agent_turn", "lifecycle":"review"}),
+            "2026-09-18T23:01:00Z",
+        );
+
+        apply_router_status_overlay(&mut issues, &[started, review], &router, &[]);
+
+        assert_eq!(issues[0].status, "review");
     }
 
     fn git_output(root: &Path, args: &[&str]) -> Output {
@@ -7583,7 +7720,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_adapter_json_is_retryable_but_unknown_outcomes_stay_validation_errors() {
+    fn malformed_adapter_json_and_unknown_outcomes_are_validation_errors() {
         let error =
             parse_router_result("not JSON").expect_err("malformed adapter output must not parse");
         let message = match error {
@@ -7591,9 +7728,6 @@ mod tests {
             other => panic!("unexpected adapter parse error: {other}"),
         };
         assert_eq!(message, "Codex router adapter returned invalid JSON");
-        let retry = invalid_json_retryable_result(message);
-        assert_eq!(retry.outcome, "retryable_failure");
-
         let unknown =
             parse_router_result(r#"{"schema_version":1,"outcome":"done","checkpoint":null}"#)
                 .expect("syntactically valid outcome parses before allowlist validation");
