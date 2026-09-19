@@ -1318,7 +1318,10 @@ fn apply_router_status_overlay(
             .filter(|event| {
                 matches!(
                     &event.event_type,
-                    EventType::RouterAttempt | EventType::RouterResult | EventType::RouterForge
+                    EventType::RouterAttempt
+                        | EventType::RouterResult
+                        | EventType::RouterForge
+                        | EventType::RouterConversation
                 )
             })
             .max_by(|left, right| {
@@ -1392,6 +1395,16 @@ fn apply_router_status_overlay(
                         }
                     }
                 }
+                _ => None,
+            },
+            // Conversation events are the durable source of an agent run's
+            // lifecycle.  They must participate in the projection: otherwise
+            // a prior `router.attempt started` can incorrectly overwrite a
+            // newer agent turn that has already been handed to Review.
+            EventType::RouterConversation => match payload_text(event, "lifecycle") {
+                Some("in_progress") => Some(router.workflow.active.as_str()),
+                Some("blocked") => Some(router.workflow.blocked.as_str()),
+                Some("review") => Some(router.workflow.review.as_str()),
                 _ => None,
             },
             _ => None,
@@ -6784,6 +6797,68 @@ mod tests {
             payload,
             occurred_at.to_string(),
         )
+    }
+
+    #[test]
+    fn latest_conversation_review_overrides_an_older_started_attempt() {
+        let mut issues = vec![IssueData {
+            identifier: "kbs-review".to_string(),
+            title: "Preserved agent work".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        }];
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::new(),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        let started = event(
+            "router:kbs-review",
+            EventType::RouterAttempt,
+            json!({"action":"started"}),
+            "2026-09-18T23:00:00Z",
+        );
+        let review = event(
+            "router:kbs-review",
+            EventType::RouterConversation,
+            json!({"action":"agent_turn", "lifecycle":"review"}),
+            "2026-09-18T23:01:00Z",
+        );
+
+        apply_router_status_overlay(&mut issues, &[started, review], &router, &[]);
+
+        assert_eq!(issues[0].status, "review");
     }
 
     fn git_output(root: &Path, args: &[&str]) -> Output {
