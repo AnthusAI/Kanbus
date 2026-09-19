@@ -6410,6 +6410,22 @@ mod tests {
     }
 
     #[test]
+    fn router_transition_path_uses_configured_intermediate_status() {
+        let mut configuration = crate::config::default_project_configuration();
+        configuration
+            .workflows
+            .get_mut("default")
+            .expect("default workflow")
+            .insert("in_progress".to_string(), vec!["review".to_string()]);
+
+        assert_eq!(
+            router_status_transition_path(&configuration, "task", "open", "review")
+                .expect("legal workflow path"),
+            vec!["in_progress".to_string(), "review".to_string()]
+        );
+    }
+
+    #[test]
     fn hard_lease_renewer_runs_while_start_publication_is_delayed() {
         let renewals = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let renewal_counter = Arc::clone(&renewals);
