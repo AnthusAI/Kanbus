@@ -64,6 +64,21 @@ class AgentMetadata(BaseModel):
     settings: Dict[str, Any] = Field(default_factory=dict)
 
 
+class AgentAssignment(BaseModel):
+    """Router assignment and resolved configuration shown in the console."""
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: Optional[str] = None
+    name: Optional[str] = None
+    agent_class: Optional[str] = None
+    provider: Optional[str] = None
+    provider_profile: Optional[str] = None
+    effective: Dict[str, Any] = Field(default_factory=dict)
+    effective_configuration: Dict[str, Any] = Field(default_factory=dict)
+    effective_config: Dict[str, Any] = Field(default_factory=dict)
+
+
 class CategoryDefinition(BaseModel):
     """Category definition for grouping statuses."""
 
@@ -210,6 +225,7 @@ class IssueData(BaseModel):
     right_now_updated_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
     agent: Optional[AgentMetadata] = None
+    agent_assignment: Optional[AgentAssignment] = None
 
 
 class StatusDefinition(BaseModel):
