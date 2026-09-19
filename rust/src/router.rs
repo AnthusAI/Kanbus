@@ -798,6 +798,7 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
             let project_directory = configured_project_directory(root)?;
             let mut events_to_write = related_claim_events(&load_project_directory(root)?, event)?;
             events_to_write.push(event.clone());
+            let mut event_paths = Vec::with_capacity(events_to_write.len());
             for shared_event in events_to_write {
                 let filename = crate::event_history::event_filename(
                     &shared_event.occurred_at,
@@ -807,6 +808,10 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                     .join(&project_directory)
                     .join("events")
                     .join(filename);
+                // Keep the stage list to the immutable router artifacts for
+                // this publication. The event directory is commonly ignored,
+                // so a normal add would silently omit a completed turn.
+                event_paths.push(destination.clone());
                 if destination.exists() {
                     continue;
                 }
@@ -818,7 +823,6 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                     .map_err(|error| KanbusError::Io(error.to_string()))?;
             }
             let issue_path = project_directory.join("issues");
-            let event_directory = project_directory.join("events");
             let add_issues = Command::new("git")
                 .arg("add")
                 .arg("--")
@@ -831,12 +835,12 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                     "could not stage shared router state".to_string(),
                 ));
             }
-            // Project event history is intentionally ignored in user checkouts;
-            // force-add only the router's configured event directory in this
-            // clean hidden worktree so peer planners can reduce the same log.
+            // Project event history is intentionally ignored in user checkouts.
+            // Force-add only this publication's configured event artifacts;
+            // never stage unrelated ignored files from the event directory.
             let add_events = Command::new("git")
                 .args(["add", "-f", "--"])
-                .arg(event_directory)
+                .args(&event_paths)
                 .current_dir(&worktree)
                 .output()
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
