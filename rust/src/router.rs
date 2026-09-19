@@ -1131,8 +1131,6 @@ fn payload_text<'a>(event: &'a EventRecord, key: &str) -> Option<&'a str> {
 }
 
 /// A Review slot is occupied only by work a human can actually inspect.
-/// Historic router results without a preserved transcript must not permanently
-/// prevent all future dispatches.
 fn has_preserved_review_conversation(events: &[EventRecord], issue_id: &str) -> bool {
     events
         .iter()
@@ -2141,8 +2139,6 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
             routed_package_wip.push((issue.identifier.clone(), route));
         }
     }
-    // Capacity limits apply to packages owned by this router, not every
-    // human-managed board item that happens to be in an in-progress state.
     let all_project_wip = routed_package_wip.len();
     let all_project_review = routed_package_wip
         .iter()

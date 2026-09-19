@@ -173,9 +173,7 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
     active_counts, class_counts, provider_counts = _current_route_counts(
         context, issues_by_id, events
     )
-    # Router capacity is about work the router owns.  Counting every board
-    # item in an in-progress semantic state makes active initiatives, epics,
-    # and manually managed work consume all worker slots.
+    # Human-managed board work must not consume the router's worker capacity.
     current_wip = sum(active_counts.values())
     current_review = sum(
         issue.status == context.router.workflow.review
