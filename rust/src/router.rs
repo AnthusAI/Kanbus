@@ -32,6 +32,8 @@ use crate::policy_loader::load_policies;
 
 const ROUTER_ROUTE_LABEL_PREFIXES: [&str; 2] = ["agent-class:", "agent-provider:"];
 const ROUTER_GIT_TIMEOUT: Duration = Duration::from_secs(20);
+const ROUTER_STATE_FETCH_ATTEMPTS: u32 = 3;
+const ROUTER_STATE_FETCH_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 /// A resolved package route used by the planner and worker scheduler.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -499,18 +501,34 @@ fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, K
     if fetch {
         let tracking_ref = format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}");
         let refspec = format!("+{remote_branch}:{tracking_ref}");
-        let mut fetch_command = router_git_command();
-        fetch_command
-            .args(["fetch", "--quiet", "origin", &refspec])
-            .current_dir(root);
-        let fetched = router_git_output(fetch_command)?;
-        if !fetched.status.success() {
+        let fetched = retry_router_state_fetch(|| {
+            let mut fetch_command = router_git_command();
+            fetch_command
+                .args(["fetch", "--quiet", "origin", &refspec])
+                .current_dir(root);
+            router_git_output(fetch_command)
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+        });
+        if !fetched {
             return Err(KanbusError::IssueOperation(
                 "could not fetch shared router state".to_string(),
             ));
         }
     }
     Ok(Some(format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}")))
+}
+
+fn retry_router_state_fetch(mut fetch: impl FnMut() -> bool) -> bool {
+    for attempt in 0..ROUTER_STATE_FETCH_ATTEMPTS {
+        if fetch() {
+            return true;
+        }
+        if attempt + 1 < ROUTER_STATE_FETCH_ATTEMPTS {
+            thread::sleep(ROUTER_STATE_FETCH_RETRY_DELAY);
+        }
+    }
+    false
 }
 
 pub(crate) fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
@@ -6614,6 +6632,22 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[test]
+    fn shared_state_fetch_retries_a_transient_git_lock() {
+        let attempts = std::cell::Cell::new(0);
+        let fetched = retry_router_state_fetch(|| {
+            let attempt = attempts.get() + 1;
+            attempts.set(attempt);
+            attempt == 2
+        });
+
+        assert!(fetched);
+        assert_eq!(attempts.get(), 2);
+
+        let exhausted = retry_router_state_fetch(|| false);
+        assert!(!exhausted);
     }
 
     #[test]
