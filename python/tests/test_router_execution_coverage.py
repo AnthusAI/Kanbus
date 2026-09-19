@@ -66,7 +66,7 @@ def context(tmp_path, providers=None, forge=None):
         active="active", blocked="blocked", review="review", terminal=["closed"]
     )
     router = SimpleNamespace(
-        providers={"codex": SimpleNamespace(command="codex", args=[])},
+        providers={"codex": SimpleNamespace(adapter="codex", command="codex", args=[])},
         classes={"review": SimpleNamespace(providers=["codex"])},
         workflow=workflow,
         forge=forge,

@@ -444,12 +444,25 @@ pub struct IssueRouterLimitsConfiguration {
 pub struct IssueRouterProviderConfiguration {
     /// Adapter protocol for the profile.
     pub adapter: String,
-    /// Executable used to launch the adapter.
-    #[serde(default = "default_issue_router_command")]
-    pub command: String,
-    /// Arguments preceding the adapter's `exec --json` arguments.
+    /// Executable used to launch the adapter; defaults to the adapter name.
+    #[serde(default)]
+    pub command: Option<String>,
+    /// Arguments preceding the adapter's subcommand arguments.
     #[serde(default)]
     pub args: Vec<String>,
+    /// Model passed to the adapter, e.g. `amazon-bedrock/openai.gpt-oss-20b-1:0`.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Environment variables merged over the parent environment for the adapter.
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+}
+
+impl IssueRouterProviderConfiguration {
+    /// Executable used to launch the adapter.
+    pub fn resolved_command(&self) -> &str {
+        self.command.as_deref().unwrap_or(&self.adapter)
+    }
 }
 
 /// Ordered provider profiles available to an issue class.
@@ -514,10 +527,6 @@ pub struct IssueRouterConfiguration {
     /// Optional forge used to publish and observe pull requests.
     #[serde(default)]
     pub forge: Option<IssueRouterForgeConfiguration>,
-}
-
-fn default_issue_router_command() -> String {
-    "codex".to_string()
 }
 
 fn default_issue_router_max_attempts() -> u32 {

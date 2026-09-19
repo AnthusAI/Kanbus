@@ -1980,10 +1980,12 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         errors.push("router.providers must not be empty".to_string());
     }
     for (profile, provider) in &router.providers {
-        if provider.adapter != "codex" {
-            errors.push(format!("router.providers.{profile}.adapter must be codex"));
+        if !["codex", "opencode"].contains(&provider.adapter.as_str()) {
+            errors.push(format!(
+                "router.providers.{profile}.adapter must be codex or opencode"
+            ));
         }
-        if provider.command.trim().is_empty() {
+        if provider.resolved_command().trim().is_empty() {
             errors.push(format!(
                 "router.providers.{profile}.command must not be empty"
             ));
@@ -5070,7 +5072,7 @@ fn execute_router_adapter(
         &format!("router:{issue_id}"),
         EventType::RouterConversation,
         json!({
-            "action":"started", "provider":"codex", "lifecycle":"in_progress",
+            "action":"started", "provider":profile.adapter, "lifecycle":"in_progress",
             "claim_id":claim.claim_id, "revision":claim.revision,
             "worktree":worktree, "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
         }),
@@ -5088,20 +5090,40 @@ fn execute_router_adapter(
             ))
             .unwrap_or_else(|| "null".to_string())
     );
-    let mut command = Command::new(&profile.command);
+    let opencode = profile.adapter == "opencode";
+    let adapter_name = if opencode { "OpenCode" } else { "Codex" };
+    let mut command = Command::new(profile.resolved_command());
+    command.args(&profile.args);
+    if opencode {
+        command.arg("run").arg("--format").arg("json");
+    } else {
+        command.arg("exec").arg("--json");
+    }
+    if let Some(model) = &profile.model {
+        command.arg("--model").arg(model);
+    }
+    if !opencode {
+        command.arg("--cd").arg(&worktree);
+    }
     command
-        .args(&profile.args)
-        .arg("exec")
-        .arg("--json")
-        .arg("--cd")
-        .arg(&worktree)
-        .arg(prompt)
+        .arg(if opencode {
+            format!("{prompt}{OPENCODE_FORMAT_HINT}")
+        } else {
+            prompt
+        })
+        .envs(&profile.env)
+        .envs(opencode.then(|| ("PWD", worktree.clone())))
+        .stdin(if opencode {
+            Stdio::null()
+        } else {
+            Stdio::inherit()
+        })
         .current_dir(&worktree)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|_| KanbusError::IssueOperation("Codex router adapter failed".to_string()))?;
+    let mut child = command.spawn().map_err(|_| {
+        KanbusError::IssueOperation(format!("{adapter_name} router adapter failed"))
+    })?;
     set_active_router_state(root, issue_id, &claim.claim_id, Some(child.id()))?;
     let stdout_reader = child.stdout.take().map(|mut stream| {
         thread::spawn(move || {
@@ -5153,9 +5175,9 @@ fn execute_router_adapter(
         }
         if started.elapsed() > Duration::from_secs(3600) {
             let _ = child.kill();
-            return Err(KanbusError::IssueOperation(
-                "Codex router adapter failed".to_string(),
-            ));
+            return Err(KanbusError::IssueOperation(format!(
+                "{adapter_name} router adapter failed"
+            )));
         }
         if Instant::now() >= next_renewal {
             let renew_result = if claim.hard && external_renewer.is_some() {
@@ -5180,13 +5202,13 @@ fn execute_router_adapter(
             let stderr = stderr_reader
                 .and_then(|reader| reader.join().ok())
                 .unwrap_or_default();
-            let session_id = codex_session_id(&stdout);
+            let session_id = adapter_session_id(opencode, &stdout);
             append_router_event(
                 project_dir,
                 &format!("router:{issue_id}"),
                 EventType::RouterConversation,
                 json!({
-                    "action":"agent_turn", "provider":"codex", "lifecycle":"review",
+                    "action":"agent_turn", "provider":profile.adapter, "lifecycle":"review",
                     "claim_id":claim.claim_id, "revision":claim.revision,
                     "session_id":session_id, "worktree":worktree,
                     "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
@@ -5194,23 +5216,27 @@ fn execute_router_adapter(
                 }),
             )?;
             if !status.success() {
-                return Err(KanbusError::IssueOperation(
-                    "Codex router adapter failed".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(format!(
+                    "{adapter_name} router adapter failed"
+                )));
             }
             break stdout;
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = parse_router_result(&output)?;
+    let result = if opencode {
+        parse_opencode_result(&output)?
+    } else {
+        parse_router_result(&output)?
+    };
     if result.schema_version != 1 {
-        return Err(KanbusError::IssueOperation(
-            "Codex router adapter returned invalid result".to_string(),
-        ));
+        return Err(KanbusError::IssueOperation(format!(
+            "{adapter_name} router adapter returned invalid result"
+        )));
     }
     if !["completed", "blocked", "retryable_failure"].contains(&result.outcome.as_str()) {
         return Err(KanbusError::IssueOperation(format!(
-            "invalid Codex router outcome \"{}\"",
+            "invalid {adapter_name} router outcome \"{}\"",
             result.outcome
         )));
     }
@@ -5224,14 +5250,71 @@ fn execute_router_adapter(
             &format!("router:{issue_id}"),
             EventType::RouterConversation,
             json!({
-                "action":"awaiting_reply", "provider":"codex", "lifecycle":"blocked",
+                "action":"awaiting_reply", "provider":profile.adapter, "lifecycle":"blocked",
                 "claim_id":claim.claim_id, "revision":claim.revision,
-                "session_id":codex_session_id(&output), "worktree":worktree,
+                "session_id":adapter_session_id(opencode, &output), "worktree":worktree,
                 "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
             }),
         )?;
     }
     Ok(result)
+}
+
+const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+
+fn adapter_session_id(opencode: bool, stdout: &str) -> Option<String> {
+    if !opencode {
+        return codex_session_id(stdout);
+    }
+    stdout.lines().find_map(|line| {
+        serde_json::from_str::<Value>(line)
+            .ok()?
+            .get("sessionID")?
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .map(str::to_string)
+    })
+}
+
+/// Concatenate the assistant text parts of OpenCode's JSON event stream.
+fn opencode_text(stdout: &str) -> String {
+    stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|event| event.get("type").and_then(Value::as_str) == Some("text"))
+        .filter_map(|event| event.pointer("/part/text")?.as_str().map(str::to_string))
+        .collect()
+}
+
+/// Find the last result object embedded anywhere in free-form model text.
+fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+    let text = opencode_text(stdout);
+    let mut found: Option<Value> = None;
+    let mut offset = 0;
+    while let Some(relative) = text[offset..].find('{') {
+        let start = offset + relative;
+        let mut stream = serde_json::Deserializer::from_str(&text[start..]).into_iter::<Value>();
+        match stream.next() {
+            Some(Ok(value)) => {
+                if value.get("outcome").is_some() && value.get("schema_version").is_some() {
+                    found = Some(value);
+                }
+                offset = start + stream.byte_offset().max(1);
+            }
+            _ => offset = start + 1,
+        }
+    }
+    found
+        .ok_or_else(|| {
+            KanbusError::IssueOperation("OpenCode router adapter returned invalid JSON".to_string())
+        })
+        .and_then(|value| {
+            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
+                KanbusError::IssueOperation(
+                    "OpenCode router adapter returned invalid result".to_string(),
+                )
+            })
+        })
 }
 
 fn codex_session_id(stdout: &str) -> Option<String> {
@@ -7157,8 +7240,10 @@ mod tests {
                 "codex".to_string(),
                 crate::models::IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
                 },
             )]),
             classes: BTreeMap::new(),
@@ -8182,8 +8267,10 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
                 },
             )]),
             classes: BTreeMap::from([(
@@ -8878,8 +8965,10 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
                 },
             )]),
             classes: BTreeMap::new(),
@@ -9176,5 +9265,35 @@ mod tests {
         assert_eq!(pull.number, 42);
         assert_eq!(pull.branch, "codex/router/kbs-test/r1");
         server.join().expect("mock GitHub API");
+    }
+
+    #[test]
+    fn opencode_result_is_extracted_from_prose_and_session_from_events() {
+        let text =
+            "Done. Result: {\"schema_version\":1,\"outcome\":\"completed\",\"summary\":\"ok\"}";
+        let stdout = [
+            json!({"type":"step_start","sessionID":"ses_1","part":{}}),
+            json!({"type":"text","sessionID":"ses_1","part":{"text":"thinking {not json"}}),
+            json!({"type":"text","sessionID":"ses_1","part":{"text":text}}),
+        ]
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+        let result = parse_opencode_result(&stdout).expect("result");
+        assert_eq!(result.outcome, "completed");
+        assert_eq!(adapter_session_id(true, &stdout).as_deref(), Some("ses_1"));
+    }
+
+    #[test]
+    fn opencode_rejects_missing_or_string_schema_version() {
+        let none = json!({"type":"text","part":{"text":"no json"}}).to_string();
+        let error = parse_opencode_result(&none).unwrap_err().to_string();
+        assert!(error.contains("OpenCode router adapter returned invalid JSON"));
+        let string_version = json!({"type":"text","part":{"text":"{\"schema_version\":\"1\",\"outcome\":\"completed\"}"}}).to_string();
+        let error = parse_opencode_result(&string_version)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("OpenCode router adapter returned invalid result"));
     }
 }
