@@ -213,6 +213,11 @@ def run_router_once(
                 raise IssueRouterError(HARD_COORDINATION_ERROR)
 
     start_recorded = False
+    # This becomes true only after a completed adapter result has been
+    # received. Failures after that point are publication failures, not failed
+    # agent starts: the conversation, worktree, and possible branch must remain
+    # visible to a reviewer.
+    completed_result_received = False
     try:
         handles = _acquire_claims(
             context,
@@ -361,6 +366,7 @@ def run_router_once(
                     context, candidate.issue_id, claim_id, revision, str(error)
                 )
                 return RouterRunResult(started=1, failed=1, error=str(error))
+        completed_result_received = result.outcome == "completed"
         if scheduler_claim_handles is not None:
             scheduler_error = next(
                 (
@@ -458,6 +464,18 @@ def run_router_once(
             deferred=len(plan.deferred) + max(0, len(plan.eligible) - 1),
         )
     except (IssueRouterError, IssueUpdateError) as error:
+        if completed_result_received:
+            try:
+                _preserve_completed_turn_publication_failure(
+                    context, candidate, claim_id, revision, error
+                )
+                return RouterRunResult(
+                    started=1, review=1, failed=1, deferred=0, error=str(error)
+                )
+            except (IssueCommentError, IssueUpdateError, IssueRouterError):
+                # The original error remains the useful diagnostic if the
+                # board cannot accept the recovery publication either.
+                pass
         started = int(start_recorded)
         return RouterRunResult(
             started=started, failed=started, deferred=0, error=str(error)
@@ -1324,6 +1342,54 @@ def _apply_issue_comments(
             "Kanbus Issue Router",
             comment.text,
         )
+
+
+def _preserve_completed_turn_publication_failure(
+    context: RouterContext,
+    candidate: RouterPlanEligiblePackage,
+    claim_id: str,
+    revision: int,
+    error: Exception,
+) -> None:
+    """Leave a completed agent turn reviewable when later publication fails.
+
+    The adapter has already persisted its conversation metadata before this
+    helper runs.  Record a human-facing diagnostic and a completed router event
+    so the state projection selects Review instead of silently returning the
+    package to the scheduler.
+    """
+    _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+    diagnostic = (
+        "Agent work was preserved but automatic publication failed. Review the "
+        "agent conversation, isolated worktree, and router branch. "
+        f"Router detail: {error}"
+    )
+    add_issue_comment(
+        getattr(context, "source_root", None) or context.root,
+        candidate.issue_id,
+        "Kanbus Issue Router",
+        diagnostic,
+    )
+    _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+    record_router_event(
+        context.project_dir,
+        package_id=candidate.issue_id,
+        event_type="router_completed",
+        payload={
+            "claim_id": claim_id,
+            "revision": revision,
+            "publication_failed": True,
+            "diagnostic": str(error),
+        },
+    )
+    _transition_package(
+        context,
+        candidate.issue_id,
+        context.router.workflow.review,
+        claim_id=claim_id,
+        revision=revision,
+    )
+    publish_router_state(context.root, set(candidate.package_issue_ids))
 
 
 def _validate_result_scope(
