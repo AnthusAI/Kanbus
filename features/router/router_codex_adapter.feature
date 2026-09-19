@@ -55,7 +55,7 @@ Feature: Structured outcomes from the Codex router adapter
     When I run "kanbus router run --once"
     Then the command should fail with exit code 1
     And stderr should equal "error: issue kbs-999 is outside router package kbs-401\n"
-    And no issue status should change
+    And package "kbs-401" should transition to status "review"
 
   Scenario: The Codex adapter receives a bounded package and the latest accepted checkpoint
     Given package "kbs-401" contains issues "kbs-401, kbs-402"
