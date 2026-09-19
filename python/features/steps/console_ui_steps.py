@@ -839,7 +839,9 @@ def then_issue_assignment_route(context: object, route: str) -> None:
     assignment = issue.agent_assignment
     if assignment is None:
         raise AssertionError("expected an agent assignment")
-    actual_kind = "provider" if assignment.kind == "provider_profile" else assignment.kind
+    actual_kind = (
+        "provider" if assignment.kind == "provider_profile" else assignment.kind
+    )
     actual = (
         f"{actual_kind.title()} · {assignment.name}"
         if actual_kind in {"class", "provider"}
@@ -861,7 +863,9 @@ def then_issue_assignment_effective(context: object, value: str) -> None:
 def then_issue_assignment_unassigned(context: object) -> None:
     issue = _get_selected_issue(context)
     if issue.agent_assignment is not None:
-        raise AssertionError(f"expected unassigned issue but found {issue.agent_assignment}")
+        raise AssertionError(
+            f"expected unassigned issue but found {issue.agent_assignment}"
+        )
 
 
 @then('the comment agent metadata should include platform "{platform}"')
