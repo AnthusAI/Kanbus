@@ -382,20 +382,36 @@ fn configured_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
         })
 }
 
-fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
+/// Resolve the enclosing Git repository root for an Issue Router command.
+///
+/// Router commands establish this boundary before loading Kanbus
+/// configuration or shared state, so a caller may safely start from any
+/// repository subdirectory.
+pub fn resolve_router_root(path: &Path) -> Result<PathBuf, KanbusError> {
     let mut command = router_git_command();
     command
         .args(["rev-parse", "--show-toplevel"])
         .current_dir(path);
-    let output = router_git_output(command)?;
+    let output = router_git_output(command).map_err(|_| {
+        KanbusError::IssueOperation("issue router requires a Git repository".to_string())
+    })?;
     if !output.status.success() {
         return Err(KanbusError::IssueOperation(
             "issue router requires a Git repository".to_string(),
         ));
     }
-    Ok(PathBuf::from(
-        String::from_utf8_lossy(&output.stdout).trim(),
-    ))
+    let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if root.is_empty() {
+        return Err(KanbusError::IssueOperation(
+            "issue router requires a Git repository".to_string(),
+        ));
+    }
+    let root = PathBuf::from(root);
+    Ok(root.canonicalize().unwrap_or(root))
+}
+
+fn repository_root(path: &Path) -> Result<PathBuf, KanbusError> {
+    resolve_router_root(path)
 }
 
 /// Construct Git commands used by coordination without allowing an invisible
@@ -6904,6 +6920,40 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn router_root_resolves_from_a_repository_subdirectory() {
+        let temp = tempfile::tempdir().expect("router root temp dir");
+        let root = temp.path().join("checkout");
+        std::fs::create_dir_all(root.join("rust").join("src")).expect("create nested path");
+        let initialized = Command::new("git")
+            .args(["init", "--initial-branch=main"])
+            .current_dir(&root)
+            .output()
+            .expect("initialize Git repository");
+        assert!(initialized.status.success());
+
+        let resolved = resolve_router_root(&root.join("rust").join("src"))
+            .expect("resolve enclosing Git root");
+
+        assert_eq!(
+            resolved,
+            root.canonicalize().expect("canonicalize fixture root")
+        );
+    }
+
+    #[test]
+    fn router_root_rejects_non_git_directories_with_actionable_diagnostic() {
+        let temp = tempfile::tempdir().expect("router root temp dir");
+
+        let error = resolve_router_root(temp.path()).expect_err("non-Git path must fail");
+
+        assert!(matches!(
+            error,
+            KanbusError::IssueOperation(message)
+                if message == "issue router requires a Git repository"
+        ));
     }
 
     fn git_remote_fixture() -> (tempfile::TempDir, PathBuf, PathBuf, String) {
