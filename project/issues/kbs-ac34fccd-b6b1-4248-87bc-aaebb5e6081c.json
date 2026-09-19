@@ -1,0 +1,22 @@
+{
+  "id": "kbs-ac34fccd-b6b1-4248-87bc-aaebb5e6081c",
+  "title": "Refresh the console from Git when realtime transport is unavailable",
+  "description": "## Problem\n\nThe console UI currently depends on its SSE/MQTT streams for changes. In the live project, MQTT returned connection refused and the UI retained stale data until the user manually reloaded the page. A stale or hung backend also surfaced only as an unhelpful Unable to reach the server banner.\n\n## Required behavior\n\nThe console must refresh its API snapshot automatically when realtime transport is unavailable or silent. The fallback must use the existing Git-backed snapshot path, recover from a transient API failure, and clearly distinguish stale data from an unreachable server.\n\n## Acceptance criteria\n\n- MQTT/SSE failure starts bounded periodic snapshot refresh without manual reload.\n- A successful fallback refresh clears the connection-error banner and updates cards/statuses.\n- Git-backed external changes appear in the board within the configured refresh interval.\n- Python/Rust console APIs and UI tests cover realtime outage, recovery, and no duplicate polling.\n- Normal SSE/MQTT delivery remains primary and does not trigger redundant polling.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [
+    "agent-class:value"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-19T14:05:31.853251Z",
+  "updated_at": "2026-09-19T14:05:31.926530Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
