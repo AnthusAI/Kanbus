@@ -153,3 +153,67 @@ def test_recoverable_active_package_is_not_deferred_by_route_caps(
     plan = build_router_plan(context)
 
     assert [item.issue_id for item in plan.eligible] == ["kbs-recoverable"]
+
+
+@pytest.mark.parametrize("holder_status", ["in_progress", "review"])
+def test_unrouted_board_work_does_not_consume_router_wip(
+    tmp_path: Path, holder_status: str
+) -> None:
+    context = _planning_context(
+        tmp_path,
+        project_wip=2,
+        review_wip=2,
+        blocker_status=holder_status,
+    )
+    now = datetime.now(UTC)
+    context.issues.append(
+        IssueData(
+            id="kbs-pending-router-work",
+            title="Dispatchable router work",
+            type="task",
+            status="open",
+            priority=2,
+            labels=["agent-provider:codex"],
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    plan = build_router_plan(context)
+
+    assert [item.issue_id for item in plan.eligible] == [
+        "kbs-recoverable",
+        "kbs-pending-router-work",
+    ]
+
+
+def test_legacy_review_without_conversation_does_not_consume_review_capacity(
+    tmp_path: Path,
+) -> None:
+    context = _planning_context(
+        tmp_path,
+        project_wip=3,
+        review_wip=1,
+        blocker_status="review",
+    )
+    context.issues[1].labels = ["agent-provider:codex"]
+    now = datetime.now(UTC)
+    context.issues.append(
+        IssueData(
+            id="kbs-pending-router-work",
+            title="Dispatchable router work",
+            type="task",
+            status="open",
+            priority=2,
+            labels=["agent-provider:codex"],
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    plan = build_router_plan(context)
+
+    assert [item.issue_id for item in plan.eligible] == [
+        "kbs-recoverable",
+        "kbs-pending-router-work",
+    ]

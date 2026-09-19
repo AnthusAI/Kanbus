@@ -1896,6 +1896,12 @@ def given_only_limit_reached(context: object, limit: str) -> None:
             status="review",
             labels=["agent-provider:codex-default"],
         )
+        record_router_event(
+            load_router_context(_root(context)).project_dir,
+            package_id="kbs-existing",
+            event_type="router_conversation",
+            payload={"lifecycle": "review"},
+        )
     elif limit == "class":
         router["limits"]["class_wip"] = {"implementation": 1}
         _write_issue(
