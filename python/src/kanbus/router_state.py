@@ -102,7 +102,7 @@ def publish_router_state(source_root: Path, issue_ids: set[str] | None = None) -
                 source_root / source_project_path / "issues" / f"{issue_id}.json"
             )
             target_issue = worktree / project_path / "issues" / f"{issue_id}.json"
-            if source_issue.exists():
+            if source_issue.exists() and source_issue != target_issue:
                 target_issue.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source_issue, target_issue)
     # Kanbus keeps the local event stream ignored in user checkouts, but the
