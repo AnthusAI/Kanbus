@@ -2894,7 +2894,7 @@ fn preserve_completed_turn_after_publication_failure(
     configuration: &ProjectConfiguration,
     claim: &RouterClaim,
     publication_error: &KanbusError,
-) -> Result<KanbusError, KanbusError> {
+) -> Result<(), KanbusError> {
     let conversation = load_router_events(project_dir)?
         .into_iter()
         .filter(|event| event.issue_id == format!("router:{}", claim.issue_id))
@@ -2940,9 +2940,7 @@ fn preserve_completed_turn_after_publication_failure(
             "session_id":session_id, "branch":branch, "worktree":worktree,
         }),
     )?;
-    Ok(KanbusError::IssueOperation(format!(
-        "{publication_error}; completed agent turn was preserved in Review"
-    )))
+    Ok(())
 }
 
 /// Render the mandatory, issue-visible review record for a completed agent turn.
@@ -3828,14 +3826,13 @@ fn run_issue_router_once(
             // The adapter records its completed conversation before this
             // publication phase. Do not let a later publication failure turn
             // that completed work into an invisible active card.
-            let error = preserve_completed_turn_after_publication_failure(
+            let _ = preserve_completed_turn_after_publication_failure(
                 root,
                 project_dir,
                 &configuration,
                 &claim,
                 &error,
-            )
-            .unwrap_or(error);
+            );
             if let Some(renewer) = lease_renewer.as_mut() {
                 let renew_result = renewer.stop();
                 if let Err(renew_error) = renew_result {
@@ -7322,7 +7319,7 @@ mod tests {
         )
         .expect("load configuration");
 
-        let error = preserve_completed_turn_after_publication_failure(
+        preserve_completed_turn_after_publication_failure(
             root,
             &project_dir,
             &configuration,
@@ -7330,9 +7327,6 @@ mod tests {
             &KanbusError::IssueOperation("could not publish draft pull request".to_string()),
         )
         .expect("preserve completed turn");
-        assert!(error
-            .to_string()
-            .contains("completed agent turn was preserved in Review"));
         let stored = read_issue_from_file(&issue_path).expect("read diagnostic comment");
         assert!(stored.comments.iter().any(|comment| comment
             .text
