@@ -6,7 +6,7 @@ use cucumber::{gherkin::Step, given, then, when};
 use serde_yaml::{Mapping, Value};
 use tempfile::TempDir;
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::config::{default_project_configuration, write_default_configuration};
 use kanbus::config_loader::load_project_configuration;
 
@@ -19,7 +19,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -892,6 +892,20 @@ fn then_ai_provider_matches(world: &mut KanbusWorld, expected: String) {
     );
 }
 
+#[then(expr = "the AI model should be {string}")]
+fn then_ai_model_matches(world: &mut KanbusWorld, expected: String) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    let ai = configuration
+        .ai
+        .as_ref()
+        .expect("no AI configuration in .kanbus.yml");
+    assert_eq!(
+        ai.model, expected,
+        "expected AI model '{}', got '{}'",
+        expected, ai.model
+    );
+}
+
 #[then(expr = "the right now configuration should have enabled {word}")]
 fn then_right_now_enabled(world: &mut KanbusWorld, expected: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
@@ -990,6 +1004,10 @@ fn given_repo_with_duplicate_status_names(world: &mut KanbusWorld) {
                         Value::String("category".to_string()),
                         Value::String("To do".to_string()),
                     ),
+                    (
+                        Value::String("semantic_category".to_string()),
+                        Value::String("todo".to_string()),
+                    ),
                     (Value::String("collapsed".to_string()), Value::Bool(false)),
                 ]
                 .into_iter()
@@ -1008,6 +1026,10 @@ fn given_repo_with_duplicate_status_names(world: &mut KanbusWorld) {
                     (
                         Value::String("category".to_string()),
                         Value::String("To do".to_string()),
+                    ),
+                    (
+                        Value::String("semantic_category".to_string()),
+                        Value::String("todo".to_string()),
                     ),
                     (Value::String("collapsed".to_string()), Value::Bool(false)),
                 ]
@@ -1041,6 +1063,10 @@ fn given_repo_with_workflow_statuses_not_in_list(world: &mut KanbusWorld) {
                 (
                     Value::String("category".to_string()),
                     Value::String("To do".to_string()),
+                ),
+                (
+                    Value::String("semantic_category".to_string()),
+                    Value::String("todo".to_string()),
                 ),
                 (Value::String("collapsed".to_string()), Value::Bool(false)),
             ]
@@ -1318,4 +1344,9 @@ fn then_hierarchy_should_match_param(world: &mut KanbusWorld, expected: String) 
 fn then_hierarchy_should_include(world: &mut KanbusWorld, value: String) {
     let configuration = world.configuration.as_ref().expect("configuration");
     assert!(configuration.hierarchy.contains(&value));
+}
+
+#[given("litellm is not installed")]
+fn given_litellm_is_not_installed(_world: &mut KanbusWorld) {
+    std::env::set_var("KANBUS_TEST_SIMULATE_LITELLM_MISSING", "1");
 }

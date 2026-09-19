@@ -88,15 +88,24 @@ def _build_kbsc_if_needed(binary: Path) -> None:
         raise RuntimeError("cargo build --bin kbsc failed")
 
 
-def _start_kbsc(working_directory: Path, port: int) -> subprocess.Popen:  # type: ignore[type-arg]
+def _start_kbsc(
+    working_directory: Path, port: int, context: object | None = None
+) -> subprocess.Popen:  # type: ignore[type-arg]
     binary = _kbsc_binary_path()
     _build_kbsc_if_needed(binary)
+    environment = {**os.environ, "KANBUS_NO_DAEMON": "1"}
+    overrides = (
+        getattr(context, "environment_overrides", None) if context is not None else None
+    )
+    if overrides:
+        environment.update(overrides)
     return subprocess.Popen(
         [str(binary)],
         env={
-            **os.environ,
+            **environment,
             "CONSOLE_PORT": str(port),
             "CONSOLE_DATA_ROOT": str(working_directory),
+            "KANBUS_NO_DAEMON": "1",
         },
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -245,7 +254,7 @@ def given_console_server_is_running(context: object) -> None:
     working_directory = Path(context.working_directory)
     port = _allocate_port()
     _write_console_port_to_config(working_directory, port)
-    proc = _start_kbsc(working_directory, port)
+    proc = _start_kbsc(working_directory, port, context)
     context.console_server_process = proc
     ready_port = _wait_for_server(port)
     assert ready_port is not None, f"kbsc did not become ready on port {port}"
@@ -312,7 +321,7 @@ def when_console_server_is_restarted(context: object) -> None:
     context.console_server_process = None
     time.sleep(0.2)
     working_directory = Path(context.working_directory)
-    new_proc = _start_kbsc(working_directory, port)
+    new_proc = _start_kbsc(working_directory, port, context)
     context.console_server_process = new_proc
     ready_port = _wait_for_server(port)
     assert (
@@ -724,12 +733,14 @@ def given_console_issue_right_now_summary(
 def then_issue_detail_right_now_summary(context: object, expected: str) -> None:
     issue = _get_selected_issue(context)
     summary = issue.right_now_summary
-    if summary is None or summary.strip() == "":
-        actual = "(no right-now summary)"
-    else:
-        actual = summary
+    actual = "" if summary is None else summary.strip()
     if actual != expected:
         raise AssertionError(f"expected right-now summary {expected}, got {actual}")
+
+
+@then("the issue detail should show empty right-now summary")
+def then_issue_detail_empty_right_now_summary(context: object) -> None:
+    then_issue_detail_right_now_summary(context, "")
 
 
 @given(
@@ -900,6 +911,44 @@ def _assert_priority_pill_uses_background() -> None:
     ):
         raise AssertionError(
             "issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
+        )
+    _assert_priority_pill_dark_mode_css_is_valid(globals_css)
+
+
+def _assert_priority_pill_dark_mode_css_is_valid(globals_css: str) -> None:
+    """
+    Require a valid dark-mode switch for priority chips.
+
+    :param globals_css: Contents of apps/console/src/styles/globals.css.
+    :type globals_css: str
+    :raises AssertionError: If the dark-mode rule is missing or mixes @media
+        into the selector list.
+    """
+    dark_marker = ".dark .issue-accent-priority"
+    dark_start = globals_css.find(dark_marker)
+    if dark_start == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is required for dark-mode priority chips"
+        )
+    opening_brace = globals_css.find("{", dark_start)
+    if opening_brace == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is missing a declaration block"
+        )
+    selector = globals_css[dark_start:opening_brace]
+    if "@media" in selector:
+        raise AssertionError(
+            "dark-mode .issue-accent-priority selectors must not mix in @media"
+        )
+    closing_brace = globals_css.find("}", opening_brace)
+    if closing_brace == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is missing a closing brace"
+        )
+    body = globals_css[opening_brace : closing_brace + 1]
+    if "--issue-priority-bg" not in body or "--issue-priority-bg-dark" not in body:
+        raise AssertionError(
+            ".dark .issue-accent-priority must set --issue-priority-bg to --issue-priority-bg-dark"
         )
 
 

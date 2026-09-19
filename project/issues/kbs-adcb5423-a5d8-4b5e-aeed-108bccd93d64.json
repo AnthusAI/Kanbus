@@ -1,0 +1,20 @@
+{
+  "id": "kbs-adcb5423-a5d8-4b5e-aeed-108bccd93d64",
+  "title": "Align standup timezone probe UTC vs Etc/UTC in parity checks",
+  "description": "Dual-runtime standup_window_probe outputs may differ on timezone string (UTC vs Etc/UTC). Normalize canonical timezone name in probe JSON for Python/Rust parity assertions.",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-fb18007d-7568-4444-93ad-367ac949f933",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T21:26:23.950114234Z",
+  "updated_at": "2026-09-12T19:21:34.449777Z",
+  "closed_at": "2026-09-12T19:21:34.426864Z",
+  "right_now_summary": "The probe needs one canonical timezone name so Python and Rust parity checks match.",
+  "right_now_updated_at": "2026-09-12T19:21:36.029593Z",
+  "custom": {}
+}

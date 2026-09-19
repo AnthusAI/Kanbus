@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4d37ed32-d10f-4d09-ba94-d832bb4a488f",
+  "title": "Director-brief stakeholder profile",
+  "description": "Stakeholder scan from the same board facts as Meeting script: project health, risks, and momentum with executive framing. Shared stack only.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T17:17:27.929764124Z",
+  "updated_at": "2026-09-09T20:01:19.775139413Z",
+  "closed_at": "2026-09-09T20:01:19.768247440Z",
+  "right_now_summary": "The Director-brief CLI frames stakeholder scans using shared board facts.",
+  "right_now_updated_at": "2026-09-11T19:47:28.059070Z",
+  "custom": {}
+}

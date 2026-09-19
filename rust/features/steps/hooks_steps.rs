@@ -85,3 +85,14 @@ fn then_hook_log_not_contains(world: &mut KanbusWorld, relative_path: String, to
         "expected hook log to omit {token:?}, got:\n{content}"
     );
 }
+
+#[then(expr = "hook log {string} should equal:")]
+async fn then_hook_log_equals(
+    world: &mut KanbusWorld,
+    relative_path: String,
+    step: &gherkin::Step,
+) {
+    let expected = format!("{}\n", step.docstring.as_deref().unwrap_or("").trim());
+    let content = fs::read_to_string(root(world).join(relative_path)).expect("read hook log");
+    assert_eq!(content, expected);
+}

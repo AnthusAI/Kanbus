@@ -18,7 +18,11 @@ from kanbus.project import (
     get_configuration_path,
     load_project_directory,
 )
-from kanbus.workflows import get_workflow_for_issue_type
+from kanbus.workflows import (
+    collect_workflow_statuses,
+    format_status_not_allowed_for_type_error,
+    get_workflow_for_issue_type,
+)
 
 
 class ProjectValidationError(RuntimeError):
@@ -168,9 +172,15 @@ def _validate_issue_fields(
     if issue.priority not in configuration.priorities:
         errors.append(f"{filename}: invalid priority '{issue.priority}'")
 
-    statuses = _collect_workflow_statuses(configuration, issue.issue_type, errors)
-    if statuses is not None and issue.status not in statuses:
+    global_statuses = {status.key for status in configuration.statuses}
+    if issue.status not in global_statuses:
         errors.append(f"{filename}: invalid status '{issue.status}'")
+    else:
+        statuses = _collect_workflow_statuses(configuration, issue.issue_type, errors)
+        if statuses is not None and issue.status not in statuses:
+            errors.append(
+                f"{filename}: {format_status_not_allowed_for_type_error(configuration, issue.issue_type, issue.status, issue.identifier)}"
+            )
 
     if issue.status == "closed" and issue.closed_at is None:
         errors.append(f"{filename}: closed issues must have closed_at set")
@@ -194,10 +204,7 @@ def _collect_workflow_statuses(
     except ValueError as error:
         errors.append(str(error))
         return None
-    statuses: Set[str] = set(workflow.keys())
-    for transitions in workflow.values():
-        statuses.update(transitions)
-    return statuses
+    return collect_workflow_statuses(workflow)
 
 
 def _validate_references(

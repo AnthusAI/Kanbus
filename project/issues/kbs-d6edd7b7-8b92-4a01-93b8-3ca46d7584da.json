@@ -3,7 +3,7 @@
   "title": "Now generation must not wait on closed descendants",
   "description": "Looking at Now generates summaries for the issues in the current view. It does not first generate every closed descendant of an in-progress parent.\n\nPhase 4 on Chattic.us stayed on the placeholder because JIT walked the whole initiative tree (closed epics and tasks) before the parent. Generation of the parent itself succeeds in one call.\n\nNamed recursive `kbs now <id>` still backfills children that are in that selection before the parent.\n\nGET /api/now must ensure the default Now set (in_progress), not every issue in the store.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": "agent",
   "creator": null,
@@ -17,11 +17,23 @@
       "text": "Root cause: look-time backfill walked every descendant, so an in-progress initiative with a large closed tree never reached its own generation. Generation of Phase 4 itself succeeds in one call.\n\nFix: ensure only the issues in the current Now set, children-first among that set. GET /api/now ensures in-progress issues, not the whole store. Named recursive `kbs now <id>` still backfills selected children before the parent.\n\nPhase 4 on Chattic.us now has a persisted summary.\n",
       "created_at": "2026-09-02T23:38:40.610318Z",
       "comment_type": "default"
+    },
+    {
+      "id": "3ebf2f66-484a-40bb-b8e7-f8f490ab12f4",
+      "author": "ubuntu",
+      "text": "Closed after verify. Now tab, tree, board name, and JIT backfill are on develop (PRs #214, #219, #220).",
+      "created_at": "2026-09-07T20:11:23.095440421Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
     }
   ],
   "created_at": "2026-09-02T23:35:10.167736Z",
-  "updated_at": "2026-09-02T23:38:40.610365Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:11:23.145788933Z",
+  "closed_at": "2026-09-07T20:11:23.139070040Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

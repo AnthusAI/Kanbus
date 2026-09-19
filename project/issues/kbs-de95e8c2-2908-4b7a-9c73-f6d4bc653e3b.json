@@ -1,0 +1,50 @@
+{
+  "id": "kbs-de95e8c2-2908-4b7a-9c73-f6d4bc653e3b",
+  "title": "Implement Git soft-lease dual-runtime",
+  "description": "## Implementation\n\nAfter protocol Gherkin is accepted: implement the Git lease provider in both Python and Rust against those scenarios. Claims are announced through the issue/event model. Timing must tolerate Git latency.\n\n## Acceptance\n\nSame Gherkin green on both runtimes. Git-only install has no MQTT or AWS dependency.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-54e7ba58-c148-4ce4-9ecb-b1414e5d41dc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d6dc0568-0dd6-4289-8a51-4029767850fc",
+      "author": "Codex",
+      "text": "PR #278 established the merged protocol contract. This is now the sole implementation-ready coordination item: dual-runtime Git soft lease against that contract.",
+      "created_at": "2026-09-16T03:44:35.654661Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "7ca92734-daca-43fb-81b3-30c571742929",
+      "author": "Codex",
+      "text": "PR #278 established the merged protocol contract. This is now the sole implementation-ready coordination item: dual-runtime Git soft lease against that contract.",
+      "created_at": "2026-09-16T03:44:38.438233Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
+  "created_at": "2026-09-14T13:33:48.772677588Z",
+  "updated_at": "2026-09-16T23:45:55.133888Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The Git lease provider still needs implementation in Python and Rust after the Gherkin protocol is accepted.",
+  "right_now_updated_at": "2026-09-14T13:33:50.689555626Z",
+  "custom": {}
+}

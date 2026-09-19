@@ -23,6 +23,15 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
             "project_events": "projects/{project}/events",
         },
     },
+    "coordination": {
+        "providers": ["git"],
+        "contention_window": "5s",
+        "default_lease_ttl": "300s",
+        "mutex_api": {
+            "endpoint": None,
+            "bearer_token": None,
+        },
+    },
     "overlay": {
         "enabled": True,
         "ttl_s": 86400,
@@ -69,21 +78,41 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     ],
     "sort_order": {},
     "statuses": [
-        {"key": "backlog", "name": "Backlog", "category": "To do", "collapsed": True},
-        {"key": "open", "name": "Discovery", "category": "To do", "collapsed": False},
+        {
+            "key": "backlog",
+            "name": "Backlog",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": True,
+        },
+        {
+            "key": "open",
+            "name": "Discovery",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": False,
+        },
         {
             "key": "in_progress",
             "name": "In Progress",
             "category": "In progress",
+            "semantic_category": "in_progress",
             "collapsed": False,
         },
         {
             "key": "blocked",
             "name": "Blocked",
             "category": "In progress",
+            "semantic_category": "in_progress",
             "collapsed": True,
         },
-        {"key": "closed", "name": "Done", "category": "Done", "collapsed": True},
+        {
+            "key": "closed",
+            "name": "Done",
+            "category": "Done",
+            "semantic_category": "done",
+            "collapsed": True,
+        },
     ],
     "transition_labels": {
         "default": {
@@ -122,11 +151,20 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     },
     "beads_compatibility": False,
     "wiki_directory": None,
+    "ai": {
+        "provider": "litellm",
+        "model": "gpt-5.6-luna",
+    },
     "right_now": {
         "enabled": True,
         "default_tree_expanded": False,
         "max_length": 120,
-        "model": None,
+        "model": "gpt-5.6-luna",
+    },
+    "standup": {
+        "window": "rolling",
+        "lookback": "24h",
+        "skip_weekends": False,
     },
     "github_security": None,
 }

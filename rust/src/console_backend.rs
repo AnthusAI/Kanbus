@@ -1,5 +1,6 @@
 //! Console backend core helpers.
 
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +16,13 @@ use crate::file_io::{
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::overlay::apply_overlay_to_issues;
-use crate::right_now::active_right_now_tree;
+use crate::right_now::{ensure_right_now_summaries, require_display_right_now_summary};
+
+/// Default status filter for the console Now panel.
+pub const DEFAULT_NOW_STATUS_FILTER: &str = "in_progress";
+
+/// Status filter value that includes every issue in the Now panel.
+pub const NOW_STATUS_FILTER_ALL: &str = "all";
 
 /// Snapshot payload for the console.
 #[derive(Debug, Clone, Serialize)]
@@ -134,23 +141,32 @@ impl FileStore {
         })
     }
 
-    /// Backfill right-now summaries for active issues and their ancestors.
+    /// Backfill right-now summaries for every issue in the default Now display set.
     ///
-    /// Every descendant in an active association tree is generated so a later
-    /// tree expansion cannot reveal an unresolved summary placeholder.
+    /// The display set mirrors the console tree view with the default in-progress
+    /// status filter, including ancestors and descendants pulled into the feed.
+    /// Generation is fail-closed: missing or mock summaries surface as errors.
     ///
     /// # Errors
     ///
-    /// Returns `KanbusError` when configuration or issue loading fails.
+    /// Returns `KanbusError` when configuration, issue loading, or JIT generation fails.
     pub fn ensure_right_now_summaries(&self) -> Result<(), KanbusError> {
         let configuration = self.load_config()?;
         let issues = self.load_issues(&configuration)?;
-        let (roots, selected_identifiers) = active_right_now_tree(&issues);
-        crate::right_now::ensure_right_now_summary_subtrees(
-            self.root(),
-            &roots,
-            &selected_identifiers,
-        );
+        let display_identifiers =
+            collect_now_tree_issue_identifiers(&issues, DEFAULT_NOW_STATUS_FILTER);
+        ensure_right_now_summaries(self.root(), &display_identifiers, true)?;
+        let refreshed_issues = self.load_issues(&configuration)?;
+        let issues_by_identifier: HashMap<String, &IssueData> = refreshed_issues
+            .iter()
+            .map(|issue| (issue.identifier.clone(), issue))
+            .collect();
+        for identifier in &display_identifiers {
+            let issue = issues_by_identifier.get(identifier).ok_or_else(|| {
+                KanbusError::IssueOperation(format!("issue not found after JIT: {identifier}"))
+            })?;
+            require_display_right_now_summary(issue)?;
+        }
         Ok(())
     }
 
@@ -159,6 +175,76 @@ impl FileStore {
         let snapshot = self.build_snapshot()?;
         serde_json::to_string(&snapshot).map_err(|error| KanbusError::Io(error.to_string()))
     }
+}
+
+/// Collect issue identifiers for the console Now tree display set.
+///
+/// # Arguments
+///
+/// * `all_issues` - Every issue available to the console.
+/// * `status_filter` - Status key to match, or [`NOW_STATUS_FILTER_ALL`].
+///
+/// # Returns
+///
+/// Identifiers for matching issues plus ancestors and descendants shown in tree mode.
+pub fn collect_now_tree_issue_identifiers(
+    all_issues: &[IssueData],
+    status_filter: &str,
+) -> Vec<String> {
+    let matching_issues: Vec<&IssueData> = if status_filter == NOW_STATUS_FILTER_ALL {
+        all_issues.iter().collect()
+    } else {
+        all_issues
+            .iter()
+            .filter(|issue| issue.status == status_filter)
+            .collect()
+    };
+
+    if matching_issues.is_empty() || matching_issues.len() == all_issues.len() {
+        return matching_issues
+            .iter()
+            .map(|issue| issue.identifier.clone())
+            .collect();
+    }
+
+    let issues_by_identifier: HashMap<String, &IssueData> = all_issues
+        .iter()
+        .map(|issue| (issue.identifier.clone(), issue))
+        .collect();
+    let mut children_by_parent: HashMap<String, Vec<String>> = HashMap::new();
+    for issue in all_issues {
+        if let Some(parent) = &issue.parent {
+            children_by_parent
+                .entry(parent.clone())
+                .or_default()
+                .push(issue.identifier.clone());
+        }
+    }
+
+    let mut included = HashSet::new();
+    let mut pending: Vec<String> = matching_issues
+        .iter()
+        .map(|issue| issue.identifier.clone())
+        .collect();
+    while let Some(identifier) = pending.pop() {
+        if !included.insert(identifier.clone()) {
+            continue;
+        }
+        if let Some(children) = children_by_parent.get(&identifier) {
+            pending.extend(children.iter().cloned());
+        }
+        if let Some(issue) = issues_by_identifier.get(&identifier) {
+            if let Some(parent) = &issue.parent {
+                pending.push(parent.clone());
+            }
+        }
+    }
+
+    all_issues
+        .iter()
+        .filter(|issue| included.contains(&issue.identifier))
+        .map(|issue| issue.identifier.clone())
+        .collect()
 }
 
 /// Resolve issues by full or short identifier.
@@ -268,7 +354,6 @@ fn tag_custom(issue: &mut IssueData, key: &str, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
     use chrono::{TimeZone, Utc};
     use tempfile::TempDir;
 
@@ -461,234 +546,56 @@ mod tests {
     }
 
     #[test]
-    fn active_right_now_tree_includes_every_visible_card_and_uses_topmost_root() {
-        let epic = issue("kanbus-epic");
-        let mut parent = issue("kanbus-parent");
-        parent.parent = Some(epic.identifier.clone());
-        let mut active = issue("kanbus-active");
-        active.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
-        active.parent = Some(parent.identifier.clone());
-        let mut discovery = issue("kanbus-discovery");
-        discovery.status = "discovery".to_string();
-        discovery.parent = Some(parent.identifier.clone());
-        let mut discovery_child = issue("kanbus-discovery-child");
-        discovery_child.status = "discovery".to_string();
-        discovery_child.parent = Some(discovery.identifier.clone());
-        let unrelated = issue("kanbus-unrelated");
-
-        let (roots, selected) =
-            active_right_now_tree(&[epic, parent, active, discovery, discovery_child, unrelated]);
-
-        assert_eq!(roots, vec!["kanbus-epic"]);
-        assert_eq!(
-            selected,
-            std::collections::HashSet::from([
-                "kanbus-epic".to_string(),
-                "kanbus-parent".to_string(),
-                "kanbus-active".to_string(),
-                "kanbus-discovery".to_string(),
-                "kanbus-discovery-child".to_string(),
-            ])
-        );
-    }
-
-    #[test]
-    fn active_right_now_tree_includes_descendants_that_may_be_expanded() {
-        let root = issue("kanbus-root");
-        let mut active = issue("kanbus-active");
-        active.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
-        active.parent = Some(root.identifier.clone());
-        let mut discovery = issue("kanbus-discovery");
-        discovery.status = "open".to_string();
-        discovery.parent = Some(root.identifier.clone());
-
-        let (roots, selected) = active_right_now_tree(&[root, active, discovery]);
-
-        assert_eq!(roots, vec!["kanbus-root"]);
-        assert_eq!(
-            selected,
-            std::collections::HashSet::from([
-                "kanbus-root".to_string(),
-                "kanbus-active".to_string(),
-                "kanbus-discovery".to_string(),
-            ])
-        );
-    }
-
-    #[test]
-    fn file_store_backfills_active_issue_ancestors() {
-        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
-        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
-        let temp_dir = TempDir::new().expect("tempdir");
-        std::fs::write(
-            temp_dir.path().join(".kanbus.yml"),
-            "project_key: kanbus\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-4o-mini\nright_now:\n  enabled: true\n  default_tree_expanded: true\n",
-        )
-        .expect("write config");
-        let issues_dir = temp_dir.path().join("project/issues");
-        std::fs::create_dir_all(&issues_dir).expect("create issues");
-
-        let epic = issue("kanbus-epic");
-        let mut parent = issue("kanbus-parent");
-        parent.parent = Some(epic.identifier.clone());
-        let mut active = issue("kanbus-active");
-        active.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
-        active.parent = Some(parent.identifier.clone());
-        let mut discovery = issue("kanbus-discovery");
-        discovery.status = "discovery".to_string();
-        discovery.parent = Some(parent.identifier.clone());
-        for issue in [epic, parent, active, discovery] {
-            std::fs::write(
-                issues_dir.join(format!("{}.json", issue.identifier)),
-                serde_json::to_vec(&issue).expect("serialize issue"),
-            )
-            .expect("write issue");
-        }
-
-        let store = FileStore::new(temp_dir.path());
-        store
-            .ensure_right_now_summaries()
-            .expect("backfill summaries");
-        let refreshed = store
-            .load_issues(&store.load_config().expect("load config"))
-            .expect("load refreshed issues");
-        for identifier in [
-            "kanbus-epic",
-            "kanbus-parent",
-            "kanbus-active",
-            "kanbus-discovery",
-        ] {
-            let summary = refreshed
-                .iter()
-                .find(|issue| issue.identifier == identifier)
-                .and_then(|issue| issue.right_now_summary.as_deref());
-            assert_eq!(
-                summary,
-                Some(format!("Mock right-now summary for {identifier}.").as_str())
-            );
-        }
-
-        match previous_mock {
-            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
-            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
-        }
-    }
-
-    #[test]
-    fn file_store_backfills_visible_cards_in_virtual_projects() {
-        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
-        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
-        let temp_dir = TempDir::new().expect("tempdir");
-        std::fs::write(
-            temp_dir.path().join(".kanbus.yml"),
-            "project_key: workspace\nproject_directory: primary/project\nvirtual_projects:\n  virtual:\n    path: virtual/project\nai:\n  provider: litellm\n  model: gpt-4o-mini\nright_now:\n  enabled: true\n  default_tree_expanded: true\n",
-        )
-        .expect("write workspace config");
-        std::fs::create_dir_all(temp_dir.path().join("primary/project/issues"))
-            .expect("create primary issues directory");
-        let issues_dir = temp_dir.path().join("virtual/project/issues");
-        std::fs::create_dir_all(&issues_dir).expect("create virtual issues");
-
-        let parent = issue("virtual-parent");
-        let mut active = issue("virtual-active");
-        active.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
-        active.parent = Some(parent.identifier.clone());
-        let mut discovery = issue("virtual-discovery");
-        discovery.status = "open".to_string();
-        discovery.parent = Some(parent.identifier.clone());
-        for issue in [parent, active, discovery] {
-            std::fs::write(
-                issues_dir.join(format!("{}.json", issue.identifier)),
-                serde_json::to_vec(&issue).expect("serialize issue"),
-            )
-            .expect("write virtual issue");
-        }
-
-        let store = FileStore::new(temp_dir.path());
-        store
-            .ensure_right_now_summaries()
-            .expect("backfill virtual summaries");
-        let refreshed = store
-            .load_issues(&store.load_config().expect("load config"))
-            .expect("load refreshed issues");
-        for identifier in ["virtual-parent", "virtual-active", "virtual-discovery"] {
-            assert_eq!(
-                refreshed
-                    .iter()
-                    .find(|issue| issue.identifier == identifier)
-                    .and_then(|issue| issue.right_now_summary.as_deref()),
-                Some(format!("Mock right-now summary for {identifier}.").as_str())
-            );
-        }
-
-        match previous_mock {
-            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
-            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
-        }
-    }
-
-    #[test]
-    fn file_store_backfills_expandable_active_tree_by_default() {
-        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
-        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
-        let temp_dir = TempDir::new().expect("tempdir");
-        std::fs::write(
-            temp_dir.path().join(".kanbus.yml"),
-            "project_key: kanbus\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-4o-mini\nright_now:\n  enabled: true\n  default_tree_expanded: false\n",
-        )
-        .expect("write config");
-        let issues_dir = temp_dir.path().join("project/issues");
-        std::fs::create_dir_all(&issues_dir).expect("create issues");
-
-        let root = issue("kanbus-root");
-        let mut active = issue("kanbus-active");
-        active.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
-        active.parent = Some(root.identifier.clone());
-        let mut hidden_discovery = issue("kanbus-hidden-discovery");
-        hidden_discovery.status = "open".to_string();
-        hidden_discovery.parent = Some(root.identifier.clone());
-        for issue in [root, active, hidden_discovery] {
-            std::fs::write(
-                issues_dir.join(format!("{}.json", issue.identifier)),
-                serde_json::to_vec(&issue).expect("serialize issue"),
-            )
-            .expect("write issue");
-        }
-
-        let store = FileStore::new(temp_dir.path());
-        store
-            .ensure_right_now_summaries()
-            .expect("backfill active tree");
-        let refreshed = store
-            .load_issues(&store.load_config().expect("load config"))
-            .expect("load refreshed issues");
-        assert_eq!(
-            refreshed
-                .iter()
-                .find(|issue| issue.identifier == "kanbus-root")
-                .and_then(|issue| issue.right_now_summary.as_deref()),
-            Some("Mock right-now summary for kanbus-root.")
-        );
-        for identifier in ["kanbus-active", "kanbus-hidden-discovery"] {
-            assert_eq!(
-                refreshed
-                    .iter()
-                    .find(|issue| issue.identifier == identifier)
-                    .and_then(|issue| issue.right_now_summary.as_deref()),
-                Some(format!("Mock right-now summary for {identifier}.").as_str())
-            );
-        }
-
-        match previous_mock {
-            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
-            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
-        }
-    }
-
-    #[test]
     fn resolve_tenant_root_builds_expected_path() {
         let base = Path::new("/tmp/kanbus");
         let path = FileStore::resolve_tenant_root(base, "anthus", "project");
         assert!(path.ends_with("kanbus/anthus/project"));
+    }
+
+    #[test]
+    fn collect_now_tree_issue_identifiers_includes_tree_relatives() {
+        let parent = IssueData {
+            identifier: "kanbus-parent".to_string(),
+            parent: None,
+            status: "open".to_string(),
+            ..issue("kanbus-parent")
+        };
+        let child = IssueData {
+            identifier: "kanbus-child".to_string(),
+            parent: Some("kanbus-parent".to_string()),
+            status: "in_progress".to_string(),
+            ..issue("kanbus-child")
+        };
+        let unrelated = IssueData {
+            identifier: "kanbus-other".to_string(),
+            status: "open".to_string(),
+            ..issue("kanbus-other")
+        };
+        let all_issues = vec![parent, child, unrelated];
+        let identifiers =
+            collect_now_tree_issue_identifiers(&all_issues, DEFAULT_NOW_STATUS_FILTER);
+        assert_eq!(
+            identifiers,
+            vec!["kanbus-parent".to_string(), "kanbus-child".to_string()]
+        );
+    }
+
+    #[test]
+    fn collect_now_tree_issue_identifiers_returns_all_when_filter_matches_every_issue() {
+        let first = IssueData {
+            status: "in_progress".to_string(),
+            ..issue("kanbus-a")
+        };
+        let second = IssueData {
+            status: "in_progress".to_string(),
+            ..issue("kanbus-b")
+        };
+        let all_issues = vec![first, second];
+        let identifiers =
+            collect_now_tree_issue_identifiers(&all_issues, DEFAULT_NOW_STATUS_FILTER);
+        assert_eq!(
+            identifiers,
+            vec!["kanbus-a".to_string(), "kanbus-b".to_string()]
+        );
     }
 }

@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Dict, List
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markusmd import convert as convert_markus_source
+from markusmd.errors import MarkusError
 
 from kanbus.ai_summarize import make_ai_summarize
 from kanbus.console_snapshot import ConsoleSnapshotError, get_issues_for_root
@@ -124,9 +126,71 @@ class WikiContext:
         :return: Serialized issue or None if not found.
         :rtype: Dict[str, object] | None
         """
+        found = self._find_issue(identifier)
+        if found is None:
+            return None
+        return _serialize_issue(found)
+
+    def children(self, identifier: str) -> List[Dict[str, object]]:
+        """List direct children of an issue for wiki templates.
+
+        :param identifier: Parent issue identifier.
+        :type identifier: str
+        :return: Serialized child issues sorted by identifier.
+        :rtype: List[Dict[str, object]]
+        """
+        children = [issue for issue in self.issues if issue.parent == identifier]
+        children.sort(key=lambda issue: issue.identifier)
+        return [_serialize_issue(issue) for issue in children]
+
+    def blocked_by(self, identifier: str) -> List[Dict[str, object]]:
+        """List issues that block the given issue.
+
+        Returns the targets of the issue's ``blocked-by`` dependencies.
+
+        :param identifier: Blocked issue identifier.
+        :type identifier: str
+        :return: Serialized blocker issues sorted by identifier.
+        :rtype: List[Dict[str, object]]
+        """
+        source = self._find_issue(identifier)
+        if source is None:
+            return []
+        blocker_ids = [
+            dependency.target
+            for dependency in source.dependencies
+            if dependency.dependency_type == "blocked-by"
+        ]
+        blockers = [issue for issue in self.issues if issue.identifier in blocker_ids]
+        blockers.sort(key=lambda issue: issue.identifier)
+        return [_serialize_issue(issue) for issue in blockers]
+
+    def blocks(self, identifier: str) -> List[Dict[str, object]]:
+        """List issues that the given issue blocks.
+
+        Returns issues that declare a ``blocked-by`` dependency on the id.
+
+        :param identifier: Blocker issue identifier.
+        :type identifier: str
+        :return: Serialized blocked issues sorted by identifier.
+        :rtype: List[Dict[str, object]]
+        """
+        blocked = [
+            issue
+            for issue in self.issues
+            if any(
+                dependency.dependency_type == "blocked-by"
+                and dependency.target == identifier
+                for dependency in issue.dependencies
+            )
+        ]
+        blocked.sort(key=lambda issue: issue.identifier)
+        return [_serialize_issue(issue) for issue in blocked]
+
+    def _find_issue(self, identifier: str) -> IssueData | None:
         for issue in self.issues:
             if issue.identifier == identifier:
-                return _serialize_issue(issue)
+                return issue
         return None
 
     def references(self, **filters: object) -> List[Dict[str, object]]:
@@ -384,7 +448,7 @@ def search_wiki_pages(root: Path, query: str) -> List[str]:
         relative = path.relative_to(location.wiki_root)
         listed_path = f"{location.list_prefix}/{relative.as_posix()}"
         body = path.read_text(encoding="utf-8")
-        title = _extract_wiki_title(body) or path.stem
+        title = wiki_page_display_title(body, path.name)
         haystack = f"{listed_path}\n{title}\n{body}".casefold()
         if needle in haystack:
             matches.append(listed_path)
@@ -510,15 +574,8 @@ def render_wiki_page(
             default=False,
         ),
     )
-    environment.globals.update(
-        {
-            "query": context.query,
-            "count": context.count,
-            "issue": context.issue,
-            "references": context.references,
-            "ai_summarize": ai_summarize_fn,
-        }
-    )
+    environment.globals.update(_wiki_template_globals(context))
+    environment.globals["ai_summarize"] = ai_summarize_fn
     try:
         rendered = environment.get_template(full_page.name).render()
     except WikiError:
@@ -532,6 +589,23 @@ def render_wiki_page(
     if wiki_render_cache_dir is not None and cache_key is not None:
         _wiki_render_write_cache(wiki_render_cache_dir, cache_key, rendered)
     return rendered
+
+
+def convert_wiki_markdown_to_html(markdown: str) -> str:
+    """Convert Jinja-resolved wiki Markdown to Markus semantic HTML.
+
+    :param markdown: Post-Jinja Markdown source.
+    :type markdown: str
+    :return: HTML that includes Markus semantic classes.
+    :rtype: str
+    :raises WikiError: If Markus validation or conversion fails.
+    """
+    try:
+        return convert_markus_source(markdown, include_css=False, full_document=False)
+    except MarkusError as error:
+        raise WikiError(str(error)) from error
+    except Exception as error:
+        raise WikiError(str(error)) from error
 
 
 def _find_broken_wiki_links(
@@ -750,6 +824,25 @@ def _get_string(value: object) -> str | None:
     raise WikiError("invalid query parameter")
 
 
+def _wiki_template_globals(context: WikiContext) -> Dict[str, object]:
+    """Return the documented wiki Jinja helper map.
+
+    :param context: Wiki render context.
+    :type context: WikiContext
+    :return: Callable map registered on the Jinja environment.
+    :rtype: Dict[str, object]
+    """
+    return {
+        "query": context.query,
+        "count": context.count,
+        "issue": context.issue,
+        "children": context.children,
+        "blocked_by": context.blocked_by,
+        "blocks": context.blocks,
+        "references": context.references,
+    }
+
+
 def _serialize_issue(issue: IssueData) -> Dict[str, object]:
     payload = issue.model_dump(by_alias=True, mode="json")
     short_key = format_issue_key(issue.identifier, project_context=True)
@@ -758,16 +851,91 @@ def _serialize_issue(issue: IssueData) -> Dict[str, object]:
     return payload
 
 
-def _extract_wiki_title(content: str) -> str | None:
-    for line in content.splitlines():
+def extract_wiki_title(content: str) -> str | None:
+    """Extract a wiki page title from YAML frontmatter or the first markdown H1.
+
+    Resolution order:
+
+    1. YAML frontmatter ``title:`` when present
+    2. First markdown ATX H1 (``# Title``)
+
+    :param content: Raw markdown page source.
+    :type content: str
+    :return: Title string when frontmatter ``title`` or an H1 is present.
+    :rtype: str | None
+    """
+    frontmatter, body = _split_wiki_frontmatter(content)
+    if frontmatter is not None:
+        frontmatter_title = _extract_frontmatter_title(frontmatter)
+        if frontmatter_title:
+            return frontmatter_title
+    for line in body.splitlines():
         match = re.match(r"^#\s+(.+?)\s*$", line)
         if match:
             return match.group(1)
     return None
 
 
+def wiki_page_display_title(content: str, path: str) -> str:
+    """Resolve the display title for a wiki page.
+
+    Uses YAML frontmatter ``title``, then the first markdown H1, then the file stem.
+
+    :param content: Raw markdown page source.
+    :type content: str
+    :param path: Wiki-relative page path used for the stem fallback.
+    :type path: str
+    :return: Display title.
+    :rtype: str
+    """
+    extracted = extract_wiki_title(content)
+    if extracted:
+        return extracted
+    return Path(path).stem
+
+
+def _extract_wiki_title(content: str) -> str | None:
+    return extract_wiki_title(content)
+
+
+def _split_wiki_frontmatter(content: str) -> tuple[str | None, str]:
+    text = content.lstrip("\ufeff")
+    lines = text.splitlines()
+    start = 0
+    while start < len(lines) and lines[start].strip() == "":
+        start += 1
+    if start >= len(lines) or lines[start].strip() != "---":
+        return None, text
+    for index, line in enumerate(lines[start + 1 :], start=start + 1):
+        if line.strip() == "---":
+            frontmatter = "\n".join(lines[start + 1 : index])
+            body = "\n".join(lines[index + 1 :])
+            return frontmatter, body
+    return None, text
+
+
+def _unquote_yaml_scalar(value: str) -> str:
+    stripped = value.strip()
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in {'"', "'"}:
+        return stripped[1:-1]
+    return stripped
+
+
+def _extract_frontmatter_title(frontmatter: str) -> str | None:
+    for line in frontmatter.splitlines():
+        match = re.match(r"^\s*title:\s*(.+?)\s*$", line)
+        if match:
+            title = _unquote_yaml_scalar(match.group(1))
+            if title:
+                return title
+    return None
+
+
 def render_template_string(text: str, issues: List[IssueData]) -> str:
-    """Render a template string with wiki context (query, count, issue).
+    """Render a template string with documented wiki helpers.
+
+    Helpers: ``query``, ``count``, ``issue``, ``children``, ``blocked_by``,
+    ``blocks``, and ``references``.
 
     :param text: Template string (may contain Jinja2).
     :type text: str
@@ -785,14 +953,7 @@ def render_template_string(text: str, issues: List[IssueData]) -> str:
             default=False,
         ),
     )
-    environment.globals.update(
-        {
-            "query": context.query,
-            "count": context.count,
-            "issue": context.issue,
-            "references": context.references,
-        }
-    )
+    environment.globals.update(_wiki_template_globals(context))
     try:
         template = environment.from_string(text)
         return template.render()
@@ -843,17 +1004,23 @@ def format_wiki_search_json(query: str, pages: List[str]) -> str:
     return json.dumps(payload, indent=2, sort_keys=False)
 
 
-def format_wiki_render_json(page_path: str, rendered: str) -> str:
+def format_wiki_render_json(page_path: str, rendered: str, rendered_html: str) -> str:
     """Format wiki render output as JSON.
 
     :param page_path: Canonical wiki page path relative to repository root.
     :type page_path: str
-    :param rendered: Rendered markdown content.
+    :param rendered: Rendered markdown content after Jinja.
     :type rendered: str
+    :param rendered_html: Markus HTML converted from the Jinja markdown.
+    :type rendered_html: str
     :return: JSON payload string.
     :rtype: str
     """
-    payload = {"path": page_path, "rendered": rendered}
+    payload = {
+        "path": page_path,
+        "rendered": rendered,
+        "rendered_html": rendered_html,
+    }
     return json.dumps(payload, indent=2, sort_keys=False)
 
 

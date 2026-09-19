@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
 from pydantic import ValidationError
 
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.models import ProjectConfiguration
+
+CONGREGATION_ENV_FILENAME = ".kanbus.env"
 
 SORT_PRESETS = ("fifo", "priority-first", "recently-updated")
 SORT_FIELDS = ("priority", "created_at", "updated_at", "id")
@@ -46,8 +47,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if not path.exists():
         raise ConfigurationError("configuration file not found")
 
-    _load_dotenv(Path.home() / ".kanbus.env")
-    _load_dotenv(path.parent / ".env")
+    load_repository_environment(path.parent)
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
@@ -61,12 +61,37 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         if isinstance(main_vp, dict) and isinstance(override_vp, dict):
             merged["virtual_projects"] = {**main_vp, **override_vp}
     _reject_legacy_fields(merged)
+    _reject_standup_lookback_hours(merged)
     _normalize_virtual_projects(merged)
     _apply_environment_overrides(merged)
 
     try:
         configuration = ProjectConfiguration.model_validate(merged)
     except ValidationError as error:
+        if _has_standup_lookback_hours(error):
+            raise ConfigurationError(
+                STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE
+            ) from error
+        if any(item["loc"] == ("coordination", "providers") for item in error.errors()):
+            raise ConfigurationError(
+                "coordination providers must be one of: git; mqtt,git; "
+                "mutex_api,mqtt,git"
+            ) from error
+        for item in error.errors():
+            location = item["loc"]
+            if location == ("coordination", "mutex_api", "endpoint"):
+                raise ConfigurationError(
+                    "coordination.mutex_api.endpoint: must be an absolute http(s) URL"
+                ) from error
+            if (
+                len(location) == 2
+                and location[0] == "coordination"
+                and location[1] in {"contention_window", "default_lease_ttl"}
+            ):
+                raise ConfigurationError(
+                    f"coordination.{location[1]}: duration must be a positive integer "
+                    "followed by s, m, or h"
+                ) from error
         if _has_unknown_fields(error):
             raise ConfigurationError("unknown configuration fields") from error
         raise ConfigurationError(str(error)) from error
@@ -87,6 +112,18 @@ def _apply_environment_overrides(merged: dict) -> None:
     realtime = merged.setdefault("realtime", {})
     overlay = merged.setdefault("overlay", {})
     topics = realtime.setdefault("topics", {})
+    coordination = merged.setdefault("coordination", {})
+    mutex_api = coordination.setdefault("mutex_api", {})
+
+    mutex_api_endpoint = os.environ.get("KANBUS_COORDINATION_MUTEX_API_ENDPOINT")
+    if mutex_api_endpoint:
+        mutex_api["endpoint"] = mutex_api_endpoint
+
+    mutex_api_bearer_token = os.environ.get(
+        "KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"
+    )
+    if mutex_api_bearer_token:
+        mutex_api["bearer_token"] = mutex_api_bearer_token
 
     transport = os.environ.get("KANBUS_REALTIME_TRANSPORT")
     if transport:
@@ -153,7 +190,34 @@ def _parse_int_env(name: str) -> int | None:
         return None
 
 
-def _load_dotenv(path: Path) -> None:
+def congregation_env_path() -> Path:
+    """Return the user congregation env file path.
+
+    :return: Path to ``~/.kanbus.env``.
+    :rtype: Path
+    """
+    return Path.home() / CONGREGATION_ENV_FILENAME
+
+
+def load_repository_environment(repository_root: Path) -> None:
+    """Load congregation and project dotenv files into the process environment.
+
+    Loads ``~/.kanbus.env`` first, then ``repository_root/.env``. Values already
+    present in the process environment are never overwritten.
+
+    :param repository_root: Repository root containing ``.kanbus.yml``.
+    :type repository_root: Path
+    """
+    load_dotenv_file(congregation_env_path())
+    load_dotenv_file(repository_root / ".env")
+
+
+def load_dotenv_file(path: Path) -> None:
+    """Load key/value pairs from a dotenv file without overriding existing env vars.
+
+    :param path: Dotenv file path.
+    :type path: Path
+    """
     if not path.exists():
         return
     try:
@@ -179,6 +243,10 @@ def _load_dotenv(path: Path) -> None:
         os.environ[key] = value
 
 
+def _load_dotenv(path: Path) -> None:
+    load_dotenv_file(path)
+
+
 def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
     if path.name != "kanbus.yml":
         return
@@ -190,8 +258,8 @@ def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
 
 def _validate_type_workflow_bindings(
     configuration: ProjectConfiguration,
-) -> List[str]:
-    errors: List[str] = []
+) -> list[str]:
+    errors: list[str] = []
     workflows = configuration.workflows
     for issue_type in configuration.types:
         if issue_type not in workflows:
@@ -229,7 +297,7 @@ def _load_override_configuration(path: Path) -> dict:
     return data
 
 
-def validate_project_configuration(configuration: ProjectConfiguration) -> List[str]:
+def validate_project_configuration(configuration: ProjectConfiguration) -> list[str]:
     """Validate configuration rules beyond schema validation.
 
     :param configuration: Loaded configuration.
@@ -237,7 +305,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     :return: List of validation errors.
     :rtype: List[str]
     """
-    errors: List[str] = []
+    errors: list[str] = []
     if not configuration.project_directory:
         errors.append("project_directory must not be empty")
 
@@ -384,7 +452,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> List[
     return errors
 
 
-def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> None:
+def _validate_hooks(configuration: ProjectConfiguration, errors: list[str]) -> None:
     hooks_config = configuration.hooks
     for phase_name, phase_map in (
         ("before", hooks_config.before),
@@ -413,7 +481,7 @@ def _validate_hooks(configuration: ProjectConfiguration, errors: List[str]) -> N
 
 def _validate_right_now(
     configuration: ProjectConfiguration,
-    errors: List[str],
+    errors: list[str],
 ) -> None:
     if configuration.right_now.max_length <= 0:
         errors.append("right_now.max_length must be greater than 0")
@@ -421,7 +489,7 @@ def _validate_right_now(
 
 def _validate_sort_order(
     configuration: ProjectConfiguration,
-    errors: List[str],
+    errors: list[str],
 ) -> None:
     if not configuration.sort_order:
         return
@@ -443,7 +511,7 @@ def _validate_sort_order(
         _validate_sort_rule(f"sort_order.{status}", rule, errors)
 
 
-def _validate_sort_rule(path: str, value: object, errors: List[str]) -> None:
+def _validate_sort_rule(path: str, value: object, errors: list[str]) -> None:
     if isinstance(value, str):
         if value not in SORT_PRESETS:
             errors.append(
@@ -504,6 +572,12 @@ def _normalize_virtual_projects(data: dict) -> None:
         data["virtual_projects"] = {}
 
 
+STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE = (
+    "standup.lookback_hours was removed; use standup.lookback with a duration "
+    "string such as 24h or 1d"
+)
+
+
 def _reject_legacy_fields(data: dict) -> None:
     if "external_projects" in data:
         if "virtual_projects" not in data:
@@ -511,12 +585,32 @@ def _reject_legacy_fields(data: dict) -> None:
         data.pop("external_projects", None)
 
 
+def _reject_standup_lookback_hours(data: dict) -> None:
+    standup = data.get("standup")
+    if isinstance(standup, dict) and "lookback_hours" in standup:
+        raise ConfigurationError(STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE)
+
+
+def _has_standup_lookback_hours(error: ValidationError) -> bool:
+    for item in error.errors():
+        if item.get("type") != "extra_forbidden":
+            continue
+        location = item.get("loc") or ()
+        if (
+            len(location) >= 2
+            and location[0] == "standup"
+            and location[1] == "lookback_hours"
+        ):
+            return True
+    return False
+
+
 def _has_unknown_fields(error: ValidationError) -> bool:
     return any(item.get("type") == "extra_forbidden" for item in error.errors())
 
 
 def resolve_board_name(
-    configured_name: Optional[str],
+    configured_name: str | None,
     repository_root: Path,
     project_key: str,
 ) -> str:

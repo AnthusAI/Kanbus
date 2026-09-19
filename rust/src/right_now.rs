@@ -4,16 +4,16 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use chrono::Utc;
 use serde_json::{json, Value};
 
-use crate::config_loader::load_project_configuration;
+use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_files::{read_issue_from_file, write_issue_to_file};
 use crate::issue_lookup::load_issue_from_project;
+use crate::litellm_completion::litellm_chat_completion;
 use crate::models::{IssueComment, IssueData, ProjectConfiguration};
 use crate::overlay::{load_overlay_issue, overlay_issue_path, write_overlay_issue};
 
@@ -48,6 +48,16 @@ struct RightNowLlmUsageRecord {
 pub const AI_PROVIDER_NOT_CONFIGURED_MESSAGE: &str =
     "Right-now summary generation requires ai.provider litellm in .kanbus.yml";
 
+/// Error message when OpenAI credentials were not loaded from env files.
+pub const OPENAI_API_KEY_NOT_LOADED_MESSAGE: &str =
+    "OPENAI_API_KEY was not loaded from repository environment files";
+
+/// Error message when right-now generation is disabled in configuration.
+pub const RIGHT_NOW_DISABLED_MESSAGE: &str =
+    "Right-now summary generation is disabled in .kanbus.yml";
+
+const TEST_RIGHT_NOW_COMPLETION_ENV: &str = "KANBUS_TEST_RIGHT_NOW_COMPLETION";
+
 /// Child issue summary for parent context assembly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RightNowChildSummary {
@@ -81,6 +91,20 @@ pub struct RightNowContext {
 /// The right-now summary text, or `None` when absent.
 pub fn get_right_now_summary(issue: &IssueData) -> Option<&str> {
     issue.right_now_summary.as_deref()
+}
+
+/// Return whether a summary matches the deterministic test mock pattern.
+///
+/// # Arguments
+///
+/// * `summary` - Summary text to inspect.
+/// * `identifier` - Issue identifier for the mock template.
+///
+/// # Returns
+///
+/// `true` when the summary is a persisted test mock string.
+pub fn is_persisted_mock_right_now_summary(summary: &str, identifier: &str) -> bool {
+    summary == mock_right_now_summary_text(identifier)
 }
 
 /// Return the deterministic mock right-now summary for an issue.
@@ -228,17 +252,19 @@ pub fn load_child_issues(
     root: &Path,
     issue_identifier: &str,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    // JIT summary backfill must use the same file-backed data that the
-    // console response renders. The general issue-listing path may query a
-    // daemon index, which can be stale or unavailable and previously caused
-    // visible descendant branches to be silently skipped.
-    let store = crate::console_backend::FileStore::new(root);
-    let configuration = store.load_config()?;
-    Ok(store
-        .load_issues(&configuration)?
-        .into_iter()
-        .filter(|issue| issue.parent.as_deref() == Some(issue_identifier))
-        .collect())
+    crate::issue_listing::list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        Some(issue_identifier),
+        None,
+        None,
+        &[],
+        true,
+        false,
+    )
 }
 
 /// Assemble leaf-issue context from title, description, and recent comments.
@@ -289,14 +315,20 @@ pub fn build_leaf_right_now_context(issue: &IssueData) -> RightNowContext {
 pub fn generate_right_now_summary(
     root: &Path,
     issue: &IssueData,
-    _context: &RightNowContext,
+    context: &RightNowContext,
 ) -> Result<String, KanbusError> {
+    load_repository_environment(root);
     let configuration = load_configuration(root)?;
     ensure_litellm_provider(&configuration)?;
     let max_length = configuration.right_now.max_length;
     let model = resolve_right_now_model(&configuration)?;
+    ensure_openai_credentials_when_required()?;
 
-    if cfg!(test) || std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+    if let Ok(stub_completion) = std::env::var(TEST_RIGHT_NOW_COMPLETION_ENV) {
+        return Ok(truncate_to_max_length(stub_completion.trim(), max_length));
+    }
+
+    if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
         let summary = mock_right_now_summary_text(&issue.identifier);
         record_llm_usage(
             root,
@@ -314,8 +346,28 @@ pub fn generate_right_now_summary(
         return Ok(truncate_to_max_length(&summary, max_length));
     }
 
-    let summary = delegate_right_now_summary_to_python(root, &issue.identifier)?;
-    Ok(truncate_to_max_length(&summary, max_length))
+    if std::env::var("KANBUS_TEST_SIMULATE_LITELLM_MISSING").as_deref() == Ok("1") {
+        return Err(KanbusError::IssueOperation(
+            "litellm is required for right-now summary generation".to_string(),
+        ));
+    }
+
+    let prompt = build_right_now_prompt(context, max_length);
+    let (completion_text, usage) = litellm_chat_completion(&model, &prompt)?;
+    record_llm_usage(
+        root,
+        &configuration,
+        &issue.identifier,
+        &model,
+        RightNowLlmUsageRecord {
+            prompt_tokens: usage.prompt_tokens,
+            completion_tokens: usage.completion_tokens,
+            total_tokens: usage.total_tokens,
+            cost: usage.cost,
+            mock: false,
+        },
+    )?;
+    Ok(truncate_to_max_length(completion_text.trim(), max_length))
 }
 
 /// Persist only right-now summary fields without re-entering the write gate.
@@ -365,45 +417,98 @@ pub fn persist_right_now_summary(
 
 /// Regenerate and persist the right-now summary for one issue.
 ///
-/// When generation is disabled or fails, the existing summary is left unchanged.
+/// When `fail_closed` is false, generation failures leave the existing summary
+/// unchanged. When true, failures return `KanbusError`.
 ///
 /// # Arguments
 ///
 /// * `root` - Repository root path.
 /// * `issue_identifier` - Issue identifier to regenerate.
-pub fn regenerate_right_now_for_issue(root: &Path, issue_identifier: &str) {
+/// * `fail_closed` - Whether generation failures should raise.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when `fail_closed` is true and generation cannot run.
+pub fn regenerate_right_now_for_issue(
+    root: &Path,
+    issue_identifier: &str,
+    fail_closed: bool,
+) -> Result<(), KanbusError> {
+    load_repository_environment(root);
     let configuration = match load_configuration(root) {
         Ok(configuration) => configuration,
-        Err(_) => return,
+        Err(error) => {
+            if fail_closed {
+                return Err(error);
+            }
+            return Ok(());
+        }
     };
     if !configuration.right_now.enabled {
-        return;
+        if fail_closed {
+            return Err(KanbusError::IssueOperation(
+                RIGHT_NOW_DISABLED_MESSAGE.to_string(),
+            ));
+        }
+        return Ok(());
+    }
+    if configuration.ai.is_none()
+        || configuration
+            .ai
+            .as_ref()
+            .is_some_and(|ai_configuration| ai_configuration.provider != "litellm")
+    {
+        if fail_closed {
+            ensure_litellm_provider(&configuration)?;
+        }
+        return Ok(());
     }
     let lookup = match load_issue_from_project(root, issue_identifier) {
         Ok(lookup) => lookup,
-        Err(_) => return,
+        Err(error) => {
+            if fail_closed {
+                return Err(error);
+            }
+            return Ok(());
+        }
     };
     let children = match load_child_issues(root, issue_identifier) {
         Ok(children) => children,
-        Err(_) => return,
+        Err(error) => {
+            if fail_closed {
+                return Err(error);
+            }
+            return Ok(());
+        }
     };
     let context = build_right_now_context(&lookup.issue, &children);
     let summary = match generate_right_now_summary(root, &lookup.issue, &context) {
         Ok(summary) => summary,
         Err(error) => {
+            if fail_closed {
+                return Err(error);
+            }
             eprintln!("warning: right-now generation failed for {issue_identifier}: {error}");
-            return;
+            return Ok(());
         }
     };
     let current_time = Utc::now();
-    if let Err(error) = persist_right_now_summary(
+    match persist_right_now_summary(
         &lookup.project_dir,
         &lookup.issue_path,
         issue_identifier,
         &summary,
         current_time,
     ) {
-        eprintln!("warning: right-now persist failed for {issue_identifier}: {error}");
+        Ok(()) => Ok(()),
+        Err(error) => {
+            if fail_closed {
+                Err(error)
+            } else {
+                eprintln!("warning: right-now persist failed for {issue_identifier}: {error}");
+                Ok(())
+            }
+        }
     }
 }
 
@@ -427,6 +532,127 @@ pub fn right_now_summary_is_missing_or_stale(issue: &IssueData) -> bool {
     }
 }
 
+/// Return whether an issue needs JIT right-now summary regeneration.
+///
+/// # Arguments
+///
+/// * `issue` - Issue to inspect.
+///
+/// # Returns
+///
+/// `true` when the summary is absent, stale, or a persisted test mock.
+pub fn right_now_summary_needs_regeneration(issue: &IssueData) -> bool {
+    match issue.right_now_summary.as_deref() {
+        None => true,
+        Some(summary) if summary.trim().is_empty() => true,
+        Some(summary) => {
+            if is_persisted_mock_right_now_summary(summary, &issue.identifier)
+                && std::env::var("KANBUS_TEST_AI_MOCK").as_deref() != Ok("1")
+            {
+                return true;
+            }
+            match issue.right_now_updated_at {
+                None => false,
+                Some(updated) => issue.updated_at > updated,
+            }
+        }
+    }
+}
+
+/// Return the right-now summary for CLI display or an error when invalid.
+///
+/// # Arguments
+///
+/// * `issue` - Issue whose summary is required.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when the summary is missing or a persisted test mock.
+pub fn require_display_right_now_summary(issue: &IssueData) -> Result<String, KanbusError> {
+    let summary = issue
+        .right_now_summary
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            KanbusError::IssueOperation(format!(
+                "right-now summary missing for {}",
+                issue.identifier
+            ))
+        })?;
+    if is_persisted_mock_right_now_summary(summary, &issue.identifier)
+        && std::env::var("KANBUS_TEST_AI_MOCK").as_deref() != Ok("1")
+    {
+        return Err(KanbusError::IssueOperation(format!(
+            "persisted test mock right-now summary for {} must be regenerated",
+            issue.identifier
+        )));
+    }
+    Ok(summary.to_string())
+}
+
+/// Clear right-now summary fields from every live store for an issue.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when a live store cannot be written.
+pub fn clear_right_now_summary(
+    project_dir: &Path,
+    issue_path: &Path,
+    issue_identifier: &str,
+) -> Result<(), KanbusError> {
+    let overlay_path = overlay_issue_path(project_dir, issue_identifier);
+    if issue_path != overlay_path.as_path() && issue_path.exists() {
+        let mut stored_issue = read_issue_from_file(issue_path)?;
+        stored_issue.right_now_summary = None;
+        stored_issue.right_now_updated_at = None;
+        write_issue_to_file(&stored_issue, issue_path)?;
+    }
+    if let Some(overlay_record) = load_overlay_issue(project_dir, issue_identifier)? {
+        let mut overlay_issue = overlay_record.issue;
+        overlay_issue.right_now_summary = None;
+        overlay_issue.right_now_updated_at = None;
+        write_overlay_issue(
+            project_dir,
+            &overlay_issue,
+            &overlay_record.overlay_ts,
+            overlay_record.overlay_event_id,
+        )?;
+    }
+    Ok(())
+}
+
+/// Clear right-now summary fields for every issue on the board.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when listing or writing issues fails.
+pub fn purge_right_now_summaries(root: &Path) -> Result<usize, KanbusError> {
+    let issues = crate::issue_listing::list_issues(
+        root,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        &[],
+        true,
+        false,
+    )?;
+    let mut purged = 0usize;
+    for issue in issues {
+        if issue.right_now_summary.is_none() && issue.right_now_updated_at.is_none() {
+            continue;
+        }
+        let lookup = load_issue_from_project(root, &issue.identifier)?;
+        clear_right_now_summary(&lookup.project_dir, &lookup.issue_path, &issue.identifier)?;
+        purged += 1;
+    }
+    Ok(purged)
+}
+
 /// Backfill right-now summaries for an issue after selected descendants.
 ///
 /// Only children in `selected_identifiers` are visited. Unlisted descendants
@@ -447,15 +673,19 @@ pub fn ensure_right_now_subtree(
     issue_identifier: &str,
     selected_identifiers: &HashSet<String>,
     memo: &mut HashMap<String, bool>,
-) -> bool {
+    fail_closed: bool,
+) -> Result<bool, KanbusError> {
     if let Some(generated) = memo.get(issue_identifier) {
-        return *generated;
+        return Ok(*generated);
     }
     let children = match load_child_issues(root, issue_identifier) {
         Ok(children) => children,
-        Err(_) => {
+        Err(error) => {
+            if fail_closed {
+                return Err(error);
+            }
             memo.insert(issue_identifier.to_string(), false);
-            return false;
+            return Ok(false);
         }
     };
     let mut descendant_generated = false;
@@ -463,127 +693,48 @@ pub fn ensure_right_now_subtree(
         if !selected_identifiers.contains(&child.identifier) {
             continue;
         }
-        if ensure_right_now_subtree(root, &child.identifier, selected_identifiers, memo) {
+        if ensure_right_now_subtree(
+            root,
+            &child.identifier,
+            selected_identifiers,
+            memo,
+            fail_closed,
+        )? {
             descendant_generated = true;
         }
     }
     let lookup = match load_issue_from_project(root, issue_identifier) {
         Ok(lookup) => lookup,
-        Err(_) => {
+        Err(error) => {
+            if fail_closed {
+                return Err(error);
+            }
             memo.insert(issue_identifier.to_string(), false);
-            return false;
+            return Ok(false);
         }
     };
     let should_generate =
-        descendant_generated || right_now_summary_is_missing_or_stale(&lookup.issue);
+        descendant_generated || right_now_summary_needs_regeneration(&lookup.issue);
     let mut generated = false;
     if should_generate {
         let previous_summary = lookup.issue.right_now_summary.clone();
         let previous_updated = lookup.issue.right_now_updated_at;
-        regenerate_right_now_for_issue(root, issue_identifier);
+        regenerate_right_now_for_issue(root, issue_identifier, fail_closed)?;
         if let Ok(after) = load_issue_from_project(root, issue_identifier) {
             generated = after.issue.right_now_summary != previous_summary
                 || after.issue.right_now_updated_at != previous_updated;
+            if fail_closed {
+                require_display_right_now_summary(&after.issue)?;
+            }
+        } else if fail_closed {
+            return Err(KanbusError::IssueOperation(format!(
+                "issue not found after regeneration: {issue_identifier}"
+            )));
         }
     }
     let result = generated || descendant_generated;
     memo.insert(issue_identifier.to_string(), result);
-    result
-}
-
-/// Return roots and every issue in association trees for the given seeds.
-///
-/// Walks ancestors of each seed, then every descendant of those nodes, so a Now
-/// listing can backfill and render the complete tree regardless of status.
-///
-/// # Arguments
-///
-/// * `issues` - All issues in the project.
-/// * `seed_identifiers` - Issue identifiers that matched the Now filter.
-///
-/// # Returns
-///
-/// Sorted tree roots and the complete selected identifier set.
-pub fn association_trees_for_seeds(
-    issues: &[IssueData],
-    seed_identifiers: &HashSet<String>,
-) -> (Vec<String>, HashSet<String>) {
-    let parents: HashMap<&str, Option<&str>> = issues
-        .iter()
-        .map(|issue| (issue.identifier.as_str(), issue.parent.as_deref()))
-        .collect();
-    let mut selected_identifiers = HashSet::new();
-    let mut children_by_parent: HashMap<&str, Vec<&str>> = HashMap::new();
-    for issue in issues {
-        if let Some(parent) = issue.parent.as_deref() {
-            children_by_parent
-                .entry(parent)
-                .or_default()
-                .push(issue.identifier.as_str());
-        }
-    }
-
-    for seed in seed_identifiers {
-        if !parents.contains_key(seed.as_str()) {
-            continue;
-        }
-        let mut current = seed.as_str();
-        let mut visited = HashSet::new();
-        while visited.insert(current) {
-            selected_identifiers.insert(current.to_string());
-            match parents.get(current).and_then(|parent| *parent) {
-                Some(parent) if parents.contains_key(parent) => current = parent,
-                _ => break,
-            }
-        }
-    }
-
-    let mut pending: Vec<String> = selected_identifiers.iter().cloned().collect();
-    while let Some(identifier) = pending.pop() {
-        for child in children_by_parent
-            .get(identifier.as_str())
-            .into_iter()
-            .flatten()
-        {
-            if selected_identifiers.insert((*child).to_string()) {
-                pending.push((*child).to_string());
-            }
-        }
-    }
-
-    let mut roots: Vec<String> = selected_identifiers
-        .iter()
-        .filter(|identifier| {
-            !parents
-                .get(identifier.as_str())
-                .and_then(|parent| *parent)
-                .is_some_and(|parent| selected_identifiers.contains(parent))
-        })
-        .cloned()
-        .collect();
-    if roots.is_empty() && !selected_identifiers.is_empty() {
-        roots.extend(selected_identifiers.iter().cloned());
-    }
-    roots.sort();
-    (roots, selected_identifiers)
-}
-
-/// Return roots and every issue in trees containing in-progress work.
-///
-/// # Arguments
-///
-/// * `issues` - All issues in the project.
-///
-/// # Returns
-///
-/// Sorted tree roots and the complete selected identifier set.
-pub fn active_right_now_tree(issues: &[IssueData]) -> (Vec<String>, HashSet<String>) {
-    let seeds: HashSet<String> = issues
-        .iter()
-        .filter(|issue| issue.status == DEFAULT_RIGHT_NOW_STATUS)
-        .map(|issue| issue.identifier.clone())
-        .collect();
-    association_trees_for_seeds(issues, &seeds)
+    Ok(result)
 }
 
 /// Backfill right-now summaries for the issues in the current Now view.
@@ -594,24 +745,28 @@ pub fn active_right_now_tree(issues: &[IssueData]) -> (Vec<String>, HashSet<Stri
 ///
 /// * `root` - Repository root path.
 /// * `issue_identifiers` - Issue identifiers in the current Now view.
-pub fn ensure_right_now_summaries(root: &Path, issue_identifiers: &[String]) {
-    let selected_identifiers: HashSet<String> = issue_identifiers.iter().cloned().collect();
-    ensure_right_now_summary_subtrees(root, issue_identifiers, &selected_identifiers);
-}
-
-/// Backfill selected right-now subtrees from their actual roots.
+/// * `fail_closed` - Whether generation failures should raise.
 ///
-/// `root_identifiers` may be ancestors of the active issues. Every node that
-/// may be visited must also be included in `selected_identifiers`.
-pub fn ensure_right_now_summary_subtrees(
+/// # Errors
+///
+/// Returns `KanbusError` when `fail_closed` is true and generation cannot run.
+pub fn ensure_right_now_summaries(
     root: &Path,
-    root_identifiers: &[String],
-    selected_identifiers: &HashSet<String>,
-) {
+    issue_identifiers: &[String],
+    fail_closed: bool,
+) -> Result<(), KanbusError> {
+    let selected_identifiers: HashSet<String> = issue_identifiers.iter().cloned().collect();
     let mut memo = HashMap::new();
-    for identifier in root_identifiers {
-        ensure_right_now_subtree(root, identifier, selected_identifiers, &mut memo);
+    for identifier in issue_identifiers {
+        ensure_right_now_subtree(
+            root,
+            identifier,
+            &selected_identifiers,
+            &mut memo,
+            fail_closed,
+        )?;
     }
+    Ok(())
 }
 
 /// Regenerate right-now summaries for an issue and each ancestor.
@@ -623,7 +778,7 @@ pub fn ensure_right_now_summary_subtrees(
 pub fn regenerate_right_now_for_issue_and_ancestors(root: &Path, issue_identifier: &str) {
     let mut current_identifier = Some(issue_identifier.to_string());
     while let Some(identifier) = current_identifier {
-        regenerate_right_now_for_issue(root, &identifier);
+        let _ = regenerate_right_now_for_issue(root, &identifier, false);
         current_identifier = load_issue_from_project(root, &identifier)
             .ok()
             .and_then(|lookup| lookup.issue.parent.clone());
@@ -669,11 +824,25 @@ fn load_configuration(root: &Path) -> Result<ProjectConfiguration, KanbusError> 
     load_project_configuration(&get_configuration_path(root)?)
 }
 
-fn ensure_litellm_provider(configuration: &ProjectConfiguration) -> Result<(), KanbusError> {
+pub(crate) fn ensure_litellm_provider(
+    configuration: &ProjectConfiguration,
+) -> Result<(), KanbusError> {
     match configuration.ai.as_ref() {
         Some(ai_configuration) if ai_configuration.provider == "litellm" => Ok(()),
         _ => Err(KanbusError::IssueOperation(
             AI_PROVIDER_NOT_CONFIGURED_MESSAGE.to_string(),
+        )),
+    }
+}
+
+fn ensure_openai_credentials_when_required() -> Result<(), KanbusError> {
+    if std::env::var("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS").as_deref() != Ok("1") {
+        return Ok(());
+    }
+    match std::env::var("OPENAI_API_KEY") {
+        Ok(value) if !value.trim().is_empty() => Ok(()),
+        _ => Err(KanbusError::IssueOperation(
+            OPENAI_API_KEY_NOT_LOADED_MESSAGE.to_string(),
         )),
     }
 }
@@ -762,26 +931,31 @@ fn record_llm_usage(
     Ok(())
 }
 
-fn delegate_right_now_summary_to_python(
-    root: &Path,
-    issue_identifier: &str,
-) -> Result<String, KanbusError> {
-    let output = Command::new("kanbus")
-        .args(["now-generate-internal", issue_identifier])
-        .current_dir(root)
-        .output()
-        .map_err(|error| KanbusError::Io(format!("invoke python right-now generator: {error}")))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(KanbusError::IssueOperation(stderr.trim().to_string()));
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if stdout.is_empty() {
-        return Err(KanbusError::IssueOperation(
-            "right-now summary generation returned empty content".to_string(),
-        ));
-    }
-    Ok(stdout)
+fn build_right_now_prompt(context: &RightNowContext, max_length: usize) -> String {
+    let child_section = match context.child_summaries.as_ref() {
+        Some(child_summaries) if !child_summaries.is_empty() => {
+            let lines = child_summaries
+                .iter()
+                .map(|child| format!("- {}: {}", child.identifier, child.summary))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("Child summaries:\n{lines}\n\n")
+        }
+        _ => String::new(),
+    };
+    format!(
+        "Write exactly one short sentence describing what is happening with this \
+issue right now. Use plain, direct language in Hemingway style. \
+Do not mention issue status labels such as open, closed, blocked, done, \
+or in progress. Maximum {max_length} characters.\n\n\
+Title: {title}\n\
+Description: {description}\n\
+Recent activity:\n{recent_activity}\n\n\
+{child_section}",
+        title = context.title,
+        description = context.description,
+        recent_activity = context.recent_activity,
+    )
 }
 
 /// Read llm usage entries for right-now summary operations.
@@ -963,7 +1137,7 @@ mod tests {
     #[test]
     fn regenerate_right_now_for_issue_returns_when_configuration_is_missing() {
         let temp = tempfile::tempdir().expect("tempdir");
-        regenerate_right_now_for_issue(temp.path(), "kanbus-missing");
+        regenerate_right_now_for_issue(temp.path(), "kanbus-missing", false).expect("ok");
         regenerate_right_now_for_issue_and_ancestors(temp.path(), "kanbus-missing");
     }
 
@@ -974,17 +1148,39 @@ mod tests {
         configuration.right_now.enabled = false;
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
-        regenerate_right_now_for_issue(temp.path(), "kanbus-disabled");
+        regenerate_right_now_for_issue(temp.path(), "kanbus-disabled", false).expect("ok");
+    }
+
+    #[test]
+    fn regenerate_right_now_for_issue_skips_when_ai_is_unconfigured() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.ai = Some(crate::models::AiConfiguration {
+            provider: "none".to_string(),
+            model: "unused".to_string(),
+        });
+        let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
+        fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
+        fs::create_dir_all(temp.path().join("project")).expect("create project directory");
+
+        regenerate_right_now_for_issue(temp.path(), "kanbus-unconfigured", false).expect("ok");
+        let error = regenerate_right_now_for_issue(temp.path(), "kanbus-unconfigured", true)
+            .expect_err("fail-closed generation should require AI");
+        assert_eq!(
+            error.to_string(),
+            AI_PROVIDER_NOT_CONFIGURED_MESSAGE.to_string()
+        );
     }
 
     #[test]
     fn regenerate_right_now_for_issue_skips_missing_issue() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let configuration = crate::config::default_project_configuration();
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.ai = None;
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
         fs::create_dir_all(temp.path().join("project/issues")).expect("mkdir");
-        regenerate_right_now_for_issue(temp.path(), "kanbus-absent");
+        regenerate_right_now_for_issue(temp.path(), "kanbus-absent", false).expect("ok");
     }
 
     #[test]
@@ -998,5 +1194,21 @@ mod tests {
     fn summary_contains_status_keyword_detects_bare_tokens() {
         assert!(summary_contains_status_keyword("Work is blocked on review"));
         assert!(!summary_contains_status_keyword("Agents keep shipping"));
+    }
+
+    #[test]
+    fn build_right_now_prompt_includes_child_summaries() {
+        let context = RightNowContext {
+            title: "Parent".to_string(),
+            description: "Parent description".to_string(),
+            recent_activity: "Recent parent activity".to_string(),
+            child_summaries: Some(vec![RightNowChildSummary {
+                identifier: "kanbus-child".to_string(),
+                summary: "Child summary.".to_string(),
+            }]),
+        };
+        let prompt = build_right_now_prompt(&context, 80);
+        assert!(prompt.contains("Child summaries:"));
+        assert!(prompt.contains("kanbus-child: Child summary."));
     }
 }

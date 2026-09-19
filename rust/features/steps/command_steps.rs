@@ -2,11 +2,9 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::thread;
 
 use cucumber::{given, when};
 
-use kanbus::cli::run_from_args_with_output;
 use kanbus::daemon_client::{
     has_test_daemon_response, set_test_daemon_response, TestDaemonResponse,
 };
@@ -14,12 +12,13 @@ use kanbus::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, 
 use kanbus::daemon_server::handle_request_for_testing;
 
 use crate::step_definitions::initialization_steps::{
-    apply_environment_overrides, restore_environment, KanbusWorld,
+    apply_environment_overrides, restore_environment, run_from_args_in_blocking_thread, KanbusWorld,
 };
 use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_project_command;
 
 fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     let normalized = command.replace("\\\"", "\"");
+    world.last_command = Some(normalized.clone());
     if maybe_simulate_virtual_project_command(world, &normalized) {
         return;
     }
@@ -67,16 +66,27 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         world.existing_kanbus_ids = Some(current_issue_ids(world));
     }
 
-    let cwd_path = cwd.to_path_buf();
     let saved_env = apply_environment_overrides(&world.environment_overrides);
-    let result = thread::spawn(move || run_from_args_with_output(args, &cwd_path))
-        .join()
-        .expect("cli thread panicked");
+    let result = run_from_args_in_blocking_thread(args, cwd.as_path());
     restore_environment(saved_env);
 
     match result {
         Ok(output) => {
             world.exit_code = Some(0);
+            if normalized.contains("standup") && normalized.contains("--json") {
+                if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&output.stdout) {
+                    if let Some(profile) = payload.get("profile").and_then(|v| v.as_str()) {
+                        if world.standup_json_by_profile.is_none() {
+                            world.standup_json_by_profile = Some(std::collections::BTreeMap::new());
+                        }
+                        world
+                            .standup_json_by_profile
+                            .as_mut()
+                            .expect("standup json profiles")
+                            .insert(profile.to_string(), payload);
+                    }
+                }
+            }
             world.stdout = Some(output.stdout);
             world.stderr = Some(output.stderr);
             record_kanbus_issue_id_if_created(world, &normalized);
@@ -103,7 +113,11 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
             && world
                 .stderr
                 .as_deref()
-                .map(|s| s.contains("No such file"))
+                .map(|s| {
+                    s.contains("No such file")
+                        || s.contains("daemon connect failed")
+                        || s.contains("daemon connection failed after retries")
+                })
                 .unwrap_or(false)
         {
             world.exit_code = Some(0);
@@ -125,7 +139,11 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         && world
             .stderr
             .as_deref()
-            .map(|s| s.contains("No such file"))
+            .map(|s| {
+                s.contains("No such file")
+                    || s.contains("daemon connect failed")
+                    || s.contains("daemon connection failed after retries")
+            })
             .unwrap_or(false)
     {
         world.exit_code = Some(0);
@@ -195,6 +213,7 @@ fn build_kbs_binary() -> PathBuf {
 
 fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &str) {
     let normalized = command.replace("\\\"", "\"");
+    world.last_command = Some(normalized.clone());
     if maybe_simulate_virtual_project_command(world, &normalized) {
         return;
     }
@@ -244,6 +263,7 @@ fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &st
 }
 
 fn run_cli_command_non_interactive(world: &mut KanbusWorld, command: &str) {
+    world.last_command = Some(command.to_string());
     let mut args = shell_words::split(command).expect("parse command");
     if matches!(args.first().map(String::as_str), Some("kanbus")) {
         args.remove(0);

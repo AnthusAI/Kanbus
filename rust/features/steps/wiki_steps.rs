@@ -9,7 +9,7 @@ use regex::Regex;
 use serde_yaml::{Mapping, Value};
 use tempfile::TempDir;
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::{IssueComment, IssueData};
 
@@ -22,7 +22,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -697,6 +697,49 @@ fn then_json_field_equals_string(world: &mut KanbusWorld, field: String, expecte
         Some(expected.as_str()),
         "expected {}={expected:?}, got {actual:?}",
         field
+    );
+}
+
+fn html_contains_class(html: &str, css_class: &str) -> bool {
+    for prefix in ["class=\"", "class='"] {
+        let quote = if prefix.ends_with('"') { '"' } else { '\'' };
+        let mut search = html;
+        while let Some(index) = search.find(prefix) {
+            let after = &search[index + prefix.len()..];
+            if let Some(end) = after.find(quote) {
+                if after[..end]
+                    .split_whitespace()
+                    .any(|token| token == css_class)
+                {
+                    return true;
+                }
+            }
+            search = &search[index + prefix.len()..];
+        }
+    }
+    false
+}
+
+#[then(expr = "stdout should contain HTML element with class {string}")]
+fn then_stdout_contains_html_class(world: &mut KanbusWorld, css_class: String) {
+    let stdout = strip_ansi(world.stdout.as_ref().expect("stdout"));
+    assert!(
+        html_contains_class(&stdout, &css_class),
+        "expected HTML class {css_class:?} in {stdout:?}"
+    );
+}
+
+#[then(expr = "JSON field {string} should contain HTML element with class {string}")]
+fn then_json_field_contains_html_class(world: &mut KanbusWorld, field: String, css_class: String) {
+    let payload = load_stdout_json(world);
+    let actual = payload.get(&field).expect("missing JSON field");
+    let value = actual
+        .as_str()
+        .map(str::to_string)
+        .unwrap_or_else(|| actual.to_string());
+    assert!(
+        html_contains_class(&value, &css_class),
+        "expected {field} to contain HTML class {css_class:?}, got {value:?}"
     );
 }
 

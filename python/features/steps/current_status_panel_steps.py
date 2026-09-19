@@ -191,9 +191,9 @@ def _status_feed_issues(issues: list[ConsoleIssue]) -> list[ConsoleIssue]:
 
 def _resolve_feed_summary(issue: ConsoleIssue) -> str:
     summary = issue.right_now_summary
-    if summary is None or summary.strip() == "":
-        return RIGHT_NOW_PLACEHOLDER
-    return summary
+    if summary is None:
+        return ""
+    return summary.strip()
 
 
 @when('I switch to the "Now" view')
@@ -622,27 +622,66 @@ def then_status_feed_row_count(context: object, count: int) -> None:
         raise AssertionError(f"expected {count} feed rows, got {actual}")
 
 
-@when("I request the console now snapshot")
+@then("the now panel should not show right-now placeholder text")
+def then_now_panel_no_right_now_placeholder(context: object) -> None:
+    state = _require_console_state(context)
+    if state.status_tree_mode:
+        issues = _now_tree_issues(state)
+    else:
+        issues = _status_feed_issues(_now_visible_issues(state))
+    for issue in issues:
+        summary = _resolve_feed_summary(issue)
+        if summary == RIGHT_NOW_PLACEHOLDER:
+            raise AssertionError(
+                f"issue {issue.title!r} rendered right-now placeholder text"
+            )
+
+
+@when("I request the console now snapshot from the API")
 def when_request_console_now_snapshot(context: object) -> None:
+    import json
     import urllib.error
     import urllib.request
 
-    port = getattr(context, "console_server_port", None) or getattr(
-        context, "console_port", None
-    )
+    port = getattr(context, "console_server_port", None)
     if port is None:
-        raise AssertionError("console port not set")
+        raise AssertionError("console server is not running")
+    url = f"http://127.0.0.1:{port}/api/now"
+    request = urllib.request.Request(url, method="GET")
     try:
-        with urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/api/now", timeout=30
-        ) as response:
-            body = response.read().decode("utf-8")
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body = response.read().decode()
+        context.now_api_status = response.status
+        context.now_api_response = json.loads(body)
     except urllib.error.HTTPError as error:
-        detail = error.read().decode("utf-8", errors="replace")
-        raise AssertionError(
-            f"console now snapshot failed: {error.code} {detail}"
-        ) from error
-    context.console_now_issues = json.loads(body)
+        body = error.read().decode()
+        context.now_api_status = error.code
+        context.now_api_response = body
+
+
+@then("the console now API response should succeed")
+def then_console_now_api_response_succeeds(context: object) -> None:
+    status = getattr(context, "now_api_status", None)
+    if status != 200:
+        response = getattr(context, "now_api_response", None)
+        raise AssertionError(f"expected now API status 200, got {status}: {response!r}")
+
+
+@then('the console now API response should not contain "(no right-now summary)"')
+def then_console_now_api_response_has_no_placeholder(context: object) -> None:
+    response = getattr(context, "now_api_response", None)
+    if response is None:
+        raise AssertionError("now API response is missing")
+    serialized = json.dumps(response) if not isinstance(response, str) else response
+    if RIGHT_NOW_PLACEHOLDER in serialized:
+        raise AssertionError("now API response contains right-now placeholder text")
+
+
+@when("I request the console now snapshot")
+def when_request_console_now_snapshot_legacy(context: object) -> None:
+    """Fetch the console Now endpoint for the associated-tree scenario."""
+    when_request_console_now_snapshot(context)
+    context.console_now_issues = getattr(context, "now_api_response", None)
 
 
 @then(
@@ -651,8 +690,9 @@ def when_request_console_now_snapshot(context: object) -> None:
 def then_console_now_response_includes_summary(
     context: object, issue_id: str, expected: str
 ) -> None:
+    """Assert a generated summary for an issue in the console Now payload."""
     issues = getattr(context, "console_now_issues", None)
-    if issues is None:
+    if not isinstance(issues, list):
         raise AssertionError("console now response not loaded")
     match = next((item for item in issues if item.get("id") == issue_id), None)
     if match is None:

@@ -4,8 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 
 class AgentMetadata(BaseModel):
@@ -183,6 +191,7 @@ class StatusDefinition(BaseModel):
     key: str = Field(min_length=1)
     name: str = Field(min_length=1)
     category: str = Field(min_length=1)
+    semantic_category: str = Field(min_length=1)
     color: Optional[str] = None
     collapsed: bool = False
 
@@ -197,9 +206,9 @@ class PriorityDefinition(BaseModel):
 class AiConfiguration(BaseModel):
     """AI provider configuration for wiki summarization.
 
-    :param provider: AI provider identifier (e.g. openai).
+    :param provider: AI provider identifier (`litellm` routes through LiteLLM).
     :type provider: str
-    :param model: Model identifier (e.g. gpt-4o).
+    :param model: Model identifier (e.g. gpt-5.6-luna).
     :type model: str
     """
 
@@ -225,7 +234,28 @@ class RightNowConfiguration(BaseModel):
     enabled: bool = True
     default_tree_expanded: bool = False
     max_length: int = 120
-    model: Optional[str] = None
+    model: Optional[str] = "gpt-5.6-luna"
+
+
+class StandupConfiguration(BaseModel):
+    """On-demand standup report configuration.
+
+    :param window: Standup window mode (`rolling` or `calendar`).
+    :type window: str
+    :param lookback: Rolling lookback duration (for example `24h` or `1d`).
+    :type lookback: str
+    :param skip_weekends: Whether calendar mode bundles weekends on Monday.
+    :type skip_weekends: bool
+    :param timezone: Optional IANA timezone for calendar buckets.
+    :type timezone: Optional[str]
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    window: str = "rolling"
+    lookback: str = "24h"
+    skip_weekends: bool = False
+    timezone: Optional[str] = None
 
 
 class JiraConfiguration(BaseModel):
@@ -271,11 +301,18 @@ class GithubSecurityConfiguration(BaseModel):
 
 
 class VirtualProjectConfig(BaseModel):
-    """Configuration for a single virtual project."""
+    """Configuration for a single virtual project.
+
+    :param path: Relative or absolute path to the virtual project directory.
+    :type path: str
+    :param display_name: Optional stable human label for standup and console output.
+    :type display_name: Optional[str]
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     path: str
+    display_name: Optional[str] = None
 
 
 class RealtimeTopics(BaseModel):
@@ -308,6 +345,76 @@ class OverlayConfig(BaseModel):
 
     enabled: bool = True
     ttl_s: int = 86400
+
+
+class MutexApiConfiguration(BaseModel):
+    """Optional hard coordination API connection settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: Optional[str] = None
+    bearer_token: Optional[str] = None
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        endpoint = value.strip()
+        parsed = urlparse(endpoint)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("must be an absolute http(s) URL")
+        return endpoint
+
+    @field_validator("bearer_token")
+    @classmethod
+    def normalize_bearer_token(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        return value.strip()
+
+
+class CoordinationConfiguration(BaseModel):
+    """Soft coordination defaults and provider preferences.
+
+    :param providers: Configured coordination providers, ordered strongest first.
+    :type providers: List[str]
+    :param contention_window: Claim contention duration (for example ``5s``).
+    :type contention_window: str
+    :param default_lease_ttl: Default soft lease duration (for example ``300s``).
+    :type default_lease_ttl: str
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    providers: List[str] = Field(default_factory=lambda: ["git"])
+    contention_window: str = "5s"
+    default_lease_ttl: str = "300s"
+    mutex_api: MutexApiConfiguration = Field(default_factory=MutexApiConfiguration)
+
+    @field_validator("providers")
+    @classmethod
+    def validate_providers(cls, value: List[str]) -> List[str]:
+        """Require the canonical strongest-first provider fallback chain."""
+        allowed = (["git"], ["mqtt", "git"], ["mutex_api", "mqtt", "git"])
+        if value not in allowed:
+            raise ValueError(
+                "coordination providers must be one of: git; mqtt,git; "
+                "mutex_api,mqtt,git"
+            )
+        return value
+
+    @field_validator("contention_window", "default_lease_ttl")
+    @classmethod
+    def validate_duration(cls, value: str) -> str:
+        """Require a positive integer followed by a supported unit."""
+        import re
+
+        if not re.fullmatch(r"[1-9][0-9]*[smh]", value):
+            raise ValueError(
+                "duration must be a positive integer followed by s, m, or h"
+            )
+        return value
 
 
 class HookDefinition(BaseModel):
@@ -376,6 +483,8 @@ class ProjectConfiguration(BaseModel):
     :type sort_order: Dict[str, object]
     :param right_now: Right-now summary configuration.
     :type right_now: RightNowConfiguration
+    :param standup: Standup report configuration.
+    :type standup: StandupConfiguration
     :param jira: Optional Jira synchronization configuration.
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
@@ -419,9 +528,13 @@ class ProjectConfiguration(BaseModel):
     wiki_directory: Optional[str] = None
     ai: Optional[AiConfiguration] = None
     right_now: RightNowConfiguration = Field(default_factory=RightNowConfiguration)
+    standup: StandupConfiguration = Field(default_factory=StandupConfiguration)
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
+    coordination: CoordinationConfiguration = Field(
+        default_factory=CoordinationConfiguration
+    )
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
     hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
     github_security: Optional[GithubSecurityConfiguration] = None

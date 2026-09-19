@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
+use std::ffi::OsString;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
-use std::thread::JoinHandle;
+use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
 
 use cucumber::{given, then, World};
@@ -11,8 +12,12 @@ use tempfile::TempDir;
 use crate::step_definitions::console_ui_steps::{
     ConsoleLocalStorage, ConsoleState, WikiWorkspaceState,
 };
+use crate::step_definitions::mutex_api_steps::MutexApiFixture;
+use crate::step_definitions::standup_panel_steps::StandupPanelState;
 use chrono::{DateTime, Utc};
+use kanbus::cli::{run_from_args_with_output, CommandOutput};
 use kanbus::daemon_client;
+use kanbus::error::KanbusError;
 use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
 use kanbus::right_now::RightNowContext;
@@ -85,6 +90,12 @@ pub struct KanbusWorld {
     pub console_state: Option<ConsoleState>,
     pub console_local_storage: ConsoleLocalStorage,
     pub console_wiki_state: Option<WikiWorkspaceState>,
+    pub console_standup_state: Option<StandupPanelState>,
+    pub console_viewport: Option<(u32, u32)>,
+    pub standup_api_status: Option<u16>,
+    pub standup_api_response: Option<serde_json::Value>,
+    pub now_api_status: Option<u16>,
+    pub now_api_response: Option<String>,
     pub console_sort_order: Option<BTreeMap<String, serde_json::Value>>,
     pub console_time_zone: Option<String>,
     pub console_board_column_fixture_loaded: bool,
@@ -144,8 +155,25 @@ pub struct KanbusWorld {
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
     pub uds_published_id: Option<String>,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
+    pub mosquitto_hint_count: Option<usize>,
+    pub mosquitto_unavailable: bool,
     pub ai_call_count_after_first_render: Option<usize>,
     pub environment_overrides: BTreeMap<String, String>,
+    pub last_command: Option<String>,
+    pub standup_json_by_profile: Option<BTreeMap<String, Value>>,
+    pub standup_window_settings: Option<Value>,
+    pub resolved_standup_lookback_hours: Option<u32>,
+    pub python_window_settings: Option<Value>,
+    pub rust_window_settings: Option<Value>,
+    pub standup_timezone_name: Option<String>,
+    pub last_post_path: Option<String>,
+    pub last_post_json: Option<Value>,
+    pub coordination_now_override: Option<String>,
+    pub coordination_original_clock: Option<Option<std::ffi::OsString>>,
+    pub coordination_gossip_messages: Vec<kanbus::gossip::GossipEnvelope>,
+    pub coordination_mqtt_topic: Option<String>,
+    pub mutex_api_fixture: Option<MutexApiFixture>,
+    pub mutex_api_original_env: Option<(Option<OsString>, Option<OsString>)>,
 }
 
 const AGENT_ENVIRONMENT_KEYS: [&str; 3] = [
@@ -177,6 +205,18 @@ pub fn apply_environment_overrides(
     saved
 }
 
+/// Run the Kanbus CLI on a worker thread so blocking runtimes are not dropped
+/// inside Cucumber's async test harness.
+pub fn run_from_args_in_blocking_thread(
+    args: Vec<String>,
+    cwd: &Path,
+) -> Result<CommandOutput, KanbusError> {
+    let cwd_path = cwd.to_path_buf();
+    thread::spawn(move || run_from_args_with_output(args, &cwd_path))
+        .join()
+        .expect("cli thread panicked")
+}
+
 /// Restore process environment values saved by ``apply_environment_overrides``.
 pub fn restore_environment(saved: BTreeMap<String, Option<String>>) {
     for (key, value) in saved {
@@ -189,6 +229,25 @@ pub fn restore_environment(saved: BTreeMap<String, Option<String>>) {
 
 impl Drop for KanbusWorld {
     fn drop(&mut self) {
+        if let Some(original) = self.coordination_original_clock.take() {
+            match original {
+                Some(value) => std::env::set_var("KANBUS_TEST_COORDINATION_NOW", value),
+                None => std::env::remove_var("KANBUS_TEST_COORDINATION_NOW"),
+            }
+        }
+        if let Some((endpoint, token)) = self.mutex_api_original_env.take() {
+            match endpoint {
+                Some(value) => std::env::set_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT", value),
+                None => std::env::remove_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            }
+            match token {
+                Some(value) => {
+                    std::env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", value)
+                }
+                None => std::env::remove_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+            }
+        }
+        self.mutex_api_fixture.take();
         crate::step_definitions::console_ui_state_steps::stop_console_server(self);
         kanbus::beads_write::set_test_beads_slug_sequence(None);
         kanbus::ids::set_test_uuid_sequence(None);
@@ -258,6 +317,7 @@ impl Drop for KanbusWorld {
                 None => std::env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK"),
             }
         }
+        std::env::remove_var(kanbus::standup_window::STANDUP_REPORT_TIME_ENV);
         if let Some(original) = self.ai_mock_env.take() {
             match original {
                 Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
@@ -277,6 +337,8 @@ impl Drop for KanbusWorld {
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS");
         daemon_client::set_test_daemon_response(None);
         daemon_client::set_test_daemon_spawn_disabled(false);
+        daemon_client::reset_daemon_restart_recorded_for_testing();
+        std::env::remove_var("KANBUS_TEST_SIMULATE_LITELLM_MISSING");
         if let Some(tx) = self.fake_jira_shutdown_tx.take() {
             let _ = tx.send(());
         }
@@ -376,6 +438,15 @@ fn then_project_management_template_contains_text(world: &mut KanbusWorld, text:
         .expect("read project management template");
     let normalized = text.replace("\\\"", "\"");
     assert!(content.contains(&normalized));
+}
+
+#[then(expr = "CONTRIBUTING_AGENT.template.md should not contain {string}")]
+fn then_project_management_template_should_not_contain_text(world: &mut KanbusWorld, text: String) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let content = fs::read_to_string(cwd.join("CONTRIBUTING_AGENT.template.md"))
+        .expect("read project management template");
+    let normalized = text.replace("\\\"", "\"");
+    assert!(!content.contains(&normalized));
 }
 
 #[then("a \"project\" directory should exist")]

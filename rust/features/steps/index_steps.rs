@@ -6,8 +6,8 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 use tempfile::TempDir;
 
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
-use kanbus::cli::run_from_args_with_output;
 use kanbus::daemon_paths::get_index_cache_path;
 use kanbus::file_io::load_project_directory;
 use kanbus::index::build_index_from_directory;
@@ -33,7 +33,7 @@ fn initialize_project(world: &mut KanbusWorld) {
     world.temp_dir = Some(temp_dir);
     let args = shell_words::split("kanbus init").expect("parse command");
     let cwd = world.working_directory.as_ref().expect("cwd");
-    let _ = run_from_args_with_output(args, cwd.as_path()).expect("init");
+    let _ = run_from_args_in_blocking_thread(args, cwd.as_path()).expect("init");
 }
 
 fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {

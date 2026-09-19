@@ -285,6 +285,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
@@ -696,12 +697,21 @@ export default function App() {
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
   const refreshSnapshot = useCallback(() => {
     if (!apiBase) {
-      return;
+      return Promise.resolve();
     }
-    fetchSnapshot(apiBase)
+    return fetchSnapshot(apiBase)
       .then((data) => setSnapshot(data))
       .catch((err) => console.warn("[snapshot] refresh failed", err));
   }, [apiBase]);
+  useEffect(() => {
+    const refreshHandle = window as Window & {
+      __KANBUS_REFRESH_SNAPSHOT__?: () => Promise<void>;
+    };
+    refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ = refreshSnapshot;
+    return () => {
+      delete refreshHandle.__KANBUS_REFRESH_SNAPSHOT__;
+    };
+  }, [refreshSnapshot]);
   const showAllTypes = route.typeFilter === "all";
 
   useEffect(() => {
@@ -766,7 +776,6 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
-    let unsubscribe: (() => void) | null = null;
     setAuthReady(false);
     setLoading(true);
     if (route.basePath == null) {
@@ -805,25 +814,6 @@ export default function App() {
         setError(null);
         setAuthReady(true);
         setLoading(false);
-        unsubscribe = subscribeToSnapshots(
-          apiBase,
-          (nextSnapshot) => {
-            lastSnapshotSuccessAtRef.current = Date.now();
-            setSnapshot(nextSnapshot);
-            setError(null);
-            setErrorTime(null);
-          },
-          () => {
-            const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
-            // EventSource reconnects are expected in some gateway paths.
-            // Only surface a hard outage when snapshots have actually gone stale.
-            if (staleMs < 15_000) {
-              return;
-            }
-            setError("SSE connection issue. Attempting to reconnect.");
-            setErrorTime(Date.now());
-          }
-        );
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize auth";
         // Redirect flow intentionally throws after assigning location.
@@ -841,16 +831,39 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      unsubscribe?.();
       setAuthHeaderProvider(null);
       setAuthQueryProvider(null);
       setMqttTokenProvider(null);
     };
   }, [route.basePath]);
 
+  useEffect(() => {
+    if (route.basePath == null || !authReady) {
+      return;
+    }
+    const snapshotApiBase = `${route.basePath}/api`;
+    return subscribeToSnapshots(
+      snapshotApiBase,
+      (nextSnapshot) => {
+        lastSnapshotSuccessAtRef.current = Date.now();
+        setSnapshot(nextSnapshot);
+        setError(null);
+        setErrorTime(null);
+      },
+      () => {
+        const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
+        if (staleMs < 15_000) {
+          return;
+        }
+        setError("SSE connection issue. Attempting to reconnect.");
+        setErrorTime(Date.now());
+      }
+    );
+  }, [route.basePath, authReady]);
+
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (route.basePath == null || !authReady) {
       return;
     }
     const apiBase = `${route.basePath}/api`;
@@ -2072,6 +2085,7 @@ export default function App() {
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}
                     selectedIssueId={selectedTask?.id ?? null}
+                    apiBase={apiBase}
                   />
                 </div>
               </div>

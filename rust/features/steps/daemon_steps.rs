@@ -632,6 +632,63 @@ fn then_daemon_request_succeeds(world: &mut KanbusWorld) {
     assert!(world.daemon_error_message.is_none());
 }
 
+#[then("the daemon should have been restarted")]
+fn then_daemon_should_have_been_restarted(_world: &mut KanbusWorld) {
+    assert!(daemon_client::was_daemon_restarted_for_testing());
+}
+
+#[given(expr = "the daemon index list responds with {string}")]
+fn given_daemon_index_list_responds_with(_world: &mut KanbusWorld, message: String) {
+    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    let response = ResponseEnvelope {
+        protocol_version: PROTOCOL_VERSION.to_string(),
+        request_id: "req-config-failover".to_string(),
+        status: "error".to_string(),
+        result: None,
+        error: Some(kanbus::daemon_protocol::ErrorEnvelope {
+            code: "internal_error".to_string(),
+            message,
+            details: BTreeMap::new(),
+        }),
+    };
+    set_test_daemon_responses(vec![
+        TestDaemonResponse::Envelope(response.clone()),
+        TestDaemonResponse::Envelope(response),
+    ]);
+    set_test_daemon_spawn_disabled(true);
+}
+
+#[given(expr = "the daemon index list fails once with {string} then succeeds")]
+fn given_daemon_index_list_fails_once_then_succeeds(_world: &mut KanbusWorld, message: String) {
+    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    let error_response = ResponseEnvelope {
+        protocol_version: PROTOCOL_VERSION.to_string(),
+        request_id: "req-config-restart".to_string(),
+        status: "error".to_string(),
+        result: None,
+        error: Some(kanbus::daemon_protocol::ErrorEnvelope {
+            code: "internal_error".to_string(),
+            message,
+            details: BTreeMap::new(),
+        }),
+    };
+    let ok_response = ResponseEnvelope {
+        protocol_version: PROTOCOL_VERSION.to_string(),
+        request_id: "req-config-restart-ok".to_string(),
+        status: "ok".to_string(),
+        result: Some(BTreeMap::from([(
+            "issues".to_string(),
+            serde_json::Value::Array(vec![]),
+        )])),
+        error: None,
+    };
+    set_test_daemon_responses(vec![
+        TestDaemonResponse::Envelope(error_response),
+        TestDaemonResponse::Envelope(ok_response),
+    ]);
+    set_test_daemon_spawn_disabled(true);
+}
+
 #[then(expr = "the daemon response should include status {string}")]
 fn then_daemon_response_status(world: &mut KanbusWorld, status: String) {
     assert_eq!(

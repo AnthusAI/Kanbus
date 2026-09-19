@@ -1,0 +1,45 @@
+{
+  "id": "kbs-c2fc5929-eafd-4a88-95e6-66c683cf034b",
+  "title": "Tactus agent DSL handoff for AI procedures",
+  "description": "Thin future epic: Tactus DSL orchestration for multi-step Kanbus AI procedures after Meeting script and Director brief profiles prove out. Does not block near-term standup delivery.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a2f26f9f-9136-49dd-ad8c-4db7424b0353",
+      "author": "Codex",
+      "text": "Deferred out of the standup initiative. This future Tactus DSL handoff is contingent on a later AI-procedures initiative and should be recreated there only when admitted into WIP.",
+      "created_at": "2026-09-16T03:42:38.497809Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "f551c582-6aae-4f3f-bf15-b00460f476bf",
+      "author": "Codex",
+      "text": "Deferred out of the standup initiative. This future Tactus DSL handoff is contingent on a later AI-procedures initiative and should be recreated there only when admitted into WIP.",
+      "created_at": "2026-09-16T03:42:40.945786Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
+  "created_at": "2026-09-09T17:17:28.017597809Z",
+  "updated_at": "2026-09-16T03:42:43.377996Z",
+  "closed_at": "2026-09-16T03:42:43.352016Z",
+  "right_now_summary": "The team is planning a future Tactus DSL for multi-step AI procedures after current profiles are proven.",
+  "right_now_updated_at": "2026-09-11T19:47:46.716892Z",
+  "custom": {}
+}

@@ -1,0 +1,33 @@
+{
+  "id": "kbs-056a5daa-c1fa-403b-8982-9d4840eacc45",
+  "title": "Clarify agent_metadata.feature optionally-tag vs MUST policy wording",
+  "description": "SD soft nit on #264: agent_metadata.feature still says optionally tag (CLI capability) while CONTRIBUTING_AGENT policy says MUST for AI agents — clarify feature language so capability vs doctrine is not confused.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-1cf80dea-258b-4bf2-8ead-2f8cc91b3247",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "34c724e3-e41a-428e-845a-9ea505ef0e57",
+      "author": "home",
+      "text": "Verified on develop: features/agent/agent_metadata.feature describes optional CLI capability, while CONTRIBUTING_AGENT.md separately mandates provenance for AI-agent usage. The policy distinction is already clear. Closing as completed.",
+      "created_at": "2026-09-16T23:20:01.579784Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-10T13:40:27.528209Z",
+  "updated_at": "2026-09-16T23:20:08.536104Z",
+  "closed_at": "2026-09-16T23:20:08.516286Z",
+  "agent": {
+    "platform": "cursor",
+    "model": "composer-2.5",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The team is clarifying whether agent metadata tags are optional features or required for AI agents.",
+  "right_now_updated_at": "2026-09-10T13:40:33.521900Z",
+  "custom": {}
+}

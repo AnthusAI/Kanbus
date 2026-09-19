@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{ensure_git_repository, get_configuration_path, load_project_directory};
+use crate::maintenance::validate_project;
 
 /// Result of running doctor checks.
 #[derive(Debug, Clone)]
@@ -24,5 +25,6 @@ pub fn run_doctor(root: &Path) -> Result<DoctorResult, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let configuration_path = get_configuration_path(project_dir.as_path())?;
     load_project_configuration(&configuration_path)?;
+    validate_project(root)?;
     Ok(DoctorResult { project_dir })
 }

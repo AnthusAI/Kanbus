@@ -124,6 +124,76 @@ Feature: Wiki rendering
     Then the command should fail with exit code 1
     And stderr should contain "division by zero"
 
+  Scenario: Render blocked issues with blocked_by helpers
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-blocker" exists with status "open"
+    And an issue "kanbus-blocked01" exists with status "blocked"
+    And issue "kanbus-blocked01" has dependency "kanbus-blocker" of type "blocked-by"
+    And a wiki page "blocked_issues.md" with content:
+      """
+      {% for issue in query(status="blocked") %}
+      - [{{ issue.id }}] {{ issue.title }}
+        Blocked by:
+        {% for blocker in blocked_by(issue.id) %}
+        - [{{ blocker.id }}] {{ blocker.title }}
+        {% endfor %}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render project/wiki/blocked_issues.md"
+    Then the command should succeed
+    And stdout should contain "kanbus-blocked01"
+    And stdout should contain "kanbus-blocker"
+
+  Scenario: Wiki render JSON includes blocked_by HTML after Jinja
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-blocker" exists with status "open"
+    And an issue "kanbus-blocked01" exists with status "blocked"
+    And issue "kanbus-blocked01" has dependency "kanbus-blocker" of type "blocked-by"
+    And a wiki page "blocked_issues.md" with content:
+      """
+      {% for issue in query(status="blocked") %}
+      - [{{ issue.id }}] {{ issue.title }}
+        Blocked by:
+        {% for blocker in blocked_by(issue.id) %}
+        - [{{ blocker.id }}] {{ blocker.title }}
+        {% endfor %}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render project/wiki/blocked_issues.md --json"
+    Then the command should succeed
+    And stdout should be valid JSON
+    And JSON field "rendered" should contain "kanbus-blocker"
+    And JSON field "rendered_html" should contain "kanbus-blocker"
+
+  Scenario: Render children of an issue
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-epic01" exists with status "open"
+    And an issue "kanbus-child" exists with parent "kanbus-epic01"
+    And a wiki page "children.md" with content:
+      """
+      {% for child in children("kanbus-epic01") %}
+      - [{{ child.id }}] {{ child.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render project/wiki/children.md"
+    Then the command should succeed
+    And stdout should contain "kanbus-child"
+
+  Scenario: Render issues that an issue blocks
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-blocker" exists with status "open"
+    And an issue "kanbus-blocked01" exists with status "blocked"
+    And issue "kanbus-blocked01" has dependency "kanbus-blocker" of type "blocked-by"
+    And a wiki page "blocks.md" with content:
+      """
+      {% for blocked in blocks("kanbus-blocker") %}
+      - [{{ blocked.id }}] {{ blocked.title }}
+      {% endfor %}
+      """
+    When I run "kanbus wiki render project/wiki/blocks.md"
+    Then the command should succeed
+    And stdout should contain "kanbus-blocked01"
+
   Scenario: Render a wiki page in Beads mode
     Given a Kanbus project with beads compatibility enabled
     And a wiki page "beads.md" with content:

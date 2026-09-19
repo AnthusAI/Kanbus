@@ -4,19 +4,20 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
+import ssl
 import subprocess
 import sys
-import time
 import threading
-import shutil
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.models import IssueData, ProjectConfiguration, RealtimeConfig
@@ -27,9 +28,15 @@ from kanbus.project import (
     resolve_labeled_projects,
 )
 
+_MOSQUITTO_MISSING_WARNED = False
+_MOSQUITTO_MISSING_WARNING_COUNT = 0
+GOSSIP_DEDUPE_TTL_S = 3600
+
 
 class GossipEnvelope(BaseModel):
     """Realtime gossip envelope."""
+
+    model_config = ConfigDict(extra="allow")
 
     id: str = Field(min_length=1)
     ts: str = Field(min_length=1)
@@ -40,6 +47,53 @@ class GossipEnvelope(BaseModel):
     producer_id: str = Field(min_length=1)
     origin_cluster_id: Optional[str] = None
     issue: Optional[IssueData] = None
+
+
+class CoordinationGossipEnvelope(GossipEnvelope):
+    """Top-level MQTT envelope for a soft coordination event."""
+
+    resource: Optional[str] = Field(default=None, min_length=1)
+    owner: Optional[str] = Field(default=None, min_length=1)
+    claim_id: Optional[str] = Field(default=None, min_length=1)
+    lease_ttl_s: Optional[int] = Field(default=None, gt=0)
+    expires_at: Optional[str] = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def validate_coordination_fields(self) -> "CoordinationGossipEnvelope":
+        """Validate the required fields for each coordination message type."""
+        if self.type not in {
+            "coordination.claim",
+            "coordination.lease",
+            "coordination.release",
+        }:
+            raise ValueError("unknown coordination gossip type")
+        if not self.event_id:
+            raise ValueError("coordination gossip requires event_id")
+        if not self.resource or not self.owner or not self.claim_id:
+            raise ValueError(
+                "coordination gossip requires resource, owner, and claim_id"
+            )
+        if self.type == "coordination.claim" and self.lease_ttl_s is None:
+            raise ValueError("coordination.claim requires lease_ttl_s")
+        if self.type == "coordination.lease":
+            if self.lease_ttl_s is None or self.expires_at is None:
+                raise ValueError(
+                    "coordination.lease requires lease_ttl_s and expires_at"
+                )
+        if self.type == "coordination.release" and (
+            self.lease_ttl_s is not None or self.expires_at is not None
+        ):
+            raise ValueError("coordination.release must not include lease fields")
+        return self
+
+
+def _parse_gossip_envelope(payload: object) -> GossipEnvelope:
+    """Parse issue or coordination gossip without dropping top-level fields."""
+    if isinstance(payload, dict) and str(payload.get("type", "")).startswith(
+        "coordination."
+    ):
+        return CoordinationGossipEnvelope.model_validate(payload)
+    return GossipEnvelope.model_validate(payload)
 
 
 @dataclass(frozen=True)
@@ -246,7 +300,7 @@ def _run_gossip_consumer(
         realtime.topics.project_events.format(project=project.label)
         for project in labeled
     ]
-    dedupe = DedupeSet(ttl_s=3600)
+    dedupe = DedupeSet(ttl_s=GOSSIP_DEDUPE_TTL_S)
 
     def handler(envelope: GossipEnvelope) -> None:
         if dedupe.seen(envelope.id):
@@ -257,8 +311,24 @@ def _run_gossip_consumer(
         if target_project is None:
             return
         if print_envelopes:
-            print(json.dumps(envelope.model_dump(mode="json"), sort_keys=False))
-        if configuration.overlay.enabled:
+            # `gossip watch --print` is also consumed by unattended workers.
+            # Flush each envelope so a pipe reader can observe it while this
+            # long-running command remains connected to the broker.
+            print(
+                json.dumps(envelope.model_dump(mode="json"), sort_keys=False),
+                flush=True,
+            )
+        # Coordination uses its own ignored speculative store.  It must remain
+        # available even when the optional issue overlay cache is disabled.
+        if isinstance(envelope, CoordinationGossipEnvelope):
+            from kanbus.coordination_mqtt import record_envelope
+
+            record_envelope(
+                target_project,
+                envelope,
+                ttl_s=configuration.overlay.ttl_s,
+            )
+        elif configuration.overlay.enabled:
             if envelope.type == "issue.mutated" and envelope.issue is not None:
                 write_overlay_issue(
                     target_project,
@@ -293,6 +363,7 @@ def _run_gossip_consumer(
             raise GossipError("realtime broker is disabled")
         return
     endpoint = resolve_broker_endpoint(broker)
+    endpoint = mqtt_endpoint_for_realtime(endpoint, realtime)
     broker_process = None
     if not broker_is_reachable(endpoint):
         if broker == "auto":
@@ -301,11 +372,14 @@ def _run_gossip_consumer(
             raise GossipError("broker not reachable and autostart disabled")
         startup = ensure_mosquitto(endpoint)
         if startup is None:
-            _print_mosquitto_missing()
+            _maybe_warn_mosquitto_missing()
             return
         endpoint = startup.endpoint
         broker_process = startup.process
-    run_mqtt_subscription(endpoint, topics, handler)
+    if _has_mqtt_custom_authorizer(realtime):
+        run_mqtt_subscription(endpoint, topics, handler, realtime)
+    else:
+        run_mqtt_subscription(endpoint, topics, handler)
     if broker_process is not None and not keepalive:
         broker_process.terminate()
 
@@ -439,7 +513,7 @@ def run_uds_subscription(
                     continue
                 try:
                     payload = json.loads(line.decode())
-                    envelope = GossipEnvelope.model_validate(payload.get("msg", {}))
+                    envelope = _parse_gossip_envelope(payload.get("msg", {}))
                 except (json.JSONDecodeError, ValidationError):
                     continue
                 handler(envelope)
@@ -466,6 +540,7 @@ def _publish_envelope(
     if broker == "off":
         return
     endpoint = resolve_broker_endpoint(broker)
+    endpoint = mqtt_endpoint_for_realtime(endpoint, configuration.realtime)
     broker_process = None
     if not broker_is_reachable(endpoint):
         if broker == "auto":
@@ -474,11 +549,13 @@ def _publish_envelope(
             return
         startup = ensure_mosquitto(endpoint)
         if startup is None:
-            _print_mosquitto_missing()
             return
         endpoint = startup.endpoint
         broker_process = startup.process
-    _publish_mqtt(endpoint, topic, envelope)
+    if _has_mqtt_custom_authorizer(configuration.realtime):
+        _publish_mqtt(endpoint, topic, envelope, configuration.realtime)
+    else:
+        _publish_mqtt(endpoint, topic, envelope)
     if broker_process is not None and not keepalive:
         broker_process.terminate()
 
@@ -492,7 +569,11 @@ def _publish_uds(
             {
                 "op": "pub",
                 "topic": topic,
-                "msg": envelope.model_dump(by_alias=True, mode="json"),
+                "msg": envelope.model_dump(
+                    by_alias=True,
+                    mode="json",
+                    exclude_none=isinstance(envelope, CoordinationGossipEnvelope),
+                ),
             }
         )
         + "\n"
@@ -520,7 +601,34 @@ def broker_is_reachable(endpoint: BrokerEndpoint) -> bool:
         return False
 
 
+def _has_mqtt_custom_authorizer(realtime: RealtimeConfig) -> bool:
+    return bool(
+        getattr(realtime, "mqtt_custom_authorizer_name", None)
+        and getattr(realtime, "mqtt_api_token", None)
+    )
+
+
+def mqtt_endpoint_for_realtime(
+    endpoint: BrokerEndpoint, realtime: RealtimeConfig
+) -> BrokerEndpoint:
+    """Apply AWS IoT custom-authorizer's TLS-over-443 endpoint convention."""
+    if (
+        endpoint.scheme == "mqtts"
+        and _has_mqtt_custom_authorizer(realtime)
+        and endpoint.port == 8883
+    ):
+        return BrokerEndpoint(
+            scheme=endpoint.scheme,
+            host=endpoint.host,
+            port=443,
+            url=endpoint.url,
+        )
+    return endpoint
+
+
 def ensure_mosquitto(endpoint: BrokerEndpoint) -> Optional[BrokerStartup]:
+    if os.environ.get("KANBUS_TEST_MOSQUITTO_UNAVAILABLE") == "1":
+        return None
     if endpoint.scheme != "mqtt":
         return None
     if endpoint.host not in ("127.0.0.1", "localhost"):
@@ -583,19 +691,41 @@ def _find_free_port(start_port: int) -> int:
 
 
 def _publish_mqtt(
-    endpoint: BrokerEndpoint, topic: str, envelope: GossipEnvelope
+    endpoint: BrokerEndpoint,
+    topic: str,
+    envelope: GossipEnvelope,
+    realtime: RealtimeConfig | None = None,
 ) -> None:
     try:
         import paho.mqtt.client as mqtt
     except ImportError:
         return
     client = mqtt.Client(client_id=producer_id())
+    endpoint = (
+        mqtt_endpoint_for_realtime(endpoint, realtime)
+        if realtime is not None
+        else endpoint
+    )
     if endpoint.scheme == "mqtts":
-        client.tls_set()
+        if realtime is not None and _has_mqtt_custom_authorizer(realtime):
+            tls_context = ssl.create_default_context()
+            tls_context.set_alpn_protocols(["mqtt"])
+            client.tls_set_context(tls_context)
+        else:
+            client.tls_set()
+    if realtime is not None and _has_mqtt_custom_authorizer(realtime):
+        client.username_pw_set(
+            f"?x-amz-customauthorizer-name={realtime.mqtt_custom_authorizer_name}",
+            realtime.mqtt_api_token,
+        )
     client.connect(endpoint.host, endpoint.port, 30)
     client.loop_start()
-    payload = envelope.model_dump(by_alias=True, mode="json")
-    result = client.publish(topic, json.dumps(payload))
+    payload = envelope.model_dump(
+        by_alias=True,
+        mode="json",
+        exclude_none=isinstance(envelope, CoordinationGossipEnvelope),
+    )
+    result = client.publish(topic, json.dumps(payload), qos=0, retain=False)
     result.wait_for_publish(timeout=2.0)
     client.loop_stop()
     client.disconnect()
@@ -605,30 +735,63 @@ def run_mqtt_subscription(
     endpoint: BrokerEndpoint,
     topics: list[str],
     handler: Callable[[GossipEnvelope], None],
+    realtime: RealtimeConfig | None = None,
 ) -> None:
+    """Subscribe to MQTT topics, optionally using configured broker credentials."""
     try:
         import paho.mqtt.client as mqtt
     except ImportError as exc:
         raise GossipError("paho-mqtt is required for MQTT transport") from exc
 
     client = mqtt.Client(client_id=producer_id())
+    endpoint = (
+        mqtt_endpoint_for_realtime(endpoint, realtime)
+        if realtime is not None
+        else endpoint
+    )
     if endpoint.scheme == "mqtts":
-        client.tls_set()
+        if realtime is not None and _has_mqtt_custom_authorizer(realtime):
+            tls_context = ssl.create_default_context()
+            tls_context.set_alpn_protocols(["mqtt"])
+            client.tls_set_context(tls_context)
+        else:
+            client.tls_set()
+    if realtime is not None and _has_mqtt_custom_authorizer(realtime):
+        client.username_pw_set(
+            f"?x-amz-customauthorizer-name={realtime.mqtt_custom_authorizer_name}",
+            realtime.mqtt_api_token,
+        )
+
+    # `connect()` establishes the socket but does not complete the MQTT
+    # handshake.  Queueing SUBSCRIBE before CONNACK makes Paho reject it with
+    # MQTT_ERR_NO_CONN, leaving a long-running watcher connected but unable to
+    # receive any events.  Subscribe from the callback so this works for both
+    # plain brokers and the slower AWS custom-authorizer path.
+    def on_connect(
+        connected_client: mqtt.Client,
+        _userdata: object,
+        _flags: object,
+        reason_code: object,
+        *_extra: object,
+    ) -> None:
+        if reason_code not in (0, mqtt.MQTT_ERR_SUCCESS):
+            return
+        for topic in topics:
+            connected_client.subscribe(topic, qos=0)
 
     def on_message(
         _client: mqtt.Client, _userdata: object, msg: mqtt.MQTTMessage
     ) -> None:
         try:
             payload = json.loads(msg.payload.decode())
-            envelope = GossipEnvelope.model_validate(payload)
+            envelope = _parse_gossip_envelope(payload)
         except (json.JSONDecodeError, ValidationError):
             return
         handler(envelope)
 
+    client.on_connect = on_connect
     client.on_message = on_message
     client.connect(endpoint.host, endpoint.port, 30)
-    for topic in topics:
-        client.subscribe(topic)
     client.loop_forever()
 
 
@@ -701,9 +864,47 @@ def _now_iso() -> str:
     )
 
 
-def _print_mosquitto_missing() -> None:
+def _mosquitto_warnings_enabled() -> bool:
+    return os.environ.get("KANBUS_REALTIME_WARN_MOSQUITTO") != "0"
+
+
+def _maybe_warn_mosquitto_missing() -> None:
+    global _MOSQUITTO_MISSING_WARNED, _MOSQUITTO_MISSING_WARNING_COUNT
+    if not _mosquitto_warnings_enabled():
+        return
+    if _MOSQUITTO_MISSING_WARNED:
+        return
+    _MOSQUITTO_MISSING_WARNED = True
+    _MOSQUITTO_MISSING_WARNING_COUNT += 1
     print(
-        "Mosquitto not found. Install with: brew install mosquitto (macOS) "
-        "or apt install mosquitto (Debian/Ubuntu).",
+        "Mosquitto not found; local MQTT realtime is optional. Install mosquitto "
+        "for gossip watch (see docs/REALTIME.md). macOS: brew install mosquitto. "
+        "Debian/Ubuntu: apt install mosquitto.",
         file=sys.stderr,
     )
+
+
+def reset_mosquitto_missing_warning() -> None:
+    """Reset the once-per-session Mosquitto warning gate."""
+    global _MOSQUITTO_MISSING_WARNED, _MOSQUITTO_MISSING_WARNING_COUNT
+    _MOSQUITTO_MISSING_WARNED = False
+    _MOSQUITTO_MISSING_WARNING_COUNT = 0
+
+
+def mosquitto_missing_warning_count() -> int:
+    """Return how many Mosquitto install hints were emitted in this process."""
+    return _MOSQUITTO_MISSING_WARNING_COUNT
+
+
+def attempt_mosquitto_missing_warning() -> None:
+    """Emit the Mosquitto install hint gate used by realtime MQTT commands."""
+    _maybe_warn_mosquitto_missing()
+
+
+def attempt_mqtt_publish_without_broker(
+    configuration: ProjectConfiguration,
+    topic: str,
+    envelope: GossipEnvelope,
+) -> None:
+    """Publish a gossip envelope for behavior-spec MQTT publish checks."""
+    _publish_envelope(Path("."), configuration, topic, envelope)

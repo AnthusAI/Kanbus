@@ -25,6 +25,10 @@ from kanbus.models import (
     StatusDefinition,
 )
 from kanbus.project import discover_project_directories, get_configuration_path
+from kanbus.status_semantics import (
+    map_beads_status,
+    semantic_category_for_beads_status_key,
+)
 from kanbus.workflows import get_workflow_for_issue_type
 
 BEADS_ISSUE_TYPE_MAP = {"feature": "story", "message": "task"}
@@ -243,6 +247,7 @@ def _load_configuration_for_beads(
             key=status,
             name=status,
             category="To do",
+            semantic_category=semantic_category_for_beads_status_key(status),
             color=None,
             collapsed=False,
         )
@@ -313,6 +318,7 @@ def _convert_record(
     status = record.get("status", "").strip()
     if not status:
         raise MigrationError("status is required")
+    status = map_beads_status(configuration, status)
     _validate_status(configuration, canonical_issue_type, status)
 
     priority = record.get("priority")

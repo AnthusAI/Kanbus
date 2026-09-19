@@ -2,13 +2,38 @@
 
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_yaml::{Mapping, Value};
 
 use crate::config::default_project_configuration;
 use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
+
+/// Filename for the user congregation env file in the home directory.
+pub const CONGREGATION_ENV_FILENAME: &str = ".kanbus.env";
+
+/// Return the user congregation env file path.
+///
+/// # Returns
+///
+/// Path to `~/.kanbus.env`.
+pub fn congregation_env_path() -> PathBuf {
+    user_home_directory().join(CONGREGATION_ENV_FILENAME)
+}
+
+/// Load congregation and project dotenv files into the process environment.
+///
+/// Loads `~/.kanbus.env` first, then `repository_root/.env`. Values already
+/// present in the process environment are never overwritten.
+///
+/// # Arguments
+///
+/// * `repository_root` - Repository root containing `.kanbus.yml`.
+pub fn load_repository_environment(repository_root: &Path) {
+    load_dotenv(&congregation_env_path());
+    load_dotenv(&repository_root.join(".env"));
+}
 
 /// Load a project configuration from disk.
 ///
@@ -20,12 +45,8 @@ use crate::models::ProjectConfiguration;
 ///
 /// Returns `KanbusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
-    let dotenv_path = path.parent().unwrap_or(Path::new(".")).join(".env");
-    if let Some(home) = std::env::var_os("HOME") {
-        let global_dotenv = Path::new(&home).join(".kanbus.env");
-        load_dotenv(&global_dotenv);
-    }
-    load_dotenv(&dotenv_path);
+    let repository_root = path.parent().unwrap_or(Path::new("."));
+    load_repository_environment(repository_root);
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             KanbusError::Configuration("configuration file not found".to_string())
@@ -39,6 +60,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
     handle_legacy_fields(&mut merged_value);
+    reject_standup_lookback_hours(&merged_value)?;
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
@@ -50,6 +72,20 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+fn user_home_directory() -> PathBuf {
+    if let Ok(home) = env::var("HOME") {
+        if !home.trim().is_empty() {
+            return PathBuf::from(home);
+        }
+    }
+    if let Ok(profile) = env::var("USERPROFILE") {
+        if !profile.trim().is_empty() {
+            return PathBuf::from(profile);
+        }
+    }
+    PathBuf::from(".")
 }
 
 fn load_dotenv(path: &Path) {
@@ -305,6 +341,9 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     validate_hooks(configuration, &mut errors);
     validate_sort_order(configuration, &mut errors);
     validate_right_now(configuration, &mut errors);
+    errors.extend(crate::coordination::validate_coordination_configuration(
+        configuration,
+    ));
 
     errors
 }
@@ -486,8 +525,26 @@ fn handle_legacy_fields(mapping: &mut Mapping) {
     }
 }
 
+const STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE: &str = "standup.lookback_hours was removed; use standup.lookback with a duration string such as 24h or 1d";
+
+fn reject_standup_lookback_hours(mapping: &Mapping) -> Result<(), KanbusError> {
+    let standup_key = Value::String("standup".to_string());
+    let lookback_hours_key = Value::String("lookback_hours".to_string());
+    if let Some(Value::Mapping(standup)) = mapping.get(&standup_key) {
+        if standup.contains_key(&lookback_hours_key) {
+            return Err(KanbusError::Configuration(
+                STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn map_configuration_error(error: &serde_yaml::Error) -> String {
     let message = error.to_string();
+    if message.contains("lookback_hours") {
+        return STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string();
+    }
     if message.contains("unknown field") {
         return "unknown configuration fields".to_string();
     }
@@ -575,6 +632,24 @@ fn apply_overrides(mut value: Mapping, overrides: Mapping) -> Mapping {
 }
 
 fn apply_environment_overrides(mapping: &mut Mapping) {
+    if let Ok(value) = env::var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["coordination", "mutex_api", "endpoint"],
+                Value::String(value),
+            );
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["coordination", "mutex_api", "bearer_token"],
+                Value::String(value),
+            );
+        }
+    }
     if let Ok(value) = env::var("KANBUS_REALTIME_TRANSPORT") {
         if !value.trim().is_empty() {
             set_nested_value(mapping, &["realtime", "transport"], Value::String(value));
@@ -669,5 +744,89 @@ fn set_nested_value(mapping: &mut Mapping, path: &[&str], value: Value) {
     }
     if let Some(Value::Mapping(child)) = mapping.get_mut(&key) {
         set_nested_value(child, &path[1..], value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    struct MutexApiEnvironmentRestore {
+        endpoint: Option<std::ffi::OsString>,
+        token: Option<std::ffi::OsString>,
+    }
+
+    impl Drop for MutexApiEnvironmentRestore {
+        fn drop(&mut self) {
+            match self.endpoint.take() {
+                Some(value) => env::set_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT", value),
+                None => env::remove_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            }
+            match self.token.take() {
+                Some(value) => env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", value),
+                None => env::remove_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_standup_lookback_hours_with_migration_message() {
+        let temp_dir = TempDir::new().expect("temp dir");
+        let project_dir = temp_dir.path().join("project");
+        fs::create_dir(&project_dir).expect("project dir");
+        let config_path = temp_dir.path().join(".kanbus.yml");
+        fs::write(
+            &config_path,
+            "project_directory: project\nstandup:\n  lookback_hours: 24\n",
+        )
+        .expect("write config");
+
+        let error = load_project_configuration(&config_path).expect_err("migration error");
+        match error {
+            KanbusError::Configuration(message) => {
+                assert_eq!(message, STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE);
+            }
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn applies_mutex_api_environment_overrides_to_nested_config() {
+        let _restore = MutexApiEnvironmentRestore {
+            endpoint: env::var_os("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            token: env::var_os("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+        };
+        env::set_var(
+            "KANBUS_COORDINATION_MUTEX_API_ENDPOINT",
+            "https://env.example.test",
+        );
+        env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", "env-secret");
+        let mut mapping = serde_yaml::to_value(default_project_configuration())
+            .expect("default config value")
+            .as_mapping()
+            .expect("config mapping")
+            .clone();
+
+        apply_environment_overrides(&mut mapping);
+
+        assert_eq!(
+            mapping
+                .get("coordination")
+                .and_then(|value| value.get("mutex_api"))
+                .and_then(|value| value.get("endpoint"))
+                .and_then(Value::as_str),
+            Some("https://env.example.test")
+        );
+        assert_eq!(
+            mapping
+                .get("coordination")
+                .and_then(|value| value.get("mutex_api"))
+                .and_then(|value| value.get("bearer_token"))
+                .and_then(Value::as_str),
+            Some("env-secret")
+        );
     }
 }

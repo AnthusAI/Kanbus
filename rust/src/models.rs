@@ -102,14 +102,18 @@ fn default_jira_sync_direction() -> String {
 /// AI provider configuration for wiki summarization.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiConfiguration {
-    /// AI provider identifier (e.g. openai).
+    /// AI provider identifier (`litellm` routes through LiteLLM to the model vendor).
     pub provider: String,
-    /// Model identifier (e.g. gpt-4o).
+    /// Model identifier (e.g. gpt-5.6-luna).
     pub model: String,
 }
 
 fn default_right_now_max_length() -> usize {
     120
+}
+
+fn default_right_now_model() -> Option<String> {
+    Some("gpt-5.6-luna".to_string())
 }
 
 /// Right-now summary configuration for the console.
@@ -122,7 +126,7 @@ pub struct RightNowConfiguration {
     pub default_tree_expanded: bool,
     #[serde(default = "default_right_now_max_length")]
     pub max_length: usize,
-    #[serde(default)]
+    #[serde(default = "default_right_now_model")]
     pub model: Option<String>,
 }
 
@@ -132,7 +136,40 @@ impl Default for RightNowConfiguration {
             enabled: true,
             default_tree_expanded: false,
             max_length: default_right_now_max_length(),
-            model: None,
+            model: default_right_now_model(),
+        }
+    }
+}
+
+fn default_standup_window() -> String {
+    String::from("rolling")
+}
+
+fn default_standup_lookback() -> String {
+    String::from("24h")
+}
+
+/// On-demand standup report configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StandupConfiguration {
+    #[serde(default = "default_standup_window")]
+    pub window: String,
+    #[serde(default = "default_standup_lookback")]
+    pub lookback: String,
+    #[serde(default)]
+    pub skip_weekends: bool,
+    #[serde(default)]
+    pub timezone: Option<String>,
+}
+
+impl Default for StandupConfiguration {
+    fn default() -> Self {
+        Self {
+            window: default_standup_window(),
+            lookback: default_standup_lookback(),
+            skip_weekends: false,
+            timezone: None,
         }
     }
 }
@@ -205,6 +242,8 @@ pub struct GithubSecurityConfiguration {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VirtualProjectConfig {
     pub path: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
 }
 
 /// Realtime topic templates.
@@ -305,6 +344,59 @@ pub struct HooksConfiguration {
     pub after: BTreeMap<String, Vec<HookDefinition>>,
 }
 
+/// Ordered coordination provider settings for soft resource leases.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CoordinationConfiguration {
+    /// Strongest-first provider chain: `git`, `mqtt,git`, or `mutex_api,mqtt,git`.
+    #[serde(default = "default_coordination_providers")]
+    pub providers: Vec<String>,
+    /// Duration during which competing claims may be compared, such as `5s`.
+    #[serde(default = "default_coordination_contention_window")]
+    pub contention_window: String,
+    /// Lease duration used when a claim or renewal omits an override.
+    #[serde(default = "default_coordination_lease_ttl")]
+    pub default_lease_ttl: String,
+    /// Optional authenticated hard-mutex API connection.
+    #[serde(default)]
+    pub mutex_api: MutexApiConfiguration,
+}
+
+/// Optional connection settings for the hard coordination mutex API.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MutexApiConfiguration {
+    /// Base URL of the API, such as `https://mutex.example.test`.
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    /// Bearer token sent to the API.
+    #[serde(default)]
+    pub bearer_token: Option<String>,
+}
+
+fn default_coordination_providers() -> Vec<String> {
+    vec!["git".to_string()]
+}
+
+fn default_coordination_contention_window() -> String {
+    "5s".to_string()
+}
+
+fn default_coordination_lease_ttl() -> String {
+    "300s".to_string()
+}
+
+impl Default for CoordinationConfiguration {
+    fn default() -> Self {
+        Self {
+            providers: default_coordination_providers(),
+            contention_window: default_coordination_contention_window(),
+            default_lease_ttl: default_coordination_lease_ttl(),
+            mutex_api: MutexApiConfiguration::default(),
+        }
+    }
+}
+
 impl Default for HooksConfiguration {
     fn default() -> Self {
         Self {
@@ -364,6 +456,8 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub right_now: RightNowConfiguration,
     #[serde(default)]
+    pub standup: StandupConfiguration,
+    #[serde(default)]
     pub jira: Option<JiraConfiguration>,
     #[serde(default)]
     pub snyk: Option<SnykConfiguration>,
@@ -375,6 +469,9 @@ pub struct ProjectConfiguration {
     pub hooks: HooksConfiguration,
     #[serde(default)]
     pub github_security: Option<GithubSecurityConfiguration>,
+    /// Git-backed soft-lease coordination settings.
+    #[serde(default)]
+    pub coordination: CoordinationConfiguration,
 }
 
 #[cfg(test)]
@@ -439,6 +536,7 @@ pub struct StatusDefinition {
     pub key: String,
     pub name: String,
     pub category: String,
+    pub semantic_category: String,
     #[serde(default)]
     pub color: Option<String>,
     #[serde(default)]

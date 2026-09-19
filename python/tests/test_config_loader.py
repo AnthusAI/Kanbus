@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kanbus.config_loader import load_project_configuration, resolve_board_name
+from kanbus.config_loader import (
+    STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE,
+    ConfigurationError,
+    load_project_configuration,
+    resolve_board_name,
+)
 
 
 def _write_minimal_config(path: Path) -> None:
@@ -60,3 +65,25 @@ def test_resolve_board_name_uses_folder_when_name_blank(tmp_path: Path) -> None:
 
 def test_resolve_board_name_uses_project_key_when_folder_empty() -> None:
     assert resolve_board_name(None, Path("/"), "kanbus") == "kanbus"
+
+
+def test_load_configuration_rejects_standup_lookback_hours(tmp_path: Path) -> None:
+    config_path = tmp_path / ".kanbus.yml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "project_directory: project",
+                "standup:",
+                "  lookback_hours: 24",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "project").mkdir()
+
+    try:
+        load_project_configuration(config_path)
+        raise AssertionError("expected ConfigurationError")
+    except ConfigurationError as error:
+        assert str(error) == STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE

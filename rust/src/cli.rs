@@ -21,11 +21,12 @@ use crate::beads_write::{
     delete_beads_issue, remove_beads_dependency, update_beads_comment, update_beads_issue,
 };
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
-use crate::config_loader::load_project_configuration;
+use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
 use crate::console_telemetry::stream_console_telemetry;
 use crate::content_validation::validate_code_blocks;
+use crate::coordination::{run_coordination, CoordinationOperation};
 use crate::daemon_client::{request_shutdown, request_status};
 use crate::daemon_server::run_daemon;
 use crate::dependencies::{add_dependency, list_ready_issues, remove_dependency};
@@ -65,8 +66,11 @@ use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
 };
-use crate::right_now_command::{run_right_now_command, RightNowCommandOptions};
+use crate::right_now_command::{
+    resolve_right_now_output_format, run_right_now_command, RightNowCommandOptions,
+};
 use crate::snyk_sync::pull_from_snyk;
+use crate::standup_command::{run_standup_command, StandupCommandOptions};
 use crate::summarize::get_comment_display_text;
 use crate::text_editor::{edit_create, edit_insert, edit_str_replace, edit_view};
 use crate::users::get_current_user;
@@ -77,6 +81,7 @@ use crate::wiki::{
     format_wiki_render_json, format_wiki_search_json, init_wiki, lint_wiki, list_wiki_pages,
     render_wiki_page, resolve_wiki_page_path, search_wiki_pages, show_wiki_page, WikiRenderRequest,
 };
+use crate::wiki_markus::convert_wiki_markdown_to_html;
 
 /// Kanbus CLI arguments.
 #[derive(Debug, Parser)]
@@ -94,7 +99,7 @@ use crate::wiki::{
   kbs update <id> --status in_progress         update status
   kbs move <id> epic                           change issue type
   kbs comment <id> \"Progress note\"             add a comment
-  kbs close <id>                               close an issue
+  kbs close <id> --comment \"Summary\"            close an issue with a comment
 
 Issue types:  initiative > epic > story / task / bug > sub-task
 Statuses:     open  in_progress  blocked  done  closed
@@ -132,7 +137,64 @@ pub enum LifecycleCommands {
 }
 
 #[derive(Debug, Subcommand)]
+enum CoordinationCommands {
+    /// Record a Git-backed soft claim for a resource.
+    Claim {
+        /// Resource key to claim.
+        #[arg(long)]
+        resource: String,
+        /// Claim owner identifier.
+        #[arg(long)]
+        owner: String,
+        /// Stable claim identifier.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Positive logical revision supplied by the router.
+        #[arg(long, default_value_t = 1)]
+        revision: u64,
+    },
+    /// Renew the selected owner's soft lease.
+    Renew {
+        /// Resource key to renew.
+        #[arg(long)]
+        resource: String,
+        /// Claim owner identifier.
+        #[arg(long)]
+        owner: String,
+        /// Stable claim identifier.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+        /// Replacement TTL (positive integer followed by s, m, or h).
+        #[arg(long)]
+        extend: Option<String>,
+    },
+    /// Release the selected owner's soft lease.
+    Release {
+        /// Resource key to release.
+        #[arg(long)]
+        resource: String,
+        /// Claim owner identifier.
+        #[arg(long)]
+        owner: String,
+        /// Stable claim identifier.
+        #[arg(long = "claim-id")]
+        claim_id: String,
+    },
+    /// Inspect current soft ownership for a resource.
+    Inspect {
+        /// Resource key to inspect.
+        #[arg(long)]
+        resource: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum Commands {
+    /// Coordinate distributed workers using Git-backed soft leases.
+    Coordination {
+        #[command(subcommand)]
+        command: CoordinationCommands,
+    },
     /// Issue lifecycle management commands
     Lifecycle {
         #[command(subcommand)]
@@ -295,6 +357,9 @@ enum Commands {
     Close {
         /// Issue identifier.
         identifier: String,
+        /// Add a comment before closing.
+        #[arg(long)]
+        comment: Option<String>,
     },
     /// Commit project/issues changes to git.
     Commit,
@@ -441,14 +506,15 @@ enum Commands {
     #[command(
         name = "now",
         after_help = "Examples:\n  \
-kbs now                          tree of recently-updated issues (cap 30)\n  \
-kbs now --list                   reverse-chronological list\n  \
-kbs now --all                    every issue as a tree\n  \
+kbs now                          YAML tree of recently-updated issues (cap 30)\n  \
+kbs now --list                   reverse-chronological YAML list\n  \
+kbs now --all                    every issue as a YAML tree\n  \
 kbs now --limit 10               10 most recently updated\n  \
-kbs now kbs-abc                  issue and descendants as a tree\n  \
+kbs now kbs-abc                  issue and descendants as a YAML tree\n  \
 kbs now kbs-abc --no-recursive   that issue only\n  \
-kbs now kbs-abc --list           descendants as a flat list\n  \
+kbs now kbs-abc --list           descendants as a flat YAML list\n  \
 kbs now --json                   machine-readable JSON for agents\n  \
+kbs now --text                   human-readable text lines\n  \
 kbs now --raw                    titles only, no summaries\n  \
 kbs now --status all             every status, not just in-progress"
     )]
@@ -474,13 +540,59 @@ kbs now --status all             every status, not just in-progress"
         /// Show titles only, without right-now summaries.
         #[arg(long)]
         raw: bool,
+        /// Emit YAML output (default when no format flag is set).
+        #[arg(long)]
+        yaml: bool,
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Emit human-readable text lines.
+        #[arg(long)]
+        text: bool,
         /// Status filter. Default: in_progress. Use all for every status.
         #[arg(long)]
         status: Option<String>,
+        /// Clear right_now_summary and right_now_updated_at across the board.
+        #[arg(long)]
+        purge: bool,
         /// Issue identifiers to show. Default: recently-updated issues.
+        #[arg(value_name = "ISSUE")]
+        issue_ids: Vec<String>,
+    },
+    /// Generate on-demand standup reports from right-now facts.
+    #[command(after_help = "Examples:\n  \
+kbs standup                              board-wide meeting script\n  \
+kbs standup --profile director-brief     executive brief\n  \
+kbs standup kbs-abc kbs-def              scoped report\n  \
+kbs standup kbs-abc --no-recursive       selected issues only\n  \
+kbs standup --rollup project             one bullet per virtual project\n  \
+kbs standup kbs-abc --json               machine-readable JSON")]
+    Standup {
+        /// Standup profile (default: meeting-script).
+        #[arg(long)]
+        profile: Option<String>,
+        /// Standup window mode: rolling or calendar.
+        #[arg(long)]
+        window: Option<String>,
+        /// Rolling lookback duration (for example 24h or 1d).
+        #[arg(long)]
+        lookback: Option<String>,
+        /// Bundle Friday-Sunday into Monday completed bucket in calendar mode.
+        #[arg(long = "skip-weekends")]
+        skip_weekends: bool,
+        /// Disable weekend bundling in calendar mode.
+        #[arg(long = "no-skip-weekends")]
+        no_skip_weekends: bool,
+        /// Emit machine-readable JSON output.
+        #[arg(long)]
+        json: bool,
+        /// Show only the named issues, without descendants.
+        #[arg(long = "no-recursive")]
+        no_recursive: bool,
+        /// Today rollup mode: flat, project, or tree.
+        #[arg(long)]
+        rollup: Option<String>,
+        /// Issue identifiers to scope the report. Default: in-progress and blocked issues.
         #[arg(value_name = "ISSUE")]
         issue_ids: Vec<String>,
     },
@@ -788,6 +900,9 @@ enum WikiCommands {
         /// Emit machine-readable JSON output.
         #[arg(long)]
         json: bool,
+        /// Emit Markus HTML after Jinja evaluation.
+        #[arg(long)]
+        html: bool,
     },
     /// List wiki pages.
     List {
@@ -1228,6 +1343,10 @@ where
     };
     let root = resolve_root(cwd);
     let root = canonicalize_path(&root).unwrap_or(root);
+    if let Ok(configuration_path) = get_configuration_path(&root) {
+        let repository_root = configuration_path.parent().unwrap_or(&root);
+        load_repository_environment(repository_root);
+    }
     if should_enforce_kanbus_version(&cli.command) {
         enforce_kanbus_version(&root, env!("GIT_VERSION"))
             .map_err(|error| KanbusError::IssueOperation(error.message().to_string()))?;
@@ -1381,6 +1500,45 @@ fn execute_command(
         no_guidance,
     };
     match command {
+        Commands::Coordination { command } => {
+            let operation = match command {
+                CoordinationCommands::Claim {
+                    resource,
+                    owner,
+                    claim_id,
+                    revision,
+                } => CoordinationOperation::Claim {
+                    resource,
+                    owner,
+                    claim_id,
+                    revision,
+                },
+                CoordinationCommands::Renew {
+                    resource,
+                    owner,
+                    claim_id,
+                    extend,
+                } => CoordinationOperation::Renew {
+                    resource,
+                    owner,
+                    claim_id,
+                    extend,
+                },
+                CoordinationCommands::Release {
+                    resource,
+                    owner,
+                    claim_id,
+                } => CoordinationOperation::Release {
+                    resource,
+                    owner,
+                    claim_id,
+                },
+                CoordinationCommands::Inspect { resource } => {
+                    CoordinationOperation::Inspect { resource }
+                }
+            };
+            Ok(Some(run_coordination(root, operation)?))
+        }
         Commands::Init { local } => {
             ensure_git_repository(root)?;
             initialize_project(root, local)?;
@@ -1879,6 +2037,7 @@ fn execute_command(
                                 configuration,
                                 &proposed_issue.issue_type,
                                 &proposed_issue.status,
+                                Some(&proposed_issue.identifier),
                             )?;
                             crate::workflows::validate_status_transition(
                                 configuration,
@@ -2215,7 +2374,84 @@ fn execute_command(
                 Ok(Some(format!("Updated {} issue(s)", selected.len())))
             }
         },
-        Commands::Close { identifier } => {
+        Commands::Close {
+            identifier,
+            comment,
+        } => {
+            if let Some(comment_text) = comment {
+                if comment_text.trim().is_empty() {
+                    return Err(KanbusError::IssueOperation(
+                        "comment text is required".to_string(),
+                    ));
+                }
+                let comment_quality_result = apply_text_quality_signals(&comment_text);
+                let repaired_comment_text = comment_quality_result.text.clone();
+                validate_code_blocks(&repaired_comment_text)?;
+                let before_comment_issue_for_hooks = if beads_mode {
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                } else {
+                    load_issue_from_project(root, &identifier)
+                        .ok()
+                        .map(|lookup| lookup.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::Before,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "text": repaired_comment_text.clone(),
+                        "before_issue": before_comment_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+                let after_comment_issue_for_hooks: Option<IssueData> = if beads_mode {
+                    add_beads_comment(
+                        &root_for_beads,
+                        &identifier,
+                        &get_current_user(),
+                        &repaired_comment_text,
+                    )?;
+                    emit_signals(
+                        &comment_quality_result,
+                        "comment",
+                        Some(&identifier),
+                        None,
+                        false,
+                    );
+                    load_beads_issue_by_id(&root_for_beads, &identifier).ok()
+                } else {
+                    let comment_result = add_comment(
+                        root,
+                        &identifier,
+                        &get_current_user(),
+                        &repaired_comment_text,
+                        None,
+                    )?;
+                    emit_signals(
+                        &comment_quality_result,
+                        "comment",
+                        Some(&identifier),
+                        comment_result.comment.id.as_deref(),
+                        false,
+                    );
+                    Some(comment_result.issue)
+                };
+                run_lifecycle_hooks_for_context(
+                    root,
+                    HookPhase::After,
+                    HookEvent::IssueComment,
+                    serde_json::json!({
+                        "identifier": identifier.clone(),
+                        "text": repaired_comment_text,
+                        "before_issue": before_comment_issue_for_hooks.as_ref().map(serialize_issue),
+                        "after_issue": after_comment_issue_for_hooks.as_ref().map(serialize_issue),
+                    }),
+                    &[],
+                    hook_options,
+                )?;
+            }
             let before_issue_for_hooks = if beads_mode {
                 load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
@@ -3083,23 +3319,64 @@ fn execute_command(
             expanded,
             collapsed,
             raw,
+            yaml,
             json,
+            text,
             status,
+            purge,
             issue_ids,
         } => {
+            let output_format = resolve_right_now_output_format(yaml, json, text)?;
             let options = RightNowCommandOptions {
                 limit,
                 tree: !list,
                 expanded,
                 collapsed,
                 raw,
-                as_json: json,
+                output_format,
                 show_all: all,
                 recursive: !no_recursive,
                 issue_ids,
                 status,
+                purge,
             };
             let output = run_right_now_command(root, &options)?;
+            Ok(Some(output))
+        }
+        Commands::Standup {
+            profile,
+            window,
+            lookback,
+            skip_weekends,
+            no_skip_weekends,
+            json,
+            no_recursive,
+            rollup,
+            issue_ids,
+        } => {
+            if skip_weekends && no_skip_weekends {
+                return Err(KanbusError::IssueOperation(
+                    "cannot use both --skip-weekends and --no-skip-weekends".to_string(),
+                ));
+            }
+            let skip_weekends_override = if skip_weekends {
+                Some(true)
+            } else if no_skip_weekends {
+                Some(false)
+            } else {
+                None
+            };
+            let options = StandupCommandOptions {
+                issue_ids,
+                profile,
+                as_json: json,
+                recursive: !no_recursive,
+                window,
+                lookback,
+                skip_weekends: skip_weekends_override,
+                rollup,
+            };
+            let output = run_standup_command(root, &options)?;
             Ok(Some(output))
         }
         Commands::Jira { command } => match command {
@@ -3237,7 +3514,7 @@ fn execute_command(
             Ok(None)
         }
         Commands::Wiki { command } => match command {
-            WikiCommands::Render { page, json } => {
+            WikiCommands::Render { page, json, html } => {
                 let link_problems = check_wiki_page_links(root, &page)?;
                 for problem in &link_problems {
                     crate::rich_text_signals::emit_stderr_line(&format_wiki_link_problem(
@@ -3249,12 +3526,20 @@ fn execute_command(
                     page_path: Path::new(&page).to_path_buf(),
                 };
                 let output = render_wiki_page(&request)?;
+                let rendered_html = if json || html {
+                    convert_wiki_markdown_to_html(&output)?
+                } else {
+                    String::new()
+                };
                 if json {
                     let resolved_page = resolve_wiki_page_path(root, &page)?;
                     Ok(Some(format_wiki_render_json(
                         &resolved_page.to_string_lossy(),
                         &output,
+                        &rendered_html,
                     )))
+                } else if html {
+                    Ok(Some(rendered_html))
                 } else {
                     Ok(Some(output))
                 }

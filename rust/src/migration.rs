@@ -18,10 +18,11 @@ use crate::file_io::{
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::issue_files::write_issue_to_file;
 use crate::models::{
-    CategoryDefinition, DependencyLink, HooksConfiguration, IssueComment, IssueData, OverlayConfig,
-    PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
-    StatusDefinition,
+    CategoryDefinition, CoordinationConfiguration, DependencyLink, HooksConfiguration,
+    IssueComment, IssueData, OverlayConfig, PriorityDefinition, ProjectConfiguration,
+    RealtimeConfig, RightNowConfiguration, StandupConfiguration, StatusDefinition,
 };
+use crate::status_semantics::{map_beads_status, semantic_category_for_beads_status_key};
 use crate::workflows::get_workflow_for_issue_type;
 
 /// Result of a migration run.
@@ -413,7 +414,7 @@ fn convert_record(
     let issue_type = map_issue_type(&issue_type_raw);
     validate_issue_type(configuration, &issue_type)?;
 
-    let status = map_status(&required_string(record, "status")?);
+    let status = map_beads_status(configuration, &required_string(record, "status")?)?;
     validate_status(configuration, &issue_type, &status)?;
 
     let priority_value = record
@@ -858,6 +859,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
             key: key.clone(),
             name: key.clone(),
             category: "To do".to_string(),
+            semantic_category: semantic_category_for_beads_status_key(key).to_string(),
             color: None,
             collapsed: false,
         })
@@ -910,7 +912,9 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         wiki_directory: None,
         ai: None,
         right_now: RightNowConfiguration::default(),
+        standup: StandupConfiguration::default(),
         github_security: None,
+        coordination: CoordinationConfiguration::default(),
     }
 }
 const BEADS_ISSUE_TYPE_MAP: &[(&str, &str)] = &[("feature", "story"), ("message", "task")];

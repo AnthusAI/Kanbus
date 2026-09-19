@@ -261,6 +261,22 @@ async function waitForIssueUpdate(issueId, predicate) {
   throw new Error(`Timed out waiting for issue update: ${issueId}`);
 }
 
+async function reloadConsoleAfterSetup(world) {
+  if (!world?.page) {
+    return;
+  }
+  await world.page.reload({ waitUntil: "domcontentloaded" });
+}
+
+async function applyServerSnapshotToPage(page) {
+  await page.evaluate(async () => {
+    const refreshHandle = window;
+    if (typeof refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ === "function") {
+      await refreshHandle.__KANBUS_REFRESH_SNAPSHOT__();
+    }
+  });
+}
+
 function normalizeTimestamp(value) {
   if (!value) {
     return null;
@@ -710,6 +726,7 @@ When("a new task issue named {string} is added", async function (title) {
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
   await waitForIssueUpdate(issueId, (entry) => entry.title === title);
+  await applyServerSnapshotToPage(this.page);
 });
 
 Given(
@@ -751,6 +768,7 @@ Given(
             === normalizeTimestamp(timestamp)
       )
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -773,6 +791,7 @@ Given(
         && normalizeTimestamp(entry.updated_at)
           === normalizeTimestamp(updatedAt)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -798,6 +817,7 @@ Given(
         && normalizeTimestamp(entry.closed_at)
           === normalizeTimestamp(closedAt)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -812,6 +832,7 @@ Given(
     issue.assignee = assignee;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => entry.assignee === assignee);
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -984,6 +1005,7 @@ Given(
       (entry) =>
         entry.agent?.platform === platform && entry.agent?.model === model
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -998,6 +1020,7 @@ Given(
     delete issue.agent;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => !entry.agent);
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -1029,6 +1052,7 @@ Given(
             && comment.agent?.model === model
         )
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -1054,6 +1078,7 @@ Given(
         Array.isArray(entry.comments)
         && entry.comments.some((comment) => comment.author === author)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 

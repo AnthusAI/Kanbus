@@ -1,0 +1,20 @@
+{
+  "id": "kbs-df224565-06e6-47ff-9263-379bb02d8182",
+  "title": "Rust standup_options_from_last_command: preserve --window flags",
+  "description": "rust/features/steps/standup_steps.rs standup_options_from_last_command skips --window/--lookback/--skip-weekends instead of parsing them into StandupCommandOptions. Preserve window overrides for fact-feed and report assertions.",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-fb18007d-7568-4444-93ad-367ac949f933",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T21:26:32.019772165Z",
+  "updated_at": "2026-09-12T19:21:39.477980Z",
+  "closed_at": "2026-09-12T19:21:39.449955Z",
+  "right_now_summary": "The Rust parser still skips window flags instead of preserving them for fact-feed and report checks.",
+  "right_now_updated_at": "2026-09-12T19:21:40.831940Z",
+  "custom": {}
+}

@@ -2,6 +2,8 @@
 
 Lifecycle hooks are a first-class Kanbus integration surface for running project-defined logic on command lifecycle boundaries.
 
+**Not coding-agent compaction hooks.** Kanbus CLI lifecycle hooks fire on `kbs` command boundaries. Coding-agent compaction reinjection (Claude Code SessionStart `compact`, Cursor `preCompact`, and so on) is documented separately in [Agent Compaction and Right-Now Elicitation](AGENT_COMPACTION_RIGHT_NOW.md).
+
 The hook engine is implemented with behavior parity in Python and Rust CLIs.
 
 ## Core model
