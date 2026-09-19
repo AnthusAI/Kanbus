@@ -43,7 +43,7 @@ from kanbus.issue_router import (
 )
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError
-from kanbus.router_cli import router_group
+from kanbus.router_cli import _load_context, router_group
 
 
 def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
@@ -649,6 +649,55 @@ def test_router_group_is_registered_on_the_project_cli() -> None:
     from kanbus.cli import cli
 
     assert cli.commands["router"] is router_group
+
+
+def test_router_cli_loads_configuration_from_the_enclosing_repository_root(
+    monkeypatch, tmp_path: Path
+) -> None:
+    nested = tmp_path / "rust"
+    nested.mkdir()
+    configuration = _router_configuration()
+    context = RouterContext(
+        root=tmp_path,
+        project_dir=tmp_path / "project",
+        configuration=configuration,
+        router=configuration.router,
+        issues=[],
+        control=RouterControlState(),
+    )
+    observed: list[Path] = []
+    monkeypatch.setattr("kanbus.router_cli.Path.cwd", lambda: nested)
+    monkeypatch.setattr(
+        "kanbus.router_cli.resolve_router_root",
+        lambda path: observed.append(path) or tmp_path,
+    )
+    monkeypatch.setattr(
+        "kanbus.router_cli.get_configuration_path",
+        lambda path: observed.append(path) or tmp_path / ".kanbus.yml",
+    )
+    monkeypatch.setattr(
+        "kanbus.router_cli.load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr("kanbus.router_cli.router_state_root", lambda path: path)
+    monkeypatch.setattr(
+        "kanbus.router_cli.load_router_context", lambda _path: context
+    )
+
+    loaded = _load_context()
+
+    assert loaded.source_root == tmp_path
+    assert observed == [nested, tmp_path]
+
+
+def test_router_cli_rejects_non_git_cwd_before_loading_configuration(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("kanbus.router_cli.Path.cwd", lambda: tmp_path)
+
+    result = CliRunner().invoke(router_group, ["plan"])
+
+    assert result.exit_code == 1
+    assert result.output == "error: issue router requires a Git repository\n"
 
 
 def test_router_plan_cli_translates_planning_errors(monkeypatch) -> None:
