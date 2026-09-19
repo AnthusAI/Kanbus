@@ -1389,6 +1389,14 @@ fn apply_router_status_overlay(
         if router.workflow.terminal.contains(&issue.status) {
             continue;
         }
+        // The card itself is canonical.  An event can remain in the shared
+        // history after a human (or the router) has already updated the card;
+        // never let that older projection resurrect stale work in the planner.
+        if parse_timestamp(&event.occurred_at)
+            .is_some_and(|occurred_at| issue.updated_at > occurred_at)
+        {
+            continue;
+        }
         let last_board_transition = issue_events
             .iter()
             .filter(|candidate| candidate.issue_id == issue.identifier)
@@ -6934,6 +6942,9 @@ mod tests {
 
     #[test]
     fn latest_conversation_review_overrides_an_older_started_attempt() {
+        let before_router_events = DateTime::parse_from_rfc3339("2026-09-18T22:00:00Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
         let mut issues = vec![IssueData {
             identifier: "kbs-review".to_string(),
             title: "Preserved agent work".to_string(),
@@ -6948,7 +6959,7 @@ mod tests {
             dependencies: Vec::new(),
             comments: Vec::new(),
             created_at: Utc::now(),
-            updated_at: Utc::now(),
+            updated_at: before_router_events,
             closed_at: None,
             agent: None,
             right_now_summary: None,
@@ -6989,9 +7000,19 @@ mod tests {
             "2026-09-18T23:01:00Z",
         );
 
-        apply_router_status_overlay(&mut issues, &[started, review], &router, &[]);
+        apply_router_status_overlay(&mut issues, &[started.clone(), review], &router, &[]);
 
         assert_eq!(issues[0].status, "review");
+
+        issues[0].updated_at = DateTime::parse_from_rfc3339("2026-09-18T23:02:00Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        apply_router_status_overlay(&mut issues, &[started], &router, &[]);
+
+        assert_eq!(
+            issues[0].status, "review",
+            "a later canonical board update must beat a stale router event"
+        );
     }
 
     fn git_output(root: &Path, args: &[&str]) -> Output {
