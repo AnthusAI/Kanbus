@@ -82,6 +82,18 @@ export interface AgentMetadata {
   settings?: AgentSettings;
 }
 
+export interface AgentAssignment {
+  kind?: string;
+  name?: string;
+  class?: string;
+  agent_class?: string;
+  provider?: string;
+  provider_profile?: string;
+  effective?: Record<string, unknown>;
+  effective_configuration?: Record<string, unknown>;
+  effective_config?: Record<string, unknown>;
+}
+
 export interface IssueComment {
   id?: string;
   author: string;
@@ -120,6 +132,7 @@ export interface Issue {
   right_now_updated_at?: string | null;
   custom?: Record<string, unknown>;
   agent?: AgentMetadata;
+  agent_assignment?: AgentAssignment;
 }
 
 export type IssueEventType =
