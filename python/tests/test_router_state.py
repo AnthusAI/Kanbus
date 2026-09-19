@@ -31,6 +31,7 @@ from kanbus.models import IssueData
 from kanbus.router_state import (
     publish_router_start_event,
     publish_router_state,
+    resolve_router_root,
     router_state_root,
 )
 
@@ -105,6 +106,23 @@ def test_git_error_helpers_keep_failures_explicit_and_bounded(
 
     monkeypatch.setattr(subprocess, "run", missing_git)
     assert router_state._try_git(tmp_path, "status") is None
+
+
+def test_router_root_resolves_from_a_repository_subdirectory(tmp_path: Path) -> None:
+    _run(tmp_path, "init", "--initial-branch=main")
+    nested = tmp_path / "rust" / "src"
+    nested.mkdir(parents=True)
+
+    assert resolve_router_root(nested) == tmp_path.resolve()
+
+
+def test_router_root_rejects_non_git_directories_with_actionable_diagnostic(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        IssueRouterError, match="^issue router requires a Git repository$"
+    ):
+        resolve_router_root(tmp_path)
 
 
 def test_merge_conflict_reports_git_diagnostic(monkeypatch, tmp_path: Path) -> None:
