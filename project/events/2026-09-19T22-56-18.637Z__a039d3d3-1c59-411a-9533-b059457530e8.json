@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a039d3d3-1c59-411a-9533-b059457530e8",
+  "issue_id": "router:kbs-80e79aca-84a5-44e6-91d4-80669a4f5045",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-19T22:56:18.637Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Implemented console issue comments, validated status transitions, blocked-agent resume handling, mutation feedback, and realtime snapshot refreshes. UI build and typecheck pass.",
+    "claim_id": "0838ebd1-7183-4a67-8fb5-ede069acb0a3",
+    "revision": 1,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-80e79aca-84a5-44e6-91d4-80669a4f5045",
+    "checkpoint_revision": 1,
+    "artifacts": [],
+    "issue_updates": []
+  }
+}
