@@ -3,7 +3,7 @@
   "title": "Remove empty legacy board states",
   "description": "## Problem\n\nThe Kanbus board currently renders empty **Deferred (Legacy)** and **Done (Legacy)** columns. They are legacy aliases: no project issue uses either `deferred` or `done`. Their presence makes the live board harder to scan and obscures the configured Ready → In Progress → Review → Done workflow.\n\n## Required behavior\n\nRemove the unused legacy `deferred` and `done` status definitions from the Kanbus project configuration, along with only the workflow and transition-label references that exist solely for those statuses. Do not change the active statuses or their semantic categories.\n\n## Acceptance criteria\n\n- The board no longer displays Deferred (Legacy) or Done (Legacy).\n- `backlog`, `Discovery`, `open` (Ready), `in_progress`, `review`, `blocked`, and `closed` remain configured and behave as before.\n- Configuration validation and relevant Python/Rust/console tests pass.\n- The change contains no issue-status migration because the legacy state counts are zero.\n- Update documentation or fixtures only where they describe this project configuration.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -14,9 +14,11 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-19T14:25:19.741701Z",
-  "updated_at": "2026-09-19T14:25:19.809592Z",
+  "updated_at": "2026-09-19T15:07:11.229504Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "source": "shared"
+  }
 }
