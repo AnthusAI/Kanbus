@@ -3,7 +3,7 @@
   "title": "Make router invocation from a repository subdirectory safe",
   "description": "## Problem\n\nA real operator test invoked kbs router run --once from the repository rust subdirectory. The CLI found configuration relative to that subdirectory and failed only after attempting shared-router publication: shared router state requires project_directory inside the repository. No agent session, issue transition, or visible diagnostic was recorded.\n\n## Required behavior\n\nkbs router must resolve the enclosing Git repository root before loading Kanbus configuration and router state, so an invocation from any repository subdirectory behaves exactly like one from the root. If the repository cannot be resolved, fail before claiming or launching with a clear user-facing diagnostic.\n\n## Acceptance criteria\n\n- Python and Rust router commands invoked from a repository subdirectory use the enclosing root configuration and project directory.\n- plan, run --once, and status remain equivalent to root invocation; no duplicated worktrees or claims.\n- An invocation outside a repository fails early with an exact actionable message.\n- Tests cover the subdirectory invocation path and preserve Git-only coordination.\n- A successful routed agent run ends in Review and never terminally closes the issue.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -22,7 +22,7 @@
     }
   ],
   "created_at": "2026-09-19T11:52:21.304932Z",
-  "updated_at": "2026-09-19T11:58:41.134993Z",
+  "updated_at": "2026-09-19T11:59:39.465448Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
