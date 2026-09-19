@@ -182,6 +182,7 @@ def test_newer_conversation_review_overrides_an_older_router_start(
     )
 
     assert issues[0].status == "review"
+    assert issues[0].updated_at == datetime(2026, 9, 17, 0, 1, tzinfo=UTC)
 
     issues[0].updated_at = datetime(2026, 9, 17, 0, 2, tzinfo=UTC)
     _apply_router_status_overlay(

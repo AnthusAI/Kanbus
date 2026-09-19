@@ -8,6 +8,7 @@ import tempfile
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from time import sleep
 
 from kanbus.config_loader import load_project_configuration
 from kanbus.event_history import EventRecord, event_filename, write_events_batch
@@ -17,6 +18,8 @@ from kanbus.project import get_configuration_path
 STATE_BRANCH = "kanbus/router-state"
 STATE_REF = f"refs/heads/{STATE_BRANCH}"
 REMOTE_REF = f"refs/remotes/origin/{STATE_BRANCH}"
+STATE_FETCH_ATTEMPTS = 3
+STATE_FETCH_RETRY_SECONDS = 0.1
 
 
 def router_state_root(source_root: Path, *, refresh: bool = True) -> Path:
@@ -258,16 +261,20 @@ def _fetch_state(root: Path) -> None:
         raise IssueRouterError("could not fetch shared router state")
     if not advertised.strip():
         return
-    result = _try_git(
-        root,
-        "fetch",
-        "--no-tags",
-        "origin",
-        f"+{STATE_REF}:{REMOTE_REF}",
-        capture=True,
-    )
-    if result != 0:
-        raise IssueRouterError("could not fetch shared router state")
+    for attempt in range(STATE_FETCH_ATTEMPTS):
+        result = _try_git(
+            root,
+            "fetch",
+            "--no-tags",
+            "origin",
+            f"+{STATE_REF}:{REMOTE_REF}",
+            capture=True,
+        )
+        if result == 0:
+            return
+        if attempt + 1 < STATE_FETCH_ATTEMPTS:
+            sleep(STATE_FETCH_RETRY_SECONDS)
+    raise IssueRouterError("could not fetch shared router state")
 
 
 def _merge_ref(root: Path, ref: str) -> None:
