@@ -1,0 +1,20 @@
+{
+  "id": "kbs-fc24ca81-f05c-43a8-920f-150061027ba1",
+  "title": "Console agent assignment inspector and controls",
+  "description": "## Purpose\n\nDeliver the first safe issue-write controls in the console, centered on agent routing assignment. The work must make a clear distinction between immutable agent provenance and editable future-work routing.\n\n## Acceptance\n\n- Detail view shows an explicit **Agent assignment** section even when unassigned.\n- It resolves the selected class/provider to a redacted effective configuration: product/provider, model, effort, service tier/flex mode, and relevant non-secret arguments.\n- A human can safely update assignment, state, and comments through validated console APIs; all writes create normal Kanbus events and flow through realtime plus Git fallback.\n- Assignment edits honor router claims and never alter immutable provenance or a live agent conversation without an explicit safe transition.\n- Python/Rust configuration and mutation behavior remain parity-tested; console interactions have API/UI coverage.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-22c4a245-9b14-43e4-9db2-4e768d70e22b",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-19T14:32:02.763642Z",
+  "updated_at": "2026-09-19T14:32:02.829571Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
