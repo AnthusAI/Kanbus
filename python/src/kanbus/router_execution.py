@@ -425,6 +425,14 @@ def run_router_once(
         )
         _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
         _apply_issue_comments(context, candidate, result, claim_id, revision)
+        _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+        add_issue_comment(
+            getattr(context, "source_root", None) or context.root,
+            candidate.issue_id,
+            "Kanbus Issue Router",
+            _completed_review_comment(result, checkpoint, pull_request),
+        )
+        _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
         _transition_package(
             context,
             candidate.issue_id,
@@ -1326,6 +1334,37 @@ def _apply_issue_comments(
             "Kanbus Issue Router",
             comment.text,
         )
+
+
+def _completed_review_comment(
+    result: RouterAgentResult,
+    checkpoint: RouterCheckpoint | None,
+    pull_request: ForgePullRequest | None,
+) -> str:
+    """Render the non-optional issue record for a completed agent turn.
+
+    Agent-supplied comments are useful supplemental context, but a completed
+    turn must remain visible even when the adapter supplies none. The router
+    creates this comment only after branch/PR publication has succeeded and
+    before it transitions the issue to Review.
+    """
+    summary = result.summary.strip() or (
+        "The agent completed a turn. Review the preserved branch and draft pull request."
+    )
+    lines = ["## Agent turn complete", "", summary, ""]
+    if pull_request is not None:
+        lines.extend(
+            [
+                f"- Draft PR: {pull_request.url}",
+                f"- Branch: `{pull_request.head_branch}`",
+            ]
+        )
+    if checkpoint is not None:
+        lines.append(f"- Checkpoint: `{checkpoint.ref}`")
+    if result.artifacts:
+        lines.append("- Artifacts:")
+        lines.extend(f"  - `{item.name}`: `{item.ref}`" for item in result.artifacts)
+    return "\n".join(lines)
 
 
 def _validate_result_scope(
