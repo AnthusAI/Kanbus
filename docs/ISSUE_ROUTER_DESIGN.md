@@ -1,6 +1,6 @@
 # Issue Router design
 
-The Issue Router is an optional reconciliation loop that dispatches bounded Kanbus issue packages to a coding agent. Kanbus issues and event history remain the durable source of truth. The router decides when work may start, provides an isolated worktree and claim, checks the structured result, and publishes accepted changes and review state.
+The Issue Router is an optional reconciliation loop that dispatches bounded Kanbus issue packages to a coding agent. Kanbus issues and event history remain the durable source of truth. The router decides when work may start and provides an isolated worktree and claim. Every provider turn is recorded as a durable `router.conversation` event before any optional structured result is interpreted. A result validator is therefore an automation aid, never a visibility gate.
 
 The first adapter is Codex. The router does not ask a model to choose work, assign work, or perform review approval. Planning, package boundaries, capacity, retries, claim fencing, and GitHub lifecycle are deterministic.
 
@@ -137,6 +137,22 @@ The counters reflect that pass. A completed adapter outcome moves the package to
 Both runtimes keep the active claim and adapter process identifier in Git-common local state. A separate `kanbus router cancel` invocation signals the child, records a durable cancellation request, and prevents the cancelled claim from publishing accepted results.
 
 ## Codex result and publication contract
+
+## Durable agent conversations
+
+Each routed package has an append-only, provider-neutral conversation stream on
+the router-state branch. A record contains the provider, provider session ID
+when available, claim/revision, lifecycle, worktree and branch, agent or system
+message, concise command/test evidence, and a redacted raw-log payload. The
+router records `started` before launching Codex and records the complete raw
+turn before parsing its final answer. `kanbus router recover <issue>` surfaces
+that preserved run without launching a replacement session.
+
+If a session exists but validation fails, the router records a visible system
+comment and moves the package to Review with the branch and transcript intact.
+If launch fails before a session exists, it records the diagnostic and moves
+the package to Blocked. No provider may close an issue; completed or incomplete
+work is always reviewable.
 
 The adapter returns one JSON object with these keys in this order:
 
