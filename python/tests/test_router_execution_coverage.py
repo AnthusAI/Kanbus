@@ -205,6 +205,34 @@ def test_run_once_completes_and_cleans_all_claims(monkeypatch, tmp_path):
     assert listener.stopped == 1
 
 
+def test_run_once_preserves_a_completed_turn_when_publication_fails(
+    monkeypatch, tmp_path
+):
+    ctx = context(tmp_path)
+    install_run_fakes(monkeypatch, ctx)
+    monkeypatch.setattr(
+        router_execution,
+        "_open_pull_request",
+        lambda *_: (_ for _ in ()).throw(IssueRouterError("project/events is ignored")),
+    )
+    preserved = []
+    monkeypatch.setattr(
+        router_execution,
+        "_preserve_completed_turn_publication_failure",
+        lambda *_args: preserved.append(_args[4]),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome == router_execution.RouterRunResult(
+        started=1,
+        review=1,
+        failed=1,
+        error="project/events is ignored",
+    )
+    assert [str(error) for error in preserved] == ["project/events is ignored"]
+
+
 @pytest.mark.parametrize(
     ("adapter_result", "expected_event", "expected_transition"),
     [
@@ -2612,3 +2640,68 @@ def test_restore_checkpoint_ref_swallows_failed_best_effort_rollback(
     router_execution._restore_checkpoint_ref(
         tmp_path, "refs/kanbus/router/kbs-42/r1", "published", None
     )
+
+
+def test_completed_turn_publication_failure_is_preserved_for_review(
+    monkeypatch, tmp_path
+):
+    ctx = context(tmp_path)
+    comments = []
+    events = []
+    transitions = []
+    publications = []
+    monkeypatch.setattr(
+        router_execution, "_assert_claim_fence", lambda *_a, **_kw: None
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "add_issue_comment",
+        lambda _root, issue_id, author, text: comments.append((issue_id, author, text)),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "record_router_event",
+        lambda _project_dir, **kwargs: events.append(kwargs),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "_transition_package",
+        lambda _ctx, issue_id, status, **_kwargs: transitions.append(
+            (issue_id, status)
+        ),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "publish_router_state",
+        lambda _root, issue_ids: publications.append(issue_ids),
+    )
+
+    router_execution._preserve_completed_turn_publication_failure(
+        ctx, candidate(), "claim", 3, IssueRouterError("project/events is ignored")
+    )
+
+    assert comments == [
+        (
+            "kbs-42",
+            "Kanbus Issue Router",
+            (
+                "Agent work was preserved but automatic publication failed. Review the "
+                "agent conversation, isolated worktree, and router branch. Router detail: "
+                "project/events is ignored"
+            ),
+        )
+    ]
+    assert events == [
+        {
+            "package_id": "kbs-42",
+            "event_type": "router_completed",
+            "payload": {
+                "claim_id": "claim",
+                "revision": 3,
+                "publication_failed": True,
+                "diagnostic": "project/events is ignored",
+            },
+        }
+    ]
+    assert transitions == [("kbs-42", "review")]
+    assert publications == [{"kbs-42", "kbs-43"}]
