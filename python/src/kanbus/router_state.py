@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import uuid
@@ -85,6 +86,25 @@ def publish_router_state(source_root: Path, issue_ids: set[str] | None = None) -
     configuration = load_project_configuration(config_path)
     project_path = Path(configuration.project_directory)
     event_path = project_path / "events"
+    # Router commands may have just added an issue comment or performed a
+    # lifecycle transition in the caller's checkout.  That checkout is never
+    # staged wholesale (it can contain unrelated user work), but the selected
+    # router package is deliberately authoritative.  Copy only those named
+    # issue records into the isolated publisher before staging them, so a
+    # review/blocked handoff cannot leave its visible evidence local-only.
+    if issue_ids:
+        source_configuration = load_project_configuration(
+            get_configuration_path(source_root)
+        )
+        source_project_path = Path(source_configuration.project_directory)
+        for issue_id in sorted(issue_ids):
+            source_issue = (
+                source_root / source_project_path / "issues" / f"{issue_id}.json"
+            )
+            target_issue = worktree / project_path / "issues" / f"{issue_id}.json"
+            if source_issue.exists():
+                target_issue.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source_issue, target_issue)
     # Kanbus keeps the local event stream ignored in user checkouts, but the
     # router's isolated state branch is its deliberate cross-clone publisher.
     add_args = ["add", "-f", "--", event_path.as_posix()]
