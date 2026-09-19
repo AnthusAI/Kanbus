@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "55c6f657-853d-4d6d-80db-635308670a7d",
+  "issue_id": "router:kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-19T15:13:20.854Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Removed legacy deferred and done statuses and related configuration references. Direct validation and 50 targeted Python tests pass.",
+    "claim_id": "2947fa6f-c2a0-4cae-91fe-9e48ef1c4e65",
+    "revision": 1,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac",
+    "checkpoint_revision": 1,
+    "artifacts": [],
+    "issue_updates": []
+  }
+}
