@@ -176,6 +176,8 @@ def install_run_fakes(monkeypatch, ctx, *, adapter_result=None, adapter_error=No
     monkeypatch.setattr(router_execution, "_apply_issue_updates", lambda *_: None)
     monkeypatch.setattr(router_execution, "_publish_checkpoint", lambda *_: None)
     monkeypatch.setattr(router_execution, "_open_pull_request", lambda *_: None)
+    if adapter_error is None:
+        monkeypatch.setattr(router_execution, "add_issue_comment", lambda *_: None)
     monkeypatch.setattr(
         router_execution,
         "record_router_event",
@@ -203,6 +205,67 @@ def test_run_once_completes_and_cleans_all_claims(monkeypatch, tmp_path):
     assert [item.resource for item in released[1]] == ["router:issue:kbs-42"]
     assert worker_thread.joined == [2]
     assert listener.stopped == 1
+
+
+def test_completed_turn_always_publishes_an_issue_visible_review_record(
+    monkeypatch, tmp_path
+):
+    """A missing optional adapter comment must not make completed work invisible."""
+    ctx = context(tmp_path)
+    install_run_fakes(
+        monkeypatch,
+        ctx,
+        adapter_result=result("completed", "Implemented the requested behavior."),
+    )
+    comments = []
+    monkeypatch.setattr(
+        router_execution,
+        "add_issue_comment",
+        lambda _root, issue_id, author, text: comments.append((issue_id, author, text)),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome == router_execution.RouterRunResult(
+        started=1, completed=1, review=1, deferred=2
+    )
+    assert comments == [
+        (
+            "kbs-42",
+            "Kanbus Issue Router",
+            "## Agent turn complete\n\nImplemented the requested behavior.\n",
+        )
+    ]
+
+
+def test_completed_review_record_includes_preserved_review_evidence():
+    from kanbus.router_forge import ForgePullRequest
+
+    comment = router_execution._completed_review_comment(
+        RouterAgentResult(
+            schema_version=1,
+            outcome="completed",
+            artifacts=[RouterArtifact(name="tests", ref="artifacts/tests.txt")],
+        ),
+        RouterCheckpoint(ref="refs/kanbus/router/checkpoints/kbs-42", revision=1),
+        ForgePullRequest(
+            number=42,
+            url="https://example.test/pull/42",
+            head_branch="codex/router/kbs-42/r1",
+            head_sha="abc123",
+            state="open",
+        ),
+    )
+
+    assert comment == (
+        "## Agent turn complete\n\n"
+        "The agent completed a turn. Review the preserved branch and draft pull request.\n\n"
+        "- Draft PR: https://example.test/pull/42\n"
+        "- Branch: `codex/router/kbs-42/r1`\n"
+        "- Checkpoint: `refs/kanbus/router/checkpoints/kbs-42`\n"
+        "- Artifacts:\n"
+        "  - `tests`: `artifacts/tests.txt`"
+    )
 
 
 @pytest.mark.parametrize(
