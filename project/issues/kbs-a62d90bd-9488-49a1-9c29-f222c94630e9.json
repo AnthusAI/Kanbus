@@ -1,0 +1,25 @@
+{
+  "id": "kbs-a62d90bd-9488-49a1-9c29-f222c94630e9",
+  "title": "Transparent delegation contract and integration coverage",
+  "description": "Activate/update cross-runtime behavioral coverage for questions, malformed output, tap-outs, launch failures, recovery, fencing, cancellation, and scripted/real Codex integration.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-18T21:54:00.214445Z",
+  "updated_at": "2026-09-18T21:54:00.303763Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "transparent-delegation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
