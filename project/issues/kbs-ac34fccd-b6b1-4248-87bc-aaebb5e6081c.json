@@ -3,7 +3,7 @@
   "title": "Refresh the console from Git when realtime transport is unavailable",
   "description": "## Problem\n\nThe console UI currently depends on its SSE/MQTT streams for changes. In the live project, MQTT returned connection refused and the UI retained stale data until the user manually reloaded the page. A stale or hung backend also surfaced only as an unhelpful Unable to reach the server banner.\n\n## Required behavior\n\nThe console must refresh its API snapshot automatically when realtime transport is unavailable or silent. The fallback must use the existing Git-backed snapshot path, recover from a transient API failure, and clearly distinguish stale data from an unreachable server.\n\n## Acceptance criteria\n\n- MQTT/SSE failure starts bounded periodic snapshot refresh without manual reload.\n- A successful fallback refresh clears the connection-error banner and updates cards/statuses.\n- Git-backed external changes appear in the board within the configured refresh interval.\n- Python/Rust console APIs and UI tests cover realtime outage, recovery, and no duplicate polling.\n- Normal SSE/MQTT delivery remains primary and does not trigger redundant polling.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,11 +12,32 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "268c3573-e242-44ea-8eaf-317337635c27",
+      "author": "home",
+      "text": "Implemented shared console snapshot recovery. SSE snapshot silence is detected after 15 seconds; realtime/SSE failures start one deduplicated 15-second Git-backed snapshot poller; successful snapshot or notification delivery stops fallback and clears the connection banner; stale and unreachable states are distinguished. Added lifecycle cleanup for route/auth changes. Verified with apps/console npm run typecheck and npm run build.",
+      "created_at": "2026-09-19T14:11:14.123716Z",
+      "comment_type": "default",
+      "data": {},
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": null,
+        "settings": {
+          "thinking_level": "high"
+        }
+      }
+    }
+  ],
   "created_at": "2026-09-19T14:05:31.853251Z",
-  "updated_at": "2026-09-19T14:05:31.926530Z",
-  "closed_at": null,
+  "updated_at": "2026-09-19T14:11:16.087290Z",
+  "closed_at": "2026-09-19T14:11:15.915069Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "source": "shared",
+    "project_label": "kbs"
+  },
+  "agent": null
 }
