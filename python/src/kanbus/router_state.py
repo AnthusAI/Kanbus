@@ -310,6 +310,19 @@ def _repo_root(root: Path) -> Path:
     return Path(_git(root, "rev-parse", "--show-toplevel").strip()).resolve()
 
 
+def resolve_router_root(root: Path) -> Path:
+    """Resolve the enclosing Git repository root for router operations.
+
+    Router commands must establish this boundary before loading configuration
+    or shared state. Keeping the diagnostic stable also prevents raw Git
+    errors from leaking into the command-line contract.
+    """
+    try:
+        return _repo_root(root)
+    except IssueRouterError as error:
+        raise IssueRouterError("issue router requires a Git repository") from error
+
+
 def _git(root: Path, *args: str) -> str:
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
