@@ -509,23 +509,35 @@ class RouterLimits(BaseModel):
         return value
 
 
+ROUTER_ADAPTERS = ("codex", "opencode")
+
+
 class RouterAgentProfile(BaseModel):
     """Structured execution profile for one agent provider."""
 
     model_config = ConfigDict(extra="forbid")
 
     adapter: str
-    command: str = "codex"
+    command: Optional[str] = None
     args: List[str] = Field(default_factory=list)
+    model: Optional[str] = None
+    env: Dict[str, str] = Field(default_factory=dict)
 
     @field_validator("adapter")
     @classmethod
     def validate_provider(cls, value: str) -> str:
-        """Require the configured adapter supported by this slice."""
+        """Require an adapter supported by the router."""
         normalized = value.strip().lower()
-        if normalized != "codex":
-            raise ValueError("router provider adapter must be codex")
+        if normalized not in ROUTER_ADAPTERS:
+            raise ValueError("router provider adapter must be codex or opencode")
         return normalized
+
+    @model_validator(mode="after")
+    def default_command(self) -> "RouterAgentProfile":
+        """Default the executable to the adapter name."""
+        if self.command is None:
+            self.command = self.adapter
+        return self
 
 
 class RouterAgentClass(BaseModel):

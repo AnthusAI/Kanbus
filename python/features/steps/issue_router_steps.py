@@ -471,6 +471,24 @@ def given_provider_command_args(
     _save_config(context, config)
 
 
+@given(
+    'provider profile "{profile}" has model "{model}" and environment {environment}'
+)
+def given_provider_model_env(
+    context: object, profile: str, model: str, environment: str
+) -> None:
+    config = _config(context)
+    config["router"]["providers"][profile].update(
+        model=model, env=yaml.safe_load(environment)
+    )
+    _save_config(context, config)
+
+
+@then('provider profile "{profile}" should use model "{model}"')
+def then_provider_model(context: object, profile: str, model: str) -> None:
+    assert context.router_configuration.providers[profile].model == model
+
+
 @when("the router forge client is initialized")
 def when_router_forge_client_initialized(context: object) -> None:
     from kanbus.router_forge import GitHubForge

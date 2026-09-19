@@ -65,10 +65,10 @@ class RouterAgentResult(BaseModel):
     checkpoint: RouterCheckpoint | None = None
     artifacts: list[RouterArtifact] = Field(default_factory=list)
 
-    def validate_outcome(self) -> RouterAgentResult:
+    def validate_outcome(self, name: str = "Codex") -> RouterAgentResult:
         """Require one supported result outcome."""
         if self.outcome not in {"completed", "blocked", "retryable_failure"}:
-            raise IssueRouterError(f'invalid Codex router outcome "{self.outcome}"')
+            raise IssueRouterError(f'invalid {name} router outcome "{self.outcome}"')
         return self
 
 
@@ -96,8 +96,10 @@ class RouterAdapter(Protocol):
         """Request cancellation for one active claim."""
 
 
-class CodexExecAdapter:
-    """Run the configured Codex CLI with JSONL output."""
+class _SubprocessAdapter:
+    """Shared subprocess lifecycle for CLI-backed router adapters."""
+
+    display_name = "Codex"
 
     def __init__(
         self,
@@ -121,15 +123,7 @@ class CodexExecAdapter:
         :rtype: RouterAgentResult
         :raises IssueRouterError: If Codex exits unsuccessfully or returns invalid JSON.
         """
-        command = [
-            self.profile.command,
-            *self.profile.args,
-            "exec",
-            "--json",
-            "--cd",
-            request.worktree_path,
-            _result_contract_prompt(request),
-        ]
+        command = self._build_command(request)
         try:
             self.process = subprocess.Popen(
                 command,
@@ -137,25 +131,47 @@ class CodexExecAdapter:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=self._environment(request),
+                **self._popen_extras(),
             )
             self._record_process(request)
             stdout, stderr = self.process.communicate(timeout=3600)
             self.last_output = stdout
             self.last_error = stderr
-            self.session_id = codex_session_id(stdout)
+            self.session_id = self._session_id(stdout)
             return_code = self.process.returncode
         except (OSError, subprocess.TimeoutExpired) as error:
             if self.process is not None and self.process.poll() is None:
                 self.process.terminate()
                 self.process.communicate()
-            raise IssueRouterError("Codex router adapter failed") from error
+            raise IssueRouterError(f"{self.display_name} router adapter failed") from error
         finally:
             self.process = None
             self._remove_process_record(request.claim_id)
         if return_code != 0:
-            raise IssueRouterError("Codex router adapter failed")
-        payload = _find_result_payload(stdout)
-        return _parse_result(payload)
+            raise IssueRouterError(f"{self.display_name} router adapter failed")
+        payload = self._result_payload(stdout)
+        return self._parse(payload)
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        raise NotImplementedError
+
+    def _session_id(self, stdout: str) -> str | None:
+        return codex_session_id(stdout)
+
+    def _result_payload(self, stdout: str) -> dict[str, Any]:
+        return _find_result_payload(stdout)
+
+    def _popen_extras(self) -> dict[str, Any]:
+        return {}
+
+    def _parse(self, payload: dict[str, Any]) -> RouterAgentResult:
+        return _parse_result(payload, self.display_name)
+
+    def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
+        if not self.profile.env:
+            return None
+        return {**os.environ, **self.profile.env}
 
     def cancel(self, claim_id: str) -> None:
         """Terminate the active Codex subprocess when one is registered.
@@ -198,6 +214,113 @@ class CodexExecAdapter:
             return
         if record.get("claim_id") == claim_id:
             path.unlink(missing_ok=True)
+
+
+class CodexExecAdapter(_SubprocessAdapter):
+    """Run the configured Codex CLI with JSONL output."""
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        model = ["--model", self.profile.model] if self.profile.model else []
+        return [
+            str(self.profile.command),
+            *self.profile.args,
+            "exec",
+            "--json",
+            *model,
+            "--cd",
+            request.worktree_path,
+            _result_contract_prompt(request),
+        ]
+
+
+_OPENCODE_FORMAT_HINT = (
+    " Reply with the JSON object as your final message and no other text. "
+    "schema_version must be the JSON number 1 (not a string). Example: "
+    '{"schema_version": 1, "outcome": "completed", "summary": "what you did", '
+    '"issue_updates": [], "issue_comments": [], "checkpoint": null, "artifacts": []}'
+)
+
+
+class OpenCodeRunAdapter(_SubprocessAdapter):
+    """Run the configured OpenCode CLI with JSON event output."""
+
+    display_name = "OpenCode"
+
+    def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
+        # Popen's cwd does not update PWD, which OpenCode uses as its project root.
+        return {**os.environ, **self.profile.env, "PWD": request.worktree_path}
+
+    def _popen_extras(self) -> dict[str, Any]:
+        # `opencode run` appends piped stdin to the prompt and waits for EOF.
+        return {"stdin": subprocess.DEVNULL}
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        model = ["--model", self.profile.model] if self.profile.model else []
+        return [
+            str(self.profile.command),
+            *self.profile.args,
+            "run",
+            "--format",
+            "json",
+            *model,
+            _result_contract_prompt(request) + _OPENCODE_FORMAT_HINT,
+        ]
+
+    def _session_id(self, stdout: str) -> str | None:
+        for line in stdout.splitlines():
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(event, dict):
+                value = event.get("sessionID")
+                if isinstance(value, str) and value:
+                    return value
+        return None
+
+    def _result_payload(self, stdout: str) -> dict[str, Any]:
+        text = "".join(_opencode_text_parts(stdout))
+        payload = _payload_from_model_text(text)
+        if payload is None:
+            raise IssueRouterError("OpenCode router adapter returned invalid JSON")
+        return payload
+
+
+def _opencode_text_parts(stdout: str) -> list[str]:
+    parts: list[str] = []
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("type") != "text":
+            continue
+        part = event.get("part")
+        if isinstance(part, dict) and isinstance(part.get("text"), str):
+            parts.append(part["text"])
+    return parts
+
+
+def _payload_from_model_text(text: str) -> dict[str, Any] | None:
+    """Extract the last result object embedded in free-form model text.
+
+    Models wrap the object in prose or fenced blocks and may emit reasoning text
+    with stray braces first, so decode a JSON object at every ``{`` and keep the
+    last one that carries the result contract keys.
+    """
+    decoder = json.JSONDecoder()
+    found: dict[str, Any] | None = None
+    index = text.find("{")
+    while index != -1:
+        try:
+            decoded, end = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            index = text.find("{", index + 1)
+            continue
+        if isinstance(decoded, dict) and "outcome" in decoded and "schema_version" in decoded:
+            found = decoded
+        index = text.find("{", end)
+    return found
 
 
 def _process_identity(pid: int) -> str | None:
@@ -350,21 +473,21 @@ def _find_result_payload(stdout: str) -> dict[str, Any]:
     return payloads[-1]
 
 
-def _parse_result(payload: dict[str, Any]) -> RouterAgentResult:
+def _parse_result(payload: dict[str, Any], name: str = "Codex") -> RouterAgentResult:
     outcome = payload.get("outcome")
     if isinstance(outcome, str) and outcome not in {
         "completed",
         "blocked",
         "retryable_failure",
     }:
-        raise IssueRouterError(f'invalid Codex router outcome "{outcome}"')
+        raise IssueRouterError(f'invalid {name} router outcome "{outcome}"')
     try:
         result = RouterAgentResult.model_validate(_normalize_artifacts(payload))
     except ValidationError as error:
         raise IssueRouterError(
-            "Codex router adapter returned invalid result"
+            f"{name} router adapter returned invalid result"
         ) from error
-    return result.validate_outcome()
+    return result.validate_outcome(name)
 
 
 def _normalize_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
