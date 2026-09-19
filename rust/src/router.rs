@@ -32,6 +32,8 @@ use crate::policy_loader::load_policies;
 
 const ROUTER_ROUTE_LABEL_PREFIXES: [&str; 2] = ["agent-class:", "agent-provider:"];
 const ROUTER_GIT_TIMEOUT: Duration = Duration::from_secs(20);
+const ROUTER_STATE_FETCH_ATTEMPTS: u32 = 3;
+const ROUTER_STATE_FETCH_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 /// A resolved package route used by the planner and worker scheduler.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -499,18 +501,34 @@ fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, K
     if fetch {
         let tracking_ref = format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}");
         let refspec = format!("+{remote_branch}:{tracking_ref}");
-        let mut fetch_command = router_git_command();
-        fetch_command
-            .args(["fetch", "--quiet", "origin", &refspec])
-            .current_dir(root);
-        let fetched = router_git_output(fetch_command)?;
-        if !fetched.status.success() {
+        let fetched = retry_router_state_fetch(|| {
+            let mut fetch_command = router_git_command();
+            fetch_command
+                .args(["fetch", "--quiet", "origin", &refspec])
+                .current_dir(root);
+            router_git_output(fetch_command)
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+        });
+        if !fetched {
             return Err(KanbusError::IssueOperation(
                 "could not fetch shared router state".to_string(),
             ));
         }
     }
     Ok(Some(format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}")))
+}
+
+fn retry_router_state_fetch(mut fetch: impl FnMut() -> bool) -> bool {
+    for attempt in 0..ROUTER_STATE_FETCH_ATTEMPTS {
+        if fetch() {
+            return true;
+        }
+        if attempt + 1 < ROUTER_STATE_FETCH_ATTEMPTS {
+            thread::sleep(ROUTER_STATE_FETCH_RETRY_DELAY);
+        }
+    }
+    false
 }
 
 pub(crate) fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
@@ -1478,6 +1496,14 @@ fn apply_router_status_overlay(
         };
         if let Some(status) = status {
             issue.status = status.to_string();
+            // The board orders cards by an issue's effective `updated_at`.
+            // Router lifecycle transitions are issue updates even though they
+            // are projected from durable router events instead of rewriting a
+            // user's checkout. Carry the winning event time into the
+            // projection so the card appears at the top of its new column.
+            if let Some(occurred_at) = parse_timestamp(&event.occurred_at) {
+                issue.updated_at = occurred_at;
+            }
         }
     }
     for event in router_events {
@@ -1513,6 +1539,9 @@ fn apply_router_status_overlay(
                 .is_none_or(|transition| transition.occurred_at < event.occurred_at)
             {
                 issue.status = status.to_string();
+                if let Some(occurred_at) = parse_timestamp(&event.occurred_at) {
+                    issue.updated_at = occurred_at;
+                }
             }
         }
     }
@@ -2864,7 +2893,7 @@ fn apply_router_issue_comments(
 ) -> Result<(), KanbusError> {
     validate_router_issue_comments(package_id, package_issue_ids, comments)?;
     for comment in comments {
-        crate::issue_comment::add_comment(
+        crate::issue_comment::add_comment_without_right_now(
             root,
             &comment.issue_id,
             "Kanbus Issue Router",
@@ -2873,6 +2902,97 @@ fn apply_router_issue_comments(
         )?;
     }
     Ok(())
+}
+
+/// Preserve visible evidence when a completed agent turn fails during later
+/// checkpoint, branch, forge, or result publication.
+fn preserve_completed_turn_after_publication_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    publication_error: &KanbusError,
+) -> Result<(), KanbusError> {
+    let conversation = load_router_events(project_dir)?
+        .into_iter()
+        .filter(|event| event.issue_id == format!("router:{}", claim.issue_id))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .filter(|event| payload_text(event, "lifecycle") == Some("review"))
+        .filter(|event| payload_text(event, "claim_id") == Some(claim.claim_id.as_str()))
+        .filter(|event| {
+            event.payload.get("revision").and_then(Value::as_u64) == Some(claim.revision)
+        })
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        });
+    let Some(conversation) = conversation else {
+        return Err(KanbusError::IssueOperation(
+            "no completed agent turn is available for publication recovery".to_string(),
+        ));
+    };
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    let branch = payload_text(&conversation, "branch").unwrap_or("unknown");
+    let session_id = payload_text(&conversation, "session_id").unwrap_or("unknown");
+    let worktree = payload_text(&conversation, "worktree").unwrap_or("unknown");
+    let diagnostic = format!(
+        "## Agent turn preserved for review\n\nThe agent completed work, but automatic publication failed. \n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
+    );
+    crate::issue_comment::add_comment_without_right_now(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &diagnostic,
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    append_router_event(
+        project_dir,
+        &format!("router:{}", claim.issue_id),
+        EventType::RouterResult,
+        json!({
+            "outcome":"completed", "summary":"Completed agent turn preserved for review after publication failure",
+            "diagnostic":diagnostic, "publication_failed":true,
+            "claim_id":claim.claim_id, "revision":claim.revision,
+            "session_id":session_id, "branch":branch, "worktree":worktree,
+        }),
+    )?;
+    Ok(())
+}
+
+/// Render the mandatory, issue-visible review record for a completed agent turn.
+///
+/// Agent-provided `issue_comments` are optional supplemental notes. They must
+/// never be the only route by which a completed turn becomes visible: a model
+/// can legitimately omit them while still returning a useful summary. This
+/// record is published after the branch, checkpoint, and draft PR exist and
+/// before the router transitions the package to Review.
+fn completed_router_review_comment(
+    summary: &str,
+    pull: &PullRequestInfo,
+    checkpoint_ref: &str,
+    artifacts: &[RouterArtifact],
+) -> String {
+    let summary = if summary.trim().is_empty() {
+        "The agent completed a turn. Review the preserved branch and draft pull request."
+    } else {
+        summary.trim()
+    };
+    let mut comment = format!(
+        "## Agent turn complete\n\n{summary}\n\n- Draft PR: {}\n- Branch: `{}`\n- Checkpoint: `{}`",
+        pull.url, pull.branch, checkpoint_ref
+    );
+    if !artifacts.is_empty() {
+        comment.push_str("\n- Artifacts:");
+        for artifact in artifacts {
+            comment.push_str(&format!(
+                "\n  - `{}`: `{}`",
+                artifact.name, artifact.reference
+            ));
+        }
+    }
+    comment
 }
 
 /// Return the default provider profile selected by the first configured class.
@@ -3316,16 +3436,40 @@ fn recover_router_package(
     let provider = payload_text(latest, "provider").unwrap_or("unknown");
     let lifecycle = payload_text(latest, "lifecycle").unwrap_or("unknown");
     let branch = payload_text(latest, "branch").unwrap_or("none");
+    let claim_id = payload_text(latest, "claim_id").unwrap_or("recovered");
+    let revision = latest
+        .payload
+        .get("revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let session_id = payload_text(latest, "session_id").unwrap_or("unknown");
+    let worktree = payload_text(latest, "worktree").unwrap_or("unknown");
+    let recovered_before = events.iter().any(|event| {
+        event.issue_id == format!("router:{issue_id}")
+            && matches!(&event.event_type, EventType::RouterConversation)
+            && payload_text(event, "action") == Some("recovered")
+            && payload_text(event, "claim_id") == Some(claim_id)
+            && event.payload.get("revision").and_then(Value::as_u64) == Some(revision)
+    });
+    if !recovered_before {
+        crate::issue_comment::add_comment_without_right_now(
+            root,
+            issue_id,
+            "Kanbus Issue Router",
+            &format!(
+                "## Agent run recovered\n\nThe Issue Router recovered preserved agent evidence without starting a replacement session.\n\n- Provider: `{provider}`\n- Lifecycle: `{lifecycle}`\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`"
+            ),
+            None,
+        )?;
+    }
     append_router_event(
         project_dir,
         &format!("router:{issue_id}"),
         EventType::RouterConversation,
         json!({
             "action":"recovered", "provider":provider, "lifecycle":lifecycle,
-            "claim_id":payload_text(latest, "claim_id").unwrap_or("recovered"),
-            "revision":latest.payload.get("revision").and_then(Value::as_u64).unwrap_or(1),
-            "session_id":payload_text(latest, "session_id"), "branch":branch,
-            "worktree":payload_text(latest, "worktree"),
+            "claim_id":claim_id, "revision":revision,
+            "session_id":session_id, "branch":branch, "worktree":worktree,
         }),
     )?;
     let target_status = match lifecycle {
@@ -3595,6 +3739,21 @@ fn run_issue_router_once(
                     &package.package_issue_ids,
                     &result.issue_comments,
                 )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
+                let review_comment = completed_router_review_comment(
+                    &result.summary,
+                    &pull,
+                    &published_checkpoint_ref.reference,
+                    &result.artifacts,
+                );
+                crate::issue_comment::add_comment_without_right_now(
+                    root,
+                    &package.issue_id,
+                    "Kanbus Issue Router",
+                    &review_comment,
+                    None,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
                 let accepted_checkpoint = RouterCheckpoint {
                     reference: proposed_checkpoint_ref,
                     revision: proposed_checkpoint_revision,
@@ -3637,7 +3796,7 @@ fn run_issue_router_once(
                     &result.issue_comments,
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
-                crate::issue_comment::add_comment(
+                crate::issue_comment::add_comment_without_right_now(
                     root,
                     &package.issue_id,
                     "Kanbus Issue Router",
@@ -3706,6 +3865,16 @@ fn run_issue_router_once(
     let (completed, review, failed, outcome_error) = match processing {
         Ok(result) => result,
         Err(error) => {
+            // The adapter records its completed conversation before this
+            // publication phase. Do not let a later publication failure turn
+            // that completed work into an invisible active card.
+            let _ = preserve_completed_turn_after_publication_failure(
+                root,
+                project_dir,
+                &configuration,
+                &claim,
+                &error,
+            );
             if let Some(renewer) = lease_renewer.as_mut() {
                 let renew_result = renewer.stop();
                 if let Err(renew_error) = renew_result {
@@ -5962,18 +6131,7 @@ fn publish_router_branch(
     revision: u64,
 ) -> Result<PublishedRouterRef, KanbusError> {
     let project_relative = configured_project_directory(root)?;
-    let excluded_issues = format!(":(exclude){}/issues", project_relative.display());
-    let excluded_events = format!(":(exclude){}/events", project_relative.display());
-    let add = Command::new("git")
-        .args(["add", "-A", "--", ".", &excluded_issues, &excluded_events])
-        .current_dir(worktree)
-        .status()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-    if !add.success() {
-        return Err(KanbusError::IssueOperation(
-            "could not stage router checkpoint".to_string(),
-        ));
-    }
+    stage_router_checkpoint(worktree, &project_relative)?;
     let commit = Command::new("git")
         .args([
             "-c",
@@ -6055,6 +6213,65 @@ fn publish_router_branch(
         previous_local_sha: None,
         remote_published,
     })
+}
+
+/// Stage only agent-owned source changes for an isolated router checkpoint.
+///
+/// Shared project events are intentionally Git-ignored in normal Kanbus
+/// checkouts. `git add -A` treats an ignored path as a fatal error even when an
+/// exclusion pathspec accompanies it, which could strand an otherwise complete
+/// agent turn. Stage tracked edits separately, then add only nonignored,
+/// non-project untracked paths.
+fn stage_router_checkpoint(worktree: &Path, project_relative: &Path) -> Result<(), KanbusError> {
+    let tracked = Command::new("git")
+        .args(["add", "-u", "--", "."])
+        .current_dir(worktree)
+        .status()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !tracked.success() {
+        return Err(KanbusError::IssueOperation(
+            "could not stage router checkpoint".to_string(),
+        ));
+    }
+    let untracked = Command::new("git")
+        .args([
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            ".",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !untracked.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "could not stage router checkpoint".to_string(),
+        ));
+    }
+    let paths = untracked
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| PathBuf::from(String::from_utf8_lossy(path).into_owned()))
+        .filter(|path| !path.starts_with(project_relative))
+        .collect::<Vec<_>>();
+    if !paths.is_empty() {
+        let add = Command::new("git")
+            .arg("add")
+            .arg("--")
+            .args(paths)
+            .current_dir(worktree)
+            .status()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if !add.success() {
+            return Err(KanbusError::IssueOperation(
+                "could not stage router checkpoint".to_string(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn push_router_branch_with_fence(
@@ -6415,6 +6632,22 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[test]
+    fn shared_state_fetch_retries_a_transient_git_lock() {
+        let attempts = std::cell::Cell::new(0);
+        let fetched = retry_router_state_fetch(|| {
+            let attempt = attempts.get() + 1;
+            attempts.set(attempt);
+            attempt == 2
+        });
+
+        assert!(fetched);
+        assert_eq!(attempts.get(), 2);
+
+        let exhausted = retry_router_state_fetch(|| false);
+        assert!(!exhausted);
     }
 
     #[test]
@@ -7003,6 +7236,12 @@ mod tests {
         apply_router_status_overlay(&mut issues, &[started.clone(), review], &router, &[]);
 
         assert_eq!(issues[0].status, "review");
+        assert_eq!(
+            issues[0].updated_at,
+            DateTime::parse_from_rfc3339("2026-09-18T23:01:00Z")
+                .expect("valid timestamp")
+                .with_timezone(&Utc)
+        );
 
         issues[0].updated_at = DateTime::parse_from_rfc3339("2026-09-18T23:02:00Z")
             .expect("valid timestamp")
@@ -7031,6 +7270,193 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn checkpoint_staging_excludes_ignored_router_events() {
+        let temp = tempfile::tempdir().expect("checkpoint staging temp dir");
+        let root = temp.path();
+        git_success(root, &["init", "--initial-branch=main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(root, &["config", "user.email", "router@example.invalid"]);
+        fs::write(root.join(".gitignore"), "project/events/\n").expect("write ignore");
+        fs::write(root.join("tracked.rs"), "fn original() {}\n").expect("write source");
+        git_success(root, &["add", ".gitignore", "tracked.rs"]);
+        git_success(root, &["commit", "-m", "initial"]);
+
+        fs::write(root.join("tracked.rs"), "fn changed() {}\n").expect("edit source");
+        fs::write(root.join("new_agent_test.rs"), "#[test] fn works() {}\n")
+            .expect("write agent test");
+        let event_dir = root.join("project/events");
+        fs::create_dir_all(&event_dir).expect("create event directory");
+        fs::write(event_dir.join("router.jsonl"), "event\n").expect("write event");
+
+        stage_router_checkpoint(root, Path::new("project")).expect("stage checkpoint");
+
+        assert_eq!(
+            git_success(root, &["diff", "--cached", "--name-only"]),
+            "new_agent_test.rs\ntracked.rs"
+        );
+        assert_eq!(
+            git_success(root, &["status", "--porcelain"]),
+            "A  new_agent_test.rs\nM  tracked.rs"
+        );
+    }
+
+    #[test]
+    fn publication_failure_after_completed_turn_preserves_review_evidence() {
+        let temp = tempfile::tempdir().expect("router recovery temp dir");
+        let root = temp.path();
+        crate::file_io::initialize_project(root, false).expect("initialize project");
+        git_success(root, &["init", "-b", "main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(
+            root,
+            &["config", "user.email", "router-test@example.invalid"],
+        );
+        git_success(root, &["add", "-A"]);
+        git_success(root, &["commit", "-m", "router recovery fixture"]);
+        let project_dir = load_project_directory(root).expect("project directory");
+        let issue_id = "kbs-954";
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: issue_id.to_string(),
+            title: "Preserve publication failure".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+        let issue_path = project_dir.join("issues").join(format!("{issue_id}.json"));
+        fs::write(
+            &issue_path,
+            serde_json::to_vec_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write issue");
+        let claim = RouterClaim {
+            issue_id: issue_id.to_string(),
+            claim_id: "claim-recovery".to_string(),
+            revision: 1,
+            resource: format!("router:issue:{issue_id}"),
+            hard: false,
+            owner: "worker-recovery".to_string(),
+            resources: Vec::new(),
+        };
+        let events = vec![
+            event(
+                &format!("router:{issue_id}"),
+                EventType::RouterAttempt,
+                json!({"action":"started", "claim_id":"claim-recovery", "revision":1}),
+                "2026-09-19T12:00:00Z",
+            ),
+            event(
+                &format!("router:{issue_id}"),
+                EventType::RouterConversation,
+                json!({"action":"agent_turn", "lifecycle":"review", "claim_id":"claim-recovery", "revision":1,
+                    "session_id":"session-954", "branch":"codex/router/kbs-954/r1", "worktree":"/tmp/kbs-954"}),
+                "2026-09-19T12:01:00Z",
+            ),
+        ];
+        crate::event_history::write_events_batch(&events_dir_for_project(&project_dir), &events)
+            .expect("write completed conversation");
+        let configuration = crate::config_loader::load_project_configuration(
+            &get_configuration_path(root).expect("configuration path"),
+        )
+        .expect("load configuration");
+
+        preserve_completed_turn_after_publication_failure(
+            root,
+            &project_dir,
+            &configuration,
+            &claim,
+            &KanbusError::IssueOperation("could not publish draft pull request".to_string()),
+        )
+        .expect("preserve completed turn");
+        let stored = read_issue_from_file(&issue_path).expect("read diagnostic comment");
+        assert!(stored.comments.iter().any(|comment| comment
+            .text
+            .as_deref()
+            .is_some_and(|text| text.contains("codex/router/kbs-954/r1"))));
+        assert!(load_router_events(&project_dir)
+            .expect("load recovery event")
+            .iter()
+            .any(|event| {
+                matches!(&event.event_type, EventType::RouterResult)
+                    && event
+                        .payload
+                        .get("publication_failed")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            }));
+
+        // A preserved run can be surfaced even when no board state transition
+        // is needed; recovery must still add its issue-visible summary.
+        append_router_event(
+            &project_dir,
+            &format!("router:{issue_id}"),
+            EventType::RouterConversation,
+            json!({
+                "action":"agent_turn", "provider":"codex", "lifecycle":"unknown",
+                "claim_id":"claim-recovery", "revision":1,
+                "session_id":"session-954", "branch":"codex/router/kbs-954/r1",
+                "worktree":"/tmp/kbs-954"
+            }),
+        )
+        .expect("append recoverable evidence");
+
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::new(),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        recover_router_package(root, &configuration, &router, &project_dir, issue_id)
+            .expect("recover preserved turn");
+        recover_router_package(root, &configuration, &router, &project_dir, issue_id)
+            .expect("recovery is idempotent");
+
+        let recovered = read_issue_from_file(&issue_path).expect("read recovery comment");
+        assert_eq!(
+            recovered
+                .comments
+                .iter()
+                .filter(|comment| {
+                    comment
+                        .text
+                        .as_deref()
+                        .is_some_and(|text| text.contains("## Agent run recovered"))
+                })
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -8060,6 +8486,30 @@ mod tests {
         .expect("a malformed optional artifact list is omitted")
         .artifacts
         .is_empty());
+    }
+
+    #[test]
+    fn completed_turn_review_record_is_visible_without_agent_supplied_comments() {
+        let pull = PullRequestInfo {
+            number: 42,
+            head_sha: "abc123".to_string(),
+            url: "https://example.test/pull/42".to_string(),
+            branch: "codex/router/kbs-701/r1".to_string(),
+        };
+        let comment = completed_router_review_comment(
+            "",
+            &pull,
+            "refs/kanbus/router/checkpoints/kbs-701",
+            &[RouterArtifact {
+                name: "tests".to_string(),
+                reference: "artifacts/tests.txt".to_string(),
+            }],
+        );
+
+        assert_eq!(
+            comment,
+            "## Agent turn complete\n\nThe agent completed a turn. Review the preserved branch and draft pull request.\n\n- Draft PR: https://example.test/pull/42\n- Branch: `codex/router/kbs-701/r1`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-701`\n- Artifacts:\n  - `tests`: `artifacts/tests.txt`"
+        );
     }
 
     #[test]

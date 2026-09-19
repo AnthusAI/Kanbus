@@ -91,6 +91,40 @@ def test_shared_state_fetch_fails_closed_for_advertisement_and_fetch_errors(
         router_state._fetch_state(tmp_path)
 
 
+def test_shared_state_fetch_retries_transient_fetch_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fetch_results = iter([1, 0])
+    fetch_calls = 0
+
+    def try_git(_root, *args, **_kwargs):
+        nonlocal fetch_calls
+        if args == ("remote", "get-url", "origin"):
+            return "https://example.invalid/repo"
+        if args[:1] == ("fetch",):
+            fetch_calls += 1
+            return next(fetch_results)
+        raise AssertionError(f"unexpected Git invocation: {args}")
+
+    monkeypatch.setattr(router_state, "_try_git", try_git)
+    monkeypatch.setattr(
+        router_state,
+        "sleep",
+        lambda _seconds: None,
+    )
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stdout="abc refs/heads/kanbus/router-state\\n"
+        ),
+    )
+
+    router_state._fetch_state(tmp_path)
+
+    assert fetch_calls == 2
+
+
 def test_git_error_helpers_keep_failures_explicit_and_bounded(
     monkeypatch, tmp_path: Path
 ) -> None:

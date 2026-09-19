@@ -62,7 +62,7 @@ from kanbus.coordination_runtime import (
 )
 from kanbus.issue_comment import (
     IssueCommentError,
-    add_comment as add_issue_comment,
+    add_comment as _add_issue_comment,
 )
 from kanbus.issue_router import (
     IssueRouterError,
@@ -96,6 +96,18 @@ from kanbus.router_forge import (
     record_github_pull_request_event,
 )
 from kanbus.router_state import publish_router_start_event, publish_router_state
+
+
+def add_issue_comment(root: Path, identifier: str, author: str, text: str):
+    """Publish router evidence without starting unrelated AI summary work."""
+    return _add_issue_comment(
+        root,
+        identifier,
+        author,
+        text,
+        regenerate_right_now=False,
+    )
+
 
 HARD_COORDINATION_ERROR = (
     "hard router coordination requires Mutex API; provider mutex_api is "
@@ -215,6 +227,7 @@ def run_router_once(
                 raise IssueRouterError(HARD_COORDINATION_ERROR)
 
     start_recorded = False
+    completed_turn_returned = False
     try:
         handles = _acquire_claims(
             context,
@@ -363,6 +376,7 @@ def run_router_once(
                     context, candidate.issue_id, claim_id, revision, str(error)
                 )
                 return RouterRunResult(started=1, failed=1, error=str(error))
+        completed_turn_returned = result.outcome == "completed"
         if scheduler_claim_handles is not None:
             scheduler_error = next(
                 (
@@ -425,6 +439,14 @@ def run_router_once(
         )
         _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
         _apply_issue_comments(context, candidate, result, claim_id, revision)
+        _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+        add_issue_comment(
+            getattr(context, "source_root", None) or context.root,
+            candidate.issue_id,
+            "Kanbus Issue Router",
+            _completed_review_comment(result, checkpoint, pull_request),
+        )
+        _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
         _transition_package(
             context,
             candidate.issue_id,
@@ -461,6 +483,18 @@ def run_router_once(
         )
     except (IssueRouterError, IssueUpdateError) as error:
         started = int(start_recorded)
+        if completed_turn_returned:
+            try:
+                _preserve_completed_turn_after_publication_failure(
+                    context, candidate, claim_id, revision, error
+                )
+                return RouterRunResult(
+                    started=started, review=started, failed=started, error=str(error)
+                )
+            except (IssueCommentError, IssueUpdateError, IssueRouterError):
+                # The original failure is still the actionable diagnostic if
+                # publishing the preservation record also fails.
+                pass
         return RouterRunResult(
             started=started, failed=started, deferred=0, error=str(error)
         )
@@ -742,6 +776,29 @@ def recover_router_package(context: RouterContext, issue_id: str) -> dict[str, s
     session = payload.get("session_id")
     if isinstance(session, str) and session:
         result["session_id"] = session
+    recovery_comment = (
+        "## Agent run recovered\n\n"
+        "The Issue Router recovered preserved agent evidence without starting a "
+        "replacement session.\n\n"
+        f"- Provider: `{result['provider']}`\n"
+        f"- Lifecycle: `{result['lifecycle']}`\n"
+        f"- Branch: `{result['branch'] or 'unknown'}`\n"
+        f"- Session: `{result.get('session_id', 'unknown')}`\n"
+        f"- Worktree: `{result['worktree'] or 'unknown'}`"
+    )
+    recovered_before = any(
+        event.get("payload", {}).get("action") == "recovered"
+        and event.get("payload", {}).get("claim_id") == payload.get("claim_id")
+        and event.get("payload", {}).get("revision") == payload.get("revision")
+        for event in read_router_events(context.project_dir, package_id)
+    )
+    if not recovered_before:
+        add_issue_comment(
+            getattr(context, "source_root", None) or context.root,
+            package_id,
+            "Kanbus Issue Router",
+            recovery_comment,
+        )
     record_conversation(
         context.project_dir,
         package_id,
@@ -877,7 +934,10 @@ def _run_adapter(
         _validate_worktree_changes(context.configuration.project_directory, claim_id)
         if result.outcome == "completed":
             _commit_isolated_worktree(
-                Path(request.worktree_path), candidate.issue_id, revision
+                Path(request.worktree_path),
+                context.configuration.project_directory,
+                candidate.issue_id,
+                revision,
             )
             _WORKTREE_HEADS[claim_id] = _git(
                 Path(request.worktree_path), ["rev-parse", "HEAD"]
@@ -1326,6 +1386,111 @@ def _apply_issue_comments(
             "Kanbus Issue Router",
             comment.text,
         )
+
+
+def _preserve_completed_turn_after_publication_failure(
+    context: RouterContext,
+    candidate: RouterPlanEligiblePackage,
+    claim_id: str,
+    revision: int,
+    error: Exception,
+) -> None:
+    """Publish review evidence when a completed turn fails after execution.
+
+    Validation and publication happen after the adapter has returned.  They
+    must not turn a completed agent turn into an invisible scheduler failure.
+    """
+    conversation = latest_conversation(context.project_dir, candidate.issue_id)
+    payload = (conversation or {}).get("payload", {})
+    branch = str(payload.get("branch") or _WORKTREE_BRANCHES.get(claim_id, "unknown"))
+    worktree = str(payload.get("worktree") or _WORKTREE_PATHS.get(claim_id, "unknown"))
+    session_id = payload.get("session_id")
+    session = (
+        str(session_id) if isinstance(session_id, str) and session_id else "unknown"
+    )
+    diagnostic = (
+        "## Agent turn preserved for review\n\n"
+        "The agent completed work, but automatic publication failed.\n\n"
+        f"- Branch: `{branch}`\n"
+        f"- Session: `{session}`\n"
+        f"- Worktree: `{worktree}`\n"
+        f"- Router detail: {error}"
+    )
+    record_conversation(
+        context.project_dir,
+        candidate.issue_id,
+        action="publication_failed",
+        provider=str(payload.get("provider", "codex")),
+        claim_id=claim_id,
+        revision=revision,
+        session_id=session_id if isinstance(session_id, str) else None,
+        lifecycle="review",
+        message="Completed agent turn preserved for review after publication failure.",
+        branch=branch,
+        worktree=worktree,
+        error=str(error),
+    )
+    add_issue_comment(
+        getattr(context, "source_root", None) or context.root,
+        candidate.issue_id,
+        "Kanbus Issue Router",
+        diagnostic,
+    )
+    _transition_package(
+        context,
+        candidate.issue_id,
+        context.router.workflow.review,
+        claim_id=claim_id,
+        revision=revision,
+    )
+    record_router_event(
+        context.project_dir,
+        package_id=candidate.issue_id,
+        event_type="router_result",
+        payload={
+            "outcome": "completed",
+            "summary": "Completed agent turn preserved for review after publication failure",
+            "diagnostic": diagnostic,
+            "publication_failed": True,
+            "claim_id": claim_id,
+            "revision": revision,
+            "session_id": session_id,
+            "branch": branch,
+            "worktree": worktree,
+        },
+    )
+    publish_router_state(context.root, set(candidate.package_issue_ids))
+
+
+def _completed_review_comment(
+    result: RouterAgentResult,
+    checkpoint: RouterCheckpoint | None,
+    pull_request: ForgePullRequest | None,
+) -> str:
+    """Render the non-optional issue record for a completed agent turn.
+
+    Agent-supplied comments are useful supplemental context, but a completed
+    turn must remain visible even when the adapter supplies none. The router
+    creates this comment only after branch/PR publication has succeeded and
+    before it transitions the issue to Review.
+    """
+    summary = result.summary.strip() or (
+        "The agent completed a turn. Review the preserved branch and draft pull request."
+    )
+    lines = ["## Agent turn complete", "", summary, ""]
+    if pull_request is not None:
+        lines.extend(
+            [
+                f"- Draft PR: {pull_request.url}",
+                f"- Branch: `{pull_request.head_branch}`",
+            ]
+        )
+    if checkpoint is not None:
+        lines.append(f"- Checkpoint: `{checkpoint.ref}`")
+    if result.artifacts:
+        lines.append("- Artifacts:")
+        lines.extend(f"  - `{item.name}`: `{item.ref}`" for item in result.artifacts)
+    return "\n".join(lines)
 
 
 def _validate_result_scope(
@@ -2672,16 +2837,46 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
             )
 
 
-def _commit_isolated_worktree(worktree: Path, package_id: str, revision: int) -> None:
+def _commit_isolated_worktree(
+    worktree: Path, project_directory: str, package_id: str, revision: int
+) -> None:
     """Commit validated agent changes on the isolated router branch."""
     try:
+        # Stage tracked edits first. This cannot add ignored shared router
+        # events, while preserving deletes and modifications to tracked source.
         subprocess.run(
-            ["git", "add", "-A"],
+            ["git", "add", "-u", "--", "."],
             cwd=worktree,
             check=True,
             capture_output=True,
             text=True,
         )
+        untracked = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", "-z", "--", "."],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+        ).stdout.split(b"\0")
+        project_path = PurePosixPath(
+            posixpath.normpath(project_directory.replace("\\", "/"))
+        )
+        source_paths = [
+            os.fsdecode(path)
+            for path in untracked
+            if path
+            and not (
+                (candidate := PurePosixPath(os.fsdecode(path))) == project_path
+                or project_path in candidate.parents
+            )
+        ]
+        if source_paths:
+            subprocess.run(
+                ["git", "add", "--", *source_paths],
+                cwd=worktree,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         subprocess.run(
             [
                 "git",
