@@ -321,9 +321,7 @@ def test_adapter_result_parser_normalizes_optional_artifacts_without_relaxing_re
         "outcome": "completed",
         "summary": "completed with evidence",
         "issue_updates": [],
-        "issue_comments": [
-            {"issue_id": "kbs-1", "text": "Review evidence is ready."}
-        ],
+        "issue_comments": [{"issue_id": "kbs-1", "text": "Review evidence is ready."}],
         "checkpoint": None,
         "artifacts": [
             {"name": "report", "ref": "refs/reports/r1"},
@@ -340,7 +338,10 @@ def test_adapter_result_parser_normalizes_optional_artifacts_without_relaxing_re
             json.dumps(
                 {
                     "type": "item.completed",
-                    "item": {"type": "AgentMessage", "text": json.dumps(result_payload)},
+                    "item": {
+                        "type": "AgentMessage",
+                        "text": json.dumps(result_payload),
+                    },
                 }
             )
         )
@@ -353,6 +354,9 @@ def test_adapter_result_parser_normalizes_optional_artifacts_without_relaxing_re
         ("report", "refs/reports/r1"),
         ("report.json", "artifacts/verification/report.json"),
     ]
-    assert _parse_result(
-        {"schema_version": 1, "outcome": "completed", "artifacts": "invalid"}
-    ).artifacts == []
+    assert (
+        _parse_result(
+            {"schema_version": 1, "outcome": "completed", "artifacts": "invalid"}
+        ).artifacts
+        == []
+    )
