@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "9910d7f5-4338-4a92-b6a1-b5f4253a4421",
+  "issue_id": "router:issue:kbs-683397b0-e23e-46d3-ae9b-01ab9d687833",
+  "event_type": "coordination.release",
+  "occurred_at": "2026-09-19T11:49:34.665Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "606498e7-ae3c-4925-99d5-2729b28c0bc9",
+    "operation_sequence": 2
+  }
+}

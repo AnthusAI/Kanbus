@@ -219,6 +219,12 @@ def test_run_once_processes_blocked_and_retryable_results(
     _, _, _, events, transitions = install_run_fakes(
         monkeypatch, ctx, adapter_result=adapter_result
     )
+    comments = []
+    monkeypatch.setattr(
+        router_execution,
+        "add_issue_comment",
+        lambda _root, issue_id, author, text: comments.append((issue_id, author, text)),
+    )
     if expected_event == "router_retry_scheduled":
         monkeypatch.setattr(
             router_execution,
@@ -231,6 +237,10 @@ def test_run_once_processes_blocked_and_retryable_results(
     assert outcome.started == outcome.failed == 1
     assert (expected_transition in transitions) if expected_transition else True
     assert events[-1]["event_type"] == expected_event
+    if expected_event == "router_blocked":
+        assert comments == [("kbs-42", "Kanbus Issue Router", "blocked by API")]
+    else:
+        assert comments == []
 
 
 @pytest.mark.parametrize(
@@ -1707,6 +1717,51 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
     assert commits == [(worktree, "kbs-42", 3)]
     assert router_execution._WORKTREE_HEADS["claim-run"] == "head-sha"
     assert "kbs-42" not in router_execution._ACTIVE_ADAPTERS
+
+
+def test_run_adapter_records_a_blocked_turn_as_awaiting_human_reply(
+    monkeypatch, tmp_path
+):
+    ctx = context(tmp_path)
+    package = candidate()
+    result_value = result("blocked", "Which deployment target should I use?")
+    active = SimpleNamespace(
+        execute=lambda request: result_value,
+        cancel=lambda _claim: None,
+        session_id="session-42",
+        last_output="agent question",
+        last_error="",
+    )
+    monkeypatch.delitem(router_execution._ADAPTER_OVERRIDES, "codex", raising=False)
+    monkeypatch.setattr(router_execution, "CodexExecAdapter", lambda *_a, **_kw: active)
+    monkeypatch.setattr(
+        router_execution,
+        "_adapter_process_record_path",
+        lambda *_a: tmp_path / "adapter-process.json",
+    )
+    monkeypatch.setattr(router_execution, "read_router_events", lambda *_: [])
+    monkeypatch.setattr(
+        router_execution, "_existing_pull_request_branch", lambda *_: None
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "_create_isolated_worktree",
+        lambda *_a, **_kw: tmp_path / "worktree",
+    )
+    monkeypatch.setattr(router_execution, "_validate_worktree_changes", lambda *_: None)
+    conversations = []
+    monkeypatch.setattr(
+        router_execution,
+        "record_conversation",
+        lambda _project, _package, **payload: conversations.append(payload),
+    )
+
+    returned = router_execution._run_adapter(ctx, package, "claim-blocked", 3)
+
+    assert returned is result_value
+    assert conversations[-1]["lifecycle"] == "blocked"
+    assert conversations[-1]["session_id"] == "session-42"
+    assert conversations[-1]["message"] == "Which deployment target should I use?"
 
 
 def test_create_worktree_fetches_existing_remote_branch(monkeypatch, tmp_path):

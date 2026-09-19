@@ -1352,7 +1352,14 @@ fn apply_router_status_overlay(
             continue;
         }
         let status = match &event.event_type {
-            EventType::RouterAttempt if payload_text(event, "action") == Some("started") => {
+            EventType::RouterAttempt
+                if matches!(
+                    payload_text(event, "action"),
+                    Some("started" | "retryable_failure")
+                ) =>
+            {
+                // A retry is not a terminal agent decision: the package stays
+                // active while the backoff clock prevents another start.
                 Some(router.workflow.active.as_str())
             }
             EventType::RouterResult => match payload_text(event, "outcome") {
@@ -3559,6 +3566,29 @@ fn run_issue_router_once(
             }
             "blocked" => {
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
+                // A paused agent must be able to speak directly to the person
+                // reviewing the issue.  Preserve any agent-supplied comments,
+                // then publish its exact question as a canonical issue comment
+                // before the RouterResult event moves the card to Blocked.
+                apply_router_issue_comments(
+                    root,
+                    &package.issue_id,
+                    &package.package_issue_ids,
+                    &result.issue_comments,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
+                crate::issue_comment::add_comment(
+                    root,
+                    &package.issue_id,
+                    "Kanbus Issue Router",
+                    if result.summary.trim().is_empty() {
+                        "The agent is awaiting a human reply."
+                    } else {
+                        &result.summary
+                    },
+                    None,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
                 append_router_event(
                     project_dir,
                     &format!("router:{}", package.issue_id),
@@ -4882,15 +4912,7 @@ fn execute_router_adapter(
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = match parse_router_result(&output) {
-        Ok(result) => result,
-        Err(KanbusError::IssueOperation(message))
-            if message == "Codex router adapter returned invalid JSON" =>
-        {
-            invalid_json_retryable_result(message)
-        }
-        Err(error) => return Err(error),
-    };
+    let result = parse_router_result(&output)?;
     if result.schema_version != 1 {
         return Err(KanbusError::IssueOperation(
             "Codex router adapter returned invalid result".to_string(),
@@ -4901,6 +4923,23 @@ fn execute_router_adapter(
             "invalid Codex router outcome \"{}\"",
             result.outcome
         )));
+    }
+    if result.outcome == "blocked" {
+        // The raw agent turn above is deliberately recorded before parsing so
+        // malformed output is never discarded.  Once parsing establishes a
+        // genuine agent pause, append the authoritative lifecycle overlay so
+        // board status and recovery agree that a human reply is awaited.
+        append_router_event(
+            project_dir,
+            &format!("router:{issue_id}"),
+            EventType::RouterConversation,
+            json!({
+                "action":"awaiting_reply", "provider":"codex", "lifecycle":"blocked",
+                "claim_id":claim.claim_id, "revision":claim.revision,
+                "session_id":codex_session_id(&output), "worktree":worktree,
+                "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+            }),
+        )?;
     }
     Ok(result)
 }
@@ -5009,18 +5048,6 @@ fn push_codex_result_text(text: &str, candidates: &mut Vec<Value>) {
         if parsed.get("outcome").is_some() && parsed.get("schema_version").is_some() {
             candidates.push(parsed);
         }
-    }
-}
-
-fn invalid_json_retryable_result(message: String) -> RouterAgentResult {
-    RouterAgentResult {
-        schema_version: 1,
-        outcome: "retryable_failure".to_string(),
-        summary: message,
-        issue_updates: Vec::new(),
-        issue_comments: Vec::new(),
-        checkpoint: None,
-        artifacts: Vec::new(),
     }
 }
 
@@ -7733,7 +7760,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_adapter_json_is_retryable_but_unknown_outcomes_stay_validation_errors() {
+    fn malformed_adapter_json_and_unknown_outcomes_are_validation_errors() {
         let error =
             parse_router_result("not JSON").expect_err("malformed adapter output must not parse");
         let message = match error {
@@ -7741,9 +7768,6 @@ mod tests {
             other => panic!("unexpected adapter parse error: {other}"),
         };
         assert_eq!(message, "Codex router adapter returned invalid JSON");
-        let retry = invalid_json_retryable_result(message);
-        assert_eq!(retry.outcome, "retryable_failure");
-
         let unknown =
             parse_router_result(r#"{"schema_version":1,"outcome":"done","checkpoint":null}"#)
                 .expect("syntactically valid outcome parses before allowlist validation");
