@@ -3,7 +3,7 @@
   "title": "Preserve completed router turns when checkpoint events are ignored",
   "description": "## Problem\n\nThe real Codex run for kbs-894b0c completed valid Python and Rust changes, but its router failed after the agent session while staging the checkpoint event. The exact error was: project/events is ignored and the checkpoint staging path did not force-add it. The branch and draft PR had to be preserved manually.\n\n## Required behavior\n\nEvery router checkpoint and agent-turn event must be force-added through the same safe, scoped Git path used for shared router events. A completed or paused agent turn must publish its transcript metadata, checkpoint, branch, draft PR, summary/comment, and configured Review or Blocked state even when project/events is ignored. Nothing may be silently discarded.\n\n## Acceptance criteria\n\n- Python and Rust force-add only the configured event/checkpoint artifact, never unrelated ignored files.\n- A completed agent result with an ignored project/events directory creates or updates its draft PR, adds the summary to the issue, and moves the issue to Review.\n- A publication failure after a session exists produces a visible issue diagnostic and Review, preserving branch/session/log references.\n- Tests exercise the ignored-event failure shape that occurred in kbs-894b0c.\n- Git-only coordination remains sufficient; no MQTT, AWS, or automatic closure.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "blocked",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -43,7 +43,7 @@
     }
   ],
   "created_at": "2026-09-19T12:17:21.814359Z",
-  "updated_at": "2026-09-19T23:13:58.867052Z",
+  "updated_at": "2026-09-19T23:15:19.053487Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
