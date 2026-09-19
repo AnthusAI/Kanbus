@@ -1370,7 +1370,9 @@ def _preserve_completed_turn_after_publication_failure(
     branch = str(payload.get("branch") or _WORKTREE_BRANCHES.get(claim_id, "unknown"))
     worktree = str(payload.get("worktree") or _WORKTREE_PATHS.get(claim_id, "unknown"))
     session_id = payload.get("session_id")
-    session = str(session_id) if isinstance(session_id, str) and session_id else "unknown"
+    session = (
+        str(session_id) if isinstance(session_id, str) and session_id else "unknown"
+    )
     diagnostic = (
         "## Agent turn preserved for review\n\n"
         "The agent completed work, but automatic publication failed.\n\n"
