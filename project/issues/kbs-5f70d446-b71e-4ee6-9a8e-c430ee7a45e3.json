@@ -3,7 +3,7 @@
   "title": "Preserve completed router turns when checkpoint events are ignored",
   "description": "## Problem\n\nThe real Codex run for kbs-894b0c completed valid Python and Rust changes, but its router failed after the agent session while staging the checkpoint event. The exact error was: project/events is ignored and the checkpoint staging path did not force-add it. The branch and draft PR had to be preserved manually.\n\n## Required behavior\n\nEvery router checkpoint and agent-turn event must be force-added through the same safe, scoped Git path used for shared router events. A completed or paused agent turn must publish its transcript metadata, checkpoint, branch, draft PR, summary/comment, and configured Review or Blocked state even when project/events is ignored. Nothing may be silently discarded.\n\n## Acceptance criteria\n\n- Python and Rust force-add only the configured event/checkpoint artifact, never unrelated ignored files.\n- A completed agent result with an ignored project/events directory creates or updates its draft PR, adds the summary to the issue, and moves the issue to Review.\n- A publication failure after a session exists produces a visible issue diagnostic and Review, preserving branch/session/log references.\n- Tests exercise the ignored-event failure shape that occurred in kbs-894b0c.\n- Git-only coordination remains sufficient; no MQTT, AWS, or automatic closure.",
   "type": "bug",
-  "status": "review",
+  "status": "open",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -19,10 +19,17 @@
       "text": "Agent completion preserved in draft PR #307: added a reviewable post-session publication-failure diagnostic and regression coverage for the ignored project/events failure shape. The router then rejected the Codex adapter output with the exact error: Codex router adapter returned invalid result. The raw agent result, branch, and draft PR are preserved; this issue is in Review, not closed. Agent test note: compileall and diff check passed; it reported that its broader Python/Rust environments were unavailable.",
       "created_at": "2026-09-19T12:24:19.438668Z",
       "comment_type": "default"
+    },
+    {
+      "id": "a4c31fb6-3025-4a6a-b4ca-2801f3eba3cc",
+      "author": "home",
+      "text": "Review found the preserved patch incomplete: it does not implement the required force-add checkpoint path in both runtimes. Re-queueing this same issue for another router turn; preserve the existing session, branch, transcript, and draft PR, and continue rather than discarding prior work.",
+      "created_at": "2026-09-19T13:33:37.096692Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T12:17:21.814359Z",
-  "updated_at": "2026-09-19T12:24:19.438710Z",
+  "updated_at": "2026-09-19T13:33:52.925444Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
