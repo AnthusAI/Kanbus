@@ -337,21 +337,14 @@ def run_router_once(
             conversation = latest_conversation(context.project_dir, candidate.issue_id)
             lifecycle = (conversation or {}).get("payload", {}).get("lifecycle")
             if lifecycle == "review":
-                add_issue_comment(
-                    getattr(context, "source_root", None) or context.root,
-                    candidate.issue_id,
-                    "Kanbus Issue Router",
-                    "Agent work was preserved but its automatic result could not be validated. "
-                    f"Review the attached agent conversation and branch. Router detail: {error}",
+                # The adapter records review-lifecycle evidence before it
+                # validates Codex's final payload.  Use the same recovery path
+                # as a later publication failure so this normal completed
+                # workflow receives a canonical router_result, diagnostic, and
+                # Review transition rather than releasing the claim silently.
+                _preserve_completed_turn_after_publication_failure(
+                    context, candidate, claim_id, revision, error
                 )
-                _transition_package(
-                    context,
-                    candidate.issue_id,
-                    context.router.workflow.review,
-                    claim_id=claim_id,
-                    revision=revision,
-                )
-                publish_router_state(context.root, set(candidate.package_issue_ids))
                 return RouterRunResult(started=1, review=1, failed=1, error=str(error))
             try:
                 add_issue_comment(

@@ -207,6 +207,41 @@ def test_run_once_completes_and_cleans_all_claims(monkeypatch, tmp_path):
     assert listener.stopped == 1
 
 
+def test_invalid_adapter_result_preserves_review_turn_as_router_result(
+    monkeypatch, tmp_path
+):
+    """A completed Codex session must survive final-result validation failure."""
+    ctx = context(tmp_path)
+    install_run_fakes(
+        monkeypatch,
+        ctx,
+        adapter_error=IssueRouterError("Codex router adapter returned invalid result"),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "latest_conversation",
+        lambda *_: {"payload": {"lifecycle": "review"}},
+    )
+    preserved = []
+    monkeypatch.setattr(
+        router_execution,
+        "_preserve_completed_turn_after_publication_failure",
+        lambda *_args: preserved.append(_args[4]),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome == router_execution.RouterRunResult(
+        started=1,
+        review=1,
+        failed=1,
+        error="Codex router adapter returned invalid result",
+    )
+    assert [str(error) for error in preserved] == [
+        "Codex router adapter returned invalid result"
+    ]
+
+
 def test_completed_turn_always_publishes_an_issue_visible_review_record(
     monkeypatch, tmp_path
 ):

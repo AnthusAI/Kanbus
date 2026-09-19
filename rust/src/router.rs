@@ -3653,6 +3653,24 @@ fn run_issue_router_once(
     let result = match run_result {
         Ok(result) => result,
         Err(error) => {
+            // `execute_router_adapter` writes a review-lifecycle conversation
+            // before it parses the final Codex payload.  A normal `kbs commit`
+            // can therefore leave durable work even when the final envelope is
+            // rejected.  Preserve that turn just as we preserve a later forge
+            // or checkpoint publication failure; otherwise cleanup releases a
+            // valid session with no result event or Review transition.
+            if has_preserved_review_conversation(
+                &load_router_events(project_dir).unwrap_or_default(),
+                &package.issue_id,
+            ) {
+                let _ = preserve_completed_turn_after_publication_failure(
+                    root,
+                    project_dir,
+                    &configuration,
+                    &claim,
+                    &error,
+                );
+            }
             let renewer_stop = lease_renewer
                 .as_mut()
                 .map_or(Ok(()), RouterLeaseRenewalGuard::stop);
