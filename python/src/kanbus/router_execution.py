@@ -744,6 +744,18 @@ def recover_router_package(context: RouterContext, issue_id: str) -> dict[str, s
         branch=result["branch"],
         worktree=result["worktree"],
     )
+    target_status = {
+        "review": context.router.workflow.review,
+        "blocked": context.router.workflow.blocked,
+    }.get(result["lifecycle"])
+    if target_status is not None:
+        _transition_package(
+            context,
+            package_id,
+            target_status,
+            claim_id=str(payload.get("claim_id", "recovered")),
+            revision=int(payload.get("revision", 1)),
+        )
     publish_router_state(context.root, {package_id})
     return result
 
