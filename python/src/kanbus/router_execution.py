@@ -389,6 +389,14 @@ def run_router_once(
             )
         if result.outcome == "blocked":
             _apply_issue_updates(context, candidate, result, claim_id, revision)
+            _apply_issue_comments(context, candidate, result, claim_id, revision)
+            _assert_claim_fence(context, candidate.issue_id, claim_id, revision)
+            add_issue_comment(
+                getattr(context, "source_root", None) or context.root,
+                candidate.issue_id,
+                "Kanbus Issue Router",
+                result.summary or "The agent is awaiting a human reply.",
+            )
             _transition_package(
                 context,
                 candidate.issue_id,
@@ -853,9 +861,13 @@ def _run_adapter(
                 claim_id=claim_id,
                 revision=revision,
                 session_id=session_id,
-                lifecycle="review",
+                lifecycle=("blocked" if result.outcome == "blocked" else "review"),
                 message=result.summary
-                or "Agent turn completed; review the preserved branch and log.",
+                or (
+                    "The agent is awaiting a human reply."
+                    if result.outcome == "blocked"
+                    else "Agent turn completed; review the preserved branch and log."
+                ),
                 worktree=request.worktree_path,
                 branch=branch,
                 log=adapter.last_output + adapter.last_error,
