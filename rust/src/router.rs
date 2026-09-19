@@ -2875,7 +2875,7 @@ fn apply_router_issue_comments(
 ) -> Result<(), KanbusError> {
     validate_router_issue_comments(package_id, package_issue_ids, comments)?;
     for comment in comments {
-        crate::issue_comment::add_comment(
+        crate::issue_comment::add_comment_without_right_now(
             root,
             &comment.issue_id,
             "Kanbus Issue Router",
@@ -2921,7 +2921,7 @@ fn preserve_completed_turn_after_publication_failure(
     let diagnostic = format!(
         "## Agent turn preserved for review\n\nThe agent completed work, but automatic publication failed. \n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
     );
-    crate::issue_comment::add_comment(
+    crate::issue_comment::add_comment_without_right_now(
         root,
         &claim.issue_id,
         "Kanbus Issue Router",
@@ -3434,7 +3434,7 @@ fn recover_router_package(
             && event.payload.get("revision").and_then(Value::as_u64) == Some(revision)
     });
     if !recovered_before {
-        crate::issue_comment::add_comment(
+        crate::issue_comment::add_comment_without_right_now(
             root,
             issue_id,
             "Kanbus Issue Router",
@@ -3728,7 +3728,7 @@ fn run_issue_router_once(
                     &published_checkpoint_ref.reference,
                     &result.artifacts,
                 );
-                crate::issue_comment::add_comment(
+                crate::issue_comment::add_comment_without_right_now(
                     root,
                     &package.issue_id,
                     "Kanbus Issue Router",
@@ -3778,7 +3778,7 @@ fn run_issue_router_once(
                     &result.issue_comments,
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
-                crate::issue_comment::add_comment(
+                crate::issue_comment::add_comment_without_right_now(
                     root,
                     &package.issue_id,
                     "Kanbus Issue Router",
