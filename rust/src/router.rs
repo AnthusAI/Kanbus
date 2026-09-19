@@ -1,6 +1,6 @@
 //! Deterministic Issue Router configuration, planning, and coordination.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -1154,26 +1154,62 @@ fn apply_shared_issue_status(
         return Ok(());
     }
     let issue = read_issue_from_file(&issue_path)?;
-    if issue.status == status {
-        return Ok(());
+    for next_status in
+        router_status_transition_path(configuration, &issue.issue_type, &issue.status, status)?
+    {
+        crate::issue_update::update_issue(
+            worktree,
+            issue_id,
+            None,
+            None,
+            Some(&next_status),
+            None,
+            None,
+            false,
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            None,
+        )?;
     }
-    crate::issue_update::update_issue(
-        worktree,
-        issue_id,
-        None,
-        None,
-        Some(status),
-        None,
-        None,
-        false,
-        true,
-        &[],
-        &[],
-        None,
-        None,
-        None,
-    )?;
     Ok(())
+}
+
+/// Resolve a router lifecycle target through the issue's configured workflow.
+///
+/// Router events may be replayed after a Git-only refresh, when the canonical
+/// card is still Open but the durable stream already records completion.  Do
+/// not bypass workflow validation with an invalid Open -> Review shortcut.
+fn router_status_transition_path(
+    configuration: &ProjectConfiguration,
+    issue_type: &str,
+    current_status: &str,
+    target_status: &str,
+) -> Result<Vec<String>, KanbusError> {
+    if current_status == target_status {
+        return Ok(Vec::new());
+    }
+    let workflow = crate::workflows::get_workflow_for_issue_type(configuration, issue_type)?;
+    let mut queue = VecDeque::from([(current_status.to_string(), Vec::<String>::new())]);
+    let mut visited = BTreeSet::from([current_status.to_string()]);
+    while let Some((status, path)) = queue.pop_front() {
+        for next_status in workflow.get(&status).into_iter().flatten() {
+            if !visited.insert(next_status.clone()) {
+                continue;
+            }
+            let mut next_path = path.clone();
+            next_path.push(next_status.clone());
+            if next_status == target_status {
+                return Ok(next_path);
+            }
+            queue.push_back((next_status.clone(), next_path));
+        }
+    }
+    Err(KanbusError::IssueOperation(format!(
+        "router cannot transition package from {current_status} to {target_status} through the configured workflow"
+    )))
 }
 
 fn parse_timestamp(value: &str) -> Option<DateTime<Utc>> {
@@ -1351,6 +1387,14 @@ fn apply_router_status_overlay(
         // A human terminal decision in the canonical issue record is final.
         // Router projections are advisory and must never resurrect closed work.
         if router.workflow.terminal.contains(&issue.status) {
+            continue;
+        }
+        // The card itself is canonical.  An event can remain in the shared
+        // history after a human (or the router) has already updated the card;
+        // never let that older projection resurrect stale work in the planner.
+        if parse_timestamp(&event.occurred_at)
+            .is_some_and(|occurred_at| issue.updated_at > occurred_at)
+        {
             continue;
         }
         let last_board_transition = issue_events
@@ -6374,6 +6418,22 @@ mod tests {
     }
 
     #[test]
+    fn router_transition_path_uses_configured_intermediate_status() {
+        let mut configuration = crate::config::default_project_configuration();
+        configuration
+            .workflows
+            .get_mut("default")
+            .expect("default workflow")
+            .insert("in_progress".to_string(), vec!["review".to_string()]);
+
+        assert_eq!(
+            router_status_transition_path(&configuration, "task", "open", "review")
+                .expect("legal workflow path"),
+            vec!["in_progress".to_string(), "review".to_string()]
+        );
+    }
+
+    #[test]
     fn hard_lease_renewer_runs_while_start_publication_is_delayed() {
         let renewals = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let renewal_counter = Arc::clone(&renewals);
@@ -6882,6 +6942,9 @@ mod tests {
 
     #[test]
     fn latest_conversation_review_overrides_an_older_started_attempt() {
+        let before_router_events = DateTime::parse_from_rfc3339("2026-09-18T22:00:00Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
         let mut issues = vec![IssueData {
             identifier: "kbs-review".to_string(),
             title: "Preserved agent work".to_string(),
@@ -6896,7 +6959,7 @@ mod tests {
             dependencies: Vec::new(),
             comments: Vec::new(),
             created_at: Utc::now(),
-            updated_at: Utc::now(),
+            updated_at: before_router_events,
             closed_at: None,
             agent: None,
             right_now_summary: None,
@@ -6937,9 +7000,19 @@ mod tests {
             "2026-09-18T23:01:00Z",
         );
 
-        apply_router_status_overlay(&mut issues, &[started, review], &router, &[]);
+        apply_router_status_overlay(&mut issues, &[started.clone(), review], &router, &[]);
 
         assert_eq!(issues[0].status, "review");
+
+        issues[0].updated_at = DateTime::parse_from_rfc3339("2026-09-18T23:02:00Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        apply_router_status_overlay(&mut issues, &[started], &router, &[]);
+
+        assert_eq!(
+            issues[0].status, "review",
+            "a later canonical board update must beat a stale router event"
+        );
     }
 
     fn git_output(root: &Path, args: &[&str]) -> Output {
