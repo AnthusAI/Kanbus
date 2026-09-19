@@ -5,7 +5,8 @@ import {
   X,
   CornerDownRight,
   Focus,
-  Maximize
+  Maximize,
+  Send
 } from "lucide-react";
 import gsap from "gsap";
 // Mermaid imports removed
@@ -205,6 +206,8 @@ interface TaskDetailPanelProps {
   focusedIssueId: string | null;
   focusedCommentId?: string | null;
   onNavigateToDescendant?: (issue: TaskDetailIssue) => void;
+  onAddComment?: (issueId: string, text: string) => Promise<void>;
+  onChangeStatus?: (issueId: string, status: string) => Promise<void>;
 }
 
 interface DescendantLinkProps {
@@ -308,7 +311,9 @@ export function TaskDetailPanel({
   onFocus,
   focusedIssueId,
   focusedCommentId,
-  onNavigateToDescendant
+  onNavigateToDescendant,
+  onAddComment,
+  onChangeStatus
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -320,10 +325,58 @@ export function TaskDetailPanel({
   const [panelOpenActive, setPanelOpenActive] = useState(false);
   const [activeTab, setActiveTab] = useState<"comments" | "events">("comments");
   const [rawMode, setRawMode] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [writeState, setWriteState] = useState<"idle" | "pending" | "success" | "error">("idle");
+  const [writeError, setWriteError] = useState<string | null>(null);
+  const [statusDraft, setStatusDraft] = useState(task?.status ?? "");
 
   useEffect(() => {
     setRawMode(false);
+    setCommentDraft("");
+    setWriteState("idle");
+    setWriteError(null);
+    setStatusDraft(task?.status ?? "");
   }, [task?.id]);
+
+  useEffect(() => {
+    setStatusDraft(task?.status ?? "");
+  }, [task?.status]);
+
+  const availableStatuses = task && config
+    ? (config.workflows?.[task.type] ?? config.workflows?.default ?? {})[task.status] ?? []
+    : [];
+  const statusOptions = task && !availableStatuses.includes(task.status)
+    ? [task.status, ...availableStatuses]
+    : availableStatuses;
+
+  const submitComment = async () => {
+    if (!task || !onAddComment || !commentDraft.trim() || writeState === "pending") return;
+    setWriteState("pending");
+    setWriteError(null);
+    try {
+      await onAddComment(task.id, commentDraft.trim());
+      setCommentDraft("");
+      setWriteState("success");
+    } catch (error) {
+      setWriteState("error");
+      setWriteError(error instanceof Error ? error.message : "Unable to add comment");
+    }
+  };
+
+  const submitStatus = async (status: string) => {
+    if (!task || !onChangeStatus || status === task.status || writeState === "pending") return;
+    setWriteState("pending");
+    setWriteError(null);
+    try {
+      await onChangeStatus(task.id, status);
+      setStatusDraft(status);
+      setWriteState("success");
+    } catch (error) {
+      setStatusDraft(task.status);
+      setWriteState("error");
+      setWriteError(error instanceof Error ? error.message : "Unable to change status");
+    }
+  };
 
   const [eventHistory, setEventHistory] = useState<IssueEvent[]>([]);
   const [eventCursor, setEventCursor] = useState<string | null>(null);
@@ -1009,6 +1062,63 @@ skinparam SequenceDividerFontColor white`
             </div>
             {activeTab === "comments" ? (
               <div className="grid gap-2">
+                {(onAddComment || onChangeStatus) && (
+                  <div className="grid gap-3 rounded-lg border border-[var(--gray-6)] bg-[var(--card-muted)] p-3" data-testid="issue-write-controls">
+                    {onChangeStatus && statusOptions.length > 0 ? (
+                      <label className="grid gap-1 text-xs text-muted">
+                        <span className="font-semibold uppercase tracking-[0.2em]">Status</span>
+                        <select
+                          className="rounded border border-[var(--gray-6)] bg-[var(--card)] px-2 py-2 text-sm text-foreground"
+                          aria-label="Change issue status"
+                          value={statusDraft}
+                          disabled={writeState === "pending"}
+                          onChange={(event) => void submitStatus(event.target.value)}
+                        >
+                          {statusOptions.map((status) => (
+                            <option key={status} value={status}>
+                              {config?.statuses.find((item) => item.key === status)?.name ?? status}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {onAddComment ? (
+                      <form
+                        className="grid gap-2"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void submitComment();
+                        }}
+                      >
+                        <label className="grid gap-1 text-xs text-muted" htmlFor="issue-comment-composer">
+                          <span className="font-semibold uppercase tracking-[0.2em]">Add comment</span>
+                        </label>
+                        <textarea
+                          id="issue-comment-composer"
+                          className="min-h-20 rounded border border-[var(--gray-6)] bg-[var(--card)] px-2 py-2 text-sm text-foreground"
+                          placeholder="Write a normal Kanbus comment..."
+                          value={commentDraft}
+                          disabled={writeState === "pending"}
+                          onChange={(event) => setCommentDraft(event.target.value)}
+                        />
+                        <button
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--accent-9)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          type="submit"
+                          disabled={!commentDraft.trim() || writeState === "pending"}
+                        >
+                          <Send size={14} aria-hidden="true" />
+                          {writeState === "pending" ? "Saving..." : "Send comment"}
+                        </button>
+                      </form>
+                    ) : null}
+                    {writeState === "success" ? (
+                      <div className="text-xs text-green-600" role="status">Saved. Waiting for the live board update.</div>
+                    ) : null}
+                    {writeState === "error" ? (
+                      <div className="text-xs text-red-600" role="alert">{writeError}</div>
+                    ) : null}
+                  </div>
+                )}
                 {comments.length === 0 ? (
                   <div className="text-sm text-muted">No comments yet.</div>
                 ) : (
