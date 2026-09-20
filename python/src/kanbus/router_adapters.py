@@ -146,7 +146,9 @@ class _SubprocessAdapter:
             if self.process is not None and self.process.poll() is None:
                 self.process.terminate()
                 self.process.communicate()
-            raise IssueRouterError(f"{self.display_name} router adapter failed") from error
+            raise IssueRouterError(
+                f"{self.display_name} router adapter failed"
+            ) from error
         finally:
             self.process = None
             self._remove_process_record(request.claim_id)
@@ -394,7 +396,11 @@ def _payload_from_model_text(text: str) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             index = text.find("{", index + 1)
             continue
-        if isinstance(decoded, dict) and "outcome" in decoded and "schema_version" in decoded:
+        if (
+            isinstance(decoded, dict)
+            and "outcome" in decoded
+            and "schema_version" in decoded
+        ):
             found = decoded
         index = text.find("{", end)
     return found

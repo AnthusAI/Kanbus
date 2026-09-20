@@ -541,7 +541,9 @@ class RouterAgentProfile(BaseModel):
             self.command = self.adapter
         if self.service_tier is not None:
             if self.service_tier not in ROUTER_SERVICE_TIERS:
-                raise ValueError("router provider service_tier must be flex, priority or default")
+                raise ValueError(
+                    "router provider service_tier must be flex, priority or default"
+                )
             if self.adapter != "opencode" or not self.model or "/" not in self.model:
                 raise ValueError(
                     "router provider service_tier requires adapter opencode and a provider/model model"
