@@ -9,8 +9,8 @@ from types import SimpleNamespace
 import pytest
 
 from kanbus import router_execution
-from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.coordination import CoordinationError
+from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.issue_router import IssueRouterError, RouterPlanEligiblePackage
 from kanbus.router_adapters import (
     RouterAgentResult,
@@ -276,9 +276,7 @@ def test_run_once_preserves_invalid_codex_outcome_from_real_adapter(
         def communicate(self, timeout=None):
             del timeout
             return (
-                json.dumps(
-                    {"type": "thread.started", "thread_id": "session-real"}
-                )
+                json.dumps({"type": "thread.started", "thread_id": "session-real"})
                 + "\n"
                 + json.dumps(
                     {
@@ -301,9 +299,7 @@ def test_run_once_preserves_invalid_codex_outcome_from_real_adapter(
     assert 'invalid Codex router outcome "unknown"' in outcome.error
     assert transitions == ["active", "review"]
     result_events = [
-        event
-        for event in events
-        if event.get("event_type") == "router_result"
+        event for event in events if event.get("event_type") == "router_result"
     ]
     assert result_events
     assert result_events[-1]["payload"]["publication_failed"] is True
