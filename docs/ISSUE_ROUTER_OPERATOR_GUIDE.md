@@ -137,3 +137,48 @@ After a process dies, a later router can take over after the execution lease exp
 If hard coordination is configured and Mutex API is unavailable, restore the endpoint and credentials before retrying. The router intentionally starts no adapter through a weaker provider. In soft mode, duplicate starts are possible when workers cannot see each other's claims. Revision fencing rejects stale results after the newer claim becomes visible. The connected-clone offline scenario does not reproduce a network partition; the live mutex and MQTT harness paths also need to be run against configured services before treating them as validated. See the [integration harness notes](ISSUE_ROUTER_INTEGRATION_HARNESS.md) for the exact test scope.
 
 See [Issue Router design](ISSUE_ROUTER_DESIGN.md) for the JSON contract, exact plan ordering, configuration validation, event schema, and detailed WIP rules.
+
+## OpenCode adapter (GPT-OSS on AWS Bedrock)
+
+Provider profiles accept `adapter: codex` or `adapter: opencode`. Optional `model`
+is passed as `--model`; optional `env` is merged over the router's environment.
+`command` defaults to the adapter name.
+
+```yaml
+router:
+  providers:
+    gpt-oss-bedrock:
+      adapter: opencode
+      model: amazon-bedrock/openai.gpt-oss-20b-1:0
+      env: {AWS_REGION: us-east-1, AWS_PROFILE: my-profile}
+      service_tier: flex   # optional: flex (about half price, slower), priority, default
+  classes:
+    implementation: {providers: [gpt-oss-bedrock]}
+```
+
+Requirements: the `opencode` CLI on `PATH`, AWS credentials with
+`bedrock:InvokeModel*`, and model access enabled in the Bedrock region. The router
+runs `opencode run --format json` with stdin closed and `PWD` set to the worktree
+(OpenCode otherwise waits on stdin and uses a stale `PWD` as its project root).
+The result JSON is taken from the last matching object in the model's text.
+
+`service_tier` is sent to Bedrock through OpenCode's per-model `serviceTier` option
+(provider-level options are ignored by OpenCode). It requires `adapter: opencode`
+and a `provider/model` model, and the model must support the tier. Confirm requests
+resolved to it in CloudWatch (`AWS/Bedrock`, dimension `ResolvedServiceTier`).
+
+Concurrency: each OpenCode run gets a private `XDG_DATA_HOME` (with `auth.json`
+copied in), because parallel OpenCode processes otherwise share one session
+database and fail with `database is locked`. Set `XDG_DATA_HOME` in the profile's
+`env` to override.
+
+Reliability note: `openai.gpt-oss-20b-1:0` is a weak agent. In live trials it
+sometimes ended without a result, emitted malformed tool calls, or returned issue
+updates that violate the contract. The router's strict validation rejects these
+as `OpenCode router adapter returned invalid JSON/result`. Run the opt-in live
+check with `KANBUS_LIVE_BEDROCK=1 pytest python/tests/test_router_opencode_live.py`.
+
+Verification gap: the router accepts a `completed` result even when the agent
+changed nothing. In live trials MiniMax M2.5 once reported creating a file it had
+not created, and the router still opened a PR containing only router state.
+Review pull requests before merging.

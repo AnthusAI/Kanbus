@@ -80,7 +80,7 @@ from kanbus.issue_router import (
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.router_adapters import (
-    CodexExecAdapter,
+    ADAPTER_CLASSES,
     RouterAdapter,
     RouterAgentResult,
     RouterCheckpoint,
@@ -862,7 +862,7 @@ def _run_adapter(
     if adapter is None:
         adapter = _ADAPTER_OVERRIDES.get(candidate.route.provider_profile)
     if adapter is None:
-        adapter = CodexExecAdapter(
+        adapter = ADAPTER_CLASSES[profile.adapter](
             profile,
             process_record_path=_adapter_process_record_path(
                 context.root, candidate.issue_id, claim_id
@@ -901,7 +901,7 @@ def _run_adapter(
         context.project_dir,
         candidate.issue_id,
         action="started",
-        provider="codex",
+        provider=profile.adapter,
         claim_id=claim_id,
         revision=revision,
         lifecycle="in_progress",
@@ -916,7 +916,7 @@ def _run_adapter(
                 context.project_dir,
                 candidate.issue_id,
                 action="agent_turn",
-                provider="codex",
+                provider=profile.adapter,
                 claim_id=claim_id,
                 revision=revision,
                 session_id=session_id,
@@ -962,7 +962,7 @@ def _run_adapter(
                 context.project_dir,
                 candidate.issue_id,
                 action="validation_failed",
-                provider="codex",
+                provider=profile.adapter,
                 claim_id=claim_id,
                 revision=revision,
                 session_id=session_id,
