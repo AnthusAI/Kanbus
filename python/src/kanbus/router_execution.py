@@ -80,8 +80,7 @@ from kanbus.issue_router import (
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.router_adapters import (
-    CodexExecAdapter,
-    OpenCodeRunAdapter,
+    ADAPTER_CLASSES,
     RouterAdapter,
     RouterAgentResult,
     RouterCheckpoint,
@@ -863,10 +862,7 @@ def _run_adapter(
     if adapter is None:
         adapter = _ADAPTER_OVERRIDES.get(candidate.route.provider_profile)
     if adapter is None:
-        adapter_class = (
-            OpenCodeRunAdapter if profile.adapter == "opencode" else CodexExecAdapter
-        )
-        adapter = adapter_class(
+        adapter = ADAPTER_CLASSES[profile.adapter](
             profile,
             process_record_path=_adapter_process_record_path(
                 context.root, candidate.issue_id, claim_id
