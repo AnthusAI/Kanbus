@@ -32,7 +32,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The specs PR is merged; close any remaining Gherkin stories and keep this process for future specs-first PRs.",
-  "right_now_updated_at": "2026-09-14T14:08:18.221465018Z",
+    "right_now_summary": "PR #278 is merged, and all named Gherkin stories are closed.",
+    "right_now_updated_at": "2026-09-18T18:21:09.015291Z",
   "custom": {}
 }
