@@ -319,8 +319,6 @@ def run_router_once(
         try:
             result = _run_adapter(context, candidate, claim_id, revision)
         except IssueRouterError as error:
-            if str(error).startswith("invalid Codex router outcome"):
-                raise
             if scheduler_claim_handles is not None and any(
                 _RENEWAL_ERRORS.get(handle.claim_id)
                 for handle in scheduler_claim_handles
