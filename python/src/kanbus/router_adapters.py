@@ -330,6 +330,17 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         return payload
 
 
+ADAPTER_CLASSES: dict[str, type[_SubprocessAdapter]] = {
+    "codex": CodexExecAdapter,
+    "opencode": OpenCodeRunAdapter,
+}
+"""Registry of router agent adapters keyed by ``adapter:`` name.
+
+Add an entry here (and the name to ``models.ROUTER_ADAPTERS``) to support
+another agent CLI.
+"""
+
+
 def _opencode_config_content(existing: str | None, model: str, tier: str) -> str:
     """Return OpenCode inline config selecting a Bedrock service tier for one model.
 

@@ -1778,9 +1778,9 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
     monkeypatch.setitem(router_execution._WORKTREE_PATHS, "claim-run", tmp_path / "old")
     monkeypatch.setitem(router_execution._WORKTREE_BRANCHES, "claim-run", "old-branch")
     monkeypatch.setitem(router_execution._WORKTREE_HEADS, "claim-run", "old-head")
-    monkeypatch.setattr(
-        router_execution,
-        "CodexExecAdapter",
+    monkeypatch.setitem(
+        router_execution.ADAPTER_CLASSES,
+        "codex",
         lambda _profile, **_kwargs: active,
     )
     monkeypatch.setattr(router_execution, "read_router_events", lambda *_: [])
@@ -1822,7 +1822,9 @@ def test_run_adapter_records_a_blocked_turn_as_awaiting_human_reply(
         last_error="",
     )
     monkeypatch.delitem(router_execution._ADAPTER_OVERRIDES, "codex", raising=False)
-    monkeypatch.setattr(router_execution, "CodexExecAdapter", lambda *_a, **_kw: active)
+    monkeypatch.setitem(
+        router_execution.ADAPTER_CLASSES, "codex", lambda *_a, **_kw: active
+    )
     monkeypatch.setattr(
         router_execution,
         "_adapter_process_record_path",

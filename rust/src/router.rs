@@ -1980,9 +1980,11 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         errors.push("router.providers must not be empty".to_string());
     }
     for (profile, provider) in &router.providers {
-        if !["codex", "opencode"].contains(&provider.adapter.as_str()) {
+        let adapter_kind = RouterAdapterKind::from_name(&provider.adapter);
+        if adapter_kind.is_none() {
             errors.push(format!(
-                "router.providers.{profile}.adapter must be codex or opencode"
+                "router.providers.{profile}.adapter must be {}",
+                RouterAdapterKind::NAMES.join(" or ")
             ));
         }
         if let Some(tier) = &provider.service_tier {
@@ -1990,7 +1992,7 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
                 errors.push(format!(
                     "router.providers.{profile}.service_tier must be flex, priority or default"
                 ));
-            } else if provider.adapter != "opencode"
+            } else if !adapter_kind.is_some_and(RouterAdapterKind::supports_service_tier)
                 || !provider.model.as_deref().is_some_and(|m| m.contains('/'))
             {
                 errors.push(format!(
@@ -5103,45 +5105,24 @@ fn execute_router_adapter(
             ))
             .unwrap_or_else(|| "null".to_string())
     );
-    let opencode = profile.adapter == "opencode";
-    let adapter_name = if opencode { "OpenCode" } else { "Codex" };
-    // Concurrent OpenCode processes share one SQLite session database and fail
-    // with "database is locked", so each run gets a private data directory.
-    let data_home = if opencode && !profile.env.contains_key("XDG_DATA_HOME") {
-        Some(isolated_opencode_data_home()?)
-    } else {
-        None
-    };
+    let kind = RouterAdapterKind::from_name(&profile.adapter).ok_or_else(|| {
+        KanbusError::IssueOperation(format!(
+            "router.providers adapter {} is not supported",
+            profile.adapter
+        ))
+    })?;
+    let adapter_name = kind.display_name();
+    let data_home = kind.private_data_home(profile)?;
     let mut command = Command::new(profile.resolved_command());
     command.args(&profile.args);
-    if let Some(data_home) = &data_home {
-        command.env("XDG_DATA_HOME", data_home.path());
-    }
-    if opencode {
-        command.arg("run").arg("--format").arg("json");
-    } else {
-        command.arg("exec").arg("--json");
-    }
-    if let Some(model) = &profile.model {
-        command.arg("--model").arg(model);
-    }
-    if !opencode {
-        command.arg("--cd").arg(&worktree);
-    }
+    kind.configure(
+        &mut command,
+        profile,
+        &prompt,
+        &worktree,
+        data_home.as_ref(),
+    );
     command
-        .arg(if opencode {
-            format!("{prompt}{OPENCODE_FORMAT_HINT}")
-        } else {
-            prompt
-        })
-        .envs(&profile.env)
-        .envs(opencode.then(|| ("PWD", worktree.clone())))
-        .envs(opencode_config_content(profile).map(|content| ("OPENCODE_CONFIG_CONTENT", content)))
-        .stdin(if opencode {
-            Stdio::null()
-        } else {
-            Stdio::inherit()
-        })
         .current_dir(&worktree)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -5226,7 +5207,7 @@ fn execute_router_adapter(
             let stderr = stderr_reader
                 .and_then(|reader| reader.join().ok())
                 .unwrap_or_default();
-            let session_id = adapter_session_id(opencode, &stdout);
+            let session_id = kind.session_id(&stdout);
             append_router_event(
                 project_dir,
                 &format!("router:{issue_id}"),
@@ -5248,11 +5229,7 @@ fn execute_router_adapter(
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = if opencode {
-        parse_opencode_result(&output)?
-    } else {
-        parse_router_result(&output)?
-    };
+    let result = kind.parse_result(&output)?;
     if result.schema_version != 1 {
         return Err(KanbusError::IssueOperation(format!(
             "{adapter_name} router adapter returned invalid result"
@@ -5276,7 +5253,7 @@ fn execute_router_adapter(
             json!({
                 "action":"awaiting_reply", "provider":profile.adapter, "lifecycle":"blocked",
                 "claim_id":claim.claim_id, "revision":claim.revision,
-                "session_id":adapter_session_id(opencode, &output), "worktree":worktree,
+                "session_id":kind.session_id(&output), "worktree":worktree,
                 "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
             }),
         )?;
@@ -5327,18 +5304,112 @@ fn opencode_config_content(
     Some(config.to_string())
 }
 
-fn adapter_session_id(opencode: bool, stdout: &str) -> Option<String> {
-    if !opencode {
-        return codex_session_id(stdout);
+/// Agent CLIs the router can dispatch to. Add a variant here (plus its Python
+/// counterpart in `router_adapters.py`) to support another agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RouterAdapterKind {
+    Codex,
+    OpenCode,
+}
+
+impl RouterAdapterKind {
+    const NAMES: [&'static str; 2] = ["codex", "opencode"];
+
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "codex" => Some(Self::Codex),
+            "opencode" => Some(Self::OpenCode),
+            _ => None,
+        }
     }
-    stdout.lines().find_map(|line| {
-        serde_json::from_str::<Value>(line)
-            .ok()?
-            .get("sessionID")?
-            .as_str()
-            .filter(|id| !id.is_empty())
-            .map(str::to_string)
-    })
+
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Codex => "Codex",
+            Self::OpenCode => "OpenCode",
+        }
+    }
+
+    fn supports_service_tier(self) -> bool {
+        self == Self::OpenCode
+    }
+
+    /// Concurrent OpenCode processes share one SQLite session database and fail
+    /// with "database is locked", so each run gets a private data directory.
+    fn private_data_home(
+        self,
+        profile: &crate::models::IssueRouterProviderConfiguration,
+    ) -> Result<Option<tempfile::TempDir>, KanbusError> {
+        if self == Self::OpenCode && !profile.env.contains_key("XDG_DATA_HOME") {
+            isolated_opencode_data_home().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn configure(
+        self,
+        command: &mut Command,
+        profile: &crate::models::IssueRouterProviderConfiguration,
+        prompt: &str,
+        worktree: &Path,
+        data_home: Option<&tempfile::TempDir>,
+    ) {
+        match self {
+            Self::Codex => {
+                command.arg("exec").arg("--json");
+                if let Some(model) = &profile.model {
+                    command.arg("--model").arg(model);
+                }
+                command
+                    .arg("--cd")
+                    .arg(worktree)
+                    .arg(prompt)
+                    .envs(&profile.env)
+                    .stdin(Stdio::inherit());
+            }
+            Self::OpenCode => {
+                command.arg("run").arg("--format").arg("json");
+                if let Some(model) = &profile.model {
+                    command.arg("--model").arg(model);
+                }
+                command
+                    .arg(format!("{prompt}{OPENCODE_FORMAT_HINT}"))
+                    .envs(&profile.env)
+                    .env("PWD", worktree)
+                    .envs(
+                        opencode_config_content(profile)
+                            .map(|content| ("OPENCODE_CONFIG_CONTENT", content)),
+                    )
+                    // `opencode run` waits on piped stdin until EOF.
+                    .stdin(Stdio::null());
+                if let Some(data_home) = data_home {
+                    command.env("XDG_DATA_HOME", data_home.path());
+                }
+            }
+        }
+    }
+
+    fn session_id(self, stdout: &str) -> Option<String> {
+        match self {
+            Self::Codex => codex_session_id(stdout),
+            Self::OpenCode => stdout.lines().find_map(|line| {
+                serde_json::from_str::<Value>(line)
+                    .ok()?
+                    .get("sessionID")?
+                    .as_str()
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+            }),
+        }
+    }
+
+    fn parse_result(self, stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+        match self {
+            Self::Codex => parse_router_result(stdout),
+            Self::OpenCode => parse_opencode_result(stdout),
+        }
+    }
 }
 
 /// Concatenate the assistant text parts of OpenCode's JSON event stream.
@@ -9350,7 +9421,10 @@ mod tests {
         .join("\n");
         let result = parse_opencode_result(&stdout).expect("result");
         assert_eq!(result.outcome, "completed");
-        assert_eq!(adapter_session_id(true, &stdout).as_deref(), Some("ses_1"));
+        assert_eq!(
+            RouterAdapterKind::OpenCode.session_id(&stdout).as_deref(),
+            Some("ses_1")
+        );
     }
 
     #[test]
