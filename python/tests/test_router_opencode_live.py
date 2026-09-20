@@ -33,8 +33,18 @@ def test_gpt_oss_20b_on_bedrock_returns_a_valid_result(tmp_path):
     )
     subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
     subprocess.run(
-        ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t",
-         "commit", "-qm", "init"],
+        [
+            "git",
+            "-C",
+            str(tmp_path),
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-qm",
+            "init",
+        ],
         check=True,
     )
     profile = RouterAgentProfile(

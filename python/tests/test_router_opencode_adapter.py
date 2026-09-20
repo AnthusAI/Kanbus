@@ -30,10 +30,13 @@ def _run(monkeypatch, tmp_path, stdout, profile=None, returncode=0):
 
     class Process:
         pid = 1
+
         def __init__(self):
             self.returncode = returncode
+
         def poll(self):
             return self.returncode
+
         def communicate(self, timeout=None):
             return stdout, ""
 

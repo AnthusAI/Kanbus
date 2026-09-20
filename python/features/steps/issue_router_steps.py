@@ -471,9 +471,7 @@ def given_provider_command_args(
     _save_config(context, config)
 
 
-@given(
-    'provider profile "{profile}" has model "{model}" and environment {environment}'
-)
+@given('provider profile "{profile}" has model "{model}" and environment {environment}')
 def given_provider_model_env(
     context: object, profile: str, model: str, environment: str
 ) -> None:
