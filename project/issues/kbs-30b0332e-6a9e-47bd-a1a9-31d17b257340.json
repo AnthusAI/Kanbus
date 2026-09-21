@@ -32,7 +32,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The feature prose still needs to state the lexicographic claim-id tie-break rule.",
-  "right_now_updated_at": "2026-09-14T14:08:03.222478205Z",
+  "right_now_summary": "The claim-ID tie-break rule remains unstated in feature prose while awaiting a concrete Git lease need.",
+  "right_now_updated_at": "2026-09-18T18:21:04.385371Z",
   "custom": {}
 }

@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 
 from kanbus import router_execution
-from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.coordination import CoordinationError
+from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.issue_router import IssueRouterError, RouterPlanEligiblePackage
 from kanbus.router_adapters import (
     RouterAgentResult,
@@ -66,7 +67,16 @@ def context(tmp_path, providers=None, forge=None):
         active="active", blocked="blocked", review="review", terminal=["closed"]
     )
     router = SimpleNamespace(
-        providers={"codex": SimpleNamespace(command="codex", args=[])},
+        providers={
+            "codex": SimpleNamespace(
+                adapter="codex",
+                command="codex",
+                args=[],
+                model=None,
+                env={},
+                service_tier=None,
+            )
+        },
         classes={"review": SimpleNamespace(providers=["codex"])},
         workflow=workflow,
         forge=forge,
@@ -176,6 +186,8 @@ def install_run_fakes(monkeypatch, ctx, *, adapter_result=None, adapter_error=No
     monkeypatch.setattr(router_execution, "_apply_issue_updates", lambda *_: None)
     monkeypatch.setattr(router_execution, "_publish_checkpoint", lambda *_: None)
     monkeypatch.setattr(router_execution, "_open_pull_request", lambda *_: None)
+    if adapter_error is None:
+        monkeypatch.setattr(router_execution, "add_issue_comment", lambda *_: None)
     monkeypatch.setattr(
         router_execution,
         "record_router_event",
@@ -203,6 +215,182 @@ def test_run_once_completes_and_cleans_all_claims(monkeypatch, tmp_path):
     assert [item.resource for item in released[1]] == ["router:issue:kbs-42"]
     assert worker_thread.joined == [2]
     assert listener.stopped == 1
+
+
+def test_invalid_adapter_result_preserves_review_turn_as_router_result(
+    monkeypatch, tmp_path
+):
+    """A completed Codex session must survive final-result validation failure."""
+    ctx = context(tmp_path)
+    install_run_fakes(
+        monkeypatch,
+        ctx,
+        adapter_error=IssueRouterError("Codex router adapter returned invalid result"),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "latest_conversation",
+        lambda *_: {"payload": {"lifecycle": "review"}},
+    )
+    preserved = []
+    monkeypatch.setattr(
+        router_execution,
+        "_preserve_completed_turn_after_publication_failure",
+        lambda *_args: preserved.append(_args[4]),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome == router_execution.RouterRunResult(
+        started=1,
+        review=1,
+        failed=1,
+        error="Codex router adapter returned invalid result",
+    )
+    assert [str(error) for error in preserved] == [
+        "Codex router adapter returned invalid result"
+    ]
+
+
+def test_run_once_preserves_invalid_codex_outcome_from_real_adapter(
+    monkeypatch, tmp_path
+):
+    """A malformed Codex payload is preserved through the production run path."""
+    ctx = context(tmp_path)
+    real_run_adapter = router_execution._run_adapter
+    _, _, _, events, transitions = install_run_fakes(monkeypatch, ctx)
+    monkeypatch.setattr(router_execution, "_run_adapter", real_run_adapter)
+    monkeypatch.setattr(
+        router_execution,
+        "_create_isolated_worktree",
+        lambda *_args, **_kwargs: tmp_path / "worktree",
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "_adapter_process_record_path",
+        lambda *_args: tmp_path / "adapter-process.json",
+    )
+    monkeypatch.setattr(router_execution, "read_router_events", lambda *_: [])
+    monkeypatch.setattr(
+        "kanbus.router_adapters._process_identity", lambda _pid: "test-process"
+    )
+
+    class Process:
+        pid = 4242
+        returncode = 0
+
+        def poll(self):
+            return self.returncode
+
+        def communicate(self, timeout=None):
+            del timeout
+            return (
+                json.dumps({"type": "thread.started", "thread_id": "session-real"})
+                + "\n"
+                + json.dumps(
+                    {
+                        "schema_version": 1,
+                        "outcome": "unknown",
+                        "summary": "The agent did useful work before malformed output.",
+                    }
+                ),
+                "",
+            )
+
+    monkeypatch.setattr(
+        "kanbus.router_adapters.subprocess.Popen",
+        lambda *_args, **_kwargs: Process(),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome.started == outcome.review == outcome.failed == 1
+    assert 'invalid Codex router outcome "unknown"' in outcome.error
+    assert transitions == ["active", "review"]
+    result_events = [
+        event for event in events if event.get("event_type") == "router_completed"
+    ]
+    assert result_events
+    assert result_events[-1]["payload"]["publication_failed"] is True
+    conversation_events = sorted(
+        (
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in (ctx.project_dir / "events").glob("*.json")
+        ),
+        key=lambda event: (event.get("occurred_at", ""), event.get("event_id", "")),
+    )
+    conversation_events = [
+        event
+        for event in conversation_events
+        if event.get("event_type") == "router.conversation"
+    ]
+    assert [event["payload"]["action"] for event in conversation_events] == [
+        "started",
+        "validation_failed",
+        "publication_failed",
+    ]
+    assert conversation_events[-1]["payload"]["lifecycle"] == "review"
+
+
+def test_completed_turn_always_publishes_an_issue_visible_review_record(
+    monkeypatch, tmp_path
+):
+    """A missing optional adapter comment must not make completed work invisible."""
+    ctx = context(tmp_path)
+    install_run_fakes(
+        monkeypatch,
+        ctx,
+        adapter_result=result("completed", "Implemented the requested behavior."),
+    )
+    comments = []
+    monkeypatch.setattr(
+        router_execution,
+        "add_issue_comment",
+        lambda _root, issue_id, author, text: comments.append((issue_id, author, text)),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome == router_execution.RouterRunResult(
+        started=1, completed=1, review=1, deferred=2
+    )
+    assert comments == [
+        (
+            "kbs-42",
+            "Kanbus Issue Router",
+            "## Agent turn complete\n\nImplemented the requested behavior.\n",
+        )
+    ]
+
+
+def test_completed_review_record_includes_preserved_review_evidence():
+    from kanbus.router_forge import ForgePullRequest
+
+    comment = router_execution._completed_review_comment(
+        RouterAgentResult(
+            schema_version=1,
+            outcome="completed",
+            artifacts=[RouterArtifact(name="tests", ref="artifacts/tests.txt")],
+        ),
+        RouterCheckpoint(ref="refs/kanbus/router/checkpoints/kbs-42", revision=1),
+        ForgePullRequest(
+            number=42,
+            url="https://example.test/pull/42",
+            head_branch="codex/router/kbs-42/r1",
+            head_sha="abc123",
+            state="open",
+        ),
+    )
+
+    assert comment == (
+        "## Agent turn complete\n\n"
+        "The agent completed a turn. Review the preserved branch and draft pull request.\n\n"
+        "- Draft PR: https://example.test/pull/42\n"
+        "- Branch: `codex/router/kbs-42/r1`\n"
+        "- Checkpoint: `refs/kanbus/router/checkpoints/kbs-42`\n"
+        "- Artifacts:\n"
+        "  - `tests`: `artifacts/tests.txt`"
+    )
 
 
 @pytest.mark.parametrize(
@@ -251,7 +439,7 @@ def test_run_once_processes_blocked_and_retryable_results(
         (
             IssueRouterError('invalid Codex router outcome "unknown"'),
             False,
-            False,
+            True,
             'invalid Codex router outcome "unknown"',
         ),
     ],
@@ -789,6 +977,16 @@ def test_apply_issue_updates_rejects_terminal_status_and_wraps_update_failure(
     )
     with pytest.raises(IssueRouterError, match="cannot transition"):
         router_execution._apply_issue_updates(ctx, candidate(), terminal, "claim", 1)
+
+    monkeypatch.setattr(router_execution, "publish_router_state", lambda *_args: None)
+    completed_hint = RouterAgentResult(
+        schema_version=1,
+        outcome="completed",
+        issue_updates=[{"issue_id": "kbs-42", "status": "completed"}],
+    )
+    # Completion is router-owned: it becomes the configured Review transition
+    # later in the turn rather than a literal project status from the agent.
+    router_execution._apply_issue_updates(ctx, candidate(), completed_hint, "claim", 1)
 
     issue_update_error = router_execution.IssueUpdateError("bad update")
     monkeypatch.setattr(
@@ -1705,9 +1903,9 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
     monkeypatch.setitem(router_execution._WORKTREE_PATHS, "claim-run", tmp_path / "old")
     monkeypatch.setitem(router_execution._WORKTREE_BRANCHES, "claim-run", "old-branch")
     monkeypatch.setitem(router_execution._WORKTREE_HEADS, "claim-run", "old-head")
-    monkeypatch.setattr(
-        router_execution,
-        "CodexExecAdapter",
+    monkeypatch.setitem(
+        router_execution.ADAPTER_CLASSES,
+        "codex",
         lambda _profile, **_kwargs: active,
     )
     monkeypatch.setattr(router_execution, "read_router_events", lambda *_: [])
@@ -1730,7 +1928,7 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
     returned = router_execution._run_adapter(ctx, package, "claim-run", 3)
 
     assert returned is result_value
-    assert commits == [(worktree, "kbs-42", 3)]
+    assert commits == [(worktree, "board", "kbs-42", 3)]
     assert router_execution._WORKTREE_HEADS["claim-run"] == "head-sha"
     assert "kbs-42" not in router_execution._ACTIVE_ADAPTERS
 
@@ -1749,7 +1947,9 @@ def test_run_adapter_records_a_blocked_turn_as_awaiting_human_reply(
         last_error="",
     )
     monkeypatch.delitem(router_execution._ADAPTER_OVERRIDES, "codex", raising=False)
-    monkeypatch.setattr(router_execution, "CodexExecAdapter", lambda *_a, **_kw: active)
+    monkeypatch.setitem(
+        router_execution.ADAPTER_CLASSES, "codex", lambda *_a, **_kw: active
+    )
     monkeypatch.setattr(
         router_execution,
         "_adapter_process_record_path",
@@ -2368,12 +2568,12 @@ def test_worktree_change_inspection_and_checkpoint_commit_failures(
         calls.append(args)
         if "commit" in args:
             raise router_execution.subprocess.CalledProcessError(1, args)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=b"")
 
     monkeypatch.setattr(router_execution.subprocess, "run", fail_commit)
     with pytest.raises(IssueRouterError, match="create an isolated checkpoint"):
-        router_execution._commit_isolated_worktree(worktree, "kbs-42", 3)
-    assert calls[0][1:3] == ["add", "-A"]
+        router_execution._commit_isolated_worktree(worktree, "project", "kbs-42", 3)
+    assert calls[0][1:4] == ["add", "-u", "--"]
 
 
 def test_update_checkpoint_ref_validates_namespace_and_rolls_back_failed_push(

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from time import sleep
 
 from kanbus.config_loader import load_project_configuration
 from kanbus.event_history import EventRecord, event_filename, write_events_batch
@@ -17,6 +19,8 @@ from kanbus.project import get_configuration_path
 STATE_BRANCH = "kanbus/router-state"
 STATE_REF = f"refs/heads/{STATE_BRANCH}"
 REMOTE_REF = f"refs/remotes/origin/{STATE_BRANCH}"
+STATE_FETCH_ATTEMPTS = 3
+STATE_FETCH_RETRY_SECONDS = 0.1
 
 
 def router_state_root(source_root: Path, *, refresh: bool = True) -> Path:
@@ -82,6 +86,25 @@ def publish_router_state(source_root: Path, issue_ids: set[str] | None = None) -
     configuration = load_project_configuration(config_path)
     project_path = Path(configuration.project_directory)
     event_path = project_path / "events"
+    # Router commands may have just added an issue comment or performed a
+    # lifecycle transition in the caller's checkout.  That checkout is never
+    # staged wholesale (it can contain unrelated user work), but the selected
+    # router package is deliberately authoritative.  Copy only those named
+    # issue records into the isolated publisher before staging them, so a
+    # review/blocked handoff cannot leave its visible evidence local-only.
+    if issue_ids:
+        source_configuration = load_project_configuration(
+            get_configuration_path(source_root)
+        )
+        source_project_path = Path(source_configuration.project_directory)
+        for issue_id in sorted(issue_ids):
+            source_issue = (
+                source_root / source_project_path / "issues" / f"{issue_id}.json"
+            )
+            target_issue = worktree / project_path / "issues" / f"{issue_id}.json"
+            if source_issue.exists() and source_issue != target_issue:
+                target_issue.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source_issue, target_issue)
     # Kanbus keeps the local event stream ignored in user checkouts, but the
     # router's isolated state branch is its deliberate cross-clone publisher.
     add_args = ["add", "-f", "--", event_path.as_posix()]
@@ -258,16 +281,20 @@ def _fetch_state(root: Path) -> None:
         raise IssueRouterError("could not fetch shared router state")
     if not advertised.strip():
         return
-    result = _try_git(
-        root,
-        "fetch",
-        "--no-tags",
-        "origin",
-        f"+{STATE_REF}:{REMOTE_REF}",
-        capture=True,
-    )
-    if result != 0:
-        raise IssueRouterError("could not fetch shared router state")
+    for attempt in range(STATE_FETCH_ATTEMPTS):
+        result = _try_git(
+            root,
+            "fetch",
+            "--no-tags",
+            "origin",
+            f"+{STATE_REF}:{REMOTE_REF}",
+            capture=True,
+        )
+        if result == 0:
+            return
+        if attempt + 1 < STATE_FETCH_ATTEMPTS:
+            sleep(STATE_FETCH_RETRY_SECONDS)
+    raise IssueRouterError("could not fetch shared router state")
 
 
 def _merge_ref(root: Path, ref: str) -> None:
