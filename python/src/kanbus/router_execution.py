@@ -145,6 +145,7 @@ _FAKE_FORGE: FakeForge | None = None
 _WORKTREE_PATHS: dict[str, Path] = {}
 _WORKTREE_BRANCHES: dict[str, str] = {}
 _WORKTREE_HEADS: dict[str, str] = {}
+_WORKTREE_BASES: dict[str, str] = {}
 _RENEWAL_ERRORS: dict[str, str] = {}
 
 
@@ -967,6 +968,7 @@ def _run_adapter(
         raise
     finally:
         _ACTIVE_ADAPTERS.pop(candidate.issue_id, None)
+        _WORKTREE_BASES.pop(claim_id, None)
 
 
 def _create_isolated_worktree(
@@ -1005,6 +1007,8 @@ def _create_isolated_worktree(
         )
     else:
         _git(context.root, ["worktree", "add", str(worktree), branch])
+    # Everything the agent commits after this point is judged against this base.
+    _WORKTREE_BASES[claim_id] = _git(worktree, ["rev-parse", "HEAD"])
     return worktree
 
 
@@ -2806,7 +2810,12 @@ def _remote_ref_sha(root: Path, ref: str) -> str | None:
 
 
 def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
-    """Reject adapter edits to Kanbus project state outside canonical mutations."""
+    """Reject adapter edits to Kanbus project state outside canonical mutations.
+
+    Both uncommitted and committed edits count: an agent that runs ``kbs
+    commit`` inside the worktree must not smuggle board changes past the guard.
+    The project's ``.cache`` directory is derived data and is exempt.
+    """
     worktree = _WORKTREE_PATHS.get(claim_id)
     if worktree is None or not worktree.exists():
         return
@@ -2814,6 +2823,7 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
     project_path = PurePosixPath(normalized_directory)
     if project_path.is_absolute() or ".." in project_path.parts:
         raise IssueRouterError("router project directory must be repository-relative")
+    changed: list[bytes] = []
     try:
         status = subprocess.run(
             [
@@ -2828,14 +2838,25 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
             check=True,
             capture_output=True,
         ).stdout
+        changed.extend(record[3:] for record in status.split(b"\0") if len(record) >= 4)
+        base = _WORKTREE_BASES.get(claim_id)
+        if base is not None:
+            committed = subprocess.run(
+                ["git", "diff", "--name-only", "-z", "--no-renames", base, "HEAD"],
+                cwd=worktree,
+                check=True,
+                capture_output=True,
+            ).stdout
+            changed.extend(path for path in committed.split(b"\0") if path)
     except (OSError, subprocess.CalledProcessError) as error:
         raise IssueRouterError(
             "router could not inspect isolated worktree changes"
         ) from error
-    for record in status.split(b"\0"):
-        if len(record) < 4:
+    cache_path = project_path / ".cache"
+    for raw_path in changed:
+        changed_path = PurePosixPath(os.fsdecode(raw_path))
+        if changed_path == cache_path or cache_path in changed_path.parents:
             continue
-        changed_path = PurePosixPath(os.fsdecode(record[3:]))
         if changed_path == project_path or project_path in changed_path.parents:
             raise IssueRouterError(
                 "router adapter may not modify Kanbus project state directly"

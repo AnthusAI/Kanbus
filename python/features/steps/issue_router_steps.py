@@ -663,9 +663,72 @@ def given_codex_result_outcome(context: object, outcome: str) -> None:
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
 
 
+def _wrap_adapter_worktree_effect(context: object, effect) -> None:
+    """Run ``effect(worktree)`` inside the fake adapter's turn, like a real agent."""
+    adapter = context.router_adapter
+    # A real agent turn leaves a session and raw output behind; that evidence is
+    # what the router preserves for review.
+    adapter.session_id = "session-fixture"
+    adapter.last_output = '{"type":"thread.started","thread_id":"session-fixture"}'
+    adapter.last_error = ""
+    original = adapter.execute
+
+    def execute(request):
+        effect(Path(request.worktree_path))
+        return original(request)
+
+    adapter.execute = execute
+
+
+def _git_in(worktree: Path, *arguments: str) -> None:
+    subprocess.run(["git", *arguments], cwd=worktree, check=True, capture_output=True)
+
+
 @given("a fake forge is available for the router")
 def given_fake_forge_available(context: object) -> None:
     """The Python fixtures never contact a real forge; nothing to start."""
+
+
+@given("the Codex adapter {mode} Kanbus project state in its worktree")
+def given_codex_adapter_edits_project_state(context: object, mode: str) -> None:
+    assert mode in {"edits", "edits and commits"}, mode
+    project_directory = load_project_configuration(
+        get_configuration_path(_root(context))
+    ).project_directory
+
+    def effect(worktree: Path) -> None:
+        target = worktree / project_directory / "issues" / "agent-edit.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('{"edited": true}', encoding="utf-8")
+        if mode == "edits and commits":
+            _git_in(worktree, "add", "-A", "--", project_directory)
+            _git_in(
+                worktree,
+                "-c",
+                "user.name=agent",
+                "-c",
+                "user.email=agent@example.invalid",
+                "commit",
+                "--no-verify",
+                "-qm",
+                "agent board commit",
+            )
+
+    _wrap_adapter_worktree_effect(context, effect)
+
+
+@given("the Codex adapter refreshes the project cache in its worktree")
+def given_codex_adapter_refreshes_cache(context: object) -> None:
+    project_directory = load_project_configuration(
+        get_configuration_path(_root(context))
+    ).project_directory
+
+    def effect(worktree: Path) -> None:
+        cache = worktree / project_directory / ".cache" / "index.json"
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text("{}", encoding="utf-8")
+
+    _wrap_adapter_worktree_effect(context, effect)
 
 
 @given('the Codex adapter returns issue update "{issue_id}" to status "{status}"')
