@@ -5150,6 +5150,27 @@ struct ResumePlan {
     worktree: Option<PathBuf>,
 }
 
+/// How a run relates to a saved session.
+#[derive(Debug, Clone, Copy)]
+enum ResumeMode<'a> {
+    /// A new session with no human reply.
+    Fresh,
+    /// Continue the saved session with the human's reply.
+    Resume(&'a ResumePlan),
+    /// The saved session could not be resumed: start a new one that carries the reply.
+    FreshWithReply(&'a ResumePlan),
+}
+
+impl<'a> ResumeMode<'a> {
+    fn decide(plan: Option<&'a ResumePlan>, resumable: bool) -> Self {
+        match plan {
+            Some(plan) if resumable => Self::Resume(plan),
+            Some(plan) => Self::FreshWithReply(plan),
+            None => Self::Fresh,
+        }
+    }
+}
+
 /// Return the saved session to resume when a human answered a question.
 ///
 /// The latest conversation record must be the agent's question
@@ -5205,20 +5226,17 @@ fn pending_reply_plan(root: &Path, project_dir: &Path, issue_id: &str) -> Option
 }
 
 /// The prompt for a fresh session, or the human's reply for a resumed one.
-///
-/// `resumed` is false when a reply exists but its session could not be resumed:
-/// the reply is then delivered to a fresh session.
-fn agent_prompt(prompt: &str, resume: Option<&ResumePlan>, resumed: bool) -> String {
-    match resume {
-        Some(plan) if resumed => format!(
+fn agent_prompt(prompt: &str, mode: ResumeMode<'_>) -> String {
+    match mode {
+        ResumeMode::Resume(plan) => format!(
             "A human replied to your question:\n\n{}\n\nContinue the work from where you stopped, in this same session. {prompt}",
             plan.reply
         ),
-        Some(plan) => format!(
+        ResumeMode::FreshWithReply(plan) => format!(
             "A human replied to a question from an earlier session that could not be resumed. Start from the issue and any work already on this branch, and take the reply into account:\n\n{}\n\n{prompt}",
             plan.reply
         ),
-        None => prompt.to_string(),
+        ResumeMode::Fresh => prompt.to_string(),
     }
 }
 
@@ -5337,8 +5355,7 @@ fn execute_router_adapter(
         &prompt,
         &worktree,
         data_home.as_ref(),
-        resume.as_ref(),
-        resumed,
+        ResumeMode::decide(resume.as_ref(), resumed),
     );
     command
         .current_dir(&worktree)
@@ -5745,11 +5762,13 @@ impl RouterAdapterKind {
         prompt: &str,
         worktree: &Path,
         data_home: Option<&AdapterDataHome>,
-        resume: Option<&ResumePlan>,
-        resumed: bool,
+        mode: ResumeMode<'_>,
     ) {
-        let prompt = agent_prompt(prompt, resume, resumed);
-        let resume = resume.filter(|_| resumed);
+        let prompt = agent_prompt(prompt, mode);
+        let resume = match mode {
+            ResumeMode::Resume(plan) => Some(plan),
+            _ => None,
+        };
         match self {
             Self::Codex => {
                 command.arg("exec");
@@ -10179,8 +10198,7 @@ mod tests {
             "contract",
             Path::new("/work"),
             None,
-            Some(&plan),
-            true,
+            ResumeMode::Resume(&plan),
         );
         let args = arguments(&command);
         assert_eq!(
@@ -10204,8 +10222,7 @@ mod tests {
             "contract",
             Path::new("/work"),
             None,
-            None,
-            false,
+            ResumeMode::Fresh,
         );
         assert_eq!(
             arguments(&command),
@@ -10223,8 +10240,7 @@ mod tests {
             "contract",
             Path::new("/work"),
             None,
-            Some(&plan),
-            true,
+            ResumeMode::Resume(&plan),
         );
         let args = arguments(&command);
         let session = args
@@ -10261,12 +10277,12 @@ mod tests {
     #[test]
     fn a_reply_without_a_resumable_session_reaches_a_fresh_session() {
         let plan = resume_plan();
-        let resumed = agent_prompt("contract", Some(&plan), true);
+        let resumed = agent_prompt("contract", ResumeMode::Resume(&plan));
         assert!(resumed.contains("in this same session"));
-        let fresh = agent_prompt("contract", Some(&plan), false);
+        let fresh = agent_prompt("contract", ResumeMode::FreshWithReply(&plan));
         assert!(fresh.contains("could not be resumed"));
         assert!(fresh.contains("Use option B."));
-        assert_eq!(agent_prompt("contract", None, false), "contract");
+        assert_eq!(agent_prompt("contract", ResumeMode::Fresh), "contract");
         // A fresh-with-reply run never passes --session.
         let mut command = Command::new("opencode");
         RouterAdapterKind::OpenCode.configure(
@@ -10275,8 +10291,7 @@ mod tests {
             "contract",
             Path::new("/work"),
             None,
-            Some(&plan),
-            false,
+            ResumeMode::FreshWithReply(&plan),
         );
         assert!(!arguments(&command).contains(&"--session".to_string()));
     }
