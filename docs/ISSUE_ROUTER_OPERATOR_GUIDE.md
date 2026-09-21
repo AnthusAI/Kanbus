@@ -1,6 +1,6 @@
 # Issue Router operator guide
 
-This guide covers the first Codex-based Issue Router. Router configuration is optional. A project without `router:` can use every existing Kanbus command; router commands report that the router is not configured.
+This guide covers the Issue Router, which dispatches to Codex or OpenCode. Router configuration is optional. A project without `router:` can use every existing Kanbus command; router commands report that the router is not configured.
 
 ## Configure a project
 
@@ -40,7 +40,7 @@ router:
     max_attempts: 3
 ```
 
-The router requires the workflow and limits blocks, one or more Codex provider profiles, and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
+The router requires the workflow and limits blocks, one or more provider profiles (`adapter: codex` or `adapter: opencode`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
 
 The router publishes its event history and router-owned issue status records to the dedicated `refs/heads/kanbus/router-state` branch using an isolated hidden Git worktree. Without an `origin` remote, router state remains local to the repository. If a configured `origin` is unreachable, publication fails.
 
@@ -72,7 +72,7 @@ Run one synchronous scheduling pass:
 kanbus router run --once
 ```
 
-It processes at most the first eligible package, waits for the Codex adapter result, validates it, records accepted checkpoint and artifact references in router history, publishes router-owned status, and opens or updates a pull request when complete. The summary reports started, completed, review, failed, and deferred counts.
+It processes at most the first eligible package, waits for the agent adapter's result, validates it, records accepted checkpoint and artifact references in router history, publishes router-owned status, and opens or updates a pull request when complete. The summary reports started, completed, review, failed, and deferred counts.
 
 For ongoing operation, start watch mode:
 
