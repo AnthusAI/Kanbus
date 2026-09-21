@@ -319,8 +319,6 @@ def run_router_once(
         try:
             result = _run_adapter(context, candidate, claim_id, revision)
         except IssueRouterError as error:
-            if str(error).startswith("invalid Codex router outcome"):
-                raise
             if scheduler_claim_handles is not None and any(
                 _RENEWAL_ERRORS.get(handle.claim_id)
                 for handle in scheduler_claim_handles
@@ -337,21 +335,14 @@ def run_router_once(
             conversation = latest_conversation(context.project_dir, candidate.issue_id)
             lifecycle = (conversation or {}).get("payload", {}).get("lifecycle")
             if lifecycle == "review":
-                add_issue_comment(
-                    getattr(context, "source_root", None) or context.root,
-                    candidate.issue_id,
-                    "Kanbus Issue Router",
-                    "Agent work was preserved but its automatic result could not be validated. "
-                    f"Review the attached agent conversation and branch. Router detail: {error}",
+                # The adapter records review-lifecycle evidence before it
+                # validates Codex's final payload.  Use the same recovery path
+                # as a later publication failure so this normal completed
+                # workflow receives a canonical router_result, diagnostic, and
+                # Review transition rather than releasing the claim silently.
+                _preserve_completed_turn_after_publication_failure(
+                    context, candidate, claim_id, revision, error
                 )
-                _transition_package(
-                    context,
-                    candidate.issue_id,
-                    context.router.workflow.review,
-                    claim_id=claim_id,
-                    revision=revision,
-                )
-                publish_router_state(context.root, set(candidate.package_issue_ids))
                 return RouterRunResult(started=1, review=1, failed=1, error=str(error))
             try:
                 add_issue_comment(
@@ -954,7 +945,7 @@ def _run_adapter(
         # turn for human review instead of treating it like a launcher error.
         has_preserved_turn = (
             (isinstance(session_id, str) and bool(session_id))
-            or str(error) == "Codex router adapter returned invalid JSON"
+            or str(error).endswith("router adapter returned invalid JSON")
             or bool(raw_output or raw_error)
         )
         if has_preserved_turn:
@@ -1409,8 +1400,9 @@ def _preserve_completed_turn_after_publication_failure(
 ) -> None:
     """Publish review evidence when a completed turn fails after execution.
 
-    Validation and publication happen after the adapter has returned.  They
-    must not turn a completed agent turn into an invisible scheduler failure.
+    Result validation and publication happen after the adapter has returned.
+    They must not turn a completed agent turn into an invisible scheduler
+    failure.
     """
     conversation = latest_conversation(context.project_dir, candidate.issue_id)
     payload = (conversation or {}).get("payload", {})
@@ -1422,7 +1414,8 @@ def _preserve_completed_turn_after_publication_failure(
     )
     diagnostic = (
         "## Agent turn preserved for review\n\n"
-        "The agent completed work, but automatic publication failed.\n\n"
+        "The agent completed work, but the router could not accept or publish "
+        "its result automatically.\n\n"
         f"- Branch: `{branch}`\n"
         f"- Session: `{session}`\n"
         f"- Worktree: `{worktree}`\n"
@@ -1458,7 +1451,7 @@ def _preserve_completed_turn_after_publication_failure(
     record_router_event(
         context.project_dir,
         package_id=candidate.issue_id,
-        event_type="router_result",
+        event_type="router_completed",
         payload={
             "outcome": "completed",
             "summary": "Completed agent turn preserved for review after publication failure",

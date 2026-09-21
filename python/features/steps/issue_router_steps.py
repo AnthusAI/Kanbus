@@ -651,9 +651,20 @@ def given_codex_result_outcome(context: object, outcome: str) -> None:
     adapter = FakeRouterAdapter(
         RouterAgentResult(schema_version=1, outcome=outcome, summary="")
     )
+    # A real adapter always leaves its raw output behind; that output is what
+    # proves an agent turn happened and must be preserved for review.
+    adapter.last_output = json.dumps(
+        {"schema_version": 1, "outcome": outcome, "summary": ""}
+    )
+    adapter.last_error = ""
     set_router_adapter("codex-default", adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
+
+
+@given("a fake forge is available for the router")
+def given_fake_forge_available(context: object) -> None:
+    """The Python fixtures never contact a real forge; nothing to start."""
 
 
 @given('the Codex adapter returns issue update "{issue_id}" to status "{status}"')
@@ -711,6 +722,25 @@ def then_package_status(context: object, issue_id: str, status: str) -> None:
     assert (
         actual == status
     ), f"expected {issue_id} status {status}, got {actual}; {context.result!r}"
+
+
+@then('package "{issue_id}" should have a "{author}" comment containing "{text}"')
+def then_package_comment(
+    context: object, issue_id: str, author: str, text: str
+) -> None:
+    project_dir = (
+        _root(context)
+        / load_project_configuration(
+            get_configuration_path(_root(context))
+        ).project_directory
+    )
+    comments = read_issue_file(project_dir, issue_id).comments
+    assert any(
+        comment.author == author and text in (comment.text or "")
+        for comment in comments
+    ), f"no {author} comment containing {text!r} on {issue_id}: " + repr(
+        [(comment.author, comment.text) for comment in comments]
+    )
 
 
 @then('package "{issue_id}" should remain assigned to "{assignee}"')

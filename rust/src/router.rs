@@ -2959,6 +2959,35 @@ fn apply_router_issue_comments(
 
 /// Preserve visible evidence when a completed agent turn fails during later
 /// checkpoint, branch, forge, or result publication.
+/// Comment and block a package whose agent never produced a durable turn (for
+/// example the agent binary could not start), so the failure is never silent.
+fn block_after_launch_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    error: &KanbusError,
+) -> Result<(), KanbusError> {
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    crate::issue_comment::add_comment_without_right_now(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &format!("The router could not start an agent session: {error}"),
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    if let Some(router) = configuration.router.as_ref() {
+        apply_shared_issue_status(
+            root,
+            configuration,
+            &claim.issue_id,
+            &router.workflow.blocked,
+        )?;
+    }
+    Ok(())
+}
+
 fn preserve_completed_turn_after_publication_failure(
     root: &Path,
     project_dir: &Path,
@@ -2990,7 +3019,7 @@ fn preserve_completed_turn_after_publication_failure(
     let session_id = payload_text(&conversation, "session_id").unwrap_or("unknown");
     let worktree = payload_text(&conversation, "worktree").unwrap_or("unknown");
     let diagnostic = format!(
-        "## Agent turn preserved for review\n\nThe agent completed work, but automatic publication failed. \n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
+        "## Agent turn preserved for review\n\nThe agent completed work, but the router could not accept or publish its result automatically.\n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
     );
     crate::issue_comment::add_comment_without_right_now(
         root,
@@ -3670,6 +3699,32 @@ fn run_issue_router_once(
     let result = match run_result {
         Ok(result) => result,
         Err(error) => {
+            // `execute_router_adapter` writes a review-lifecycle conversation
+            // before it parses the final Codex payload. A normal `kbs commit`
+            // can therefore leave durable work even when the final envelope is
+            // rejected. Preserve that turn as a publication failure; otherwise
+            // cleanup releases a valid session with no result event or Review
+            // transition.
+            let recovery = if has_preserved_review_conversation(
+                &load_router_events(project_dir).unwrap_or_default(),
+                &package.issue_id,
+            ) {
+                preserve_completed_turn_after_publication_failure(
+                    root,
+                    project_dir,
+                    &configuration,
+                    &claim,
+                    &error,
+                )
+            } else {
+                block_after_launch_failure(root, project_dir, &configuration, &claim, &error)
+            };
+            let error = match recovery {
+                Ok(()) => error,
+                Err(recovery_error) => KanbusError::IssueOperation(format!(
+                    "{error}; completed-turn preservation also failed: {recovery_error}"
+                )),
+            };
             let renewer_stop = lease_renewer
                 .as_mut()
                 .map_or(Ok(()), RouterLeaseRenewalGuard::stop);
@@ -3946,13 +4001,18 @@ fn run_issue_router_once(
             // The adapter records its completed conversation before this
             // publication phase. Do not let a later publication failure turn
             // that completed work into an invisible active card.
-            let _ = preserve_completed_turn_after_publication_failure(
+            let error = match preserve_completed_turn_after_publication_failure(
                 root,
                 project_dir,
                 &configuration,
                 &claim,
                 &error,
-            );
+            ) {
+                Ok(()) => error,
+                Err(recovery_error) => KanbusError::IssueOperation(format!(
+                    "{error}; completed-turn preservation also failed: {recovery_error}"
+                )),
+            };
             if let Some(renewer) = lease_renewer.as_mut() {
                 let renew_result = renewer.stop();
                 if let Err(renew_error) = renew_result {
@@ -7603,6 +7663,174 @@ mod tests {
         assert_eq!(
             git_success(root, &["status", "--porcelain"]),
             "A  new_agent_test.rs\nM  tracked.rs"
+        );
+    }
+
+    #[test]
+    fn run_once_preserves_review_turn_when_adapter_result_validation_fails() {
+        let (_temp, root, _remote, _base_sha) = git_remote_fixture();
+        crate::file_io::initialize_project(&root, false).expect("initialize project");
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.project_directory = "project".to_string();
+        configuration.router = Some(IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "default".to_string(),
+                IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: Some("/bin/sh".to_string()),
+                    args: vec![
+                        "-c".to_string(),
+                        "printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"session-validation-failure\"}' '{\"schema_version\":1,\"outcome\":\"not-a-router-outcome\"}'"
+                            .to_string(),
+                    ],
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: Some(crate::models::IssueRouterForgeConfiguration {
+                provider: "github".to_string(),
+                repository: "example/repo".to_string(),
+                base_branch: "main".to_string(),
+                api_url: "https://api.github.com".to_string(),
+                token_env: "PATH".to_string(),
+            }),
+        });
+        configuration
+            .statuses
+            .push(crate::models::StatusDefinition {
+                key: "review".to_string(),
+                name: "Review".to_string(),
+                category: "In progress".to_string(),
+                semantic_category: "in_progress".to_string(),
+                color: None,
+                collapsed: false,
+            });
+        configuration
+            .workflows
+            .get_mut("default")
+            .expect("default workflow")
+            .insert(
+                "in_progress".to_string(),
+                vec![
+                    "open".to_string(),
+                    "blocked".to_string(),
+                    "review".to_string(),
+                    "closed".to_string(),
+                ],
+            );
+        configuration
+            .transition_labels
+            .get_mut("default")
+            .expect("default transition labels")
+            .get_mut("in_progress")
+            .expect("in-progress transition labels")
+            .insert("review".to_string(), "Request review".to_string());
+        fs::write(
+            get_configuration_path(&root).expect("configuration path"),
+            serde_yaml::to_string(&configuration).expect("serialize configuration"),
+        )
+        .expect("write router configuration");
+        let project_dir = load_project_directory(&root).expect("project directory");
+        let issue_id = "kbs-955";
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: issue_id.to_string(),
+            title: "Preserve validation failure".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["agent-provider:default".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+        fs::write(
+            project_dir.join("issues").join(format!("{issue_id}.json")),
+            serde_json::to_vec_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write routed issue");
+        git_success(&root, &["add", "-A"]);
+        git_success(&root, &["commit", "-m", "router adapter error fixture"]);
+        git_success(&root, &["push", "origin", "main"]);
+
+        let router = configuration.router.clone().expect("router configuration");
+        let canonical_root = repository_root(&root).expect("canonical repository root");
+        let project_dir =
+            load_project_directory(&canonical_root).expect("canonical project directory");
+        let error = run_issue_router_once(&canonical_root, &router, &project_dir)
+            .expect_err("invalid adapter outcome must reach the recovery branch");
+        assert!(
+            error
+                .to_string()
+                .contains("invalid Codex router outcome \"not-a-router-outcome\""),
+            "{error}"
+        );
+        assert!(
+            !error.to_string().contains("preservation also failed"),
+            "{error}"
+        );
+
+        let events = load_router_events(&project_dir).expect("load router events");
+        assert!(events.iter().any(|event| {
+            event.issue_id == format!("router:{issue_id}")
+                && matches!(&event.event_type, EventType::RouterConversation)
+                && payload_text(event, "lifecycle") == Some("review")
+        }));
+        assert!(
+            events.iter().any(|event| {
+                event.issue_id == format!("router:{issue_id}")
+                    && matches!(&event.event_type, EventType::RouterResult)
+                    && event
+                        .payload
+                        .get("publication_failed")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            }),
+            "{events:#?}"
+        );
+
+        let mut issues = load_project_issues(&project_dir).expect("load issues");
+        apply_router_status_overlay(
+            &mut issues,
+            &events,
+            &router,
+            &issue_event_history(&project_dir).expect("load issue events"),
+        );
+        assert_eq!(
+            issues
+                .iter()
+                .find(|issue| issue.identifier == issue_id)
+                .expect("routed issue")
+                .status,
+            "review"
         );
     }
 
