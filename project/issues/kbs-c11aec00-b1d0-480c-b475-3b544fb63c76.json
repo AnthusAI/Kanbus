@@ -1,0 +1,40 @@
+{
+  "id": "kbs-c11aec00-b1d0-480c-b475-3b544fb63c76",
+  "title": "Preserve valid Codex completion when optional artifacts are malformed",
+  "description": "## Real reproduction\n\nThe smart Codex turn for kbs-5f70d4 returned a valid completed result, summary, review update, and issue comment. Its optional artifacts used path and description plus verification fields rather than the strict name/ref schema. Rust rejected the whole result with Codex router adapter returned invalid result after the agent had completed.\n\n## Required behavior\n\nRaw agent output must be persisted first. Validation errors after a saved session must be sent back to the same session with the exact reason, or the router must safely normalize non-authoritative artifact metadata while retaining the valid outcome. A malformed optional artifact must never discard a valid completed turn.\n\n## Acceptance criteria\n\n- Python and Rust have matching result-validation behavior.\n- The exact kbs-5f70d4 output shape either triggers a same-session corrective turn or lands in Review with preserved summary, comment, branch, PR, session, and raw log.\n- No malformed optional artifact can cause an invisible Open issue or auto-close.\n- Tests cover JSONL AgentMessage final-answer envelopes and strict/normalized artifact behavior.\n- After repair, run a real single-worker dispatch through the complete Review handoff.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [
+    "agent-class:smart"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bbcd5a95-d18c-46f7-ae7b-9bc29b35b38d",
+      "author": "home",
+      "text": "Live router result preserved: Codex completed the malformed-optional-artifact recovery patch in draft PR #312. Summary: normalized optional artifact metadata consistently in Python and Rust while retaining strict validation for authoritative fields; added JSONL AgentMessage and malformed-artifact coverage. Focused Python router-adapter tests, focused Rust unit test, and the cross-runtime integration harness passed. Moving to Review for code review; the router-to-canonical-board state sync gap is being tracked separately.",
+      "created_at": "2026-09-19T13:49:07.855072Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "f746229b-7c4e-4484-b685-e6d77e608b6f",
+      "author": "home",
+      "text": "Accepted and merged in PR #312. The live Codex run preserved its branch, transcript, checkpoint, and draft PR, and the optional-artifact recovery now has Python/Rust coverage. The separate canonical-board lifecycle synchronization gap is tracked by KBS-4f52ca.",
+      "created_at": "2026-09-19T13:57:51.050007Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-19T12:26:14.652952Z",
+  "updated_at": "2026-09-19T13:57:52.594783Z",
+  "closed_at": "2026-09-19T13:57:52.137221Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

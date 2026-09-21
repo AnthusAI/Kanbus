@@ -790,14 +790,10 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         }
     });
 
-    let mut use_uds = cfg!(unix)
-        && (transport == "uds"
-            || (transport == "auto" && uds_socket_path(Some(realtime)).exists()));
-    if cfg!(unix)
-        && options.autostart_local_uds
-        && !use_uds
-        && (transport == "uds" || transport == "auto")
-    {
+    let socket_path = uds_socket_path(Some(realtime));
+    let mut use_uds =
+        cfg!(unix) && (transport == "uds" || (transport == "auto" && socket_path.exists()));
+    if cfg!(unix) && options.autostart_local_uds && (transport == "uds" || transport == "auto") {
         ensure_local_uds_broker(realtime)?;
         use_uds = true;
     }
@@ -946,7 +942,13 @@ fn run_mqtt_subscription_resilient(
 fn ensure_local_uds_broker(realtime: &RealtimeConfig) -> Result<(), KanbusError> {
     let socket_path = uds_socket_path(Some(realtime));
     if socket_path.exists() {
-        return Ok(());
+        match UnixStream::connect(&socket_path) {
+            Ok(_) => return Ok(()),
+            Err(_) => {
+                fs::remove_file(&socket_path)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            }
+        }
     }
 
     let broker_socket = socket_path.clone();
@@ -1714,7 +1716,7 @@ mod tests {
     use crate::models::VirtualProjectConfig;
     use once_cell::sync::Lazy;
     #[cfg(unix)]
-    use std::os::unix::net::UnixStream;
+    use std::os::unix::net::{UnixListener, UnixStream};
     use std::path::PathBuf;
     use std::sync::{mpsc, Mutex};
     use tempfile::TempDir;
@@ -2687,6 +2689,28 @@ mod tests {
         let realtime = sample_realtime(Some("/tmp/custom.sock".to_string()));
         let custom = uds_socket_path(Some(&realtime));
         assert_eq!(custom, PathBuf::from("/tmp/custom.sock"));
+    }
+
+    #[test]
+    fn local_uds_broker_preserves_a_live_socket() {
+        let temp = TempDir::new().expect("temp dir");
+        let socket_path = temp.path().join("bus.sock");
+        let _listener = UnixListener::bind(&socket_path).expect("bind live broker");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+
+        ensure_local_uds_broker(&realtime).expect("preserve live broker");
+        assert!(socket_path.exists());
+    }
+
+    #[test]
+    fn local_uds_broker_recovers_a_stale_socket() {
+        let temp = TempDir::new().expect("temp dir");
+        let socket_path = temp.path().join("bus.sock");
+        std::fs::write(&socket_path, b"stale").expect("write stale socket");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+
+        ensure_local_uds_broker(&realtime).expect("recover stale broker");
+        assert!(UnixStream::connect(&socket_path).is_ok());
     }
 
     #[test]

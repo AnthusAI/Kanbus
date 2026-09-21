@@ -305,10 +305,12 @@ export function subscribeToSnapshots(
   onError: (error: Event) => void
 ): () => void {
   const source = new EventSource(withAuthQuery(`${apiBase}/events`));
-  let lastMessageAt: number | null = null;
+  let lastMessageAt = Date.now();
+  let errorReported = false;
 
   source.onopen = () => {
-    lastMessageAt = null;
+    lastMessageAt = Date.now();
+    errorReported = false;
   };
 
   source.onmessage = (event) => {
@@ -322,6 +324,7 @@ export function subscribeToSnapshots(
       }
       if (snapshot.config && snapshot.issues) {
         lastMessageAt = Date.now();
+        errorReported = false;
         onSnapshot(snapshot as IssuesSnapshot);
         return;
       }
@@ -335,12 +338,24 @@ export function subscribeToSnapshots(
     const now = Date.now();
     console.warn("[sse] error", {
       errorAt: new Date(now).toISOString(),
-      sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
+      sinceLastMessageMs: now - lastMessageAt
     });
-    onError(event);
+    if (!errorReported) {
+      errorReported = true;
+      onError(event);
+    }
   };
 
+  const silenceTimer = window.setInterval(() => {
+    if (Date.now() - lastMessageAt < 15_000 || errorReported) {
+      return;
+    }
+    errorReported = true;
+    onError(new Event("sse-silent"));
+  }, 5_000);
+
   return () => {
+    window.clearInterval(silenceTimer);
     source.close();
   };
 }

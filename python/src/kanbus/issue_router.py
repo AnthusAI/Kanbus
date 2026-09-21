@@ -159,9 +159,16 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
             enabled=False, paused=context.control.paused, eligible=[], deferred=[]
         )
 
-    issues_by_id = {issue.identifier: issue for issue in context.issues}
-    events = _read_events(context.project_dir / "events")
-    candidates = _collect_candidates(context, issues_by_id, events)
+    # The shared-state worktree gives the scheduler a clean, reconciled board,
+    # while the source checkout can contain a just-written immutable event that
+    # has not reached the shared branch yet. Plan from their union, as the Rust
+    # runtime does, so a worker never overlooks its own durable state.
+    events = _planning_events(context)
+    issues = [issue.model_copy(deep=True) for issue in context.issues]
+    _apply_router_status_overlay(issues, events, context.router)
+    planning_context = replace(context, issues=issues)
+    issues_by_id = {issue.identifier: issue for issue in issues}
+    candidates = _collect_candidates(planning_context, issues_by_id, events)
     candidates.sort(
         key=lambda candidate: (
             candidate.scheduling_rank,
@@ -170,37 +177,34 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
             candidate.issue.identifier,
         )
     )
-    current_wip = sum(
-        issue.status
-        in {
-            context.router.workflow.active,
-            context.router.workflow.review,
-            context.router.workflow.blocked,
-        }
-        for issue in context.issues
-    )
-    current_review = sum(
-        issue.status == context.router.workflow.review for issue in context.issues
-    )
     active_counts, class_counts, provider_counts = _current_route_counts(
-        context, issues_by_id, events
+        planning_context, issues_by_id, events
+    )
+    # Human-managed board work must not consume the router's worker capacity.
+    current_wip = sum(active_counts.values())
+    current_review = sum(
+        issue.status == planning_context.router.workflow.review
+        and _route_error(planning_context.router, issue) is None
+        and _has_preserved_review_conversation(events, issue.identifier)
+        for issue in issues
     )
     eligible: list[RouterPlanEligiblePackage] = []
     deferred: list[RouterPlanDeferredPackage] = []
     for candidate in candidates:
         if (
             candidate.route_kind == "class"
-            and candidate.route_name in context.router.classes
+            and candidate.route_name in planning_context.router.classes
         ):
             candidate = replace(
                 candidate,
                 provider_profile=next(
                     (
                         profile
-                        for profile in context.router.classes[
+                        for profile in planning_context.router.classes[
                             candidate.route_name
                         ].providers
-                        if context.router.limits.provider_wip.get(profile) is None
+                        if planning_context.router.limits.provider_wip.get(profile)
+                        is None
                         or provider_counts[profile]
                         < context.router.limits.provider_wip[profile]
                     ),
@@ -208,7 +212,7 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
                 ),
             )
         reason = _defer_reason(
-            context,
+            planning_context,
             candidate,
             issues_by_id,
             events,
@@ -245,6 +249,158 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
         eligible=eligible,
         deferred=deferred,
     )
+
+
+def _planning_events(context: RouterContext) -> list[dict[str, Any]]:
+    """Return the de-duplicated local and shared immutable event history."""
+    events = _read_events(context.project_dir / "events")
+    source_root = context.source_root
+    if source_root is not None and source_root.resolve() != context.root.resolve():
+        source_events = _read_events(
+            source_root / context.configuration.project_directory / "events"
+        )
+        known_ids = {str(event.get("event_id", "")) for event in events}
+        events.extend(
+            event
+            for event in source_events
+            if str(event.get("event_id", "")) not in known_ids
+        )
+    return sorted(
+        events,
+        key=lambda event: (
+            str(event.get("occurred_at", "")),
+            str(event.get("event_id", "")),
+        ),
+    )
+
+
+def _apply_router_status_overlay(
+    issues: list[IssueData],
+    events: list[dict[str, Any]],
+    router: IssueRouterConfiguration,
+) -> None:
+    """Project the newest durable router lifecycle onto non-terminal issues."""
+    lifecycle_types = {
+        "router_claimed",
+        "router_completed",
+        "router_blocked",
+        "router_forge_event",
+        "router_pull_request_opened",
+        "router_pull_request_approved",
+        "router_pull_request_closed",
+        "router_check_run_event",
+        "router.conversation",
+        "router_conversation",
+    }
+    approvals = {
+        str(event.get("issue_id", "")).removeprefix("router:"): str(
+            event.get("payload", {}).get("head_sha", "")
+        )
+        for event in events
+        if event.get("event_type") == "router_pull_request_approved"
+        and event.get("payload", {}).get("head_sha")
+    }
+    for issue in issues:
+        if issue.status in router.workflow.terminal:
+            continue
+        routed = [
+            event
+            for event in events
+            if event.get("issue_id") == f"router:{issue.identifier}"
+            and event.get("event_type") in lifecycle_types
+        ]
+        if not routed:
+            continue
+        event = max(
+            routed,
+            key=lambda candidate: (
+                str(candidate.get("occurred_at", "")),
+                str(candidate.get("event_id", "")),
+            ),
+        )
+        # The card itself is canonical.  A durable router event can survive
+        # after a human (or the router) has already written the card, so an
+        # older projection must not resurrect stale work for scheduling.
+        try:
+            event_time = parse_timestamp(str(event.get("occurred_at", "")))
+        except (TypeError, ValueError):
+            event_time = None
+        if event_time is not None and issue.updated_at > event_time:
+            continue
+        board_transition = max(
+            (
+                candidate
+                for candidate in events
+                if candidate.get("issue_id") == issue.identifier
+                and candidate.get("event_type") == "state_transition"
+            ),
+            key=lambda candidate: (
+                str(candidate.get("occurred_at", "")),
+                str(candidate.get("event_id", "")),
+            ),
+            default=None,
+        )
+        if board_transition is not None and (
+            str(board_transition.get("occurred_at", "")),
+            str(board_transition.get("event_id", "")),
+        ) >= (
+            str(event.get("occurred_at", "")),
+            str(event.get("event_id", "")),
+        ):
+            continue
+        payload = event.get("payload", {})
+        event_type = event.get("event_type")
+        status: str | None = None
+        if event_type == "router_claimed":
+            status = router.workflow.active
+        elif event_type == "router_completed":
+            status = router.workflow.review
+        elif event_type == "router_blocked":
+            status = router.workflow.blocked
+        elif event_type in {"router.conversation", "router_conversation"}:
+            status = {
+                "in_progress": router.workflow.active,
+                "blocked": router.workflow.blocked,
+                "review": router.workflow.review,
+            }.get(payload.get("lifecycle"))
+        elif event_type == "router_forge_event" and payload.get("action") in {
+            "requested_changes",
+            "check_run_failure",
+            "checks_failed",
+        }:
+            status = router.workflow.active
+        elif event_type == "router_check_run_event" and payload.get("action") in {
+            "check_run_failure",
+            "checks_failed",
+        }:
+            status = router.workflow.active
+        elif event_type in {
+            "router_pull_request_opened",
+            "router_pull_request_approved",
+            "router_check_run_event",
+        }:
+            status = router.workflow.review
+        elif event_type == "router_pull_request_closed":
+            if not payload.get("merged"):
+                status = router.workflow.blocked
+            elif payload.get("approved") or approvals.get(issue.identifier) == str(
+                payload.get("head_sha", "")
+            ):
+                status = (
+                    router.workflow.terminal[0] if router.workflow.terminal else None
+                )
+            else:
+                status = router.workflow.review
+        if status is not None:
+            issue.status = status
+            # The board orders cards by the issue's effective `updated_at`.
+            # A router lifecycle transition is an issue update, even though it
+            # is recorded in the durable router event stream rather than by
+            # rewriting the source checkout's issue file. Preserve that event
+            # time in the projection so an issue moved to In Progress, Review,
+            # or Blocked appears at the top of its new column.
+            if event_time is not None:
+                issue.updated_at = event_time
 
 
 def format_router_plan_text(plan: RouterPlan) -> str:
@@ -446,7 +602,11 @@ def _collect_candidates(
     current_time = datetime.now(UTC)
     candidates: list[_Candidate] = []
     for issue in context.issues:
-        if issue.parent and not _has_route_label(issue):
+        # A child belongs to the nearest routed ancestor's package.  An
+        # un-routed parent, however, must not make its children disappear
+        # from planning: they remain independently diagnosable (and receive
+        # the same invalid-route outcome as the Rust runtime).
+        if not _has_route_label(issue) and _has_routed_ancestor(issue, issues_by_id):
             continue
         if _has_live_package_claim(context, issue.identifier, events):
             continue
@@ -677,6 +837,21 @@ def _has_route_label(issue: IssueData) -> bool:
     )
 
 
+def _has_routed_ancestor(issue: IssueData, issues_by_id: dict[str, IssueData]) -> bool:
+    """Return whether an ancestor owns this issue as a routed package member."""
+    seen: set[str] = set()
+    parent_id = issue.parent
+    while parent_id and parent_id not in seen:
+        seen.add(parent_id)
+        parent = issues_by_id.get(parent_id)
+        if parent is None:
+            return False
+        if _has_route_label(parent):
+            return True
+        parent_id = parent.parent
+    return False
+
+
 def _pending_since(events_dir: Path, issue: IssueData, pending_status: str) -> datetime:
     transitions: list[tuple[datetime, str]] = []
     if events_dir.is_dir():
@@ -857,6 +1032,19 @@ def _latest_router_event(
     )
 
 
+def _has_preserved_review_conversation(
+    events: list[dict[str, Any]], issue_id: str
+) -> bool:
+    """Return whether a review slot has visible, durable agent evidence."""
+    conversation = _latest_router_event(events, issue_id, "router_conversation")
+    if conversation is None:
+        conversation = _latest_router_event(events, issue_id, "router.conversation")
+    return (
+        conversation is not None
+        and conversation.get("payload", {}).get("lifecycle") == "review"
+    )
+
+
 def _read_events(events_dir: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     if not events_dir.is_dir():
@@ -937,6 +1125,11 @@ def _encode_router_event(
         else:
             value["action"] = "observed"
         return "router.attempt", value
+    if event_type == "router_conversation":
+        # Conversation records are append-only evidence.  Do not fold them
+        # into a router result: a malformed result must never erase an agent
+        # turn, question, command summary, or diagnostic.
+        return "router.conversation", value
     if event_type in {"router_completed", "router_blocked", "router_retry_exhausted"}:
         value["outcome"] = (
             "completed" if event_type == "router_completed" else "blocked"

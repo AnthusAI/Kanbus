@@ -19,7 +19,11 @@ from kanbus.issue_router import (
     record_router_event,
     write_router_control,
 )
-from kanbus.router_state import publish_router_state
+from kanbus.router_state import (
+    publish_router_state,
+    resolve_router_root,
+    router_state_root,
+)
 from kanbus.project import ProjectMarkerError, get_configuration_path
 
 
@@ -165,6 +169,29 @@ def router_cancel_command(issue_id: str) -> None:
     click.echo(f"Cancelled router package {issue_id}{suffix}.")
 
 
+@router_group.command("recover")
+@click.argument("issue_id")
+@click.option(
+    "--json", "json_output", is_flag=True, help="Print saved run metadata as JSON."
+)
+def router_recover_command(issue_id: str, json_output: bool) -> None:
+    """Surface an orphaned or paused agent run without losing its evidence."""
+    context = _load_context()
+    from kanbus.router_execution import recover_router_package
+
+    try:
+        recovered = recover_router_package(context, issue_id)
+    except IssueRouterError as error:
+        _fail(str(error), 1)
+    if json_output:
+        click.echo(json.dumps(recovered, sort_keys=True))
+        return
+    click.echo(
+        f"Recovered {recovered['issue_id']}: provider={recovered['provider']} "
+        f"lifecycle={recovered['lifecycle']} branch={recovered['branch'] or 'none'}"
+    )
+
+
 @router_group.command("stop")
 def router_stop_command() -> None:
     """Stop future scheduler starts after the current package finishes."""
@@ -182,14 +209,12 @@ def router_stop_command() -> None:
 
 def _load_context() -> RouterContext:
     try:
-        source_root = Path.cwd()
+        source_root = resolve_router_root(Path.cwd())
         # Validate configuration without listing issues: issue listing writes
         # a local index cache, which must never be merged into router state.
         configuration = load_project_configuration(get_configuration_path(source_root))
         if configuration.router is None:
             raise IssueRouterError("issue router is not configured")
-        from kanbus.router_state import router_state_root
-
         context = load_router_context(router_state_root(source_root))
         return replace(context, source_root=source_root)
     except (ConfigurationError, IssueRouterError, ProjectMarkerError) as error:

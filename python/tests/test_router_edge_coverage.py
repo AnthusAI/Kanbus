@@ -906,6 +906,9 @@ def test_mqtt_import_connect_publish_and_overlay_edge_paths(
         lease_ttl_s=60,
         operation_sequence=3,
     )
+    # Keep write-time pruning aligned with this fixture's clock. The envelope
+    # deliberately has a short TTL so the expiry path remains covered.
+    monkeypatch.setattr(coordination, "utc_now", lambda: event_time)
     monkeypatch.setattr(coordination_mqtt, "provider_available", lambda *_args: False)
     assert not coordination_mqtt.publish_envelope(
         tmp_path, project_dir, config, envelope
@@ -964,6 +967,13 @@ def test_mqtt_import_connect_publish_and_overlay_edge_paths(
     assert len(coordination_mqtt.load_envelopes(project_dir, now=event_time)) == 2
     assert coordination_mqtt.inspect_lease(
         tmp_path / "events", project_dir, "job:mqtt", config, now=event_time
+    ).active
+    assert not coordination_mqtt.inspect_lease(
+        tmp_path / "events",
+        project_dir,
+        "job:mqtt",
+        config,
+        now=event_time + timedelta(seconds=121),
     ).active
 
 

@@ -53,6 +53,12 @@ pub enum EventType {
     /// Issue Router forge observation.
     #[serde(rename = "router.forge")]
     RouterForge,
+    /// Durable issue-attached agent conversation activity.
+    ///
+    /// This intentionally has its own event type: agent output is evidence,
+    /// not an adapter result that may be discarded by a validator.
+    #[serde(rename = "router.conversation")]
+    RouterConversation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,0 +1,36 @@
+{
+  "id": "kbs-c92ec185-0801-4432-96b3-1a562734f52f",
+  "title": "Codex adapter resume and preserved review flow",
+  "description": "Implement Codex session capture, question publication, same-session reply via codex exec resume, validation feedback, and draft-PR/checkpoint preservation for every pause/final turn.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f80617b8-e777-4fe1-bc47-177042271efe",
+      "author": "home",
+      "text": "Validation of the merged transparent-delegation work found that neither runtime implements saved-session reply. The current Codex adapter is one-shot `codex exec --json`: it records a session ID only after the turn exits, while `router resume` only resumes scheduler operation. This story now owns the required lifecycle: detect/persist a question, publish it as an issue comment, move to Blocked, then invoke the same saved session with the human reply and preserve the resulting work for Review.",
+      "created_at": "2026-09-19T10:39:13.047742Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-18T21:53:50.524123Z",
+  "updated_at": "2026-09-19T10:39:13.047772Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "transparent-delegation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

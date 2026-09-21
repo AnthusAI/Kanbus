@@ -836,11 +836,12 @@ fn configure_multi_retryable_adapter(world: &KanbusWorld) {
 }
 
 fn configure_multi_active_adapter(world: &KanbusWorld) {
-    // The invalid defined-outcome fixture intentionally leaves the package
-    // active without scheduling a retry, allowing WIP policy to be observed.
+    // A retryable result leaves the package in its active state during the
+    // retry window, allowing the shared WIP policy to be observed without
+    // relying on an invalid adapter response.
     configure_multi_adapter_result(
         world,
-        r#"{"schema_version":1,"outcome":"done","summary":"fixture active worker","issue_updates":[],"checkpoint":null,"artifacts":[]}"#,
+        r#"{"schema_version":1,"outcome":"retryable_failure","summary":"fixture active worker","issue_updates":[],"checkpoint":null,"artifacts":[]}"#,
     );
 }
 
@@ -2158,7 +2159,7 @@ fn then_provider_default_command(world: &mut KanbusWorld, profile: String, comma
     .router
     .unwrap();
     let provider = router.providers.get(&profile).expect("provider profile");
-    assert_eq!(provider.command, command);
+    assert_eq!(provider.resolved_command(), command);
     assert!(provider.args.is_empty());
 }
 
@@ -2295,8 +2296,33 @@ fn then_provider_command_arguments(
         .providers
         .get(&profile)
         .expect("configured provider profile");
-    assert_eq!(provider.command, command);
+    assert_eq!(provider.resolved_command(), command);
     assert_eq!(provider.args, expected);
+}
+
+#[given(
+    regex = r#"^provider profile "(?P<profile>[^"]+)" has model "(?P<model>[^"]+)" and environment (?P<env>\{.*\})$"#
+)]
+fn given_provider_model_env(world: &mut KanbusWorld, profile: String, model: String, env: String) {
+    let env: serde_yaml::Value = serde_yaml::from_str(&env).expect("environment mapping");
+    set_router_path(
+        world,
+        &["providers", &profile, "model"],
+        Yaml::String(model),
+    );
+    set_router_path(world, &["providers", &profile, "env"], env);
+}
+
+#[then(regex = r#"^provider profile "(?P<profile>[^"]+)" should use model "(?P<model>[^"]+)"$"#)]
+fn then_provider_model(world: &mut KanbusWorld, profile: String, model: String) {
+    let router = kanbus::config_loader::load_project_configuration(
+        &get_configuration_path(root(world)).unwrap(),
+    )
+    .unwrap()
+    .router
+    .unwrap();
+    let provider = router.providers.get(&profile).expect("provider profile");
+    assert_eq!(provider.model.as_deref(), Some(model.as_str()));
 }
 
 #[given(expr = "the maximum retry attempts are {int}")]
@@ -2817,6 +2843,27 @@ fn when_router_receives_approved_event_twice(
     });
     world.stdout = Some(String::new());
     world.stderr = Some(String::new());
+}
+
+#[then(
+    regex = r#"^package "(?P<issue>[^"]+)" should have a "(?P<author>[^"]+)" comment containing "(?P<text>[^"]+)"$"#
+)]
+fn then_router_package_comment(
+    world: &mut KanbusWorld,
+    issue: String,
+    author: String,
+    text: String,
+) {
+    let comments = load_issue(world, &issue).comments;
+    assert!(
+        comments.iter().any(|comment| comment.author == author
+            && comment.text.as_deref().unwrap_or("").contains(&text)),
+        "no {author} comment containing {text:?} on {issue}: {:?}",
+        comments
+            .iter()
+            .map(|comment| (comment.author.clone(), comment.text.clone()))
+            .collect::<Vec<_>>()
+    );
 }
 
 #[then(expr = "package {string} should remain in status {string}")]

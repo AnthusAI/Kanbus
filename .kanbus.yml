@@ -25,15 +25,12 @@ workflows:
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
     Discovery: [open, backlog]
-    done: [open, backlog]
     todo: [open, backlog]
-    deferred: [open, backlog]
   epic:
-    open: [in_progress, closed, done]
-    in_progress: [open, review, closed, done]
-    review: [in_progress, closed, done]
+    open: [in_progress, closed]
+    in_progress: [open, review, closed]
+    review: [in_progress, closed]
     closed: [open]
-    done: [open]
 
 statuses:
   - key: backlog
@@ -69,18 +66,8 @@ statuses:
     category: In progress
     semantic_category: in_progress
     collapsed: true
-  - key: deferred
-    name: Deferred (Legacy)
-    category: To do
-    semantic_category: todo
-    collapsed: true
   - key: closed
     name: Done
-    category: Done
-    semantic_category: done
-    collapsed: true
-  - key: done
-    name: Done (Legacy)
     category: Done
     semantic_category: done
     collapsed: true
@@ -121,32 +108,21 @@ transition_labels:
     Discovery:
       open: Start work
       backlog: Back to backlog
-    done:
-      open: Reopen
-      backlog: Back to backlog
     todo:
       open: Start work
-      backlog: Back to backlog
-    deferred:
-      open: Resume
       backlog: Back to backlog
   epic:
     open:
       in_progress: Start
       closed: Complete
-      done: Complete
     in_progress:
       open: Pause
       review: Ready for review
       closed: Complete
-      done: Complete
     review:
       in_progress: Request changes
       closed: Complete
-      done: Complete
     closed:
-      open: Reopen
-    done:
       open: Reopen
 
 initial_status: open
@@ -192,10 +168,8 @@ ai:
 right_now:
   model: gpt-5.6-luna
 
-# Production coordination endpoints are supplied as process environment
-# variables by the worker host; only the provider policy is stored here.
 coordination:
-  providers: [mutex_api, mqtt, git]
+  providers: [git]
   contention_window: 5s
   default_lease_ttl: 300s
 
