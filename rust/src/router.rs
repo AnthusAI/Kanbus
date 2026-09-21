@@ -5142,6 +5142,8 @@ fn execute_router_adapter(
     external_renewer: Option<&RouterLeaseRenewalGuard>,
 ) -> Result<RouterAgentResult, KanbusError> {
     let worktree = create_router_worktree(root, issue_id, claim, checkpoint.as_ref())?;
+    // Everything the agent commits after this point is judged against this base.
+    let base_commit = router_worktree_head(&worktree)?;
     append_router_event(
         project_dir,
         &format!("router:{issue_id}"),
@@ -5154,7 +5156,7 @@ fn execute_router_adapter(
     )?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
     let prompt = format!(
-        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure.",
+        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure. schema_version must be the JSON number 1, not a string. The router owns issue status and commits board state: do not run kbs commit, kbs update or kbs comment; report comments through issue_comments.",
         package_issue_ids.join(", "),
         claim.claim_id,
         claim.revision,
@@ -5290,6 +5292,7 @@ fn execute_router_adapter(
         thread::sleep(Duration::from_millis(100));
     };
     let result = kind.parse_result(&output)?;
+    validate_router_worktree_changes(&worktree, &base_commit, &configuration.project_directory)?;
     if result.schema_version != 1 {
         return Err(KanbusError::IssueOperation(format!(
             "{adapter_name} router adapter returned invalid result"
@@ -5322,6 +5325,100 @@ fn execute_router_adapter(
 }
 
 const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Leave issue_updates empty: the router moves finished packages to review itself and rejects agent status changes such as closing an issue. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+
+fn router_worktree_head(worktree: &Path) -> Result<String, KanbusError> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(worktree)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !output.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "router isolated worktree operation failed".to_string(),
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Reject adapter edits to Kanbus project state outside canonical mutations.
+///
+/// Both uncommitted and committed edits count: an agent that runs `kbs commit`
+/// inside the worktree must not smuggle board changes past the guard. The
+/// project's `.cache` directory is derived data and is exempt.
+fn validate_router_worktree_changes(
+    worktree: &Path,
+    base_commit: &str,
+    project_directory: &str,
+) -> Result<(), KanbusError> {
+    let project = Path::new(project_directory);
+    if project.is_absolute()
+        || project
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return Err(KanbusError::IssueOperation(
+            "router project directory must be repository-relative".to_string(),
+        ));
+    }
+    let inspect = || {
+        KanbusError::IssueOperation(
+            "router could not inspect isolated worktree changes".to_string(),
+        )
+    };
+    let mut changed: Vec<String> = Vec::new();
+    let status = Command::new("git")
+        .args([
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+            "--no-renames",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|_| inspect())?;
+    if !status.status.success() {
+        return Err(inspect());
+    }
+    for record in status.stdout.split(|byte| *byte == 0) {
+        if record.len() >= 4 {
+            changed.push(String::from_utf8_lossy(&record[3..]).to_string());
+        }
+    }
+    let committed = Command::new("git")
+        .args([
+            "diff",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            base_commit,
+            "HEAD",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|_| inspect())?;
+    if !committed.status.success() {
+        return Err(inspect());
+    }
+    for path in committed.stdout.split(|byte| *byte == 0) {
+        if !path.is_empty() {
+            changed.push(String::from_utf8_lossy(path).to_string());
+        }
+    }
+    let cache = project.join(".cache");
+    for path in changed {
+        let path = Path::new(&path);
+        if path.starts_with(&cache) {
+            continue;
+        }
+        if path.starts_with(project) {
+            return Err(KanbusError::IssueOperation(
+                "router adapter may not modify Kanbus project state directly".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
 
 /// Create a private OpenCode data dir, copying `auth.json` so other providers work.
 fn isolated_opencode_data_home() -> Result<tempfile::TempDir, KanbusError> {
@@ -5426,7 +5523,9 @@ impl RouterAdapterKind {
                     .arg(worktree)
                     .arg(prompt)
                     .envs(&profile.env)
-                    .stdin(Stdio::inherit());
+                    // The prompt is an argument; an inherited stdin makes
+                    // `codex exec` wait for EOF on it.
+                    .stdin(Stdio::null());
             }
             Self::OpenCode => {
                 command.arg("run").arg("--format").arg("json");
@@ -5505,11 +5604,12 @@ fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError>
             KanbusError::IssueOperation("OpenCode router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
-                KanbusError::IssueOperation(
-                    "OpenCode router adapter returned invalid result".to_string(),
-                )
-            })
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "OpenCode router adapter returned invalid result".to_string(),
+                    )
+                })
         })
 }
 
@@ -5604,12 +5704,30 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
             KanbusError::IssueOperation("Codex router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
-                KanbusError::IssueOperation(
-                    "Codex router adapter returned invalid result".to_string(),
-                )
-            })
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "Codex router adapter returned invalid result".to_string(),
+                    )
+                })
         })
+}
+
+/// Accept the contract version written as "1", "1.0" or 1.0.
+///
+/// Models routinely quote the number. The version is a constant of the
+/// contract, so coercing these spellings loses nothing; every other value is
+/// still rejected by the strict deserializer.
+fn normalize_schema_version(mut value: Value) -> Value {
+    let coerce = match value.get("schema_version") {
+        Some(Value::String(text)) => matches!(text.trim(), "1" | "1.0"),
+        Some(Value::Number(number)) => number.as_f64() == Some(1.0) && !number.is_u64(),
+        _ => false,
+    };
+    if coerce {
+        value["schema_version"] = json!(1);
+    }
+    value
 }
 
 /// Normalize advisory artifact metadata without relaxing the result contract.
@@ -9656,11 +9774,28 @@ mod tests {
     }
 
     #[test]
-    fn opencode_rejects_missing_or_string_schema_version() {
+    fn quoted_schema_versions_of_one_are_coerced_and_others_rejected() {
+        for accepted in ["\"1\"", "\" 1.0 \"", "1.0", "1"] {
+            let payload = format!(
+                "{{\"schema_version\":{accepted},\"outcome\":\"completed\",\"summary\":\"ok\"}}"
+            );
+            let result = parse_router_result(&payload).expect("coerced version");
+            assert_eq!(result.schema_version, 1, "{accepted}");
+        }
+        for rejected in ["\"2\"", "\"1.1\"", "true", "1.5", "null", "\"one\""] {
+            let payload = format!(
+                "{{\"schema_version\":{rejected},\"outcome\":\"completed\",\"summary\":\"ok\"}}"
+            );
+            assert!(parse_router_result(&payload).is_err(), "{rejected}");
+        }
+    }
+
+    #[test]
+    fn opencode_rejects_missing_or_unsupported_schema_version() {
         let none = json!({"type":"text","part":{"text":"no json"}}).to_string();
         let error = parse_opencode_result(&none).unwrap_err().to_string();
         assert!(error.contains("OpenCode router adapter returned invalid JSON"));
-        let string_version = json!({"type":"text","part":{"text":"{\"schema_version\":\"1\",\"outcome\":\"completed\"}"}}).to_string();
+        let string_version = json!({"type":"text","part":{"text":"{\"schema_version\":\"2\",\"outcome\":\"completed\"}"}}).to_string();
         let error = parse_opencode_result(&string_version)
             .unwrap_err()
             .to_string();
