@@ -185,3 +185,22 @@ entry. A `completed` result with none of these is treated as a retryable failure
 work they never did. Agents may not edit Kanbus project state (`project/`,
 committed or not, except the derived `project/.cache`); such a run is preserved
 for Review with the reason in a router comment.
+## Answering an agent's question (session resume)
+
+When an agent finishes a turn with outcome `blocked`, the router records its
+question and saved session and moves the issue to Blocked. To answer, add a
+comment on the issue and move it back to Ready. The router then **resumes the
+same agent session** with your comment(s) written after the question, instead of
+starting over:
+
+- The resumed run reuses the branch and worktree the agent already worked in, so
+  its unfinished work and its saved session context are intact.
+- Codex resumes with `codex exec resume`, OpenCode with `opencode run --session`.
+- OpenCode can only resume a session from the directory the session started in
+  (from anywhere else it silently hangs). If that worktree no longer exists, the
+  router starts a fresh session instead and gives it your reply, and records why.
+  OpenCode's session data is kept per package under
+  `<git-common-dir>/kanbus-router-adapters/opencode/<package>`.
+- Moving an issue back to Ready **without** a newer human comment starts a fresh
+  session, as before.
+- Comments written by the router itself never count as a reply.

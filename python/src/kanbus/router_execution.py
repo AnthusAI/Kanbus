@@ -843,6 +843,81 @@ def publish_router_result(
     _publish_checkpoint(context, candidate, result, claim_id, revision)
 
 
+ROUTER_COMMENT_AUTHOR = "Kanbus Issue Router"
+
+
+@dataclass(frozen=True)
+class _ResumePlan:
+    """A blocked agent's saved session plus the human reply that answers it."""
+
+    session_id: str
+    reply: str
+    branch: str | None
+    worktree: Path | None
+
+
+def _pending_reply_plan(
+    context: RouterContext, candidate: RouterPlanEligiblePackage
+) -> _ResumePlan | None:
+    """Return the saved session to resume when a human answered a question.
+
+    The latest conversation record must be the agent's question
+    (``awaiting_reply``) with a saved session, and a human (not the router) must
+    have commented after it. Anything else starts a fresh session.
+    """
+    record = latest_conversation(context.project_dir, candidate.issue_id)
+    payload = (record or {}).get("payload", {})
+    session_id = payload.get("session_id")
+    if payload.get("action") != "awaiting_reply" or not (
+        isinstance(session_id, str) and session_id
+    ):
+        return None
+    asked_at = _parse_timestamp(str((record or {}).get("occurred_at", "")))
+    issue = next(
+        (item for item in context.issues if item.identifier == candidate.issue_id),
+        None,
+    )
+    if asked_at is None or issue is None:
+        return None
+    replies = [
+        (comment.text or "").strip()
+        for comment in sorted(issue.comments, key=lambda item: item.created_at)
+        if comment.author != ROUTER_COMMENT_AUTHOR
+        and comment.created_at > asked_at
+        and (comment.text or "").strip()
+    ]
+    if not replies:
+        return None
+    worktree = payload.get("worktree")
+    return _ResumePlan(
+        session_id=session_id,
+        reply="\n\n".join(replies),
+        branch=(
+            payload.get("branch") if isinstance(payload.get("branch"), str) else None
+        ),
+        worktree=Path(worktree) if isinstance(worktree, str) and worktree else None,
+    )
+
+
+def _parse_timestamp(value: str) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _can_resume(adapter: object, resume: _ResumePlan | None, worktree: Path) -> bool:
+    """Whether the saved session may be resumed in this worktree."""
+    if resume is None:
+        return False
+    if not getattr(adapter, "resume_requires_original_directory", False):
+        return True
+    return (
+        resume.worktree is not None and worktree.resolve() == resume.worktree.resolve()
+    )
+
+
 def _run_adapter(
     context: RouterContext,
     candidate: RouterPlanEligiblePackage,
@@ -854,11 +929,14 @@ def _run_adapter(
     if adapter is None:
         adapter = _ADAPTER_OVERRIDES.get(candidate.route.provider_profile)
     if adapter is None:
+        record_path = _adapter_process_record_path(
+            context.root, candidate.issue_id, claim_id
+        )
         adapter = ADAPTER_CLASSES[profile.adapter](
             profile,
-            process_record_path=_adapter_process_record_path(
-                context.root, candidate.issue_id, claim_id
-            ),
+            process_record_path=record_path,
+            # Same host-local private folder: state that must outlive a run.
+            state_dir=record_path.parent,
         )
     checkpoint = _accepted_checkpoint(
         read_router_events(context.project_dir, candidate.issue_id)
@@ -866,9 +944,21 @@ def _run_adapter(
     checkpoint_revision = _accepted_checkpoint_revision(
         read_router_events(context.project_dir, candidate.issue_id)
     )
+    resume = _pending_reply_plan(context, candidate)
     branch = _existing_pull_request_branch(context.project_dir, candidate.issue_id)
+    if branch is None and resume is not None:
+        branch = resume.branch
     if branch is None:
         branch = f"codex/router/{candidate.issue_id}/r{revision}"
+    worktree = _create_isolated_worktree(
+        context,
+        candidate.issue_id,
+        claim_id,
+        revision,
+        branch=branch,
+        reuse_path=resume.worktree if resume is not None else None,
+    )
+    resumed = _can_resume(adapter, resume, worktree)
     request = RouterExecutionRequest(
         package_id=candidate.issue_id,
         claim_id=claim_id,
@@ -879,11 +969,9 @@ def _run_adapter(
             if checkpoint is None
             else RouterCheckpoint(ref=checkpoint, revision=checkpoint_revision or 1)
         ),
-        worktree_path=str(
-            _create_isolated_worktree(
-                context, candidate.issue_id, claim_id, revision, branch=branch
-            )
-        ),
+        worktree_path=str(worktree),
+        resume_session_id=resume.session_id if resume is not None and resumed else None,
+        reply=resume.reply if resume is not None else None,
     )
     worktree_path = Path(request.worktree_path)
     _WORKTREE_PATHS[claim_id] = worktree_path
@@ -899,6 +987,13 @@ def _run_adapter(
         lifecycle="in_progress",
         worktree=request.worktree_path,
         branch=branch,
+        message=(
+            "The saved session could not be resumed because its worktree is gone; "
+            "started a fresh session with the human's reply."
+            if resume is not None and not resumed
+            else None
+        ),
+        resumed_session=request.resume_session_id,
     )
     try:
         result = adapter.execute(request).validate_outcome()
@@ -981,7 +1076,15 @@ def _create_isolated_worktree(
     revision: int,
     *,
     branch: str | None = None,
+    reuse_path: Path | None = None,
 ) -> Path:
+    if reuse_path is not None and _is_worktree_of_branch(
+        context.root, reuse_path, branch
+    ):
+        # A resumed agent keeps its own worktree: its saved session refers to
+        # absolute paths there, and it may hold the agent's unfinished work.
+        _WORKTREE_BASES[claim_id] = _git(reuse_path, ["rev-parse", "HEAD"])
+        return reuse_path
     git_path = _git(
         context.root, ["rev-parse", "--git-path", "kanbus/router/worktrees"]
     )
@@ -1048,6 +1151,34 @@ def _local_branch_exists(root: Path, branch: str) -> bool:
         text=True,
     )
     return result.returncode == 0
+
+
+def _is_worktree_of_branch(root: Path, path: Path, branch: str | None) -> bool:
+    """Whether ``path`` still exists and is the registered worktree of ``branch``."""
+    if branch is None or not path.is_dir():
+        return False
+    listing = _git(root, ["worktree", "list", "--porcelain"])
+    for block in listing.split("\n\n"):
+        lines = block.splitlines()
+        registered = next(
+            (
+                line.removeprefix("worktree ")
+                for line in lines
+                if line.startswith("worktree ")
+            ),
+            None,
+        )
+        head = next(
+            (
+                line.removeprefix("branch refs/heads/")
+                for line in lines
+                if line.startswith("branch refs/heads/")
+            ),
+            None,
+        )
+        if registered is not None and head == branch:
+            return Path(registered).resolve() == path.resolve()
+    return False
 
 
 def _detach_previous_worktree(
