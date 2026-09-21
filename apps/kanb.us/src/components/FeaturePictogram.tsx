@@ -14,7 +14,8 @@ export type FeaturePictogramType =
   | "policy-as-code"
   | "agile-metrics"
   | "git-native-storage"
-  | "lifecycle-hooks";
+  | "lifecycle-hooks"
+  | "issue-router";
 
 // Interpolates a value from a keyframe sequence at normalized time t in [0, 1].
 // values and times must have the same length; times must be in [0, 1] ascending.
@@ -1098,6 +1099,47 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
     </g>
   );
 
+  const renderIssueRouter = () => (
+    <g>
+      {/* Source board */}
+      <rect x="22" y="38" width="142" height="205" rx="12" fill="var(--column)" stroke="var(--border)" />
+      <text x="38" y="65" fill="var(--text-muted)" fontSize="11" fontFamily="monospace">READY</text>
+      <rect x="36" y="78" width="114" height="49" rx="7" fill="var(--card)" stroke="var(--border)" />
+      <rect x="36" y="139" width="114" height="61" rx="7" fill="var(--accent-blue)" opacity="0.18" stroke="var(--accent-blue)" strokeWidth="2" />
+      <rect x="48" y="153" width="53" height="6" rx="3" fill="var(--text-foreground)" />
+      <rect x="48" y="168" width="82" height="5" rx="2.5" fill="var(--text-muted)" />
+      <circle cx="133" cy="179" r="8" fill="var(--accent-blue)">
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite" />
+      </circle>
+
+      {/* Dispatch path */}
+      <path d="M176 151 H210" stroke="var(--accent-blue)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M204 144 L212 151 L204 158" stroke="var(--accent-blue)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Isolated worker */}
+      <rect x="218" y="78" width="112" height="145" rx="12" fill="var(--card)" stroke="var(--accent-blue)" strokeWidth="2" />
+      <rect x="218" y="78" width="112" height="29" rx="12" fill="var(--column)" />
+      <circle cx="236" cy="92" r="4" fill="var(--accent-blue)" />
+      <circle cx="249" cy="92" r="4" fill="var(--text-muted)" opacity="0.65" />
+      <text x="232" y="127" fill="var(--accent-blue)" fontSize="11" fontFamily="monospace">$ codex</text>
+      <rect x="232" y="140" width="71" height="5" rx="2.5" fill="var(--text-muted)" />
+      <rect x="232" y="153" width="54" height="5" rx="2.5" fill="var(--text-muted)" opacity="0.7" />
+      <rect x="232" y="178" width="50" height="20" rx="5" fill="var(--accent-blue)" opacity="0.2" />
+      <text x="257" y="192" textAnchor="middle" fill="var(--accent-blue)" fontSize="9" fontFamily="monospace">WORK</text>
+
+      <path d="M341 151 H374" stroke="var(--accent-blue)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M368 144 L376 151 L368 158" stroke="var(--accent-blue)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Review destination */}
+      <rect x="383" y="54" width="95" height="192" rx="12" fill="var(--column)" stroke="var(--border)" />
+      <text x="400" y="82" fill="var(--text-muted)" fontSize="10" fontFamily="monospace">REVIEW</text>
+      <rect x="397" y="96" width="67" height="74" rx="8" fill="var(--card)" stroke="var(--border)" />
+      <path d="M413 134 L424 145 L448 118" fill="none" stroke="var(--accent-green)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="397" y="184" width="67" height="8" rx="4" fill="var(--accent-green)" opacity="0.7" />
+      <rect x="397" y="202" width="47" height="6" rx="3" fill="var(--text-muted)" />
+    </g>
+  );
+
   const renders: Record<string, () => React.ReactNode> = {
     "core-management": renderCli,
     "kanban-board": renderKanbanBoard,
@@ -1112,6 +1154,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
     "lifecycle-hooks": renderLifecycleHooks,
     "agile-metrics": renderAgileMetrics,
     "git-native-storage": renderGitNativeStorage,
+    "issue-router": renderIssueRouter,
   };
 
   const renderContent = renders[type] || renderCli;
@@ -1125,7 +1168,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
           background: "radial-gradient(ellipse at center, var(--glow-center) 0%, var(--glow-edge) 70%)"
         }}
       />
-      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "lifecycle-hooks" || type === "agile-metrics" || type === "git-native-storage" ? "none" : "xMidYMid meet"}>
+      <svg width="100%" height="100%" viewBox="0 0 500 300" fill="none" xmlns="http://www.w3.org/2000/svg" className="z-10 absolute inset-0 m-auto" preserveAspectRatio={type === "core-management" || type === "kanban-board" || type === "beads-compatibility" || type === "vscode-plugin" || type === "integrated-wiki" || type === "policy-as-code" || type === "lifecycle-hooks" || type === "agile-metrics" || type === "git-native-storage" || type === "issue-router" ? "none" : "xMidYMid meet"}>
         <defs>
           <radialGradient id="feature-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" stopColor="var(--glow-center)" />
@@ -1134,7 +1177,7 @@ export function FeaturePictogram({ type, style, className, frame, fps, allowOver
         </defs>
         
         {/* Ambient background glow / shadow */}
-        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "lifecycle-hooks" && type !== "agile-metrics" && type !== "git-native-storage" && (
+        {type !== "core-management" && type !== "kanban-board" && type !== "beads-compatibility" && type !== "vscode-plugin" && type !== "integrated-wiki" && type !== "policy-as-code" && type !== "lifecycle-hooks" && type !== "agile-metrics" && type !== "git-native-storage" && type !== "issue-router" && (
           <ellipse cx="250" cy="150" rx="200" ry="140" fill="url(#feature-glow)" />
         )}
         
