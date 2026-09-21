@@ -53,7 +53,8 @@ Feature: Structured outcomes from the Codex router adapter
     And package "kbs-401" should have a "Kanbus Issue Router" comment containing "Router detail: Codex router adapter returned invalid JSON"
 
   Scenario: An agent that cannot start blocks the package with a router comment
-    Given provider profile "codex-default" has command "/nonexistent/agent-cli" and arguments []
+    Given a fake forge is available for the router
+    And provider profile "codex-default" has command "/nonexistent/agent-cli" and arguments []
     When I run "kanbus router run --once"
     Then the command should fail with exit code 1
     And package "kbs-401" should transition to status "blocked"

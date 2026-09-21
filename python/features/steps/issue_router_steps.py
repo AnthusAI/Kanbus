@@ -662,6 +662,11 @@ def given_codex_result_outcome(context: object, outcome: str) -> None:
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
 
 
+@given("a fake forge is available for the router")
+def given_fake_forge_available(context: object) -> None:
+    """The Python fixtures never contact a real forge; nothing to start."""
+
+
 @given('the Codex adapter returns issue update "{issue_id}" to status "{status}"')
 def given_codex_issue_update(context: object, issue_id: str, status: str) -> None:
     context.router_issue_status_before = {
