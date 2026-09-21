@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -94,6 +95,9 @@ class RouterExecutionRequest(BaseModel):
     package_issue_ids: list[str]
     checkpoint: RouterCheckpoint | None = None
     worktree_path: str
+    # Set when a human replied to a blocked agent: continue that saved session.
+    resume_session_id: str | None = None
+    reply: str | None = None
 
 
 class RouterAdapter(Protocol):
@@ -110,15 +114,21 @@ class _SubprocessAdapter:
     """Shared subprocess lifecycle for CLI-backed router adapters."""
 
     display_name = "Codex"
+    # OpenCode binds a session to the directory it started in and, resumed from
+    # anywhere else, silently does nothing and hangs. Such an adapter is only
+    # resumed in its original worktree.
+    resume_requires_original_directory = False
 
     def __init__(
         self,
         profile: RouterAgentProfile,
         *,
         process_record_path: Path | None = None,
+        state_dir: Path | None = None,
     ) -> None:
         self.profile = profile
         self.process_record_path = process_record_path
+        self.state_dir = state_dir
         self.process: subprocess.Popen[str] | None = None
         self.last_output = ""
         self.last_error = ""
@@ -242,6 +252,19 @@ class CodexExecAdapter(_SubprocessAdapter):
 
     def _build_command(self, request: RouterExecutionRequest) -> list[str]:
         model = ["--model", self.profile.model] if self.profile.model else []
+        if request.resume_session_id:
+            # `codex exec resume` has no --cd; the process working directory is
+            # the worktree and the session is found by its id.
+            return [
+                str(self.profile.command),
+                *self.profile.args,
+                "exec",
+                "resume",
+                "--json",
+                *model,
+                request.resume_session_id,
+                _agent_prompt(request),
+            ]
         return [
             str(self.profile.command),
             *self.profile.args,
@@ -250,7 +273,7 @@ class CodexExecAdapter(_SubprocessAdapter):
             *model,
             "--cd",
             request.worktree_path,
-            _result_contract_prompt(request),
+            _agent_prompt(request),
         ]
 
 
@@ -271,12 +294,15 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
     """Run the configured OpenCode CLI with JSON event output."""
 
     display_name = "OpenCode"
+    resume_requires_original_directory = True
 
     def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
         # Popen's cwd does not update PWD, which OpenCode uses as its project root.
         environment = {**os.environ, **self.profile.env, "PWD": request.worktree_path}
         if "XDG_DATA_HOME" not in self.profile.env:
-            environment["XDG_DATA_HOME"] = self._isolated_data_home(environment)
+            environment["XDG_DATA_HOME"] = self._isolated_data_home(
+                environment, request.package_id
+            )
         if self.profile.service_tier:
             environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(
                 environment.get("OPENCODE_CONFIG_CONTENT"),
@@ -285,23 +311,35 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
             )
         return environment
 
-    def _isolated_data_home(self, environment: dict[str, str]) -> str:
-        """Give this run a private OpenCode data dir.
+    def _isolated_data_home(self, environment: dict[str, str], package_id: str) -> str:
+        """Give this package a private OpenCode data dir.
 
         Concurrent OpenCode processes share one SQLite session database and fail
-        with "database is locked". Provider credentials (auth.json) are copied so
-        non-AWS providers keep working.
+        with "database is locked", so each package gets its own directory. It
+        persists across attempts (when the router provides ``state_dir``) so a
+        saved session can be resumed with a human's reply; without one it is a
+        temporary directory removed after the run. Provider credentials
+        (auth.json) are copied in so non-AWS providers keep working.
         """
-        self._data_home = tempfile.mkdtemp(prefix="kanbus-opencode-")
+        if self.state_dir is not None:
+            # Same key scheme as the Rust runtime, so either can resume the
+            # other's saved session.
+            key = re.sub(r"[^A-Za-z0-9._-]", "_", package_id)
+            data_home = self.state_dir / "opencode" / key
+            data_home.mkdir(parents=True, exist_ok=True)
+            self._data_home = None  # persistent: never removed by cleanup
+        else:
+            data_home = Path(tempfile.mkdtemp(prefix="kanbus-opencode-"))
+            self._data_home = str(data_home)
         shared = Path(
             environment.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
         )
         auth = shared / "opencode" / "auth.json"
-        if auth.is_file():
-            target = Path(self._data_home) / "opencode"
+        target = data_home / "opencode"
+        if auth.is_file() and not (target / "auth.json").exists():
             target.mkdir(parents=True, exist_ok=True)
             shutil.copy2(auth, target / "auth.json")
-        return self._data_home
+        return str(data_home)
 
     def _cleanup(self) -> None:
         data_home = getattr(self, "_data_home", None)
@@ -322,7 +360,12 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
             "--format",
             "json",
             *model,
-            _result_contract_prompt(request) + _OPENCODE_FORMAT_HINT,
+            *(
+                ["--session", request.resume_session_id]
+                if request.resume_session_id
+                else []
+            ),
+            _agent_prompt(request) + _OPENCODE_FORMAT_HINT,
         ]
 
     def _session_id(self, stdout: str) -> str | None:
@@ -486,6 +529,25 @@ class FakeRouterAdapter:
         :type claim_id: str
         """
         self.cancelled_claims.append(claim_id)
+
+
+def _agent_prompt(request: RouterExecutionRequest) -> str:
+    """The prompt for a fresh session, or the human's reply for a resumed one."""
+    prompt = _result_contract_prompt(request)
+    if request.resume_session_id and request.reply:
+        return (
+            "A human replied to your question:\n\n"
+            f"{request.reply}\n\n"
+            "Continue the work from where you stopped, in this same session. " + prompt
+        )
+    if request.reply:
+        return (
+            "A human replied to a question from an earlier session that could not "
+            "be resumed. Start from the issue and any work already on this "
+            "branch, and take the reply into account:\n\n"
+            f"{request.reply}\n\n" + prompt
+        )
+    return prompt
 
 
 def _result_contract_prompt(request: RouterExecutionRequest) -> str:
