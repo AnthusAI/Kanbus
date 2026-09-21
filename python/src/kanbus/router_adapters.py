@@ -235,6 +235,11 @@ class _SubprocessAdapter:
 class CodexExecAdapter(_SubprocessAdapter):
     """Run the configured Codex CLI with JSONL output."""
 
+    def _popen_extras(self) -> dict[str, Any]:
+        # The prompt is an argument. An inherited stdin makes `codex exec` print
+        # "Reading additional input from stdin" and can wait for EOF indefinitely.
+        return {"stdin": subprocess.DEVNULL}
+
     def _build_command(self, request: RouterExecutionRequest) -> list[str]:
         model = ["--model", self.profile.model] if self.profile.model else []
         return [
