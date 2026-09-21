@@ -945,7 +945,7 @@ def _run_adapter(
         # turn for human review instead of treating it like a launcher error.
         has_preserved_turn = (
             (isinstance(session_id, str) and bool(session_id))
-            or str(error) == "Codex router adapter returned invalid JSON"
+            or str(error).endswith("router adapter returned invalid JSON")
             or bool(raw_output or raw_error)
         )
         if has_preserved_turn:
@@ -1400,8 +1400,9 @@ def _preserve_completed_turn_after_publication_failure(
 ) -> None:
     """Publish review evidence when a completed turn fails after execution.
 
-    Validation and publication happen after the adapter has returned.  They
-    must not turn a completed agent turn into an invisible scheduler failure.
+    Result validation and publication happen after the adapter has returned.
+    They must not turn a completed agent turn into an invisible scheduler
+    failure.
     """
     conversation = latest_conversation(context.project_dir, candidate.issue_id)
     payload = (conversation or {}).get("payload", {})
@@ -1413,7 +1414,8 @@ def _preserve_completed_turn_after_publication_failure(
     )
     diagnostic = (
         "## Agent turn preserved for review\n\n"
-        "The agent completed work, but automatic publication failed.\n\n"
+        "The agent completed work, but the router could not accept or publish "
+        "its result automatically.\n\n"
         f"- Branch: `{branch}`\n"
         f"- Session: `{session}`\n"
         f"- Worktree: `{worktree}`\n"
@@ -1449,7 +1451,7 @@ def _preserve_completed_turn_after_publication_failure(
     record_router_event(
         context.project_dir,
         package_id=candidate.issue_id,
-        event_type="router_result",
+        event_type="router_completed",
         payload={
             "outcome": "completed",
             "summary": "Completed agent turn preserved for review after publication failure",

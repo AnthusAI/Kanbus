@@ -2959,6 +2959,35 @@ fn apply_router_issue_comments(
 
 /// Preserve visible evidence when a completed agent turn fails during later
 /// checkpoint, branch, forge, or result publication.
+/// Comment and block a package whose agent never produced a durable turn (for
+/// example the agent binary could not start), so the failure is never silent.
+fn block_after_launch_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    error: &KanbusError,
+) -> Result<(), KanbusError> {
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    crate::issue_comment::add_comment_without_right_now(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &format!("The router could not start an agent session: {error}"),
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    if let Some(router) = configuration.router.as_ref() {
+        apply_shared_issue_status(
+            root,
+            configuration,
+            &claim.issue_id,
+            &router.workflow.blocked,
+        )?;
+    }
+    Ok(())
+}
+
 fn preserve_completed_turn_after_publication_failure(
     root: &Path,
     project_dir: &Path,
@@ -2990,7 +3019,7 @@ fn preserve_completed_turn_after_publication_failure(
     let session_id = payload_text(&conversation, "session_id").unwrap_or("unknown");
     let worktree = payload_text(&conversation, "worktree").unwrap_or("unknown");
     let diagnostic = format!(
-        "## Agent turn preserved for review\n\nThe agent completed work, but automatic publication failed. \n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
+        "## Agent turn preserved for review\n\nThe agent completed work, but the router could not accept or publish its result automatically.\n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
     );
     crate::issue_comment::add_comment_without_right_now(
         root,
@@ -3688,7 +3717,7 @@ fn run_issue_router_once(
                     &error,
                 )
             } else {
-                Ok(())
+                block_after_launch_failure(root, project_dir, &configuration, &claim, &error)
             };
             let error = match recovery {
                 Ok(()) => error,
@@ -7662,12 +7691,15 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "/bin/sh".to_string(),
+                    command: Some("/bin/sh".to_string()),
                     args: vec![
                         "-c".to_string(),
                         "printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"session-validation-failure\"}' '{\"schema_version\":1,\"outcome\":\"not-a-router-outcome\"}'"
                             .to_string(),
                     ],
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),

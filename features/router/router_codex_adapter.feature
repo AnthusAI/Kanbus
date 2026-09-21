@@ -29,12 +29,13 @@ Feature: Structured outcomes from the Codex router adapter
     And the router should publish the checkpoint and artifact references
     And the router should create a pull request for package "kbs-401"
 
-  Scenario Outline: The Codex adapter accepts only defined outcomes
+  Scenario Outline: The Codex adapter accepts only defined outcomes and preserves the turn for review
     Given the Codex adapter returns result outcome "<outcome>"
     When I run "kanbus router run --once"
     Then the command should fail with exit code 1
     And stderr should equal "error: invalid Codex router outcome \"<outcome>\"\n"
-    And package "kbs-401" should remain in status "in_progress"
+    And package "kbs-401" should transition to status "review"
+    And package "kbs-401" should have a "Kanbus Issue Router" comment containing "Router detail: invalid Codex router outcome"
 
     Examples:
       | outcome        |
@@ -49,6 +50,14 @@ Feature: Structured outcomes from the Codex router adapter
     Then the command should fail with exit code 1
     And stderr should equal "error: Codex router adapter returned invalid JSON\n"
     And package "kbs-401" should transition to status "review"
+    And package "kbs-401" should have a "Kanbus Issue Router" comment containing "Router detail: Codex router adapter returned invalid JSON"
+
+  Scenario: An agent that cannot start blocks the package with a router comment
+    Given provider profile "codex-default" has command "/nonexistent/agent-cli" and arguments []
+    When I run "kanbus router run --once"
+    Then the command should fail with exit code 1
+    And package "kbs-401" should transition to status "blocked"
+    And package "kbs-401" should have a "Kanbus Issue Router" comment containing "The router could not start an agent session"
 
   Scenario: A Codex issue update must remain inside the current package and workflow
     Given the Codex adapter returns issue update "kbs-999" to status "closed"
