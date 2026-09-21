@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from kanbus.issue_router import IssueRouterError
 from kanbus.models import RouterAgentProfile
@@ -65,10 +67,18 @@ class RouterAgentResult(BaseModel):
     checkpoint: RouterCheckpoint | None = None
     artifacts: list[RouterArtifact] = Field(default_factory=list)
 
-    def validate_outcome(self) -> RouterAgentResult:
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def _reject_boolean_version(cls, value: Any) -> Any:
+        """``True == 1`` in Python; the contract version must be the number 1."""
+        if isinstance(value, bool):
+            raise ValueError("schema_version must be the number 1")
+        return value
+
+    def validate_outcome(self, name: str = "Codex") -> RouterAgentResult:
         """Require one supported result outcome."""
         if self.outcome not in {"completed", "blocked", "retryable_failure"}:
-            raise IssueRouterError(f'invalid Codex router outcome "{self.outcome}"')
+            raise IssueRouterError(f'invalid {name} router outcome "{self.outcome}"')
         return self
 
 
@@ -96,8 +106,10 @@ class RouterAdapter(Protocol):
         """Request cancellation for one active claim."""
 
 
-class CodexExecAdapter:
-    """Run the configured Codex CLI with JSONL output."""
+class _SubprocessAdapter:
+    """Shared subprocess lifecycle for CLI-backed router adapters."""
+
+    display_name = "Codex"
 
     def __init__(
         self,
@@ -121,15 +133,7 @@ class CodexExecAdapter:
         :rtype: RouterAgentResult
         :raises IssueRouterError: If Codex exits unsuccessfully or returns invalid JSON.
         """
-        command = [
-            self.profile.command,
-            *self.profile.args,
-            "exec",
-            "--json",
-            "--cd",
-            request.worktree_path,
-            _result_contract_prompt(request),
-        ]
+        command = self._build_command(request)
         try:
             self.process = subprocess.Popen(
                 command,
@@ -137,25 +141,53 @@ class CodexExecAdapter:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=self._environment(request),
+                **self._popen_extras(),
             )
             self._record_process(request)
             stdout, stderr = self.process.communicate(timeout=3600)
             self.last_output = stdout
             self.last_error = stderr
-            self.session_id = codex_session_id(stdout)
+            self.session_id = self._session_id(stdout)
             return_code = self.process.returncode
         except (OSError, subprocess.TimeoutExpired) as error:
             if self.process is not None and self.process.poll() is None:
                 self.process.terminate()
                 self.process.communicate()
-            raise IssueRouterError("Codex router adapter failed") from error
+            raise IssueRouterError(
+                f"{self.display_name} router adapter failed"
+            ) from error
         finally:
             self.process = None
             self._remove_process_record(request.claim_id)
+            self._cleanup()
         if return_code != 0:
-            raise IssueRouterError("Codex router adapter failed")
-        payload = _find_result_payload(stdout)
-        return _parse_result(payload)
+            raise IssueRouterError(f"{self.display_name} router adapter failed")
+        payload = self._result_payload(stdout)
+        return self._parse(payload)
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        raise NotImplementedError
+
+    def _session_id(self, stdout: str) -> str | None:
+        return codex_session_id(stdout)
+
+    def _result_payload(self, stdout: str) -> dict[str, Any]:
+        return _find_result_payload(stdout)
+
+    def _popen_extras(self) -> dict[str, Any]:
+        return {}
+
+    def _cleanup(self) -> None:
+        """Release per-run resources after the subprocess exits."""
+
+    def _parse(self, payload: dict[str, Any]) -> RouterAgentResult:
+        return _parse_result(payload, self.display_name)
+
+    def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
+        if not self.profile.env:
+            return None
+        return {**os.environ, **self.profile.env}
 
     def cancel(self, claim_id: str) -> None:
         """Terminate the active Codex subprocess when one is registered.
@@ -198,6 +230,193 @@ class CodexExecAdapter:
             return
         if record.get("claim_id") == claim_id:
             path.unlink(missing_ok=True)
+
+
+class CodexExecAdapter(_SubprocessAdapter):
+    """Run the configured Codex CLI with JSONL output."""
+
+    def _popen_extras(self) -> dict[str, Any]:
+        # The prompt is an argument. An inherited stdin makes `codex exec` print
+        # "Reading additional input from stdin" and can wait for EOF indefinitely.
+        return {"stdin": subprocess.DEVNULL}
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        model = ["--model", self.profile.model] if self.profile.model else []
+        return [
+            str(self.profile.command),
+            *self.profile.args,
+            "exec",
+            "--json",
+            *model,
+            "--cd",
+            request.worktree_path,
+            _result_contract_prompt(request),
+        ]
+
+
+_OPENCODE_FORMAT_HINT = (
+    " Reply with the JSON object as your final message and no other text. "
+    "schema_version must be the JSON number 1 (not a string). Each issue_updates "
+    'item is {"issue_id": "<id>", "status": "<status>"} and each issue_comments '
+    'item is {"issue_id": "<id>", "text": "<text>"}; use empty lists when there '
+    "is nothing to report. Leave issue_updates empty: the router moves finished "
+    "packages to review itself and rejects agent status changes such as closing "
+    "an issue. Example: "
+    '{"schema_version": 1, "outcome": "completed", "summary": "what you did", '
+    '"issue_updates": [], "issue_comments": [], "checkpoint": null, "artifacts": []}'
+)
+
+
+class OpenCodeRunAdapter(_SubprocessAdapter):
+    """Run the configured OpenCode CLI with JSON event output."""
+
+    display_name = "OpenCode"
+
+    def _environment(self, request: RouterExecutionRequest) -> dict[str, str] | None:
+        # Popen's cwd does not update PWD, which OpenCode uses as its project root.
+        environment = {**os.environ, **self.profile.env, "PWD": request.worktree_path}
+        if "XDG_DATA_HOME" not in self.profile.env:
+            environment["XDG_DATA_HOME"] = self._isolated_data_home(environment)
+        if self.profile.service_tier:
+            environment["OPENCODE_CONFIG_CONTENT"] = _opencode_config_content(
+                environment.get("OPENCODE_CONFIG_CONTENT"),
+                str(self.profile.model),
+                self.profile.service_tier,
+            )
+        return environment
+
+    def _isolated_data_home(self, environment: dict[str, str]) -> str:
+        """Give this run a private OpenCode data dir.
+
+        Concurrent OpenCode processes share one SQLite session database and fail
+        with "database is locked". Provider credentials (auth.json) are copied so
+        non-AWS providers keep working.
+        """
+        self._data_home = tempfile.mkdtemp(prefix="kanbus-opencode-")
+        shared = Path(
+            environment.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+        )
+        auth = shared / "opencode" / "auth.json"
+        if auth.is_file():
+            target = Path(self._data_home) / "opencode"
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(auth, target / "auth.json")
+        return self._data_home
+
+    def _cleanup(self) -> None:
+        data_home = getattr(self, "_data_home", None)
+        if data_home:
+            shutil.rmtree(data_home, ignore_errors=True)
+            self._data_home = None
+
+    def _popen_extras(self) -> dict[str, Any]:
+        # `opencode run` appends piped stdin to the prompt and waits for EOF.
+        return {"stdin": subprocess.DEVNULL}
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        model = ["--model", self.profile.model] if self.profile.model else []
+        return [
+            str(self.profile.command),
+            *self.profile.args,
+            "run",
+            "--format",
+            "json",
+            *model,
+            _result_contract_prompt(request) + _OPENCODE_FORMAT_HINT,
+        ]
+
+    def _session_id(self, stdout: str) -> str | None:
+        for line in stdout.splitlines():
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(event, dict):
+                value = event.get("sessionID")
+                if isinstance(value, str) and value:
+                    return value
+        return None
+
+    def _result_payload(self, stdout: str) -> dict[str, Any]:
+        text = "".join(_opencode_text_parts(stdout))
+        payload = _payload_from_model_text(text)
+        if payload is None:
+            raise IssueRouterError("OpenCode router adapter returned invalid JSON")
+        return payload
+
+
+ADAPTER_CLASSES: dict[str, type[_SubprocessAdapter]] = {
+    "codex": CodexExecAdapter,
+    "opencode": OpenCodeRunAdapter,
+}
+"""Registry of router agent adapters keyed by ``adapter:`` name.
+
+Add an entry here (and the name to ``models.ROUTER_ADAPTERS``) to support
+another agent CLI.
+"""
+
+
+def _opencode_config_content(existing: str | None, model: str, tier: str) -> str:
+    """Return OpenCode inline config selecting a Bedrock service tier for one model.
+
+    OpenCode only honours ``serviceTier`` in per-model options; setting it on the
+    provider is silently ignored (verified against Bedrock's ResolvedServiceTier).
+    """
+    try:
+        config = json.loads(existing) if existing else {}
+    except json.JSONDecodeError:
+        config = {}
+    provider, _, model_id = model.partition("/")
+    entry = (
+        config.setdefault("provider", {})
+        .setdefault(provider, {})
+        .setdefault("models", {})
+        .setdefault(model_id, {})
+        .setdefault("options", {})
+    )
+    entry["serviceTier"] = tier
+    return json.dumps(config)
+
+
+def _opencode_text_parts(stdout: str) -> list[str]:
+    parts: list[str] = []
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("type") != "text":
+            continue
+        part = event.get("part")
+        if isinstance(part, dict) and isinstance(part.get("text"), str):
+            parts.append(part["text"])
+    return parts
+
+
+def _payload_from_model_text(text: str) -> dict[str, Any] | None:
+    """Extract the last result object embedded in free-form model text.
+
+    Models wrap the object in prose or fenced blocks and may emit reasoning text
+    with stray braces first, so decode a JSON object at every ``{`` and keep the
+    last one that carries the result contract keys.
+    """
+    decoder = json.JSONDecoder()
+    found: dict[str, Any] | None = None
+    index = text.find("{")
+    while index != -1:
+        try:
+            decoded, end = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            index = text.find("{", index + 1)
+            continue
+        if (
+            isinstance(decoded, dict)
+            and "outcome" in decoded
+            and "schema_version" in decoded
+        ):
+            found = decoded
+        index = text.find("{", end)
+    return found
 
 
 def _process_identity(pid: int) -> str | None:
@@ -282,7 +501,10 @@ def _result_contract_prompt(request: RouterExecutionRequest) -> str:
         "issue_updates, issue_comments, checkpoint, and artifacts. Put each requested "
         "issue comment in issue_comments with issue_id and text; do not edit the "
         "project's issue files directly. Allowed outcomes are completed, blocked, "
-        "and retryable_failure."
+        "and retryable_failure. schema_version must be the JSON number 1, not a "
+        "string. The router owns issue status and commits board state: do not run "
+        "kbs commit, kbs update or kbs comment; report comments through "
+        "issue_comments."
     )
 
 
@@ -350,18 +572,84 @@ def _find_result_payload(stdout: str) -> dict[str, Any]:
     return payloads[-1]
 
 
-def _parse_result(payload: dict[str, Any]) -> RouterAgentResult:
+def _parse_result(payload: dict[str, Any], name: str = "Codex") -> RouterAgentResult:
     outcome = payload.get("outcome")
     if isinstance(outcome, str) and outcome not in {
         "completed",
         "blocked",
         "retryable_failure",
     }:
-        raise IssueRouterError(f'invalid Codex router outcome "{outcome}"')
+        raise IssueRouterError(f'invalid {name} router outcome "{outcome}"')
     try:
-        result = RouterAgentResult.model_validate(payload)
+        result = RouterAgentResult.model_validate(
+            _normalize_schema_version(_normalize_artifacts(payload))
+        )
     except ValidationError as error:
         raise IssueRouterError(
-            "Codex router adapter returned invalid result"
+            f"{name} router adapter returned invalid result"
         ) from error
-    return result.validate_outcome()
+    return result.validate_outcome(name)
+
+
+def _normalize_schema_version(payload: dict[str, Any]) -> dict[str, Any]:
+    """Accept the contract version written as "1", "1.0" or 1.0.
+
+    Models routinely quote the number. The version is a constant of the
+    contract, so coercing these spellings loses nothing; every other value is
+    still rejected by ``RouterAgentResult``.
+    """
+    version = payload.get("schema_version")
+    if isinstance(version, bool):
+        return payload
+    if isinstance(version, str) and version.strip() in {"1", "1.0"}:
+        return {**payload, "schema_version": 1}
+    if isinstance(version, float) and version == 1.0:
+        return {**payload, "schema_version": 1}
+    return payload
+
+
+def _normalize_artifacts(payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep a valid result when optional agent artifact metadata is non-canonical.
+
+    Artifact references are advisory evidence, rather than authority to mutate an
+    issue. Codex commonly reports a local ``path`` with descriptive or
+    verification metadata, while the router contract stores named refs. Preserve
+    canonical artifacts exactly, normalize that known shape, and omit entries that
+    cannot name and reference an artifact. All non-artifact result fields remain
+    strictly validated by ``RouterAgentResult``.
+    """
+    normalized = dict(payload)
+    artifacts = payload.get("artifacts")
+    if artifacts is None:
+        return normalized
+    if not isinstance(artifacts, list):
+        normalized["artifacts"] = []
+        return normalized
+    normalized["artifacts"] = [
+        artifact
+        for item in artifacts
+        if (artifact := _normalize_artifact(item)) is not None
+    ]
+    return normalized
+
+
+def _normalize_artifact(item: Any) -> dict[str, str] | None:
+    """Return the canonical representation of one optional artifact entry."""
+    if not isinstance(item, dict):
+        return None
+    name = item.get("name")
+    reference = item.get("ref")
+    if (
+        isinstance(name, str)
+        and name.strip()
+        and isinstance(reference, str)
+        and reference.strip()
+    ):
+        return {"name": name, "ref": reference}
+    path = item.get("path")
+    if not isinstance(path, str) or not path.strip():
+        return None
+    path_name = Path(path).name.strip()
+    if not path_name:
+        return None
+    return {"name": path_name, "ref": path}

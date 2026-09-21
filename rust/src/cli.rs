@@ -1383,6 +1383,11 @@ where
         }
     };
     let root = resolve_root(cwd);
+    let root = if matches!(&cli.command, Commands::Router { .. }) {
+        crate::router::resolve_router_root(&root)?
+    } else {
+        root
+    };
     let root = canonicalize_path(&root).unwrap_or(root);
     if let Ok(configuration_path) = get_configuration_path(&root) {
         let repository_root = configuration_path.parent().unwrap_or(&root);
