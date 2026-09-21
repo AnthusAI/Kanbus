@@ -29,6 +29,27 @@ Feature: Structured outcomes from the Codex router adapter
     And the router should publish the checkpoint and artifact references
     And the router should create a pull request for package "kbs-401"
 
+  Scenario Outline: The Codex adapter tolerates a quoted schema version
+    Given the Codex adapter returns this result:
+      """
+      {
+        "schema_version": <version>,
+        "outcome": "completed",
+        "summary": "Removed the unused status.",
+        "issue_updates": [],
+        "checkpoint": null,
+        "artifacts": []
+      }
+      """
+    When I run "kanbus router run --once"
+    Then package "kbs-401" should transition to status "review"
+
+    Examples:
+      | version |
+      | "1"     |
+      | "1.0"   |
+      | 1.0     |
+
   Scenario Outline: The Codex adapter accepts only defined outcomes and preserves the turn for review
     Given the Codex adapter returns result outcome "<outcome>"
     When I run "kanbus router run --once"
@@ -59,6 +80,46 @@ Feature: Structured outcomes from the Codex router adapter
     Then the command should fail with exit code 1
     And package "kbs-401" should transition to status "blocked"
     And package "kbs-401" should have a "Kanbus Issue Router" comment containing "The router could not start an agent session"
+
+  Scenario Outline: An agent that changes Kanbus project state is preserved for review with the reason
+    Given the Codex adapter returns this result:
+      """
+      {
+        "schema_version": 1,
+        "outcome": "completed",
+        "summary": "Removed the unused status.",
+        "issue_updates": [],
+        "checkpoint": null,
+        "artifacts": []
+      }
+      """
+    And the Codex adapter <edit> Kanbus project state in its worktree
+    When I run "kanbus router run --once"
+    Then the command should fail with exit code 1
+    And stderr should equal "error: router adapter may not modify Kanbus project state directly\n"
+    And package "kbs-401" should transition to status "review"
+    And package "kbs-401" should have a "Kanbus Issue Router" comment containing "Router detail: router adapter may not modify Kanbus project state directly"
+
+    Examples:
+      | edit               |
+      | edits              |
+      | edits and commits  |
+
+  Scenario: An agent that only refreshes the derived project cache is not rejected
+    Given the Codex adapter returns this result:
+      """
+      {
+        "schema_version": 1,
+        "outcome": "completed",
+        "summary": "Removed the unused status.",
+        "issue_updates": [],
+        "checkpoint": null,
+        "artifacts": []
+      }
+      """
+    And the Codex adapter refreshes the project cache in its worktree
+    When I run "kanbus router run --once"
+    Then package "kbs-401" should transition to status "review"
 
   Scenario: A Codex issue update must remain inside the current package and workflow
     Given the Codex adapter returns issue update "kbs-999" to status "closed"
