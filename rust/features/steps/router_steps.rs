@@ -854,7 +854,8 @@ fn configure_multi_adapter_result(world: &KanbusWorld, result: &str) {
     fs::write(
         &script,
         format!(
-            "#!/bin/sh\nprintf '%s' \"$5\" > '{}'\nprintf '%s\\n' '{}'\n",
+            "#!/bin/sh\n{}printf '%s' \"$5\" > '{}'\nprintf '%s\\n' '{}'\n",
+            crate::step_definitions::router_contract_steps::AGENT_WORK_LINE,
             request_log.replace('\'', "'\\''"),
             result.replace('\'', "'\\''")
         ),
