@@ -29,6 +29,27 @@ Feature: Structured outcomes from the Codex router adapter
     And the router should publish the checkpoint and artifact references
     And the router should create a pull request for package "kbs-401"
 
+  Scenario Outline: The Codex adapter tolerates a quoted schema version
+    Given the Codex adapter returns this result:
+      """
+      {
+        "schema_version": <version>,
+        "outcome": "completed",
+        "summary": "Removed the unused status.",
+        "issue_updates": [],
+        "checkpoint": null,
+        "artifacts": []
+      }
+      """
+    When I run "kanbus router run --once"
+    Then package "kbs-401" should transition to status "review"
+
+    Examples:
+      | version |
+      | "1"     |
+      | "1.0"   |
+      | 1.0     |
+
   Scenario Outline: The Codex adapter accepts only defined outcomes and preserves the turn for review
     Given the Codex adapter returns result outcome "<outcome>"
     When I run "kanbus router run --once"

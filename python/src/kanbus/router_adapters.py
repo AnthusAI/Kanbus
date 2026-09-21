@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from kanbus.issue_router import IssueRouterError
 from kanbus.models import RouterAgentProfile
@@ -66,6 +66,14 @@ class RouterAgentResult(BaseModel):
     issue_comments: list[RouterIssueComment] = Field(default_factory=list)
     checkpoint: RouterCheckpoint | None = None
     artifacts: list[RouterArtifact] = Field(default_factory=list)
+
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def _reject_boolean_version(cls, value: Any) -> Any:
+        """``True == 1`` in Python; the contract version must be the number 1."""
+        if isinstance(value, bool):
+            raise ValueError("schema_version must be the number 1")
+        return value
 
     def validate_outcome(self, name: str = "Codex") -> RouterAgentResult:
         """Require one supported result outcome."""
@@ -488,7 +496,10 @@ def _result_contract_prompt(request: RouterExecutionRequest) -> str:
         "issue_updates, issue_comments, checkpoint, and artifacts. Put each requested "
         "issue comment in issue_comments with issue_id and text; do not edit the "
         "project's issue files directly. Allowed outcomes are completed, blocked, "
-        "and retryable_failure."
+        "and retryable_failure. schema_version must be the JSON number 1, not a "
+        "string. The router owns issue status and commits board state: do not run "
+        "kbs commit, kbs update or kbs comment; report comments through "
+        "issue_comments."
     )
 
 
@@ -565,12 +576,31 @@ def _parse_result(payload: dict[str, Any], name: str = "Codex") -> RouterAgentRe
     }:
         raise IssueRouterError(f'invalid {name} router outcome "{outcome}"')
     try:
-        result = RouterAgentResult.model_validate(_normalize_artifacts(payload))
+        result = RouterAgentResult.model_validate(
+            _normalize_schema_version(_normalize_artifacts(payload))
+        )
     except ValidationError as error:
         raise IssueRouterError(
             f"{name} router adapter returned invalid result"
         ) from error
     return result.validate_outcome(name)
+
+
+def _normalize_schema_version(payload: dict[str, Any]) -> dict[str, Any]:
+    """Accept the contract version written as "1", "1.0" or 1.0.
+
+    Models routinely quote the number. The version is a constant of the
+    contract, so coercing these spellings loses nothing; every other value is
+    still rejected by ``RouterAgentResult``.
+    """
+    version = payload.get("schema_version")
+    if isinstance(version, bool):
+        return payload
+    if isinstance(version, str) and version.strip() in {"1", "1.0"}:
+        return {**payload, "schema_version": 1}
+    if isinstance(version, float) and version == 1.0:
+        return {**payload, "schema_version": 1}
+    return payload
 
 
 def _normalize_artifacts(payload: dict[str, Any]) -> dict[str, Any]:

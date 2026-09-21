@@ -5154,7 +5154,7 @@ fn execute_router_adapter(
     )?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
     let prompt = format!(
-        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure.",
+        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure. schema_version must be the JSON number 1, not a string. The router owns issue status and commits board state: do not run kbs commit, kbs update or kbs comment; report comments through issue_comments.",
         package_issue_ids.join(", "),
         claim.claim_id,
         claim.revision,
@@ -5505,11 +5505,12 @@ fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError>
             KanbusError::IssueOperation("OpenCode router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
-                KanbusError::IssueOperation(
-                    "OpenCode router adapter returned invalid result".to_string(),
-                )
-            })
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "OpenCode router adapter returned invalid result".to_string(),
+                    )
+                })
         })
 }
 
@@ -5604,12 +5605,30 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
             KanbusError::IssueOperation("Codex router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
-                KanbusError::IssueOperation(
-                    "Codex router adapter returned invalid result".to_string(),
-                )
-            })
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "Codex router adapter returned invalid result".to_string(),
+                    )
+                })
         })
+}
+
+/// Accept the contract version written as "1", "1.0" or 1.0.
+///
+/// Models routinely quote the number. The version is a constant of the
+/// contract, so coercing these spellings loses nothing; every other value is
+/// still rejected by the strict deserializer.
+fn normalize_schema_version(mut value: Value) -> Value {
+    let coerce = match value.get("schema_version") {
+        Some(Value::String(text)) => matches!(text.trim(), "1" | "1.0"),
+        Some(Value::Number(number)) => number.as_f64() == Some(1.0) && !number.is_u64(),
+        _ => false,
+    };
+    if coerce {
+        value["schema_version"] = json!(1);
+    }
+    value
 }
 
 /// Normalize advisory artifact metadata without relaxing the result contract.
