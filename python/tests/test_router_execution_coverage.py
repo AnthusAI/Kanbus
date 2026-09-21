@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import PurePosixPath
 from types import SimpleNamespace
 
 import pytest
@@ -1917,6 +1918,12 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
         router_execution, "_create_isolated_worktree", lambda *_a, **_kw: worktree
     )
     monkeypatch.setattr(router_execution, "_validate_worktree_changes", lambda *_: None)
+    # A finished agent leaves a change in its worktree.
+    monkeypatch.setattr(
+        router_execution,
+        "_agent_changed_paths",
+        lambda *_: [PurePosixPath("src/app.py")],
+    )
     commits = []
     monkeypatch.setattr(
         router_execution,
@@ -2828,3 +2835,45 @@ def test_restore_checkpoint_ref_swallows_failed_best_effort_rollback(
     router_execution._restore_checkpoint_ref(
         tmp_path, "refs/kanbus/router/kbs-42/r1", "published", None
     )
+
+
+@pytest.mark.parametrize(
+    ("comments", "updates", "changed", "expected"),
+    [
+        ([], [], [], "retryable_failure"),
+        ([], [], [PurePosixPath("src/app.py")], "completed"),
+        ([{"issue_id": "kbs-42", "text": "Answer."}], [], [], "completed"),
+        ([], [{"issue_id": "kbs-42", "status": "closed"}], [], "completed"),
+    ],
+)
+def test_completed_without_changes_is_retryable_unless_it_leaves_evidence(
+    monkeypatch, comments, updates, changed, expected
+):
+    monkeypatch.setattr(router_execution, "_agent_changed_paths", lambda *_: changed)
+    reported = RouterAgentResult(
+        schema_version=1,
+        outcome="completed",
+        summary="Did the work.",
+        issue_comments=comments,
+        issue_updates=updates,
+    )
+
+    returned = router_execution._reject_completed_without_changes(
+        reported, "board", "claim"
+    )
+
+    assert returned.outcome == expected
+    if expected == "retryable_failure":
+        assert returned.summary == router_execution.NO_CHANGE_SUMMARY
+
+
+def test_other_outcomes_are_never_rewritten_for_lacking_changes(monkeypatch):
+    monkeypatch.setattr(router_execution, "_agent_changed_paths", lambda *_: [])
+    for outcome in ("blocked", "retryable_failure"):
+        reported = RouterAgentResult(schema_version=1, outcome=outcome, summary="x")
+        assert (
+            router_execution._reject_completed_without_changes(
+                reported, "board", "claim"
+            ).outcome
+            == outcome
+        )

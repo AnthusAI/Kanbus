@@ -827,13 +827,17 @@ fn stop_fake_forge(world: &mut KanbusWorld) {
     }
 }
 
+/// A finished agent leaves a change in its worktree; the router rejects a
+/// `completed` result that changed nothing.
+pub(crate) const AGENT_WORK_LINE: &str = "printf 'work' > agent-work.txt\n";
+
 pub(crate) fn configure_fake_adapter(world: &mut KanbusWorld, result: &str) {
     ensure_git_commit(world);
     let request_log = root(world).join(".git/router-contract-adapter-request.txt");
     let stdout_capture = root(world).join(".git/router-contract-adapter-stdout.txt");
     let script = root(world).join(".git/router-contract-adapter.sh");
     let body = format!(
-        "#!/bin/sh\nprintf '%s' \"$5\" > {}\nprintf '%s\\n' {} > {}\ncat {}\n",
+        "#!/bin/sh\n{AGENT_WORK_LINE}printf '%s' \"$5\" > {}\nprintf '%s\\n' {} > {}\ncat {}\n",
         shell_quote(&request_log.display().to_string()),
         shell_quote(result),
         shell_quote(&stdout_capture.display().to_string()),
@@ -867,7 +871,7 @@ fn configure_blocking_fake_adapter(world: &mut KanbusWorld, result: &str) {
     let release = root(world).join(".git/router-contract-adapter-release");
     let script = root(world).join(".git/router-contract-adapter.sh");
     let body = format!(
-        "#!/bin/sh\nprintf '%s' \"$5\" > {}\ntouch {}\nwhile [ ! -e {} ]; do sleep 0.02; done\nprintf '%s\\n' {} > {}\ncat {}\n",
+        "#!/bin/sh\n{AGENT_WORK_LINE}printf '%s' \"$5\" > {}\ntouch {}\nwhile [ ! -e {} ]; do sleep 0.02; done\nprintf '%s\\n' {} > {}\ncat {}\n",
         shell_quote(&request_log.display().to_string()),
         shell_quote(&started.display().to_string()),
         shell_quote(&release.display().to_string()),
@@ -1533,6 +1537,13 @@ fn given_adapter_refreshes_cache(world: &mut KanbusWorld) {
         world,
         "mkdir -p project/.cache\nprintf '{}' > project/.cache/index.json\n",
     );
+}
+
+#[given("the Codex adapter makes no changes in its worktree")]
+fn given_adapter_makes_no_changes(world: &mut KanbusWorld) {
+    let script = root(world).join(".git/router-contract-adapter.sh");
+    let body = fs::read_to_string(&script).expect("read fake adapter script");
+    fs::write(&script, body.replace(AGENT_WORK_LINE, "")).expect("rewrite fake adapter");
 }
 
 #[given("a fake forge is available for the router")]

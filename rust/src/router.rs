@@ -5291,8 +5291,20 @@ fn execute_router_adapter(
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = kind.parse_result(&output)?;
-    validate_router_worktree_changes(&worktree, &base_commit, &configuration.project_directory)?;
+    let mut result = kind.parse_result(&output)?;
+    let changed =
+        router_agent_changed_paths(&worktree, &base_commit, &configuration.project_directory)?;
+    validate_router_worktree_changes(&changed, &configuration.project_directory)?;
+    // A completed package must leave evidence: a file change, a requested issue
+    // comment, or an issue update. Models sometimes report work they never did.
+    if result.outcome == "completed"
+        && result.issue_comments.is_empty()
+        && result.issue_updates.is_empty()
+        && changed.is_empty()
+    {
+        result.outcome = "retryable_failure".to_string();
+        result.summary = NO_CHANGE_SUMMARY.to_string();
+    }
     if result.schema_version != 1 {
         return Err(KanbusError::IssueOperation(format!(
             "{adapter_name} router adapter returned invalid result"
@@ -5340,16 +5352,17 @@ fn router_worktree_head(worktree: &Path) -> Result<String, KanbusError> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-/// Reject adapter edits to Kanbus project state outside canonical mutations.
+const NO_CHANGE_SUMMARY: &str =
+    "The agent reported completed work but changed nothing and reported no comments or updates.";
+
+/// Every path the agent changed in its worktree, committed or not.
 ///
-/// Both uncommitted and committed edits count: an agent that runs `kbs commit`
-/// inside the worktree must not smuggle board changes past the guard. The
-/// project's `.cache` directory is derived data and is exempt.
-fn validate_router_worktree_changes(
+/// `<project>/.cache` is derived data and is excluded.
+fn router_agent_changed_paths(
     worktree: &Path,
     base_commit: &str,
     project_directory: &str,
-) -> Result<(), KanbusError> {
+) -> Result<Vec<String>, KanbusError> {
     let project = Path::new(project_directory);
     if project.is_absolute()
         || project
@@ -5406,16 +5419,28 @@ fn validate_router_worktree_changes(
         }
     }
     let cache = project.join(".cache");
-    for path in changed {
-        let path = Path::new(&path);
-        if path.starts_with(&cache) {
-            continue;
-        }
-        if path.starts_with(project) {
-            return Err(KanbusError::IssueOperation(
-                "router adapter may not modify Kanbus project state directly".to_string(),
-            ));
-        }
+    Ok(changed
+        .into_iter()
+        .filter(|path| !Path::new(path).starts_with(&cache))
+        .collect())
+}
+
+/// Reject adapter edits to Kanbus project state outside canonical mutations.
+///
+/// Both uncommitted and committed edits count: an agent that runs `kbs commit`
+/// inside the worktree must not smuggle board changes past the guard.
+fn validate_router_worktree_changes(
+    changed: &[String],
+    project_directory: &str,
+) -> Result<(), KanbusError> {
+    let project = Path::new(project_directory);
+    if changed
+        .iter()
+        .any(|path| Path::new(path).starts_with(project))
+    {
+        return Err(KanbusError::IssueOperation(
+            "router adapter may not modify Kanbus project state directly".to_string(),
+        ));
     }
     Ok(())
 }
@@ -9800,5 +9825,64 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("OpenCode router adapter returned invalid result"));
+    }
+
+    fn git_in(directory: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .current_dir(directory)
+            .output()
+            .expect("run git");
+        assert!(output.status.success(), "git {args:?} failed");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn agent_changed_paths_cover_uncommitted_and_committed_edits_and_skip_the_cache() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let repo = directory.path();
+        git_in(repo, &["init", "-q", "-b", "main"]);
+        fs::write(repo.join("README.md"), "base\n").unwrap();
+        git_in(repo, &["add", "-A"]);
+        git_in(repo, &["commit", "-q", "-m", "base"]);
+        let base = git_in(repo, &["rev-parse", "HEAD"]);
+
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("clean");
+        assert!(changed.is_empty());
+
+        fs::create_dir_all(repo.join("project/.cache")).unwrap();
+        fs::write(repo.join("project/.cache/index.json"), "{}").unwrap();
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("cache only");
+        assert!(
+            changed.is_empty(),
+            "the derived cache is exempt: {changed:?}"
+        );
+        assert!(validate_router_worktree_changes(&changed, "project").is_ok());
+
+        fs::write(repo.join("app.txt"), "work\n").unwrap();
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("edit");
+        assert_eq!(changed, vec!["app.txt".to_string()]);
+        assert!(validate_router_worktree_changes(&changed, "project").is_ok());
+
+        fs::create_dir_all(repo.join("project/issues")).unwrap();
+        fs::write(repo.join("project/issues/x.json"), "{}").unwrap();
+        git_in(repo, &["add", "-A", "--", "project/issues"]);
+        git_in(repo, &["commit", "-q", "-m", "agent board commit"]);
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("committed");
+        let error = validate_router_worktree_changes(&changed, "project").unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("may not modify Kanbus project state directly"));
+
+        let escape = router_agent_changed_paths(repo, &base, "../outside");
+        assert!(escape.is_err());
     }
 }
