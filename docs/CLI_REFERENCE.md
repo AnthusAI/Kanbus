@@ -150,7 +150,7 @@ kanbus delete <id>
 
 ## Issue Router
 
-The optional Issue Router dispatches labeled issue packages through the configured Codex adapter. See the [Issue Router operator guide](ISSUE_ROUTER_OPERATOR_GUIDE.md) for configuration and recovery, and the [Issue Router design](ISSUE_ROUTER_DESIGN.md) for exact planning, result, and lifecycle contracts.
+The optional Issue Router dispatches labeled issue packages through the configured agent adapter (Codex or OpenCode). See the [Issue Router operator guide](ISSUE_ROUTER_OPERATOR_GUIDE.md) for configuration and recovery, and the [Issue Router design](ISSUE_ROUTER_DESIGN.md) for exact planning, result, and lifecycle contracts.
 
 ```bash
 kanbus router plan [--json]
