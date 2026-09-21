@@ -60,6 +60,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
     handle_legacy_fields(&mut merged_value);
+    default_missing_semantic_categories(&mut merged_value);
     reject_standup_lookback_hours(&merged_value)?;
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
@@ -73,6 +74,39 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+/// Fill in `semantic_category` for statuses that omit it (older configurations),
+/// so they keep loading. An explicit value is never overridden.
+fn default_missing_semantic_categories(configuration: &mut Mapping) {
+    let Some(Value::Sequence(statuses)) =
+        configuration.get_mut(Value::String("statuses".to_string()))
+    else {
+        return;
+    };
+    let field = Value::String("semantic_category".to_string());
+    for status in statuses {
+        let Value::Mapping(status) = status else {
+            continue;
+        };
+        let declared = status
+            .get(&field)
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty());
+        if declared {
+            continue;
+        }
+        let text = |name: &str| {
+            status
+                .get(Value::String(name.to_string()))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        };
+        let derived =
+            crate::status_semantics::derive_semantic_category(&text("key"), &text("name"));
+        status.insert(field.clone(), Value::String(derived.to_string()));
+    }
 }
 
 fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
