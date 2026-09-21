@@ -16,6 +16,8 @@ from pydantic import (
     model_validator,
 )
 
+from kanbus.status_semantic_defaults import derive_semantic_category
+
 
 def _is_loopback_http_url(value: str) -> bool:
     """Return whether an HTTP URL targets an explicitly loopback host.
@@ -234,9 +236,17 @@ class StatusDefinition(BaseModel):
     key: str = Field(min_length=1)
     name: str = Field(min_length=1)
     category: str = Field(min_length=1)
-    semantic_category: str = Field(min_length=1)
+    # Older configurations omit this; a missing value is derived from the key and
+    # name (see status_semantic_defaults) instead of failing to load.
+    semantic_category: str = ""
     color: Optional[str] = None
     collapsed: bool = False
+
+    @model_validator(mode="after")
+    def _derive_missing_semantic_category(self) -> "StatusDefinition":
+        if not self.semantic_category.strip():
+            self.semantic_category = derive_semantic_category(self.key, self.name)
+        return self
 
 
 class PriorityDefinition(BaseModel):
