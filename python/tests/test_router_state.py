@@ -31,6 +31,7 @@ from kanbus.models import IssueData
 from kanbus.router_state import (
     publish_router_start_event,
     publish_router_state,
+    resolve_router_root,
     router_state_root,
 )
 
@@ -90,6 +91,40 @@ def test_shared_state_fetch_fails_closed_for_advertisement_and_fetch_errors(
         router_state._fetch_state(tmp_path)
 
 
+def test_shared_state_fetch_retries_transient_fetch_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fetch_results = iter([1, 0])
+    fetch_calls = 0
+
+    def try_git(_root, *args, **_kwargs):
+        nonlocal fetch_calls
+        if args == ("remote", "get-url", "origin"):
+            return "https://example.invalid/repo"
+        if args[:1] == ("fetch",):
+            fetch_calls += 1
+            return next(fetch_results)
+        raise AssertionError(f"unexpected Git invocation: {args}")
+
+    monkeypatch.setattr(router_state, "_try_git", try_git)
+    monkeypatch.setattr(
+        router_state,
+        "sleep",
+        lambda _seconds: None,
+    )
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stdout="abc refs/heads/kanbus/router-state\\n"
+        ),
+    )
+
+    router_state._fetch_state(tmp_path)
+
+    assert fetch_calls == 2
+
+
 def test_git_error_helpers_keep_failures_explicit_and_bounded(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -105,6 +140,23 @@ def test_git_error_helpers_keep_failures_explicit_and_bounded(
 
     monkeypatch.setattr(subprocess, "run", missing_git)
     assert router_state._try_git(tmp_path, "status") is None
+
+
+def test_router_root_resolves_from_a_repository_subdirectory(tmp_path: Path) -> None:
+    _run(tmp_path, "init", "--initial-branch=main")
+    nested = tmp_path / "rust" / "src"
+    nested.mkdir(parents=True)
+
+    assert resolve_router_root(nested) == tmp_path.resolve()
+
+
+def test_router_root_rejects_non_git_directories_with_actionable_diagnostic(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        IssueRouterError, match="^issue router requires a Git repository$"
+    ):
+        resolve_router_root(tmp_path)
 
 
 def test_merge_conflict_reports_git_diagnostic(monkeypatch, tmp_path: Path) -> None:
@@ -547,9 +599,6 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
         "renew-claim",
     )
     sleep(2.0)
-    stopped.set()
-    thread.join(timeout=2)
-
     state_b = router_state_root(clone_b)
     observed_context = load_router_context(state_b)
     evaluation_time = claim_start + timedelta(seconds=1.8)
@@ -560,6 +609,8 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
     )
     assert lease.active, "the peer must see a renewal after the original one-second TTL"
     assert not build_router_plan(observed_context).eligible
+    stopped.set()
+    thread.join(timeout=2)
 
 
 def test_concurrent_shared_start_publication_accepts_only_selected_claim(

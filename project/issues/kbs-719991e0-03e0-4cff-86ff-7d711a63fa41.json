@@ -44,7 +44,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The Gherkin spec is being clarified to cover TTL cleanup without storing Kanbus history in the mutex store.",
-  "right_now_updated_at": "2026-09-14T14:08:27.305118453Z",
+    "right_now_summary": "The TTL garbage-collection and storage wording awaits admission of the Mutex API work.",
+    "right_now_updated_at": "2026-09-18T18:21:07.299163Z",
   "custom": {}
 }

@@ -209,6 +209,7 @@ async fn main() {
         .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
+        .route("/api/realtime/bootstrap", get(get_realtime_bootstrap_root))
         .route("/api/auth/bootstrap", get(get_auth_bootstrap_root))
         .route("/api/notifications", post(post_notification_root))
         .route("/api/ui-state", get(get_ui_state_root))
@@ -250,6 +251,10 @@ async fn main() {
         .route(
             "/:account/:project/api/events/realtime",
             get(get_realtime_events),
+        )
+        .route(
+            "/:account/:project/api/realtime/bootstrap",
+            get(get_realtime_bootstrap),
         )
         .route(
             "/:account/:project/api/auth/bootstrap",
@@ -1071,6 +1076,46 @@ struct AuthBootstrapResponse {
     tenant_project_claim_key: String,
     account: Option<String>,
     project: Option<String>,
+}
+
+/// The local console intentionally uses its built-in SSE feed rather than an
+/// MQTT broker.  Keeping this response shape identical to the cloud bootstrap
+/// lets the shared web client select that transport without first logging a
+/// spurious 404 and entering its error fallback.
+#[derive(Debug, Serialize)]
+struct RealtimeBootstrapResponse {
+    mode: &'static str,
+    region: &'static str,
+    iot_endpoint: &'static str,
+    topic: String,
+    account: String,
+    project: String,
+}
+
+async fn get_realtime_bootstrap_root() -> Json<RealtimeBootstrapResponse> {
+    Json(build_local_realtime_bootstrap(None, None))
+}
+
+async fn get_realtime_bootstrap(
+    AxumPath((account, project)): AxumPath<(String, String)>,
+) -> Json<RealtimeBootstrapResponse> {
+    Json(build_local_realtime_bootstrap(Some(account), Some(project)))
+}
+
+fn build_local_realtime_bootstrap(
+    account: Option<String>,
+    project: Option<String>,
+) -> RealtimeBootstrapResponse {
+    let account = account.unwrap_or_else(|| "local".to_string());
+    let project = project.unwrap_or_else(|| "local".to_string());
+    RealtimeBootstrapResponse {
+        mode: "sse",
+        region: "local",
+        iot_endpoint: "localhost",
+        topic: format!("projects/{account}/{project}/events"),
+        account,
+        project,
+    }
 }
 
 async fn get_auth_bootstrap_root() -> Json<AuthBootstrapResponse> {
@@ -2067,6 +2112,23 @@ mod tests {
         assert_eq!(scoped.project.as_deref(), Some("proj"));
         assert_eq!(scoped.tenant_account_claim_key, "custom:account");
         assert_eq!(scoped.tenant_project_claim_key, "custom:project");
+    }
+
+    #[test]
+    fn local_realtime_bootstrap_selects_sse_with_tenant_scoped_topic() {
+        let root = build_local_realtime_bootstrap(None, None);
+        assert_eq!(root.mode, "sse");
+        assert_eq!(root.region, "local");
+        assert_eq!(root.iot_endpoint, "localhost");
+        assert_eq!(root.topic, "projects/local/local/events");
+        assert_eq!(root.account, "local");
+        assert_eq!(root.project, "local");
+
+        let scoped =
+            build_local_realtime_bootstrap(Some("acct".to_string()), Some("proj".to_string()));
+        assert_eq!(scoped.topic, "projects/acct/proj/events");
+        assert_eq!(scoped.account, "acct");
+        assert_eq!(scoped.project, "proj");
     }
 
     #[test]

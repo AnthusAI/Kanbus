@@ -19,7 +19,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The merged specs need follow-ups on tie-breaks, TTL cleanup, and the MQTT epic and story.",
-  "right_now_updated_at": "2026-09-18T10:38:12.703306Z",
+  "right_now_summary": "PR #278 is merged; three follow-ups await Git lease, Mutex API, and Level 2 MQTT work.",
+  "right_now_updated_at": "2026-09-18T18:21:13.653432Z",
   "custom": {}
 }
