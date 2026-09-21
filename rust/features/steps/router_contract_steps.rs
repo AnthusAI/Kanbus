@@ -1505,6 +1505,11 @@ fn given_adapter_outcome(world: &mut KanbusWorld, outcome: String) {
     configure_fake_adapter(world, &result);
 }
 
+#[given("a fake forge is available for the router")]
+fn given_fake_forge_available(world: &mut KanbusWorld) {
+    let _ = start_fake_forge(world);
+}
+
 #[given("the Codex adapter writes malformed JSON to standard output")]
 fn given_adapter_malformed(world: &mut KanbusWorld) {
     configure_fake_adapter(world, "not-json");
