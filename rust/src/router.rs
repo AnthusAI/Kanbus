@@ -3812,6 +3812,11 @@ fn run_issue_router_once(
                 let branch = prior_pr
                     .as_ref()
                     .map(|pull| pull.branch.clone())
+                    .or_else(|| {
+                        load_router_events(project_dir).ok().and_then(|events| {
+                            router_started_branch(&events, &package.issue_id, &claim.claim_id)
+                        })
+                    })
                     .unwrap_or_else(|| format!("codex/router/{}/r{}", package.issue_id, revision));
                 let published_branch = publish_router_branch(
                     root,
@@ -5134,6 +5139,133 @@ fn stale_claim_error(
     ))
 }
 
+const ROUTER_COMMENT_AUTHOR: &str = "Kanbus Issue Router";
+
+/// A blocked agent's saved session plus the human reply that answers it.
+#[derive(Debug, Clone)]
+struct ResumePlan {
+    session_id: String,
+    reply: String,
+    branch: Option<String>,
+    worktree: Option<PathBuf>,
+}
+
+/// Return the saved session to resume when a human answered a question.
+///
+/// The latest conversation record must be the agent's question
+/// (`awaiting_reply`) with a saved session, and a human (not the router) must
+/// have commented after it. Anything else starts a fresh session.
+fn pending_reply_plan(root: &Path, project_dir: &Path, issue_id: &str) -> Option<ResumePlan> {
+    let events = load_router_events(project_dir).ok()?;
+    let question = events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })?;
+    if payload_text(question, "action") != Some("awaiting_reply") {
+        return None;
+    }
+    let session_id = payload_text(question, "session_id").filter(|id| !id.is_empty())?;
+    let asked_at = DateTime::parse_from_rfc3339(&question.occurred_at)
+        .ok()?
+        .with_timezone(&Utc);
+    let issue_path = crate::file_io::load_project_directory(root)
+        .ok()?
+        .join("issues")
+        .join(format!("{issue_id}.json"));
+    let issue = read_issue_from_file(&issue_path).ok()?;
+    let mut comments = issue
+        .comments
+        .iter()
+        .filter(|comment| comment.author != ROUTER_COMMENT_AUTHOR)
+        .filter(|comment| comment.created_at > asked_at)
+        .filter_map(|comment| {
+            let text = comment.text.as_deref()?.trim();
+            (!text.is_empty()).then(|| (comment.created_at, text.to_string()))
+        })
+        .collect::<Vec<_>>();
+    if comments.is_empty() {
+        return None;
+    }
+    comments.sort_by_key(|(created_at, _)| *created_at);
+    Some(ResumePlan {
+        session_id: session_id.to_string(),
+        reply: comments
+            .into_iter()
+            .map(|(_, text)| text)
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        branch: payload_text(question, "branch").map(str::to_string),
+        worktree: payload_text(question, "worktree").map(PathBuf::from),
+    })
+}
+
+/// The prompt for a fresh session, or the human's reply for a resumed one.
+///
+/// `resumed` is false when a reply exists but its session could not be resumed:
+/// the reply is then delivered to a fresh session.
+fn agent_prompt(prompt: &str, resume: Option<&ResumePlan>, resumed: bool) -> String {
+    match resume {
+        Some(plan) if resumed => format!(
+            "A human replied to your question:\n\n{}\n\nContinue the work from where you stopped, in this same session. {prompt}",
+            plan.reply
+        ),
+        Some(plan) => format!(
+            "A human replied to a question from an earlier session that could not be resumed. Start from the issue and any work already on this branch, and take the reply into account:\n\n{}\n\n{prompt}",
+            plan.reply
+        ),
+        None => prompt.to_string(),
+    }
+}
+
+/// Where an adapter keeps its own session data for one run.
+enum AdapterDataHome {
+    /// Removed when the run ends.
+    Temporary(tempfile::TempDir),
+    /// Kept across attempts so a saved session can be resumed.
+    Persistent(PathBuf),
+}
+
+impl AdapterDataHome {
+    fn path(&self) -> &Path {
+        match self {
+            Self::Temporary(directory) => directory.path(),
+            Self::Persistent(path) => path,
+        }
+    }
+}
+
+/// The branch a run's conversation started on, when one was recorded.
+fn router_started_branch(events: &[EventRecord], issue_id: &str, claim_id: &str) -> Option<String> {
+    events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .filter(|event| payload_text(event, "action") == Some("started"))
+        .filter(|event| payload_text(event, "claim_id") == Some(claim_id))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+        .and_then(|event| payload_text(event, "branch").map(str::to_string))
+}
+
+fn kind_for_resume(
+    profile: &crate::models::IssueRouterProviderConfiguration,
+) -> Result<RouterAdapterKind, KanbusError> {
+    RouterAdapterKind::from_name(&profile.adapter).ok_or_else(|| {
+        KanbusError::IssueOperation(format!(
+            "router.providers adapter {} is not supported",
+            profile.adapter
+        ))
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn execute_router_adapter(
     root: &Path,
@@ -5146,7 +5278,22 @@ fn execute_router_adapter(
     checkpoint: Option<(String, u64)>,
     external_renewer: Option<&RouterLeaseRenewalGuard>,
 ) -> Result<RouterAgentResult, KanbusError> {
-    let worktree = create_router_worktree(root, issue_id, claim, checkpoint.as_ref())?;
+    let resume = pending_reply_plan(root, project_dir, issue_id);
+    let worktree =
+        create_router_worktree(root, issue_id, claim, checkpoint.as_ref(), resume.as_ref())?;
+    let reused_worktree = resume
+        .as_ref()
+        .and_then(|plan| plan.worktree.as_deref())
+        .is_some_and(|previous| {
+            fs::canonicalize(previous).ok() == fs::canonicalize(&worktree).ok()
+        });
+    let resumed = resume.is_some()
+        && (!kind_for_resume(profile)?.resume_requires_original_directory() || reused_worktree);
+    // A resumed run keeps the branch the agent already worked on.
+    let branch = resume
+        .as_ref()
+        .and_then(|plan| plan.branch.clone())
+        .unwrap_or_else(|| format!("codex/router/{issue_id}/r{}", claim.revision));
     // Everything the agent commits after this point is judged against this base.
     let base_commit = router_worktree_head(&worktree)?;
     append_router_event(
@@ -5155,8 +5302,10 @@ fn execute_router_adapter(
         EventType::RouterConversation,
         json!({
             "action":"started", "provider":profile.adapter, "lifecycle":"in_progress",
+            "resumed_session":resume.as_ref().filter(|_| resumed).map(|plan| plan.session_id.clone()),
+            "message":(resume.is_some() && !resumed).then_some("The saved session could not be resumed because its worktree is gone; started a fresh session with the human's reply."),
             "claim_id":claim.claim_id, "revision":claim.revision,
-            "worktree":worktree, "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+            "worktree":worktree, "branch":branch,
         }),
     )?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
@@ -5179,7 +5328,7 @@ fn execute_router_adapter(
         ))
     })?;
     let adapter_name = kind.display_name();
-    let data_home = kind.private_data_home(profile)?;
+    let data_home = kind.private_data_home(profile, root, issue_id)?;
     let mut command = Command::new(profile.resolved_command());
     command.args(&profile.args);
     kind.configure(
@@ -5188,6 +5337,8 @@ fn execute_router_adapter(
         &prompt,
         &worktree,
         data_home.as_ref(),
+        resume.as_ref(),
+        resumed,
     );
     command
         .current_dir(&worktree)
@@ -5283,7 +5434,7 @@ fn execute_router_adapter(
                     "action":"agent_turn", "provider":profile.adapter, "lifecycle":"review",
                     "claim_id":claim.claim_id, "revision":claim.revision,
                     "session_id":session_id, "worktree":worktree,
-                    "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+                    "branch":branch,
                     "log":redact_router_log(&format!("{stdout}\n{stderr}")),
                 }),
             )?;
@@ -5334,7 +5485,7 @@ fn execute_router_adapter(
                 "action":"awaiting_reply", "provider":profile.adapter, "lifecycle":"blocked",
                 "claim_id":claim.claim_id, "revision":claim.revision,
                 "session_id":kind.session_id(&output), "worktree":worktree,
-                "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+                "branch":branch,
             }),
         )?;
     }
@@ -5450,25 +5601,69 @@ fn validate_router_worktree_changes(
     Ok(())
 }
 
-/// Create a private OpenCode data dir, copying `auth.json` so other providers work.
-fn isolated_opencode_data_home() -> Result<tempfile::TempDir, KanbusError> {
-    let directory = tempfile::Builder::new()
-        .prefix("kanbus-opencode-")
-        .tempdir()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+/// The private OpenCode data dir for one package.
+///
+/// Concurrent OpenCode processes share one SQLite session database and fail
+/// with "database is locked", so each package gets its own directory. It lives
+/// beside the repository's other host-local router state and persists across
+/// attempts so a saved session can be resumed with a human's reply. When the
+/// repository directory cannot be found it is a temporary directory instead.
+/// `auth.json` is copied in so non-AWS providers keep working.
+fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
+    let common_dir = Command::new("git")
+        .args(["rev-parse", "--git-common-dir"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .map(|text| {
+            let path = PathBuf::from(text);
+            if path.is_absolute() {
+                path
+            } else {
+                root.join(path)
+            }
+        });
+    let key: String = issue_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let home = match common_dir {
+        Some(common) => {
+            let path = common
+                .join("kanbus-router-adapters")
+                .join("opencode")
+                .join(key);
+            fs::create_dir_all(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+            AdapterDataHome::Persistent(path)
+        }
+        None => AdapterDataHome::Temporary(
+            tempfile::Builder::new()
+                .prefix("kanbus-opencode-")
+                .tempdir()
+                .map_err(|error| KanbusError::Io(error.to_string()))?,
+        ),
+    };
     let shared = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| {
             std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local").join("share"))
         });
     if let Some(auth) = shared.map(|base| base.join("opencode").join("auth.json")) {
-        if auth.is_file() {
-            let target = directory.path().join("opencode");
+        let target = home.path().join("opencode");
+        if auth.is_file() && !target.join("auth.json").exists() {
             fs::create_dir_all(&target).map_err(|error| KanbusError::Io(error.to_string()))?;
             let _ = fs::copy(&auth, target.join("auth.json"));
         }
     }
-    Ok(directory)
+    Ok(home)
 }
 
 /// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
@@ -5517,6 +5712,13 @@ impl RouterAdapterKind {
         }
     }
 
+    /// OpenCode binds a session to the directory it started in and, resumed from
+    /// anywhere else, silently does nothing and hangs. Such an adapter is only
+    /// resumed in its original worktree.
+    fn resume_requires_original_directory(self) -> bool {
+        self == Self::OpenCode
+    }
+
     fn supports_service_tier(self) -> bool {
         self == Self::OpenCode
     }
@@ -5526,9 +5728,11 @@ impl RouterAdapterKind {
     fn private_data_home(
         self,
         profile: &crate::models::IssueRouterProviderConfiguration,
-    ) -> Result<Option<tempfile::TempDir>, KanbusError> {
+        root: &Path,
+        issue_id: &str,
+    ) -> Result<Option<AdapterDataHome>, KanbusError> {
         if self == Self::OpenCode && !profile.env.contains_key("XDG_DATA_HOME") {
-            isolated_opencode_data_home().map(Some)
+            opencode_data_home(root, issue_id).map(Some)
         } else {
             Ok(None)
         }
@@ -5540,17 +5744,31 @@ impl RouterAdapterKind {
         profile: &crate::models::IssueRouterProviderConfiguration,
         prompt: &str,
         worktree: &Path,
-        data_home: Option<&tempfile::TempDir>,
+        data_home: Option<&AdapterDataHome>,
+        resume: Option<&ResumePlan>,
+        resumed: bool,
     ) {
+        let prompt = agent_prompt(prompt, resume, resumed);
+        let resume = resume.filter(|_| resumed);
         match self {
             Self::Codex => {
-                command.arg("exec").arg("--json");
-                if let Some(model) = &profile.model {
-                    command.arg("--model").arg(model);
+                command.arg("exec");
+                if let Some(plan) = resume {
+                    // `codex exec resume` has no --cd; the process working
+                    // directory is the worktree and the session is found by id.
+                    command.arg("resume").arg("--json");
+                    if let Some(model) = &profile.model {
+                        command.arg("--model").arg(model);
+                    }
+                    command.arg(&plan.session_id);
+                } else {
+                    command.arg("--json");
+                    if let Some(model) = &profile.model {
+                        command.arg("--model").arg(model);
+                    }
+                    command.arg("--cd").arg(worktree);
                 }
                 command
-                    .arg("--cd")
-                    .arg(worktree)
                     .arg(prompt)
                     .envs(&profile.env)
                     // The prompt is an argument; an inherited stdin makes
@@ -5561,6 +5779,9 @@ impl RouterAdapterKind {
                 command.arg("run").arg("--format").arg("json");
                 if let Some(model) = &profile.model {
                     command.arg("--model").arg(model);
+                }
+                if let Some(plan) = resume {
+                    command.arg("--session").arg(&plan.session_id);
                 }
                 command
                     .arg(format!("{prompt}{OPENCODE_FORMAT_HINT}"))
@@ -5987,7 +6208,15 @@ fn create_router_worktree(
     issue_id: &str,
     claim: &RouterClaim,
     checkpoint: Option<&(String, u64)>,
+    resume: Option<&ResumePlan>,
 ) -> Result<PathBuf, KanbusError> {
+    // A resumed agent keeps its own worktree: its saved session refers to
+    // absolute paths there, and it may hold the agent's unfinished work.
+    if let Some(previous) = resume.and_then(|plan| plan.worktree.as_deref()) {
+        if worktree_is_registered(root, previous) {
+            return Ok(previous.to_path_buf());
+        }
+    }
     let worktree = router_worktree_path(issue_id, &claim.claim_id);
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -6054,6 +6283,25 @@ fn create_router_worktree(
         ));
     }
     Ok(worktree)
+}
+
+/// Whether `path` still exists and is a registered worktree of `root`'s repository.
+fn worktree_is_registered(root: &Path, path: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
+    let Ok(output) = Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(root)
+        .output()
+    else {
+        return false;
+    };
+    let wanted = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+        .any(|listed| fs::canonicalize(listed).unwrap_or_else(|_| PathBuf::from(listed)) == wanted)
 }
 
 fn router_worktree_path(issue_id: &str, claim_id: &str) -> PathBuf {
@@ -9889,5 +10137,147 @@ mod tests {
 
         let escape = router_agent_changed_paths(repo, &base, "../outside");
         assert!(escape.is_err());
+    }
+
+    fn resume_plan() -> ResumePlan {
+        ResumePlan {
+            session_id: "ses_saved".to_string(),
+            reply: "Use option B.".to_string(),
+            branch: Some("codex/router/kbs-1/r1".to_string()),
+            worktree: None,
+        }
+    }
+
+    fn profile(
+        adapter: &str,
+        model: Option<&str>,
+    ) -> crate::models::IssueRouterProviderConfiguration {
+        crate::models::IssueRouterProviderConfiguration {
+            adapter: adapter.to_string(),
+            command: None,
+            args: Vec::new(),
+            model: model.map(str::to_string),
+            env: BTreeMap::new(),
+            service_tier: None,
+        }
+    }
+
+    fn arguments(command: &Command) -> Vec<String> {
+        command
+            .get_args()
+            .map(|value| value.to_string_lossy().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn codex_resume_uses_exec_resume_with_the_session_id_and_no_cd() {
+        let mut command = Command::new("codex");
+        let plan = resume_plan();
+        RouterAdapterKind::Codex.configure(
+            &mut command,
+            &profile("codex", Some("gpt-x")),
+            "contract",
+            Path::new("/work"),
+            None,
+            Some(&plan),
+            true,
+        );
+        let args = arguments(&command);
+        assert_eq!(
+            &args[..6],
+            ["exec", "resume", "--json", "--model", "gpt-x", "ses_saved"]
+        );
+        assert!(!args.contains(&"--cd".to_string()));
+        assert!(args
+            .last()
+            .unwrap()
+            .contains("A human replied to your question"));
+        assert!(args.last().unwrap().contains("Use option B."));
+    }
+
+    #[test]
+    fn a_fresh_codex_run_keeps_the_original_command_shape() {
+        let mut command = Command::new("codex");
+        RouterAdapterKind::Codex.configure(
+            &mut command,
+            &profile("codex", None),
+            "contract",
+            Path::new("/work"),
+            None,
+            None,
+            false,
+        );
+        assert_eq!(
+            arguments(&command),
+            ["exec", "--json", "--cd", "/work", "contract"]
+        );
+    }
+
+    #[test]
+    fn opencode_resume_continues_the_saved_session() {
+        let mut command = Command::new("opencode");
+        let plan = resume_plan();
+        RouterAdapterKind::OpenCode.configure(
+            &mut command,
+            &profile("opencode", Some("amazon-bedrock/m")),
+            "contract",
+            Path::new("/work"),
+            None,
+            Some(&plan),
+            true,
+        );
+        let args = arguments(&command);
+        let session = args
+            .iter()
+            .position(|arg| arg == "--session")
+            .expect("--session");
+        assert_eq!(args[session + 1], "ses_saved");
+        assert!(args.last().unwrap().contains("Use option B."));
+    }
+
+    #[test]
+    fn opencode_data_home_persists_per_package_inside_the_repository() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let repo = directory.path();
+        git_in(repo, &["init", "-q", "-b", "main"]);
+        let first = opencode_data_home(repo, "kbs-9").expect("data home");
+        let AdapterDataHome::Persistent(path) = &first else {
+            panic!("expected a persistent directory");
+        };
+        assert!(path.ends_with("kanbus-router-adapters/opencode/kbs-9"));
+        assert!(path.is_dir());
+        let again = opencode_data_home(repo, "kbs-9").expect("data home");
+        assert_eq!(first.path(), again.path());
+        let other = opencode_data_home(repo, "kbs-10").expect("data home");
+        assert_ne!(first.path(), other.path());
+    }
+
+    #[test]
+    fn only_opencode_needs_its_original_directory_to_resume() {
+        assert!(RouterAdapterKind::OpenCode.resume_requires_original_directory());
+        assert!(!RouterAdapterKind::Codex.resume_requires_original_directory());
+    }
+
+    #[test]
+    fn a_reply_without_a_resumable_session_reaches_a_fresh_session() {
+        let plan = resume_plan();
+        let resumed = agent_prompt("contract", Some(&plan), true);
+        assert!(resumed.contains("in this same session"));
+        let fresh = agent_prompt("contract", Some(&plan), false);
+        assert!(fresh.contains("could not be resumed"));
+        assert!(fresh.contains("Use option B."));
+        assert_eq!(agent_prompt("contract", None, false), "contract");
+        // A fresh-with-reply run never passes --session.
+        let mut command = Command::new("opencode");
+        RouterAdapterKind::OpenCode.configure(
+            &mut command,
+            &profile("opencode", None),
+            "contract",
+            Path::new("/work"),
+            None,
+            Some(&plan),
+            false,
+        );
+        assert!(!arguments(&command).contains(&"--session".to_string()));
     }
 }

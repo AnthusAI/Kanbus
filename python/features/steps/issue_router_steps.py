@@ -7,7 +7,7 @@ import os
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -40,6 +40,8 @@ from kanbus.issue_router import (
 from kanbus.models import DependencyLink
 from kanbus.project import get_configuration_path
 from kanbus.router_adapters import RouterAgentResult
+from kanbus.router_conversation import latest_conversation, record_conversation
+from kanbus.router_execution import add_issue_comment
 from kanbus.router_execution import (
     publish_router_result,
     retry_delay_seconds,
@@ -688,6 +690,101 @@ def _git_in(worktree: Path, *arguments: str) -> None:
 @given("the Codex adapter makes no changes in its worktree")
 def given_codex_adapter_makes_no_changes(context: object) -> None:
     context.router_adapter.does_work = False
+
+
+def _ensure_routed_issue(context: object, issue_id: str, status: str) -> None:
+    """Create the routed issue once; later steps mutate it in place."""
+    project_dir = load_project_directory(context)
+    if not (Path(project_dir) / "issues" / f"{issue_id}.json").exists():
+        _write_issue(
+            context, issue_id, status=status, labels=["agent-provider:codex-default"]
+        )
+
+
+@given(
+    'package "{issue_id}" asked a question in session "{session}" on branch "{branch}"'
+)
+def given_package_asked_a_question(
+    context: object, issue_id: str, session: str, branch: str
+) -> None:
+    _ensure_routed_issue(context, issue_id, "blocked")
+    _commit_disposable_fixture(context)
+    time.sleep(0.05)
+    record_conversation(
+        _shared_project_dir(context),
+        issue_id,
+        action="awaiting_reply",
+        provider="codex",
+        claim_id="claim-old",
+        revision=1,
+        session_id=session,
+        lifecycle="blocked",
+        message="Which option should I use?",
+        worktree="/nonexistent/old-worktree",
+        branch=branch,
+    )
+    time.sleep(0.05)
+
+
+@given('a human replied "{reply}" to package "{issue_id}"')
+def given_human_replied(context: object, reply: str, issue_id: str) -> None:
+    _ensure_routed_issue(context, issue_id, "blocked")
+    time.sleep(0.05)
+    add_issue_comment(_root(context), issue_id, "home", reply)
+    time.sleep(0.05)
+
+
+def _set_issue_status(context: object, issue_id: str, status: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(Path(project_dir), issue_id)
+    # A human's status change is newer than the router's last lifecycle event.
+    write_issue_file(
+        Path(project_dir),
+        issue.model_copy(update={"status": status, "updated_at": datetime.now(UTC)}),
+    )
+
+
+@given('package "{issue_id}" is ready again')
+def given_package_ready_again(context: object, issue_id: str) -> None:
+    _ensure_routed_issue(context, issue_id, "blocked")
+    _set_issue_status(context, issue_id, "open")
+
+
+@given('package "{issue_id}" is ready and has never been run')
+def given_package_ready_never_run(context: object, issue_id: str) -> None:
+    _ensure_routed_issue(context, issue_id, "open")
+
+
+@then('the adapter should resume session "{session}" with a prompt containing "{text}"')
+def then_adapter_resumed_session(context: object, session: str, text: str) -> None:
+    request = context.router_adapter.requests[-1]
+    assert request.resume_session_id == session, request
+    assert text in (request.reply or ""), request.reply
+
+
+@then('no new agent session should have been started for package "{issue_id}"')
+def then_no_new_session(context: object, issue_id: str) -> None:
+    assert context.router_adapter.requests[-1].resume_session_id is not None
+
+
+@then('the adapter should start a fresh session for package "{issue_id}"')
+def then_fresh_session(context: object, issue_id: str) -> None:
+    requests = context.router_adapter.requests
+    assert requests, "the adapter was never invoked"
+    assert requests[-1].resume_session_id is None, requests[-1]
+
+
+@then('the run should use branch "{branch}"')
+def then_run_used_branch(context: object, branch: str) -> None:
+    records = [
+        record
+        for record in (
+            latest_conversation(_shared_project_dir(context), issue_id)
+            for issue_id in ("kbs-401",)
+        )
+        if record
+    ]
+    assert records and records[-1]["payload"].get("branch") == branch, records
 
 
 @given("a fake forge is available for the router")
