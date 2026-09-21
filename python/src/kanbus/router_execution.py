@@ -924,6 +924,9 @@ def _run_adapter(
                 log=adapter.last_output + adapter.last_error,
             )
         _validate_worktree_changes(context.configuration.project_directory, claim_id)
+        result = _reject_completed_without_changes(
+            result, context.configuration.project_directory, claim_id
+        )
         if result.outcome == "completed":
             _commit_isolated_worktree(
                 Path(request.worktree_path),
@@ -2809,16 +2812,21 @@ def _remote_ref_sha(root: Path, ref: str) -> str | None:
     return first[0] if first else None
 
 
-def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
-    """Reject adapter edits to Kanbus project state outside canonical mutations.
+NO_CHANGE_SUMMARY = (
+    "The agent reported completed work but changed nothing and reported no "
+    "comments or updates."
+)
 
-    Both uncommitted and committed edits count: an agent that runs ``kbs
-    commit`` inside the worktree must not smuggle board changes past the guard.
-    The project's ``.cache`` directory is derived data and is exempt.
+
+def _agent_changed_paths(project_directory: str, claim_id: str) -> list[PurePosixPath]:
+    """Return every path the agent changed in its worktree, committed or not.
+
+    ``project/.cache`` is derived data and is excluded. An empty list also means
+    there is no worktree to inspect.
     """
     worktree = _WORKTREE_PATHS.get(claim_id)
     if worktree is None or not worktree.exists():
-        return
+        return []
     normalized_directory = posixpath.normpath(project_directory.replace("\\", "/"))
     project_path = PurePosixPath(normalized_directory)
     if project_path.is_absolute() or ".." in project_path.parts:
@@ -2853,14 +2861,46 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
             "router could not inspect isolated worktree changes"
         ) from error
     cache_path = project_path / ".cache"
-    for raw_path in changed:
-        changed_path = PurePosixPath(os.fsdecode(raw_path))
-        if changed_path == cache_path or cache_path in changed_path.parents:
-            continue
+    paths = (PurePosixPath(os.fsdecode(raw)) for raw in changed)
+    return [
+        path for path in paths if path != cache_path and cache_path not in path.parents
+    ]
+
+
+def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
+    """Reject adapter edits to Kanbus project state outside canonical mutations.
+
+    Both uncommitted and committed edits count: an agent that runs ``kbs
+    commit`` inside the worktree must not smuggle board changes past the guard.
+    """
+    project_path = PurePosixPath(
+        posixpath.normpath(project_directory.replace("\\", "/"))
+    )
+    for changed_path in _agent_changed_paths(project_directory, claim_id):
         if changed_path == project_path or project_path in changed_path.parents:
             raise IssueRouterError(
                 "router adapter may not modify Kanbus project state directly"
             )
+
+
+def _reject_completed_without_changes(
+    result: RouterAgentResult, project_directory: str, claim_id: str
+) -> RouterAgentResult:
+    """Turn an empty "completed" claim into a retryable failure.
+
+    A completed package must leave evidence: a file change, a requested issue
+    comment, or an issue update. Models sometimes report work they never did.
+    """
+    if (
+        result.outcome != "completed"
+        or result.issue_comments
+        or result.issue_updates
+        or _agent_changed_paths(project_directory, claim_id)
+    ):
+        return result
+    return result.model_copy(
+        update={"outcome": "retryable_failure", "summary": NO_CHANGE_SUMMARY}
+    )
 
 
 def _commit_isolated_worktree(

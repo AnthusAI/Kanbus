@@ -15,6 +15,7 @@ import yaml
 from behave import given, then, use_step_matcher, when
 
 from features.steps.shared import (
+    WorkingFakeAdapter,
     build_issue,
     initialize_default_project,
     load_project_directory,
@@ -38,7 +39,7 @@ from kanbus.issue_router import (
 )
 from kanbus.models import DependencyLink
 from kanbus.project import get_configuration_path
-from kanbus.router_adapters import FakeRouterAdapter, RouterAgentResult
+from kanbus.router_adapters import RouterAgentResult
 from kanbus.router_execution import (
     publish_router_result,
     retry_delay_seconds,
@@ -624,7 +625,7 @@ def given_fake_adapter_outcome(context: object, profile: str, outcome: str) -> N
         ),
         artifacts=[],
     )
-    adapter = FakeRouterAdapter(result)
+    adapter = WorkingFakeAdapter(result)
     set_router_adapter(profile, adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter(profile, None))
@@ -641,7 +642,7 @@ def given_codex_adapter_result(context: object) -> None:
         result.checkpoint.revision = _next_revision(
             current.project_dir, current_claim[0]
         )
-    adapter = FakeRouterAdapter(result)
+    adapter = WorkingFakeAdapter(result)
     set_router_adapter("codex-default", adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
@@ -649,7 +650,7 @@ def given_codex_adapter_result(context: object) -> None:
 
 @given('the Codex adapter returns result outcome "{outcome}"')
 def given_codex_result_outcome(context: object, outcome: str) -> None:
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(schema_version=1, outcome=outcome, summary="")
     )
     # A real adapter always leaves its raw output behind; that output is what
@@ -682,6 +683,11 @@ def _wrap_adapter_worktree_effect(context: object, effect) -> None:
 
 def _git_in(worktree: Path, *arguments: str) -> None:
     subprocess.run(["git", *arguments], cwd=worktree, check=True, capture_output=True)
+
+
+@given("the Codex adapter makes no changes in its worktree")
+def given_codex_adapter_makes_no_changes(context: object) -> None:
+    context.router_adapter.does_work = False
 
 
 @given("a fake forge is available for the router")
@@ -737,7 +743,7 @@ def given_codex_issue_update(context: object, issue_id: str, status: str) -> Non
         issue.identifier: issue.status
         for issue in load_router_context(_root(context)).issues
     }
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(
             schema_version=1,
             outcome="completed",
@@ -1893,7 +1899,7 @@ def given_retry_adapter(context: object, outcome: str, attempt: int = 1) -> None
     result = RouterAgentResult(
         schema_version=1, outcome=outcome, summary="fixture failure"
     )
-    adapter = FakeRouterAdapter(result)
+    adapter = WorkingFakeAdapter(result)
     set_router_adapter("codex-default", adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
@@ -2149,7 +2155,7 @@ def given_provider_running_package(
         context, issue_id, status="in_progress", labels=[f"agent-provider:{profile}"]
     )
     _seed_claim(context, issue_id, "claim-210", 1)
-    adapter = FakeRouterAdapter(RouterAgentResult(schema_version=1, outcome="blocked"))
+    adapter = WorkingFakeAdapter(RouterAgentResult(schema_version=1, outcome="blocked"))
     from kanbus.router_execution import _ACTIVE_ADAPTERS
 
     _ACTIVE_ADAPTERS[issue_id] = ("claim-210", adapter)
@@ -2358,7 +2364,7 @@ def when_codex_adapter_starts_claim(context: object, claim_id: str) -> None:
         package_id,
         getattr(context, "router_package_ids", [package_id]),
     )
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(schema_version=1, outcome="blocked", summary="fixture")
     )
     set_router_adapter("codex-default", adapter)

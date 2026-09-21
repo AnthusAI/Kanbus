@@ -121,6 +121,42 @@ Feature: Structured outcomes from the Codex router adapter
     When I run "kanbus router run --once"
     Then package "kbs-401" should transition to status "review"
 
+  Scenario: A completed result that changed nothing is retried instead of accepted
+    Given the Codex adapter returns this result:
+      """
+      {
+        "schema_version": 1,
+        "outcome": "completed",
+        "summary": "Created hello.txt.",
+        "issue_updates": [],
+        "issue_comments": [],
+        "checkpoint": null,
+        "artifacts": []
+      }
+      """
+    And the Codex adapter makes no changes in its worktree
+    When I run "kanbus router run --once"
+    Then the command should fail with exit code 1
+    And package "kbs-401" should remain in status "in_progress"
+    And package "kbs-401" should have attempt 2 available after 30 seconds
+
+  Scenario: A completed result that only reports an issue comment is accepted
+    Given the Codex adapter returns this result:
+      """
+      {
+        "schema_version": 1,
+        "outcome": "completed",
+        "summary": "Answered the question in a comment.",
+        "issue_updates": [],
+        "issue_comments": [{"issue_id": "kbs-401", "text": "The answer is 42."}],
+        "checkpoint": null,
+        "artifacts": []
+      }
+      """
+    And the Codex adapter makes no changes in its worktree
+    When I run "kanbus router run --once"
+    Then package "kbs-401" should transition to status "review"
+
   Scenario: A Codex issue update must remain inside the current package and workflow
     Given the Codex adapter returns issue update "kbs-999" to status "closed"
     When I run "kanbus router run --once"

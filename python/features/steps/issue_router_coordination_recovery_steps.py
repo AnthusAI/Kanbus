@@ -27,7 +27,8 @@ from kanbus.issue_router import (
     read_router_events,
     record_router_event,
 )
-from kanbus.router_adapters import FakeRouterAdapter, RouterAgentResult
+from kanbus.router_adapters import RouterAgentResult
+from features.steps.shared import WorkingFakeAdapter
 from kanbus.router_execution import (
     _acquire_claims,
     _assert_current_claim,
@@ -722,7 +723,7 @@ def when_worker_b_takes_over(context: object, package_id: str) -> None:
         router_state_root(_worker_roots(context)[1], refresh=True)
     )
     candidate = _candidate(refreshed, package_id)
-    adapter = FakeRouterAdapter(RouterAgentResult(schema_version=1, outcome="blocked"))
+    adapter = WorkingFakeAdapter(RouterAgentResult(schema_version=1, outcome="blocked"))
     set_router_adapter("codex-default", adapter)
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
     _run_adapter(refreshed, candidate, "claim-b", revision)
@@ -907,7 +908,7 @@ def given_fake_adapter_attempt_outcome(
 ) -> None:
     """Install a fake adapter for the specified retry attempt."""
     del attempt
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(schema_version=1, outcome=outcome, summary="fixture failure")
     )
     set_router_adapter("codex-default", adapter)

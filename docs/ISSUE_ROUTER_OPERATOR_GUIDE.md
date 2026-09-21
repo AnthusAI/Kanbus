@@ -178,7 +178,10 @@ updates that violate the contract. The router's strict validation rejects these
 as `OpenCode router adapter returned invalid JSON/result`. Run the opt-in live
 check with `KANBUS_LIVE_BEDROCK=1 pytest python/tests/test_router_opencode_live.py`.
 
-Verification gap: the router accepts a `completed` result even when the agent
-changed nothing. In live trials MiniMax M2.5 once reported creating a file it had
-not created, and the router still opened a PR containing only router state.
-Review pull requests before merging.
+Evidence required: a `completed` result must leave something behind: a file
+change in the agent's worktree, an `issue_comments` entry, or an `issue_updates`
+entry. A `completed` result with none of these is treated as a retryable failure
+(and blocked after `retries.max_attempts`), because models occasionally report
+work they never did. Agents may not edit Kanbus project state (`project/`,
+committed or not, except the derived `project/.cache`); such a run is preserved
+for Review with the reason in a router comment.
