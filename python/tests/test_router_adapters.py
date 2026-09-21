@@ -360,3 +360,19 @@ def test_adapter_result_parser_normalizes_optional_artifacts_without_relaxing_re
         ).artifacts
         == []
     )
+
+
+@pytest.mark.parametrize("version", ["1", " 1.0 ", 1.0, 1])
+def test_schema_version_spellings_of_one_are_accepted(version):
+    result = _parse_result(
+        {"schema_version": version, "outcome": "completed", "summary": "ok"}
+    )
+    assert result.schema_version == 1
+
+
+@pytest.mark.parametrize("version", ["2", "1.1", True, 1.5, None, "one"])
+def test_other_schema_versions_are_still_rejected(version):
+    with pytest.raises(IssueRouterError, match="invalid result"):
+        _parse_result(
+            {"schema_version": version, "outcome": "completed", "summary": "ok"}
+        )

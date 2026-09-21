@@ -23,6 +23,7 @@ from features.steps.shared import (
     write_issue_file,
 )
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.router_adapters import _parse_result as parse_adapter_result
 from kanbus.coordination import inspect_lease
 from kanbus.event_history import create_event, write_events_batch
 from kanbus.issue_router import (
@@ -250,8 +251,8 @@ def _seed_claim(context: object, package_id: str, claim_id: str, revision: int) 
 
 
 def _parse_result(raw: str) -> RouterAgentResult:
-    payload = json.loads(raw)
-    return RouterAgentResult.model_validate(payload)
+    """Parse a fixture result with the production adapter parser."""
+    return parse_adapter_result(json.loads(raw))
 
 
 @given("a Kanbus project with valid Codex-first router configuration")
