@@ -26,18 +26,25 @@
       "text": "Reviewed the router-authored comment: it contains the requested three distinct lorem ipsum paragraphs, so the test task is complete.",
       "created_at": "2026-09-18T10:38:32.168570Z",
       "comment_type": "default"
+    },
+    {
+      "id": "5f726c43-5ef6-4c17-98b2-72f906f4dd46",
+      "author": "home",
+      "text": "Reviewed and accepted: the requested three lorem ipsum paragraphs were posted successfully. Closing this disposable smoke test to free the router review slot.",
+      "created_at": "2026-09-19T10:27:37.570061Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-17T20:01:46.730501Z",
-  "updated_at": "2026-09-18T14:06:50.325085Z",
+  "updated_at": "2026-09-18T14:02:30.227835Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "gpt-5.6-luna",
     "name": "issue-router-production-smoke"
   },
-  "right_now_summary": "Three lorem ipsum paragraphs were posted as a comment and reviewed.",
-  "right_now_updated_at": "2026-09-18T10:38:40.155659Z",
+  "right_now_summary": "The three requested lorem ipsum paragraphs were posted as an issue comment and reviewed.",
+  "right_now_updated_at": "2026-09-18T14:02:32.689753Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

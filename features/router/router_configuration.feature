@@ -138,11 +138,19 @@ Feature: Optional Issue Router configuration
     Then the command should fail with exit code 1
     And stderr should equal "error: router.workflow.terminal must be a nonempty list\n"
 
-  Scenario: The initial router accepts only the Codex adapter
+  Scenario: The router accepts only the Codex and OpenCode adapters
     Given a valid router configuration with provider profile "claude-default" using adapter "claude"
     When the router configuration is loaded
     Then the command should fail with exit code 1
-    And stderr should equal "error: router.providers.claude-default.adapter must be codex\n"
+    And stderr should equal "error: router.providers.claude-default.adapter must be codex or opencode\n"
+
+  Scenario: An OpenCode profile selects a Bedrock model and environment
+    Given a valid router configuration with provider profile "gpt-oss-bedrock" using adapter "opencode"
+    And provider profile "gpt-oss-bedrock" has model "amazon-bedrock/openai.gpt-oss-20b-1:0" and environment {"AWS_REGION": "us-east-1"}
+    When the router configuration is loaded
+    Then the configuration should be valid
+    And provider profile "gpt-oss-bedrock" should use command "opencode" and no arguments
+    And provider profile "gpt-oss-bedrock" should use model "amazon-bedrock/openai.gpt-oss-20b-1:0"
 
   Scenario: A class route must reference configured provider profiles
     Given a valid router configuration with class "implementation" using provider profiles "missing"

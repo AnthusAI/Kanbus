@@ -1,0 +1,55 @@
+{
+  "id": "kbs-683397b0-e23e-46d3-ae9b-01ab9d687833",
+  "title": "Recover automatically from stale local gossip sockets",
+  "description": "## Problem\n\n`kbsc` can find an old Unix-domain gossip socket at `~/.kanbus/run/bus.sock` even though no broker is listening. It treats the file as a live broker, attempts to subscribe, and repeatedly logs `warning: realtime bridge stopped: Connection refused`. Local issue mutations then do not reach the board in realtime.\n\n## Required behavior\n\nWhen the console bridge detects a stale or refused local gossip socket, it must safely recover by removing the stale socket, starting a fresh local UDS gossip broker, and reconnecting its subscription. A running broker must never be interrupted.\n\n## Acceptance criteria\n\n- A stale socket with no listener is recovered automatically.\n- A live local broker is preserved.\n- A subsequent local issue mutation reaches the console SSE stream without a browser reload.\n- Recovery is covered by behavior specs and both Python and Rust implementations remain equivalent.\n- The router moves successful work to Review; it must not close this issue.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "agent-class:value"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "101f7153-3e8b-4d19-9fbd-06093fd866b8",
+      "author": "Kanbus Issue Router",
+      "text": "Implemented automatic stale local gossip socket recovery in Python and Rust. Live brokers are preserved; stale sockets are removed and replaced. Python gossip tests pass (60 passed). Rust formatting passes; Rust tests require a newer Cargo toolchain than the installed 1.81.",
+      "created_at": "2026-09-18T22:33:56.777535Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "3de7e3c5-ab20-402c-aa38-202fbaf2f08b",
+      "author": "home",
+      "text": "Recovered for review: router PR #294 is already merged and its change is on develop. The historic run predates durable conversation capture, so `router recover` cannot reconstruct a session. A follow-up implementation task now covers reconciling such orphaned merged PRs into Review rather than offering the issue for a duplicate dispatch.",
+      "created_at": "2026-09-19T11:52:20.874207Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "e8b17b5e-c6e2-45d0-9bb4-aa6ee77cf8d8",
+      "author": "home",
+      "text": "Accepted: the stale local gossip-socket recovery shipped in merged PR #294, and the follow-up recovery bookkeeping is tracked separately. Closing this historic review item.",
+      "created_at": "2026-09-19T12:58:06.019667Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-18T20:37:06.902634Z",
+  "updated_at": "2026-09-19T12:58:06.019733Z",
+  "closed_at": "2026-09-19T12:58:05.193026Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "issue-router-dispatch",
+    "settings": {
+      "thinking_level": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

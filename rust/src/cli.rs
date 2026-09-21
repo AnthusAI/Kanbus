@@ -247,6 +247,11 @@ enum RouterCommands {
         /// Package root issue identifier.
         issue_id: String,
     },
+    /// Surface a preserved agent session, branch, and transcript metadata.
+    Recover {
+        /// Package root issue identifier.
+        issue_id: String,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1378,6 +1383,11 @@ where
         }
     };
     let root = resolve_root(cwd);
+    let root = if matches!(&cli.command, Commands::Router { .. }) {
+        crate::router::resolve_router_root(&root)?
+    } else {
+        root
+    };
     let root = canonicalize_path(&root).unwrap_or(root);
     if let Ok(configuration_path) = get_configuration_path(&root) {
         let repository_root = configuration_path.parent().unwrap_or(&root);
@@ -1620,6 +1630,7 @@ fn execute_command(
                     provider_profile,
                 },
                 RouterCommands::Cancel { issue_id } => IssueRouterOperation::Cancel { issue_id },
+                RouterCommands::Recover { issue_id } => IssueRouterOperation::Recover { issue_id },
             };
             Ok(Some(crate::router::execute_issue_router_operation(
                 root, operation,

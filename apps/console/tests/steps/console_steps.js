@@ -985,6 +985,18 @@ Then("the issue metadata should include assignee {string}", async function (assi
   );
 });
 
+Then("the issue agent assignment should show route {string}", async function (route) {
+  await expect(this.page.getByTestId("issue-agent-assignment-route")).toHaveText(route);
+});
+
+Then("the issue agent assignment should show effective {string}", async function (value) {
+  await expect(this.page.getByTestId("issue-agent-effective-configuration")).toContainText(value);
+});
+
+Then("the issue agent assignment should show unassigned", async function () {
+  await expect(this.page.getByTestId("issue-agent-assignment-empty")).toHaveText("Unassigned");
+});
+
 Given(
   "the console has a task {string} with agent platform {string} model {string}",
   async function (title, platform, model) {
@@ -1015,6 +1027,32 @@ Given(
     delete issue.agent;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => !entry.agent);
+    await reloadConsoleAfterSetup(this);
+  }
+);
+
+Given(
+  "the console has a task {string} without agent assignment",
+  async function (title) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    delete issue.agent_assignment;
+    if (issue.custom) {
+      delete issue.custom.agent_assignment;
+      delete issue.custom.routing_assignment;
+    }
+    issue.labels = (issue.labels ?? []).filter(
+      (label) => !label.startsWith("agent-class:") && !label.startsWith("agent-provider:")
+    );
+    await writeIssue(issue);
+    await waitForIssueUpdate(issue.id, (entry) =>
+      !entry.agent_assignment
+      && !(entry.custom ?? {}).agent_assignment
+      && !(entry.custom ?? {}).routing_assignment
+    );
     await reloadConsoleAfterSetup(this);
   }
 );

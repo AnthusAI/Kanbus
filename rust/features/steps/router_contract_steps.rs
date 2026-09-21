@@ -1223,7 +1223,7 @@ fn given_only_wip_limit(world: &mut KanbusWorld, limit: String) {
                 world,
                 "kbs-wip-human",
                 "in_progress",
-                Vec::new(),
+                vec!["agent-provider:codex-default".into()],
                 None,
                 Some("human@example.com".into()),
                 Utc.with_ymd_and_hms(2026, 9, 16, 10, 0, 0).unwrap(),
@@ -1236,11 +1236,18 @@ fn given_only_wip_limit(world: &mut KanbusWorld, limit: String) {
                 world,
                 "kbs-wip-review",
                 "review",
-                Vec::new(),
+                vec!["agent-provider:codex-default".into()],
                 None,
                 None,
                 Utc.with_ymd_and_hms(2026, 9, 16, 10, 0, 0).unwrap(),
                 Vec::new(),
+            );
+            router_event(
+                world,
+                "router:kbs-wip-review",
+                EventType::RouterConversation,
+                json!({"lifecycle": "review"}),
+                &now_timestamp(),
             );
         }
         "class" => {
@@ -1496,6 +1503,41 @@ fn given_adapter_result(world: &mut KanbusWorld, step: &Step) {
 fn given_adapter_outcome(world: &mut KanbusWorld, outcome: String) {
     let result=json!({"schema_version":1,"outcome":outcome,"summary":"fixture result","issue_updates":[],"checkpoint":null,"artifacts":[]}).to_string();
     configure_fake_adapter(world, &result);
+}
+
+fn insert_adapter_script_lines(world: &mut KanbusWorld, lines: &str) {
+    let script = root(world).join(".git/router-contract-adapter.sh");
+    let body = fs::read_to_string(&script).expect("read fake adapter script");
+    let (shebang, rest) = body.split_once('\n').expect("script has a shebang");
+    fs::write(&script, format!("{shebang}\n{lines}{rest}")).expect("rewrite fake adapter");
+}
+
+#[given(
+    regex = r#"^the Codex adapter (?P<mode>edits|edits and commits) Kanbus project state in its worktree$"#
+)]
+fn given_adapter_edits_project_state(world: &mut KanbusWorld, mode: String) {
+    let mut lines = String::from(
+        "mkdir -p project/issues\nprintf '{\"edited\":true}' > project/issues/agent-edit.json\n",
+    );
+    if mode == "edits and commits" {
+        lines.push_str(
+            "git add -A -- project\ngit -c user.name=agent -c user.email=agent@example.invalid commit --no-verify -qm 'agent board commit'\n",
+        );
+    }
+    insert_adapter_script_lines(world, &lines);
+}
+
+#[given("the Codex adapter refreshes the project cache in its worktree")]
+fn given_adapter_refreshes_cache(world: &mut KanbusWorld) {
+    insert_adapter_script_lines(
+        world,
+        "mkdir -p project/.cache\nprintf '{}' > project/.cache/index.json\n",
+    );
+}
+
+#[given("a fake forge is available for the router")]
+fn given_fake_forge_available(world: &mut KanbusWorld) {
+    let _ = start_fake_forge(world);
 }
 
 #[given("the Codex adapter writes malformed JSON to standard output")]
