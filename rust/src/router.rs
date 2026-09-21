@@ -32,6 +32,8 @@ use crate::policy_loader::load_policies;
 
 const ROUTER_ROUTE_LABEL_PREFIXES: [&str; 2] = ["agent-class:", "agent-provider:"];
 const ROUTER_GIT_TIMEOUT: Duration = Duration::from_secs(20);
+const ROUTER_STATE_FETCH_ATTEMPTS: u32 = 3;
+const ROUTER_STATE_FETCH_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 /// A resolved package route used by the planner and worker scheduler.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -499,18 +501,34 @@ fn remote_router_state_ref(root: &Path, fetch: bool) -> Result<Option<String>, K
     if fetch {
         let tracking_ref = format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}");
         let refspec = format!("+{remote_branch}:{tracking_ref}");
-        let mut fetch_command = router_git_command();
-        fetch_command
-            .args(["fetch", "--quiet", "origin", &refspec])
-            .current_dir(root);
-        let fetched = router_git_output(fetch_command)?;
-        if !fetched.status.success() {
+        let fetched = retry_router_state_fetch(|| {
+            let mut fetch_command = router_git_command();
+            fetch_command
+                .args(["fetch", "--quiet", "origin", &refspec])
+                .current_dir(root);
+            router_git_output(fetch_command)
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+        });
+        if !fetched {
             return Err(KanbusError::IssueOperation(
                 "could not fetch shared router state".to_string(),
             ));
         }
     }
     Ok(Some(format!("refs/remotes/origin/{ROUTER_STATE_BRANCH}")))
+}
+
+fn retry_router_state_fetch(mut fetch: impl FnMut() -> bool) -> bool {
+    for attempt in 0..ROUTER_STATE_FETCH_ATTEMPTS {
+        if fetch() {
+            return true;
+        }
+        if attempt + 1 < ROUTER_STATE_FETCH_ATTEMPTS {
+            thread::sleep(ROUTER_STATE_FETCH_RETRY_DELAY);
+        }
+    }
+    false
 }
 
 pub(crate) fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
@@ -793,6 +811,30 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
                 return Err(KanbusError::IssueOperation(
                     "router state reconciliation conflicted; no package was started".to_string(),
                 ));
+            }
+            // Router-owned comments and transitions are intentionally made in
+            // the caller's checkout, but only the shared state worktree is
+            // committed.  Bring the package record across explicitly: never
+            // stage the caller's whole tree, yet never strand agent evidence
+            // in one machine's dirty checkout.
+            if let Some(issue_id) = event.issue_id.strip_prefix("router:") {
+                let project_directory = configured_project_directory(root)?;
+                let source_issue = root
+                    .join(&project_directory)
+                    .join("issues")
+                    .join(format!("{issue_id}.json"));
+                let target_issue = worktree
+                    .join(&project_directory)
+                    .join("issues")
+                    .join(format!("{issue_id}.json"));
+                if source_issue.exists() && source_issue != target_issue {
+                    if let Some(parent) = target_issue.parent() {
+                        fs::create_dir_all(parent)
+                            .map_err(|error| KanbusError::Io(error.to_string()))?;
+                    }
+                    fs::copy(&source_issue, &target_issue)
+                        .map_err(|error| KanbusError::Io(error.to_string()))?;
+                }
             }
             apply_shared_router_event_status(&worktree, event)?;
             let project_directory = configured_project_directory(root)?;
@@ -1478,6 +1520,14 @@ fn apply_router_status_overlay(
         };
         if let Some(status) = status {
             issue.status = status.to_string();
+            // The board orders cards by an issue's effective `updated_at`.
+            // Router lifecycle transitions are issue updates even though they
+            // are projected from durable router events instead of rewriting a
+            // user's checkout. Carry the winning event time into the
+            // projection so the card appears at the top of its new column.
+            if let Some(occurred_at) = parse_timestamp(&event.occurred_at) {
+                issue.updated_at = occurred_at;
+            }
         }
     }
     for event in router_events {
@@ -1513,6 +1563,9 @@ fn apply_router_status_overlay(
                 .is_none_or(|transition| transition.occurred_at < event.occurred_at)
             {
                 issue.status = status.to_string();
+                if let Some(occurred_at) = parse_timestamp(&event.occurred_at) {
+                    issue.updated_at = occurred_at;
+                }
             }
         }
     }
@@ -1927,10 +1980,27 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         errors.push("router.providers must not be empty".to_string());
     }
     for (profile, provider) in &router.providers {
-        if provider.adapter != "codex" {
-            errors.push(format!("router.providers.{profile}.adapter must be codex"));
+        let adapter_kind = RouterAdapterKind::from_name(&provider.adapter);
+        if adapter_kind.is_none() {
+            errors.push(format!(
+                "router.providers.{profile}.adapter must be {}",
+                RouterAdapterKind::NAMES.join(" or ")
+            ));
         }
-        if provider.command.trim().is_empty() {
+        if let Some(tier) = &provider.service_tier {
+            if !["flex", "priority", "default"].contains(&tier.as_str()) {
+                errors.push(format!(
+                    "router.providers.{profile}.service_tier must be flex, priority or default"
+                ));
+            } else if !adapter_kind.is_some_and(RouterAdapterKind::supports_service_tier)
+                || !provider.model.as_deref().is_some_and(|m| m.contains('/'))
+            {
+                errors.push(format!(
+                    "router.providers.{profile}.service_tier requires adapter opencode and a provider/model model"
+                ));
+            }
+        }
+        if provider.resolved_command().trim().is_empty() {
             errors.push(format!(
                 "router.providers.{profile}.command must not be empty"
             ));
@@ -2835,6 +2905,18 @@ fn validate_router_issue_updates(
     Ok(())
 }
 
+/// A completed agent turn owns the package's lifecycle transition: it always
+/// goes to the configured Review state.  Codex commonly echoes its outcome as
+/// an `issue_updates[].status = "completed"` hint.  That is not a project
+/// status and must not turn a useful turn into a publication failure.
+fn completed_outcome_issue_updates(issue_updates: &[RouterIssueUpdate]) -> Vec<RouterIssueUpdate> {
+    issue_updates
+        .iter()
+        .filter(|update| !matches!(update.status.trim(), "completed" | "complete"))
+        .cloned()
+        .collect()
+}
+
 fn validate_router_issue_comments(
     package_id: &str,
     package_issue_ids: &[String],
@@ -2864,7 +2946,7 @@ fn apply_router_issue_comments(
 ) -> Result<(), KanbusError> {
     validate_router_issue_comments(package_id, package_issue_ids, comments)?;
     for comment in comments {
-        crate::issue_comment::add_comment(
+        crate::issue_comment::add_comment_without_right_now(
             root,
             &comment.issue_id,
             "Kanbus Issue Router",
@@ -2873,6 +2955,135 @@ fn apply_router_issue_comments(
         )?;
     }
     Ok(())
+}
+
+/// Preserve visible evidence when a completed agent turn fails during later
+/// checkpoint, branch, forge, or result publication.
+/// Comment and block a package whose agent never produced a durable turn (for
+/// example the agent binary could not start), so the failure is never silent.
+fn block_after_launch_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    error: &KanbusError,
+) -> Result<(), KanbusError> {
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    crate::issue_comment::add_comment_without_right_now(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &format!("The router could not start an agent session: {error}"),
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    if let Some(router) = configuration.router.as_ref() {
+        apply_shared_issue_status(
+            root,
+            configuration,
+            &claim.issue_id,
+            &router.workflow.blocked,
+        )?;
+    }
+    Ok(())
+}
+
+fn preserve_completed_turn_after_publication_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    publication_error: &KanbusError,
+) -> Result<(), KanbusError> {
+    let conversation = load_router_events(project_dir)?
+        .into_iter()
+        .filter(|event| event.issue_id == format!("router:{}", claim.issue_id))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .filter(|event| payload_text(event, "lifecycle") == Some("review"))
+        .filter(|event| payload_text(event, "claim_id") == Some(claim.claim_id.as_str()))
+        .filter(|event| {
+            event.payload.get("revision").and_then(Value::as_u64) == Some(claim.revision)
+        })
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        });
+    let Some(conversation) = conversation else {
+        return Err(KanbusError::IssueOperation(
+            "no completed agent turn is available for publication recovery".to_string(),
+        ));
+    };
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    let branch = payload_text(&conversation, "branch").unwrap_or("unknown");
+    let session_id = payload_text(&conversation, "session_id").unwrap_or("unknown");
+    let worktree = payload_text(&conversation, "worktree").unwrap_or("unknown");
+    let diagnostic = format!(
+        "## Agent turn preserved for review\n\nThe agent completed work, but the router could not accept or publish its result automatically.\n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
+    );
+    crate::issue_comment::add_comment_without_right_now(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &diagnostic,
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    if let Some(router) = configuration.router.as_ref() {
+        apply_shared_issue_status(
+            root,
+            configuration,
+            &claim.issue_id,
+            &router.workflow.review,
+        )?;
+    }
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    append_router_event(
+        project_dir,
+        &format!("router:{}", claim.issue_id),
+        EventType::RouterResult,
+        json!({
+            "outcome":"completed", "summary":"Completed agent turn preserved for review after publication failure",
+            "diagnostic":diagnostic, "publication_failed":true,
+            "claim_id":claim.claim_id, "revision":claim.revision,
+            "session_id":session_id, "branch":branch, "worktree":worktree,
+        }),
+    )?;
+    Ok(())
+}
+
+/// Render the mandatory, issue-visible review record for a completed agent turn.
+///
+/// Agent-provided `issue_comments` are optional supplemental notes. They must
+/// never be the only route by which a completed turn becomes visible: a model
+/// can legitimately omit them while still returning a useful summary. This
+/// record is published after the branch, checkpoint, and draft PR exist and
+/// before the router transitions the package to Review.
+fn completed_router_review_comment(
+    summary: &str,
+    pull: &PullRequestInfo,
+    checkpoint_ref: &str,
+    artifacts: &[RouterArtifact],
+) -> String {
+    let summary = if summary.trim().is_empty() {
+        "The agent completed a turn. Review the preserved branch and draft pull request."
+    } else {
+        summary.trim()
+    };
+    let mut comment = format!(
+        "## Agent turn complete\n\n{summary}\n\n- Draft PR: {}\n- Branch: `{}`\n- Checkpoint: `{}`",
+        pull.url, pull.branch, checkpoint_ref
+    );
+    if !artifacts.is_empty() {
+        comment.push_str("\n- Artifacts:");
+        for artifact in artifacts {
+            comment.push_str(&format!(
+                "\n  - `{}`: `{}`",
+                artifact.name, artifact.reference
+            ));
+        }
+    }
+    comment
 }
 
 /// Return the default provider profile selected by the first configured class.
@@ -3316,16 +3527,40 @@ fn recover_router_package(
     let provider = payload_text(latest, "provider").unwrap_or("unknown");
     let lifecycle = payload_text(latest, "lifecycle").unwrap_or("unknown");
     let branch = payload_text(latest, "branch").unwrap_or("none");
+    let claim_id = payload_text(latest, "claim_id").unwrap_or("recovered");
+    let revision = latest
+        .payload
+        .get("revision")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let session_id = payload_text(latest, "session_id").unwrap_or("unknown");
+    let worktree = payload_text(latest, "worktree").unwrap_or("unknown");
+    let recovered_before = events.iter().any(|event| {
+        event.issue_id == format!("router:{issue_id}")
+            && matches!(&event.event_type, EventType::RouterConversation)
+            && payload_text(event, "action") == Some("recovered")
+            && payload_text(event, "claim_id") == Some(claim_id)
+            && event.payload.get("revision").and_then(Value::as_u64) == Some(revision)
+    });
+    if !recovered_before {
+        crate::issue_comment::add_comment_without_right_now(
+            root,
+            issue_id,
+            "Kanbus Issue Router",
+            &format!(
+                "## Agent run recovered\n\nThe Issue Router recovered preserved agent evidence without starting a replacement session.\n\n- Provider: `{provider}`\n- Lifecycle: `{lifecycle}`\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`"
+            ),
+            None,
+        )?;
+    }
     append_router_event(
         project_dir,
         &format!("router:{issue_id}"),
         EventType::RouterConversation,
         json!({
             "action":"recovered", "provider":provider, "lifecycle":lifecycle,
-            "claim_id":payload_text(latest, "claim_id").unwrap_or("recovered"),
-            "revision":latest.payload.get("revision").and_then(Value::as_u64).unwrap_or(1),
-            "session_id":payload_text(latest, "session_id"), "branch":branch,
-            "worktree":payload_text(latest, "worktree"),
+            "claim_id":claim_id, "revision":revision,
+            "session_id":session_id, "branch":branch, "worktree":worktree,
         }),
     )?;
     let target_status = match lifecycle {
@@ -3464,6 +3699,32 @@ fn run_issue_router_once(
     let result = match run_result {
         Ok(result) => result,
         Err(error) => {
+            // `execute_router_adapter` writes a review-lifecycle conversation
+            // before it parses the final Codex payload. A normal `kbs commit`
+            // can therefore leave durable work even when the final envelope is
+            // rejected. Preserve that turn as a publication failure; otherwise
+            // cleanup releases a valid session with no result event or Review
+            // transition.
+            let recovery = if has_preserved_review_conversation(
+                &load_router_events(project_dir).unwrap_or_default(),
+                &package.issue_id,
+            ) {
+                preserve_completed_turn_after_publication_failure(
+                    root,
+                    project_dir,
+                    &configuration,
+                    &claim,
+                    &error,
+                )
+            } else {
+                block_after_launch_failure(root, project_dir, &configuration, &claim, &error)
+            };
+            let error = match recovery {
+                Ok(()) => error,
+                Err(recovery_error) => KanbusError::IssueOperation(format!(
+                    "{error}; completed-turn preservation also failed: {recovery_error}"
+                )),
+            };
             let renewer_stop = lease_renewer
                 .as_mut()
                 .map_or(Ok(()), RouterLeaseRenewalGuard::stop);
@@ -3492,8 +3753,8 @@ fn run_issue_router_once(
         let mut outcome_error = None;
         match result.outcome.as_str() {
             "completed" => {
-                let requested_updates = result
-                    .issue_updates
+                let accepted_updates = completed_outcome_issue_updates(&result.issue_updates);
+                let requested_updates = accepted_updates
                     .iter()
                     .map(|update| (update.issue_id.clone(), update.status.clone()))
                     .collect::<Vec<_>>();
@@ -3595,6 +3856,21 @@ fn run_issue_router_once(
                     &package.package_issue_ids,
                     &result.issue_comments,
                 )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
+                let review_comment = completed_router_review_comment(
+                    &result.summary,
+                    &pull,
+                    &published_checkpoint_ref.reference,
+                    &result.artifacts,
+                );
+                crate::issue_comment::add_comment_without_right_now(
+                    root,
+                    &package.issue_id,
+                    "Kanbus Issue Router",
+                    &review_comment,
+                    None,
+                )?;
+                assert_current_router_claim(project_dir, &configuration, &claim)?;
                 let accepted_checkpoint = RouterCheckpoint {
                     reference: proposed_checkpoint_ref,
                     revision: proposed_checkpoint_revision,
@@ -3605,6 +3881,16 @@ fn run_issue_router_once(
                     &claim,
                     Some(&accepted_checkpoint),
                     &package.issue_id,
+                )?;
+                // Keep the actual issue record in the same configured Review
+                // state that the event reducer exposes.  The reducer remains
+                // useful for recovery, but it must never create a second,
+                // overlay-only status for a live card.
+                apply_shared_issue_status(
+                    root,
+                    &configuration,
+                    &package.issue_id,
+                    &router.workflow.review,
                 )?;
                 append_router_event(
                     project_dir,
@@ -3618,7 +3904,7 @@ fn run_issue_router_once(
                         "checkpoint_ref": checkpoint_ref,
                         "checkpoint_revision": checkpoint_revision,
                         "artifacts": result.artifacts.iter().map(|artifact| json!({"name": artifact.name, "ref": artifact.reference})).collect::<Vec<_>>(),
-                        "issue_updates": result.issue_updates.iter().map(|update| json!({"issue_id":update.issue_id,"status":update.status})).collect::<Vec<_>>(),
+                        "issue_updates": accepted_updates.iter().map(|update| json!({"issue_id":update.issue_id,"status":update.status})).collect::<Vec<_>>(),
                     }),
                 )?;
                 completed = 1;
@@ -3637,7 +3923,7 @@ fn run_issue_router_once(
                     &result.issue_comments,
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
-                crate::issue_comment::add_comment(
+                crate::issue_comment::add_comment_without_right_now(
                     root,
                     &package.issue_id,
                     "Kanbus Issue Router",
@@ -3649,6 +3935,12 @@ fn run_issue_router_once(
                     None,
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
+                apply_shared_issue_status(
+                    root,
+                    &configuration,
+                    &package.issue_id,
+                    &router.workflow.blocked,
+                )?;
                 append_router_event(
                     project_dir,
                     &format!("router:{}", package.issue_id),
@@ -3706,6 +3998,21 @@ fn run_issue_router_once(
     let (completed, review, failed, outcome_error) = match processing {
         Ok(result) => result,
         Err(error) => {
+            // The adapter records its completed conversation before this
+            // publication phase. Do not let a later publication failure turn
+            // that completed work into an invisible active card.
+            let error = match preserve_completed_turn_after_publication_failure(
+                root,
+                project_dir,
+                &configuration,
+                &claim,
+                &error,
+            ) {
+                Ok(()) => error,
+                Err(recovery_error) => KanbusError::IssueOperation(format!(
+                    "{error}; completed-turn preservation also failed: {recovery_error}"
+                )),
+            };
             if let Some(renewer) = lease_renewer.as_mut() {
                 let renew_result = renewer.stop();
                 if let Err(renew_error) = renew_result {
@@ -4835,19 +5142,21 @@ fn execute_router_adapter(
     external_renewer: Option<&RouterLeaseRenewalGuard>,
 ) -> Result<RouterAgentResult, KanbusError> {
     let worktree = create_router_worktree(root, issue_id, claim, checkpoint.as_ref())?;
+    // Everything the agent commits after this point is judged against this base.
+    let base_commit = router_worktree_head(&worktree)?;
     append_router_event(
         project_dir,
         &format!("router:{issue_id}"),
         EventType::RouterConversation,
         json!({
-            "action":"started", "provider":"codex", "lifecycle":"in_progress",
+            "action":"started", "provider":profile.adapter, "lifecycle":"in_progress",
             "claim_id":claim.claim_id, "revision":claim.revision,
             "worktree":worktree, "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
         }),
     )?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
     let prompt = format!(
-        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure.",
+        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure. schema_version must be the JSON number 1, not a string. The router owns issue status and commits board state: do not run kbs commit, kbs update or kbs comment; report comments through issue_comments.",
         package_issue_ids.join(", "),
         claim.claim_id,
         claim.revision,
@@ -4858,20 +5167,30 @@ fn execute_router_adapter(
             ))
             .unwrap_or_else(|| "null".to_string())
     );
-    let mut command = Command::new(&profile.command);
+    let kind = RouterAdapterKind::from_name(&profile.adapter).ok_or_else(|| {
+        KanbusError::IssueOperation(format!(
+            "router.providers adapter {} is not supported",
+            profile.adapter
+        ))
+    })?;
+    let adapter_name = kind.display_name();
+    let data_home = kind.private_data_home(profile)?;
+    let mut command = Command::new(profile.resolved_command());
+    command.args(&profile.args);
+    kind.configure(
+        &mut command,
+        profile,
+        &prompt,
+        &worktree,
+        data_home.as_ref(),
+    );
     command
-        .args(&profile.args)
-        .arg("exec")
-        .arg("--json")
-        .arg("--cd")
-        .arg(&worktree)
-        .arg(prompt)
         .current_dir(&worktree)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|_| KanbusError::IssueOperation("Codex router adapter failed".to_string()))?;
+    let mut child = command.spawn().map_err(|_| {
+        KanbusError::IssueOperation(format!("{adapter_name} router adapter failed"))
+    })?;
     set_active_router_state(root, issue_id, &claim.claim_id, Some(child.id()))?;
     let stdout_reader = child.stdout.take().map(|mut stream| {
         thread::spawn(move || {
@@ -4923,9 +5242,9 @@ fn execute_router_adapter(
         }
         if started.elapsed() > Duration::from_secs(3600) {
             let _ = child.kill();
-            return Err(KanbusError::IssueOperation(
-                "Codex router adapter failed".to_string(),
-            ));
+            return Err(KanbusError::IssueOperation(format!(
+                "{adapter_name} router adapter failed"
+            )));
         }
         if Instant::now() >= next_renewal {
             let renew_result = if claim.hard && external_renewer.is_some() {
@@ -4950,13 +5269,13 @@ fn execute_router_adapter(
             let stderr = stderr_reader
                 .and_then(|reader| reader.join().ok())
                 .unwrap_or_default();
-            let session_id = codex_session_id(&stdout);
+            let session_id = kind.session_id(&stdout);
             append_router_event(
                 project_dir,
                 &format!("router:{issue_id}"),
                 EventType::RouterConversation,
                 json!({
-                    "action":"agent_turn", "provider":"codex", "lifecycle":"review",
+                    "action":"agent_turn", "provider":profile.adapter, "lifecycle":"review",
                     "claim_id":claim.claim_id, "revision":claim.revision,
                     "session_id":session_id, "worktree":worktree,
                     "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
@@ -4964,23 +5283,24 @@ fn execute_router_adapter(
                 }),
             )?;
             if !status.success() {
-                return Err(KanbusError::IssueOperation(
-                    "Codex router adapter failed".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(format!(
+                    "{adapter_name} router adapter failed"
+                )));
             }
             break stdout;
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = parse_router_result(&output)?;
+    let result = kind.parse_result(&output)?;
+    validate_router_worktree_changes(&worktree, &base_commit, &configuration.project_directory)?;
     if result.schema_version != 1 {
-        return Err(KanbusError::IssueOperation(
-            "Codex router adapter returned invalid result".to_string(),
-        ));
+        return Err(KanbusError::IssueOperation(format!(
+            "{adapter_name} router adapter returned invalid result"
+        )));
     }
     if !["completed", "blocked", "retryable_failure"].contains(&result.outcome.as_str()) {
         return Err(KanbusError::IssueOperation(format!(
-            "invalid Codex router outcome \"{}\"",
+            "invalid {adapter_name} router outcome \"{}\"",
             result.outcome
         )));
     }
@@ -4994,14 +5314,303 @@ fn execute_router_adapter(
             &format!("router:{issue_id}"),
             EventType::RouterConversation,
             json!({
-                "action":"awaiting_reply", "provider":"codex", "lifecycle":"blocked",
+                "action":"awaiting_reply", "provider":profile.adapter, "lifecycle":"blocked",
                 "claim_id":claim.claim_id, "revision":claim.revision,
-                "session_id":codex_session_id(&output), "worktree":worktree,
+                "session_id":kind.session_id(&output), "worktree":worktree,
                 "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
             }),
         )?;
     }
     Ok(result)
+}
+
+const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Leave issue_updates empty: the router moves finished packages to review itself and rejects agent status changes such as closing an issue. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+
+fn router_worktree_head(worktree: &Path) -> Result<String, KanbusError> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(worktree)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !output.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "router isolated worktree operation failed".to_string(),
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Reject adapter edits to Kanbus project state outside canonical mutations.
+///
+/// Both uncommitted and committed edits count: an agent that runs `kbs commit`
+/// inside the worktree must not smuggle board changes past the guard. The
+/// project's `.cache` directory is derived data and is exempt.
+fn validate_router_worktree_changes(
+    worktree: &Path,
+    base_commit: &str,
+    project_directory: &str,
+) -> Result<(), KanbusError> {
+    let project = Path::new(project_directory);
+    if project.is_absolute()
+        || project
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return Err(KanbusError::IssueOperation(
+            "router project directory must be repository-relative".to_string(),
+        ));
+    }
+    let inspect = || {
+        KanbusError::IssueOperation(
+            "router could not inspect isolated worktree changes".to_string(),
+        )
+    };
+    let mut changed: Vec<String> = Vec::new();
+    let status = Command::new("git")
+        .args([
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+            "--no-renames",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|_| inspect())?;
+    if !status.status.success() {
+        return Err(inspect());
+    }
+    for record in status.stdout.split(|byte| *byte == 0) {
+        if record.len() >= 4 {
+            changed.push(String::from_utf8_lossy(&record[3..]).to_string());
+        }
+    }
+    let committed = Command::new("git")
+        .args([
+            "diff",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            base_commit,
+            "HEAD",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|_| inspect())?;
+    if !committed.status.success() {
+        return Err(inspect());
+    }
+    for path in committed.stdout.split(|byte| *byte == 0) {
+        if !path.is_empty() {
+            changed.push(String::from_utf8_lossy(path).to_string());
+        }
+    }
+    let cache = project.join(".cache");
+    for path in changed {
+        let path = Path::new(&path);
+        if path.starts_with(&cache) {
+            continue;
+        }
+        if path.starts_with(project) {
+            return Err(KanbusError::IssueOperation(
+                "router adapter may not modify Kanbus project state directly".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Create a private OpenCode data dir, copying `auth.json` so other providers work.
+fn isolated_opencode_data_home() -> Result<tempfile::TempDir, KanbusError> {
+    let directory = tempfile::Builder::new()
+        .prefix("kanbus-opencode-")
+        .tempdir()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let shared = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local").join("share"))
+        });
+    if let Some(auth) = shared.map(|base| base.join("opencode").join("auth.json")) {
+        if auth.is_file() {
+            let target = directory.path().join("opencode");
+            fs::create_dir_all(&target).map_err(|error| KanbusError::Io(error.to_string()))?;
+            let _ = fs::copy(&auth, target.join("auth.json"));
+        }
+    }
+    Ok(directory)
+}
+
+/// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
+///
+/// OpenCode only honours `serviceTier` in per-model options; provider-level
+/// options are silently ignored (verified against Bedrock's ResolvedServiceTier).
+fn opencode_config_content(
+    profile: &crate::models::IssueRouterProviderConfiguration,
+) -> Option<String> {
+    let tier = profile.service_tier.as_ref()?;
+    let (provider, model_id) = profile.model.as_deref()?.split_once('/')?;
+    let mut config = profile
+        .env
+        .get("OPENCODE_CONFIG_CONTENT")
+        .or(std::env::var("OPENCODE_CONFIG_CONTENT").ok().as_ref())
+        .and_then(|text| serde_json::from_str::<Value>(text).ok())
+        .filter(Value::is_object)
+        .unwrap_or_else(|| json!({}));
+    config["provider"][provider]["models"][model_id]["options"]["serviceTier"] = json!(tier);
+    Some(config.to_string())
+}
+
+/// Agent CLIs the router can dispatch to. Add a variant here (plus its Python
+/// counterpart in `router_adapters.py`) to support another agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RouterAdapterKind {
+    Codex,
+    OpenCode,
+}
+
+impl RouterAdapterKind {
+    const NAMES: [&'static str; 2] = ["codex", "opencode"];
+
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "codex" => Some(Self::Codex),
+            "opencode" => Some(Self::OpenCode),
+            _ => None,
+        }
+    }
+
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Codex => "Codex",
+            Self::OpenCode => "OpenCode",
+        }
+    }
+
+    fn supports_service_tier(self) -> bool {
+        self == Self::OpenCode
+    }
+
+    /// Concurrent OpenCode processes share one SQLite session database and fail
+    /// with "database is locked", so each run gets a private data directory.
+    fn private_data_home(
+        self,
+        profile: &crate::models::IssueRouterProviderConfiguration,
+    ) -> Result<Option<tempfile::TempDir>, KanbusError> {
+        if self == Self::OpenCode && !profile.env.contains_key("XDG_DATA_HOME") {
+            isolated_opencode_data_home().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn configure(
+        self,
+        command: &mut Command,
+        profile: &crate::models::IssueRouterProviderConfiguration,
+        prompt: &str,
+        worktree: &Path,
+        data_home: Option<&tempfile::TempDir>,
+    ) {
+        match self {
+            Self::Codex => {
+                command.arg("exec").arg("--json");
+                if let Some(model) = &profile.model {
+                    command.arg("--model").arg(model);
+                }
+                command
+                    .arg("--cd")
+                    .arg(worktree)
+                    .arg(prompt)
+                    .envs(&profile.env)
+                    // The prompt is an argument; an inherited stdin makes
+                    // `codex exec` wait for EOF on it.
+                    .stdin(Stdio::null());
+            }
+            Self::OpenCode => {
+                command.arg("run").arg("--format").arg("json");
+                if let Some(model) = &profile.model {
+                    command.arg("--model").arg(model);
+                }
+                command
+                    .arg(format!("{prompt}{OPENCODE_FORMAT_HINT}"))
+                    .envs(&profile.env)
+                    .env("PWD", worktree)
+                    .envs(
+                        opencode_config_content(profile)
+                            .map(|content| ("OPENCODE_CONFIG_CONTENT", content)),
+                    )
+                    // `opencode run` waits on piped stdin until EOF.
+                    .stdin(Stdio::null());
+                if let Some(data_home) = data_home {
+                    command.env("XDG_DATA_HOME", data_home.path());
+                }
+            }
+        }
+    }
+
+    fn session_id(self, stdout: &str) -> Option<String> {
+        match self {
+            Self::Codex => codex_session_id(stdout),
+            Self::OpenCode => stdout.lines().find_map(|line| {
+                serde_json::from_str::<Value>(line)
+                    .ok()?
+                    .get("sessionID")?
+                    .as_str()
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+            }),
+        }
+    }
+
+    fn parse_result(self, stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+        match self {
+            Self::Codex => parse_router_result(stdout),
+            Self::OpenCode => parse_opencode_result(stdout),
+        }
+    }
+}
+
+/// Concatenate the assistant text parts of OpenCode's JSON event stream.
+fn opencode_text(stdout: &str) -> String {
+    stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|event| event.get("type").and_then(Value::as_str) == Some("text"))
+        .filter_map(|event| event.pointer("/part/text")?.as_str().map(str::to_string))
+        .collect()
+}
+
+/// Find the last result object embedded anywhere in free-form model text.
+fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+    let text = opencode_text(stdout);
+    let mut found: Option<Value> = None;
+    let mut offset = 0;
+    while let Some(relative) = text[offset..].find('{') {
+        let start = offset + relative;
+        let mut stream = serde_json::Deserializer::from_str(&text[start..]).into_iter::<Value>();
+        match stream.next() {
+            Some(Ok(value)) => {
+                if value.get("outcome").is_some() && value.get("schema_version").is_some() {
+                    found = Some(value);
+                }
+                offset = start + stream.byte_offset().max(1);
+            }
+            _ => offset = start + 1,
+        }
+    }
+    found
+        .ok_or_else(|| {
+            KanbusError::IssueOperation("OpenCode router adapter returned invalid JSON".to_string())
+        })
+        .and_then(|value| {
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "OpenCode router adapter returned invalid result".to_string(),
+                    )
+                })
+        })
 }
 
 fn codex_session_id(stdout: &str) -> Option<String> {
@@ -5095,12 +5704,30 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
             KanbusError::IssueOperation("Codex router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
-                KanbusError::IssueOperation(
-                    "Codex router adapter returned invalid result".to_string(),
-                )
-            })
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "Codex router adapter returned invalid result".to_string(),
+                    )
+                })
         })
+}
+
+/// Accept the contract version written as "1", "1.0" or 1.0.
+///
+/// Models routinely quote the number. The version is a constant of the
+/// contract, so coercing these spellings loses nothing; every other value is
+/// still rejected by the strict deserializer.
+fn normalize_schema_version(mut value: Value) -> Value {
+    let coerce = match value.get("schema_version") {
+        Some(Value::String(text)) => matches!(text.trim(), "1" | "1.0"),
+        Some(Value::Number(number)) => number.as_f64() == Some(1.0) && !number.is_u64(),
+        _ => false,
+    };
+    if coerce {
+        value["schema_version"] = json!(1);
+    }
+    value
 }
 
 /// Normalize advisory artifact metadata without relaxing the result contract.
@@ -5962,18 +6589,7 @@ fn publish_router_branch(
     revision: u64,
 ) -> Result<PublishedRouterRef, KanbusError> {
     let project_relative = configured_project_directory(root)?;
-    let excluded_issues = format!(":(exclude){}/issues", project_relative.display());
-    let excluded_events = format!(":(exclude){}/events", project_relative.display());
-    let add = Command::new("git")
-        .args(["add", "-A", "--", ".", &excluded_issues, &excluded_events])
-        .current_dir(worktree)
-        .status()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-    if !add.success() {
-        return Err(KanbusError::IssueOperation(
-            "could not stage router checkpoint".to_string(),
-        ));
-    }
+    stage_router_checkpoint(worktree, &project_relative)?;
     let commit = Command::new("git")
         .args([
             "-c",
@@ -6055,6 +6671,65 @@ fn publish_router_branch(
         previous_local_sha: None,
         remote_published,
     })
+}
+
+/// Stage only agent-owned source changes for an isolated router checkpoint.
+///
+/// Shared project events are intentionally Git-ignored in normal Kanbus
+/// checkouts. `git add -A` treats an ignored path as a fatal error even when an
+/// exclusion pathspec accompanies it, which could strand an otherwise complete
+/// agent turn. Stage tracked edits separately, then add only nonignored,
+/// non-project untracked paths.
+fn stage_router_checkpoint(worktree: &Path, project_relative: &Path) -> Result<(), KanbusError> {
+    let tracked = Command::new("git")
+        .args(["add", "-u", "--", "."])
+        .current_dir(worktree)
+        .status()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !tracked.success() {
+        return Err(KanbusError::IssueOperation(
+            "could not stage router checkpoint".to_string(),
+        ));
+    }
+    let untracked = Command::new("git")
+        .args([
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            ".",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !untracked.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "could not stage router checkpoint".to_string(),
+        ));
+    }
+    let paths = untracked
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| PathBuf::from(String::from_utf8_lossy(path).into_owned()))
+        .filter(|path| !path.starts_with(project_relative))
+        .collect::<Vec<_>>();
+    if !paths.is_empty() {
+        let add = Command::new("git")
+            .arg("add")
+            .arg("--")
+            .args(paths)
+            .current_dir(worktree)
+            .status()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if !add.success() {
+            return Err(KanbusError::IssueOperation(
+                "could not stage router checkpoint".to_string(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn push_router_branch_with_fence(
@@ -6415,6 +7090,22 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[test]
+    fn shared_state_fetch_retries_a_transient_git_lock() {
+        let attempts = std::cell::Cell::new(0);
+        let fetched = retry_router_state_fetch(|| {
+            let attempt = attempts.get() + 1;
+            attempts.set(attempt);
+            attempt == 2
+        });
+
+        assert!(fetched);
+        assert_eq!(attempts.get(), 2);
+
+        let exhausted = retry_router_state_fetch(|| false);
+        assert!(!exhausted);
     }
 
     #[test]
@@ -6863,8 +7554,11 @@ mod tests {
                 "codex".to_string(),
                 crate::models::IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),
@@ -6941,6 +7635,26 @@ mod tests {
     }
 
     #[test]
+    fn completed_issue_update_is_a_router_owned_review_hint() {
+        let updates = vec![
+            RouterIssueUpdate {
+                issue_id: "kbs-42".to_string(),
+                status: "completed".to_string(),
+            },
+            RouterIssueUpdate {
+                issue_id: "kbs-43".to_string(),
+                status: "blocked".to_string(),
+            },
+        ];
+
+        let accepted = completed_outcome_issue_updates(&updates);
+
+        assert_eq!(accepted.len(), 1);
+        assert_eq!(accepted[0].issue_id, "kbs-43");
+        assert_eq!(accepted[0].status, "blocked");
+    }
+
+    #[test]
     fn latest_conversation_review_overrides_an_older_started_attempt() {
         let before_router_events = DateTime::parse_from_rfc3339("2026-09-18T22:00:00Z")
             .expect("valid timestamp")
@@ -7003,6 +7717,12 @@ mod tests {
         apply_router_status_overlay(&mut issues, &[started.clone(), review], &router, &[]);
 
         assert_eq!(issues[0].status, "review");
+        assert_eq!(
+            issues[0].updated_at,
+            DateTime::parse_from_rfc3339("2026-09-18T23:01:00Z")
+                .expect("valid timestamp")
+                .with_timezone(&Utc)
+        );
 
         issues[0].updated_at = DateTime::parse_from_rfc3339("2026-09-18T23:02:00Z")
             .expect("valid timestamp")
@@ -7031,6 +7751,361 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn checkpoint_staging_excludes_ignored_router_events() {
+        let temp = tempfile::tempdir().expect("checkpoint staging temp dir");
+        let root = temp.path();
+        git_success(root, &["init", "--initial-branch=main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(root, &["config", "user.email", "router@example.invalid"]);
+        fs::write(root.join(".gitignore"), "project/events/\n").expect("write ignore");
+        fs::write(root.join("tracked.rs"), "fn original() {}\n").expect("write source");
+        git_success(root, &["add", ".gitignore", "tracked.rs"]);
+        git_success(root, &["commit", "-m", "initial"]);
+
+        fs::write(root.join("tracked.rs"), "fn changed() {}\n").expect("edit source");
+        fs::write(root.join("new_agent_test.rs"), "#[test] fn works() {}\n")
+            .expect("write agent test");
+        let event_dir = root.join("project/events");
+        fs::create_dir_all(&event_dir).expect("create event directory");
+        fs::write(event_dir.join("router.jsonl"), "event\n").expect("write event");
+
+        stage_router_checkpoint(root, Path::new("project")).expect("stage checkpoint");
+
+        assert_eq!(
+            git_success(root, &["diff", "--cached", "--name-only"]),
+            "new_agent_test.rs\ntracked.rs"
+        );
+        assert_eq!(
+            git_success(root, &["status", "--porcelain"]),
+            "A  new_agent_test.rs\nM  tracked.rs"
+        );
+    }
+
+    #[test]
+    fn run_once_preserves_review_turn_when_adapter_result_validation_fails() {
+        let (_temp, root, _remote, _base_sha) = git_remote_fixture();
+        crate::file_io::initialize_project(&root, false).expect("initialize project");
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.project_directory = "project".to_string();
+        configuration.router = Some(IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "default".to_string(),
+                IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: Some("/bin/sh".to_string()),
+                    args: vec![
+                        "-c".to_string(),
+                        "printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"session-validation-failure\"}' '{\"schema_version\":1,\"outcome\":\"not-a-router-outcome\"}'"
+                            .to_string(),
+                    ],
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: Some(crate::models::IssueRouterForgeConfiguration {
+                provider: "github".to_string(),
+                repository: "example/repo".to_string(),
+                base_branch: "main".to_string(),
+                api_url: "https://api.github.com".to_string(),
+                token_env: "PATH".to_string(),
+            }),
+        });
+        configuration
+            .statuses
+            .push(crate::models::StatusDefinition {
+                key: "review".to_string(),
+                name: "Review".to_string(),
+                category: "In progress".to_string(),
+                semantic_category: "in_progress".to_string(),
+                color: None,
+                collapsed: false,
+            });
+        configuration
+            .workflows
+            .get_mut("default")
+            .expect("default workflow")
+            .insert(
+                "in_progress".to_string(),
+                vec![
+                    "open".to_string(),
+                    "blocked".to_string(),
+                    "review".to_string(),
+                    "closed".to_string(),
+                ],
+            );
+        configuration
+            .transition_labels
+            .get_mut("default")
+            .expect("default transition labels")
+            .get_mut("in_progress")
+            .expect("in-progress transition labels")
+            .insert("review".to_string(), "Request review".to_string());
+        fs::write(
+            get_configuration_path(&root).expect("configuration path"),
+            serde_yaml::to_string(&configuration).expect("serialize configuration"),
+        )
+        .expect("write router configuration");
+        let project_dir = load_project_directory(&root).expect("project directory");
+        let issue_id = "kbs-955";
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: issue_id.to_string(),
+            title: "Preserve validation failure".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["agent-provider:default".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+        fs::write(
+            project_dir.join("issues").join(format!("{issue_id}.json")),
+            serde_json::to_vec_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write routed issue");
+        git_success(&root, &["add", "-A"]);
+        git_success(&root, &["commit", "-m", "router adapter error fixture"]);
+        git_success(&root, &["push", "origin", "main"]);
+
+        let router = configuration.router.clone().expect("router configuration");
+        let canonical_root = repository_root(&root).expect("canonical repository root");
+        let project_dir =
+            load_project_directory(&canonical_root).expect("canonical project directory");
+        let error = run_issue_router_once(&canonical_root, &router, &project_dir)
+            .expect_err("invalid adapter outcome must reach the recovery branch");
+        assert!(
+            error
+                .to_string()
+                .contains("invalid Codex router outcome \"not-a-router-outcome\""),
+            "{error}"
+        );
+        assert!(
+            !error.to_string().contains("preservation also failed"),
+            "{error}"
+        );
+
+        let events = load_router_events(&project_dir).expect("load router events");
+        assert!(events.iter().any(|event| {
+            event.issue_id == format!("router:{issue_id}")
+                && matches!(&event.event_type, EventType::RouterConversation)
+                && payload_text(event, "lifecycle") == Some("review")
+        }));
+        assert!(
+            events.iter().any(|event| {
+                event.issue_id == format!("router:{issue_id}")
+                    && matches!(&event.event_type, EventType::RouterResult)
+                    && event
+                        .payload
+                        .get("publication_failed")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            }),
+            "{events:#?}"
+        );
+
+        let mut issues = load_project_issues(&project_dir).expect("load issues");
+        apply_router_status_overlay(
+            &mut issues,
+            &events,
+            &router,
+            &issue_event_history(&project_dir).expect("load issue events"),
+        );
+        assert_eq!(
+            issues
+                .iter()
+                .find(|issue| issue.identifier == issue_id)
+                .expect("routed issue")
+                .status,
+            "review"
+        );
+    }
+
+    #[test]
+    fn publication_failure_after_completed_turn_preserves_review_evidence() {
+        let temp = tempfile::tempdir().expect("router recovery temp dir");
+        let root = temp.path();
+        crate::file_io::initialize_project(root, false).expect("initialize project");
+        git_success(root, &["init", "-b", "main"]);
+        git_success(root, &["config", "user.name", "Router Test"]);
+        git_success(
+            root,
+            &["config", "user.email", "router-test@example.invalid"],
+        );
+        git_success(root, &["add", "-A"]);
+        git_success(root, &["commit", "-m", "router recovery fixture"]);
+        let project_dir = load_project_directory(root).expect("project directory");
+        let issue_id = "kbs-954";
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: issue_id.to_string(),
+            title: "Preserve publication failure".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "in_progress".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: Vec::new(),
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+        let issue_path = project_dir.join("issues").join(format!("{issue_id}.json"));
+        fs::write(
+            &issue_path,
+            serde_json::to_vec_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write issue");
+        let claim = RouterClaim {
+            issue_id: issue_id.to_string(),
+            claim_id: "claim-recovery".to_string(),
+            revision: 1,
+            resource: format!("router:issue:{issue_id}"),
+            hard: false,
+            owner: "worker-recovery".to_string(),
+            resources: Vec::new(),
+        };
+        let events = vec![
+            event(
+                &format!("router:{issue_id}"),
+                EventType::RouterAttempt,
+                json!({"action":"started", "claim_id":"claim-recovery", "revision":1}),
+                "2026-09-19T12:00:00Z",
+            ),
+            event(
+                &format!("router:{issue_id}"),
+                EventType::RouterConversation,
+                json!({"action":"agent_turn", "lifecycle":"review", "claim_id":"claim-recovery", "revision":1,
+                    "session_id":"session-954", "branch":"codex/router/kbs-954/r1", "worktree":"/tmp/kbs-954"}),
+                "2026-09-19T12:01:00Z",
+            ),
+        ];
+        crate::event_history::write_events_batch(&events_dir_for_project(&project_dir), &events)
+            .expect("write completed conversation");
+        let configuration = crate::config_loader::load_project_configuration(
+            &get_configuration_path(root).expect("configuration path"),
+        )
+        .expect("load configuration");
+
+        preserve_completed_turn_after_publication_failure(
+            root,
+            &project_dir,
+            &configuration,
+            &claim,
+            &KanbusError::IssueOperation("could not publish draft pull request".to_string()),
+        )
+        .expect("preserve completed turn");
+        let stored = read_issue_from_file(&issue_path).expect("read diagnostic comment");
+        assert!(stored.comments.iter().any(|comment| comment
+            .text
+            .as_deref()
+            .is_some_and(|text| text.contains("codex/router/kbs-954/r1"))));
+        assert!(load_router_events(&project_dir)
+            .expect("load recovery event")
+            .iter()
+            .any(|event| {
+                matches!(&event.event_type, EventType::RouterResult)
+                    && event
+                        .payload
+                        .get("publication_failed")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            }));
+
+        // A preserved run can be surfaced even when no board state transition
+        // is needed; recovery must still add its issue-visible summary.
+        append_router_event(
+            &project_dir,
+            &format!("router:{issue_id}"),
+            EventType::RouterConversation,
+            json!({
+                "action":"agent_turn", "provider":"codex", "lifecycle":"unknown",
+                "claim_id":"claim-recovery", "revision":1,
+                "session_id":"session-954", "branch":"codex/router/kbs-954/r1",
+                "worktree":"/tmp/kbs-954"
+            }),
+        )
+        .expect("append recoverable evidence");
+
+        let router = IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::new(),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: None,
+        };
+        recover_router_package(root, &configuration, &router, &project_dir, issue_id)
+            .expect("recover preserved turn");
+        recover_router_package(root, &configuration, &router, &project_dir, issue_id)
+            .expect("recovery is idempotent");
+
+        let recovered = read_issue_from_file(&issue_path).expect("read recovery comment");
+        assert_eq!(
+            recovered
+                .comments
+                .iter()
+                .filter(|comment| {
+                    comment
+                        .text
+                        .as_deref()
+                        .is_some_and(|text| text.contains("## Agent run recovered"))
+                })
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -7675,8 +8750,11 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::from([(
@@ -8063,6 +9141,30 @@ mod tests {
     }
 
     #[test]
+    fn completed_turn_review_record_is_visible_without_agent_supplied_comments() {
+        let pull = PullRequestInfo {
+            number: 42,
+            head_sha: "abc123".to_string(),
+            url: "https://example.test/pull/42".to_string(),
+            branch: "codex/router/kbs-701/r1".to_string(),
+        };
+        let comment = completed_router_review_comment(
+            "",
+            &pull,
+            "refs/kanbus/router/checkpoints/kbs-701",
+            &[RouterArtifact {
+                name: "tests".to_string(),
+                reference: "artifacts/tests.txt".to_string(),
+            }],
+        );
+
+        assert_eq!(
+            comment,
+            "## Agent turn complete\n\nThe agent completed a turn. Review the preserved branch and draft pull request.\n\n- Draft PR: https://example.test/pull/42\n- Branch: `codex/router/kbs-701/r1`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-701`\n- Artifacts:\n  - `tests`: `artifacts/tests.txt`"
+        );
+    }
+
+    #[test]
     fn active_shared_issue_claim_is_not_planned_until_release_or_expiry() {
         let now = DateTime::parse_from_rfc3339("2026-09-17T10:02:00Z")
             .unwrap()
@@ -8347,8 +9449,11 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),
@@ -8645,5 +9750,55 @@ mod tests {
         assert_eq!(pull.number, 42);
         assert_eq!(pull.branch, "codex/router/kbs-test/r1");
         server.join().expect("mock GitHub API");
+    }
+
+    #[test]
+    fn opencode_result_is_extracted_from_prose_and_session_from_events() {
+        let text =
+            "Done. Result: {\"schema_version\":1,\"outcome\":\"completed\",\"summary\":\"ok\"}";
+        let stdout = [
+            json!({"type":"step_start","sessionID":"ses_1","part":{}}),
+            json!({"type":"text","sessionID":"ses_1","part":{"text":"thinking {not json"}}),
+            json!({"type":"text","sessionID":"ses_1","part":{"text":text}}),
+        ]
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+        let result = parse_opencode_result(&stdout).expect("result");
+        assert_eq!(result.outcome, "completed");
+        assert_eq!(
+            RouterAdapterKind::OpenCode.session_id(&stdout).as_deref(),
+            Some("ses_1")
+        );
+    }
+
+    #[test]
+    fn quoted_schema_versions_of_one_are_coerced_and_others_rejected() {
+        for accepted in ["\"1\"", "\" 1.0 \"", "1.0", "1"] {
+            let payload = format!(
+                "{{\"schema_version\":{accepted},\"outcome\":\"completed\",\"summary\":\"ok\"}}"
+            );
+            let result = parse_router_result(&payload).expect("coerced version");
+            assert_eq!(result.schema_version, 1, "{accepted}");
+        }
+        for rejected in ["\"2\"", "\"1.1\"", "true", "1.5", "null", "\"one\""] {
+            let payload = format!(
+                "{{\"schema_version\":{rejected},\"outcome\":\"completed\",\"summary\":\"ok\"}}"
+            );
+            assert!(parse_router_result(&payload).is_err(), "{rejected}");
+        }
+    }
+
+    #[test]
+    fn opencode_rejects_missing_or_unsupported_schema_version() {
+        let none = json!({"type":"text","part":{"text":"no json"}}).to_string();
+        let error = parse_opencode_result(&none).unwrap_err().to_string();
+        assert!(error.contains("OpenCode router adapter returned invalid JSON"));
+        let string_version = json!({"type":"text","part":{"text":"{\"schema_version\":\"2\",\"outcome\":\"completed\"}"}}).to_string();
+        let error = parse_opencode_result(&string_version)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("OpenCode router adapter returned invalid result"));
     }
 }
