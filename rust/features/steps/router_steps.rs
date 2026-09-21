@@ -2845,6 +2845,27 @@ fn when_router_receives_approved_event_twice(
     world.stderr = Some(String::new());
 }
 
+#[then(
+    regex = r#"^package "(?P<issue>[^"]+)" should have a "(?P<author>[^"]+)" comment containing "(?P<text>[^"]+)"$"#
+)]
+fn then_router_package_comment(
+    world: &mut KanbusWorld,
+    issue: String,
+    author: String,
+    text: String,
+) {
+    let comments = load_issue(world, &issue).comments;
+    assert!(
+        comments.iter().any(|comment| comment.author == author
+            && comment.text.as_deref().unwrap_or("").contains(&text)),
+        "no {author} comment containing {text:?} on {issue}: {:?}",
+        comments
+            .iter()
+            .map(|comment| (comment.author.clone(), comment.text.clone()))
+            .collect::<Vec<_>>()
+    );
+}
+
 #[then(expr = "package {string} should remain in status {string}")]
 fn then_router_package_remains_status(world: &mut KanbusWorld, issue_id: String, expected: String) {
     assert_eq!(load_issue(world, &issue_id).status, expected);

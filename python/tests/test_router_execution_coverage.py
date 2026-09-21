@@ -67,7 +67,16 @@ def context(tmp_path, providers=None, forge=None):
         active="active", blocked="blocked", review="review", terminal=["closed"]
     )
     router = SimpleNamespace(
-        providers={"codex": SimpleNamespace(adapter="codex", command="codex", args=[])},
+        providers={
+            "codex": SimpleNamespace(
+                adapter="codex",
+                command="codex",
+                args=[],
+                model=None,
+                env={},
+                service_tier=None,
+            )
+        },
         classes={"review": SimpleNamespace(providers=["codex"])},
         workflow=workflow,
         forge=forge,
@@ -299,7 +308,7 @@ def test_run_once_preserves_invalid_codex_outcome_from_real_adapter(
     assert 'invalid Codex router outcome "unknown"' in outcome.error
     assert transitions == ["active", "review"]
     result_events = [
-        event for event in events if event.get("event_type") == "router_result"
+        event for event in events if event.get("event_type") == "router_completed"
     ]
     assert result_events
     assert result_events[-1]["payload"]["publication_failed"] is True
