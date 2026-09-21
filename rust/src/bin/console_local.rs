@@ -43,10 +43,12 @@ use kanbus::console_wiki::{
     WikiCreateRequest, WikiRenameRequest, WikiRenderRequestPayload, WikiServiceError,
     WikiUpdateRequest,
 };
+use kanbus::error::KanbusError;
 use kanbus::event_history::{load_issue_events, EventRecord};
 use kanbus::file_io::{detect_repairable_project_issues, repair_project_structure};
 use kanbus::gossip::{run_gossip_bridge, GossipEnvelope};
 use kanbus::notification_events::{NotificationEvent, UiControlAction};
+use kanbus::router::read_shared_router_events;
 
 #[cfg(feature = "embed-assets")]
 use rust_embed::RustEmbed;
@@ -672,13 +674,16 @@ async fn get_issue_events_root(
     let issue_id = matches[0].identifier.clone();
     let project_dir = store.root().join(&snapshot.config.project_directory);
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) =
-        match load_issue_events(&project_dir, &issue_id, query.before.as_deref(), limit) {
-            Ok(result) => result,
-            Err(error) => {
-                return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+    let (events, next_before) = match load_console_issue_events(
+        store.root(),
+        &project_dir,
+        &issue_id,
+        query.before.as_deref(),
+        limit,
+    ) {
+        Ok(result) => result,
+        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    };
     Json(IssueEventsResponse {
         issue_id,
         events,
@@ -709,19 +714,66 @@ async fn get_issue_events(
     let issue_id = matches[0].identifier.clone();
     let project_dir = store.root().join(&snapshot.config.project_directory);
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) =
-        match load_issue_events(&project_dir, &issue_id, query.before.as_deref(), limit) {
-            Ok(result) => result,
-            Err(error) => {
-                return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+    let (events, next_before) = match load_console_issue_events(
+        store.root(),
+        &project_dir,
+        &issue_id,
+        query.before.as_deref(),
+        limit,
+    ) {
+        Ok(result) => result,
+        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    };
     Json(IssueEventsResponse {
         issue_id,
         events,
         next_before,
     })
     .into_response()
+}
+
+/// Load canonical issue events and, on the newest page, durable agent turns
+/// from the shared router-state branch.  Router-state is an availability
+/// enhancement: a transient Git fetch failure must not hide canonical issue
+/// history, which remains locally readable and is the console's fallback.
+fn load_console_issue_events(
+    root: &Path,
+    project_dir: &Path,
+    issue_id: &str,
+    before: Option<&str>,
+    limit: usize,
+) -> Result<(Vec<EventRecord>, Option<String>), KanbusError> {
+    let (mut events, next_before) = load_issue_events(project_dir, issue_id, before, limit)?;
+    if before.is_some() {
+        return Ok((events, next_before));
+    }
+
+    if let Ok(router_events) = read_shared_router_events(root) {
+        merge_router_conversation_events(&mut events, router_events, issue_id, limit);
+    }
+    Ok((events, next_before))
+}
+
+fn merge_router_conversation_events(
+    events: &mut Vec<EventRecord>,
+    router_events: Vec<EventRecord>,
+    issue_id: &str,
+    limit: usize,
+) {
+    events.extend(router_events.into_iter().filter(|event| {
+        event.issue_id == format!("router:{issue_id}")
+            && matches!(
+                event.event_type,
+                kanbus::event_history::EventType::RouterConversation
+            )
+    }));
+    events.sort_by(|left, right| {
+        right
+            .occurred_at
+            .cmp(&left.occurred_at)
+            .then_with(|| right.event_id.cmp(&left.event_id))
+    });
+    events.truncate(limit);
 }
 
 async fn get_events(
@@ -1859,6 +1911,49 @@ mod tests {
             .join(format!("{identifier}.json"));
         let payload = serde_json::to_string_pretty(&issue).expect("serialize issue");
         std::fs::write(issue_path, payload).expect("write issue");
+    }
+
+    #[test]
+    fn router_conversation_events_merge_only_for_the_requested_issue() {
+        let mut events = vec![EventRecord::new(
+            "kbs-target",
+            kanbus::event_history::EventType::CommentAdded,
+            "human",
+            serde_json::json!({}),
+            "2026-09-19T00:00:00.000Z".to_string(),
+        )];
+        let target = EventRecord::new(
+            "router:kbs-target",
+            kanbus::event_history::EventType::RouterConversation,
+            "router",
+            serde_json::json!({"lifecycle":"review"}),
+            "2026-09-19T00:02:00.000Z".to_string(),
+        );
+        let unrelated = EventRecord::new(
+            "router:kbs-other",
+            kanbus::event_history::EventType::RouterConversation,
+            "router",
+            serde_json::json!({"lifecycle":"review"}),
+            "2026-09-19T00:03:00.000Z".to_string(),
+        );
+        let not_a_conversation = EventRecord::new(
+            "router:kbs-target",
+            kanbus::event_history::EventType::RouterResult,
+            "router",
+            serde_json::json!({}),
+            "2026-09-19T00:04:00.000Z".to_string(),
+        );
+
+        merge_router_conversation_events(
+            &mut events,
+            vec![unrelated, not_a_conversation, target.clone()],
+            "kbs-target",
+            50,
+        );
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].event_id, target.event_id);
+        assert_eq!(events[1].issue_id, "kbs-target");
     }
 
     fn install_fake_d2(temp_root: &Path, script_body: &str) -> PathBuf {

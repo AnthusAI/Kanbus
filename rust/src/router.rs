@@ -531,7 +531,12 @@ fn retry_router_state_fetch(mut fetch: impl FnMut() -> bool) -> bool {
     false
 }
 
-pub(crate) fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
+/// Read durable router-owned records from the shared router-state branch.
+///
+/// Console and cloud presentation layers use this read-only projection to
+/// surface agent activity without requiring the viewer's checkout to have
+/// merged the router-state branch.
+pub fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
     let Some(state_ref) = remote_router_state_ref(root, true)? else {
         return Ok(Vec::new());
     };
