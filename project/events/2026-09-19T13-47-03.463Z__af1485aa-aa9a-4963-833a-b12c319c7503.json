@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "af1485aa-aa9a-4963-833a-b12c319c7503",
+  "issue_id": "router:kbs-c11aec00-b1d0-480c-b475-3b544fb63c76",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-19T13:47:03.463Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Normalized optional artifact metadata consistently in Python and Rust while preserving strict validation for all authoritative result fields. Added JSONL AgentMessage and malformed-artifact coverage. Focused Python and Rust tests pass.",
+    "claim_id": "428c8a33-bfcf-43b0-bbc3-8d23ec243135",
+    "revision": 1,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-c11aec00-b1d0-480c-b475-3b544fb63c76",
+    "checkpoint_revision": 1,
+    "artifacts": [],
+    "issue_updates": []
+  }
+}

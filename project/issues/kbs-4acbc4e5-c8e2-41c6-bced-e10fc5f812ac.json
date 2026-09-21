@@ -3,7 +3,7 @@
   "title": "Remove empty legacy board states",
   "description": "## Problem\n\nThe Kanbus board currently renders empty **Deferred (Legacy)** and **Done (Legacy)** columns. They are legacy aliases: no project issue uses either `deferred` or `done`. Their presence makes the live board harder to scan and obscures the configured Ready → In Progress → Review → Done workflow.\n\n## Required behavior\n\nRemove the unused legacy `deferred` and `done` status definitions from the Kanbus project configuration, along with only the workflow and transition-label references that exist solely for those statuses. Do not change the active statuses or their semantic categories.\n\n## Acceptance criteria\n\n- The board no longer displays Deferred (Legacy) or Done (Legacy).\n- `backlog`, `Discovery`, `open` (Ready), `in_progress`, `review`, `blocked`, and `closed` remain configured and behave as before.\n- Configuration validation and relevant Python/Rust/console tests pass.\n- The change contains no issue-status migration because the legacy state counts are zero.\n- Update documentation or fixtures only where they describe this project configuration.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,11 +12,29 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ac773844-22d7-4660-be0d-71a4ee6b2d69",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent run recovered\n\nThe Issue Router recovered preserved agent evidence without starting a replacement session.\n\n- Provider: `codex`\n- Lifecycle: `review`\n- Branch: `codex/router/kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac/r1`\n- Session: `01a0ba35-440c-7711-9d05-f3c1b7a0a9c1`\n- Worktree: `/var/folders/h8/bff490w93nl9c87021k92f0m0000gp/T/kanbus-router-worktrees/kbs-4acbc4e5-c8e2-41c6-bced-e10fc5f812ac-2947fa6f-c2a0-4cae-91fe-9e48ef1c4e65`",
+      "created_at": "2026-09-19T17:23:11.334442Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "595473bd-ad1a-4609-8b87-48080aa00119",
+      "author": "home",
+      "text": "Completed: merged PR #324 removed Deferred (Legacy) and Done (Legacy). The rebased validation run 35461801648 passed every required check, including console UI/parity and coverage ratchet.",
+      "created_at": "2026-09-19T19:11:25.730310Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:25:19.741701Z",
-  "updated_at": "2026-09-19T14:25:19.809592Z",
-  "closed_at": null,
+  "updated_at": "2026-09-19T19:11:26.278712Z",
+  "closed_at": "2026-09-19T19:11:26.196972Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

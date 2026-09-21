@@ -188,6 +188,14 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
         and _has_preserved_review_conversation(events, issue.identifier)
         for issue in issues
     )
+    # Human-managed board work must not consume the router's worker capacity.
+    current_wip = sum(active_counts.values())
+    current_review = sum(
+        issue.status == context.router.workflow.review
+        and _route_error(context.router, issue) is None
+        and _has_preserved_review_conversation(events, issue.identifier)
+        for issue in context.issues
+    )
     eligible: list[RouterPlanEligiblePackage] = []
     deferred: list[RouterPlanDeferredPackage] = []
     for candidate in candidates:
