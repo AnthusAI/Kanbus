@@ -3,7 +3,7 @@
   "title": "Remove empty Todo (Legacy) board state",
   "description": "The live Kanbus board still renders an empty `Todo (Legacy)` column. No project issue currently uses the `todo` status. Remove only the unused `todo` status definition and its workflow/transition-label references from the project configuration and the matching console board fixture. Preserve active statuses and semantic categories. Add or update focused validation as needed. Do not migrate issues because the column count is zero. Leave the completed work in Review with a visible summary and test evidence; do not merge or close it.",
   "type": "story",
-  "status": "review",
+  "status": "open",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -22,7 +22,7 @@
     }
   ],
   "created_at": "2026-09-19T19:12:07.643287Z",
-  "updated_at": "2026-09-19T23:31:12.737765Z",
+  "updated_at": "2026-09-21T21:55:19.096880Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
