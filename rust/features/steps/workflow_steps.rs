@@ -744,6 +744,75 @@ fn given_primary_in_progress_status_key(world: &mut KanbusWorld, new_key: String
     fs::write(config_path, serialized).expect("write config");
 }
 
+fn write_status_configuration(
+    world: &mut KanbusWorld,
+    key: &str,
+    semantic_category: Option<&str>,
+    strip_all: bool,
+) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let config_path = cwd.join(".kanbus.yml");
+    let contents = fs::read_to_string(&config_path).expect("read config");
+    let mut payload: serde_yaml::Value = serde_yaml::from_str(&contents).expect("parse config");
+    let statuses = payload
+        .get_mut("statuses")
+        .and_then(serde_yaml::Value::as_sequence_mut)
+        .expect("statuses");
+    if strip_all {
+        for status in statuses.iter_mut() {
+            if let Some(mapping) = status.as_mapping_mut() {
+                mapping.remove("semantic_category");
+            }
+        }
+    }
+    let mut entry = serde_yaml::Mapping::new();
+    entry.insert("key".into(), key.into());
+    entry.insert("name".into(), key.replace('_', " ").into());
+    entry.insert("category".into(), "In progress".into());
+    entry.insert("color".into(), serde_yaml::Value::Null);
+    entry.insert("collapsed".into(), false.into());
+    if let Some(category) = semantic_category {
+        entry.insert("semantic_category".into(), category.into());
+    }
+    statuses.push(serde_yaml::Value::Mapping(entry));
+    fs::write(
+        config_path,
+        serde_yaml::to_string(&payload).expect("serialize config"),
+    )
+    .expect("write config");
+}
+
+#[given(expr = "the configuration omits every semantic category and adds the status {string}")]
+fn given_configuration_omits_semantic_categories(world: &mut KanbusWorld, key: String) {
+    write_status_configuration(world, &key, None, true);
+}
+
+#[given(expr = "the configuration adds the status {string} with semantic category {string}")]
+fn given_configuration_adds_status_with_category(
+    world: &mut KanbusWorld,
+    key: String,
+    category: String,
+) {
+    write_status_configuration(world, &key, Some(&category), false);
+}
+
+#[then(expr = "the configured status {string} should have semantic category {string}")]
+fn then_configured_status_semantic_category(
+    world: &mut KanbusWorld,
+    key: String,
+    category: String,
+) {
+    let cwd = world.working_directory.as_ref().expect("cwd");
+    let configuration =
+        load_project_configuration(&cwd.join(".kanbus.yml")).expect("load configuration");
+    let actual = configuration
+        .statuses
+        .iter()
+        .map(|status| (status.key.clone(), status.semantic_category.clone()))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(actual.get(&key), Some(&category), "{actual:?}");
+}
+
 #[given("a Kanbus project with an editorial story workflow configuration")]
 fn given_editorial_story_workflow_configuration(world: &mut KanbusWorld) {
     initialize_default_project(world);
