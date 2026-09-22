@@ -21,7 +21,6 @@ workflows:
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
     Discovery: [open, backlog]
-    todo: [open, backlog]
   epic:
     open: [in_progress, closed]
     in_progress: [open, closed]
@@ -38,11 +37,6 @@ workflows:
 statuses:
   - key: backlog
     name: Backlog
-    category: To do
-    semantic_category: todo
-    collapsed: true
-  - key: todo
-    name: Todo (Legacy)
     category: To do
     semantic_category: todo
     collapsed: true
@@ -104,9 +98,6 @@ transition_labels:
       open: Reopen
       backlog: Back to backlog
     Discovery:
-      open: Start work
-      backlog: Back to backlog
-    todo:
       open: Start work
       backlog: Back to backlog
   epic:
