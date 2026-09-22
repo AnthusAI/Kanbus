@@ -1,0 +1,24 @@
+{
+  "id": "kbs-2a197432-7df2-4071-9799-b66aff15619a",
+  "title": "Board filtering, sorting, and column logic",
+  "description": "Implement sort presets (FIFO, recently-updated, priority), raw sort expressions, category-level vs. status-level sort rules, column visibility per workflow configuration (board column filter), and the rule that Done columns always sort by recent updates.\n\nSpec coverage target: remaining scenarios in features/console/kanban_board.feature, sort and filter specs.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fe68a829-0c22-4dd9-8fb9-a106da39d344",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:56.783173Z",
+  "updated_at": "2026-09-22T17:09:56.801268Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

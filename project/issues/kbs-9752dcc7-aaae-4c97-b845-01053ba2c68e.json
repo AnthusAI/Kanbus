@@ -1,0 +1,24 @@
+{
+  "id": "kbs-9752dcc7-aaae-4c97-b845-01053ba2c68e",
+  "title": "Realtime updates and server communication",
+  "description": "Implement file system watching for project/issues/ changes (replacing SSE/WebSocket), live issue surfacing when new issues appear, standup panel integration, and wiki panel with Markus rendering.\n\nSpec coverage target: features/console/standup_panel.feature, features/console/wiki_panel.feature, features/console/wiki_markus_preview.feature -- 3 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fe68a829-0c22-4dd9-8fb9-a106da39d344",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:10:23.481212Z",
+  "updated_at": "2026-09-22T17:10:23.502315Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

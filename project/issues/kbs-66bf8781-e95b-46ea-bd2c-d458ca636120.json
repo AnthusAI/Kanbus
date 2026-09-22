@@ -1,0 +1,24 @@
+{
+  "id": "kbs-66bf8781-e95b-46ea-bd2c-d458ca636120",
+  "title": "Issue CRUD and identity",
+  "description": "Implement the core issue domain: creation with ID generation (SHA256 hash, kbs-{6hex} format), reading (kbs show, kbs list), updates (status transitions, field changes), deletion and closing, ID format validation, and file I/O (read/write issue JSON to project/issues/). Issues are the core domain object everything else depends on.\n\nSpec coverage target: features/issues/ (14), features/hierarchy/ (1), features/index/ -- approximately 16 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:08:57.566357Z",
+  "updated_at": "2026-09-22T17:08:57.586365Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

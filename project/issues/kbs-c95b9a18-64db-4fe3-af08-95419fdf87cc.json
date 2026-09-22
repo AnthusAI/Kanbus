@@ -1,0 +1,24 @@
+{
+  "id": "kbs-c95b9a18-64db-4fe3-af08-95419fdf87cc",
+  "title": "Wiki, standup, and right-now summaries",
+  "description": "Implement wiki page management (list, show, search, render), standup report generation, and right-now JIT summary support.\n\nSpec coverage target: features/wiki/ (9), features/standup/ (6), features/right-now/ (7) -- 22 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:22.541753Z",
+  "updated_at": "2026-09-22T17:09:22.564356Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

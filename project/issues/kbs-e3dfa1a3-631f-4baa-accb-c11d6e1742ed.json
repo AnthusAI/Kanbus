@@ -1,0 +1,24 @@
+{
+  "id": "kbs-e3dfa1a3-631f-4baa-accb-c11d6e1742ed",
+  "title": "Workflows, lifecycle, and status transitions",
+  "description": "Implement workflow-driven status transition validation, default vs. type-specific workflow selection, transition labels, and lifecycle hooks.\n\nSpec coverage target: features/workflow/ (6), features/hooks/ -- approximately 7 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:03.828743Z",
+  "updated_at": "2026-09-22T17:09:03.848142Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

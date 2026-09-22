@@ -1,0 +1,24 @@
+{
+  "id": "kbs-c1b4726d-7fdd-4bae-916e-31f142bfc48b",
+  "title": "Console state model and spec harness",
+  "description": "Implement ConsoleState, ConsoleIssue, ConsoleSettings, and ConsoleComment models in Swift (matching the Python/Rust patterns), implement issue visibility filtering (type tabs: Initiatives, Epics, Tasks, All), wire @console-tagged feature files to Swift step definitions, and prove the model passes the basic kanban board scenarios.\n\nSpec coverage target: features/console/kanban_board.feature (1 file, proof of concept).",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fe68a829-0c22-4dd9-8fb9-a106da39d344",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:49.401139Z",
+  "updated_at": "2026-09-22T17:09:49.436632Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

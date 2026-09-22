@@ -1,0 +1,24 @@
+{
+  "id": "kbs-ce19ab42-723b-4430-a386-1966b1fdd2b6",
+  "title": "Comments, queries, and dependencies",
+  "description": "Implement comment creation with timestamps and agent metadata, issue querying and filtering, and dependency tracking between issues.\n\nSpec coverage target: features/comments/ (1), features/queries/ (4), features/dependencies/ (2) -- 7 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:17.081068Z",
+  "updated_at": "2026-09-22T17:09:17.102213Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

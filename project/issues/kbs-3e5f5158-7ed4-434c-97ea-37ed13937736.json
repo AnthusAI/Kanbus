@@ -1,0 +1,24 @@
+{
+  "id": "kbs-3e5f5158-7ed4-434c-97ea-37ed13937736",
+  "title": "Interoperability and advanced features",
+  "description": "Implement label, comment, dependency, and delete interoperability, migration support, agent metadata, and content validation with rich text signals.\n\nSpec coverage target: remaining interop .feature files, features/agent/, features/content/, features/migration/ -- approximately 15 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:29.571661Z",
+  "updated_at": "2026-09-22T17:09:29.593239Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,24 @@
+{
+  "id": "kbs-f386cefe-b057-4824-b655-5295530812ef",
+  "title": "SwiftUI application shell and navigation",
+  "description": "Implement the Mac app window management and menu bar, iPad adaptive layout, navigation structure (board, detail panel, settings, wiki, standup), deep linking (replacing web route navigation), and keyboard shortcuts.\n\nSpec coverage target: new @native specs for platform-specific behavior; features/console/route_navigation.feature as inspiration for the native navigation model.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fe68a829-0c22-4dd9-8fb9-a106da39d344",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:10:16.851682Z",
+  "updated_at": "2026-09-22T17:10:16.872015Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
