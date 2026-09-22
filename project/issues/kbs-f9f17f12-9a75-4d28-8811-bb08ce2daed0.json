@@ -1,0 +1,24 @@
+{
+  "id": "kbs-f9f17f12-9a75-4d28-8811-bb08ce2daed0",
+  "title": "Project initialization and configuration loading",
+  "description": "Implement .kanbus.yml loading and validation, project/ directory structure creation (kanbus init), hierarchy/workflow/status/priority configuration parsing, and JSON serialization with byte-for-byte parity (sorted keys, 2-space indent, RFC3339 timestamps). Nearly every other feature file starts with 'Given a Kanbus project with default configuration', so this epic unblocks everything downstream.\n\nSpec coverage target: features/initialization/ (1), features/configuration/ (7) -- 8 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:08:49.990582Z",
+  "updated_at": "2026-09-22T17:08:50.012355Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

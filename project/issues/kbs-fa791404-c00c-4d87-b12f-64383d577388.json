@@ -1,0 +1,24 @@
+{
+  "id": "kbs-fa791404-c00c-4d87-b12f-64383d577388",
+  "title": "Swift Gherkin test harness and project scaffolding",
+  "description": "Set up the Swift Package Manager project structure (swift/ directory), evaluate and integrate swift-gherkin-testing to execute .feature files from the shared features/ directory, implement the KanbusWorld test context (equivalent to Python's behave context and Rust's KanbusWorld), wire one trivial scenario end-to-end (cli_help.feature) to prove the pipeline works, and extend tools/check_spec_parity.py to track Swift step coverage as a third implementation.\n\nSpec coverage target: features/cli/cli_help.feature (1 file, proof of concept).",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:08:41.954218Z",
+  "updated_at": "2026-09-22T17:08:41.974463Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

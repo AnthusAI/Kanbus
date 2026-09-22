@@ -1,0 +1,24 @@
+{
+  "id": "kbs-bbaedd35-b9f3-4c9c-80ac-68a2ce1616c4",
+  "title": "CLI entrypoint and output formatting",
+  "description": "Implement CLI argument parsing and dispatch, help and version output, list formatting (table, tree, flat), error message parity (same messages as Python/Rust), exit code parity, and kbs commit (git staging of project/issues/).\n\nSpec coverage target: features/cli/ (8) -- 8 feature files.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:11.434228Z",
+  "updated_at": "2026-09-22T17:09:11.454076Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

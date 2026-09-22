@@ -1,0 +1,24 @@
+{
+  "id": "kbs-fe68a829-0c22-4dd9-8fb9-a106da39d344",
+  "title": "Kanbus for Mac",
+  "description": "Native SwiftUI application implementing the Kanbus console for Mac and iPad, verified against the shared @console Gherkin behavior specs. Replaces the web-based kbsc console with a native app that provides the same board visualization, issue detail, settings, standup, and wiki functionality.\n\nThe console specs in features/console/ are already platform-agnostic -- they test board logic (filtering, sorting, column visibility, metadata display) against an in-memory ConsoleState model, not against DOM or web rendering. Both the Python and Rust implementations verify console behavior without touching a browser. A SwiftUI app implementing the same ConsoleState model runs those exact specs unchanged.\n\nDepends on KanbusKit for the domain model and business logic. The Mac app is a presentation layer over KanbusKit.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:09:40.746893Z",
+  "updated_at": "2026-09-22T17:09:40.766457Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

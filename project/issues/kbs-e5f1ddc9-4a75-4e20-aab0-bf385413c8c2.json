@@ -1,0 +1,24 @@
+{
+  "id": "kbs-e5f1ddc9-4a75-4e20-aab0-bf385413c8c2",
+  "title": "KanbusKit",
+  "description": "Swift package implementing the Kanbus domain model and CLI, verified against the shared Gherkin behavior specs. KanbusKit is the Swift-native implementation of the same specifications that drive the Python (kanbus) and Rust (kbs) implementations. It produces a third set of step definitions against the shared features/ directory, achieving three-way spec parity.\n\nThe library exposes the full Kanbus domain -- issue CRUD, configuration loading, workflow transitions, queries, wiki, standup, right-now summaries -- as a Swift package. A CLI binary built on the library passes the same feature files with identical observable behavior: same JSON serialization, same error messages, same exit codes.\n\nKanbusKit is also the foundation for Kanbus for Mac (the native SwiftUI console app). The domain model and business logic live here; UI is a separate initiative.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-22T17:08:31.435082Z",
+  "updated_at": "2026-09-22T17:08:31.454560Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "antigravity",
+    "model": "claude-opus-4.6"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
