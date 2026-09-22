@@ -5225,6 +5225,30 @@ fn pending_reply_plan(root: &Path, project_dir: &Path, issue_id: &str) -> Option
     })
 }
 
+/// Whether the issue's latest router conversation event is an unanswered
+/// agent question (the package is blocked awaiting a human reply).
+///
+/// Used by console write endpoints to decide whether a new comment should
+/// requeue the package for a resumed session rather than an ordinary write.
+pub fn issue_awaiting_agent_reply(project_dir: &Path, issue_id: &str) -> bool {
+    let Ok(events) = load_router_events(project_dir) else {
+        return false;
+    };
+    let Some(latest) = events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+    else {
+        return false;
+    };
+    payload_text(latest, "action") == Some("awaiting_reply")
+}
+
 /// The prompt for a fresh session, or the human's reply for a resumed one.
 fn agent_prompt(prompt: &str, mode: ResumeMode<'_>) -> String {
     match mode {
