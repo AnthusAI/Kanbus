@@ -147,6 +147,48 @@ async function runKanbusConsoleCommand(
   return stdout;
 }
 
+async function runKanbusCommand(args: string[]): Promise<string> {
+  const command = kanbusPython ?? "kanbus";
+  const commandArgs = kanbusPython
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", ...args]
+    : args;
+  try {
+    const { stdout } = await execFileAsync(command, commandArgs, {
+      cwd: repoRoot,
+      env: kanbusCommandEnv(),
+      maxBuffer: 10 * 1024 * 1024
+    });
+    return stdout;
+  } catch (error) {
+    const failure = error as Error & { stderr?: string; stdout?: string };
+    const detail = [failure.stderr, failure.stdout, failure.message]
+      .filter((value) => Boolean(value))
+      .join("\n")
+      .trim();
+    throw new Error(detail || "Kanbus write failed");
+  }
+}
+
+async function issueIsAwaitingAgentReply(issueId: string): Promise<boolean> {
+  const eventsRoot = path.join(projectRoot ?? "", "events");
+  if (!fs.existsSync(eventsRoot)) return false;
+  const records: Array<{ occurred_at?: string; event_type?: string; issue_id?: string; payload?: Record<string, unknown> }> = [];
+  for (const entry of await fsPromises.readdir(eventsRoot)) {
+    if (!entry.endsWith(".json")) continue;
+    try {
+      const record = JSON.parse(await fsPromises.readFile(path.join(eventsRoot, entry), "utf-8")) as typeof records[number];
+      if (record.issue_id === `router:${issueId}` && (record.event_type === "router.conversation" || record.event_type === "router_conversation")) {
+        records.push(record);
+      }
+    } catch {
+      // Ignore malformed historical event files; the CLI remains authoritative.
+    }
+  }
+  records.sort((left, right) => `${left.occurred_at ?? ""}`.localeCompare(`${right.occurred_at ?? ""}`));
+  const latest = records.at(-1);
+  return latest?.payload?.lifecycle === "blocked";
+}
+
 async function runSnapshot(): Promise<IssuesSnapshot> {
   const stdout = await runKanbusConsoleCommand("snapshot");
   return JSON.parse(stdout) as IssuesSnapshot;
@@ -281,6 +323,85 @@ apiRouter.get("/issues/:id", async (req, res) => {
     res.json(issue);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// There is no per-user authentication on this server, and it listens on
+// 0.0.0.0 by default, so a write from another device on the network would be
+// anonymous and unauthorized. Refuse writes from anything but the machine
+// running the console; reads stay reachable from other devices as before.
+function requireLoopback(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const address = req.socket.remoteAddress ?? "";
+  const isLoopback = address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+  if (!isLoopback) {
+    res.status(403).json({ error: "writes are only allowed from localhost" });
+    return;
+  }
+  next();
+}
+
+// Move a package back to the router's ready queue after a human reply.
+//
+// A blocked package's workflow does not allow "blocked" -> "open" directly
+// (see .kanbus.yml's default workflow); it must pass through "in_progress"
+// first, the same two-hop path an operator uses by hand.
+async function requeueToReady(issueId: string): Promise<void> {
+  try {
+    await runKanbusCommand(["update", issueId, "--status", "open"]);
+  } catch (error) {
+    await runKanbusCommand(["update", issueId, "--status", "in_progress"]);
+    await runKanbusCommand(["update", issueId, "--status", "open"]);
+  }
+}
+
+apiRouter.post("/issues/:id/comments", requireLoopback, express.json({ limit: "64kb" }), async (req, res) => {
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  if (!text) {
+    res.status(400).json({ error: "comment text is required" });
+    return;
+  }
+  try {
+    const wasAwaitingReply = await issueIsAwaitingAgentReply(req.params.id);
+    await runKanbusCommand(["comment", req.params.id, text]);
+    // A blocked router package is requeued to "open" (Ready), not
+    // "in_progress": the router only resumes a saved session for a package
+    // it finds in the ready-to-run queue (see pending_reply_plan /
+    // _pending_reply_plan). "in_progress" never re-enters scheduling, so the
+    // reply would be silently stranded.
+    if (wasAwaitingReply) {
+      await requeueToReady(req.params.id);
+    }
+    const snapshot = await refreshSnapshot();
+    broadcastSnapshot(snapshot);
+    const issue = snapshot.issues.find((item) => item.id === req.params.id);
+    if (!issue) {
+      res.status(404).json({ error: "issue not found after comment" });
+      return;
+    }
+    res.json({ issue, resumed: wasAwaitingReply });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.post("/issues/:id/status", requireLoopback, express.json({ limit: "16kb" }), async (req, res) => {
+  const status = typeof req.body?.status === "string" ? req.body.status.trim() : "";
+  if (!status) {
+    res.status(400).json({ error: "status is required" });
+    return;
+  }
+  try {
+    await runKanbusCommand(["update", req.params.id, "--status", status]);
+    const snapshot = await refreshSnapshot();
+    broadcastSnapshot(snapshot);
+    const issue = snapshot.issues.find((item) => item.id === req.params.id);
+    if (!issue) {
+      res.status(404).json({ error: "issue not found after status update" });
+      return;
+    }
+    res.json({ issue });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
   }
 });
 
