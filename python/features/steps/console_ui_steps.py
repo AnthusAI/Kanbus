@@ -1493,15 +1493,16 @@ def given_console_has_only_these_issues(context: object) -> None:
         raise AssertionError("expected issue table")
     issues: list[ConsoleIssue] = []
     for row in rows:
+        headings = row.headings
         issues.append(
             ConsoleIssue(
                 identifier=row["id"],
                 title=row["title"],
                 issue_type="task",
                 status=row["status"],
-                priority=int(row["priority"]),
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
+                priority=int(row["priority"]) if "priority" in headings else 2,
+                created_at=row["created_at"] if "created_at" in headings else None,
+                updated_at=row["updated_at"] if "updated_at" in headings else None,
             )
         )
     state.issues = issues
