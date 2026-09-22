@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "83a9f62c-cacc-44b2-b436-1c9131b7bfc0",
+  "issue_id": "router:kbs-d9c9ee24-25a8-4c19-b51f-23e52262df46",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-22T20:30:53.328Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Removed the unused Todo (Legacy) status, workflow references, and transition labels from the project config and console fixture. YAML parsing and diff checks passed. Full validation remains blocked by unrelated pre-existing issue-data errors; console typecheck dependencies are unavailable.",
+    "claim_id": "e66316b2-8276-4930-9819-c5bc30317291",
+    "revision": 2,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-d9c9ee24-25a8-4c19-b51f-23e52262df46",
+    "checkpoint_revision": 2,
+    "artifacts": [],
+    "issue_updates": [
+      {
+        "issue_id": "kbs-d9c9ee24-25a8-4c19-b51f-23e52262df46",
+        "status": "review"
+      }
+    ]
+  }
+}
