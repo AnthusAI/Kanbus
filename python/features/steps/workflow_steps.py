@@ -398,6 +398,53 @@ def given_primary_in_progress_status_key(context: object, new_key: str) -> None:
     )
 
 
+def _write_status_configuration(
+    context: object, key: str, semantic_category: str | None, strip_all: bool
+) -> None:
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    statuses = payload.setdefault("statuses", [])
+    if strip_all:
+        for status in statuses:
+            status.pop("semantic_category", None)
+    entry = {
+        "key": key,
+        "name": key.replace("_", " ").title(),
+        "category": "In progress",
+        "color": None,
+        "collapsed": False,
+    }
+    if semantic_category is not None:
+        entry["semantic_category"] = semantic_category
+    statuses.append(entry)
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+@given('the configuration omits every semantic category and adds the status "{key}"')
+def given_configuration_omits_semantic_categories(context: object, key: str) -> None:
+    _write_status_configuration(context, key, None, strip_all=True)
+
+
+@given('the configuration adds the status "{key}" with semantic category "{category}"')
+def given_configuration_adds_status_with_category(
+    context: object, key: str, category: str
+) -> None:
+    _write_status_configuration(context, key, category, strip_all=False)
+
+
+@then('the configured status "{key}" should have semantic category "{category}"')
+def then_configured_status_semantic_category(
+    context: object, key: str, category: str
+) -> None:
+    from kanbus.config_loader import load_project_configuration
+
+    configuration = load_project_configuration(
+        Path(context.working_directory) / ".kanbus.yml"
+    )
+    actual = {status.key: status.semantic_category for status in configuration.statuses}
+    assert actual.get(key) == category, actual
+
+
 @given('epic workflow allows transition from "open" to "ready"')
 def given_epic_open_to_ready(context: object) -> None:
     given_epic_workflow_allows_transition(context, "open", "ready")

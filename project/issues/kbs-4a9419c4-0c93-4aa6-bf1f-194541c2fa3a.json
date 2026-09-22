@@ -39,8 +39,8 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "Git, MQTT, and Mutex API support is built; production evidence and isolated hard-lease tests remain.",
-  "right_now_updated_at": "2026-09-18T10:57:23.637469Z",
+    "right_now_summary": "The team is validating production evidence, request costs, and isolated multi-router hard leases.",
+    "right_now_updated_at": "2026-09-18T18:21:18.714622Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

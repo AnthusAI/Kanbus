@@ -1,5 +1,58 @@
 # Issue Router integration harness
 
+## Board-backed Docker race (opt-in)
+
+`tools/issue_router_container_integration_harness.py` is the repeatable live
+integration test for dispatching a real Kanbus board task from separate Python
+and Rust worker containers. It builds the pinned Codex worker image, creates a
+disposable routed task under the fixed `Issue Router Testing` epic
+(`kbs-d3973c07-13a1-4598-8f32-85e010278121`), races both runtimes against one
+isolated Git mirror, and verifies that exactly one worker starts the task and
+publishes its result comment. The task asks for exactly three short paragraphs
+of Lorem ipsum text and explicitly forbids source changes. If the fixed epic is
+absent, the harness creates it; if that ID belongs to anything else, it stops
+without replacing it.
+Each task gets a unique agent-class label that only the two worker clones are
+configured to handle; they have no other routed classes, so older open tasks in
+the test epic cannot win scheduling. This keeps any already-running production
+router from claiming the test task. The worker-only config also disables the
+forge adapter, so the test cannot push a feature branch or open a GitHub pull
+request. Codex's nested sandbox is bypassed only inside these disposable Docker
+workers because the container runtime cannot create its own nested namespaces;
+the workers can access only their temporary checkout and mirror, not the host
+repository or host filesystem.
+
+This test makes real board changes: it temporarily pushes the generated test
+task, then imports the router result and leaves the successful task in the
+configured Review stage so the result remains visible on the board. If a run
+fails, it preserves the generated issue and diagnostic fixture for inspection
+instead of closing the issue or erasing its history. Router-state stays inside
+the disposable Git mirror and is not pushed to production. Both `--live`
+and `--publish-board` are required, as is the
+environment opt-in `KANBUS_RUN_LIVE_ROUTER_CONTAINER_HARNESS=1`. Set the
+production/test MQTT, mutex API, and OpenAI credentials in the environment; the
+harness passes only its explicit credential allowlist into worker containers
+and maps `OPENAI_API_KEY` to Codex CLI's `CODEX_API_KEY` variable. It does not
+write secrets to `.kanbus.yml` or the repository. Run only from a
+clean checkout matching `origin/develop`:
+
+~~~bash
+KANBUS_RUN_LIVE_ROUTER_CONTAINER_HARNESS=1 \
+KANBUS_COORDINATION_MUTEX_API_ENDPOINT=https://… \
+KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN=… \
+KANBUS_REALTIME_BROKER=mqtts://… \
+KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME=… \
+KANBUS_REALTIME_MQTT_API_TOKEN=… \
+OPENAI_API_KEY=… \
+conda run -n py311 python tools/issue_router_container_integration_harness.py --live --publish-board
+~~~
+
+Use credentials dedicated to integration testing; this test publishes a
+disposable task and coordination events. Add `--keep` to retain its temporary
+controller, mirror, and worker checkouts for diagnosis. It requires a running
+Docker daemon, working board CLI authentication, and permission to push to
+`develop`. A Docker CLI without an available daemon is not sufficient.
+
 The tool at tools/issue_router_integration_harness.py exercises the Python and
 Rust Kanbus router plan and router run --once commands in two isolated worker
 clones of a disposable Kanbus project. Its bare Git remote and independent

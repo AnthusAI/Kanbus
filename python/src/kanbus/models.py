@@ -16,6 +16,8 @@ from pydantic import (
     model_validator,
 )
 
+from kanbus.status_semantic_defaults import derive_semantic_category
+
 
 def _is_loopback_http_url(value: str) -> bool:
     """Return whether an HTTP URL targets an explicitly loopback host.
@@ -62,6 +64,21 @@ class AgentMetadata(BaseModel):
     model: str = Field(min_length=1, max_length=128)
     name: Optional[str] = Field(default=None, min_length=1, max_length=128)
     settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentAssignment(BaseModel):
+    """Router assignment and resolved configuration shown in the console."""
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: Optional[str] = None
+    name: Optional[str] = None
+    agent_class: Optional[str] = None
+    provider: Optional[str] = None
+    provider_profile: Optional[str] = None
+    effective: Dict[str, Any] = Field(default_factory=dict)
+    effective_configuration: Dict[str, Any] = Field(default_factory=dict)
+    effective_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class CategoryDefinition(BaseModel):
@@ -210,6 +227,7 @@ class IssueData(BaseModel):
     right_now_updated_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
     agent: Optional[AgentMetadata] = None
+    agent_assignment: Optional[AgentAssignment] = None
 
 
 class StatusDefinition(BaseModel):
@@ -218,9 +236,17 @@ class StatusDefinition(BaseModel):
     key: str = Field(min_length=1)
     name: str = Field(min_length=1)
     category: str = Field(min_length=1)
-    semantic_category: str = Field(min_length=1)
+    # Older configurations omit this; a missing value is derived from the key and
+    # name (see status_semantic_defaults) instead of failing to load.
+    semantic_category: str = ""
     color: Optional[str] = None
     collapsed: bool = False
+
+    @model_validator(mode="after")
+    def _derive_missing_semantic_category(self) -> "StatusDefinition":
+        if not self.semantic_category.strip():
+            self.semantic_category = derive_semantic_category(self.key, self.name)
+        return self
 
 
 class PriorityDefinition(BaseModel):
@@ -493,23 +519,46 @@ class RouterLimits(BaseModel):
         return value
 
 
+ROUTER_ADAPTERS = ("codex", "opencode")
+ROUTER_SERVICE_TIERS = ("flex", "priority", "default")
+
+
 class RouterAgentProfile(BaseModel):
     """Structured execution profile for one agent provider."""
 
     model_config = ConfigDict(extra="forbid")
 
     adapter: str
-    command: str = "codex"
+    command: Optional[str] = None
     args: List[str] = Field(default_factory=list)
+    model: Optional[str] = None
+    env: Dict[str, str] = Field(default_factory=dict)
+    service_tier: Optional[str] = None
 
     @field_validator("adapter")
     @classmethod
     def validate_provider(cls, value: str) -> str:
-        """Require the configured adapter supported by this slice."""
+        """Require an adapter supported by the router."""
         normalized = value.strip().lower()
-        if normalized != "codex":
-            raise ValueError("router provider adapter must be codex")
+        if normalized not in ROUTER_ADAPTERS:
+            raise ValueError("router provider adapter must be codex or opencode")
         return normalized
+
+    @model_validator(mode="after")
+    def default_command(self) -> "RouterAgentProfile":
+        """Default the executable to the adapter name."""
+        if self.command is None:
+            self.command = self.adapter
+        if self.service_tier is not None:
+            if self.service_tier not in ROUTER_SERVICE_TIERS:
+                raise ValueError(
+                    "router provider service_tier must be flex, priority or default"
+                )
+            if self.adapter != "opencode" or not self.model or "/" not in self.model:
+                raise ValueError(
+                    "router provider service_tier requires adapter opencode and a provider/model model"
+                )
+        return self
 
 
 class RouterAgentClass(BaseModel):

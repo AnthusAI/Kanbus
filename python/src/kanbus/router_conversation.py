@@ -44,6 +44,7 @@ def record_conversation(
     test_summary: str | None = None,
     log: str | None = None,
     error: str | None = None,
+    resumed_session: str | None = None,
 ) -> str:
     """Append a provider-neutral, redacted conversation event."""
     payload: dict[str, Any] = {
@@ -62,6 +63,7 @@ def record_conversation(
         "test_summary": test_summary,
         "log": log,
         "error": error,
+        "resumed_session": resumed_session,
     }.items():
         if value:
             payload[key] = redact_text(value)

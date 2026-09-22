@@ -261,7 +261,7 @@ enum Commands {
         #[command(subcommand)]
         command: CoordinationCommands,
     },
-    /// Deterministically dispatch routed issue packages to Codex.
+    /// Deterministically dispatch routed issue packages to a coding agent (Codex or OpenCode).
     Router {
         #[command(subcommand)]
         command: RouterCommands,

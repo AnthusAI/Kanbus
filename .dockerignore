@@ -1,0 +1,14 @@
+**
+!rust
+!rust/**
+!python
+!python/**
+rust/target
+rust/target/**
+python/.venv
+python/.venv/**
+python/.pytest_cache
+python/.pytest_cache/**
+python/**/__pycache__
+python/**/__pycache__/**
+python/.coverage

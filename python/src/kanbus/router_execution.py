@@ -80,7 +80,7 @@ from kanbus.issue_router import (
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.router_adapters import (
-    CodexExecAdapter,
+    ADAPTER_CLASSES,
     RouterAdapter,
     RouterAgentResult,
     RouterCheckpoint,
@@ -145,6 +145,7 @@ _FAKE_FORGE: FakeForge | None = None
 _WORKTREE_PATHS: dict[str, Path] = {}
 _WORKTREE_BRANCHES: dict[str, str] = {}
 _WORKTREE_HEADS: dict[str, str] = {}
+_WORKTREE_BASES: dict[str, str] = {}
 _RENEWAL_ERRORS: dict[str, str] = {}
 
 
@@ -319,8 +320,6 @@ def run_router_once(
         try:
             result = _run_adapter(context, candidate, claim_id, revision)
         except IssueRouterError as error:
-            if str(error).startswith("invalid Codex router outcome"):
-                raise
             if scheduler_claim_handles is not None and any(
                 _RENEWAL_ERRORS.get(handle.claim_id)
                 for handle in scheduler_claim_handles
@@ -337,21 +336,14 @@ def run_router_once(
             conversation = latest_conversation(context.project_dir, candidate.issue_id)
             lifecycle = (conversation or {}).get("payload", {}).get("lifecycle")
             if lifecycle == "review":
-                add_issue_comment(
-                    getattr(context, "source_root", None) or context.root,
-                    candidate.issue_id,
-                    "Kanbus Issue Router",
-                    "Agent work was preserved but its automatic result could not be validated. "
-                    f"Review the attached agent conversation and branch. Router detail: {error}",
+                # The adapter records review-lifecycle evidence before it
+                # validates Codex's final payload.  Use the same recovery path
+                # as a later publication failure so this normal completed
+                # workflow receives a canonical router_result, diagnostic, and
+                # Review transition rather than releasing the claim silently.
+                _preserve_completed_turn_after_publication_failure(
+                    context, candidate, claim_id, revision, error
                 )
-                _transition_package(
-                    context,
-                    candidate.issue_id,
-                    context.router.workflow.review,
-                    claim_id=claim_id,
-                    revision=revision,
-                )
-                publish_router_state(context.root, set(candidate.package_issue_ids))
                 return RouterRunResult(started=1, review=1, failed=1, error=str(error))
             try:
                 add_issue_comment(
@@ -851,6 +843,81 @@ def publish_router_result(
     _publish_checkpoint(context, candidate, result, claim_id, revision)
 
 
+ROUTER_COMMENT_AUTHOR = "Kanbus Issue Router"
+
+
+@dataclass(frozen=True)
+class _ResumePlan:
+    """A blocked agent's saved session plus the human reply that answers it."""
+
+    session_id: str
+    reply: str
+    branch: str | None
+    worktree: Path | None
+
+
+def _pending_reply_plan(
+    context: RouterContext, candidate: RouterPlanEligiblePackage
+) -> _ResumePlan | None:
+    """Return the saved session to resume when a human answered a question.
+
+    The latest conversation record must be the agent's question
+    (``awaiting_reply``) with a saved session, and a human (not the router) must
+    have commented after it. Anything else starts a fresh session.
+    """
+    record = latest_conversation(context.project_dir, candidate.issue_id)
+    payload = (record or {}).get("payload", {})
+    session_id = payload.get("session_id")
+    if payload.get("action") != "awaiting_reply" or not (
+        isinstance(session_id, str) and session_id
+    ):
+        return None
+    asked_at = _parse_timestamp(str((record or {}).get("occurred_at", "")))
+    issue = next(
+        (item for item in context.issues if item.identifier == candidate.issue_id),
+        None,
+    )
+    if asked_at is None or issue is None:
+        return None
+    replies = [
+        (comment.text or "").strip()
+        for comment in sorted(issue.comments, key=lambda item: item.created_at)
+        if comment.author != ROUTER_COMMENT_AUTHOR
+        and comment.created_at > asked_at
+        and (comment.text or "").strip()
+    ]
+    if not replies:
+        return None
+    worktree = payload.get("worktree")
+    return _ResumePlan(
+        session_id=session_id,
+        reply="\n\n".join(replies),
+        branch=(
+            payload.get("branch") if isinstance(payload.get("branch"), str) else None
+        ),
+        worktree=Path(worktree) if isinstance(worktree, str) and worktree else None,
+    )
+
+
+def _parse_timestamp(value: str) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _can_resume(adapter: object, resume: _ResumePlan | None, worktree: Path) -> bool:
+    """Whether the saved session may be resumed in this worktree."""
+    if resume is None:
+        return False
+    if not getattr(adapter, "resume_requires_original_directory", False):
+        return True
+    return (
+        resume.worktree is not None and worktree.resolve() == resume.worktree.resolve()
+    )
+
+
 def _run_adapter(
     context: RouterContext,
     candidate: RouterPlanEligiblePackage,
@@ -862,11 +929,14 @@ def _run_adapter(
     if adapter is None:
         adapter = _ADAPTER_OVERRIDES.get(candidate.route.provider_profile)
     if adapter is None:
-        adapter = CodexExecAdapter(
+        record_path = _adapter_process_record_path(
+            context.root, candidate.issue_id, claim_id
+        )
+        adapter = ADAPTER_CLASSES[profile.adapter](
             profile,
-            process_record_path=_adapter_process_record_path(
-                context.root, candidate.issue_id, claim_id
-            ),
+            process_record_path=record_path,
+            # Same host-local private folder: state that must outlive a run.
+            state_dir=record_path.parent,
         )
     checkpoint = _accepted_checkpoint(
         read_router_events(context.project_dir, candidate.issue_id)
@@ -874,9 +944,21 @@ def _run_adapter(
     checkpoint_revision = _accepted_checkpoint_revision(
         read_router_events(context.project_dir, candidate.issue_id)
     )
+    resume = _pending_reply_plan(context, candidate)
     branch = _existing_pull_request_branch(context.project_dir, candidate.issue_id)
+    if branch is None and resume is not None:
+        branch = resume.branch
     if branch is None:
         branch = f"codex/router/{candidate.issue_id}/r{revision}"
+    worktree = _create_isolated_worktree(
+        context,
+        candidate.issue_id,
+        claim_id,
+        revision,
+        branch=branch,
+        reuse_path=resume.worktree if resume is not None else None,
+    )
+    resumed = _can_resume(adapter, resume, worktree)
     request = RouterExecutionRequest(
         package_id=candidate.issue_id,
         claim_id=claim_id,
@@ -887,11 +969,9 @@ def _run_adapter(
             if checkpoint is None
             else RouterCheckpoint(ref=checkpoint, revision=checkpoint_revision or 1)
         ),
-        worktree_path=str(
-            _create_isolated_worktree(
-                context, candidate.issue_id, claim_id, revision, branch=branch
-            )
-        ),
+        worktree_path=str(worktree),
+        resume_session_id=resume.session_id if resume is not None and resumed else None,
+        reply=resume.reply if resume is not None else None,
     )
     worktree_path = Path(request.worktree_path)
     _WORKTREE_PATHS[claim_id] = worktree_path
@@ -901,12 +981,19 @@ def _run_adapter(
         context.project_dir,
         candidate.issue_id,
         action="started",
-        provider="codex",
+        provider=profile.adapter,
         claim_id=claim_id,
         revision=revision,
         lifecycle="in_progress",
         worktree=request.worktree_path,
         branch=branch,
+        message=(
+            "The saved session could not be resumed because its worktree is gone; "
+            "started a fresh session with the human's reply."
+            if resume is not None and not resumed
+            else None
+        ),
+        resumed_session=request.resume_session_id,
     )
     try:
         result = adapter.execute(request).validate_outcome()
@@ -916,7 +1003,7 @@ def _run_adapter(
                 context.project_dir,
                 candidate.issue_id,
                 action="agent_turn",
-                provider="codex",
+                provider=profile.adapter,
                 claim_id=claim_id,
                 revision=revision,
                 session_id=session_id,
@@ -932,6 +1019,9 @@ def _run_adapter(
                 log=adapter.last_output + adapter.last_error,
             )
         _validate_worktree_changes(context.configuration.project_directory, claim_id)
+        result = _reject_completed_without_changes(
+            result, context.configuration.project_directory, claim_id
+        )
         if result.outcome == "completed":
             _commit_isolated_worktree(
                 Path(request.worktree_path),
@@ -954,7 +1044,7 @@ def _run_adapter(
         # turn for human review instead of treating it like a launcher error.
         has_preserved_turn = (
             (isinstance(session_id, str) and bool(session_id))
-            or str(error) == "Codex router adapter returned invalid JSON"
+            or str(error).endswith("router adapter returned invalid JSON")
             or bool(raw_output or raw_error)
         )
         if has_preserved_turn:
@@ -962,7 +1052,7 @@ def _run_adapter(
                 context.project_dir,
                 candidate.issue_id,
                 action="validation_failed",
-                provider="codex",
+                provider=profile.adapter,
                 claim_id=claim_id,
                 revision=revision,
                 session_id=session_id,
@@ -976,6 +1066,7 @@ def _run_adapter(
         raise
     finally:
         _ACTIVE_ADAPTERS.pop(candidate.issue_id, None)
+        _WORKTREE_BASES.pop(claim_id, None)
 
 
 def _create_isolated_worktree(
@@ -985,7 +1076,15 @@ def _create_isolated_worktree(
     revision: int,
     *,
     branch: str | None = None,
+    reuse_path: Path | None = None,
 ) -> Path:
+    if reuse_path is not None and _is_worktree_of_branch(
+        context.root, reuse_path, branch
+    ):
+        # A resumed agent keeps its own worktree: its saved session refers to
+        # absolute paths there, and it may hold the agent's unfinished work.
+        _WORKTREE_BASES[claim_id] = _git(reuse_path, ["rev-parse", "HEAD"])
+        return reuse_path
     git_path = _git(
         context.root, ["rev-parse", "--git-path", "kanbus/router/worktrees"]
     )
@@ -1014,6 +1113,8 @@ def _create_isolated_worktree(
         )
     else:
         _git(context.root, ["worktree", "add", str(worktree), branch])
+    # Everything the agent commits after this point is judged against this base.
+    _WORKTREE_BASES[claim_id] = _git(worktree, ["rev-parse", "HEAD"])
     return worktree
 
 
@@ -1050,6 +1151,34 @@ def _local_branch_exists(root: Path, branch: str) -> bool:
         text=True,
     )
     return result.returncode == 0
+
+
+def _is_worktree_of_branch(root: Path, path: Path, branch: str | None) -> bool:
+    """Whether ``path`` still exists and is the registered worktree of ``branch``."""
+    if branch is None or not path.is_dir():
+        return False
+    listing = _git(root, ["worktree", "list", "--porcelain"])
+    for block in listing.split("\n\n"):
+        lines = block.splitlines()
+        registered = next(
+            (
+                line.removeprefix("worktree ")
+                for line in lines
+                if line.startswith("worktree ")
+            ),
+            None,
+        )
+        head = next(
+            (
+                line.removeprefix("branch refs/heads/")
+                for line in lines
+                if line.startswith("branch refs/heads/")
+            ),
+            None,
+        )
+        if registered is not None and head == branch:
+            return Path(registered).resolve() == path.resolve()
+    return False
 
 
 def _detach_previous_worktree(
@@ -1409,8 +1538,9 @@ def _preserve_completed_turn_after_publication_failure(
 ) -> None:
     """Publish review evidence when a completed turn fails after execution.
 
-    Validation and publication happen after the adapter has returned.  They
-    must not turn a completed agent turn into an invisible scheduler failure.
+    Result validation and publication happen after the adapter has returned.
+    They must not turn a completed agent turn into an invisible scheduler
+    failure.
     """
     conversation = latest_conversation(context.project_dir, candidate.issue_id)
     payload = (conversation or {}).get("payload", {})
@@ -1422,7 +1552,8 @@ def _preserve_completed_turn_after_publication_failure(
     )
     diagnostic = (
         "## Agent turn preserved for review\n\n"
-        "The agent completed work, but automatic publication failed.\n\n"
+        "The agent completed work, but the router could not accept or publish "
+        "its result automatically.\n\n"
         f"- Branch: `{branch}`\n"
         f"- Session: `{session}`\n"
         f"- Worktree: `{worktree}`\n"
@@ -1458,7 +1589,7 @@ def _preserve_completed_turn_after_publication_failure(
     record_router_event(
         context.project_dir,
         package_id=candidate.issue_id,
-        event_type="router_result",
+        event_type="router_completed",
         payload={
             "outcome": "completed",
             "summary": "Completed agent turn preserved for review after publication failure",
@@ -2812,15 +2943,26 @@ def _remote_ref_sha(root: Path, ref: str) -> str | None:
     return first[0] if first else None
 
 
-def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
-    """Reject adapter edits to Kanbus project state outside canonical mutations."""
+NO_CHANGE_SUMMARY = (
+    "The agent reported completed work but changed nothing and reported no "
+    "comments or updates."
+)
+
+
+def _agent_changed_paths(project_directory: str, claim_id: str) -> list[PurePosixPath]:
+    """Return every path the agent changed in its worktree, committed or not.
+
+    ``project/.cache`` is derived data and is excluded. An empty list also means
+    there is no worktree to inspect.
+    """
     worktree = _WORKTREE_PATHS.get(claim_id)
     if worktree is None or not worktree.exists():
-        return
+        return []
     normalized_directory = posixpath.normpath(project_directory.replace("\\", "/"))
     project_path = PurePosixPath(normalized_directory)
     if project_path.is_absolute() or ".." in project_path.parts:
         raise IssueRouterError("router project directory must be repository-relative")
+    changed: list[bytes] = []
     try:
         status = subprocess.run(
             [
@@ -2835,18 +2977,61 @@ def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
             check=True,
             capture_output=True,
         ).stdout
+        changed.extend(record[3:] for record in status.split(b"\0") if len(record) >= 4)
+        base = _WORKTREE_BASES.get(claim_id)
+        if base is not None:
+            committed = subprocess.run(
+                ["git", "diff", "--name-only", "-z", "--no-renames", base, "HEAD"],
+                cwd=worktree,
+                check=True,
+                capture_output=True,
+            ).stdout
+            changed.extend(path for path in committed.split(b"\0") if path)
     except (OSError, subprocess.CalledProcessError) as error:
         raise IssueRouterError(
             "router could not inspect isolated worktree changes"
         ) from error
-    for record in status.split(b"\0"):
-        if len(record) < 4:
-            continue
-        changed_path = PurePosixPath(os.fsdecode(record[3:]))
+    cache_path = project_path / ".cache"
+    paths = (PurePosixPath(os.fsdecode(raw)) for raw in changed)
+    return [
+        path for path in paths if path != cache_path and cache_path not in path.parents
+    ]
+
+
+def _validate_worktree_changes(project_directory: str, claim_id: str) -> None:
+    """Reject adapter edits to Kanbus project state outside canonical mutations.
+
+    Both uncommitted and committed edits count: an agent that runs ``kbs
+    commit`` inside the worktree must not smuggle board changes past the guard.
+    """
+    project_path = PurePosixPath(
+        posixpath.normpath(project_directory.replace("\\", "/"))
+    )
+    for changed_path in _agent_changed_paths(project_directory, claim_id):
         if changed_path == project_path or project_path in changed_path.parents:
             raise IssueRouterError(
                 "router adapter may not modify Kanbus project state directly"
             )
+
+
+def _reject_completed_without_changes(
+    result: RouterAgentResult, project_directory: str, claim_id: str
+) -> RouterAgentResult:
+    """Turn an empty "completed" claim into a retryable failure.
+
+    A completed package must leave evidence: a file change, a requested issue
+    comment, or an issue update. Models sometimes report work they never did.
+    """
+    if (
+        result.outcome != "completed"
+        or result.issue_comments
+        or result.issue_updates
+        or _agent_changed_paths(project_directory, claim_id)
+    ):
+        return result
+    return result.model_copy(
+        update={"outcome": "retryable_failure", "summary": NO_CHANGE_SUMMARY}
+    )
 
 
 def _commit_isolated_worktree(

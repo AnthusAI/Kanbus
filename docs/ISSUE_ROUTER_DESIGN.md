@@ -2,7 +2,7 @@
 
 The Issue Router is an optional reconciliation loop that dispatches bounded Kanbus issue packages to a coding agent. Kanbus issues and event history remain the durable source of truth. The router decides when work may start and provides an isolated worktree and claim. Every provider turn is recorded as a durable `router.conversation` event before any optional structured result is interpreted. A result validator is therefore an automation aid, never a visibility gate.
 
-The first adapter is Codex. The router does not ask a model to choose work, assign work, or perform review approval. Planning, package boundaries, capacity, retries, claim fencing, and GitHub lifecycle are deterministic.
+The router is agent-neutral: Codex was the first adapter and OpenCode is the second (models on Amazon Bedrock and others). An adapter is one registry entry per runtime. The router does not ask a model to choose work, assign work, or perform review approval. Planning, package boundaries, capacity, retries, claim fencing, and GitHub lifecycle are deterministic.
 
 ## Configuration contract
 
@@ -136,7 +136,7 @@ The counters reflect that pass. A completed adapter outcome moves the package to
 
 Both runtimes keep the active claim and adapter process identifier in Git-common local state. A separate `kanbus router cancel` invocation signals the child, records a durable cancellation request, and prevents the cancelled claim from publishing accepted results.
 
-## Codex result and publication contract
+## Agent result and publication contract
 
 ## Durable agent conversations
 
@@ -144,7 +144,7 @@ Each routed package has an append-only, provider-neutral conversation stream on
 the router-state branch. A record contains the provider, provider session ID
 when available, claim/revision, lifecycle, worktree and branch, agent or system
 message, concise command/test evidence, and a redacted raw-log payload. The
-router records `started` before launching Codex and records the complete raw
+router records `started` before launching the agent and records the complete raw
 turn before parsing its final answer. `kanbus router recover <issue>` surfaces
 that preserved run without launching a replacement session.
 
@@ -201,4 +201,4 @@ With `[mutex_api, mqtt, git]`, the router requires a live Mutex API lease before
 
 ## Specification status
 
-`features/router/` records the intended behavior contract for the first Codex vertical slice. Unit and feature tests cover selected router behavior. The offline integration harness exercises two connected clones against a disposable Git remote, including router-owned state publication; it does not simulate a network partition. Its optional live Mutex API and MQTT paths require explicit service configuration and should be described as validated only after an actual live run. There is no live GitHub or real-agent coverage in that harness. The generic coordination feature `features/coordination/revision_publication.feature` specifies revision-fenced reference publication. Future non-Codex adapters, automatic merge, LLM scheduling, provider cost budgets, and session-quota admission remain outside this slice and should be specified separately when approved.
+`features/router/` records the intended behavior contract for the first vertical slice (Codex, then OpenCode). Unit and feature tests cover selected router behavior. The offline integration harness exercises two connected clones against a disposable Git remote, including router-owned state publication; it does not simulate a network partition. Its optional live Mutex API and MQTT paths require explicit service configuration and should be described as validated only after an actual live run. There is no live GitHub or real-agent coverage in that harness. The generic coordination feature `features/coordination/revision_publication.feature` specifies revision-fenced reference publication. Future non-Codex adapters, automatic merge, LLM scheduling, provider cost budgets, and session-quota admission remain outside this slice and should be specified separately when approved.
