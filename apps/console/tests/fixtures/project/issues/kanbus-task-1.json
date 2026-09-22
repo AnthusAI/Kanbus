@@ -14,5 +14,17 @@
   "updated_at": "2026-02-11T04:00:00.000Z",
   "closed_at": null,
   "custom": {},
+  "agent_assignment": {
+    "kind": "class",
+    "name": "implementation",
+    "provider_profile": "codex-default",
+    "effective": {
+      "platform": "codex",
+      "model": "gpt-5.6-luna",
+      "settings": {
+        "thinking_level": "high"
+      }
+    }
+  },
   "parent": "kanbus-epic-1"
 }

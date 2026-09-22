@@ -14,6 +14,7 @@ import { getVideoSrc } from "../lib/getVideoSrc";
 import { AnimatedPictogram } from "../components/AnimatedPictogram";
 import { CodeUiSync } from "../components/CodeUiSync";
 import { FullVideoPlayer } from "../components/FullVideoPlayer";
+import { Pricing } from "../components/Pricing";
 import { useInView } from "framer-motion";
 import "@kanbus/ui/styles/kanban.css"; // Explicit import
 
@@ -449,6 +450,8 @@ const IndexPage = () => {
             </Card>
           </div>
         </Section>
+
+        <Pricing />
       </div>
     </Layout>
   );

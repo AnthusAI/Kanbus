@@ -193,3 +193,114 @@ def test_router_comment_does_not_trigger_unrelated_ai_summary_work(monkeypatch) 
     )
 
     assert calls == [{"regenerate_right_now": False}]
+
+
+def _git_repo_with_worktree(tmp_path):
+    import subprocess
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*arguments, cwd=repo):
+        return subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.invalid",
+                *arguments,
+            ],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    git("init", "-q", "-b", "main")
+    (repo / "README.md").write_text("base\n", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    worktree = tmp_path / "agent-worktree"
+    git("worktree", "add", "-q", "-b", "codex/router/kbs-1/r1", str(worktree))
+    return repo, worktree, git
+
+
+def test_is_worktree_of_branch_matches_only_the_registered_pair(tmp_path):
+    from kanbus import router_execution
+
+    repo, worktree, _git = _git_repo_with_worktree(tmp_path)
+    branch = "codex/router/kbs-1/r1"
+    assert router_execution._is_worktree_of_branch(repo, worktree, branch) is True
+    assert router_execution._is_worktree_of_branch(repo, worktree, "other") is False
+    assert router_execution._is_worktree_of_branch(repo, worktree, None) is False
+    assert (
+        router_execution._is_worktree_of_branch(repo, tmp_path / "missing", branch)
+        is False
+    )
+    # A different existing directory is not the branch's worktree.
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    assert router_execution._is_worktree_of_branch(repo, elsewhere, branch) is False
+
+
+def test_a_resumed_run_reuses_the_agents_own_worktree(tmp_path):
+    from types import SimpleNamespace
+
+    from kanbus import router_execution
+
+    repo, worktree, git = _git_repo_with_worktree(tmp_path)
+    head = git("rev-parse", "HEAD", cwd=worktree)
+    context = SimpleNamespace(root=repo)
+
+    reused = router_execution._create_isolated_worktree(
+        context,
+        "kbs-1",
+        "claim-2",
+        2,
+        branch="codex/router/kbs-1/r1",
+        reuse_path=worktree,
+    )
+
+    assert reused == worktree
+    assert router_execution._WORKTREE_BASES["claim-2"] == head
+
+
+def test_parse_timestamp_handles_zulu_naive_and_invalid_values():
+    from datetime import UTC
+
+    from kanbus import router_execution
+
+    zulu = router_execution._parse_timestamp("2026-09-21T10:00:00.5Z")
+    naive = router_execution._parse_timestamp("2026-09-21T10:00:00")
+    assert zulu is not None and zulu.tzinfo is not None
+    assert naive is not None and naive.tzinfo == UTC
+    assert router_execution._parse_timestamp("not a time") is None
+
+
+def test_no_reply_plan_without_a_parsable_question_time_or_the_issue(
+    monkeypatch, tmp_path
+):
+    from types import SimpleNamespace
+
+    from kanbus import router_execution
+
+    package = SimpleNamespace(issue_id="kbs-1")
+
+    def question(occurred_at):
+        return {
+            "occurred_at": occurred_at,
+            "payload": {"action": "awaiting_reply", "session_id": "s"},
+        }
+
+    context = SimpleNamespace(project_dir=tmp_path, issues=[])
+    monkeypatch.setattr(
+        router_execution,
+        "latest_conversation",
+        lambda *_: question("2026-09-21T10:00:00Z"),
+    )
+    assert router_execution._pending_reply_plan(context, package) is None  # no issue
+    monkeypatch.setattr(
+        router_execution, "latest_conversation", lambda *_: question("garbage")
+    )
+    assert router_execution._pending_reply_plan(context, package) is None  # bad time

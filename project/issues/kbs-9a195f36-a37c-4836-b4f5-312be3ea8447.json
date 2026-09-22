@@ -44,7 +44,7 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The MQTT feature still points to the wrong epic and lacks a dedicated Gherkin story.",
-  "right_now_updated_at": "2026-09-14T14:07:56.370689244Z",
+    "right_now_summary": "MQTT feature ownership awaits admission of the Level 2 MQTT work.",
+    "right_now_updated_at": "2026-09-18T18:21:10.867125Z",
   "custom": {}
 }

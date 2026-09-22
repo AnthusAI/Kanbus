@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
+from pathlib import PurePosixPath
 from types import SimpleNamespace
 
 import pytest
 
 from kanbus import router_execution
-from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.coordination import CoordinationError
+from kanbus.coordination_mutex_api import MutexApiError, MutexApiUnavailable
 from kanbus.issue_router import IssueRouterError, RouterPlanEligiblePackage
 from kanbus.router_adapters import (
     RouterAgentResult,
@@ -66,7 +68,16 @@ def context(tmp_path, providers=None, forge=None):
         active="active", blocked="blocked", review="review", terminal=["closed"]
     )
     router = SimpleNamespace(
-        providers={"codex": SimpleNamespace(command="codex", args=[])},
+        providers={
+            "codex": SimpleNamespace(
+                adapter="codex",
+                command="codex",
+                args=[],
+                model=None,
+                env={},
+                service_tier=None,
+            )
+        },
         classes={"review": SimpleNamespace(providers=["codex"])},
         workflow=workflow,
         forge=forge,
@@ -207,6 +218,121 @@ def test_run_once_completes_and_cleans_all_claims(monkeypatch, tmp_path):
     assert listener.stopped == 1
 
 
+def test_invalid_adapter_result_preserves_review_turn_as_router_result(
+    monkeypatch, tmp_path
+):
+    """A completed Codex session must survive final-result validation failure."""
+    ctx = context(tmp_path)
+    install_run_fakes(
+        monkeypatch,
+        ctx,
+        adapter_error=IssueRouterError("Codex router adapter returned invalid result"),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "latest_conversation",
+        lambda *_: {"payload": {"lifecycle": "review"}},
+    )
+    preserved = []
+    monkeypatch.setattr(
+        router_execution,
+        "_preserve_completed_turn_after_publication_failure",
+        lambda *_args: preserved.append(_args[4]),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome == router_execution.RouterRunResult(
+        started=1,
+        review=1,
+        failed=1,
+        error="Codex router adapter returned invalid result",
+    )
+    assert [str(error) for error in preserved] == [
+        "Codex router adapter returned invalid result"
+    ]
+
+
+def test_run_once_preserves_invalid_codex_outcome_from_real_adapter(
+    monkeypatch, tmp_path
+):
+    """A malformed Codex payload is preserved through the production run path."""
+    ctx = context(tmp_path)
+    real_run_adapter = router_execution._run_adapter
+    _, _, _, events, transitions = install_run_fakes(monkeypatch, ctx)
+    monkeypatch.setattr(router_execution, "_run_adapter", real_run_adapter)
+    monkeypatch.setattr(
+        router_execution,
+        "_create_isolated_worktree",
+        lambda *_args, **_kwargs: tmp_path / "worktree",
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "_adapter_process_record_path",
+        lambda *_args: tmp_path / "adapter-process.json",
+    )
+    monkeypatch.setattr(router_execution, "read_router_events", lambda *_: [])
+    monkeypatch.setattr(
+        "kanbus.router_adapters._process_identity", lambda _pid: "test-process"
+    )
+
+    class Process:
+        pid = 4242
+        returncode = 0
+
+        def poll(self):
+            return self.returncode
+
+        def communicate(self, timeout=None):
+            del timeout
+            return (
+                json.dumps({"type": "thread.started", "thread_id": "session-real"})
+                + "\n"
+                + json.dumps(
+                    {
+                        "schema_version": 1,
+                        "outcome": "unknown",
+                        "summary": "The agent did useful work before malformed output.",
+                    }
+                ),
+                "",
+            )
+
+    monkeypatch.setattr(
+        "kanbus.router_adapters.subprocess.Popen",
+        lambda *_args, **_kwargs: Process(),
+    )
+
+    outcome = router_execution.run_router_once(ctx)
+
+    assert outcome.started == outcome.review == outcome.failed == 1
+    assert 'invalid Codex router outcome "unknown"' in outcome.error
+    assert transitions == ["active", "review"]
+    result_events = [
+        event for event in events if event.get("event_type") == "router_completed"
+    ]
+    assert result_events
+    assert result_events[-1]["payload"]["publication_failed"] is True
+    conversation_events = sorted(
+        (
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in (ctx.project_dir / "events").glob("*.json")
+        ),
+        key=lambda event: (event.get("occurred_at", ""), event.get("event_id", "")),
+    )
+    conversation_events = [
+        event
+        for event in conversation_events
+        if event.get("event_type") == "router.conversation"
+    ]
+    assert [event["payload"]["action"] for event in conversation_events] == [
+        "started",
+        "validation_failed",
+        "publication_failed",
+    ]
+    assert conversation_events[-1]["payload"]["lifecycle"] == "review"
+
+
 def test_completed_turn_always_publishes_an_issue_visible_review_record(
     monkeypatch, tmp_path
 ):
@@ -314,7 +440,7 @@ def test_run_once_processes_blocked_and_retryable_results(
         (
             IssueRouterError('invalid Codex router outcome "unknown"'),
             False,
-            False,
+            True,
             'invalid Codex router outcome "unknown"',
         ),
     ],
@@ -1778,9 +1904,9 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
     monkeypatch.setitem(router_execution._WORKTREE_PATHS, "claim-run", tmp_path / "old")
     monkeypatch.setitem(router_execution._WORKTREE_BRANCHES, "claim-run", "old-branch")
     monkeypatch.setitem(router_execution._WORKTREE_HEADS, "claim-run", "old-head")
-    monkeypatch.setattr(
-        router_execution,
-        "CodexExecAdapter",
+    monkeypatch.setitem(
+        router_execution.ADAPTER_CLASSES,
+        "codex",
         lambda _profile, **_kwargs: active,
     )
     monkeypatch.setattr(router_execution, "read_router_events", lambda *_: [])
@@ -1792,6 +1918,12 @@ def test_run_adapter_default_adapter_executes_and_commits_result(monkeypatch, tm
         router_execution, "_create_isolated_worktree", lambda *_a, **_kw: worktree
     )
     monkeypatch.setattr(router_execution, "_validate_worktree_changes", lambda *_: None)
+    # A finished agent leaves a change in its worktree.
+    monkeypatch.setattr(
+        router_execution,
+        "_agent_changed_paths",
+        lambda *_: [PurePosixPath("src/app.py")],
+    )
     commits = []
     monkeypatch.setattr(
         router_execution,
@@ -1822,7 +1954,9 @@ def test_run_adapter_records_a_blocked_turn_as_awaiting_human_reply(
         last_error="",
     )
     monkeypatch.delitem(router_execution._ADAPTER_OVERRIDES, "codex", raising=False)
-    monkeypatch.setattr(router_execution, "CodexExecAdapter", lambda *_a, **_kw: active)
+    monkeypatch.setitem(
+        router_execution.ADAPTER_CLASSES, "codex", lambda *_a, **_kw: active
+    )
     monkeypatch.setattr(
         router_execution,
         "_adapter_process_record_path",
@@ -2701,3 +2835,45 @@ def test_restore_checkpoint_ref_swallows_failed_best_effort_rollback(
     router_execution._restore_checkpoint_ref(
         tmp_path, "refs/kanbus/router/kbs-42/r1", "published", None
     )
+
+
+@pytest.mark.parametrize(
+    ("comments", "updates", "changed", "expected"),
+    [
+        ([], [], [], "retryable_failure"),
+        ([], [], [PurePosixPath("src/app.py")], "completed"),
+        ([{"issue_id": "kbs-42", "text": "Answer."}], [], [], "completed"),
+        ([], [{"issue_id": "kbs-42", "status": "closed"}], [], "completed"),
+    ],
+)
+def test_completed_without_changes_is_retryable_unless_it_leaves_evidence(
+    monkeypatch, comments, updates, changed, expected
+):
+    monkeypatch.setattr(router_execution, "_agent_changed_paths", lambda *_: changed)
+    reported = RouterAgentResult(
+        schema_version=1,
+        outcome="completed",
+        summary="Did the work.",
+        issue_comments=comments,
+        issue_updates=updates,
+    )
+
+    returned = router_execution._reject_completed_without_changes(
+        reported, "board", "claim"
+    )
+
+    assert returned.outcome == expected
+    if expected == "retryable_failure":
+        assert returned.summary == router_execution.NO_CHANGE_SUMMARY
+
+
+def test_other_outcomes_are_never_rewritten_for_lacking_changes(monkeypatch):
+    monkeypatch.setattr(router_execution, "_agent_changed_paths", lambda *_: [])
+    for outcome in ("blocked", "retryable_failure"):
+        reported = RouterAgentResult(schema_version=1, outcome=outcome, summary="x")
+        assert (
+            router_execution._reject_completed_without_changes(
+                reported, "board", "claim"
+            ).outcome
+            == outcome
+        )

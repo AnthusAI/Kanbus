@@ -827,13 +827,23 @@ fn stop_fake_forge(world: &mut KanbusWorld) {
     }
 }
 
+/// A finished agent leaves a change in its worktree; the router rejects a
+/// `completed` result that changed nothing.
+pub(crate) const AGENT_WORK_LINE: &str = "printf 'work' > agent-work.txt\n";
+
+fn argv_log_path(world: &mut KanbusWorld) -> PathBuf {
+    root(world).join(".git/router-contract-adapter-argv.txt")
+}
+
 pub(crate) fn configure_fake_adapter(world: &mut KanbusWorld, result: &str) {
     ensure_git_commit(world);
     let request_log = root(world).join(".git/router-contract-adapter-request.txt");
     let stdout_capture = root(world).join(".git/router-contract-adapter-stdout.txt");
     let script = root(world).join(".git/router-contract-adapter.sh");
+    let argv_log = argv_log_path(world);
     let body = format!(
-        "#!/bin/sh\nprintf '%s' \"$5\" > {}\nprintf '%s\\n' {} > {}\ncat {}\n",
+        "#!/bin/sh\n{AGENT_WORK_LINE}printf '%s\\n' \"$@\" > {}\nprintf '%s' \"$5\" > {}\nprintf '%s\\n' {} > {}\ncat {}\n",
+        shell_quote(&argv_log.display().to_string()),
         shell_quote(&request_log.display().to_string()),
         shell_quote(result),
         shell_quote(&stdout_capture.display().to_string()),
@@ -867,7 +877,7 @@ fn configure_blocking_fake_adapter(world: &mut KanbusWorld, result: &str) {
     let release = root(world).join(".git/router-contract-adapter-release");
     let script = root(world).join(".git/router-contract-adapter.sh");
     let body = format!(
-        "#!/bin/sh\nprintf '%s' \"$5\" > {}\ntouch {}\nwhile [ ! -e {} ]; do sleep 0.02; done\nprintf '%s\\n' {} > {}\ncat {}\n",
+        "#!/bin/sh\n{AGENT_WORK_LINE}printf '%s' \"$5\" > {}\ntouch {}\nwhile [ ! -e {} ]; do sleep 0.02; done\nprintf '%s\\n' {} > {}\ncat {}\n",
         shell_quote(&request_log.display().to_string()),
         shell_quote(&started.display().to_string()),
         shell_quote(&release.display().to_string()),
@@ -1503,6 +1513,177 @@ fn given_adapter_result(world: &mut KanbusWorld, step: &Step) {
 fn given_adapter_outcome(world: &mut KanbusWorld, outcome: String) {
     let result=json!({"schema_version":1,"outcome":outcome,"summary":"fixture result","issue_updates":[],"checkpoint":null,"artifacts":[]}).to_string();
     configure_fake_adapter(world, &result);
+}
+
+fn insert_adapter_script_lines(world: &mut KanbusWorld, lines: &str) {
+    let script = root(world).join(".git/router-contract-adapter.sh");
+    let body = fs::read_to_string(&script).expect("read fake adapter script");
+    let (shebang, rest) = body.split_once('\n').expect("script has a shebang");
+    fs::write(&script, format!("{shebang}\n{lines}{rest}")).expect("rewrite fake adapter");
+}
+
+#[given(
+    regex = r#"^the Codex adapter (?P<mode>edits|edits and commits) Kanbus project state in its worktree$"#
+)]
+fn given_adapter_edits_project_state(world: &mut KanbusWorld, mode: String) {
+    let mut lines = String::from(
+        "mkdir -p project/issues\nprintf '{\"edited\":true}' > project/issues/agent-edit.json\n",
+    );
+    if mode == "edits and commits" {
+        lines.push_str(
+            "git add -A -- project\ngit -c user.name=agent -c user.email=agent@example.invalid commit --no-verify -qm 'agent board commit'\n",
+        );
+    }
+    insert_adapter_script_lines(world, &lines);
+}
+
+#[given("the Codex adapter refreshes the project cache in its worktree")]
+fn given_adapter_refreshes_cache(world: &mut KanbusWorld) {
+    insert_adapter_script_lines(
+        world,
+        "mkdir -p project/.cache\nprintf '{}' > project/.cache/index.json\n",
+    );
+}
+
+#[given("the Codex adapter makes no changes in its worktree")]
+fn given_adapter_makes_no_changes(world: &mut KanbusWorld) {
+    let script = root(world).join(".git/router-contract-adapter.sh");
+    let body = fs::read_to_string(&script).expect("read fake adapter script");
+    fs::write(&script, body.replace(AGENT_WORK_LINE, "")).expect("rewrite fake adapter");
+}
+
+fn ensure_routed_issue(world: &mut KanbusWorld, id: &str, status: &str) {
+    if !issue_path(world, id).exists() {
+        seed_issue(
+            world,
+            id,
+            status,
+            vec!["agent-provider:codex-default".to_string()],
+            None,
+            None,
+            Utc.with_ymd_and_hms(2026, 9, 17, 10, 0, 0).unwrap(),
+            Vec::new(),
+        );
+    }
+}
+
+fn write_issue_fixture(world: &mut KanbusWorld, issue: &IssueData) {
+    let path = issue_path(world, &issue.identifier);
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(issue).expect("serialize issue"),
+    )
+    .expect("write issue fixture");
+}
+
+#[given(
+    regex = r#"^package "(?P<issue>[^"]+)" asked a question in session "(?P<session>[^"]+)" on branch "(?P<branch>[^"]+)"$"#
+)]
+fn given_package_asked_a_question(
+    world: &mut KanbusWorld,
+    issue: String,
+    session: String,
+    branch: String,
+) {
+    ensure_git_commit(world);
+    ensure_routed_issue(world, &issue, "blocked");
+    thread::sleep(Duration::from_millis(50));
+    router_event(
+        world,
+        &format!("router:{issue}"),
+        EventType::RouterConversation,
+        json!({
+            "action":"awaiting_reply", "provider":"codex", "lifecycle":"blocked",
+            "claim_id":"claim-old", "revision":1, "session_id":session,
+            "worktree":"/nonexistent/old-worktree", "branch":branch,
+        }),
+        &now_timestamp(),
+    );
+    thread::sleep(Duration::from_millis(50));
+}
+
+#[given(regex = r#"^a human replied "(?P<reply>[^"]+)" to package "(?P<issue>[^"]+)"$"#)]
+fn given_human_replied(world: &mut KanbusWorld, reply: String, issue: String) {
+    ensure_routed_issue(world, &issue, "blocked");
+    thread::sleep(Duration::from_millis(50));
+    let mut record = load_issue(world, &issue);
+    record.comments.push(kanbus::models::IssueComment {
+        id: None,
+        author: "home".to_string(),
+        text: Some(reply),
+        created_at: Utc::now(),
+        comment_type: "default".to_string(),
+        data: BTreeMap::new(),
+        agent: None,
+    });
+    write_issue_fixture(world, &record);
+    thread::sleep(Duration::from_millis(50));
+}
+
+#[given(regex = r#"^package "(?P<issue>[^"]+)" is ready again$"#)]
+fn given_package_ready_again(world: &mut KanbusWorld, issue: String) {
+    ensure_routed_issue(world, &issue, "blocked");
+    let mut record = load_issue(world, &issue);
+    record.status = "open".to_string();
+    // A human's status change is newer than the router's last lifecycle event.
+    record.updated_at = Utc::now();
+    write_issue_fixture(world, &record);
+}
+
+#[given(regex = r#"^package "(?P<issue>[^"]+)" is ready and has never been run$"#)]
+fn given_package_ready_never_run(world: &mut KanbusWorld, issue: String) {
+    ensure_routed_issue(world, &issue, "open");
+}
+
+fn adapter_argv(world: &mut KanbusWorld) -> Option<Vec<String>> {
+    fs::read_to_string(argv_log_path(world))
+        .ok()
+        .map(|text| text.lines().map(str::to_string).collect())
+}
+
+#[then(
+    regex = r#"^the adapter should resume session "(?P<session>[^"]+)" with a prompt containing "(?P<text>[^"]+)"$"#
+)]
+fn then_adapter_resumed_session(world: &mut KanbusWorld, session: String, text: String) {
+    let argv = adapter_argv(world).expect("the adapter was never invoked");
+    assert_eq!(argv.get(1).map(String::as_str), Some("resume"), "{argv:?}");
+    assert!(argv.contains(&session), "{argv:?}");
+    let prompt = fs::read_to_string(root(world).join(".git/router-contract-adapter-request.txt"))
+        .unwrap_or_default();
+    assert!(prompt.contains(&text), "prompt was: {prompt}");
+}
+
+#[then(regex = r#"^no new agent session should have been started for package "(?P<issue>[^"]+)"$"#)]
+fn then_no_new_session(world: &mut KanbusWorld, _issue: String) {
+    let argv = adapter_argv(world).expect("the adapter was never invoked");
+    assert_eq!(argv.get(1).map(String::as_str), Some("resume"), "{argv:?}");
+}
+
+#[then(regex = r#"^the adapter should start a fresh session for package "(?P<issue>[^"]+)"$"#)]
+fn then_fresh_session(world: &mut KanbusWorld, _issue: String) {
+    let argv = adapter_argv(world).expect("the adapter was never invoked");
+    assert_ne!(argv.get(1).map(String::as_str), Some("resume"), "{argv:?}");
+}
+
+#[then(regex = r#"^the run should use branch "(?P<branch>[^"]+)"$"#)]
+fn then_run_used_branch(world: &mut KanbusWorld, branch: String) {
+    let started = read_events(world)
+        .into_iter()
+        .filter(|event| event.issue_id == "router:kbs-401")
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .filter(|event| event.payload.get("action").and_then(Value::as_str) == Some("started"))
+        .filter(|event| event.payload.get("claim_id").and_then(Value::as_str) != Some("claim-old"))
+        .max_by(|left, right| left.occurred_at.cmp(&right.occurred_at));
+    let actual = started
+        .as_ref()
+        .and_then(|event| event.payload.get("branch"))
+        .and_then(Value::as_str);
+    assert_eq!(actual, Some(branch.as_str()), "{started:?}");
+}
+
+#[given("a fake forge is available for the router")]
+fn given_fake_forge_available(world: &mut KanbusWorld) {
+    let _ = start_fake_forge(world);
 }
 
 #[given("the Codex adapter writes malformed JSON to standard output")]

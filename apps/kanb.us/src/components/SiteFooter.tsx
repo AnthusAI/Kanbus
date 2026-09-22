@@ -3,7 +3,7 @@ import AnthusFooter from "anthus-footer";
 import { FEATURE_ENTRIES } from "../content/features";
 
 const SiteFooter = () => {
-  const featureLinks = FEATURE_ENTRIES.slice(0, 8).map((feature) => ({
+  const featureLinks = FEATURE_ENTRIES.map((feature) => ({
     label: feature.title,
     href: feature.href,
     external: false,
@@ -24,6 +24,7 @@ const SiteFooter = () => {
           title: "Reference",
           links: [
             { label: "What Is This?", href: "/what-is-this", external: false },
+            { label: "Pricing", href: "/pricing", external: false },
             { label: "Documentation", href: "/docs", external: false },
             { label: "Philosophy", href: "/philosophy", external: false },
             { label: "GitHub", href: "https://github.com/AnthusAI/Kanbus" },

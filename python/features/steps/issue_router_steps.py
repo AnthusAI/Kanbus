@@ -7,7 +7,7 @@ import os
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,6 +15,7 @@ import yaml
 from behave import given, then, use_step_matcher, when
 
 from features.steps.shared import (
+    WorkingFakeAdapter,
     build_issue,
     initialize_default_project,
     load_project_directory,
@@ -23,6 +24,7 @@ from features.steps.shared import (
     write_issue_file,
 )
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.router_adapters import _parse_result as parse_adapter_result
 from kanbus.coordination import inspect_lease
 from kanbus.event_history import create_event, write_events_batch
 from kanbus.issue_router import (
@@ -37,7 +39,9 @@ from kanbus.issue_router import (
 )
 from kanbus.models import DependencyLink
 from kanbus.project import get_configuration_path
-from kanbus.router_adapters import FakeRouterAdapter, RouterAgentResult
+from kanbus.router_adapters import RouterAgentResult
+from kanbus.router_conversation import latest_conversation, record_conversation
+from kanbus.router_execution import add_issue_comment
 from kanbus.router_execution import (
     publish_router_result,
     retry_delay_seconds,
@@ -250,8 +254,8 @@ def _seed_claim(context: object, package_id: str, claim_id: str, revision: int) 
 
 
 def _parse_result(raw: str) -> RouterAgentResult:
-    payload = json.loads(raw)
-    return RouterAgentResult.model_validate(payload)
+    """Parse a fixture result with the production adapter parser."""
+    return parse_adapter_result(json.loads(raw))
 
 
 @given("a Kanbus project with valid Codex-first router configuration")
@@ -471,6 +475,22 @@ def given_provider_command_args(
     _save_config(context, config)
 
 
+@given('provider profile "{profile}" has model "{model}" and environment {environment}')
+def given_provider_model_env(
+    context: object, profile: str, model: str, environment: str
+) -> None:
+    config = _config(context)
+    config["router"]["providers"][profile].update(
+        model=model, env=yaml.safe_load(environment)
+    )
+    _save_config(context, config)
+
+
+@then('provider profile "{profile}" should use model "{model}"')
+def then_provider_model(context: object, profile: str, model: str) -> None:
+    assert context.router_configuration.providers[profile].model == model
+
+
 @when("the router forge client is initialized")
 def when_router_forge_client_initialized(context: object) -> None:
     from kanbus.router_forge import GitHubForge
@@ -607,7 +627,7 @@ def given_fake_adapter_outcome(context: object, profile: str, outcome: str) -> N
         ),
         artifacts=[],
     )
-    adapter = FakeRouterAdapter(result)
+    adapter = WorkingFakeAdapter(result)
     set_router_adapter(profile, adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter(profile, None))
@@ -624,7 +644,7 @@ def given_codex_adapter_result(context: object) -> None:
         result.checkpoint.revision = _next_revision(
             current.project_dir, current_claim[0]
         )
-    adapter = FakeRouterAdapter(result)
+    adapter = WorkingFakeAdapter(result)
     set_router_adapter("codex-default", adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
@@ -632,12 +652,186 @@ def given_codex_adapter_result(context: object) -> None:
 
 @given('the Codex adapter returns result outcome "{outcome}"')
 def given_codex_result_outcome(context: object, outcome: str) -> None:
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(schema_version=1, outcome=outcome, summary="")
     )
+    # A real adapter always leaves its raw output behind; that output is what
+    # proves an agent turn happened and must be preserved for review.
+    adapter.last_output = json.dumps(
+        {"schema_version": 1, "outcome": outcome, "summary": ""}
+    )
+    adapter.last_error = ""
     set_router_adapter("codex-default", adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
+
+
+def _wrap_adapter_worktree_effect(context: object, effect) -> None:
+    """Run ``effect(worktree)`` inside the fake adapter's turn, like a real agent."""
+    adapter = context.router_adapter
+    # A real agent turn leaves a session and raw output behind; that evidence is
+    # what the router preserves for review.
+    adapter.session_id = "session-fixture"
+    adapter.last_output = '{"type":"thread.started","thread_id":"session-fixture"}'
+    adapter.last_error = ""
+    original = adapter.execute
+
+    def execute(request):
+        effect(Path(request.worktree_path))
+        return original(request)
+
+    adapter.execute = execute
+
+
+def _git_in(worktree: Path, *arguments: str) -> None:
+    subprocess.run(["git", *arguments], cwd=worktree, check=True, capture_output=True)
+
+
+@given("the Codex adapter makes no changes in its worktree")
+def given_codex_adapter_makes_no_changes(context: object) -> None:
+    context.router_adapter.does_work = False
+
+
+def _ensure_routed_issue(context: object, issue_id: str, status: str) -> None:
+    """Create the routed issue once; later steps mutate it in place."""
+    project_dir = load_project_directory(context)
+    if not (Path(project_dir) / "issues" / f"{issue_id}.json").exists():
+        _write_issue(
+            context, issue_id, status=status, labels=["agent-provider:codex-default"]
+        )
+
+
+@given(
+    'package "{issue_id}" asked a question in session "{session}" on branch "{branch}"'
+)
+def given_package_asked_a_question(
+    context: object, issue_id: str, session: str, branch: str
+) -> None:
+    _ensure_routed_issue(context, issue_id, "blocked")
+    _commit_disposable_fixture(context)
+    time.sleep(0.05)
+    record_conversation(
+        _shared_project_dir(context),
+        issue_id,
+        action="awaiting_reply",
+        provider="codex",
+        claim_id="claim-old",
+        revision=1,
+        session_id=session,
+        lifecycle="blocked",
+        message="Which option should I use?",
+        worktree="/nonexistent/old-worktree",
+        branch=branch,
+    )
+    time.sleep(0.05)
+
+
+@given('a human replied "{reply}" to package "{issue_id}"')
+def given_human_replied(context: object, reply: str, issue_id: str) -> None:
+    _ensure_routed_issue(context, issue_id, "blocked")
+    time.sleep(0.05)
+    add_issue_comment(_root(context), issue_id, "home", reply)
+    time.sleep(0.05)
+
+
+def _set_issue_status(context: object, issue_id: str, status: str) -> None:
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(Path(project_dir), issue_id)
+    # A human's status change is newer than the router's last lifecycle event.
+    write_issue_file(
+        Path(project_dir),
+        issue.model_copy(update={"status": status, "updated_at": datetime.now(UTC)}),
+    )
+
+
+@given('package "{issue_id}" is ready again')
+def given_package_ready_again(context: object, issue_id: str) -> None:
+    _ensure_routed_issue(context, issue_id, "blocked")
+    _set_issue_status(context, issue_id, "open")
+
+
+@given('package "{issue_id}" is ready and has never been run')
+def given_package_ready_never_run(context: object, issue_id: str) -> None:
+    _ensure_routed_issue(context, issue_id, "open")
+
+
+@then('the adapter should resume session "{session}" with a prompt containing "{text}"')
+def then_adapter_resumed_session(context: object, session: str, text: str) -> None:
+    request = context.router_adapter.requests[-1]
+    assert request.resume_session_id == session, request
+    assert text in (request.reply or ""), request.reply
+
+
+@then('no new agent session should have been started for package "{issue_id}"')
+def then_no_new_session(context: object, issue_id: str) -> None:
+    assert context.router_adapter.requests[-1].resume_session_id is not None
+
+
+@then('the adapter should start a fresh session for package "{issue_id}"')
+def then_fresh_session(context: object, issue_id: str) -> None:
+    requests = context.router_adapter.requests
+    assert requests, "the adapter was never invoked"
+    assert requests[-1].resume_session_id is None, requests[-1]
+
+
+@then('the run should use branch "{branch}"')
+def then_run_used_branch(context: object, branch: str) -> None:
+    records = [
+        record
+        for record in (
+            latest_conversation(_shared_project_dir(context), issue_id)
+            for issue_id in ("kbs-401",)
+        )
+        if record
+    ]
+    assert records and records[-1]["payload"].get("branch") == branch, records
+
+
+@given("a fake forge is available for the router")
+def given_fake_forge_available(context: object) -> None:
+    """The Python fixtures never contact a real forge; nothing to start."""
+
+
+@given("the Codex adapter {mode} Kanbus project state in its worktree")
+def given_codex_adapter_edits_project_state(context: object, mode: str) -> None:
+    assert mode in {"edits", "edits and commits"}, mode
+    project_directory = load_project_configuration(
+        get_configuration_path(_root(context))
+    ).project_directory
+
+    def effect(worktree: Path) -> None:
+        target = worktree / project_directory / "issues" / "agent-edit.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('{"edited": true}', encoding="utf-8")
+        if mode == "edits and commits":
+            _git_in(worktree, "add", "-A", "--", project_directory)
+            _git_in(
+                worktree,
+                "-c",
+                "user.name=agent",
+                "-c",
+                "user.email=agent@example.invalid",
+                "commit",
+                "--no-verify",
+                "-qm",
+                "agent board commit",
+            )
+
+    _wrap_adapter_worktree_effect(context, effect)
+
+
+@given("the Codex adapter refreshes the project cache in its worktree")
+def given_codex_adapter_refreshes_cache(context: object) -> None:
+    project_directory = load_project_configuration(
+        get_configuration_path(_root(context))
+    ).project_directory
+
+    def effect(worktree: Path) -> None:
+        cache = worktree / project_directory / ".cache" / "index.json"
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text("{}", encoding="utf-8")
+
+    _wrap_adapter_worktree_effect(context, effect)
 
 
 @given('the Codex adapter returns issue update "{issue_id}" to status "{status}"')
@@ -646,7 +840,7 @@ def given_codex_issue_update(context: object, issue_id: str, status: str) -> Non
         issue.identifier: issue.status
         for issue in load_router_context(_root(context)).issues
     }
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(
             schema_version=1,
             outcome="completed",
@@ -695,6 +889,25 @@ def then_package_status(context: object, issue_id: str, status: str) -> None:
     assert (
         actual == status
     ), f"expected {issue_id} status {status}, got {actual}; {context.result!r}"
+
+
+@then('package "{issue_id}" should have a "{author}" comment containing "{text}"')
+def then_package_comment(
+    context: object, issue_id: str, author: str, text: str
+) -> None:
+    project_dir = (
+        _root(context)
+        / load_project_configuration(
+            get_configuration_path(_root(context))
+        ).project_directory
+    )
+    comments = read_issue_file(project_dir, issue_id).comments
+    assert any(
+        comment.author == author and text in (comment.text or "")
+        for comment in comments
+    ), f"no {author} comment containing {text!r} on {issue_id}: " + repr(
+        [(comment.author, comment.text) for comment in comments]
+    )
 
 
 @then('package "{issue_id}" should remain assigned to "{assignee}"')
@@ -1783,7 +1996,7 @@ def given_retry_adapter(context: object, outcome: str, attempt: int = 1) -> None
     result = RouterAgentResult(
         schema_version=1, outcome=outcome, summary="fixture failure"
     )
-    adapter = FakeRouterAdapter(result)
+    adapter = WorkingFakeAdapter(result)
     set_router_adapter("codex-default", adapter)
     context.router_adapter = adapter
     context.add_cleanup(lambda: set_router_adapter("codex-default", None))
@@ -2039,7 +2252,7 @@ def given_provider_running_package(
         context, issue_id, status="in_progress", labels=[f"agent-provider:{profile}"]
     )
     _seed_claim(context, issue_id, "claim-210", 1)
-    adapter = FakeRouterAdapter(RouterAgentResult(schema_version=1, outcome="blocked"))
+    adapter = WorkingFakeAdapter(RouterAgentResult(schema_version=1, outcome="blocked"))
     from kanbus.router_execution import _ACTIVE_ADAPTERS
 
     _ACTIVE_ADAPTERS[issue_id] = ("claim-210", adapter)
@@ -2248,7 +2461,7 @@ def when_codex_adapter_starts_claim(context: object, claim_id: str) -> None:
         package_id,
         getattr(context, "router_package_ids", [package_id]),
     )
-    adapter = FakeRouterAdapter(
+    adapter = WorkingFakeAdapter(
         RouterAgentResult(schema_version=1, outcome="blocked", summary="fixture")
     )
     set_router_adapter("codex-default", adapter)

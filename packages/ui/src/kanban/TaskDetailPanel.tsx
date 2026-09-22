@@ -42,6 +42,8 @@ export type TaskDetailIssue = {
   closed_at?: string;
   right_now_summary?: string | null;
   custom?: Record<string, unknown>;
+  /** Router-owned assignment; kept separate from human accountability and agent provenance. */
+  agent_assignment?: AgentAssignment;
   agent?: {
     platform: string;
     model: string;
@@ -51,6 +53,25 @@ export type TaskDetailIssue = {
       max_output_tokens?: number;
     };
   };
+};
+
+export type AgentAssignment = {
+  kind?: "class" | "provider" | "provider_profile" | string;
+  name?: string;
+  class?: string;
+  agent_class?: string;
+  provider?: string;
+  provider_profile?: string;
+  effective?: AgentAssignmentEffective;
+  effective_configuration?: AgentAssignmentEffective;
+  effective_config?: AgentAssignmentEffective;
+};
+
+export type AgentAssignmentEffective = {
+  platform?: string;
+  model?: string;
+  settings?: Record<string, unknown>;
+  [key: string]: unknown;
 };
 
 export type IssueEventType =
@@ -121,6 +142,76 @@ function getVirtualizedDescription(
     return issue.description?.trim() ?? "";
   }
   return getSummaryRewrittenDescription(summaryComment) ?? issue.description?.trim() ?? "";
+}
+
+function getAgentAssignment(issue: TaskDetailIssue): AgentAssignment | null {
+  const direct = issue.agent_assignment;
+  if (direct && typeof direct === "object") return direct;
+  const custom = issue.custom;
+  if (custom && typeof custom === "object") {
+    const candidate = custom.agent_assignment ?? custom.routing_assignment;
+    if (candidate && typeof candidate === "object") return candidate as AgentAssignment;
+  }
+  const routingLabel = issue.labels?.find(
+    (label) => label.startsWith("agent-class:") || label.startsWith("agent-provider:")
+  );
+  if (!routingLabel) return null;
+  const separator = routingLabel.indexOf(":");
+  return {
+    kind: routingLabel.startsWith("agent-class:") ? "class" : "provider",
+    name: routingLabel.slice(separator + 1),
+  };
+}
+
+function assignmentRouteLabel(assignment: AgentAssignment): string | null {
+  const kind = assignment.kind === "provider_profile" ? "provider" : assignment.kind;
+  const name = assignment.name ?? assignment.agent_class ?? assignment.class ?? assignment.provider_profile ?? assignment.provider;
+  if (!name) return null;
+  return kind === "class" ? `Class · ${name}` : kind === "provider" ? `Provider · ${name}` : name;
+}
+
+function AgentAssignmentBlock({ issue }: { issue: TaskDetailIssue }) {
+  const assignment = getAgentAssignment(issue);
+  const route = assignment ? assignmentRouteLabel(assignment) : null;
+  const effective = assignment?.effective ?? assignment?.effective_configuration ?? assignment?.effective_config;
+  const resolvedEffective = effective ?? (assignment?.provider_profile
+    ? { provider_profile: assignment.provider_profile }
+    : undefined);
+  const effectiveValues = resolvedEffective
+    ? Object.entries(resolvedEffective).filter(([, value]) => value !== undefined && value !== null && value !== "")
+    : [];
+
+  return (
+    <section
+      aria-label="Agent assignment"
+      className="grid gap-2 rounded-xl bg-card-muted px-3 py-2 text-xs text-muted"
+      data-testid="issue-agent-assignment"
+    >
+      <h3 className="font-semibold uppercase tracking-[0.2em] text-selected">Routing assignment</h3>
+      {route ? (
+        <dl className="grid gap-1">
+          <div className="grid grid-cols-[auto_1fr] gap-x-3">
+            <dt className="font-semibold uppercase tracking-[0.15em]">Route</dt>
+            <dd data-testid="issue-agent-assignment-route">{route}</dd>
+          </div>
+          {effectiveValues.length > 0 ? (
+            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1" data-testid="issue-agent-effective-configuration">
+              <dt className="font-semibold uppercase tracking-[0.15em]">Effective</dt>
+              <dd className="grid gap-1">
+                {effectiveValues.map(([key, value]) => (
+                  <span key={key} data-testid={`issue-agent-effective-${key}`}>
+                    {key}: {typeof value === "object" ? JSON.stringify(value) : String(value)}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : (
+        <p data-testid="issue-agent-assignment-empty">Unassigned</p>
+      )}
+    </section>
+  );
 }
 
 type IssueDependency = {
@@ -474,6 +565,32 @@ export function TaskDetailPanel({
         return `Issue moved from ${String(payload.from_location)} to ${String(payload.to_location)}`;
       case "issue_promoted":
         return `Issue moved from ${String(payload.from_location)} to ${String(payload.to_location)}`;
+      case "router.conversation": {
+        const provider = typeof payload.provider === "string" ? payload.provider : "agent";
+        const lifecycle = typeof payload.lifecycle === "string" ? payload.lifecycle : "recorded";
+        const session = typeof payload.session_id === "string" ? payload.session_id : null;
+        const branch = typeof payload.branch === "string" ? payload.branch : null;
+        const log = typeof payload.log === "string" ? payload.log : null;
+        return (
+          <div className="grid gap-2">
+            <div>
+              Agent conversation: {provider} · {lifecycle}
+            </div>
+            {session ? <div className="text-xs text-muted">Session: {session}</div> : null}
+            {branch ? <div className="text-xs text-muted">Branch: {branch}</div> : null}
+            {log ? (
+              <details className="rounded-lg bg-[var(--card-muted)] p-2 text-xs text-muted">
+                <summary className="cursor-pointer font-semibold text-foreground">
+                  Redacted agent output
+                </summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+                  {log}
+                </pre>
+              </details>
+            ) : null}
+          </div>
+        );
+      }
       default:
         return event.event_type;
     }
@@ -969,12 +1086,34 @@ skinparam SequenceDividerFontColor white`
                 ) : null}
               </div>
             ) : null}
-            {hasAgentMetadata(taskToRender.agent) ? (
-              <AgentMetadataBlock
-                metadata={taskToRender.agent}
-                testIdPrefix="issue-agent"
-                variant="issue"
-              />
+            <AgentAssignmentBlock issue={taskToRender} />
+            {taskToRender.creator ? (
+              <section
+                aria-label="Issue provenance"
+                className="grid gap-1 rounded-xl bg-card-muted px-3 py-2 text-xs text-muted"
+                data-testid="issue-provenance"
+              >
+                <h3 className="font-semibold uppercase tracking-[0.2em] text-selected">Provenance</h3>
+                <div className="grid grid-cols-[auto_1fr] gap-x-3">
+                  <span className="font-semibold uppercase tracking-[0.15em]">Created by</span>
+                  <span data-testid="issue-creator">{taskToRender.creator}</span>
+                </div>
+                {hasAgentMetadata(taskToRender.agent) ? (
+                  <AgentMetadataBlock
+                    metadata={taskToRender.agent}
+                    testIdPrefix="issue-agent"
+                    variant="issue"
+                  />
+                ) : null}
+              </section>
+            ) : hasAgentMetadata(taskToRender.agent) ? (
+              <section aria-label="Issue provenance" data-testid="issue-provenance">
+                <AgentMetadataBlock
+                  metadata={taskToRender.agent}
+                  testIdPrefix="issue-agent"
+                  variant="issue"
+                />
+              </section>
             ) : null}
           </div>
           <div className="detail-section p-4 grid gap-3">
