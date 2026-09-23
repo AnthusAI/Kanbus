@@ -14,7 +14,8 @@ use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::{
-    ensure_right_now_summaries, purge_right_now_summaries, require_display_right_now_summary,
+    association_trees_for_seeds, ensure_right_now_summaries, purge_right_now_summaries,
+    require_display_right_now_summary,
 };
 use crate::status_semantics::{
     resolve_primary_status_key_for_semantic_category, SEMANTIC_IN_PROGRESS,
@@ -373,7 +374,16 @@ fn select_right_now_issues(
         false,
     )?;
     if options.issue_ids.is_empty() {
-        return filter_right_now_issues_by_status(root, issues, options);
+        let filtered = filter_right_now_issues_by_status(root, issues.clone(), options)?;
+        let seeds: HashSet<String> = filtered
+            .iter()
+            .map(|issue| issue.identifier.clone())
+            .collect();
+        let (_roots, selected) = association_trees_for_seeds(&issues, &seeds);
+        return Ok(issues
+            .into_iter()
+            .filter(|issue| selected.contains(&issue.identifier))
+            .collect());
     }
     let mut issues_by_identifier: HashMap<String, IssueData> = issues
         .into_iter()
@@ -635,8 +645,11 @@ fn serialize_tree_json_node(
 mod tests {
     use super::*;
     use crate::models::IssueData;
+    use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
     use chrono::{TimeZone, Utc};
     use std::collections::BTreeMap;
+    use std::fs;
+    use tempfile::TempDir;
 
     fn make_issue(id: &str, title: &str) -> IssueData {
         IssueData {
@@ -827,5 +840,68 @@ mod tests {
             ..RightNowCommandOptions::default()
         };
         assert_eq!(effective_right_now_limit(&limited), 5);
+    }
+
+    #[test]
+    fn cli_now_recursively_backfills_every_rendered_tree_node() {
+        let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
+        let previous_no_daemon = std::env::var("KANBUS_NO_DAEMON").ok();
+        std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
+        std::env::set_var("KANBUS_NO_DAEMON", "1");
+        let temp_dir = TempDir::new().expect("tempdir");
+        fs::write(
+            temp_dir.path().join(".kanbus.yml"),
+            "project_key: kanbus\nproject_directory: project\nai:\n  provider: litellm\n  model: gpt-4o-mini\nright_now:\n  enabled: true\n",
+        )
+        .expect("write config");
+        let issues_dir = temp_dir.path().join("project/issues");
+        fs::create_dir_all(&issues_dir).expect("create issues");
+
+        let parent = make_issue("kanbus-parent", "Parent");
+        let mut discovery_child = make_issue("kanbus-discovery", "Discovery child");
+        discovery_child.status = "discovery".to_string();
+        discovery_child.parent = Some(parent.identifier.clone());
+        let mut active_child = make_issue("kanbus-active", "Active child");
+        active_child.status = DEFAULT_RIGHT_NOW_STATUS.to_string();
+        active_child.parent = Some(parent.identifier.clone());
+        for issue in [&parent, &discovery_child, &active_child] {
+            fs::write(
+                issues_dir.join(format!("{}.json", issue.identifier)),
+                serde_json::to_vec(issue).expect("serialize issue"),
+            )
+            .expect("write issue");
+        }
+
+        let output = run_right_now_command(
+            temp_dir.path(),
+            &RightNowCommandOptions {
+                issue_ids: vec![parent.identifier.clone()],
+                expanded: true,
+                ..RightNowCommandOptions::default()
+            },
+        )
+        .expect("run now");
+
+        for identifier in ["kanbus-parent", "kanbus-discovery", "kanbus-active"] {
+            let expected = crate::right_now::mock_right_now_summary_text(identifier);
+            assert!(output.contains(&expected));
+            assert_eq!(
+                load_issue_from_project(temp_dir.path(), identifier)
+                    .expect("reload issue")
+                    .issue
+                    .right_now_summary
+                    .as_deref(),
+                Some(expected.as_str())
+            );
+        }
+
+        match previous_mock {
+            Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
+            None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
+        }
+        match previous_no_daemon {
+            Some(value) => std::env::set_var("KANBUS_NO_DAEMON", value),
+            None => std::env::remove_var("KANBUS_NO_DAEMON"),
+        }
     }
 }

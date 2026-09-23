@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Dict, List, Set, Tuple
 
 from kanbus.config_loader import (
     ConfigurationError,
@@ -33,6 +34,7 @@ STATUS_KEYWORDS = ("done", "in progress", "blocked", "closed", "open")
 AI_PROVIDER_NOT_CONFIGURED_MESSAGE = (
     "Right-now summary generation requires ai.provider litellm in .kanbus.yml"
 )
+DEFAULT_RIGHT_NOW_STATUS = "in_progress"
 OPENAI_API_KEY_NOT_LOADED_MESSAGE = (
     "OPENAI_API_KEY was not loaded from repository environment files"
 )
@@ -224,7 +226,14 @@ def load_child_issues(root: Path, issue_identifier: str) -> list[IssueData]:
     :rtype: List[IssueData]
     :raises IssueListingError: When issue listing fails.
     """
-    return list_issues(root, parent=issue_identifier)
+    # Use the same file-backed source as the console snapshot. The general
+    # issue listing path can use a stale daemon index and omit children from
+    # virtual projects, leaving visible Now-tree cards unresolved.
+    from kanbus.console_snapshot import get_issues_for_root
+
+    return [
+        issue for issue in get_issues_for_root(root) if issue.parent == issue_identifier
+    ]
 
 
 def build_leaf_right_now_context(issue: IssueData) -> RightNowContext:
@@ -609,6 +618,74 @@ def ensure_right_now_subtree(
     return memo[issue_identifier]
 
 
+def association_trees_for_seeds(
+    issues: List[IssueData],
+    seed_identifiers: Set[str],
+) -> Tuple[List[str], Set[str]]:
+    """Return roots and every issue in association trees for the given seeds.
+
+    Walks ancestors of each seed, then every descendant of those nodes, so a Now
+    listing can backfill and render the complete tree regardless of status.
+
+    :param issues: All issues in the project.
+    :type issues: List[IssueData]
+    :param seed_identifiers: Issue identifiers that matched the Now filter.
+    :type seed_identifiers: Set[str]
+    :return: Sorted tree roots and the complete selected identifier set.
+    :rtype: Tuple[List[str], Set[str]]
+    """
+    parents = {issue.identifier: issue.parent for issue in issues}
+    children_by_parent: Dict[str, List[str]] = {}
+    for issue in issues:
+        if issue.parent is not None:
+            children_by_parent.setdefault(issue.parent, []).append(issue.identifier)
+
+    selected_identifiers: Set[str] = set()
+    for seed in seed_identifiers:
+        if seed not in parents:
+            continue
+        current = seed
+        visited: Set[str] = set()
+        while current not in visited:
+            visited.add(current)
+            selected_identifiers.add(current)
+            parent = parents.get(current)
+            if parent is None or parent not in parents:
+                break
+            current = parent
+
+    pending = list(selected_identifiers)
+    while pending:
+        identifier = pending.pop()
+        for child in children_by_parent.get(identifier, []):
+            if child not in selected_identifiers:
+                selected_identifiers.add(child)
+                pending.append(child)
+
+    roots = sorted(
+        identifier
+        for identifier in selected_identifiers
+        if parents.get(identifier) not in selected_identifiers
+    )
+    if not roots and selected_identifiers:
+        roots = sorted(selected_identifiers)
+    return roots, selected_identifiers
+
+
+def active_right_now_tree(issues: List[IssueData]) -> Tuple[List[str], Set[str]]:
+    """Return roots and every issue in trees containing in-progress work.
+
+    :param issues: All issues in the project.
+    :type issues: List[IssueData]
+    :return: Sorted tree roots and the complete selected identifier set.
+    :rtype: Tuple[List[str], Set[str]]
+    """
+    seeds = {
+        issue.identifier for issue in issues if issue.status == DEFAULT_RIGHT_NOW_STATUS
+    }
+    return association_trees_for_seeds(issues, seeds)
+
+
 def ensure_right_now_summaries(
     root: Path,
     issue_identifiers: list[str],
@@ -628,8 +705,31 @@ def ensure_right_now_summaries(
     :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
     """
     selected_identifiers = set(issue_identifiers)
-    memo: dict[str, bool] = {}
-    for identifier in issue_identifiers:
+    ensure_right_now_summary_subtrees(
+        root, issue_identifiers, selected_identifiers, fail_closed=fail_closed
+    )
+
+
+def ensure_right_now_summary_subtrees(
+    root: Path,
+    root_identifiers: List[str],
+    selected_identifiers: Set[str],
+    *,
+    fail_closed: bool = False,
+) -> None:
+    """Backfill selected right-now subtrees from their actual roots.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param root_identifiers: Roots of the selected Now trees.
+    :type root_identifiers: List[str]
+    :param selected_identifiers: Every issue in those trees.
+    :type selected_identifiers: Set[str]
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    """
+    memo: Dict[str, bool] = {}
+    for identifier in root_identifiers:
         ensure_right_now_subtree(
             root,
             identifier,

@@ -1,24 +1,6 @@
 use crate::step_definitions::initialization_steps::KanbusWorld;
 use cucumber::{given, then};
-use serde_yaml::{Mapping, Value};
 use std::fs;
-
-#[given(expr = "the Kanbus configuration uses AI provider {string} with model {string}")]
-fn given_ai_configuration(world: &mut KanbusWorld, provider: String, model: String) {
-    let root = world.working_directory.as_ref().unwrap().clone();
-    let kanbus_yml_path = root.join(".kanbus.yml");
-    let contents = fs::read_to_string(&kanbus_yml_path).expect("read config");
-    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
-    let mut ai_block = Mapping::new();
-    ai_block.insert(
-        Value::String("provider".to_string()),
-        Value::String(provider),
-    );
-    ai_block.insert(Value::String("model".to_string()), Value::String(model));
-    mapping.insert(Value::String("ai".to_string()), Value::Mapping(ai_block));
-    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
-    fs::write(kanbus_yml_path, yaml).expect("write config");
-}
 
 #[given(expr = "the issue {string} has a comment with text {string}")]
 fn given_issue_has_comment(world: &mut KanbusWorld, issue_id: String, text: String) {

@@ -11,7 +11,10 @@ Feature: Manage AGENTS.md Kanbus instructions
     And CONTRIBUTING_AGENT.md should exist
     And CONTRIBUTING_AGENT.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.md should contain "As a <role>, I want <capability>, so that <benefit>."
-    And CONTRIBUTING_AGENT.md should contain "you MUST record agent provenance"
+    And CONTRIBUTING_AGENT.md should contain "Agent provenance metadata"
+    And CONTRIBUTING_AGENT.md should contain "Title Case"
+    And CONTRIBUTING_AGENT.md should contain "--no-agent-provenance"
+    And CONTRIBUTING_AGENT.md should contain "Complete provenance is platform + model + name"
     And CONTRIBUTING_AGENT.md should contain "KANBUS_AGENT_PLATFORM"
     And CONTRIBUTING_AGENT.md should contain "## Git commits and pull requests"
     And CONTRIBUTING_AGENT.md should contain "live in this repository's **AGENTS.md**"

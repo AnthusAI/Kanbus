@@ -1,7 +1,6 @@
 """Behave steps for issue compaction feature."""
 
 from pathlib import Path
-import yaml
 from behave import given, then
 from kanbus.issue_lookup import load_issue_from_project
 from kanbus.issue_files import write_issue_to_file
@@ -16,17 +15,6 @@ from kanbus.comment_summary import (
     get_summary_activity_summary,
     get_summary_rewritten_description,
 )
-
-
-@given('the Kanbus configuration uses AI provider "{provider}" with model "{model}"')
-def step_impl_ai_config(context, provider, model):
-    root = Path(context.working_directory)
-    config_path = root / ".kanbus.yml"
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    config["ai"] = {"provider": provider, "model": model}
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(config, f)
 
 
 @given('the issue "{issue_id}" has a comment with text "{text}"')

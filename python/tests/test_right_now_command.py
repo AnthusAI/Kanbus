@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from kanbus.issue_lookup import IssueLookupError
 from kanbus.models import RightNowConfiguration
 from kanbus.project import ProjectMarkerError
-from kanbus.issue_lookup import IssueLookupError
 from kanbus.right_now_command import (
     CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS,
     CANNOT_COMBINE_ALL_WITH_LIMIT,
@@ -118,6 +118,32 @@ def test_effective_right_now_limit_uses_selection_policy() -> None:
         == 1
     )
     assert _effective_right_now_limit(RightNowCommandOptions(limit=5)) == 5
+
+
+def test_run_right_now_command_keeps_issue_when_reload_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    issue = build_issue("kanbus-now", status="in_progress")
+    issue.right_now_summary = "Already generated summary."
+    monkeypatch.setattr(
+        "kanbus.right_now_command._select_right_now_issues",
+        lambda *_args: [issue],
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.ensure_right_now_summaries", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing after backfill")),
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command._load_configuration",
+        lambda *_a: build_project_configuration(),
+    )
+    output = run_right_now_command(
+        tmp_path, RightNowCommandOptions(tree=False, raw=False)
+    )
+    assert "kanbus-now" in output
 
 
 def test_run_right_now_command_fails_when_summary_missing_after_reload(
