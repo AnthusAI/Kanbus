@@ -3022,3 +3022,12 @@ fn then_issue_eligible_profile(world: &mut KanbusWorld, identifier: String, prof
                 == Some(&profile)
     }));
 }
+
+#[then("no pull request should have been opened")]
+fn then_no_pull_request_opened(world: &mut KanbusWorld) {
+    let events = read_router_fixture_events(world);
+    let opened = events.iter().any(|event| {
+        event.payload.get("kind").and_then(|kind| kind.as_str()) == Some("pull_request")
+    });
+    assert!(!opened, "expected no pull request events");
+}

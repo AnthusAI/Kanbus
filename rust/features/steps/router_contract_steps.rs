@@ -1211,6 +1211,11 @@ fn given_router_candidates(world: &mut KanbusWorld, step: &Step) {
     }
 }
 
+#[given(expr = "the router forge is not configured")]
+fn given_router_forge_not_configured(world: &mut KanbusWorld) {
+    set_router_path(world, &["forge"], Yaml::Null);
+}
+
 #[given(regex = r#"^project WIP limit is (?P<limit>\d+)$"#)]
 fn given_project_wip_limit(world: &mut KanbusWorld, limit: String) {
     let limit = limit.parse::<i64>().unwrap();

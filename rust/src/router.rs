@@ -3088,7 +3088,7 @@ fn preserve_completed_turn_after_publication_failure(
 /// before the router transitions the package to Review.
 fn completed_router_review_comment(
     summary: &str,
-    pull: &PullRequestInfo,
+    pull: Option<&PullRequestInfo>,
     checkpoint_ref: &str,
     artifacts: &[RouterArtifact],
 ) -> String {
@@ -3097,10 +3097,15 @@ fn completed_router_review_comment(
     } else {
         summary.trim()
     };
-    let mut comment = format!(
-        "## Agent turn complete\n\n{summary}\n\n- Draft PR: {}\n- Branch: `{}`\n- Checkpoint: `{}`",
-        pull.url, pull.branch, checkpoint_ref
-    );
+    let mut comment = format!("## Agent turn complete\n\n{summary}\n");
+    if let Some(pull) = pull {
+        comment.push_str(&format!(
+            "\n- Draft PR: {}\n- Branch: `{}`\n- Checkpoint: `{}`",
+            pull.url, pull.branch, checkpoint_ref
+        ));
+    } else {
+        comment.push_str(&format!("\n- Checkpoint: `{}`", checkpoint_ref));
+    }
     if !artifacts.is_empty() {
         comment.push_str("\n- Artifacts:");
         for artifact in artifacts {
@@ -3623,12 +3628,11 @@ fn run_issue_router_once(
         .deferred
         .len()
         .saturating_add(plan.eligible.len().saturating_sub(1));
-    if router.forge.is_none() {
-        return Err(KanbusError::Configuration(
-            "router.forge is required to publish completed package work".to_string(),
-        ));
-    }
-    let forge_client = GitHubForge::from_router(router)?;
+    let forge_client = router
+        .forge
+        .as_ref()
+        .map(|_| GitHubForge::from_router(router))
+        .transpose()?;
     let profile = router
         .providers
         .get(&package.route.provider_profile)
@@ -3825,21 +3829,33 @@ fn run_issue_router_once(
                     )?;
                 }
                 let worktree = latest_router_worktree(root, &claim_id)?;
-                let prior_pr = reduce_router_events(&load_router_events(project_dir)?)
-                    .pull_requests
-                    .get(&package.issue_id)
-                    .map(|(number, _)| *number)
-                    .map(|number| forge_client.get_pull_request(number))
-                    .transpose()?;
-                let branch = prior_pr
-                    .as_ref()
-                    .map(|pull| pull.branch.clone())
-                    .or_else(|| {
-                        load_router_events(project_dir).ok().and_then(|events| {
+                let branch = if let Some(fc) = forge_client.as_ref() {
+                    reduce_router_events(&load_router_events(project_dir)?)
+                        .pull_requests
+                        .get(&package.issue_id)
+                        .map(|(number, _)| *number)
+                        .map(|number| fc.get_pull_request(number))
+                        .transpose()?
+                        .as_ref()
+                        .map(|pull| pull.branch.clone())
+                        .or_else(|| {
+                            load_router_events(project_dir).ok().and_then(|events| {
+                                router_started_branch(&events, &package.issue_id, &claim.claim_id)
+                            })
+                        })
+                        .unwrap_or_else(|| {
+                            format!("codex/router/{}/r{}", package.issue_id, revision)
+                        })
+                } else {
+                    load_router_events(project_dir)
+                        .ok()
+                        .and_then(|events| {
                             router_started_branch(&events, &package.issue_id, &claim.claim_id)
                         })
-                    })
-                    .unwrap_or_else(|| format!("codex/router/{}/r{}", package.issue_id, revision));
+                        .unwrap_or_else(|| {
+                            format!("codex/router/{}/r{}", package.issue_id, revision)
+                        })
+                };
                 let published_branch = publish_router_branch(
                     root,
                     project_dir,
@@ -3861,26 +3877,34 @@ fn run_issue_router_once(
                     &checkpoint_commit,
                 )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
-                let existing_pr = prior_pr.is_some();
-                let pull = if let Some(existing) = prior_pr {
-                    forge_client.get_pull_request(existing.number)?
+                let pull = if let Some(fc) = forge_client.as_ref() {
+                    let prior_pr = reduce_router_events(&load_router_events(project_dir)?)
+                        .pull_requests
+                        .get(&package.issue_id)
+                        .map(|(number, _)| *number)
+                        .map(|number| fc.get_pull_request(number))
+                        .transpose()?;
+                    let existing_pr = prior_pr.is_some();
+                    let pr = if let Some(existing) = prior_pr {
+                        fc.get_pull_request(existing.number)?
+                    } else {
+                        fc.create_pull_request(&package.issue_id, &issue.title, &branch)?
+                    };
+                    record_router_pull_response(
+                        project_dir,
+                        &configuration,
+                        &claim,
+                        &package.issue_id,
+                        &router.forge.as_ref().expect("validated forge").repository,
+                        &branch,
+                        existing_pr,
+                        &pr,
+                        &[&published_branch, &published_checkpoint_ref],
+                    )?;
+                    Some(pr)
                 } else {
-                    forge_client.create_pull_request(&package.issue_id, &issue.title, &branch)?
+                    None
                 };
-                // GitHub cannot atomically bind PR creation to our claim lease. Fence
-                // immediately after the API response and before recording acceptance;
-                // the remote PR may be briefly visible if the lease expired in flight.
-                record_router_pull_response(
-                    project_dir,
-                    &configuration,
-                    &claim,
-                    &package.issue_id,
-                    &router.forge.as_ref().expect("validated forge").repository,
-                    &branch,
-                    existing_pr,
-                    &pull,
-                    &[&published_branch, &published_checkpoint_ref],
-                )?;
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
                 apply_router_issue_comments(
                     root,
@@ -3891,7 +3915,7 @@ fn run_issue_router_once(
                 assert_current_router_claim(project_dir, &configuration, &claim)?;
                 let review_comment = completed_router_review_comment(
                     &result.summary,
-                    &pull,
+                    pull.as_ref(),
                     &published_checkpoint_ref.reference,
                     &result.artifacts,
                 );
@@ -9493,7 +9517,7 @@ mod tests {
         };
         let comment = completed_router_review_comment(
             "",
-            &pull,
+            Some(&pull),
             "refs/kanbus/router/checkpoints/kbs-701",
             &[RouterArtifact {
                 name: "tests".to_string(),

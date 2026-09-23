@@ -1166,6 +1166,13 @@ def given_router_candidates_table(context: object) -> None:
             )
 
 
+@given("the router forge is not configured")
+def given_router_forge_not_configured(context: object) -> None:
+    config = _config(context)
+    config["router"]["forge"] = None
+    _save_config(context, config)
+
+
 @given("project WIP limit is {limit:d}")
 def given_project_wip_limit(context: object, limit: int) -> None:
     config = _config(context)
@@ -1719,6 +1726,13 @@ def then_router_pr_base_branch(context: object, branch: str) -> None:
 def then_router_pr_body(context: object, text: str) -> None:
     pull = context.router_forge_pull_request
     assert text in context.router_fake_forge.pull_requests[pull.number]["body"]
+
+
+@then("no pull request should have been opened")
+def then_no_pull_request_opened(context: object) -> None:
+    assert (
+        len(context.router_fake_forge.pull_requests) == 0
+    ), f"expected no pull requests, but found {len(context.router_fake_forge.pull_requests)}"
 
 
 @given('package "{package_id}" has router pull request {number:d} at head "{head_sha}"')
