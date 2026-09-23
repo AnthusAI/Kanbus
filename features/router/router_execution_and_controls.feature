@@ -16,6 +16,17 @@ Feature: Issue Router one-shot execution and operator controls
     And package "kbs-201" should be in status "review"
     And package "kbs-202" should remain in status "open"
 
+  Scenario: One-shot run without a configured forge completes the package into Review without a pull request
+    Given pending routed packages are ordered "kbs-201, kbs-202"
+    And provider profile "codex-default" runs fake adapter outcome "completed"
+    And the router forge is not configured
+    When I run "kanbus router run --once"
+    Then the command should succeed
+    And the adapter should run only package "kbs-201"
+    And stdout should equal "Issue Router run completed: started=1 completed=1 review=1 failed=0 deferred=1\n"
+    And package "kbs-201" should be in status "review"
+    And no pull request should have been opened
+
   Scenario: One-shot run with no eligible package succeeds without starting an adapter
     Given there are no eligible router packages
     When I run "kanbus router run --once"
