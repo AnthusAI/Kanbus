@@ -2,6 +2,96 @@
 
 <!-- version list -->
 
+## v0.32.0 (2026-09-23)
+
+### Bug Fixes
+
+- **harness**: Commit worker config; use the top-level coordination key
+  ([`f1dcf62`](https://github.com/AnthusAI/Kanbus/commit/f1dcf62268aa2c3ad550f450853c8452002f686b))
+
+- **harness**: Fake codex accepts a prompt that repeats the package id
+  ([`e2a5bce`](https://github.com/AnthusAI/Kanbus/commit/e2a5bce4d2135d186a98f61b5fd4a95cec517a47))
+
+- **harness**: Run workers from an in-container copy of the checkout
+  ([`ad07015`](https://github.com/AnthusAI/Kanbus/commit/ad0701574bc26a87b3d09eb251817560eb6b92ab))
+
+- **release**: Allow dirty tree for crate packaging and depend on anthus-markus from PyPI
+  ([`22c7a92`](https://github.com/AnthusAI/Kanbus/commit/22c7a9241fbe8416ad9ef3839e94bcf6a3425d76))
+
+- **router**: Let the Rust one-shot run complete packages without a forge
+  ([`da80ea4`](https://github.com/AnthusAI/Kanbus/commit/da80ea4edfda2df7cff5cfcf680788fe886f2fc8))
+
+### Chores
+
+- **kanbus**: Commit board state (issues)
+  ([`10d0218`](https://github.com/AnthusAI/Kanbus/commit/10d0218e8d07b48ca0b6639ba1bab207b89d6c4b))
+
+- **kanbus**: Commit board state (issues)
+  ([`8c657b4`](https://github.com/AnthusAI/Kanbus/commit/8c657b44105ea879590fc1768d1cf9bca039e77c))
+
+- **kanbus**: Commit board state (issues)
+  ([`5ca5070`](https://github.com/AnthusAI/Kanbus/commit/5ca50706eef3b304fb687f539096d03b6c1ca759))
+
+- **kanbus**: Commit board state (issues)
+  ([`b391f89`](https://github.com/AnthusAI/Kanbus/commit/b391f8987c005d0177a47c32aa1a706caf53aef9))
+
+- **kanbus**: Commit board state (issues)
+  ([`fdf5142`](https://github.com/AnthusAI/Kanbus/commit/fdf514296c8a450ad6bec59312295f75c790a32a))
+
+- **kanbus**: Commit board state (issues)
+  ([`4127a21`](https://github.com/AnthusAI/Kanbus/commit/4127a214e830247ae76f82dc19eb858e4be1724b))
+
+- **kanbus**: Commit board state (issues)
+  ([`33f6313`](https://github.com/AnthusAI/Kanbus/commit/33f63136b584a6a1246c417122cf88c1c9fa5746))
+
+- **kanbus**: Commit board state (issues)
+  ([`50c5a7f`](https://github.com/AnthusAI/Kanbus/commit/50c5a7f6e72d333ef7e559b992ba74fc00fe365b))
+
+- **kanbus**: Commit board state (issues)
+  ([`0a7c04e`](https://github.com/AnthusAI/Kanbus/commit/0a7c04e6c85469f4d21388349d78feff1e794c97))
+
+- **kanbus**: Commit board state (issues)
+  ([`c9579a8`](https://github.com/AnthusAI/Kanbus/commit/c9579a85735b1eb8ee2f73f2ce43d4986aa7c756))
+
+- **kanbus**: Commit board state (issues)
+  ([`b44db30`](https://github.com/AnthusAI/Kanbus/commit/b44db303248fffa37ed7805a33e841fa4f763749))
+
+- **kanbus**: Commit board state (issues)
+  ([`dc17307`](https://github.com/AnthusAI/Kanbus/commit/dc1730725898d066501ad88a5f03fd227eb39cf6))
+
+- **kanbus**: Commit board state (issues)
+  ([`4865fc9`](https://github.com/AnthusAI/Kanbus/commit/4865fc9c0b9ef4f54465fbe280281d5e84c7811d))
+
+- **kanbus**: Commit board state (issues)
+  ([`a42ca24`](https://github.com/AnthusAI/Kanbus/commit/a42ca24538b3e458d58f47132826bbbd1f4927e0))
+
+- **kanbus**: Commit board state (issues)
+  ([`5e09377`](https://github.com/AnthusAI/Kanbus/commit/5e09377e71d51ce554f4ea94ee57afbf28ca95f2))
+
+- **kanbus**: Commit board state (issues)
+  ([`fa1c7ec`](https://github.com/AnthusAI/Kanbus/commit/fa1c7ec92083a895f9862eb306a18967f8a58a2a))
+
+- **kanbus**: Commit board state (issues)
+  ([`0640d3f`](https://github.com/AnthusAI/Kanbus/commit/0640d3f1ed45c00c8f90d9e8f0d6e958862df05c))
+
+- **kanbus**: Commit board state (issues)
+  ([`d6f6a17`](https://github.com/AnthusAI/Kanbus/commit/d6f6a17cfb8022c1cd177da3bc18402adde27517))
+
+- **kanbus**: Commit board state (issues)
+  ([`61f145b`](https://github.com/AnthusAI/Kanbus/commit/61f145b1a2e712327fa4b9057e3d84cf40f072d1))
+
+- **kanbus**: Commit board state (issues)
+  ([`28c6b83`](https://github.com/AnthusAI/Kanbus/commit/28c6b83a8c3c1fbe2a10608eaaa834c142fc0be4))
+
+### Features
+
+- **harness**: Add --fake-agent mode to the router container harness
+  ([`b3e737d`](https://github.com/AnthusAI/Kanbus/commit/b3e737d83df217cb1fc9c83a5cc7acc869e49f1c))
+
+- **harness**: Add soft-duplicate and expiry-takeover scenarios
+  ([`f1833b5`](https://github.com/AnthusAI/Kanbus/commit/f1833b5ed2e275b77ed06bae888dff818cbf6b0c))
+
+
 ## v0.31.0 (2026-09-23)
 
 ### Chores
