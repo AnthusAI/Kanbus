@@ -1080,6 +1080,14 @@ fn cell<'a>(headers: &[String], row: &'a [String], name: &str) -> &'a str {
     row[index].trim()
 }
 
+fn optional_cell<'a>(headers: &[String], row: &'a [String], name: &str) -> &'a str {
+    headers
+        .iter()
+        .position(|header| header == name)
+        .and_then(|index| row.get(index))
+        .map_or("", |value| value.trim())
+}
+
 #[given("the issue hierarchy and labels are:")]
 fn given_issue_hierarchy(world: &mut KanbusWorld, step: &Step) {
     let (headers, data) = rows(step);
@@ -1217,6 +1225,23 @@ fn given_project_wip_issues(world: &mut KanbusWorld, step: &Step) {
             Utc.with_ymd_and_hms(2026, 9, 16, 10, 0, 0).unwrap(),
             Vec::new(),
         );
+        let issue_type = optional_cell(headers, row, "type");
+        let labels = optional_cell(headers, row, "labels");
+        if !issue_type.is_empty() || !labels.is_empty() {
+            let mut issue = load_issue(world, id);
+            if !issue_type.is_empty() {
+                issue.issue_type = issue_type.to_string();
+            }
+            if !labels.is_empty() {
+                issue.labels = labels
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|label| !label.is_empty())
+                    .map(str::to_string)
+                    .collect();
+            }
+            write_issue_fixture(world, &issue);
+        }
     }
 }
 
