@@ -858,6 +858,36 @@ enum SetupCommands {
         #[arg(long)]
         force: bool,
     },
+    /// Store an LLM API key once in ~/.kanbus.env for every project, or report where it resolves from.
+    Ai {
+        /// API key value. Prefer the interactive prompt or --from-stdin so the key does not land in shell history.
+        #[arg(long)]
+        key: Option<String>,
+        /// Read the key from the first line of standard input.
+        #[arg(long)]
+        from_stdin: bool,
+        /// Environment variable name to store.
+        #[arg(long, default_value = crate::ai_credentials::DEFAULT_API_KEY_VARIABLE)]
+        variable: String,
+        /// Report where the key currently resolves from. Never prints the key.
+        #[arg(long)]
+        status: bool,
+    },
+    /// Store any Kanbus environment value once in ~/.kanbus.env for every project, or report where it resolves from.
+    Env {
+        /// Environment variable name to store.
+        #[arg(value_name = "NAME")]
+        name: String,
+        /// Value to store. Prefer the interactive prompt or --from-stdin so the value does not land in shell history.
+        #[arg(long)]
+        value: Option<String>,
+        /// Read the value from the first line of standard input.
+        #[arg(long)]
+        from_stdin: bool,
+        /// Report where the value currently resolves from. Never prints the value.
+        #[arg(long)]
+        status: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -1474,6 +1504,149 @@ fn beads_root(root: &Path) -> std::path::PathBuf {
         .unwrap_or_else(|| root.to_path_buf())
 }
 
+fn is_valid_environment_variable_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_uppercase() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// Whether interactive prompting is allowed: either both stdin and stdout are
+/// a TTY, or `KANBUS_FORCE_INTERACTIVE` is set to exactly `"1"`.
+fn force_interactive_or_tty() -> bool {
+    std::env::var("KANBUS_FORCE_INTERACTIVE").ok().as_deref() == Some("1")
+        || (std::io::stdin().is_terminal() && std::io::stdout().is_terminal())
+}
+
+/// Resolve where a value currently resolves from and format the `--status`
+/// output shared by `setup ai` and `setup env`.
+fn format_setup_env_status(root: &Path, variable: &str, not_set_hint: &str) -> String {
+    let repository_root = get_configuration_path(root)
+        .ok()
+        .and_then(|path| path.parent().map(std::path::PathBuf::from));
+    let source =
+        crate::ai_credentials::resolve_api_key_source(repository_root.as_deref(), variable);
+    let mut output = format!(
+        "{variable}: {}\nLookup order: shell environment, then ~/.kanbus.env, then <repo>/.env",
+        source.describe()
+    );
+    if source == crate::ai_credentials::CredentialSource::None {
+        output.push('\n');
+        output.push_str(not_set_hint);
+    }
+    output
+}
+
+/// Shared implementation behind `setup ai` and `setup env`: validates the
+/// variable name, resolves a value from `--<value-flag>` / `--from-stdin` /
+/// an interactive hidden prompt, and writes it to `~/.kanbus.env`.
+///
+/// # Arguments
+/// * `root` - Repository root, used to resolve the project `.env` for `--status`.
+/// * `value` - Value passed directly (e.g. `--key` or `--value`).
+/// * `from_stdin` - Whether to read the value from the first line of stdin.
+/// * `variable` - Environment variable name to store.
+/// * `status` - Whether to report the current source instead of writing.
+/// * `no_value_message` - Error message when no value is available non-interactively.
+/// * `empty_value_message` - Error message when the resolved value is empty.
+/// * `not_set_hint` - Extra `--status` line shown when nothing is configured.
+#[allow(clippy::too_many_arguments)]
+fn execute_setup_env_value(
+    root: &Path,
+    value: Option<String>,
+    from_stdin: bool,
+    variable: String,
+    status: bool,
+    no_value_message: &str,
+    empty_value_message: &str,
+    not_set_hint: &str,
+) -> Result<Option<String>, KanbusError> {
+    if !is_valid_environment_variable_name(&variable) {
+        return Err(KanbusError::IssueOperation(format!(
+            "invalid variable name: {variable}"
+        )));
+    }
+
+    if status {
+        return Ok(Some(format_setup_env_status(root, &variable, not_set_hint)));
+    }
+
+    let resolved_value = if let Some(value) = value {
+        value
+    } else if from_stdin {
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        input.trim().to_string()
+    } else if force_interactive_or_tty() {
+        rpassword::prompt_password(format!("Enter {variable}: "))
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .trim()
+            .to_string()
+    } else {
+        return Err(KanbusError::IssueOperation(no_value_message.to_string()));
+    };
+
+    if resolved_value.is_empty() {
+        return Err(KanbusError::IssueOperation(empty_value_message.to_string()));
+    }
+
+    let congregation_path = crate::config_loader::congregation_env_path();
+    crate::ai_credentials::write_congregation_env_value(
+        &congregation_path,
+        &variable,
+        &resolved_value,
+    )?;
+
+    Ok(Some(format!(
+        "Saved {variable} to ~/.kanbus.env (mode 600). A project .env or your shell environment can override it per project."
+    )))
+}
+
+fn execute_setup_ai(
+    root: &Path,
+    key: Option<String>,
+    from_stdin: bool,
+    variable: String,
+    status: bool,
+) -> Result<Option<String>, KanbusError> {
+    execute_setup_env_value(
+        root,
+        key,
+        from_stdin,
+        variable,
+        status,
+        "no key provided; pass --key, --from-stdin, or run interactively",
+        "API key value is empty",
+        "Run 'kbs setup ai' (or 'kanbus setup ai') to store one in ~/.kanbus.env.",
+    )
+}
+
+fn execute_setup_env(
+    root: &Path,
+    name: String,
+    value: Option<String>,
+    from_stdin: bool,
+    status: bool,
+) -> Result<Option<String>, KanbusError> {
+    let not_set_hint = format!(
+        "Run 'kbs setup env {name}' (or 'kanbus setup env {name}') to store one in ~/.kanbus.env."
+    );
+    execute_setup_env_value(
+        root,
+        value,
+        from_stdin,
+        name,
+        status,
+        "no value provided; pass --value, --from-stdin, or run interactively",
+        "value is empty",
+        &not_set_hint,
+    )
+}
+
 fn should_check_project_structure(command: &Commands) -> bool {
     should_enforce_kanbus_version(command)
 }
@@ -1670,6 +1843,15 @@ fn execute_command(
         Commands::Init { local } => {
             ensure_git_repository(root)?;
             initialize_project(root, local)?;
+            if crate::ai_credentials::resolve_api_key_source(
+                Some(root),
+                crate::ai_credentials::DEFAULT_API_KEY_VARIABLE,
+            ) == crate::ai_credentials::CredentialSource::None
+            {
+                eprintln!(
+                    "Hint: no OPENAI_API_KEY found. Run \"kbs setup ai\" to store one in ~/.kanbus.env."
+                );
+            }
             Ok(None)
         }
         Commands::Repair { yes } => {
@@ -1716,6 +1898,18 @@ fn execute_command(
                 ensure_agents_file(root, force)?;
                 Ok(None)
             }
+            SetupCommands::Ai {
+                key,
+                from_stdin,
+                variable,
+                status,
+            } => execute_setup_ai(root, key, from_stdin, variable, status),
+            SetupCommands::Env {
+                name,
+                value,
+                from_stdin,
+                status,
+            } => execute_setup_env(root, name, value, from_stdin, status),
         },
         Commands::Create {
             title,
@@ -3635,7 +3829,23 @@ fn execute_command(
         }
         Commands::Doctor => {
             let result = run_doctor(root)?;
-            Ok(Some(format!("ok {}", result.project_dir.display())))
+            let ai_credentials_line = if result.ai_credential_source == "not set" {
+                format!(
+                    "ai credentials: {} not set (run kbs setup ai)",
+                    crate::ai_credentials::DEFAULT_API_KEY_VARIABLE
+                )
+            } else {
+                format!(
+                    "ai credentials: {} from {}",
+                    crate::ai_credentials::DEFAULT_API_KEY_VARIABLE,
+                    result.ai_credential_source
+                )
+            };
+            Ok(Some(format!(
+                "ok {}\n{}",
+                result.project_dir.display(),
+                ai_credentials_line
+            )))
         }
         Commands::Daemon { root } => {
             run_daemon(Path::new(&root))?;
@@ -4921,5 +5131,274 @@ mod additional_cli_tests {
         assert_eq!(merged.dependencies.len(), 2);
         assert_eq!(merged.comments.len(), 2);
         assert_eq!(merged.custom.get("k1").unwrap().as_str().unwrap(), "v1");
+    }
+
+    fn setup_ai_env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        // Recover from poisoning so one flaky test panicking while holding
+        // this lock doesn't cascade into every later test that locks it.
+        ENV_LOCK
+            .get_or_init(|| std::sync::Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Env var prefixes/exact keys stripped by `with_redirected_home`, in
+    /// addition to redirecting HOME. Redirecting HOME alone is not enough:
+    /// `config_loader::load_dotenv` sets these vars into the *process*
+    /// environment via `env::set_var` the first time any test anywhere in
+    /// this ~500-test binary loads a real `~/.kanbus.env` (before HOME is
+    /// redirected here), and nothing ever clears them afterward. Once set,
+    /// `resolve_api_key_source`/`apply_environment_overrides` keep reading
+    /// that stale value regardless of HOME, so this helper's own HOME
+    /// isolation cannot undo an earlier test's leak unless it also strips
+    /// the vars explicitly. Mirrors `gossip::tests::IsolatedHomeGuard` and
+    /// `tests/cucumber.rs::isolate_process_environment_for_cucumber_suite`.
+    const REDIRECTED_HOME_STRIPPED_PREFIXES: [&str; 3] =
+        ["KANBUS_REALTIME_", "KANBUS_COORDINATION_", "LITELLM_"];
+    const REDIRECTED_HOME_STRIPPED_EXACT_KEYS: [&str; 1] = ["OPENAI_API_KEY"];
+
+    fn with_redirected_home<F: FnOnce(&Path)>(body: F) {
+        let home_dir = tempfile::tempdir().expect("home tempdir");
+        let saved_home = std::env::var_os("HOME");
+        std::env::set_var("HOME", home_dir.path());
+
+        let keys_to_strip: Vec<String> = std::env::vars()
+            .map(|(key, _)| key)
+            .filter(|key| {
+                REDIRECTED_HOME_STRIPPED_EXACT_KEYS.contains(&key.as_str())
+                    || REDIRECTED_HOME_STRIPPED_PREFIXES
+                        .iter()
+                        .any(|prefix| key.starts_with(prefix))
+            })
+            .collect();
+        let saved_stripped: Vec<(String, Option<std::ffi::OsString>)> = keys_to_strip
+            .into_iter()
+            .map(|key| {
+                let value = std::env::var_os(&key);
+                std::env::remove_var(&key);
+                (key, value)
+            })
+            .collect();
+
+        body(home_dir.path());
+
+        match saved_home {
+            Some(value) => std::env::set_var("HOME", value),
+            None => std::env::remove_var("HOME"),
+        }
+        for (key, value) in saved_stripped {
+            match value {
+                Some(value) => std::env::set_var(&key, value),
+                None => std::env::remove_var(&key),
+            }
+        }
+    }
+
+    #[test]
+    fn is_valid_environment_variable_name_accepts_and_rejects() {
+        assert!(is_valid_environment_variable_name("OPENAI_API_KEY"));
+        assert!(is_valid_environment_variable_name("A"));
+        assert!(is_valid_environment_variable_name("A1_B2"));
+        assert!(!is_valid_environment_variable_name(""));
+        assert!(!is_valid_environment_variable_name("1ABC"));
+        assert!(!is_valid_environment_variable_name("openai_api_key"));
+        assert!(!is_valid_environment_variable_name("OPENAI-API-KEY"));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_ai_rejects_invalid_variable_name() {
+        let _guard = setup_ai_env_guard();
+        let root = tempfile::tempdir().expect("tempdir");
+        let error = execute_setup_ai(
+            root.path(),
+            Some("value".to_string()),
+            false,
+            "not valid".to_string(),
+            false,
+        )
+        .expect_err("invalid variable name should error");
+        match error {
+            KanbusError::IssueOperation(message) => {
+                assert!(message.contains("invalid variable name"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_ai_status_outside_project_reports_not_set() {
+        let _guard = setup_ai_env_guard();
+        with_redirected_home(|_home| {
+            let root = tempfile::tempdir().expect("tempdir");
+            let output =
+                execute_setup_ai(root.path(), None, false, "OPENAI_API_KEY".to_string(), true)
+                    .expect("status should succeed")
+                    .expect("status should produce output");
+            assert!(output.contains("OPENAI_API_KEY: not set"));
+            assert!(output.contains("setup ai"));
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_ai_with_key_writes_congregation_file() {
+        let _guard = setup_ai_env_guard();
+        with_redirected_home(|home| {
+            let root = tempfile::tempdir().expect("tempdir");
+            let output = execute_setup_ai(
+                root.path(),
+                Some("secret-value".to_string()),
+                false,
+                "OPENAI_API_KEY".to_string(),
+                false,
+            )
+            .expect("setup should succeed")
+            .expect("setup should produce output");
+            assert!(output.contains("Saved OPENAI_API_KEY to ~/.kanbus.env"));
+            assert!(!output.contains("secret-value"));
+
+            let congregation_path = home.join(".kanbus.env");
+            let contents = std::fs::read_to_string(&congregation_path).expect("read env file");
+            assert!(contents.contains("OPENAI_API_KEY=secret-value"));
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_ai_without_key_non_interactive_errors() {
+        let _guard = setup_ai_env_guard();
+        std::env::remove_var("KANBUS_FORCE_INTERACTIVE");
+        with_redirected_home(|_home| {
+            let root = tempfile::tempdir().expect("tempdir");
+            let error = execute_setup_ai(
+                root.path(),
+                None,
+                false,
+                "OPENAI_API_KEY".to_string(),
+                false,
+            )
+            .expect_err("missing key should error when non-interactive");
+            match error {
+                KanbusError::IssueOperation(message) => {
+                    assert!(message.contains("no key provided"));
+                }
+                other => panic!("unexpected error: {other:?}"),
+            }
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_env_rejects_invalid_variable_name() {
+        let _guard = setup_ai_env_guard();
+        let root = tempfile::tempdir().expect("tempdir");
+        let error = execute_setup_env(
+            root.path(),
+            "not-a-variable".to_string(),
+            Some("x".to_string()),
+            false,
+            false,
+        )
+        .expect_err("invalid variable name should error");
+        match error {
+            KanbusError::IssueOperation(message) => {
+                assert!(message.contains("invalid variable name: not-a-variable"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_env_status_outside_project_reports_not_set() {
+        let _guard = setup_ai_env_guard();
+        with_redirected_home(|_home| {
+            let root = tempfile::tempdir().expect("tempdir");
+            let output = execute_setup_env(
+                root.path(),
+                "KANBUS_REALTIME_BROKER".to_string(),
+                None,
+                false,
+                true,
+            )
+            .expect("status should succeed")
+            .expect("status should produce output");
+            assert!(output.contains("KANBUS_REALTIME_BROKER: not set"));
+            assert!(output.contains("setup env KANBUS_REALTIME_BROKER"));
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_env_with_value_writes_congregation_file() {
+        let _guard = setup_ai_env_guard();
+        with_redirected_home(|home| {
+            let root = tempfile::tempdir().expect("tempdir");
+            let output = execute_setup_env(
+                root.path(),
+                "KANBUS_REALTIME_BROKER".to_string(),
+                Some("mqtt://127.0.0.1:1883".to_string()),
+                false,
+                false,
+            )
+            .expect("setup should succeed")
+            .expect("setup should produce output");
+            assert!(output.contains("Saved KANBUS_REALTIME_BROKER to ~/.kanbus.env"));
+            assert!(!output.contains("mqtt://127.0.0.1:1883"));
+
+            let congregation_path = home.join(".kanbus.env");
+            let contents = std::fs::read_to_string(&congregation_path).expect("read env file");
+            assert!(contents.contains("KANBUS_REALTIME_BROKER=mqtt://127.0.0.1:1883"));
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn setup_env_without_value_non_interactive_errors() {
+        let _guard = setup_ai_env_guard();
+        std::env::remove_var("KANBUS_FORCE_INTERACTIVE");
+        with_redirected_home(|_home| {
+            let root = tempfile::tempdir().expect("tempdir");
+            let error = execute_setup_env(
+                root.path(),
+                "KANBUS_REALTIME_BROKER".to_string(),
+                None,
+                false,
+                false,
+            )
+            .expect_err("missing value should error when non-interactive");
+            match error {
+                KanbusError::IssueOperation(message) => {
+                    assert!(message.contains("no value provided"));
+                }
+                other => panic!("unexpected error: {other:?}"),
+            }
+        });
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn force_interactive_requires_exact_value_one() {
+        let _guard = setup_ai_env_guard();
+        let saved = std::env::var_os("KANBUS_FORCE_INTERACTIVE");
+
+        // cargo test runs with non-TTY stdin/stdout, so only the env var
+        // value determines the result here.
+        std::env::set_var("KANBUS_FORCE_INTERACTIVE", "true");
+        assert!(!force_interactive_or_tty());
+        std::env::set_var("KANBUS_FORCE_INTERACTIVE", "0");
+        assert!(!force_interactive_or_tty());
+        std::env::set_var("KANBUS_FORCE_INTERACTIVE", "1");
+        assert!(force_interactive_or_tty());
+        std::env::remove_var("KANBUS_FORCE_INTERACTIVE");
+        assert!(!force_interactive_or_tty());
+
+        match saved {
+            Some(value) => std::env::set_var("KANBUS_FORCE_INTERACTIVE", value),
+            None => std::env::remove_var("KANBUS_FORCE_INTERACTIVE"),
+        }
     }
 }

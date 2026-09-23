@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "df8739de-576d-468c-9f53-5d50180cd3e0",
+  "issue_id": "router:scheduler",
+  "event_type": "coordination.release",
+  "occurred_at": "2026-09-18T17:15:01.166Z",
+  "actor_id": "issue-router:13678",
+  "payload": {
+    "owner": "issue-router:13678",
+    "claim_id": "5c12c5b1-538a-45b0-bb63-145c3d2bf4bc",
+    "operation_sequence": 12
+  }
+}

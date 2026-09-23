@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -123,8 +124,16 @@ from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.config_loader import (
     ConfigurationError,
+    congregation_env_path,
     load_project_configuration,
     load_repository_environment,
+)
+from kanbus.ai_credentials import (
+    CredentialSource,
+    DEFAULT_API_KEY_VARIABLE,
+    describe_api_key_source,
+    resolve_api_key_source,
+    write_congregation_env_value,
 )
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
 from kanbus.agent_metadata import (
@@ -320,7 +329,7 @@ def _enforce_kanbus_version(context: click.Context) -> None:
         raise click.ClickException(str(error)) from error
 
 
-def _delete_terminal_is_interactive() -> bool:
+def _terminal_is_interactive() -> bool:
     if os.getenv("KANBUS_FORCE_INTERACTIVE") == "1":
         return True
     return bool(
@@ -378,6 +387,166 @@ def setup_agents(force: bool) -> None:
     _ensure_project_guard_files(root)
 
 
+_VARIABLE_NAME_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
+@setup.command("ai")
+@click.option(
+    "--key",
+    "key_value",
+    default=None,
+    help=(
+        "API key value. Prefer the interactive prompt or --from-stdin so the "
+        "key does not land in shell history."
+    ),
+)
+@click.option(
+    "--from-stdin",
+    is_flag=True,
+    default=False,
+    help="Read the key from the first line of standard input.",
+)
+@click.option(
+    "--variable",
+    default=DEFAULT_API_KEY_VARIABLE,
+    show_default=True,
+    help="Environment variable name to store.",
+)
+@click.option(
+    "--status",
+    is_flag=True,
+    default=False,
+    help="Report where the key currently resolves from. Never prints the key.",
+)
+def setup_ai(
+    key_value: Optional[str], from_stdin: bool, variable: str, status: bool
+) -> None:
+    """Store or inspect a user-level AI credential in ~/.kanbus.env."""
+    if not _VARIABLE_NAME_PATTERN.match(variable):
+        raise click.ClickException(f"invalid variable name: {variable}")
+
+    if status:
+        _print_credential_status(
+            variable,
+            "Run 'kbs setup ai' (or 'kanbus setup ai') to store one in "
+            "~/.kanbus.env.",
+        )
+        return
+
+    _store_congregation_value(
+        variable,
+        key_value,
+        from_stdin,
+        no_value_message=(
+            "no key provided; pass --key, --from-stdin, or run interactively"
+        ),
+        empty_message="API key value is empty",
+    )
+
+
+@setup.command("env")
+@click.argument("name")
+@click.option(
+    "--value",
+    "value_option",
+    default=None,
+    help=(
+        "Value to store. Prefer the interactive prompt or --from-stdin so the "
+        "value does not land in shell history."
+    ),
+)
+@click.option(
+    "--from-stdin",
+    is_flag=True,
+    default=False,
+    help="Read the value from the first line of standard input.",
+)
+@click.option(
+    "--status",
+    is_flag=True,
+    default=False,
+    help="Report where the value currently resolves from. Never prints the value.",
+)
+def setup_env(
+    name: str, value_option: Optional[str], from_stdin: bool, status: bool
+) -> None:
+    """Store or inspect any user-level Kanbus environment value in ~/.kanbus.env."""
+    if not _VARIABLE_NAME_PATTERN.match(name):
+        raise click.ClickException(f"invalid variable name: {name}")
+
+    if status:
+        _print_credential_status(
+            name,
+            f"Run 'kbs setup env {name}' (or 'kanbus setup env {name}') to store "
+            "one in ~/.kanbus.env.",
+        )
+        return
+
+    _store_congregation_value(
+        name,
+        value_option,
+        from_stdin,
+        no_value_message=(
+            "no value provided; pass --value, --from-stdin, or run interactively"
+        ),
+        empty_message="value is empty",
+    )
+
+
+def _store_congregation_value(
+    variable: str,
+    value_option: Optional[str],
+    from_stdin: bool,
+    *,
+    no_value_message: str,
+    empty_message: str,
+) -> None:
+    if value_option is not None:
+        value = value_option
+    elif from_stdin:
+        value = sys.stdin.readline().strip()
+    elif _terminal_is_interactive():
+        value = click.prompt(f"Enter {variable}", hide_input=True)
+    else:
+        raise click.ClickException(no_value_message)
+
+    if not value.strip():
+        raise click.ClickException(empty_message)
+
+    try:
+        write_congregation_env_value(congregation_env_path(), variable, value)
+    except (OSError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        f"Saved {variable} to ~/.kanbus.env (mode 600). A project .env or "
+        "your shell environment can override it per project."
+    )
+
+
+def _print_credential_status(variable: str, not_set_hint: str) -> None:
+    root: Optional[Path] = None
+    try:
+        root = get_configuration_path(Path.cwd()).parent
+    except (ProjectMarkerError, ConfigurationError):
+        root = None
+
+    source = resolve_api_key_source(root, variable)
+    click.echo(f"{variable}: {describe_api_key_source(source)}")
+    click.echo("Lookup order: shell environment, then ~/.kanbus.env, then <repo>/.env")
+    if source is CredentialSource.NONE:
+        click.echo(not_set_hint)
+
+
+def _maybe_print_ai_credentials_hint(root: Path) -> None:
+    if resolve_api_key_source(root) is CredentialSource.NONE:
+        click.echo(
+            'Hint: no OPENAI_API_KEY found. Run "kanbus setup ai" to store one '
+            "in ~/.kanbus.env.",
+            err=True,
+        )
+
+
 @cli.command("init")
 @click.option("--local", "create_local", is_flag=True, default=False)
 def init(create_local: bool) -> None:
@@ -393,6 +562,7 @@ def init(create_local: bool) -> None:
     except InitializationError as error:
         raise click.ClickException(str(error)) from error
     _maybe_run_setup_agents(root)
+    _maybe_print_ai_credentials_hint(root)
 
 
 def _maybe_run_setup_agents(root: Path) -> None:
@@ -1511,7 +1681,7 @@ def delete(
         except MigrationError:
             issue_for_hooks = None
         if not yes_flag:
-            if not _delete_terminal_is_interactive():
+            if not _terminal_is_interactive():
                 raise click.ClickException(
                     "delete requires confirmation (re-run with --yes)"
                 )
@@ -1568,7 +1738,7 @@ def delete(
         return
 
     if not yes_flag:
-        if not _delete_terminal_is_interactive():
+        if not _terminal_is_interactive():
             raise click.ClickException(
                 "delete requires confirmation (re-run with --yes)"
             )
@@ -3448,6 +3618,10 @@ def doctor() -> None:
     except DoctorError as error:
         raise click.ClickException(str(error)) from error
     click.echo(f"ok {result.project_dir}")
+    if result.ai_credential_source == CredentialSource.NONE.value:
+        click.echo("ai credentials: OPENAI_API_KEY not set (run kbs setup ai)")
+    else:
+        click.echo(f"ai credentials: OPENAI_API_KEY from {result.ai_credential_source}")
 
 
 @cli.command("migrate")

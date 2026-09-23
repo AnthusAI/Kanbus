@@ -42,6 +42,9 @@ kanbus init [--local]
 Flags:
 - `--local` Create a `project-local/` sibling directory for personal issues
 
+Notes:
+- If no `OPENAI_API_KEY` is found (shell environment, `~/.kanbus.env`, or project `.env`), `init` prints a stderr hint: `Hint: no OPENAI_API_KEY found. Run "kbs setup ai" to store one in ~/.kanbus.env.`
+
 ### `kanbus setup agents`
 
 Ensure `AGENTS.md` contains the Kanbus project-management section and refresh `CONTRIBUTING_AGENT.md`.
@@ -56,6 +59,60 @@ Flags:
 Notes:
 - Run this after you update Kanbus templates or configuration so agent guidance stays current.
 - This command only updates documentation and guard files. It does not modify issue data.
+
+### `kanbus setup ai`
+
+Store an LLM API key once per user, so compaction, right-now summaries, standup rollups, and
+wiki summarization work in every project without a per-project `.env`.
+
+```bash
+kbs setup ai [--key VALUE] [--from-stdin] [--variable NAME] [--status]
+```
+
+Flags:
+- `--key VALUE` Pass the key value directly. The value may land in shell history; prefer the interactive prompt or `--from-stdin`.
+- `--from-stdin` Read the key from the first line of stdin, e.g. `pbpaste | kbs setup ai --from-stdin` or `op read ... | kbs setup ai --from-stdin`.
+- `--variable NAME` Store a different variable (default `OPENAI_API_KEY`), e.g. `ANTHROPIC_API_KEY` for `anthropic/...` models on the Python LiteLLM path.
+- `--status` Print `OPENAI_API_KEY: <source>` (`process environment`, `~/.kanbus.env`, `project .env`, or `not set`) followed by the lookup order. Never prints the key itself.
+
+With no flags in an interactive terminal, prompts for the key with hidden input. Works outside a
+project — no `.kanbus.yml` needed.
+
+On success, prints: `Saved OPENAI_API_KEY to ~/.kanbus.env (mode 600). A project .env or your shell environment can override it per project.`
+
+Run non-interactively with no key provided fails with: `no key provided; pass --key, --from-stdin, or run interactively`.
+
+Precedence when resolving a key at runtime: shell environment, then `~/.kanbus.env`, then the
+project `.env` file.
+
+`kbs setup ai` is a friendlier shortcut for `kbs setup env OPENAI_API_KEY` (or another variable
+via `--variable`); see `kanbus setup env` below for the general-purpose command.
+
+### `kanbus setup env`
+
+Store or inspect any environment variable in `~/.kanbus.env`, machine-wide. `kbs setup ai` is
+built on this command, specialized for the LLM API key.
+
+```bash
+kbs setup env NAME [--value VALUE] [--from-stdin] [--status]
+```
+
+Arguments:
+- `NAME` Required. The environment variable name, matching `^[A-Z][A-Z0-9_]*$`. Fails otherwise with `invalid variable name: <name>`.
+
+Flags:
+- `--value VALUE` Pass the value directly.
+- `--from-stdin` Read the value from the first line of stdin.
+- `--status` Print `NAME: <source>` (`process environment`, `~/.kanbus.env`, `project .env`, or `not set`) followed by the lookup order. When not set, a third line prompts: `Run 'kbs setup env NAME' (or 'kanbus setup env NAME') to store one in ~/.kanbus.env.`
+
+Value source precedence when saving: `--value`, then `--from-stdin` (first line), then a hidden
+interactive prompt. Non-interactive with none of these fails with: `no value provided; pass
+--value, --from-stdin, or run interactively`.
+
+Writes or updates the `NAME=...` line in `~/.kanbus.env` (mode `600`), preserving other lines. On
+success, prints: `Saved NAME to ~/.kanbus.env (mode 600). A project .env or your shell environment can override it per project.`
+
+Works outside a project — no `.kanbus.yml` needed.
 
 ## Issue CRUD
 
@@ -443,6 +500,9 @@ Run environment diagnostics.
 ```bash
 kanbus doctor
 ```
+
+Output includes an AI credentials line, e.g. `ai credentials: OPENAI_API_KEY from ~/.kanbus.env`,
+or `ai credentials: OPENAI_API_KEY not set (run kbs setup ai)` when no key is configured.
 
 ### `kanbus --version`
 

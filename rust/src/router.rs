@@ -1620,6 +1620,14 @@ fn has_route_marker(issue: &IssueData) -> bool {
     })
 }
 
+/// Return whether an issue type can represent agent-executed router work.
+///
+/// Initiatives and epics organize packages, but must never be dispatched or
+/// consume router WIP when they carry a stale or accidental route marker.
+fn is_routable_package_issue(issue: &IssueData) -> bool {
+    !matches!(issue.issue_type.as_str(), "initiative" | "epic")
+}
+
 fn configured_provider<'a>(
     configuration: &'a IssueRouterConfiguration,
     profile: &str,
@@ -2336,7 +2344,10 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
         .collect::<HashMap<_, _>>();
     let mut routed_package_wip = Vec::new();
     for issue in &issues {
-        if !is_wip_status(issue, router) || !has_route_marker(issue) {
+        if !is_wip_status(issue, router)
+            || !is_routable_package_issue(issue)
+            || !has_route_marker(issue)
+        {
             continue;
         }
         if let Ok(route) =
@@ -2372,6 +2383,9 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
     let mut candidates = Vec::new();
     let planning_now = router_now();
     for issue in &issues {
+        if !is_routable_package_issue(issue) {
+            continue;
+        }
         let Some(priority) = candidate_status_priority(issue, router) else {
             continue;
         };
@@ -2416,6 +2430,13 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
     candidates.sort_by(|left, right| {
         left.priority
             .cmp(&right.priority)
+            .then_with(|| {
+                if left.priority == 2 && right.priority == 2 {
+                    left.issue.priority.cmp(&right.issue.priority)
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
             .then_with(|| left.pending_since.cmp(&right.pending_since))
             .then_with(|| left.issue.created_at.cmp(&right.issue.created_at))
             .then_with(|| left.issue.identifier.cmp(&right.issue.identifier))

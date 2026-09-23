@@ -386,6 +386,12 @@ def test_mutex_api_unavailability_falls_back_to_git_without_aws_credentials(
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
     monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+    # Force MQTT unavailable regardless of the host's real environment (e.g.
+    # a developer running an always-on Mosquitto broker per the REALTIME
+    # guide on the default port). "off" is the supported broker value that
+    # disables MQTT outright, matching this test's actual intent: both
+    # mutex_api and MQTT unavailable, so coordination falls back to git.
+    monkeypatch.setenv("KANBUS_REALTIME_BROKER", "off")
     api = _MemoryMutexApi()
     api.fail_unavailable = True
     monkeypatch.setattr(coordination_mutex_api, "_urlopen", api)

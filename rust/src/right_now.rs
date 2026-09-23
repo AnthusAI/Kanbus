@@ -50,7 +50,7 @@ pub const AI_PROVIDER_NOT_CONFIGURED_MESSAGE: &str =
 
 /// Error message when OpenAI credentials were not loaded from env files.
 pub const OPENAI_API_KEY_NOT_LOADED_MESSAGE: &str =
-    "OPENAI_API_KEY was not loaded from repository environment files";
+    crate::ai_credentials::OPENAI_API_KEY_MISSING_MESSAGE;
 
 /// Error message when right-now generation is disabled in configuration.
 pub const RIGHT_NOW_DISABLED_MESSAGE: &str =
