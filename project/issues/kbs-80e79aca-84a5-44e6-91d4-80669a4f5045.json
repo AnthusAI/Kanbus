@@ -3,7 +3,7 @@
   "title": "Add console composer and status controls to issue detail",
   "description": "Add a normal comment composer and an allowed-transition status control to issue detail, using the validated write API. When a blocked issue awaits an agent reply, a normal comment must resume its saved conversation as specified by the router; otherwise it remains a normal visible Kanbus comment. Render pending/error/success states and confirm updates arrive via realtime or Git fallback.",
   "type": "story",
-  "status": "in_progress",
+  "status": "open",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -36,7 +36,7 @@
     }
   ],
   "created_at": "2026-09-19T14:32:06.793324Z",
-  "updated_at": "2026-09-23T14:47:25.295872Z",
+  "updated_at": "2026-09-23T14:46:45.943934Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
