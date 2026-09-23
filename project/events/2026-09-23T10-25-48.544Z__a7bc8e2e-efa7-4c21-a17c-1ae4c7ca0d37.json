@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "a7bc8e2e-efa7-4c21-a17c-1ae4c7ca0d37",
+  "issue_id": "router:issue:kbs-f954adf7-c812-4187-bd88-440aea4966d4",
+  "event_type": "coordination.claim",
+  "occurred_at": "2026-09-23T10:25:48.544Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "c406b53b-82b7-41ab-98a8-a1a724dd9b28",
+    "lease_expires_at": "2026-09-23T10:30:48.544Z",
+    "contention_window_s": 5,
+    "ttl_s": 300,
+    "revision": 1,
+    "operation_sequence": 1
+  }
+}
