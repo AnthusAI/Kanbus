@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "b517c6e4-e71c-410a-93d9-a3d9721f90d8",
+  "issue_id": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:router_routing_and_planning.feature",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-23T10:35:07.408Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:router_routing_and_planning.feature",
+    "revision": 1,
+    "artifact": "features/router/router_routing_and_planning.feature"
+  }
+}
