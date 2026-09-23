@@ -266,7 +266,7 @@ def test_active_routable_leaf_consumes_project_capacity(tmp_path: Path) -> None:
     assert [item.issue_id for item in plan.eligible] == ["kbs-recoverable"]
     assert [(item.issue_id, item.reason) for item in plan.deferred] == [
         ("kbs-capacity-holder", "invalid_route"),
-        ("kbs-pending-router-work", "project_wip_limit")
+        ("kbs-pending-router-work", "project_wip_limit"),
     ]
 
 
