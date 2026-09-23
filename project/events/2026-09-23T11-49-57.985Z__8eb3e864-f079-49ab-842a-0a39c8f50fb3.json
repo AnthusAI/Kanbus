@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8eb3e864-f079-49ab-842a-0a39c8f50fb3",
+  "issue_id": "kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-23T11:49:57.985Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Router scheduling ignores issue business priority among pending candidates",
+    "description": "## Problem\n\n`build_issue_router_plan`'s candidate sort (rust/src/router.rs) orders eligible packages by `candidate_status_priority` first, then `pending_since`. That status priority is a lifecycle-stage value (0 = resuming already-active work, 2 = starting new pending work) from `candidate_status_priority()`, not the issue's own `priority` field (P0/P1/P2). Among candidates that are all simply \"pending\" (the common case), the sort falls straight through to `pending_since`, i.e. pure FIFO.\n\n## Live reproduction\n\nOn 2026-09-23, three packages were simultaneously eligible under the same `class:smart` route:\n- kbs-f954ad, priority 0 (P0), pending since 2026-09-19T23:17:11Z\n- kbs-fa8c60, priority 1 (P1), pending since 2026-09-19T14:32:03Z\n- kbs-daf353, priority 1 (P1), pending since 2026-09-19T14:32:06Z\n\n`kbs router run --once` dispatched kbs-fa8c60 (the oldest pending, P1), not kbs-f954ad (P0). The only way to get the P0 fix actually routed was to manually move the two P1 candidates to Backlog first, defeating the purpose of having a priority field at all.\n\n## Required behavior\n\nAmong pending (not-yet-started) candidates, sort by the issue's own `priority` field before falling back to `pending_since`. Active/resuming work should still take precedence over any pending work regardless of priority (that ordering is correct and shouldn't change) — this is specifically about breaking ties among \"pending\" candidates by business priority instead of pure insertion order.\n\n## Acceptance criteria\n\n- Python and Rust planning both consult issue priority when ordering pending candidates, with `pending_since` as the tiebreak within the same priority.\n- Active-work-before-pending-work ordering is unchanged.\n- New Gherkin coverage: two pending candidates with the same route/class but different priority; the router selects the higher-priority (lower-numbered) one first regardless of which was queued first.\n- Existing pending_since-ordering tests for equal-priority candidates continue to pass unchanged.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d",
+    "labels": []
+  }
+}
