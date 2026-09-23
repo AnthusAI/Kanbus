@@ -39,6 +39,18 @@ def _configure(context: object, **values: object) -> None:
     config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def _disable_realtime_broker(context: object) -> None:
+    """Keep coordination scenarios independent of any broker on the host.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    config_path = get_configuration_path(Path(context.working_directory))
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload.setdefault("realtime", {})["broker"] = "off"
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
 def _events_dir(context: object) -> Path:
     return load_project_directory(Path(context.working_directory)) / "events"
 
@@ -270,6 +282,7 @@ def given_coordination_providers(context: object, providers: str) -> None:
     elif set(configured) == {"mqtt", "git"}:
         configured = ["mqtt", "git"]
     _configure(context, providers=configured)
+    _disable_realtime_broker(context)
 
 
 @given(
