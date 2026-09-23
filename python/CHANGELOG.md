@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.31.0 (2026-09-23)
+
+### Chores
+
+- **kanbus**: Commit board state (issues)
+  ([`23e208a`](https://github.com/AnthusAI/Kanbus/commit/23e208a2a025f3b9b234bf8f41d30229cd81d9e0))
+
+### Features
+
+- **cli**: Add setup ai and setup env for machine-wide configuration
+  ([`9760857`](https://github.com/AnthusAI/Kanbus/commit/976085796607c87c893688e404a4be159bc28d6d))
+
+### Testing
+
+- **rust**: Make mutex api fallback test hermetic against a local broker
+  ([`41b6ba5`](https://github.com/AnthusAI/Kanbus/commit/41b6ba53c511ac8561858945c06aebbe2b1f6a45))
+
+
 ## v0.30.0 (2026-09-23)
 
 ### Bug Fixes
