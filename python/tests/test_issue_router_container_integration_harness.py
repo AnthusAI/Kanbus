@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -251,3 +255,189 @@ def test_redaction_removes_secret_values() -> None:
         )
         == "token=<redacted> and Authorization: Bearer <redacted>"
     )
+
+
+def test_fake_agent_validation_skips_openai_key() -> None:
+    env = {
+        harness.LIVE_GATE: "1",
+        harness.MUTEX_ENDPOINT: "https://mutex.example.test/prod",
+        harness.MUTEX_TOKEN: "mutex-secret",
+        harness.MQTT_BROKER: "mqtts://broker.example.test:8883",
+        harness.MQTT_AUTHORIZER: "kanbus-mqtt-token-test",
+        harness.MQTT_TOKEN: "mqtt-secret",
+    }
+    inputs = harness.validate_live_inputs(
+        env, live=True, publish_board=True, fake_agent=True
+    )
+    assert inputs.openai_key == ""
+
+
+def test_real_agent_validation_requires_openai_key() -> None:
+    env = {
+        harness.LIVE_GATE: "1",
+        harness.MUTEX_ENDPOINT: "https://mutex.example.test/prod",
+        harness.MUTEX_TOKEN: "mutex-secret",
+        harness.MQTT_BROKER: "mqtts://broker.example.test:8883",
+        harness.MQTT_AUTHORIZER: "kanbus-mqtt-token-test",
+        harness.MQTT_TOKEN: "mqtt-secret",
+    }
+    with pytest.raises(harness.HarnessError, match="missing live inputs"):
+        harness.validate_live_inputs(
+            env, live=True, publish_board=True, fake_agent=False
+        )
+
+
+def test_docker_environment_omits_codex_key_when_empty() -> None:
+    env = {
+        harness.LIVE_GATE: "1",
+        harness.MUTEX_ENDPOINT: "https://mutex.example.test/prod",
+        harness.MUTEX_TOKEN: "mutex-secret",
+        harness.MQTT_BROKER: "mqtts://broker.example.test:8883",
+        harness.MQTT_AUTHORIZER: "kanbus-mqtt-token-test",
+        harness.MQTT_TOKEN: "mqtt-secret",
+    }
+    inputs = harness.validate_live_inputs(
+        env, live=True, publish_board=True, fake_agent=True
+    )
+    docker_env = inputs.docker_environment()
+    assert harness.CODEX_API_KEY not in docker_env
+    assert docker_env[harness.MUTEX_TOKEN] == "mutex-secret"
+
+
+def test_container_command_mounts_fake_codex_when_enabled(tmp_path: Path) -> None:
+    fake_agent_env = {
+        harness.LIVE_GATE: "1",
+        harness.MUTEX_ENDPOINT: "https://mutex.example.test/prod",
+        harness.MUTEX_TOKEN: "mutex-secret",
+        harness.MQTT_BROKER: "mqtts://broker.example.test:8883",
+        harness.MQTT_AUTHORIZER: "kanbus-mqtt-token-test",
+        harness.MQTT_TOKEN: "mqtt-secret",
+    }
+    inputs = harness.validate_live_inputs(
+        fake_agent_env, live=True, publish_board=True, fake_agent=True
+    )
+    command = harness._container_command(
+        name="worker-test",
+        worker_root=tmp_path / "worker",
+        remote=tmp_path / "board.git",
+        image="kanbus-test",
+        runtime="python",
+        live=inputs,
+        barrier_directory=tmp_path / "barrier",
+        fake_agent=True,
+        fake_agent_mode="hang",
+    )
+    command_str = " ".join(command)
+    assert "/opt/fake-codex/codex" in command_str
+    assert "FAKE_CODEX_MODE=hang" in command_str
+    assert harness.CODEX_API_KEY not in command
+
+
+def test_container_command_without_fake_agent_has_no_fake_mount(tmp_path: Path) -> None:
+    inputs = harness.validate_live_inputs(
+        _live_environment(), live=True, publish_board=True
+    )
+    command = harness._container_command(
+        name="worker-test",
+        worker_root=tmp_path / "worker",
+        remote=tmp_path / "board.git",
+        image="kanbus-test",
+        runtime="python",
+        live=inputs,
+        barrier_directory=tmp_path / "barrier",
+        fake_agent=False,
+    )
+    command_str = " ".join(command)
+    assert "/opt/fake-codex/codex" not in command_str
+    assert "FAKE_CODEX_MODE" not in command_str
+
+
+def test_worker_config_with_fake_agent_sets_codex_path(tmp_path: Path) -> None:
+    config = tmp_path / ".kanbus.yml"
+    config.write_text(
+        "project_directory: project\nrouter:\n  forge:\n    provider: github\n"
+        "  providers:\n    codex-luna-flex:\n      args: [--model, gpt-5.6-luna, -c, 'service_tier=flex']\n"
+        "    repository: example/project\n  limits:\n    class_wip:\n"
+        "      implementation: 1\n  classes:\n    implementation:\n"
+        "      providers: [codex-luna-flex]\n",
+        encoding="utf-8",
+    )
+    harness._configure_worker_for_test(
+        tmp_path, "router-container-it-test", fake_agent=True
+    )
+    loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert (
+        loaded["router"]["providers"]["codex-luna-flex"]["command"]
+        == "/opt/fake-codex/codex"
+    )
+
+
+FAKE_CODEX = (
+    Path(__file__).resolve().parents[2]
+    / "tools"
+    / "issue_router_container"
+    / "fake_codex.py"
+)
+FAKE_ISSUE_ID = "kbs-0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+FAKE_MARKER = "KANBUS-ROUTER-TEST:abc123def456"
+
+
+def _fake_codex_environment(tmp_path: Path, mode: str) -> dict[str, str]:
+    bin_directory = tmp_path / "bin"
+    bin_directory.mkdir()
+    stub = bin_directory / "kbs"
+    stub.write_text(
+        f"#!/bin/sh\necho 'ID: {FAKE_ISSUE_ID}'\necho '{FAKE_MARKER} disposable'\n",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+    return {
+        **os.environ,
+        "PATH": f"{bin_directory}{os.pathsep}{os.environ['PATH']}",
+        "FAKE_CODEX_MODE": mode,
+    }
+
+
+def test_fake_codex_result_is_accepted_by_the_router_parser(tmp_path: Path) -> None:
+    from kanbus import router_adapters
+
+    completed = subprocess.run(
+        [sys.executable, str(FAKE_CODEX), "exec", "--json", f"package {FAKE_ISSUE_ID}"],
+        capture_output=True,
+        text=True,
+        env=_fake_codex_environment(tmp_path, "complete"),
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    first_line = json.loads(completed.stdout.splitlines()[0])
+    assert first_line["type"] == "thread.started"
+    result = router_adapters.RouterAgentResult.model_validate(
+        router_adapters._find_result_payload(completed.stdout)
+    )
+    assert result.outcome == "completed"
+    assert [comment.issue_id for comment in result.issue_comments] == [FAKE_ISSUE_ID]
+    text = result.issue_comments[0].text
+    paragraphs = [part for part in text.split("\n\n") if part.strip()]
+    assert len(paragraphs) == 3
+    assert text.startswith(FAKE_MARKER)
+    assert "lorem ipsum" in text.casefold()
+
+
+def test_fake_codex_hang_mode_reports_a_thread_and_keeps_running(
+    tmp_path: Path,
+) -> None:
+    process = subprocess.Popen(
+        [sys.executable, str(FAKE_CODEX), "exec", "--json", "prompt"],
+        stdout=subprocess.PIPE,
+        text=True,
+        env=_fake_codex_environment(tmp_path, "hang"),
+    )
+    try:
+        assert process.stdout is not None
+        first_line = json.loads(process.stdout.readline())
+        assert first_line["type"] == "thread.started"
+        time.sleep(1)
+        assert process.poll() is None
+    finally:
+        process.kill()
+        process.wait(timeout=5)
