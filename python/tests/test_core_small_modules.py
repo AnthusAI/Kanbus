@@ -48,6 +48,10 @@ def test_list_issue_identifiers_from_json_files(tmp_path: Path) -> None:
 
 
 def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("OPENAI_API_KEY", "present")
     expected_dir = tmp_path / "project"
     monkeypatch.setattr(doctor, "ensure_git_repository", lambda _root: None)
     monkeypatch.setattr(doctor, "load_project_directory", lambda _root: expected_dir)
@@ -59,6 +63,29 @@ def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
     result = doctor.run_doctor(tmp_path)
     assert result.project_dir == expected_dir
+    assert result.ai_credential_source == "process environment"
+
+
+def test_run_doctor_tolerates_credential_resolution_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected_dir = tmp_path / "project"
+    monkeypatch.setattr(doctor, "ensure_git_repository", lambda _root: None)
+    monkeypatch.setattr(doctor, "load_project_directory", lambda _root: expected_dir)
+    monkeypatch.setattr(
+        doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
+    )
+    monkeypatch.setattr(doctor, "load_project_configuration", lambda _path: object())
+    monkeypatch.setattr(doctor, "validate_project", lambda _root: None)
+    monkeypatch.setattr(
+        doctor,
+        "resolve_api_key_source",
+        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    result = doctor.run_doctor(tmp_path)
+    assert result.project_dir == expected_dir
+    assert result.ai_credential_source == "not set"
 
 
 @pytest.mark.parametrize(

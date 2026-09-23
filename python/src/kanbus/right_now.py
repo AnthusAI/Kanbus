@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
+from kanbus.ai_credentials import missing_api_key_message, requires_openai_key
 from kanbus.config_loader import (
     ConfigurationError,
     load_project_configuration,
@@ -35,9 +36,7 @@ AI_PROVIDER_NOT_CONFIGURED_MESSAGE = (
     "Right-now summary generation requires ai.provider litellm in .kanbus.yml"
 )
 DEFAULT_RIGHT_NOW_STATUS = "in_progress"
-OPENAI_API_KEY_NOT_LOADED_MESSAGE = (
-    "OPENAI_API_KEY was not loaded from repository environment files"
-)
+OPENAI_API_KEY_NOT_LOADED_MESSAGE = missing_api_key_message()
 RIGHT_NOW_DISABLED_MESSAGE = "Right-now summary generation is disabled in .kanbus.yml"
 TEST_RIGHT_NOW_COMPLETION_ENV = "KANBUS_TEST_RIGHT_NOW_COMPLETION"
 
@@ -892,6 +891,9 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
         import litellm
     except ImportError:
         raise RightNowError("litellm is required for right-now summary generation")
+
+    if requires_openai_key(model) and not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise RightNowError(missing_api_key_message())
 
     litellm.suppress_debug_info = True
     litellm.set_verbose = False

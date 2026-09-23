@@ -84,8 +84,56 @@ impl<I: AsRef<Path>> Parser<I> for RecursiveFeatureParser {
     }
 }
 
+/// Environment variable prefixes stripped from the process environment
+/// before the cucumber suite runs, so scenarios never observe values left
+/// over from the developer's real machine (e.g. a real `~/.kanbus.env` with
+/// `KANBUS_REALTIME_BROKER` pointing at a live Mosquitto broker). Kept
+/// separate from `ISOLATED_ENV_EXACT_KEYS` because these match by prefix.
+const ISOLATED_ENV_PREFIXES: [&str; 3] = ["KANBUS_REALTIME_", "KANBUS_COORDINATION_", "LITELLM_"];
+
+/// Exact environment variable names stripped alongside `ISOLATED_ENV_PREFIXES`.
+const ISOLATED_ENV_EXACT_KEYS: [&str; 1] = ["OPENAI_API_KEY"];
+
+/// Redirect `HOME` to a fresh temporary directory for the whole cucumber run
+/// and strip any already-set realtime/coordination/AI credential env vars,
+/// so the suite's behavior does not depend on the machine it runs on (a real
+/// `~/.kanbus.env`, a real broker on the loopback interface, a real
+/// `OPENAI_API_KEY` in the shell, etc). Harness-set vars such as
+/// `KANBUS_NO_DAEMON` are untouched since they don't match the stripped
+/// prefixes/keys. The returned `TempDir` must be kept alive for the whole
+/// process run; `HOME` becomes invalid once it drops.
+fn isolate_process_environment_for_cucumber_suite() -> tempfile::TempDir {
+    let isolated_home = tempfile::tempdir().expect("create isolated HOME for cucumber suite");
+    std::env::set_var("HOME", isolated_home.path());
+
+    let keys_to_remove: Vec<String> = std::env::vars()
+        .map(|(key, _)| key)
+        .filter(|key| {
+            ISOLATED_ENV_EXACT_KEYS.contains(&key.as_str())
+                || ISOLATED_ENV_PREFIXES
+                    .iter()
+                    .any(|prefix| key.starts_with(prefix))
+        })
+        .collect();
+    for key in &keys_to_remove {
+        std::env::remove_var(key);
+    }
+
+    eprintln!(
+        "cucumber: isolated HOME to {} and stripped process env vars: [{}]",
+        isolated_home.path().display(),
+        keys_to_remove.join(", ")
+    );
+
+    isolated_home
+}
+
 #[tokio::main]
 async fn main() {
+    // Keep the guard alive for the whole run: dropping it would remove the
+    // temp dir HOME points at.
+    let _isolated_home_guard = isolate_process_environment_for_cucumber_suite();
+
     let features_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("features");

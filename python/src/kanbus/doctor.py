@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from kanbus.ai_credentials import (
+    CredentialSource,
+    describe_api_key_source,
+    resolve_api_key_source,
+)
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.file_io import InitializationError, ensure_git_repository
 from kanbus.maintenance import ProjectValidationError, validate_project
@@ -24,6 +29,7 @@ class DoctorResult:
     """Result of running doctor checks."""
 
     project_dir: Path
+    ai_credential_source: str = CredentialSource.NONE.value
 
 
 def run_doctor(root: Path) -> DoctorResult:
@@ -56,4 +62,12 @@ def run_doctor(root: Path) -> DoctorResult:
     except ProjectValidationError as error:
         raise DoctorError(str(error)) from error
 
-    return DoctorResult(project_dir=project_dir)
+    ai_credential_source = CredentialSource.NONE.value
+    try:
+        ai_credential_source = describe_api_key_source(resolve_api_key_source(root))
+    except Exception:
+        ai_credential_source = CredentialSource.NONE.value
+
+    return DoctorResult(
+        project_dir=project_dir, ai_credential_source=ai_credential_source
+    )

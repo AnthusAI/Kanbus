@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -450,7 +451,9 @@ def test_ensure_openai_credentials_when_required_enforces_loaded_key(
 ) -> None:
     monkeypatch.setenv("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS", "1")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(RightNowError, match=OPENAI_API_KEY_NOT_LOADED_MESSAGE):
+    with pytest.raises(
+        RightNowError, match=re.escape(OPENAI_API_KEY_NOT_LOADED_MESSAGE)
+    ):
         _ensure_openai_credentials_when_required()
 
     monkeypatch.setenv("OPENAI_API_KEY", "from-test")
@@ -510,6 +513,7 @@ def test_completion_requires_litellm_and_handles_empty_and_usage(
     from kanbus.right_now import _completion
 
     monkeypatch.delenv("KANBUS_TEST_LITELLM_COMPLETION", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-for-completion")
     monkeypatch.setitem(sys.modules, "litellm", None)
     with pytest.raises(RightNowError, match="litellm is required"):
         _completion("gpt-5.6-luna", "prompt")

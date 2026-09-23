@@ -18,16 +18,16 @@ def test_should_check_project_structure_ignores_setup_commands() -> None:
     assert cli._should_check_project_structure(context) is True
 
 
-def test_delete_terminal_is_interactive_respects_force_env(monkeypatch) -> None:
+def test_terminal_is_interactive_respects_force_env(monkeypatch) -> None:
     monkeypatch.setenv("KANBUS_FORCE_INTERACTIVE", "1")
-    assert cli._delete_terminal_is_interactive() is True
+    assert cli._terminal_is_interactive() is True
 
 
-def test_delete_terminal_is_interactive_false_without_tty(monkeypatch) -> None:
+def test_terminal_is_interactive_false_without_tty(monkeypatch) -> None:
     monkeypatch.delenv("KANBUS_FORCE_INTERACTIVE", raising=False)
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False)
     monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
-    assert cli._delete_terminal_is_interactive() is False
+    assert cli._terminal_is_interactive() is False
 
 
 def test_resolve_beads_root_finds_parent_beads_directory(tmp_path: Path) -> None:

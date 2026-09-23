@@ -137,13 +137,13 @@ def test_delete_paths_regular_mode(
         lambda identifier, project_context=False: identifier,
     )
 
-    monkeypatch.setattr(cli, "_delete_terminal_is_interactive", lambda: False)
+    monkeypatch.setattr(cli, "_terminal_is_interactive", lambda: False)
     result_non_interactive = _run(["delete", "kanbus-1"])
     assert result_non_interactive.exit_code != 0
     assert "requires confirmation" in result_non_interactive.output
 
     issue = build_issue("kanbus-1")
-    monkeypatch.setattr(cli, "_delete_terminal_is_interactive", lambda: True)
+    monkeypatch.setattr(cli, "_terminal_is_interactive", lambda: True)
     monkeypatch.setattr(cli.click, "confirm", lambda *_a, **_k: False)
     monkeypatch.setattr(
         cli,
@@ -207,12 +207,12 @@ def test_delete_paths_beads_mode(
         cli, "load_beads_issue", lambda *_a, **_k: build_issue("kanbus-1")
     )
 
-    monkeypatch.setattr(cli, "_delete_terminal_is_interactive", lambda: False)
+    monkeypatch.setattr(cli, "_terminal_is_interactive", lambda: False)
     result_non_interactive = _run(["--beads", "delete", "kanbus-1"])
     assert result_non_interactive.exit_code != 0
     assert "requires confirmation" in result_non_interactive.output
 
-    monkeypatch.setattr(cli, "_delete_terminal_is_interactive", lambda: True)
+    monkeypatch.setattr(cli, "_terminal_is_interactive", lambda: True)
     monkeypatch.setattr(cli.click, "confirm", lambda *_a, **_k: False)
     result_cancel = _run(["--beads", "delete", "kanbus-1"])
     assert result_cancel.exit_code == 0

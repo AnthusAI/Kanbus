@@ -194,9 +194,28 @@ def test_doctor_migrate_and_daemon_commands(
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
 
     monkeypatch.setattr(
-        cli, "run_doctor", lambda _r: SimpleNamespace(project_dir="/tmp/project")
+        cli,
+        "run_doctor",
+        lambda _r: SimpleNamespace(
+            project_dir="/tmp/project", ai_credential_source="process environment"
+        ),
     )
-    assert "ok /tmp/project" in _run(["doctor"]).output
+    doctor_output = _run(["doctor"]).output
+    assert "ok /tmp/project" in doctor_output
+    assert "ai credentials: OPENAI_API_KEY from process environment" in doctor_output
+
+    monkeypatch.setattr(
+        cli,
+        "run_doctor",
+        lambda _r: SimpleNamespace(
+            project_dir="/tmp/project", ai_credential_source="not set"
+        ),
+    )
+    doctor_not_set_output = _run(["doctor"]).output
+    assert (
+        "ai credentials: OPENAI_API_KEY not set (run kbs setup ai)"
+        in doctor_not_set_output
+    )
 
     monkeypatch.setattr(
         cli,

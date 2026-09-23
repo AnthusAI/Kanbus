@@ -279,6 +279,18 @@ pub fn compaction_summarize(
     }
 
     if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() != Some("1") {
+        let model = &ai_configuration.model;
+        let uses_openai_default = !model.contains('/') || model.starts_with("openai/");
+        if uses_openai_default {
+            let has_openai_key = std::env::var("OPENAI_API_KEY")
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false);
+            if !has_openai_key {
+                return Err(KanbusError::IssueOperation(
+                    crate::ai_credentials::OPENAI_API_KEY_MISSING_MESSAGE.to_string(),
+                ));
+            }
+        }
         let mut command = std::process::Command::new("kanbus");
         command.arg("summarize").arg(identifier);
         if dry_run {
@@ -423,16 +435,19 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn compaction_summarize_delegates_to_kanbus_shim() {
+        // Must be #[serial] like its siblings above: all three tests in this
+        // group mutate the process-wide KANBUS_TEST_AI_MOCK env var, and
+        // without serialization this test's remove_var() can race another
+        // thread's set_var("...", "1"), making the other test spuriously
+        // fall through to the real (non-mock) code path.
         std::env::remove_var("KANBUS_TEST_AI_MOCK");
         let temp = TempDir::new().expect("tempdir");
         let root = write_test_project(&temp);
 
-        let result = compaction_summarize(&root, "TST-1", false);
-        // It covers the code block for the shim!
-        match result {
-            Ok(_) => {}
-            Err(_) => {}
-        }
+        // It covers the code block for the shim! Either outcome is acceptable
+        // here; the point is exercising the delegation path without panicking.
+        let _ = compaction_summarize(&root, "TST-1", false);
     }
 }

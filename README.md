@@ -79,7 +79,7 @@ kanbus show kanbus-a1b
 
 - [Getting Started](docs/GETTING_STARTED.md)
 - [CLI Reference](docs/CLI_REFERENCE.md)
-- [Agent compaction and right-now elicitation](docs/AGENT_COMPACTION_RIGHT_NOW.md) — reinject board WIP after coding-agent context compaction; on-demand `kbs now`
+- [Agent compaction and right-now elicitation](docs/AGENT_COMPACTION_RIGHT_NOW.md) — reinject board WIP after coding-agent context compaction; on-demand `kbs now`. Run `kbs setup ai` once to store an LLM API key for these features.
 
 ## Console (Rust backend)
 

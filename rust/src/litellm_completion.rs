@@ -7,6 +7,7 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::ai_credentials::OPENAI_API_KEY_MISSING_MESSAGE;
 use crate::error::KanbusError;
 
 const LITELLM_CALLED_ENV: &str = "KANBUS_RIGHT_NOW_LITELLM_CALLED";
@@ -123,19 +124,17 @@ fn resolve_litellm_endpoint_and_api_key() -> Result<(String, String), KanbusErro
         let api_key = read_non_empty_env("LITELLM_API_KEY")
             .or_else(|| read_non_empty_env("OPENAI_API_KEY"))
             .ok_or_else(|| {
-                KanbusError::IssueOperation(
-                    "LITELLM_API_KEY or OPENAI_API_KEY is required for litellm completion"
-                        .to_string(),
-                )
+                KanbusError::IssueOperation(format!(
+                    "LITELLM_API_KEY or {OPENAI_API_KEY_MISSING_MESSAGE}"
+                ))
             })?;
         let endpoint = join_chat_completions_url(&base_url);
         require_encrypted_transport(&endpoint)?;
         return Ok((endpoint, api_key));
     }
 
-    let api_key = read_non_empty_env("OPENAI_API_KEY").ok_or_else(|| {
-        KanbusError::IssueOperation("OPENAI_API_KEY is required for litellm completion".to_string())
-    })?;
+    let api_key = read_non_empty_env("OPENAI_API_KEY")
+        .ok_or_else(|| KanbusError::IssueOperation(OPENAI_API_KEY_MISSING_MESSAGE.to_string()))?;
 
     let endpoint = read_non_empty_env("OPENAI_API_BASE")
         .map(|base| join_chat_completions_url(&base))
@@ -271,5 +270,44 @@ mod tests {
         );
         std::env::remove_var(TEST_LITELLM_COMPLETION_ENV);
         std::env::remove_var(LITELLM_CALLED_ENV);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn resolve_endpoint_error_points_to_setup_ai_when_no_key_is_present() {
+        let saved_openai = std::env::var_os("OPENAI_API_KEY");
+        let saved_openai_base = std::env::var_os("OPENAI_API_BASE");
+        let saved_litellm_key = std::env::var_os("LITELLM_API_KEY");
+        let saved_litellm_base = std::env::var_os("LITELLM_API_BASE");
+        let saved_litellm_proxy = std::env::var_os("LITELLM_PROXY_URL");
+        std::env::remove_var("OPENAI_API_KEY");
+        std::env::remove_var("OPENAI_API_BASE");
+        std::env::remove_var("LITELLM_API_KEY");
+        std::env::remove_var("LITELLM_API_BASE");
+        std::env::remove_var("LITELLM_PROXY_URL");
+
+        let error = resolve_litellm_endpoint_and_api_key().expect_err("missing key error");
+        assert!(error.to_string().contains("setup ai"));
+
+        match saved_openai {
+            Some(value) => std::env::set_var("OPENAI_API_KEY", value),
+            None => std::env::remove_var("OPENAI_API_KEY"),
+        }
+        match saved_openai_base {
+            Some(value) => std::env::set_var("OPENAI_API_BASE", value),
+            None => std::env::remove_var("OPENAI_API_BASE"),
+        }
+        match saved_litellm_key {
+            Some(value) => std::env::set_var("LITELLM_API_KEY", value),
+            None => std::env::remove_var("LITELLM_API_KEY"),
+        }
+        match saved_litellm_base {
+            Some(value) => std::env::set_var("LITELLM_API_BASE", value),
+            None => std::env::remove_var("LITELLM_API_BASE"),
+        }
+        match saved_litellm_proxy {
+            Some(value) => std::env::set_var("LITELLM_PROXY_URL", value),
+            None => std::env::remove_var("LITELLM_PROXY_URL"),
+        }
     }
 }
