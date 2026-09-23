@@ -48,4 +48,5 @@ Feature: Workflow status transitions
     And an issue "kanbus-epic01" of type "epic" with status "open"
     When I run "kanbus update kanbus-epic01 --status backlog"
     Then the command should fail with exit code 1
-    And stderr should contain "invalid transition"
+    And stderr should contain "status 'backlog' is not allowed for type 'epic'"
+    And stderr should contain "kbs update kanbus-epic01 --status"

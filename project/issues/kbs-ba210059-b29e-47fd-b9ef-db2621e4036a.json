@@ -1,0 +1,20 @@
+{
+  "id": "kbs-ba210059-b29e-47fd-b9ef-db2621e4036a",
+  "title": "Fix standup meeting-script calendar window scenarios",
+  "description": "PR #261 CI: two standup_meeting_script.feature scenarios use --window rolling but assert calendar-day Yesterday semantics. Update to calendar window (profile default).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T23:40:02.826639041Z",
+  "updated_at": "2026-09-09T23:43:01.986278525Z",
+  "closed_at": "2026-09-09T23:43:01.978529813Z",
+  "right_now_summary": "The two standup script scenarios are being updated to use the profile’s calendar-day window.",
+  "right_now_updated_at": "2026-09-09T23:43:04.939686261Z",
+  "custom": {}
+}

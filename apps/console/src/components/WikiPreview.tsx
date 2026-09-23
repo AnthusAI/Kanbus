@@ -1,10 +1,9 @@
 import React from "react";
 import DOMPurify from "dompurify";
-import { marked } from "marked";
 
 interface WikiPreviewProps {
   path: string | null;
-  renderedMarkdown: string;
+  renderedHtml: string;
   renderError: string | null;
   isRendering: boolean;
   onRender: () => void;
@@ -31,22 +30,21 @@ function resolveWikiPath(currentPath: string, href: string): string | null {
   return parts.join("/");
 }
 
-function markdownToHtml(markdown: string): string {
-  if (!markdown.trim()) return "";
-  const rawHtml = marked.parse(markdown, { async: false }) as string;
-  return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+function sanitizeWikiHtml(html: string): string {
+  if (!html.trim()) return "";
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
 }
 
 export function WikiPreview({
   path,
-  renderedMarkdown,
+  renderedHtml,
   renderError,
   isRendering,
   onRender,
   onNavigateToPage,
   hideHeader
 }: WikiPreviewProps) {
-  const previewHtml = markdownToHtml(renderedMarkdown);
+  const previewHtml = sanitizeWikiHtml(renderedHtml);
   const hasPreview = Boolean(previewHtml.trim());
 
   function handlePreviewClick(event: React.MouseEvent<HTMLDivElement>) {
@@ -83,10 +81,14 @@ export function WikiPreview({
           </button>
         </div>
       )}
-      {renderError ? <div className="wiki-error">{renderError}</div> : null}
+      {renderError ? (
+        <div className="wiki-error" data-testid="wiki-render-error" role="alert">
+          {renderError}
+        </div>
+      ) : null}
       {hasPreview ? (
         <div
-          className="issue-description-markdown text-sm text-foreground max-w-none"
+          className="wiki-preview-html text-sm text-foreground max-w-none"
           dangerouslySetInnerHTML={{ __html: previewHtml }}
           onClick={handlePreviewClick}
           role="article"

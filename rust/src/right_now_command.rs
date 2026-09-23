@@ -6,7 +6,7 @@ use std::path::Path;
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 
-use crate::config_loader::load_project_configuration;
+use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::issue_listing::list_issues;
@@ -14,12 +14,15 @@ use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::{
-    association_trees_for_seeds, ensure_right_now_summaries, get_right_now_summary,
-    DEFAULT_RIGHT_NOW_STATUS,
+    association_trees_for_seeds, ensure_right_now_summaries, purge_right_now_summaries,
+    require_display_right_now_summary,
+};
+use crate::status_semantics::{
+    resolve_primary_status_key_for_semantic_category, SEMANTIC_IN_PROGRESS,
 };
 
-const RIGHT_NOW_PLACEHOLDER: &str = "(no right-now summary)";
 const DEFAULT_RIGHT_NOW_LIMIT: usize = 30;
+const PURGE_OUTPUT_TEMPLATE: &str = "Purged right-now summaries for {count} issues";
 const RIGHT_NOW_STATUS_ALL: &str = "all";
 const EMPTY_STATUS_FILTER: &str = "status filter must not be empty";
 const CANNOT_COMBINE_ALL_WITH_LIMIT: &str = "cannot combine --all with --limit";
@@ -27,6 +30,24 @@ const CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS: &str =
     "cannot combine --all with issue identifiers";
 const NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS: &str =
     "--no-recursive requires one or more issue identifiers";
+const CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS: &str = "cannot combine output format flags";
+
+/// Output serialization format for the right-now CLI command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RightNowOutputFormat {
+    /// YAML document output.
+    Yaml,
+    /// JSON document output.
+    Json,
+    /// Human-readable text lines.
+    Text,
+}
+
+impl Default for RightNowOutputFormat {
+    fn default() -> Self {
+        Self::Yaml
+    }
+}
 
 /// Options for the right-now CLI command.
 #[derive(Debug, Clone)]
@@ -41,8 +62,8 @@ pub struct RightNowCommandOptions {
     pub collapsed: bool,
     /// Whether to omit right-now summaries.
     pub raw: bool,
-    /// Whether to emit JSON output.
-    pub as_json: bool,
+    /// Output serialization format.
+    pub output_format: RightNowOutputFormat,
     /// Whether to list every issue without the default cap.
     pub show_all: bool,
     /// Whether to include descendants of selected issues.
@@ -51,6 +72,8 @@ pub struct RightNowCommandOptions {
     pub issue_ids: Vec<String>,
     /// Status filter. `None` defaults to in-progress for board listings.
     pub status: Option<String>,
+    /// Whether to clear right-now summary fields across the board.
+    pub purge: bool,
 }
 
 /// Default right-now command options: hierarchical tree with recursive descendants.
@@ -62,11 +85,12 @@ impl Default for RightNowCommandOptions {
             expanded: false,
             collapsed: false,
             raw: false,
-            as_json: false,
+            output_format: RightNowOutputFormat::default(),
             show_all: false,
             recursive: true,
             issue_ids: Vec::new(),
             status: None,
+            purge: false,
         }
     }
 }
@@ -84,18 +108,21 @@ pub fn run_right_now_command(
     options: &RightNowCommandOptions,
 ) -> Result<String, KanbusError> {
     validate_right_now_options(options)?;
-    let mut issues = select_right_now_issues(root, options)?;
-    issues = sort_issues_by_recently_updated(issues);
-    let effective_limit = effective_right_now_limit(options);
-    if effective_limit > 0 {
-        issues.truncate(effective_limit);
+    load_repository_environment(root);
+    if options.purge {
+        let purged = purge_right_now_summaries(root)?;
+        return Ok(format!(
+            "{}\n",
+            PURGE_OUTPUT_TEMPLATE.replace("{count}", &purged.to_string())
+        ));
     }
+    let mut issues = select_right_now_issues_for_command(root, options)?;
     if !options.raw {
         let identifiers: Vec<String> = issues
             .iter()
             .map(|issue| issue.identifier.clone())
             .collect();
-        ensure_right_now_summaries(root, &identifiers);
+        ensure_right_now_summaries(root, &identifiers, true)?;
         let mut reloaded = Vec::new();
         for issue in issues {
             match load_issue_from_project(root, &issue.identifier) {
@@ -107,46 +134,70 @@ pub fn run_right_now_command(
     }
     let configuration = load_configuration(root);
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());
-    if options.as_json {
-        if options.tree {
-            let roots = build_right_now_tree(&issues);
-            let payload: Vec<RightNowTreeJsonEntry> = roots
-                .iter()
-                .map(|node| serialize_tree_json_node(node, options.raw))
-                .collect();
-            let output = serde_json::to_string_pretty(&payload)
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
-            return Ok(format!("{output}\n"));
+    match options.output_format {
+        RightNowOutputFormat::Json => {
+            if options.tree {
+                let roots = build_right_now_tree(&issues);
+                let mut payload = Vec::new();
+                for node in &roots {
+                    payload.push(serialize_tree_json_node(node, options.raw)?);
+                }
+                let output = serde_json::to_string_pretty(&payload)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(format!("{output}\n"))
+            } else {
+                let mut payload = Vec::new();
+                for issue in &issues {
+                    payload.push(serialize_flat_json_entry(issue, options.raw)?);
+                }
+                let output = serde_json::to_string_pretty(&payload)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                Ok(format!("{output}\n"))
+            }
         }
-        let payload: Vec<RightNowFlatJsonEntry> = issues
-            .iter()
-            .map(|issue| serialize_flat_json_entry(issue, options.raw))
-            .collect();
-        let output = serde_json::to_string_pretty(&payload)
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
-        return Ok(format!("{output}\n"));
-    }
-    if options.tree {
-        let roots = build_right_now_tree(&issues);
-        let mut lines = Vec::new();
-        for node in &roots {
-            render_tree_node(node, tree_expanded, options.raw, 0, &mut lines);
+        RightNowOutputFormat::Yaml => {
+            if options.tree {
+                let roots = build_right_now_tree(&issues);
+                let mut payload = Vec::new();
+                for node in &roots {
+                    payload.push(serialize_tree_json_node(node, options.raw)?);
+                }
+                Ok(serialize_right_now_yaml(&payload)?)
+            } else {
+                let mut payload = Vec::new();
+                for issue in &issues {
+                    payload.push(serialize_flat_json_entry(issue, options.raw)?);
+                }
+                Ok(serialize_right_now_yaml(&payload)?)
+            }
         }
-        if lines.is_empty() {
-            return Ok(String::new());
+        RightNowOutputFormat::Text => {
+            if options.tree {
+                let roots = build_right_now_tree(&issues);
+                let mut lines = Vec::new();
+                for node in &roots {
+                    render_tree_node(node, tree_expanded, options.raw, 0, &mut lines)?;
+                }
+                if lines.is_empty() {
+                    Ok(String::new())
+                } else {
+                    lines.push(String::new());
+                    Ok(lines.join("\n"))
+                }
+            } else {
+                let mut lines = Vec::new();
+                for issue in &issues {
+                    render_flat_issue(issue, options.raw, &mut lines)?;
+                }
+                if lines.is_empty() {
+                    Ok(String::new())
+                } else {
+                    lines.push(String::new());
+                    Ok(lines.join("\n"))
+                }
+            }
         }
-        lines.push(String::new());
-        return Ok(lines.join("\n"));
     }
-    let mut lines = Vec::new();
-    for issue in &issues {
-        render_flat_issue(issue, options.raw, &mut lines);
-    }
-    if lines.is_empty() {
-        return Ok(String::new());
-    }
-    lines.push(String::new());
-    Ok(lines.join("\n"))
 }
 
 fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), KanbusError> {
@@ -165,8 +216,49 @@ fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), Ka
             NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS.to_string(),
         ));
     }
-    resolve_right_now_statuses(options.status.as_deref(), !options.issue_ids.is_empty())?;
+    if let Some(raw) = options.status.as_deref() {
+        let tokens: Vec<String> = raw
+            .split(',')
+            .map(str::trim)
+            .filter(|token| !token.is_empty())
+            .map(str::to_string)
+            .collect();
+        if tokens.is_empty() {
+            return Err(KanbusError::IssueOperation(EMPTY_STATUS_FILTER.to_string()));
+        }
+    }
     Ok(())
+}
+
+/// Resolve mutually exclusive right-now output format flags.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when more than one format flag is set.
+pub fn resolve_right_now_output_format(
+    as_yaml: bool,
+    as_json: bool,
+    as_text: bool,
+) -> Result<RightNowOutputFormat, KanbusError> {
+    let mut selected = Vec::new();
+    if as_yaml {
+        selected.push(RightNowOutputFormat::Yaml);
+    }
+    if as_json {
+        selected.push(RightNowOutputFormat::Json);
+    }
+    if as_text {
+        selected.push(RightNowOutputFormat::Text);
+    }
+    if selected.len() > 1 {
+        return Err(KanbusError::IssueOperation(
+            CANNOT_COMBINE_OUTPUT_FORMAT_FLAGS.to_string(),
+        ));
+    }
+    Ok(selected
+        .into_iter()
+        .next()
+        .unwrap_or(RightNowOutputFormat::Yaml))
 }
 
 /// Return allowed statuses, or `None` to include every status.
@@ -177,13 +269,18 @@ fn validate_right_now_options(options: &RightNowCommandOptions) -> Result<(), Ka
 fn resolve_right_now_statuses(
     status_option: Option<&str>,
     has_issue_identifiers: bool,
+    configuration: &ProjectConfiguration,
 ) -> Result<Option<HashSet<String>>, KanbusError> {
     match status_option {
         None => {
             if has_issue_identifiers {
                 Ok(None)
             } else {
-                Ok(Some(HashSet::from([DEFAULT_RIGHT_NOW_STATUS.to_string()])))
+                let primary = resolve_primary_status_key_for_semantic_category(
+                    configuration,
+                    SEMANTIC_IN_PROGRESS,
+                )?;
+                Ok(Some(HashSet::from([primary])))
             }
         }
         Some(raw) => {
@@ -210,11 +307,17 @@ fn resolve_right_now_statuses(
 ///
 /// Returns `KanbusError` when the status filter is empty.
 fn filter_right_now_issues_by_status(
+    root: &Path,
     issues: Vec<IssueData>,
     options: &RightNowCommandOptions,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    let allowed =
-        resolve_right_now_statuses(options.status.as_deref(), !options.issue_ids.is_empty())?;
+    let configuration_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    let allowed = resolve_right_now_statuses(
+        options.status.as_deref(),
+        !options.issue_ids.is_empty(),
+        &configuration,
+    )?;
     Ok(match allowed {
         None => issues,
         Some(statuses) => issues
@@ -232,6 +335,25 @@ fn effective_right_now_limit(options: &RightNowCommandOptions) -> usize {
         return options.limit.unwrap_or(0);
     }
     options.limit.unwrap_or(DEFAULT_RIGHT_NOW_LIMIT)
+}
+
+/// Select and cap issues for right-now or standup fact feeds.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when options are invalid or selection fails.
+pub fn select_right_now_issues_for_command(
+    root: &Path,
+    options: &RightNowCommandOptions,
+) -> Result<Vec<IssueData>, KanbusError> {
+    validate_right_now_options(options)?;
+    let mut issues = select_right_now_issues(root, options)?;
+    issues = sort_issues_by_recently_updated(issues);
+    let effective_limit = effective_right_now_limit(options);
+    if effective_limit > 0 {
+        issues.truncate(effective_limit);
+    }
+    Ok(issues)
 }
 
 fn select_right_now_issues(
@@ -252,7 +374,7 @@ fn select_right_now_issues(
         false,
     )?;
     if options.issue_ids.is_empty() {
-        let filtered = filter_right_now_issues_by_status(issues.clone(), options)?;
+        let filtered = filter_right_now_issues_by_status(root, issues.clone(), options)?;
         let seeds: HashSet<String> = filtered
             .iter()
             .map(|issue| issue.identifier.clone())
@@ -298,6 +420,7 @@ fn select_right_now_issues(
         }
     }
     filter_right_now_issues_by_status(
+        root,
         issues_by_identifier
             .into_iter()
             .filter(|(identifier, _)| selected.contains(identifier))
@@ -331,7 +454,11 @@ fn format_updated_at(value: DateTime<Utc>) -> String {
     value.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-fn render_flat_issue(issue: &IssueData, raw: bool, lines: &mut Vec<String>) {
+fn render_flat_issue(
+    issue: &IssueData,
+    raw: bool,
+    lines: &mut Vec<String>,
+) -> Result<(), KanbusError> {
     lines.push(format!(
         "{}  {}  {}",
         format_updated_at(issue.updated_at),
@@ -339,10 +466,11 @@ fn render_flat_issue(issue: &IssueData, raw: bool, lines: &mut Vec<String>) {
         issue.title
     ));
     if raw {
-        return;
+        return Ok(());
     }
-    let summary_text = get_right_now_summary(issue).unwrap_or(RIGHT_NOW_PLACEHOLDER);
+    let summary_text = require_display_right_now_summary(issue)?;
     lines.push(format!("    {summary_text}"));
+    Ok(())
 }
 
 /// Hierarchy node for right-now tree rendering.
@@ -417,7 +545,7 @@ fn render_tree_node(
     raw: bool,
     depth: usize,
     lines: &mut Vec<String>,
-) {
+) -> Result<(), KanbusError> {
     let indent = "  ".repeat(depth);
     let marker = collapse_marker(tree_expanded);
     let issue = &node.issue;
@@ -428,12 +556,13 @@ fn render_tree_node(
         issue.title
     ));
     if !raw {
-        let summary_text = get_right_now_summary(issue).unwrap_or(RIGHT_NOW_PLACEHOLDER);
+        let summary_text = require_display_right_now_summary(issue)?;
         lines.push(format!("{indent}    {summary_text}"));
     }
     for child in &node.children {
-        render_tree_node(child, tree_expanded, raw, depth + 1, lines);
+        render_tree_node(child, tree_expanded, raw, depth + 1, lines)?;
     }
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -443,60 +572,80 @@ struct RightNowFlatJsonEntry {
     #[serde(rename = "type")]
     issue_type: String,
     status: String,
+    priority: i32,
     updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     right_now_summary: Option<Option<String>>,
     parent: Option<String>,
 }
 
-fn serialize_flat_json_entry(issue: &IssueData, raw: bool) -> RightNowFlatJsonEntry {
-    RightNowFlatJsonEntry {
+fn serialize_flat_json_entry(
+    issue: &IssueData,
+    raw: bool,
+) -> Result<RightNowFlatJsonEntry, KanbusError> {
+    Ok(RightNowFlatJsonEntry {
         id: issue.identifier.clone(),
         title: issue.title.clone(),
         issue_type: issue.issue_type.clone(),
         status: issue.status.clone(),
+        priority: issue.priority,
         updated_at: format_updated_at(issue.updated_at),
         right_now_summary: if raw {
             None
         } else {
-            Some(get_right_now_summary(issue).map(str::to_string))
+            Some(Some(require_display_right_now_summary(issue)?))
         },
         parent: issue.parent.clone(),
-    }
+    })
 }
 
 #[derive(Debug, Serialize)]
 struct RightNowTreeJsonEntry {
     id: String,
     title: String,
+    #[serde(rename = "type")]
+    issue_type: String,
+    status: String,
+    priority: i32,
     updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     right_now_summary: Option<Option<String>>,
     children: Vec<RightNowTreeJsonEntry>,
 }
 
-fn serialize_tree_json_node(node: &RightNowTreeNode, raw: bool) -> RightNowTreeJsonEntry {
-    RightNowTreeJsonEntry {
+fn serialize_right_now_yaml<T: Serialize>(payload: &T) -> Result<String, KanbusError> {
+    serde_yaml::to_string(payload).map_err(|error| KanbusError::Io(error.to_string()))
+}
+
+fn serialize_tree_json_node(
+    node: &RightNowTreeNode,
+    raw: bool,
+) -> Result<RightNowTreeJsonEntry, KanbusError> {
+    let mut children = Vec::new();
+    for child in &node.children {
+        children.push(serialize_tree_json_node(child, raw)?);
+    }
+    Ok(RightNowTreeJsonEntry {
         id: node.issue.identifier.clone(),
         title: node.issue.title.clone(),
+        issue_type: node.issue.issue_type.clone(),
+        status: node.issue.status.clone(),
+        priority: node.issue.priority,
         updated_at: format_updated_at(node.issue.updated_at),
         right_now_summary: if raw {
             None
         } else {
-            Some(get_right_now_summary(&node.issue).map(str::to_string))
+            Some(Some(require_display_right_now_summary(&node.issue)?))
         },
-        children: node
-            .children
-            .iter()
-            .map(|child| serialize_tree_json_node(child, raw))
-            .collect(),
-    }
+        children,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::IssueData;
+    use crate::right_now::DEFAULT_RIGHT_NOW_STATUS;
     use chrono::{TimeZone, Utc};
     use std::collections::BTreeMap;
     use std::fs;
@@ -534,7 +683,7 @@ mod tests {
         assert!(!options.expanded);
         assert!(!options.collapsed);
         assert!(!options.raw);
-        assert!(!options.as_json);
+        assert_eq!(options.output_format, RightNowOutputFormat::Yaml);
         assert!(!options.show_all);
         assert!(options.recursive);
         assert!(options.issue_ids.is_empty());
@@ -566,24 +715,54 @@ mod tests {
     }
 
     #[test]
-    fn render_flat_issue_includes_placeholder_and_raw_omits_summary() {
+    fn render_flat_issue_raw_omits_summary() {
         let issue = make_issue("kanbus-flat", "Flat title");
         let mut lines = Vec::new();
-        render_flat_issue(&issue, false, &mut lines);
-        assert_eq!(lines.len(), 2);
-        assert!(lines[1].contains(RIGHT_NOW_PLACEHOLDER));
-        lines.clear();
-        render_flat_issue(&issue, true, &mut lines);
+        render_flat_issue(&issue, true, &mut lines).expect("render");
         assert_eq!(lines.len(), 1);
     }
 
     #[test]
     fn serialize_flat_json_entry_omits_summary_when_raw() {
         let issue = make_issue("kanbus-json", "JSON title");
-        let raw = serialize_flat_json_entry(&issue, true);
+        let raw = serialize_flat_json_entry(&issue, true).expect("serialize");
         assert!(raw.right_now_summary.is_none());
-        let with_summary = serialize_flat_json_entry(&issue, false);
-        assert_eq!(with_summary.right_now_summary, Some(None));
+    }
+
+    #[test]
+    fn serialize_right_now_yaml_keeps_long_strings_on_one_line() {
+        let mut issue = make_issue(
+            "kanbus-wrap",
+            "Also a long title that might wrap if we are not careful about YAML dumper width settings",
+        );
+        issue.right_now_summary = Some(
+            "This is a very long right now summary that should not be wrapped across multiple lines when emitted as YAML from kbs now command output for human readability and parser safety."
+                .to_string(),
+        );
+        let entry = serialize_flat_json_entry(&issue, false).expect("serialize");
+        let output = serialize_right_now_yaml(&vec![entry]).expect("yaml");
+        assert!(
+            output.contains("right_now_summary: This is a very long right now summary"),
+            "expected single-line right_now_summary, got:\n{output}"
+        );
+        let lines: Vec<&str> = output.lines().collect();
+        let summary_line = lines
+            .iter()
+            .find(|line| line.contains("right_now_summary:"))
+            .expect("summary line");
+        let summary_index = lines
+            .iter()
+            .position(|line| line == summary_line)
+            .expect("summary index");
+        if summary_index + 1 < lines.len() {
+            let next_line = lines[summary_index + 1];
+            let summary_indent = summary_line.len() - summary_line.trim_start().len();
+            let next_indent = next_line.len() - next_line.trim_start().len();
+            assert!(
+                next_indent <= summary_indent || next_line.trim_start().contains(':'),
+                "unexpected folded right_now_summary continuation: {next_line}"
+            );
+        }
     }
 
     #[test]
@@ -613,23 +792,24 @@ mod tests {
 
     #[test]
     fn resolve_right_now_statuses_defaults_to_in_progress_for_board() {
-        let statuses = resolve_right_now_statuses(None, false).expect("ok");
-        assert_eq!(
-            statuses,
-            Some(HashSet::from([DEFAULT_RIGHT_NOW_STATUS.to_string()]))
-        );
-        assert!(resolve_right_now_statuses(None, true)
+        let configuration = crate::config::default_project_configuration();
+        let statuses = resolve_right_now_statuses(None, false, &configuration).expect("ok");
+        assert_eq!(statuses, Some(HashSet::from(["in_progress".to_string()])));
+        assert!(resolve_right_now_statuses(None, true, &configuration)
             .expect("named")
             .is_none());
-        assert!(resolve_right_now_statuses(Some("all"), false)
-            .expect("all")
-            .is_none());
-        let selected = resolve_right_now_statuses(Some("in_progress,open"), false)
+        assert!(
+            resolve_right_now_statuses(Some("all"), false, &configuration)
+                .expect("all")
+                .is_none()
+        );
+        let selected = resolve_right_now_statuses(Some("in_progress,open"), false, &configuration)
             .expect("csv")
             .expect("set");
         assert!(selected.contains("in_progress"));
         assert!(selected.contains("open"));
-        let error = resolve_right_now_statuses(Some(" , "), false).expect_err("empty");
+        let error =
+            resolve_right_now_statuses(Some(" , "), false, &configuration).expect_err("empty");
         assert_eq!(error.to_string(), EMPTY_STATUS_FILTER);
     }
 

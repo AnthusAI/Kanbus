@@ -1,0 +1,25 @@
+{
+  "id": "kbs-daf3531d-81b2-4c7b-b128-c1edd53fd565",
+  "title": "Add safe console editor for routing assignment",
+  "description": "Build the issue-detail assignment editor on the resolved assignment API and write foundation. A human may select an allowed class or provider, inspect the effective model/effort/tier before saving, or clear an assignment. Preserve unrelated labels, reject conflicting assignment labels, do not mutate issue.agent provenance, and prevent unsafe changes for an actively claimed/running router package. Add confirmation/error UX and API/UI parity coverage.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fc24ca81-f05c-43a8-920f-150061027ba1",
+  "labels": [
+    "agent-class:smart"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-19T14:32:06.033450Z",
+  "updated_at": "2026-09-19T14:32:17.899052Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

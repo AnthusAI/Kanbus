@@ -20,53 +20,50 @@ workflows:
   default:
     backlog: [open, closed]
     open: [in_progress, closed, backlog]
-    in_progress: [open, blocked, closed, backlog]
+    in_progress: [open, review, blocked, closed, backlog]
+    review: [in_progress, closed]
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
     Discovery: [open, backlog]
-    done: [open, backlog]
-    todo: [open, backlog]
-    deferred: [open, backlog]
   epic:
-    open: [in_progress, closed, done]
-    in_progress: [open, closed, done]
+    open: [in_progress, closed]
+    in_progress: [open, review, closed]
+    review: [in_progress, closed]
     closed: [open]
-    done: [open]
 
 statuses:
   - key: backlog
     name: Backlog
     category: To do
-    collapsed: true
-  - key: todo
-    name: Todo (Legacy)
-    category: To do
+    semantic_category: todo
     collapsed: true
   - key: Discovery
     name: Discovery
     category: To do
+    semantic_category: todo
     collapsed: false
   - key: open
     name: Ready
     category: To do
+    semantic_category: todo
   - key: in_progress
     name: In Progress
     category: In progress
+    semantic_category: in_progress
+  - key: review
+    name: Review
+    category: In progress
+    semantic_category: in_progress
+    collapsed: true
   - key: blocked
     name: Blocked
     category: In progress
-    collapsed: true
-  - key: deferred
-    name: Deferred (Legacy)
-    category: To do
+    semantic_category: in_progress
     collapsed: true
   - key: closed
     name: Done
     category: Done
-    collapsed: true
-  - key: done
-    name: Done (Legacy)
-    category: Done
+    semantic_category: done
     collapsed: true
 
 categories:
@@ -88,9 +85,13 @@ transition_labels:
       backlog: Back to backlog
     in_progress:
       open: Pause
+      review: Ready for review
       blocked: Block
       closed: Complete
       backlog: Back to backlog
+    review:
+      in_progress: Request changes
+      closed: Approve and close
     blocked:
       in_progress: Unblock
       closed: Drop
@@ -101,27 +102,18 @@ transition_labels:
     Discovery:
       open: Start work
       backlog: Back to backlog
-    done:
-      open: Reopen
-      backlog: Back to backlog
-    todo:
-      open: Start work
-      backlog: Back to backlog
-    deferred:
-      open: Resume
-      backlog: Back to backlog
   epic:
     open:
       in_progress: Start
       closed: Complete
-      done: Complete
     in_progress:
       open: Pause
+      review: Ready for review
       closed: Complete
-      done: Complete
+    review:
+      in_progress: Request changes
+      closed: Complete
     closed:
-      open: Reopen
-    done:
       open: Reopen
 
 initial_status: open
@@ -166,6 +158,70 @@ ai:
 # summaries. Other fields use defaults (enabled, collapsed tree, 120 chars).
 right_now:
   model: gpt-5.6-luna
+
+coordination:
+  providers: [git]
+  contention_window: 5s
+  default_lease_ttl: 300s
+
+realtime:
+  transport: mqtt
+  broker: auto
+  autostart: false
+  keepalive: false
+  uds_socket_path: null
+  mqtt_custom_authorizer_name: null
+  mqtt_api_token: null
+  topics:
+    project_events: projects/anthus/Kanbus/events
+
+# Single-worker production smoke test. Flex is requested explicitly in the
+# Codex profile and must be validated against the installed Codex runtime.
+router:
+  workflow:
+    pending: open
+    active: in_progress
+    review: review
+    blocked: blocked
+    terminal: [closed]
+  limits:
+    project_wip: 10
+    review_wip: 2
+    class_wip:
+      implementation: 1
+      value: 1
+      smart: 1
+    provider_wip:
+      codex-luna-flex: 1
+  providers:
+    codex-luna-flex:
+      adapter: codex
+      command: codex
+      args: [--model, gpt-5.6-luna, -c, 'service_tier="flex"']
+    codex-value:
+      adapter: codex
+      command: codex
+      args: [--profile, value]
+    codex-smart:
+      adapter: codex
+      command: codex
+      args: [--profile, smart]
+  classes:
+    implementation:
+      providers: [codex-luna-flex]
+    value:
+      providers: [codex-value]
+    smart:
+      providers: [codex-smart]
+  forge:
+    provider: github
+    repository: AnthusAI/Kanbus
+    base_branch: develop
+    api_url: https://api.github.com
+    token_env: GITHUB_TOKEN
+  watch_interval: 30s
+  retries:
+    max_attempts: 3
 
 # Snyk vulnerability synchronization (optional). Secrets go in .env, not here.
 # snyk:

@@ -3,7 +3,7 @@
   "title": "Right-now summaries backfill recursively when viewing Now",
   "description": "Right-now summarization is just-in-time and recursive. Opening Now (CLI or console) backfills missing or stale summaries children-first, then persists the cache.\n\nLooking at the feed is the generation moment. Empty boards do not stay on the placeholder until a later mutation.\n\n## Gherkin\n\n```gherkin\nFeature: Right now just-in-time backfill\n  Scenario: Now backfills a missing summary\n    Given a Kanbus project with default configuration\n    And mock AI is enabled\n    And the Kanbus configuration uses AI provider \"litellm\" with model \"gpt-4o-mini\"\n    And an issue \"kanbus-jit1\" exists with title \"Needs a summary\"\n    When I run \"kanbus now --list\"\n    Then the command should succeed\n    And stdout should contain \"Mock right-now summary for kanbus-jit1.\"\n    And issue \"kanbus-jit1\" should have a mock right now summary\n\n  Scenario: Now backfills children before the parent\n    Given a Kanbus project with default configuration\n    And mock AI is enabled\n    And the Kanbus configuration uses AI provider \"litellm\" with model \"gpt-4o-mini\"\n    And an issue \"kanbus-jit-epic\" of type \"epic\" with status \"open\" and title \"Parent epic\"\n    And an issue \"kanbus-jit-task\" of type \"task\" with status \"open\" and parent \"kanbus-jit-epic\"\n    When I run \"kanbus now kanbus-jit-epic\"\n    Then the command should succeed\n    And issue \"kanbus-jit-task\" should have a mock right now summary\n    And issue \"kanbus-jit-epic\" should have a mock right now summary\n```",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": "agent",
   "creator": null,
@@ -17,11 +17,23 @@
       "text": "Now is the generation moment: kbs now and GET /api/now recursively backfill missing or stale summaries children-first, then persist. Unconfigured AI still skips to the placeholder.",
       "created_at": "2026-09-02T21:31:24.946941Z",
       "comment_type": "default"
+    },
+    {
+      "id": "08e90b55-e83b-4419-a51a-f7caba22fb6f",
+      "author": "ubuntu",
+      "text": "Closed after verify. Now tab, tree, board name, and JIT backfill are on develop (PRs #214, #219, #220).",
+      "created_at": "2026-09-07T20:11:22.994700800Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
     }
   ],
   "created_at": "2026-09-02T21:27:04.503272Z",
-  "updated_at": "2026-09-02T21:31:24.948144Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:11:23.045396149Z",
+  "closed_at": "2026-09-07T20:11:23.038366382Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

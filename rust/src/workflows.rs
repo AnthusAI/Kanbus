@@ -1,7 +1,7 @@
 //! Workflow validation and transition side effects.
 
 use chrono::{DateTime, Utc};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::error::KanbusError;
 use crate::models::{IssueData, ProjectConfiguration};
@@ -28,6 +28,102 @@ pub fn get_workflow_for_issue_type<'a>(
         .workflows
         .get("default")
         .ok_or_else(|| KanbusError::Configuration("default workflow not defined".to_string()))
+}
+
+/// Return every status key reachable in a workflow definition.
+pub fn collect_workflow_statuses(workflow: &BTreeMap<String, Vec<String>>) -> BTreeSet<String> {
+    let mut statuses: BTreeSet<String> = workflow.keys().cloned().collect();
+    for transitions in workflow.values() {
+        statuses.extend(transitions.iter().cloned());
+    }
+    statuses
+}
+
+fn preferred_alternative_issue_type(
+    configuration: &ProjectConfiguration,
+    status: &str,
+    current_type: &str,
+) -> Option<String> {
+    let alternative_types = find_issue_types_allowing_status(configuration, status)
+        .into_iter()
+        .filter(|candidate_type| candidate_type != current_type)
+        .collect::<Vec<_>>();
+    if alternative_types
+        .iter()
+        .any(|candidate| candidate == "task")
+    {
+        return Some("task".to_string());
+    }
+    alternative_types.first().cloned()
+}
+
+/// Return issue types whose workflow includes the given status.
+pub fn find_issue_types_allowing_status(
+    configuration: &ProjectConfiguration,
+    status: &str,
+) -> Vec<String> {
+    let mut matching_types = Vec::new();
+    for candidate_type in configuration
+        .hierarchy
+        .iter()
+        .chain(configuration.types.iter())
+    {
+        if let Ok(workflow) = get_workflow_for_issue_type(configuration, candidate_type) {
+            if collect_workflow_statuses(workflow).contains(status) {
+                matching_types.push(candidate_type.clone());
+            }
+        }
+    }
+    matching_types
+}
+
+/// Build an actionable error for a type and status workflow mismatch.
+pub fn format_status_not_allowed_for_type_error(
+    configuration: &ProjectConfiguration,
+    issue_type: &str,
+    status: &str,
+    issue_identifier: Option<&str>,
+) -> Result<String, KanbusError> {
+    let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
+    let allowed_statuses: Vec<String> = collect_workflow_statuses(workflow).into_iter().collect();
+    let allowed_text = allowed_statuses.join(", ");
+    let prefix = issue_identifier
+        .map(|identifier| format!("{identifier}: "))
+        .unwrap_or_default();
+    let message = format!(
+        "{prefix}status '{status}' is not allowed for type '{issue_type}' (allowed: {allowed_text})"
+    );
+
+    let mut remediation_parts = Vec::new();
+    if issue_identifier.is_some() {
+        if let Some(first_allowed_status) = allowed_statuses.first() {
+            remediation_parts.push(format!(
+                "kbs update {} --status {}",
+                issue_identifier.expect("checked above"),
+                first_allowed_status
+            ));
+        }
+    }
+
+    let alternative_type = preferred_alternative_issue_type(configuration, status, issue_type);
+
+    if let Some(identifier) = issue_identifier {
+        if let Some(alternative_type) = alternative_type {
+            remediation_parts.push(format!("kbs move {identifier} {alternative_type}"));
+        }
+    } else if let Some(alternative_type) = alternative_type {
+        remediation_parts.push(format!("use --type {alternative_type}"));
+    }
+
+    if remediation_parts.is_empty() {
+        Ok(message)
+    } else {
+        Ok(format!(
+            "{}. Remediation: {}",
+            message,
+            remediation_parts.join(" OR ")
+        ))
+    }
 }
 
 /// Validate that a status transition is permitted by the workflow.
@@ -67,25 +163,38 @@ pub fn validate_status_transition(
     Ok(())
 }
 
-/// Validate that a status value exists in the global status definitions.
+/// Validate that a status value exists and is allowed for the issue type workflow.
 ///
 /// # Errors
-/// Returns `KanbusError::InvalidTransition` if the status is unknown.
+/// Returns `KanbusError::InvalidTransition` if the status is unknown or not allowed.
 pub fn validate_status_value(
     configuration: &ProjectConfiguration,
-    _issue_type: &str,
+    issue_type: &str,
     status: &str,
+    issue_identifier: Option<&str>,
 ) -> Result<(), KanbusError> {
     if std::env::var("KANBUS_TEST_INVALID_STATUS").is_ok() {
         return Err(KanbusError::InvalidTransition("unknown status".to_string()));
     }
-    let valid_statuses: std::collections::BTreeSet<&str> = configuration
+    let valid_statuses: BTreeSet<&str> = configuration
         .statuses
         .iter()
         .map(|entry| entry.key.as_str())
         .collect();
     if !valid_statuses.contains(status) {
         return Err(KanbusError::InvalidTransition("unknown status".to_string()));
+    }
+
+    let workflow = get_workflow_for_issue_type(configuration, issue_type)?;
+    if !collect_workflow_statuses(workflow).contains(status) {
+        return Err(KanbusError::InvalidTransition(
+            format_status_not_allowed_for_type_error(
+                configuration,
+                issue_type,
+                status,
+                issue_identifier,
+            )?,
+        ));
     }
     Ok(())
 }

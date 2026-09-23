@@ -1,5 +1,11 @@
+export interface WikiPageListItem {
+  path: string;
+  title: string;
+}
+
 export interface WikiPagesResponse {
-  pages: string[];
+  pages: WikiPageListItem[];
+  wiki_directory_exists: boolean;
 }
 
 export interface WikiPageResponse {
@@ -44,6 +50,8 @@ export interface WikiRenameResponse {
 export interface WikiDeleteResponse {
   path: string;
   deleted: boolean;
+  pages: WikiPageListItem[];
+  wiki_directory_exists: boolean;
 }
 
 export interface WikiRenderRequest {
@@ -54,4 +62,5 @@ export interface WikiRenderRequest {
 export interface WikiRenderResponse {
   path: string;
   rendered_markdown: string;
+  rendered_html: string;
 }

@@ -1,0 +1,38 @@
+{
+  "id": "kbs-63679c63-d6de-4d75-927b-c50322dc0254",
+  "title": "Validate multi-router coordination across isolated workers",
+  "description": "Build repeatable multi-machine validation for the Issue Router coordination substrate. The harness uses separate worker checkouts and disposable Kanbus task fixtures, forces broker-only messaging (no shared UDS), and verifies Git-only soft behavior, MQTT soft visibility, and Mutex API hard exclusivity without changing real board tasks.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "52ccd88a-ac1b-465f-811f-337ea8808507",
+      "author": "home",
+      "text": "Deferred as the next-stage multi-router validation while the current focus is the single-worker production dispatch. Moved out of in-progress; resume after that milestone.",
+      "created_at": "2026-09-18T10:39:22.054376Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "295beeb6-a4a9-4301-865c-33f369b9a6bf",
+      "author": "home",
+      "text": "The single-worker production dispatch milestone is complete. Starting the next stage: validate coordination across isolated router workers, with hard-lease contention as the first live integration case.",
+      "created_at": "2026-09-18T10:57:29.309399Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-17T00:55:03.709726Z",
+  "updated_at": "2026-09-18T10:57:29.309440Z",
+  "closed_at": null,
+  "right_now_summary": "Testing two isolated router workers with disposable tasks and captured logs for hard-lease contention.",
+  "right_now_updated_at": "2026-09-18T10:57:53.534654Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

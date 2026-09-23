@@ -2,7 +2,8 @@
 
 use chrono::Utc;
 use rumqttc::{
-    AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, TlsConfiguration, Transport,
+    AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, SubscribeReasonCode, TlsConfiguration,
+    Transport,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(unix)]
@@ -16,7 +17,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -24,7 +26,7 @@ use uuid::Uuid;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{get_configuration_path, resolve_labeled_projects};
-use crate::models::{IssueData, ProjectConfiguration, RealtimeConfig};
+use crate::models::{IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig};
 use crate::overlay::{write_overlay_issue, write_tombstone, OverlayTombstone};
 
 /// Realtime gossip envelope.
@@ -44,6 +46,32 @@ pub struct GossipEnvelope {
     pub origin_cluster_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub issue: Option<IssueData>,
+    #[serde(flatten)]
+    pub coordination: CoordinationGossipFields,
+}
+
+/// Optional top-level fields used by coordination gossip envelopes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CoordinationGossipFields {
+    /// Resource identifier carried by CLAIM, LEASE, and RELEASE messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
+    /// Worker that issued the coordination message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    /// Stable claim identifier associated with the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_id: Option<String>,
+    /// Lease TTL in seconds, present on CLAIM and LEASE messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_ttl_s: Option<u64>,
+    /// Lease expiry timestamp, present on LEASE messages.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    /// Optional logical order for coordination event replay. Missing values are
+    /// legacy sequence zero and remain accepted for existing envelopes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_sequence: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +137,16 @@ impl DedupeSet {
     }
 }
 
+/// Return true when a receiver should process the envelope under REALTIME rules.
+pub fn should_accept_gossip(
+    envelope: &GossipEnvelope,
+    local_producer_id: &str,
+    dedupe: &mut DedupeSet,
+) -> bool {
+    let duplicate = dedupe.seen(&envelope.id);
+    !duplicate && envelope.producer_id != local_producer_id
+}
+
 #[cfg(test)]
 mod dedupe_tests {
     use super::DedupeSet;
@@ -160,6 +198,7 @@ pub fn publish_issue_mutation(
         producer_id: producer_id(),
         origin_cluster_id: None,
         issue: Some(issue.clone()),
+        coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_label);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
@@ -199,11 +238,390 @@ pub fn publish_issue_deleted(
         producer_id: producer_id(),
         origin_cluster_id: None,
         issue: None,
+        coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_label);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
         eprintln!("warning: realtime publish failed: {error}");
     }
+}
+
+/// Publish a coordination envelope through MQTT only.
+///
+/// Coordination gossip is an optional fast path. A missing or unreachable
+/// broker returns `false` so the caller can continue with Git history.
+pub fn publish_coordination_gossip(
+    root: &Path,
+    project_dir: &Path,
+    event_type: &str,
+    event_id: &str,
+    message_ts: Option<&str>,
+    fields: CoordinationGossipFields,
+) -> bool {
+    let Ok(config_path) = get_configuration_path(root) else {
+        return false;
+    };
+    let Ok(configuration) = load_project_configuration(&config_path) else {
+        return false;
+    };
+    if !coordination_mqtt_available(&configuration.realtime) {
+        return false;
+    }
+    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
+        return false;
+    };
+    let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
+        return false;
+    };
+    // MQTT coordination must never silently cross over to the local UDS bus.
+    if !broker_is_reachable_for_realtime(&endpoint, &configuration.realtime) {
+        return false;
+    }
+
+    let mut envelope =
+        build_coordination_gossip_envelope(&project_label, event_type, event_id, fields);
+    if let Some(message_ts) = message_ts {
+        envelope.ts = message_ts.to_string();
+    }
+    if !coordination_gossip_envelope_is_valid(&envelope) {
+        return false;
+    }
+    let topic = project_topic(&configuration.realtime, &project_label);
+    if let Err(error) = publish_mqtt(&endpoint, &topic, &envelope, &configuration.realtime) {
+        let effective_endpoint = effective_broker_endpoint(&endpoint, &configuration.realtime);
+        eprintln!(
+            "warning: coordination MQTT publish failed (type={event_type}, endpoint={}:{}, topic={topic}): {error}",
+            effective_endpoint.host, effective_endpoint.port
+        );
+        return false;
+    }
+    let _ = crate::overlay::write_coordination_overlay(
+        project_dir,
+        &envelope,
+        configuration.overlay.ttl_s,
+    );
+    true
+}
+
+/// Build a coordination gossip envelope using the common REALTIME fields.
+pub fn build_coordination_gossip_envelope(
+    project: &str,
+    event_type: &str,
+    event_id: &str,
+    fields: CoordinationGossipFields,
+) -> GossipEnvelope {
+    GossipEnvelope {
+        id: Uuid::new_v4().to_string(),
+        ts: now_iso(),
+        project: project.to_string(),
+        event_type: event_type.to_string(),
+        issue_id: None,
+        event_id: Some(event_id.to_string()),
+        producer_id: producer_id(),
+        origin_cluster_id: None,
+        issue: None,
+        coordination: fields,
+    }
+}
+
+/// Validate the per-type required fields for coordination gossip messages.
+pub fn coordination_gossip_envelope_is_valid(envelope: &GossipEnvelope) -> bool {
+    let fields = &envelope.coordination;
+    if fields
+        .operation_sequence
+        .is_some_and(|sequence| sequence == 0)
+    {
+        return false;
+    }
+    let common_fields_present = envelope.event_id.as_ref().is_some_and(|id| !id.is_empty())
+        && fields
+            .resource
+            .as_ref()
+            .is_some_and(|value| !value.is_empty())
+        && fields.owner.as_ref().is_some_and(|value| !value.is_empty())
+        && fields
+            .claim_id
+            .as_ref()
+            .is_some_and(|value| !value.is_empty());
+    if !common_fields_present {
+        return false;
+    }
+    match envelope.event_type.as_str() {
+        "coordination.claim" => {
+            fields.lease_ttl_s.is_some_and(|ttl| ttl > 0) && fields.expires_at.is_none()
+        }
+        "coordination.lease" => {
+            fields.lease_ttl_s.is_some_and(|ttl| ttl > 0)
+                && fields
+                    .expires_at
+                    .as_deref()
+                    .and_then(parse_broker_timestamp)
+                    .is_some()
+        }
+        "coordination.release" => fields.lease_ttl_s.is_none() && fields.expires_at.is_none(),
+        _ => false,
+    }
+}
+
+fn parse_broker_timestamp(value: &str) -> Option<chrono::DateTime<chrono::Utc>> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|timestamp| timestamp.with_timezone(&chrono::Utc))
+}
+
+/// Check whether the configured MQTT endpoint is reachable for coordination.
+pub fn coordination_mqtt_available(realtime: &RealtimeConfig) -> bool {
+    if realtime.broker == "off"
+        || !matches!(realtime.transport.as_str(), "auto" | "mqtt")
+        || (realtime.transport == "auto" && uds_socket_path(Some(realtime)).exists())
+    {
+        return false;
+    }
+    resolve_broker_endpoint(&realtime.broker)
+        .is_ok_and(|endpoint| broker_is_reachable_for_realtime(&endpoint, realtime))
+}
+
+/// Listen for peer coordination envelopes for a bounded contention window and
+/// persist valid messages into the project's coordination overlay.
+///
+/// This is intentionally a short-lived subscriber used by claim reconciliation,
+/// not a replacement for the long-running gossip watcher. MQTT remains an
+/// optional fast path: connection/subscription failures yield zero messages and
+/// the caller continues with durable Git history.
+pub fn collect_coordination_gossip_window(
+    root: &Path,
+    project_dir: &Path,
+    budget: Duration,
+    overlay_ttl_s: u64,
+) -> usize {
+    collect_coordination_gossip_window_with(root, project_dir, budget, overlay_ttl_s, || false).0
+}
+
+/// Variant of [`collect_coordination_gossip_window`] that invokes a local
+/// publish callback only after the broker confirms the subscription. This
+/// closes the publish-before-subscribe race for claim contention.
+pub fn collect_coordination_gossip_window_with<F>(
+    root: &Path,
+    project_dir: &Path,
+    budget: Duration,
+    overlay_ttl_s: u64,
+    on_subscribed: F,
+) -> (usize, bool)
+where
+    F: FnOnce() -> bool + Send,
+{
+    if budget.is_zero() {
+        return (0, false);
+    }
+    let Ok(config_path) = get_configuration_path(root) else {
+        return (0, false);
+    };
+    let Ok(configuration) = load_project_configuration(&config_path) else {
+        return (0, false);
+    };
+    if configuration.realtime.broker == "off"
+        || !matches!(configuration.realtime.transport.as_str(), "auto" | "mqtt")
+        || (configuration.realtime.transport == "auto"
+            && uds_socket_path(Some(&configuration.realtime)).exists())
+    {
+        return (0, false);
+    }
+    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
+        return (0, false);
+    };
+    let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
+        return (0, false);
+    };
+    let topic = project_topic(&configuration.realtime, &project_label);
+    let options = mqtt_options(&endpoint, &configuration.realtime);
+    let (client, mut eventloop) = AsyncClient::new(options, 16);
+    let mut network_options = eventloop.network_options();
+    network_options.set_connection_timeout(15);
+    eventloop.set_network_options(network_options);
+    let (callback_request_tx, callback_request_rx) = mpsc::channel();
+    let (received, published) = std::thread::scope(|scope| {
+        let worker = scope.spawn(move || {
+            let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return Vec::new();
+            };
+            runtime.block_on(async move {
+                if let Err(error) = client.subscribe(topic.clone(), QoS::AtMostOnce).await {
+                    eprintln!("warning: coordination MQTT subscribe enqueue failed (topic={topic}): {error}");
+                    return Vec::new();
+                }
+                let setup_deadline = Instant::now() + Duration::from_secs(16);
+                let mut contention_deadline = None;
+                let mut envelopes = Vec::new();
+                let mut publish_requested = false;
+                loop {
+                    let deadline = contention_deadline.unwrap_or(setup_deadline);
+                    if Instant::now() >= deadline {
+                        if contention_deadline.is_none() {
+                            eprintln!("warning: coordination MQTT subscription timed out before claim publish (topic={topic})");
+                        }
+                        break;
+                    }
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    match tokio::time::timeout(remaining, eventloop.poll()).await {
+                        Ok(Ok(Event::Incoming(Packet::SubAck(suback)))) => {
+                            if !subscription_ack_granted(&suback) {
+                                eprintln!("warning: coordination MQTT subscription was denied by broker (topic={topic})");
+                                break;
+                            }
+                            if !publish_requested {
+                                let (response_tx, response_rx) = mpsc::sync_channel(1);
+                                publish_requested = callback_request_tx.send(response_tx).is_ok();
+                                if publish_requested {
+                                    let callback_published = response_rx.recv().unwrap_or(false);
+                                    if !callback_published {
+                                        break;
+                                    }
+                                    contention_deadline = Some(Instant::now() + budget);
+                                }
+                            }
+                        }
+                        Ok(Ok(Event::Incoming(Packet::Publish(publish)))) => {
+                            if let Ok(envelope) =
+                                serde_json::from_slice::<GossipEnvelope>(&publish.payload)
+                            {
+                                if envelope.project == project_label
+                                    && coordination_gossip_envelope_is_valid(&envelope)
+                                {
+                                    envelopes.push(envelope);
+                                }
+                            }
+                        }
+                        Ok(Ok(_)) => {}
+                        Ok(Err(error)) => {
+                            eprintln!("warning: coordination MQTT subscription failed (topic={topic}): {error}");
+                            break;
+                        }
+                        Err(_) => {
+                            if contention_deadline.is_none() {
+                                eprintln!("warning: coordination MQTT subscription timed out before claim publish (topic={topic})");
+                            }
+                            break;
+                        }
+                    }
+                }
+                envelopes
+            })
+        });
+        let published = if let Ok(response_tx) = callback_request_rx.recv() {
+            let published = std::thread::scope(|callback_scope| {
+                callback_scope.spawn(on_subscribed).join().unwrap_or(false)
+            });
+            let _ = response_tx.send(published);
+            published
+        } else {
+            false
+        };
+        (worker.join().unwrap_or_default(), published)
+    });
+
+    let mut accepted = 0;
+    for envelope in received {
+        if crate::overlay::write_coordination_overlay(project_dir, &envelope, overlay_ttl_s).is_ok()
+        {
+            accepted += 1;
+        }
+    }
+    (accepted, published)
+}
+
+/// Wait for one valid peer coordination message, persisting it to the local
+/// coordination overlay before returning. Connection, subscription, and
+/// timeout failures are an optional-fast-path miss; durable Git reconciliation
+/// remains the caller's fallback.
+pub fn wait_for_coordination_gossip_notification(
+    root: &Path,
+    project_dir: &Path,
+    budget: Duration,
+    overlay_ttl_s: u64,
+) -> bool {
+    if budget.is_zero() {
+        return false;
+    }
+    let Ok(config_path) = get_configuration_path(root) else {
+        return false;
+    };
+    let Ok(configuration) = load_project_configuration(&config_path) else {
+        return false;
+    };
+    let realtime = configuration.realtime.clone();
+    if realtime.broker == "off"
+        || !matches!(realtime.transport.as_str(), "auto" | "mqtt")
+        || (realtime.transport == "auto" && uds_socket_path(Some(&realtime)).exists())
+    {
+        return false;
+    }
+    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
+        return false;
+    };
+    let Ok(endpoint) = resolve_broker_endpoint(&realtime.broker) else {
+        return false;
+    };
+    let topic = project_topic(&realtime, &project_label);
+    let options = mqtt_options(&endpoint, &realtime);
+    let ttl = overlay_ttl_s;
+    let project_directory = project_dir.to_path_buf();
+    std::thread::spawn(move || {
+        let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        else {
+            return false;
+        };
+        runtime.block_on(async move {
+            let (client, mut eventloop) = AsyncClient::new(options, 16);
+            if client.subscribe(topic, QoS::AtMostOnce).await.is_err() {
+                return false;
+            }
+            let deadline = Instant::now() + budget;
+            let mut subscribed = false;
+            while Instant::now() < deadline {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                match tokio::time::timeout(remaining, eventloop.poll()).await {
+                    Ok(Ok(Event::Incoming(Packet::SubAck(suback)))) => {
+                        if !subscription_ack_granted(&suback) {
+                            return false;
+                        }
+                        subscribed = true;
+                    }
+                    Ok(Ok(Event::Incoming(Packet::Publish(publish)))) => {
+                        if !subscribed {
+                            continue;
+                        }
+                        let Ok(envelope) =
+                            serde_json::from_slice::<GossipEnvelope>(&publish.payload)
+                        else {
+                            continue;
+                        };
+                        if envelope.project != project_label
+                            || envelope.producer_id == producer_id()
+                            || !coordination_gossip_envelope_is_valid(&envelope)
+                        {
+                            continue;
+                        }
+                        return crate::overlay::write_coordination_overlay(
+                            &project_directory,
+                            &envelope,
+                            ttl,
+                        )
+                        .is_ok();
+                    }
+                    Ok(Ok(_)) => {}
+                    Ok(Err(_)) | Err(_) => return false,
+                }
+            }
+            false
+        })
+    })
+    .join()
+    .unwrap_or(false)
 }
 
 /// Subscribe to gossip notifications and update overlays.
@@ -268,6 +686,48 @@ struct GossipConsumerOptions {
     broker_off_is_error: bool,
 }
 
+/// Persist an accepted gossip envelope in the appropriate local cache.
+///
+/// Coordination records are intentionally independent of the optional issue
+/// overlay: workers must see speculative lease candidates even when a project
+/// disables cached issue mutations.
+fn persist_gossip_overlay(
+    project_dir: &Path,
+    envelope: &GossipEnvelope,
+    overlay_config: &OverlayConfig,
+) {
+    if matches!(
+        envelope.event_type.as_str(),
+        "coordination.claim" | "coordination.lease" | "coordination.release"
+    ) {
+        let _ =
+            crate::overlay::write_coordination_overlay(project_dir, envelope, overlay_config.ttl_s);
+    } else if overlay_config.enabled {
+        if envelope.event_type == "issue.mutated" {
+            if let Some(issue) = envelope.issue.as_ref() {
+                let _ = write_overlay_issue(
+                    project_dir,
+                    issue,
+                    &envelope.ts,
+                    envelope.event_id.clone(),
+                );
+            }
+        } else if envelope.event_type == "issue.deleted" {
+            if let Some(issue_id) = envelope.issue_id.clone() {
+                let tombstone = OverlayTombstone {
+                    op: "delete".to_string(),
+                    project: envelope.project.clone(),
+                    id: issue_id,
+                    event_id: envelope.event_id.clone(),
+                    ts: envelope.ts.clone(),
+                    ttl_s: overlay_config.ttl_s,
+                };
+                let _ = write_tombstone(project_dir, &tombstone);
+            }
+        }
+    }
+}
+
 fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<(), KanbusError> {
     let configuration = load_project_configuration(&get_configuration_path(root)?)?;
     let realtime = &configuration.realtime;
@@ -303,11 +763,13 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
     let overlay_config = configuration.overlay.clone();
     let on_envelope_handler = options.on_envelope.clone();
     let handler = Arc::new(move |envelope: GossipEnvelope| {
-        if envelope.producer_id == local_producer {
+        if envelope.event_type.starts_with("coordination.")
+            && !coordination_gossip_envelope_is_valid(&envelope)
+        {
             return;
         }
         if let Ok(mut guard) = dedupe.lock() {
-            if guard.seen(&envelope.id) {
+            if !should_accept_gossip(&envelope, &local_producer, &mut guard) {
                 return;
             }
         }
@@ -321,44 +783,17 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
             }
         }
 
-        if overlay_config.enabled {
-            if envelope.event_type == "issue.mutated" {
-                if let Some(issue) = envelope.issue.as_ref() {
-                    let _ = write_overlay_issue(
-                        project_dir,
-                        issue,
-                        &envelope.ts,
-                        envelope.event_id.clone(),
-                    );
-                }
-            } else if envelope.event_type == "issue.deleted" {
-                if let Some(issue_id) = envelope.issue_id.clone() {
-                    let tombstone = OverlayTombstone {
-                        op: "delete".to_string(),
-                        project: envelope.project.clone(),
-                        id: issue_id,
-                        event_id: envelope.event_id.clone(),
-                        ts: envelope.ts.clone(),
-                        ttl_s: overlay_config.ttl_s,
-                    };
-                    let _ = write_tombstone(project_dir, &tombstone);
-                }
-            }
-        }
+        persist_gossip_overlay(project_dir, &envelope, &overlay_config);
 
         if let Some(callback) = on_envelope_handler.as_ref() {
             callback(envelope);
         }
     });
 
-    let mut use_uds = cfg!(unix)
-        && (transport == "uds"
-            || (transport == "auto" && uds_socket_path(Some(realtime)).exists()));
-    if cfg!(unix)
-        && options.autostart_local_uds
-        && !use_uds
-        && (transport == "uds" || transport == "auto")
-    {
+    let socket_path = uds_socket_path(Some(realtime));
+    let mut use_uds =
+        cfg!(unix) && (transport == "uds" || (transport == "auto" && socket_path.exists()));
+    if cfg!(unix) && options.autostart_local_uds && (transport == "uds" || transport == "auto") {
         ensure_local_uds_broker(realtime)?;
         use_uds = true;
     }
@@ -403,7 +838,7 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
 
     let mut endpoint = resolve_broker_endpoint(&broker)?;
     let mut broker_process: Option<Child> = None;
-    if !broker_is_reachable(&endpoint) {
+    if !broker_is_reachable_for_realtime(&endpoint, realtime) {
         if broker == "auto" {
             endpoint = parse_broker_url("mqtt://127.0.0.1:1883")?;
         }
@@ -414,7 +849,7 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         }
         let startup = ensure_mosquitto(&endpoint)?;
         let Some(startup) = startup else {
-            print_mosquitto_missing();
+            maybe_warn_mosquitto_missing();
             return Ok(());
         };
         endpoint = parse_broker_url(&startup.endpoint)?;
@@ -448,7 +883,7 @@ fn run_mqtt_subscription_resilient(
             }
         };
         let mut broker_process: Option<Child> = None;
-        if !broker_is_reachable(&endpoint) {
+        if !broker_is_reachable_for_realtime(&endpoint, realtime) {
             if broker == "auto" {
                 match parse_broker_url("mqtt://127.0.0.1:1883") {
                     Ok(parsed) => endpoint = parsed,
@@ -478,7 +913,7 @@ fn run_mqtt_subscription_resilient(
                     broker_process = Some(startup.process);
                 }
                 Ok(None) => {
-                    print_mosquitto_missing();
+                    maybe_warn_mosquitto_missing();
                     thread::sleep(Duration::from_secs(2));
                     continue;
                 }
@@ -507,7 +942,13 @@ fn run_mqtt_subscription_resilient(
 fn ensure_local_uds_broker(realtime: &RealtimeConfig) -> Result<(), KanbusError> {
     let socket_path = uds_socket_path(Some(realtime));
     if socket_path.exists() {
-        return Ok(());
+        match UnixStream::connect(&socket_path) {
+            Ok(_) => return Ok(()),
+            Err(_) => {
+                fs::remove_file(&socket_path)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            }
+        }
     }
 
     let broker_socket = socket_path.clone();
@@ -751,7 +1192,7 @@ fn publish_with_transport(
     }
     let mut endpoint = resolve_broker_endpoint(broker)?;
     let mut broker_process: Option<Child> = None;
-    if !broker_is_reachable(&endpoint) {
+    if !broker_is_reachable_for_realtime(&endpoint, realtime) {
         if broker == "auto" {
             endpoint = parse_broker_url("mqtt://127.0.0.1:1883")?;
         }
@@ -762,10 +1203,10 @@ fn publish_with_transport(
             return Ok(());
         }
         let startup = ensure_mosquitto(&endpoint)?;
-        let Some(startup) = startup else {
-            print_mosquitto_missing();
+        if startup.is_none() {
             return Ok(());
-        };
+        }
+        let startup = startup.expect("startup checked above");
         endpoint = parse_broker_url(&startup.endpoint)?;
         broker_process = Some(startup.process);
     }
@@ -841,24 +1282,32 @@ fn publish_mqtt(
         serde_json::to_vec(envelope).map_err(|error| KanbusError::Io(error.to_string()))?;
     let options = mqtt_options(endpoint, realtime);
     let (client, mut eventloop) = AsyncClient::new(options, 10);
+    let mut network_options = eventloop.network_options();
+    // Match the 15s connection window used by the Python Paho client. AWS IoT
+    // custom-authorizer setup can take longer than the crate's 5s default.
+    network_options.set_connection_timeout(15);
+    eventloop.set_network_options(network_options);
     let runtime =
         tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
     runtime.block_on(async move {
-        let mut connected = false;
-        let connect_deadline = Instant::now() + Duration::from_secs(3);
-        while Instant::now() < connect_deadline {
-            match tokio::time::timeout(Duration::from_millis(250), eventloop.poll()).await {
-                Ok(Ok(Event::Incoming(Packet::ConnAck(_)))) => {
-                    connected = true;
-                    break;
+        // `EventLoop::poll` owns the in-progress TCP/TLS handshake. Do not put
+        // short per-poll timeouts around it: dropping poll cancels that handshake
+        // and can prevent custom-authorizer brokers from ever reaching CONNACK.
+        let connect_result = tokio::time::timeout(Duration::from_secs(16), async {
+            loop {
+                match eventloop.poll().await {
+                    Ok(Event::Incoming(Packet::ConnAck(_))) => return Ok(()),
+                    Ok(_) => {}
+                    Err(error) => {
+                        return Err(KanbusError::Io(format!("mqtt connect failed: {error}")))
+                    }
                 }
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => return Err(KanbusError::Io(error.to_string())),
-                Err(_) => {}
             }
-        }
-        if !connected {
-            return Err(KanbusError::Io("mqtt connect timeout".to_string()));
+        })
+        .await;
+        match connect_result {
+            Ok(result) => result?,
+            Err(_) => return Err(KanbusError::Io("mqtt connect timeout".to_string())),
         }
 
         client
@@ -866,23 +1315,29 @@ fn publish_mqtt(
             .await
             .map_err(|error| KanbusError::Io(error.to_string()))?;
 
-        // Drive the event loop briefly after queueing publish so the outgoing
+        // Keep driving the event loop briefly after queueing publish so the outgoing
         // packet has a chance to flush without indefinite blocking.
-        let flush_deadline = Instant::now() + Duration::from_secs(2);
-        let mut published = false;
-        while Instant::now() < flush_deadline {
-            match tokio::time::timeout(Duration::from_millis(150), eventloop.poll()).await {
-                Ok(Ok(Event::Outgoing(Outgoing::Publish(_)))) => {
-                    published = true;
-                    break;
+        let publish_result = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match eventloop.poll().await {
+                    Ok(Event::Outgoing(Outgoing::Publish(_))) => {
+                        // QoS 0 has no broker acknowledgement. rumqttc emits this
+                        // only after its network write has completed; cross-runtime
+                        // watcher validation remains the end-to-end receipt check.
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        return Err(KanbusError::Io(format!("mqtt publish failed: {error}")))
+                    }
                 }
-                Ok(Ok(_)) => {}
-                Ok(Err(error)) => return Err(KanbusError::Io(error.to_string())),
-                Err(_) => {}
             }
-        }
-        if !published {
-            return Err(KanbusError::Io("mqtt publish flush timeout".to_string()));
+            Ok(())
+        })
+        .await;
+        match publish_result {
+            Ok(result) => result?,
+            Err(_) => return Err(KanbusError::Io("mqtt publish flush timeout".to_string())),
         }
         Ok(())
     })
@@ -905,12 +1360,24 @@ fn run_mqtt_subscription(
                 .await
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
         }
+        let mut acknowledged_subscriptions = usize::from(topics.is_empty());
         loop {
             match eventloop.poll().await {
+                Ok(Event::Incoming(Packet::SubAck(suback))) => {
+                    if !subscription_ack_granted(&suback) {
+                        return Err(KanbusError::Io(
+                            "mqtt subscription was denied by the broker".to_string(),
+                        ));
+                    }
+                    acknowledged_subscriptions += 1;
+                }
                 Ok(Event::Incoming(Packet::Publish(publish))) => {
-                    if let Ok(envelope) = serde_json::from_slice::<GossipEnvelope>(&publish.payload)
-                    {
-                        handler(envelope);
+                    if acknowledged_subscriptions >= topics.len() {
+                        if let Ok(envelope) =
+                            serde_json::from_slice::<GossipEnvelope>(&publish.payload)
+                        {
+                            handler(envelope);
+                        }
                     }
                 }
                 Ok(_) => {}
@@ -920,15 +1387,26 @@ fn run_mqtt_subscription(
     })
 }
 
+fn subscription_ack_granted(suback: &rumqttc::SubAck) -> bool {
+    !suback.return_codes.is_empty()
+        && suback
+            .return_codes
+            .iter()
+            .all(|code| matches!(code, SubscribeReasonCode::Success(_)))
+}
+
 fn mqtt_options(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> MqttOptions {
-    let has_custom_authorizer =
-        realtime.mqtt_custom_authorizer_name.is_some() && realtime.mqtt_api_token.is_some();
-    let port = if endpoint.scheme == "mqtts" && has_custom_authorizer && endpoint.port == 8883 {
-        443
-    } else {
-        endpoint.port
-    };
-    let mut options = MqttOptions::new(producer_id(), endpoint.host.clone(), port);
+    let endpoint = effective_broker_endpoint(endpoint, realtime);
+    let has_custom_authorizer = has_custom_authorizer(realtime);
+    // The stable envelope producer ID identifies this process's messages, not
+    // the broker connection. Claims keep a subscriber open while a separate
+    // publisher connection is created; reusing one MQTT client ID would cause
+    // brokers to evict that subscriber as a duplicate connection.
+    let mut options = MqttOptions::new(
+        Uuid::new_v4().to_string(),
+        endpoint.host.clone(),
+        endpoint.port,
+    );
     options.set_keep_alive(Duration::from_secs(30));
     if endpoint.scheme == "mqtts" {
         if has_custom_authorizer {
@@ -967,6 +1445,31 @@ fn resolve_broker_endpoint(broker: &str) -> Result<BrokerEndpoint, KanbusError> 
     parse_broker_url(broker)
 }
 
+fn has_custom_authorizer(realtime: &RealtimeConfig) -> bool {
+    realtime.mqtt_custom_authorizer_name.is_some() && realtime.mqtt_api_token.is_some()
+}
+
+fn effective_broker_endpoint(
+    endpoint: &BrokerEndpoint,
+    realtime: &RealtimeConfig,
+) -> BrokerEndpoint {
+    let custom_authorizer_uses_websocket_port =
+        endpoint.scheme == "mqtts" && has_custom_authorizer(realtime) && endpoint.port == 8883;
+    BrokerEndpoint {
+        scheme: endpoint.scheme.clone(),
+        host: endpoint.host.clone(),
+        port: if custom_authorizer_uses_websocket_port {
+            443
+        } else {
+            endpoint.port
+        },
+    }
+}
+
+fn broker_is_reachable_for_realtime(endpoint: &BrokerEndpoint, realtime: &RealtimeConfig) -> bool {
+    broker_is_reachable(&effective_broker_endpoint(endpoint, realtime))
+}
+
 fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
     let addr = (endpoint.host.as_str(), endpoint.port)
         .to_socket_addrs()
@@ -979,6 +1482,13 @@ fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
 }
 
 fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, KanbusError> {
+    if std::env::var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
+        return Ok(None);
+    }
     if endpoint.scheme != "mqtt" {
         return Ok(None);
     }
@@ -1141,10 +1651,61 @@ fn parse_broker_url(url: &str) -> Result<BrokerEndpoint, KanbusError> {
     })
 }
 
-fn print_mosquitto_missing() {
+static MOSQUITTO_MISSING_WARNED: AtomicBool = AtomicBool::new(false);
+static MOSQUITTO_MISSING_WARNING_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+fn mosquitto_warnings_enabled() -> bool {
+    std::env::var("KANBUS_REALTIME_WARN_MOSQUITTO")
+        .ok()
+        .as_deref()
+        != Some("0")
+}
+
+/// Emit a single Mosquitto install hint per process for explicit realtime commands.
+fn maybe_warn_mosquitto_missing() {
+    if !mosquitto_warnings_enabled() {
+        return;
+    }
+    if MOSQUITTO_MISSING_WARNED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    MOSQUITTO_MISSING_WARNING_COUNT.fetch_add(1, Ordering::SeqCst);
     eprintln!(
-        "Mosquitto not found. Install with: brew install mosquitto (macOS) or apt install mosquitto (Debian/Ubuntu)."
+        "Mosquitto not found; local MQTT realtime is optional. Install mosquitto for gossip watch (see docs/REALTIME.md). macOS: brew install mosquitto. Debian/Ubuntu: apt install mosquitto."
     );
+}
+
+/// Reset the once-per-session Mosquitto warning gate.
+pub fn reset_mosquitto_missing_warning() {
+    MOSQUITTO_MISSING_WARNED.store(false, Ordering::SeqCst);
+    MOSQUITTO_MISSING_WARNING_COUNT.store(0, Ordering::SeqCst);
+}
+
+/// Return how many Mosquitto install hints were emitted in this process.
+pub fn mosquitto_missing_warning_count() -> usize {
+    MOSQUITTO_MISSING_WARNING_COUNT.load(Ordering::SeqCst)
+}
+
+/// Publish a gossip envelope for behavior-spec MQTT publish checks.
+pub fn attempt_mqtt_publish_without_broker(
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+) -> Result<(), KanbusError> {
+    publish_with_transport(
+        topic,
+        envelope,
+        &configuration.realtime,
+        "mqtt",
+        &configuration.realtime.broker,
+        configuration.realtime.autostart,
+        configuration.realtime.keepalive,
+    )
+}
+
+/// Emit the Mosquitto install hint gate used by realtime MQTT commands.
+pub fn attempt_mosquitto_missing_warning() {
+    maybe_warn_mosquitto_missing();
 }
 
 #[cfg(test)]
@@ -1155,7 +1716,7 @@ mod tests {
     use crate::models::VirtualProjectConfig;
     use once_cell::sync::Lazy;
     #[cfg(unix)]
-    use std::os::unix::net::UnixStream;
+    use std::os::unix::net::{UnixListener, UnixStream};
     use std::path::PathBuf;
     use std::sync::{mpsc, Mutex};
     use tempfile::TempDir;
@@ -1163,6 +1724,67 @@ mod tests {
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         static ENV_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
         ENV_LOCK.lock().expect("env lock")
+    }
+
+    fn accept_mock_connection_with_deadline(
+        listener: &std::net::TcpListener,
+        timeout: Duration,
+    ) -> std::io::Result<(std::net::TcpStream, std::net::SocketAddr)> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            match listener.accept() {
+                Ok((stream, address)) => {
+                    stream.set_nonblocking(false)?;
+                    return Ok((stream, address));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    if Instant::now() >= deadline {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::TimedOut,
+                            "timed out waiting for mock MQTT connection",
+                        ));
+                    }
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    #[test]
+    fn mock_mqtt_accept_is_bounded_when_setup_never_connects() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("bind listener");
+        listener
+            .set_nonblocking(true)
+            .expect("enable nonblocking accept");
+        let started = Instant::now();
+        let error = accept_mock_connection_with_deadline(&listener, Duration::from_millis(40))
+            .expect_err("missing mock client must time out");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn mqtt_subscription_readiness_requires_every_suback_code_to_grant_access() {
+        assert!(subscription_ack_granted(&rumqttc::SubAck::new(
+            1,
+            vec![SubscribeReasonCode::Success(QoS::AtMostOnce)],
+        )));
+        assert!(!subscription_ack_granted(&rumqttc::SubAck::new(
+            1,
+            vec![SubscribeReasonCode::Failure],
+        )));
+        assert!(!subscription_ack_granted(&rumqttc::SubAck::new(
+            1,
+            Vec::new()
+        )));
+        assert!(!subscription_ack_granted(&rumqttc::SubAck::new(
+            1,
+            vec![
+                SubscribeReasonCode::Success(QoS::AtMostOnce),
+                SubscribeReasonCode::Failure,
+            ],
+        )));
     }
 
     fn sample_realtime(socket_path: Option<String>) -> RealtimeConfig {
@@ -1189,7 +1811,109 @@ mod tests {
             producer_id: Uuid::new_v4().to_string(),
             origin_cluster_id: None,
             issue: None,
+            coordination: CoordinationGossipFields::default(),
         }
+    }
+
+    #[test]
+    fn coordination_envelopes_use_top_level_realtime_fields_and_receiver_rules() {
+        let first = build_coordination_gossip_envelope(
+            "KAN",
+            "coordination.claim",
+            "claim-event-1",
+            CoordinationGossipFields {
+                resource: Some("job:fast-1".to_string()),
+                owner: Some("worker-a".to_string()),
+                claim_id: Some("claim-a".to_string()),
+                lease_ttl_s: Some(300),
+                expires_at: None,
+                operation_sequence: None,
+            },
+        );
+        let second = build_coordination_gossip_envelope(
+            "KAN",
+            "coordination.release",
+            "release-event-1",
+            CoordinationGossipFields {
+                resource: Some("job:fast-1".to_string()),
+                owner: Some("worker-a".to_string()),
+                claim_id: Some("claim-a".to_string()),
+                lease_ttl_s: None,
+                expires_at: None,
+                operation_sequence: None,
+            },
+        );
+        let serialized = serde_json::to_value(&first).expect("serialize claim envelope");
+        for field in [
+            "id",
+            "ts",
+            "project",
+            "type",
+            "event_id",
+            "producer_id",
+            "resource",
+            "owner",
+            "claim_id",
+            "lease_ttl_s",
+        ] {
+            assert!(serialized.get(field).is_some(), "missing top-level {field}");
+        }
+        assert_eq!(serialized["type"], "coordination.claim");
+        assert_eq!(serialized["event_id"], "claim-event-1");
+        assert_eq!(serialized["resource"], "job:fast-1");
+        assert!(serialized.get("coordination").is_none());
+        assert_eq!(first.producer_id, second.producer_id);
+        assert_ne!(first.id, second.id);
+
+        let mut dedupe = DedupeSet::new(Duration::from_secs(3600));
+        assert!(!should_accept_gossip(
+            &first,
+            &first.producer_id,
+            &mut dedupe
+        ));
+        let mut receiver_dedupe = DedupeSet::new(Duration::from_secs(3600));
+        assert!(should_accept_gossip(
+            &first,
+            "another-producer",
+            &mut receiver_dedupe
+        ));
+        assert!(!should_accept_gossip(
+            &first,
+            "another-producer",
+            &mut receiver_dedupe
+        ));
+    }
+
+    #[test]
+    fn coordination_gossip_is_stored_when_issue_overlay_is_disabled() {
+        let temp = TempDir::new().expect("temp dir");
+        let envelope = build_coordination_gossip_envelope(
+            "KAN",
+            "coordination.claim",
+            "claim-event-1",
+            CoordinationGossipFields {
+                resource: Some("job:fast-1".to_string()),
+                owner: Some("worker-a".to_string()),
+                claim_id: Some("claim-a".to_string()),
+                lease_ttl_s: Some(300),
+                expires_at: None,
+                operation_sequence: None,
+            },
+        );
+
+        persist_gossip_overlay(
+            temp.path(),
+            &envelope,
+            &OverlayConfig {
+                enabled: false,
+                ttl_s: 77,
+            },
+        );
+
+        let stored = crate::overlay::load_coordination_overlay(temp.path(), "job:fast-1", 77)
+            .expect("load coordination overlay");
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].id, envelope.id);
     }
 
     fn write_test_config(root: &Path, broker: &str, transport: &str) {
@@ -1228,9 +1952,9 @@ mod tests {
 
         std::thread::sleep(std::time::Duration::from_millis(150));
 
-        let _ = publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
+        publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
 
-        let _ = publish_issue_deleted(root, root, "id", None);
+        publish_issue_deleted(root, root, "id", None);
 
         #[cfg(unix)]
         {
@@ -1465,6 +2189,363 @@ mod tests {
     }
 
     #[test]
+    fn publish_mqtt_preserves_slow_connack_and_flushes_qos0_publish() {
+        use std::io::{Read, Write};
+
+        fn read_mqtt_packet(stream: &mut std::net::TcpStream) -> (u8, Vec<u8>) {
+            let mut header = [0_u8; 1];
+            stream.read_exact(&mut header).expect("read MQTT header");
+            let mut multiplier = 1_usize;
+            let mut remaining_length = 0_usize;
+            loop {
+                let mut byte = [0_u8; 1];
+                stream
+                    .read_exact(&mut byte)
+                    .expect("read MQTT remaining length");
+                remaining_length += usize::from(byte[0] & 0x7f) * multiplier;
+                if byte[0] & 0x80 == 0 {
+                    break;
+                }
+                multiplier *= 128;
+                assert!(multiplier <= 128_usize.pow(4), "invalid MQTT length");
+            }
+            let mut body = vec![0_u8; remaining_length];
+            stream.read_exact(&mut body).expect("read MQTT packet body");
+            (header[0], body)
+        }
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("listener");
+        let port = listener.local_addr().expect("listener address").port();
+        let (tx, rx) = mpsc::channel();
+        let broker = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept MQTT connection");
+            let (connect_header, _) = read_mqtt_packet(&mut stream);
+            assert_eq!(connect_header >> 4, 1, "expected MQTT CONNECT");
+
+            // Exceed the old 250ms per-poll timeout. Cancelling rumqttc's first
+            // poll here dropped the in-flight connection and restarted CONNECT.
+            thread::sleep(Duration::from_millis(400));
+            stream
+                .write_all(&[0x20, 0x02, 0x00, 0x00])
+                .expect("write MQTT CONNACK");
+
+            let (publish_header, body) = read_mqtt_packet(&mut stream);
+            let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+            let topic_end = 2 + topic_length;
+            let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic UTF-8");
+            let payload = body[topic_end..].to_vec();
+            tx.send((publish_header, topic, payload))
+                .expect("send observed publish");
+        });
+
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtt".to_string(),
+            host: "127.0.0.1".to_string(),
+            port,
+        };
+        let realtime = sample_realtime(None);
+        let envelope = sample_envelope();
+        publish_mqtt(&endpoint, "projects/test/events", &envelope, &realtime)
+            .expect("MQTT publish should complete after delayed CONNACK");
+
+        let (publish_header, topic, payload) = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("broker should receive publish");
+        assert_eq!(publish_header >> 4, 3, "expected MQTT PUBLISH");
+        assert_eq!((publish_header >> 1) & 0x03, 0, "publish must remain QoS 0");
+        assert_eq!(topic, "projects/test/events");
+        let payload: serde_json::Value = serde_json::from_slice(&payload).expect("JSON payload");
+        assert_eq!(payload["type"], "issue.mutated");
+        broker.join().expect("mock broker thread");
+    }
+
+    #[test]
+    fn bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        fn read_packet_after_header(stream: &mut std::net::TcpStream, header: u8) -> (u8, Vec<u8>) {
+            let mut multiplier = 1_usize;
+            let mut remaining = 0_usize;
+            loop {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).expect("read MQTT length");
+                remaining += usize::from(byte[0] & 0x7f) * multiplier;
+                if byte[0] & 0x80 == 0 {
+                    break;
+                }
+                multiplier *= 128;
+            }
+            let mut body = vec![0_u8; remaining];
+            stream.read_exact(&mut body).expect("read MQTT body");
+            (header, body)
+        }
+
+        fn read_packet(stream: &mut std::net::TcpStream) -> (u8, Vec<u8>) {
+            let mut header = [0_u8; 1];
+            stream.read_exact(&mut header).expect("read MQTT header");
+            read_packet_after_header(stream, header[0])
+        }
+
+        fn publish_packet(topic: &str, payload: &[u8]) -> Vec<u8> {
+            let topic = topic.as_bytes();
+            let mut body = Vec::new();
+            body.extend_from_slice(&(topic.len() as u16).to_be_bytes());
+            body.extend_from_slice(topic);
+            body.extend_from_slice(payload);
+            let mut packet = vec![0x30];
+            let mut remaining = body.len();
+            loop {
+                let mut encoded = (remaining % 128) as u8;
+                remaining /= 128;
+                if remaining > 0 {
+                    encoded |= 0x80;
+                }
+                packet.push(encoded);
+                if remaining == 0 {
+                    break;
+                }
+            }
+            packet.extend(body);
+            packet
+        }
+
+        let temp = TempDir::new().expect("temporary project");
+        let root = temp.path();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind broker");
+        listener
+            .set_nonblocking(true)
+            .expect("make mock broker accept nonblocking");
+        let port = listener.local_addr().expect("broker address").port();
+        write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
+        let (published_tx, published_rx) = mpsc::channel();
+        let broker = thread::spawn(move || {
+            let (mut subscriber, _) =
+                accept_mock_connection_with_deadline(&listener, Duration::from_secs(3))
+                    .expect("accept subscriber within deadline");
+            subscriber
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .expect("bound subscriber reads");
+            subscriber
+                .set_write_timeout(Some(Duration::from_secs(3)))
+                .expect("bound subscriber writes");
+            let (connect, _) = read_packet(&mut subscriber);
+            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
+            // Simulate slow TLS/custom-authorizer CONNACK and SUBACK phases.
+            thread::sleep(Duration::from_millis(600));
+            subscriber
+                .write_all(&[0x20, 0x02, 0x00, 0x00])
+                .expect("send CONNACK");
+            let (subscribe, body) = read_packet(&mut subscriber);
+            assert_eq!(subscribe >> 4, 8, "expected MQTT SUBSCRIBE");
+            let packet_id = [body[0], body[1]];
+            // The contention window starts after successful MQTT setup and
+            // local publication, not while waiting on a slow custom-authorizer
+            // handshake or the broker's SUBACK.
+            thread::sleep(Duration::from_millis(600));
+            subscriber
+                .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x00])
+                .expect("send SUBACK");
+            let publisher_deadline = Instant::now() + Duration::from_secs(3);
+            let (mut publisher, first_header) = loop {
+                let timeout = publisher_deadline.saturating_duration_since(Instant::now());
+                let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
+                    .expect("accept publisher connection within overall deadline");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(3)))
+                    .expect("set publisher read timeout");
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(3)))
+                    .expect("set publisher write timeout");
+                let mut header = [0_u8; 1];
+                match stream.read(&mut header) {
+                    Ok(0) => continue, // TCP-only reachability probe
+                    Ok(1) if header[0] >> 4 == 1 => break (stream, header[0]),
+                    other => panic!("unexpected publisher connection: {other:?}"),
+                }
+            };
+            let (connect, _) = read_packet_after_header(&mut publisher, first_header);
+            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
+            publisher
+                .write_all(&[0x20, 0x02, 0x00, 0x00])
+                .expect("send publisher CONNACK");
+            let (publish, body) = read_packet(&mut publisher);
+            assert_eq!(publish >> 4, 3, "expected MQTT PUBLISH");
+            let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+            let topic_end = 2 + topic_length;
+            let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
+            let payload = body[topic_end..].to_vec();
+            published_tx
+                .send(
+                    serde_json::from_slice::<serde_json::Value>(&payload).expect("claim envelope"),
+                )
+                .expect("send captured claim envelope");
+            subscriber
+                .write_all(&publish_packet(&topic, &payload))
+                .expect("relay peer claim to subscribed router");
+        });
+
+        let project_dir = root.join("project");
+        let before_setup = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let (received, published) = collect_coordination_gossip_window_with(
+            root,
+            &project_dir,
+            Duration::from_millis(500),
+            300,
+            || {
+                let claim_event = crate::coordination::append_soft_claim_event(
+                    &project_dir,
+                    "router:issue:kbs-peer",
+                    "peer-worker",
+                    "peer-claim",
+                    1,
+                    1,
+                    300,
+                    Utc::now(),
+                )
+                .expect("persist local claim after SUBACK readiness");
+                publish_coordination_gossip(
+                    root,
+                    &project_dir,
+                    "coordination.claim",
+                    &claim_event.event_id,
+                    Some(&claim_event.occurred_at),
+                    CoordinationGossipFields {
+                        resource: Some("router:issue:kbs-peer".to_string()),
+                        owner: Some("peer-worker".to_string()),
+                        claim_id: Some("peer-claim".to_string()),
+                        lease_ttl_s: Some(300),
+                        expires_at: None,
+                        operation_sequence: claim_event
+                            .payload
+                            .get("operation_sequence")
+                            .and_then(serde_json::Value::as_u64),
+                    },
+                )
+            },
+        );
+        broker.join().expect("broker thread");
+        assert!(published, "local claim publishes only after subscription");
+        assert_eq!(received, 1);
+        let published_envelope = published_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("capture the local MQTT claim publication");
+        let event_path =
+            std::fs::read_dir(crate::event_history::events_dir_for_project(&project_dir))
+                .expect("read durable claim event")
+                .next()
+                .expect("one claim event")
+                .expect("event path")
+                .path();
+        let durable_claim: crate::event_history::EventRecord =
+            serde_json::from_slice(&std::fs::read(event_path).expect("read durable claim"))
+                .expect("parse durable claim");
+        assert_eq!(durable_claim.event_id, published_envelope["event_id"]);
+        assert_eq!(durable_claim.occurred_at, published_envelope["ts"]);
+        assert_eq!(
+            durable_claim.payload["operation_sequence"],
+            published_envelope["operation_sequence"]
+        );
+        assert!(
+            published_envelope["ts"]
+                .as_str()
+                .expect("publication timestamp")
+                > before_setup.as_str(),
+            "claim time must be allocated after delayed MQTT setup"
+        );
+        let overlay =
+            crate::overlay::load_coordination_overlay(&project_dir, "router:issue:kbs-peer", 300)
+                .expect("load peer coordination overlay");
+        assert_eq!(overlay.len(), 1);
+        assert_eq!(
+            overlay[0].event_id.as_deref(),
+            published_envelope["event_id"].as_str()
+        );
+    }
+
+    #[test]
+    fn denied_coordination_mqtt_subscription_falls_back_without_publishing() {
+        use std::io::{Read, Write};
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        fn read_packet(stream: &mut std::net::TcpStream) -> (u8, Vec<u8>) {
+            let mut header = [0_u8; 1];
+            stream.read_exact(&mut header).expect("read MQTT header");
+            let mut multiplier = 1_usize;
+            let mut remaining = 0_usize;
+            loop {
+                let mut byte = [0_u8; 1];
+                stream.read_exact(&mut byte).expect("read MQTT length");
+                remaining += usize::from(byte[0] & 0x7f) * multiplier;
+                if byte[0] & 0x80 == 0 {
+                    break;
+                }
+                multiplier *= 128;
+            }
+            let mut body = vec![0_u8; remaining];
+            stream.read_exact(&mut body).expect("read MQTT body");
+            (header[0], body)
+        }
+
+        let temp = TempDir::new().expect("temporary project");
+        let root = temp.path();
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("bind broker");
+        listener
+            .set_nonblocking(true)
+            .expect("make denied-subscription accept nonblocking");
+        let port = listener.local_addr().expect("broker address").port();
+        write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
+        let (broker_finished_tx, broker_finished_rx) = mpsc::channel();
+        let broker = thread::spawn(move || {
+            let (mut subscriber, _) =
+                accept_mock_connection_with_deadline(&listener, Duration::from_secs(3))
+                    .expect("accept subscriber within deadline");
+            subscriber
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .expect("bound denied-subscriber reads");
+            subscriber
+                .set_write_timeout(Some(Duration::from_secs(3)))
+                .expect("bound denied-subscriber writes");
+            let (connect, _) = read_packet(&mut subscriber);
+            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
+            subscriber
+                .write_all(&[0x20, 0x02, 0x00, 0x00])
+                .expect("send CONNACK");
+            let (subscribe, body) = read_packet(&mut subscriber);
+            assert_eq!(subscribe >> 4, 8, "expected MQTT SUBSCRIBE");
+            subscriber
+                .write_all(&[0x90, 0x03, body[0], body[1], 0x80])
+                .expect("deny MQTT subscription");
+            broker_finished_tx
+                .send(())
+                .expect("signal denied broker completion");
+        });
+
+        let publish_called = Arc::new(AtomicBool::new(false));
+        let callback_flag = Arc::clone(&publish_called);
+        let started = Instant::now();
+        let (received, published) = collect_coordination_gossip_window_with(
+            root,
+            &root.join("project"),
+            Duration::from_secs(2),
+            300,
+            move || {
+                callback_flag.store(true, Ordering::SeqCst);
+                true
+            },
+        );
+
+        broker_finished_rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("denied subscription broker should finish promptly");
+        broker.join().expect("broker thread");
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(received, 0);
+        assert!(!published, "denied subscription must select Git fallback");
+        assert!(!publish_called.load(Ordering::SeqCst));
+    }
+
+    #[test]
     fn find_free_port_returns_bindable_port() {
         let port = find_free_port(1883).expect("free port");
         let listener = std::net::TcpListener::bind(("127.0.0.1", port)).expect("bind");
@@ -1484,12 +2565,30 @@ mod tests {
 
         let options = mqtt_options(&endpoint, &realtime);
         assert_eq!(options.broker_address(), ("example.com".to_string(), 443));
+        assert_eq!(effective_broker_endpoint(&endpoint, &realtime).port, 443);
         assert_eq!(
             options
                 .credentials()
                 .map(|(username, _)| username.to_string()),
             Some("?x-amz-customauthorizer-name=authz".to_string())
         );
+    }
+
+    #[test]
+    fn mqtt_connections_use_unique_client_ids_separate_from_stable_producer_id() {
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "example.com".to_string(),
+            port: 8883,
+        };
+        let realtime = sample_realtime(None);
+        let stable_producer_id = producer_id();
+        let first = mqtt_options(&endpoint, &realtime);
+        let second = mqtt_options(&endpoint, &realtime);
+
+        assert_ne!(first.client_id(), second.client_id());
+        assert_ne!(first.client_id(), stable_producer_id);
+        assert_eq!(producer_id(), stable_producer_id);
     }
 
     #[test]
@@ -1504,6 +2603,45 @@ mod tests {
         let options = mqtt_options(&endpoint, &realtime);
         assert_eq!(options.broker_address(), ("example.com".to_string(), 8883));
         assert!(options.credentials().is_none());
+    }
+
+    #[test]
+    fn effective_reachability_endpoint_maps_only_custom_auth_mqtts_8883_to_443() {
+        let mut realtime = sample_realtime(None);
+        realtime.mqtt_custom_authorizer_name = Some("authz".to_string());
+        realtime.mqtt_api_token = Some("token-123".to_string());
+        let endpoint = BrokerEndpoint {
+            scheme: "mqtts".to_string(),
+            host: "broker.example".to_string(),
+            port: 8883,
+        };
+
+        let effective = effective_broker_endpoint(&endpoint, &realtime);
+
+        assert_eq!(effective.host, endpoint.host);
+        assert_eq!(effective.scheme, endpoint.scheme);
+        assert_eq!(effective.port, 443);
+
+        let mut cases = Vec::new();
+        let mut missing_token = realtime.clone();
+        missing_token.mqtt_api_token = None;
+        cases.push((endpoint.clone(), missing_token, 8883));
+        let mut missing_authorizer = realtime.clone();
+        missing_authorizer.mqtt_custom_authorizer_name = None;
+        cases.push((endpoint.clone(), missing_authorizer, 8883));
+        let mut plain_mqtt = endpoint.clone();
+        plain_mqtt.scheme = "mqtt".to_string();
+        cases.push((plain_mqtt, realtime.clone(), 8883));
+        let mut other_port = endpoint.clone();
+        other_port.port = 8884;
+        cases.push((other_port, realtime, 8884));
+
+        for (endpoint, realtime, expected_port) in cases {
+            assert_eq!(
+                effective_broker_endpoint(&endpoint, &realtime).port,
+                expected_port
+            );
+        }
     }
 
     #[test]
@@ -1554,6 +2692,28 @@ mod tests {
     }
 
     #[test]
+    fn local_uds_broker_preserves_a_live_socket() {
+        let temp = TempDir::new().expect("temp dir");
+        let socket_path = temp.path().join("bus.sock");
+        let _listener = UnixListener::bind(&socket_path).expect("bind live broker");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+
+        ensure_local_uds_broker(&realtime).expect("preserve live broker");
+        assert!(socket_path.exists());
+    }
+
+    #[test]
+    fn local_uds_broker_recovers_a_stale_socket() {
+        let temp = TempDir::new().expect("temp dir");
+        let socket_path = temp.path().join("bus.sock");
+        std::fs::write(&socket_path, b"stale").expect("write stale socket");
+        let realtime = sample_realtime(Some(socket_path.display().to_string()));
+
+        ensure_local_uds_broker(&realtime).expect("recover stale broker");
+        assert!(UnixStream::connect(&socket_path).is_ok());
+    }
+
+    #[test]
     fn project_topic_replaces_project_template() {
         let realtime = sample_realtime(None);
         assert_eq!(
@@ -1576,6 +2736,7 @@ mod tests {
             "alpha".to_string(),
             VirtualProjectConfig {
                 path: "projects/alpha".to_string(),
+                display_name: None,
             },
         );
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
@@ -1769,5 +2930,29 @@ mod tests {
             .expect_err("error")
             .to_string()
             .contains("realtime broker is disabled"));
+    }
+
+    #[test]
+    fn maybe_warn_mosquitto_missing_prints_once_per_session() {
+        let _guard = env_lock();
+        reset_mosquitto_missing_warning();
+        attempt_mosquitto_missing_warning();
+        attempt_mosquitto_missing_warning();
+        assert_eq!(mosquitto_missing_warning_count(), 1);
+    }
+
+    #[test]
+    fn maybe_warn_mosquitto_missing_respects_disable_env() {
+        let _guard = env_lock();
+        reset_mosquitto_missing_warning();
+        let prior = std::env::var("KANBUS_REALTIME_WARN_MOSQUITTO").ok();
+        std::env::set_var("KANBUS_REALTIME_WARN_MOSQUITTO", "0");
+        attempt_mosquitto_missing_warning();
+        assert_eq!(mosquitto_missing_warning_count(), 0);
+        if let Some(value) = prior {
+            std::env::set_var("KANBUS_REALTIME_WARN_MOSQUITTO", value);
+        } else {
+            std::env::remove_var("KANBUS_REALTIME_WARN_MOSQUITTO");
+        }
     }
 }

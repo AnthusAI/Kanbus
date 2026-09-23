@@ -8,6 +8,7 @@ import type {
   WikiCreateResponse,
   WikiDeleteResponse,
   WikiPageResponse,
+  WikiPageListItem,
   WikiPagesResponse,
   WikiRenameRequest,
   WikiRenameResponse,
@@ -220,10 +221,21 @@ async function fetchCognitoIdentityCredentials(
   };
 }
 
-export async function fetchSnapshot(apiBase: string): Promise<IssuesSnapshot> {
+/**
+ * Fetch a board snapshot.
+ *
+ * Normal requests use the backend snapshot cache. The Git-backed fallback must
+ * opt out of that cache because a synchronized checkout can advance without a
+ * filesystem watcher event in the console server process.
+ */
+export async function fetchSnapshot(
+  apiBase: string,
+  options: { refresh?: boolean } = {}
+): Promise<IssuesSnapshot> {
+  const refreshQuery = options.refresh ? "?refresh=1" : "";
   const [configResponse, issuesResponse] = await Promise.all([
-    fetchWithAuth(`${apiBase}/config`),
-    fetchWithAuth(`${apiBase}/issues`)
+    fetchWithAuth(`${apiBase}/config${refreshQuery}`),
+    fetchWithAuth(`${apiBase}/issues${refreshQuery}`)
   ]);
 
   if (!configResponse.ok) {
@@ -251,19 +263,65 @@ export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
   return (await response.json()) as Issue[];
 }
 
+export type StandupProfile = "meeting-script" | "director-brief";
+export type StandupWindow = "rolling" | "calendar";
+
+export type StandupGenerateRequest = {
+  profile?: StandupProfile;
+  window?: StandupWindow;
+  lookback?: string;
+  skip_weekends?: boolean;
+};
+
+export type StandupSectionResponse = {
+  name: string;
+  bullets: string[];
+};
+
+export type StandupGenerateResponse = {
+  profile: StandupProfile;
+  sections: StandupSectionResponse[];
+  text: string;
+  source_issues: string[];
+  right_now_texts: Record<string, string>;
+};
+
+export async function generateStandupReport(
+  apiBase: string,
+  request: StandupGenerateRequest
+): Promise<StandupGenerateResponse> {
+  const response = await fetchWithAuth(`${apiBase}/standup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    let message = `standup request failed: ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (typeof body?.error === "string" && body.error.length > 0) {
+        message = body.error;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as StandupGenerateResponse;
+}
+
 export function subscribeToSnapshots(
   apiBase: string,
   onSnapshot: (snapshot: IssuesSnapshot) => void,
   onError: (error: Event) => void
 ): () => void {
   const source = new EventSource(withAuthQuery(`${apiBase}/events`));
-  let openCount = 0;
-  let lastErrorAt: number | null = null;
-  let lastMessageAt: number | null = null;
+  let lastMessageAt = Date.now();
+  let errorReported = false;
 
   source.onopen = () => {
-    openCount += 1;
-    lastMessageAt = null;
+    lastMessageAt = Date.now();
+    errorReported = false;
   };
 
   source.onmessage = (event) => {
@@ -277,6 +335,7 @@ export function subscribeToSnapshots(
       }
       if (snapshot.config && snapshot.issues) {
         lastMessageAt = Date.now();
+        errorReported = false;
         onSnapshot(snapshot as IssuesSnapshot);
         return;
       }
@@ -288,15 +347,26 @@ export function subscribeToSnapshots(
 
   source.onerror = (event) => {
     const now = Date.now();
-    lastErrorAt = now;
     console.warn("[sse] error", {
       errorAt: new Date(now).toISOString(),
-      sinceLastMessageMs: lastMessageAt ? now - lastMessageAt : null
+      sinceLastMessageMs: now - lastMessageAt
     });
-    onError(event);
+    if (!errorReported) {
+      errorReported = true;
+      onError(event);
+    }
   };
 
+  const silenceTimer = window.setInterval(() => {
+    if (Date.now() - lastMessageAt < 15_000 || errorReported) {
+      return;
+    }
+    errorReported = true;
+    onError(new Event("sse-silent"));
+  }, 5_000);
+
   return () => {
+    window.clearInterval(silenceTimer);
     source.close();
   };
 }
@@ -307,8 +377,6 @@ export function subscribeToNotifications(
   onError?: (error: Event) => void
 ): () => void {
   const source = new EventSource(withAuthQuery(`${apiBase}/events/realtime`));
-
-  source.onopen = () => {};
 
   source.onmessage = (event) => {
     try {
@@ -522,7 +590,10 @@ export function subscribeToRealtimeFeed(
     })
     .catch((error) => {
       console.warn("[realtime] bootstrap failed", error);
-      onError?.(new Event("bootstrap-error"));
+      // A local kbsc server may intentionally omit the optional MQTT bootstrap
+      // endpoint while still exposing both SSE feeds.  That is not a server
+      // outage: fall back to SSE and let its own connection errors report a
+      // real failure.
       startSseFallback("bootstrap-error");
     });
 
@@ -574,17 +645,67 @@ export async function fetchAuthBootstrap(apiBase: string): Promise<AuthBootstrap
   return (await response.json()) as AuthBootstrap;
 }
 
-export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
-  const response = await fetch(`${apiBase}/wiki/pages`);
-  if (!response.ok) {
-    throw new Error(`wiki pages request failed: ${response.status}`);
+function parseWikiPageListItem(page: unknown): WikiPageListItem {
+  if (page == null || typeof page !== "object") {
+    throw new Error("wiki pages response is invalid");
   }
-  return (await response.json()) as WikiPagesResponse;
+  const path = (page as WikiPageListItem).path;
+  const title = (page as WikiPageListItem).title;
+  if (typeof path !== "string" || typeof title !== "string") {
+    throw new Error("wiki pages response is invalid");
+  }
+  return { path, title };
+}
+
+function parseWikiPagesResponse(payload: unknown): WikiPagesResponse {
+  if (
+    payload == null
+    || typeof payload !== "object"
+    || !Array.isArray((payload as WikiPagesResponse).pages)
+    || typeof (payload as WikiPagesResponse).wiki_directory_exists !== "boolean"
+  ) {
+    throw new Error("wiki pages response is invalid");
+  }
+  return {
+    pages: (payload as WikiPagesResponse).pages.map(parseWikiPageListItem),
+    wiki_directory_exists: (payload as WikiPagesResponse).wiki_directory_exists
+  };
+}
+
+const WIKI_PAGES_REQUEST_TIMEOUT_MS = 8000;
+
+function wikiPagesRequestFailedMessage(error: unknown): Error {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return new Error("wiki pages request failed: timed out");
+  }
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error("wiki pages request failed");
+}
+
+export async function fetchWikiPages(apiBase: string): Promise<WikiPagesResponse> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), WIKI_PAGES_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetchWithAuth(`${apiBase}/wiki/pages`, {
+      signal: controller.signal,
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      throw new Error(`wiki pages request failed: ${response.status}`);
+    }
+    return parseWikiPagesResponse(await response.json());
+  } catch (error) {
+    throw wikiPagesRequestFailedMessage(error);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function fetchWikiPage(apiBase: string, path: string): Promise<WikiPageResponse> {
   const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
-  const response = await fetch(url);
+  const response = await fetchWithAuth(url);
   if (!response.ok) {
     throw new Error(`wiki page request failed: ${response.status}`);
   }
@@ -595,7 +716,7 @@ export async function createWikiPage(
   apiBase: string,
   payload: WikiCreateRequest
 ): Promise<WikiCreateResponse> {
-  const response = await fetch(`${apiBase}/wiki/page`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/page`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -610,7 +731,7 @@ export async function updateWikiPage(
   apiBase: string,
   payload: WikiUpdateRequest
 ): Promise<WikiUpdateResponse> {
-  const response = await fetch(`${apiBase}/wiki/page`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/page`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -625,7 +746,7 @@ export async function renameWikiPage(
   apiBase: string,
   payload: WikiRenameRequest
 ): Promise<WikiRenameResponse> {
-  const response = await fetch(`${apiBase}/wiki/rename`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/rename`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -641,18 +762,27 @@ export async function deleteWikiPage(
   path: string
 ): Promise<WikiDeleteResponse> {
   const url = `${apiBase}/wiki/page?path=${encodeURIComponent(path)}`;
-  const response = await fetch(url, { method: "DELETE" });
+  const response = await fetchWithAuth(url, { method: "DELETE" });
   if (!response.ok) {
     throw new Error(`wiki delete request failed: ${response.status}`);
   }
-  return (await response.json()) as WikiDeleteResponse;
+  const payload = (await response.json()) as WikiDeleteResponse;
+  if (!Array.isArray(payload.pages) || typeof payload.wiki_directory_exists !== "boolean") {
+    throw new Error("wiki delete response is invalid");
+  }
+  return {
+    path: payload.path,
+    deleted: payload.deleted,
+    pages: payload.pages.map(parseWikiPageListItem),
+    wiki_directory_exists: payload.wiki_directory_exists
+  };
 }
 
 export async function renderWikiPage(
   apiBase: string,
   payload: WikiRenderRequest
 ): Promise<WikiRenderResponse> {
-  const response = await fetch(`${apiBase}/wiki/render`, {
+  const response = await fetchWithAuth(`${apiBase}/wiki/render`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -669,5 +799,9 @@ export async function renderWikiPage(
     }
     throw new Error(message);
   }
-  return (await response.json()) as WikiRenderResponse;
+  const body = (await response.json()) as WikiRenderResponse;
+  if (typeof body.rendered_html !== "string") {
+    throw new Error("wiki render did not return rendered_html");
+  }
+  return body;
 }

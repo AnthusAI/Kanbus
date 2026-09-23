@@ -139,6 +139,11 @@ Close an issue (shortcut for `--status closed`).
 kanbus close <id> [--comment <text>]
 ```
 
+With `--comment`, Kanbus records a normal issue comment before it attempts the
+close transition. If the comment is invalid, the issue is unchanged. If the
+comment succeeds but closing is rejected, the comment remains and the issue
+keeps its prior status.
+
 ### `kanbus delete`
 
 Delete an issue (removes the file).
@@ -146,6 +151,31 @@ Delete an issue (removes the file).
 ```bash
 kanbus delete <id>
 ```
+
+## Issue Router
+
+The optional Issue Router dispatches labeled issue packages through the configured agent adapter (Codex or OpenCode). See the [Issue Router operator guide](ISSUE_ROUTER_OPERATOR_GUIDE.md) for configuration and recovery, and the [Issue Router design](ISSUE_ROUTER_DESIGN.md) for exact planning, result, and lifecycle contracts.
+
+```bash
+kanbus router plan [--json]
+kanbus router run --once
+kanbus router run --watch
+kanbus router pause
+kanbus router resume
+kanbus router hold --class <name>
+kanbus router hold --provider-profile <name>
+kanbus router unhold --class <name>
+kanbus router unhold --provider-profile <name>
+kanbus router status
+kanbus router cancel <package-id>
+kanbus router stop
+```
+
+`plan --json` prints a stable, two-space indented plan object. `run` requires exactly one of `--once` or `--watch`; `--once` processes at most the first eligible package and exits. `--watch` reconciles immediately, then polls router state and GitHub pull request state at `router.watch_interval` (default `30s`). The current watcher does not subscribe to MQTT for early wake-ups.
+
+`hold` and `unhold` require exactly one of `--class <name>` or `--provider-profile <name>`. Pause, resume, holds, and watch state are local to the current clone; their router events are published for audit, but another clone does not inherit the effective control state. `stop` targets the local watch process and lets its active adapter call finish before exit. The Rust executable is available as both `kanbus` and `kbs`; the Python executable is `kanbus`.
+
+The router publishes event history and router-owned issue status records to `refs/heads/kanbus/router-state` through an isolated hidden worktree. A usable `origin` is needed to share that branch with other clones. Checkpoint and artifact references are recorded in router history, but the current implementation does not separately push those refs or arbitrary artifact objects to `origin`; see the [Issue Router design](ISSUE_ROUTER_DESIGN.md) for details. Router commands fail with exit code 2 and `error: issue router is not configured` when the project has no `router:` block.
 
 ## Queries
 
@@ -176,6 +206,31 @@ kanbus list --status open --sort priority --limit 10
 kanbus list --parent kanbus-a1b2c3
 kanbus list --all
 ```
+
+### `kanbus standup`
+
+Generate on-demand standup reports from right-now summaries (fail-closed; no placeholder text).
+
+```bash
+kbs standup [issue-ids...] \
+  [--profile meeting-script|director-brief] \
+  [--window rolling|calendar] \
+  [--lookback 24h|8h|1d|...] \
+  [--skip-weekends|--no-skip-weekends] \
+  [--rollup flat|project|tree] \
+  [--json]
+```
+
+- **`--window`**: `rolling` (duration lookback) or `calendar` (calendar-day buckets in `standup.timezone`).
+- **`--lookback`**: Rolling duration string (`8h`, `24h`, `1d` sugar for 24h). Ignored for calendar completed-day selection except as configured lookback metadata.
+- **`--skip-weekends` / `--no-skip-weekends`**: Calendar only. On Monday with skip enabled, completed bucket includes Friday–Sunday; otherwise previous calendar day only. No-op when `--window rolling`.
+- Profile defaults: `meeting-script` uses calendar + skip weekends; `director-brief` inherits global rolling + 24h. CLI flags override config and profile.
+- **Default fact feed** (no issue IDs): congregation scope (`in_progress` and `blocked`, cap 30).
+- **`--rollup`**: `flat` (per-leaf bullets), `project` (one labeled bullet per project with bottom-up LLM rollup of right-now facts), or `tree` (nested by hierarchy with upward rollup on parents when children differ). When omitted: `project` for `virtual_projects` boards; `flat` for single-project board-wide; `tree` for explicit scoped issue IDs.
+- **Project labels** (congregation / `virtual_projects`): bracket prefixes use one canonical display name per partition — `virtual_projects.<key>.display_name` when set, else congregation `name` for the primary board, else the partition key. Issue `project_label` metadata is normalized so the same board never appears under two labels in one report.
+- **Close-out** section (both profiles): merged-but-open WIP, ready-to-close, external blocks, and a narrow stale WIP class (finishable phrasing such as waiting on review/deploy, no recent descendant activity). Capped at six bullets, prioritized for actionability. Likely questions skip issues already listed in Close-out.
+- **director-brief Momentum** uses the same `--rollup` resolution as meeting-script Today (including congregation default `project`).
+- **Yesterday**: emits `No completions yesterday.` when empty.
 
 ### `kanbus commit`
 

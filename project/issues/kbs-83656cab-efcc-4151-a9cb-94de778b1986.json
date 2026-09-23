@@ -1,0 +1,20 @@
+{
+  "id": "kbs-83656cab-efcc-4151-a9cb-94de778b1986",
+  "title": "Fix Rust right-now native LiteLLM generation",
+  "description": "Remove broken kanbus self-delegation for now-generate-internal; implement native Rust LiteLLM completion for right-now summaries.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T19:43:54.993139351Z",
+  "updated_at": "2026-09-09T19:53:07.828048365Z",
+  "closed_at": "2026-09-09T19:53:07.820045910Z",
+  "right_now_summary": "The team is replacing broken self-delegation with native Rust LiteLLM generation.",
+  "right_now_updated_at": "2026-09-09T19:53:12.281413792Z",
+  "custom": {}
+}

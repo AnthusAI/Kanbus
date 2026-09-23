@@ -1,0 +1,20 @@
+{
+  "id": "kbs-f1c6f2f8-8636-49ce-ad40-1ba5a0d20a46",
+  "title": "Meeting-script standup profile",
+  "description": "First-person speakable standup bullets: yesterday, today, blockers, and likely questions. Consumes shared right-now stack output; no parallel LLM client.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T17:17:27.840977212Z",
+  "updated_at": "2026-09-09T20:01:19.684132050Z",
+  "closed_at": "2026-09-09T20:01:19.676328123Z",
+  "right_now_summary": "The CLI output format is set, and implementation awaits SD review of the Gherkin specs.",
+  "right_now_updated_at": "2026-09-11T19:47:33.669969Z",
+  "custom": {}
+}

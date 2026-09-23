@@ -55,6 +55,7 @@ def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
     )
     monkeypatch.setattr(doctor, "load_project_configuration", lambda _path: object())
+    monkeypatch.setattr(doctor, "validate_project", lambda _root: None)
 
     result = doctor.run_doctor(tmp_path)
     assert result.project_dir == expected_dir
@@ -187,16 +188,28 @@ def test_validate_status_transition_rejects_invalid_target() -> None:
 def test_validate_status_value_checks_known_and_allowed_statuses() -> None:
     configuration = build_project_configuration()
     configuration.statuses = [
-        StatusDefinition(key="open", name="Open", category="Backlog"),
-        StatusDefinition(key="in_progress", name="In Progress", category="In Progress"),
-        StatusDefinition(key="closed", name="Closed", category="Done"),
+        StatusDefinition(
+            key="open", name="Open", category="Backlog", semantic_category="todo"
+        ),
+        StatusDefinition(
+            key="in_progress",
+            name="In Progress",
+            category="In Progress",
+            semantic_category="in_progress",
+        ),
+        StatusDefinition(
+            key="closed", name="Closed", category="Done", semantic_category="done"
+        ),
     ]
 
     with pytest.raises(workflows.InvalidTransitionError, match="unknown status"):
         workflows.validate_status_value(configuration, "task", "nope")
 
     configuration.workflows["task"] = {"open": ["in_progress"]}
-    with pytest.raises(workflows.InvalidTransitionError, match="invalid transition"):
+    with pytest.raises(
+        workflows.InvalidTransitionError,
+        match="status 'closed' is not allowed for type 'task'",
+    ):
         workflows.validate_status_value(configuration, "task", "closed")
 
 

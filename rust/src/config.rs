@@ -5,8 +5,9 @@ use std::path::Path;
 
 use crate::error::KanbusError;
 use crate::models::{
-    CategoryDefinition, HooksConfiguration, OverlayConfig, PriorityDefinition,
-    ProjectConfiguration, RealtimeConfig, RightNowConfiguration, StatusDefinition,
+    AiConfiguration, CategoryDefinition, CoordinationConfiguration, HooksConfiguration,
+    OverlayConfig, PriorityDefinition, ProjectConfiguration, RealtimeConfig, RightNowConfiguration,
+    StandupConfiguration, StatusDefinition,
 };
 
 /// Return the default project configuration.
@@ -206,6 +207,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 key: "backlog".to_string(),
                 name: "Backlog".to_string(),
                 category: "To do".to_string(),
+                semantic_category: "todo".to_string(),
                 color: None,
                 collapsed: true,
             },
@@ -213,6 +215,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 key: "open".to_string(),
                 name: "Discovery".to_string(),
                 category: "To do".to_string(),
+                semantic_category: "todo".to_string(),
                 color: None,
                 collapsed: false,
             },
@@ -220,6 +223,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 key: "in_progress".to_string(),
                 name: "In Progress".to_string(),
                 category: "In progress".to_string(),
+                semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: false,
             },
@@ -227,6 +231,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 key: "blocked".to_string(),
                 name: "Blocked".to_string(),
                 category: "In progress".to_string(),
+                semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: true,
             },
@@ -234,6 +239,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 key: "closed".to_string(),
                 name: "Done".to_string(),
                 category: "Done".to_string(),
+                semantic_category: "done".to_string(),
                 color: None,
                 collapsed: true,
             },
@@ -254,10 +260,16 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         jira: None,
         snyk: None,
         wiki_directory: None,
-        ai: None,
+        ai: Some(AiConfiguration {
+            provider: "litellm".to_string(),
+            model: "gpt-5.6-luna".to_string(),
+        }),
         right_now: RightNowConfiguration::default(),
+        standup: StandupConfiguration::default(),
         hooks: HooksConfiguration::default(),
         github_security: None,
+        coordination: CoordinationConfiguration::default(),
+        router: None,
     }
 }
 

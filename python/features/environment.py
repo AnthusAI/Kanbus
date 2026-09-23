@@ -32,6 +32,7 @@ def before_scenario(context: object, scenario: object) -> None:
     context.working_directory = None
     context.result = None
     context.last_issue_id = None
+    context.coordination_mqtt_messages = []
     context.environment_overrides = {"KANBUS_NO_DAEMON": "1"}
     context.console_server_process = None
     context.console_server_port = None
@@ -45,6 +46,7 @@ def before_scenario(context: object, scenario: object) -> None:
         "KANBUS_TEST_SCREENSHOT_HIDE_PACKAGE_SCRIPT",
         "KANBUS_TEST_SCREENSHOT_FORCE_NODE_MISSING",
         "KANBUS_TEST_SCREENSHOT_NODE_EXECUTABLE",
+        "KANBUS_STANDUP_REPORT_TIME",
     ):
         os.environ.pop(name, None)
     context.daemon_core = None
@@ -123,6 +125,24 @@ def after_scenario(context: object, scenario: object) -> None:
 
         daemon_client._request_with_recovery = original_request
         context.original_request_with_recovery = None
+
+    import kanbus.daemon_client as daemon_client
+
+    daemon_client.reset_daemon_restart_recorded_for_testing()
+
+    original_litellm_module = getattr(context, "original_litellm_module", None)
+    if hasattr(context, "original_litellm_module"):
+        import sys
+
+        if original_litellm_module is None:
+            sys.modules.pop("litellm", None)
+        else:
+            sys.modules["litellm"] = original_litellm_module
+        del context.original_litellm_module
+
+    import os
+
+    os.environ.pop("KANBUS_TEST_SIMULATE_LITELLM_MISSING", None)
 
     original_popen = getattr(context, "original_subprocess_popen", None)
     if original_popen is not None:

@@ -90,7 +90,14 @@ Feature: Daemon error handling
     And the daemon socket does not exist
     And the daemon connection will fail
     When I request daemon status via the client
-    Then the daemon request should fail with "daemon connection failed"
+    Then the daemon request should fail with a daemon connection diagnostic
+
+  Scenario: Daemon spawn failure reports KANBUS_NO_DAEMON hint
+    Given a Kanbus project with default configuration
+    And daemon mode is enabled
+    And daemon spawning will fail
+    When the daemon is spawned for the project
+    Then the daemon request should fail with a daemon spawn diagnostic
 
   Scenario: Daemon client stops retrying on non-connection errors
     Given a Kanbus project with default configuration

@@ -1,0 +1,60 @@
+{
+  "id": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
+  "title": "Close tasks with an optional comment in one command",
+  "description": "## Intent\n\nAs an AI agent or Kanbus user, I want to close a task and record its closing note in one command, so completion history is not lost when a two-command sequence is skipped or fails midway.\n\nCanonical command: `kbs close <id> --comment \"Completed and verified.\"`\n\n## Definition of Done\n\n- Gherkin behavior specifications define the feature first.\n- Python and Rust implement identical observable behavior.\n- CLI help, documentation, and agent guidance match the delivered command.\n- Python tests, Rust tests, and spec-parity validation pass.\n\n## Product decision\n\nWhen `--comment` is supplied, validate and persist a normal comment, emit normal comment hooks, then attempt normal close and hooks. This is sequential, not transactional: a bad comment leaves the issue untouched; a close failure after comment success leaves the comment and issue unclosed. Plain `close <id>` remains unchanged.\n\n## Out of scope\n\nNo schema, API, console UI, comment-type, migration, transactional rollback, or advanced standalone-comment options added to `close`.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6be85356-a5c3-4257-ad48-1873ddd46e1c",
+      "author": "ryan",
+      "text": "Progress: CI remediation split into two P1 Luna-owned child stories: kbs-0967b5 adds direct Python coverage to PR #281; kbs-90e667 repairs the unrelated console wiki UI suite on a separate branch. Evidence: CI run 35033734793 has Python/Rust/parity green; coverage is 96.83% vs 96.93% baseline; console-ui has 18 failed and 6 undefined scenarios. Next: verify both fixes, merge console first, rebase #281, and merge #281 only with all required checks green. Risk/Blocker: none currently.",
+      "created_at": "2026-09-16T00:51:37.188645Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5.6",
+        "name": "ci-remediation-coordinator"
+      }
+    },
+    {
+      "id": "0f4ce677-d73f-4766-aeb8-41481a4b9927",
+      "author": "Codex",
+      "text": "Recovery audit found PR #281 contains valuable unmerged close-with-comment functionality. The epic is active until its pre-existing console baseline and new Python coverage gaps are repaired and the PR is merged.",
+      "created_at": "2026-09-16T03:48:54.636290Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "be9bcbcf-1a5a-4f28-83ab-646a2e1c5320",
+      "author": "home",
+      "text": "Completed and merged in PR #281.",
+      "created_at": "2026-09-16T21:58:32.607617Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-15T22:42:17.516196Z",
+  "updated_at": "2026-09-16T21:58:35.440589Z",
+  "closed_at": "2026-09-16T21:58:35.421049Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5.6",
+    "name": "close-comment-planning"
+  },
+  "right_now_summary": "CI fixes are underway before PR #281 can merge.",
+  "right_now_updated_at": "2026-09-16T00:51:38.950239Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

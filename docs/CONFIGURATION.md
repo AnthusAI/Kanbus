@@ -116,13 +116,41 @@ realtime:
 overlay:
   enabled: true
   ttl_s: 86400
+
+coordination:
+  providers: [git]             # git | [mqtt, git] | [mutex_api, mqtt, git]
+  contention_window: 5s        # Competing claims use this window for tie-break
+  default_lease_ttl: 300s      # Initial claim lifetime and default renewal step
+  mutex_api:
+    endpoint: null              # e.g. https://mutex.example.test
+    bearer_token: null          # sent as Authorization: Bearer <token>
 ```
+
+Coordination durations are positive integer values followed by `s`, `m`, or
+`h` (for example `5s`, `2m`, or `1h`). The provider lists are ordered strongest
+first: `[git]`, `[mqtt, git]`, or `[mutex_api, mqtt, git]`. Git records remain
+the durable coordination history. Git-only claims are soft; MQTT adds shared
+visibility; the Mutex API adds hard exclusion for live leases. The Mutex API
+client uses `POST`, `PUT`, `DELETE`, and `GET` on
+`{endpoint}/api/coordination/leases/{resource}` with bearer authentication.
+When its endpoint or token is missing, or the service is unavailable, Kanbus
+falls back through configured MQTT and Git providers. A live-lease conflict
+and owner mismatch remain errors. For a hard claim, Kanbus appends the Git
+claim event only after the API accepts the acquire; if that append fails it
+tries to release the lease and reports the durable-write failure.
+
+Claims, renewals, and releases are immutable records in `project/events/`,
+keyed by the resource in the event's `issue_id` subject field. These events do
+not change issue assignees or statuses. Git coordination is soft: workers can
+record competing claims, and the winner is selected from claims in the initial
+contention window by `(claim_id, owner, event_id)`. Later claims do not replace
+an active winner; expiry or release makes the resource eligible again.
 
 Notes:
 
 - `broker=auto` uses discovery precedence: `~/.kanbus/run/broker.json` then `mqtt://127.0.0.1:1883`. This is an explicit exception to the no-fallback policy.
 - Overlay snapshots live under `project/.overlay/` and are safe to delete.
-- Environment overrides (higher precedence than YAML): `KANBUS_REALTIME_TRANSPORT`, `KANBUS_REALTIME_BROKER`, `KANBUS_REALTIME_AUTOSTART`, `KANBUS_REALTIME_KEEPALIVE`, `KANBUS_REALTIME_UDS_SOCKET_PATH`, `KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME`, `KANBUS_REALTIME_MQTT_API_TOKEN`, `KANBUS_REALTIME_TOPICS_PROJECT_EVENTS`, `KANBUS_OVERLAY_ENABLED`, `KANBUS_OVERLAY_TTL_S`.
+- Environment overrides (higher precedence than YAML): `KANBUS_COORDINATION_MUTEX_API_ENDPOINT`, `KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN`, `KANBUS_REALTIME_TRANSPORT`, `KANBUS_REALTIME_BROKER`, `KANBUS_REALTIME_AUTOSTART`, `KANBUS_REALTIME_KEEPALIVE`, `KANBUS_REALTIME_UDS_SOCKET_PATH`, `KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME`, `KANBUS_REALTIME_MQTT_API_TOKEN`, `KANBUS_REALTIME_TOPICS_PROJECT_EVENTS`, `KANBUS_OVERLAY_ENABLED`, `KANBUS_OVERLAY_TTL_S`.
 
 ## Examples
 
@@ -163,6 +191,46 @@ priority_import_aliases:
   P3: low
 priority_accept_unmapped: false
 ```
+
+## AI and right-now defaults
+
+Kanbus routes LLM calls through LiteLLM (`ai.provider: litellm`). The product default model is `gpt-5.6-luna` (OpenAI via `OPENAI_API_KEY`).
+
+```yaml
+ai:
+  provider: litellm
+  model: gpt-5.6-luna
+
+right_now:
+  enabled: true
+  default_tree_expanded: false
+  max_length: 120
+  model: gpt-5.6-luna
+```
+
+Set `OPENAI_API_KEY` in the environment, project `.env`, or `~/.kanbus.env`. Do not commit API keys to `.kanbus.yml`.
+
+## Standup windows
+
+Standup reports resolve completed vs active buckets from shared window settings. Field names are locked for config, CLI, and console API:
+
+```yaml
+standup:
+  window: rolling        # rolling | calendar
+  lookback: 24h          # rolling duration; hours required (1d = 24h sugar)
+  skip_weekends: false   # calendar only; ignored when window is rolling
+  timezone: America/New_York  # optional IANA zone; unset uses system local
+```
+
+Defaults:
+
+- Global: `window: rolling`, `lookback: 24h`, `skip_weekends: false`
+- `meeting-script` profile override: `window: calendar`, `skip_weekends: true`
+- `director-brief` profile: inherits global rolling + 24h
+
+`standup.lookback_hours` is not accepted (`extra=forbid`). Migrate to `standup.lookback` with a duration string such as `24h` or `1d`.
+
+CLI overrides (same names as config/API): `--window`, `--lookback`, `--skip-weekends` / `--no-skip-weekends`.
 
 ## Optional sync sections
 

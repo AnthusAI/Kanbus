@@ -1,6 +1,10 @@
 use cucumber::{gherkin::Step, given, then, when};
+use kanbus::wiki::wiki_page_display_title;
+use kanbus::wiki_markus::convert_wiki_markdown_to_html;
 
-use crate::step_definitions::console_ui_steps::{ensure_wiki_state, select_wiki_page};
+use crate::step_definitions::console_ui_steps::{
+    ensure_wiki_state, select_wiki_page, WikiWorkspaceState,
+};
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 fn is_invalid_wiki_path(path: &str) -> bool {
@@ -56,6 +60,21 @@ fn when_select_wiki_page(world: &mut KanbusWorld, path: String) {
     select_wiki_page(wiki, &path);
 }
 
+#[when(regex = r#"I select the wiki page titled "(?P<title>[^"]+)"$"#)]
+fn when_select_wiki_page_titled(world: &mut KanbusWorld, title: String) {
+    let wiki = ensure_wiki_state(world);
+    let matching = wiki.page_order.iter().find(|path| {
+        wiki.pages
+            .get(*path)
+            .map(|content| wiki_page_display_title(content, path) == title)
+            .unwrap_or(false)
+    });
+    let path = matching
+        .cloned()
+        .unwrap_or_else(|| panic!("no wiki page titled {}", title));
+    select_wiki_page(wiki, &path);
+}
+
 #[when("I type wiki content:")]
 fn when_type_wiki_content(world: &mut KanbusWorld, step: &Step) {
     let wiki = ensure_wiki_state(world);
@@ -88,6 +107,20 @@ fn when_render_wiki_page(world: &mut KanbusWorld) {
     }
     wiki.preview_content = wiki.editor_content.clone();
     wiki.error_banner = None;
+}
+
+#[when("I render the wiki page through the backend")]
+fn when_render_wiki_page_through_backend(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    match convert_wiki_markdown_to_html(&wiki.editor_content) {
+        Ok(html) => {
+            wiki.preview_content = html;
+            wiki.error_banner = None;
+        }
+        Err(error) => {
+            wiki.error_banner = Some(error.to_string());
+        }
+    }
 }
 
 #[when(regex = r#"I rename the wiki page "(?P<old_path>[^"]+)" to "(?P<new_path>[^"]+)"$"#)]
@@ -179,12 +212,113 @@ fn then_wiki_view_inactive(world: &mut KanbusWorld) {
     );
 }
 
+#[given("the console wiki directory is missing")]
+fn given_console_wiki_directory_is_missing(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    wiki.pages.clear();
+    wiki.page_order.clear();
+    wiki.selected_path = None;
+    wiki.wiki_directory_exists = false;
+    wiki.pages_request_failed = false;
+    wiki.error_banner = None;
+}
+
+#[given("the console wiki pages request fails")]
+fn given_console_wiki_pages_request_fails(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    wiki.pages.clear();
+    wiki.page_order.clear();
+    wiki.selected_path = None;
+    wiki.pages_request_failed = true;
+    wiki.error_banner = None;
+}
+
+/// Record a hung wiki pages request as a visible load failure.
+#[given("the console wiki pages request hangs")]
+fn given_console_wiki_pages_request_hangs(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    wiki.pages.clear();
+    wiki.page_order.clear();
+    wiki.selected_path = None;
+    wiki.pages_request_failed = true;
+    wiki.error_banner = None;
+}
+
 #[then("the wiki empty state should be visible")]
 fn then_wiki_empty_state_visible(world: &mut KanbusWorld) {
     let wiki = ensure_wiki_state(world);
     assert!(
-        wiki.page_order.is_empty(),
+        wiki.page_order.is_empty()
+            && wiki.wiki_directory_exists
+            && !wiki.pages_request_failed
+            && wiki.error_banner.is_none(),
         "expected wiki empty state with no pages"
+    );
+}
+
+#[then("the wiki empty state should not be visible")]
+fn then_wiki_empty_state_should_not_be_visible(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    let is_true_empty = wiki.wiki_directory_exists
+        && wiki.page_order.is_empty()
+        && !wiki.pages_request_failed
+        && wiki.error_banner.is_none();
+    assert!(!is_true_empty, "wiki empty state should not be visible");
+}
+
+#[then("the wiki missing-directory state should be visible")]
+fn then_wiki_missing_directory_state_should_be_visible(world: &mut KanbusWorld) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        !wiki.wiki_directory_exists && wiki.page_order.is_empty() && !wiki.pages_request_failed,
+        "expected wiki missing-directory state"
+    );
+}
+
+fn wiki_directory_listing_labels(wiki: &WikiWorkspaceState) -> Vec<String> {
+    let mut labels = std::collections::BTreeMap::new();
+    for path in &wiki.page_order {
+        let parts: Vec<&str> = path.split('/').collect();
+        let name = parts[0];
+        let is_dir = parts.len() > 1;
+        if !labels.contains_key(name) {
+            let label = if is_dir {
+                name.to_string()
+            } else {
+                wiki_page_display_title(
+                    wiki.pages.get(path).map(String::as_str).unwrap_or(""),
+                    path,
+                )
+            };
+            labels.insert(name.to_string(), label);
+        } else if is_dir {
+            labels.insert(name.to_string(), name.to_string());
+        }
+    }
+    labels.into_values().collect()
+}
+
+#[then(regex = r#"the wiki directory listing should show "(?P<text>[^"]+)"$"#)]
+fn then_wiki_directory_listing_should_show(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    let labels = wiki_directory_listing_labels(wiki);
+    assert!(
+        labels.iter().any(|label| label == &text),
+        "expected directory listing to show {:?}, got {:?}",
+        text,
+        labels
+    );
+}
+
+#[then(regex = r#"the wiki directory listing should not show "(?P<text>[^"]+)"$"#)]
+fn then_wiki_directory_listing_should_not_show(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    let labels = wiki_directory_listing_labels(wiki);
+    assert!(
+        labels.iter().all(|label| label != &text),
+        "expected directory listing not to show {:?}, got {:?}",
+        text,
+        labels
     );
 }
 
@@ -229,6 +363,63 @@ fn then_wiki_editor_content_should_equal(world: &mut KanbusWorld, step: &Step) {
         actual, expected,
         "expected editor content {:?}, got {:?}",
         expected, wiki.editor_content
+    );
+}
+
+fn preview_html_contains_class(html: &str, css_class: &str) -> bool {
+    class_attribute_contains(html, css_class)
+}
+
+fn class_attribute_contains(html: &str, css_class: &str) -> bool {
+    for prefix in ["class=\"", "class='"] {
+        let quote = if prefix.ends_with('"') { '"' } else { '\'' };
+        let mut search = html;
+        while let Some(index) = search.find(prefix) {
+            let after = &search[index + prefix.len()..];
+            if let Some(end) = after.find(quote) {
+                if after[..end]
+                    .split_whitespace()
+                    .any(|token| token == css_class)
+                {
+                    return true;
+                }
+            }
+            search = &search[index + prefix.len()..];
+        }
+    }
+    false
+}
+
+#[then(expr = "the wiki preview HTML should contain element with class {string}")]
+fn then_wiki_preview_html_contains_class(world: &mut KanbusWorld, css_class: String) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        preview_html_contains_class(&wiki.preview_content, &css_class),
+        "expected preview HTML class {:?}, got {:?}",
+        css_class,
+        wiki.preview_content
+    );
+}
+
+#[then(expr = "the wiki preview HTML should contain {string}")]
+fn then_wiki_preview_html_contains(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        wiki.preview_content.contains(&text),
+        "expected wiki preview HTML to contain {:?}, got {:?}",
+        text,
+        wiki.preview_content
+    );
+}
+
+#[then(expr = "the wiki preview HTML should not contain {string}")]
+fn then_wiki_preview_html_not_contain(world: &mut KanbusWorld, text: String) {
+    let wiki = ensure_wiki_state(world);
+    assert!(
+        !wiki.preview_content.contains(&text),
+        "expected wiki preview HTML not to contain {:?}, got {:?}",
+        text,
+        wiki.preview_content
     );
 }
 

@@ -54,6 +54,22 @@ def test_load_project_configuration_merges_override_virtual_projects(
     assert set(cfg.virtual_projects.keys()) >= {"alpha", "beta"}
 
 
+def test_environment_overrides_do_not_mutate_process_wide_nested_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / ".kanbus.yml"
+    config_path.write_text("project_key: isolated\n", encoding="utf-8")
+    defaults_before = copy.deepcopy(DEFAULT_CONFIGURATION)
+    monkeypatch.setenv("KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME", "test-auth")
+    monkeypatch.setenv("KANBUS_REALTIME_MQTT_API_TOKEN", "test-token")
+
+    configuration = config_loader.load_project_configuration(config_path)
+
+    assert configuration.realtime.mqtt_custom_authorizer_name == "test-auth"
+    assert configuration.realtime.mqtt_api_token == "test-token"
+    assert DEFAULT_CONFIGURATION == defaults_before
+
+
 def test_load_project_configuration_unknown_and_validation_errors(
     tmp_path: Path,
 ) -> None:
@@ -98,9 +114,11 @@ def test_load_project_configuration_validates_kanbus_yaml_type_workflow_bindings
                 "  - key: open",
                 "    name: Open",
                 "    category: To do",
+                "    semantic_category: todo",
                 "  - key: closed",
                 "    name: Closed",
                 "    category: Done",
+                "    semantic_category: done",
                 "categories:",
                 "  - name: To do",
                 "  - name: Done",
@@ -165,14 +183,14 @@ def test_load_override_configuration_returns_empty_for_null_yaml(
 def test_load_dotenv_missing_or_unreadable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    config_loader._load_dotenv(tmp_path / "missing.env")
+    config_loader.load_dotenv_file(tmp_path / "missing.env")
 
     env_path = tmp_path / ".env"
     env_path.write_text("A=1\n", encoding="utf-8")
     monkeypatch.setattr(
         Path, "read_text", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("x"))
     )
-    config_loader._load_dotenv(env_path)
+    config_loader.load_dotenv_file(env_path)
 
 
 def test_validate_project_configuration_error_paths() -> None:

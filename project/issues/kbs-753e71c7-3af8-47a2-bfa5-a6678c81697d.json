@@ -1,0 +1,33 @@
+{
+  "id": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d",
+  "title": "Deterministic Issue Router for coding-agent work",
+  "description": "## Objective\n\nBuild an optional Kanbus Issue Router that continuously dispatches eligible issue packages to coding-agent CLIs while preserving Kanbus as the durable source of truth. The router is a deterministic reconciliation loop, not an embedded AI agent loop.\n\nSuccess means accepted, merged value moving through the board with controlled work in progress. Agent utilization, dispatch count, and pull-request count are not success metrics.\n\n## Routing and package scope\n\nIssues opt into automation through either `agent-class:<name>` or `agent-provider:<name>` labels. Human assignees remain human-facing accountability and are never overwritten by execution ownership.\n\nA tagged parent is one routed work package and consumes one routed WIP slot. Its run may work within untagged descendants. The nearest explicit routing tag wins, so a tagged descendant begins a separate package and is excluded from the ancestor package scope.\n\nThe router validates a deterministic Definition of Ready before dispatch: configured pending status, valid routing target, no blocking dependency, bounded package scope, and project policy acceptance.\n\n## Deterministic flow policy\n\nWorkflow roles are configured explicitly per workflow: pending, active, review, blocked, and terminal. Recoverable active work and requested changes are dispatched before new work. New work is selected by the time it most recently entered the configured pending status, with creation time and issue ID as deterministic tie-breakers.\n\nThe router enforces configurable project-wide WIP, review WIP, agent-class, and provider-profile limits for its own starts. Project-wide counts include human and automated work in configured WIP statuses. Blocked and review work count by default. Manual Kanbus transitions may deliberately exceed the router limit.\n\nOpening a pull request moves the package to review; it does not complete the issue. Review consumes WIP and creates backpressure. Requested changes are re-dispatched ahead of pending work. Human approval and merge are required before terminal status.\n\n## Coordination, ownership, and recovery\n\nThe router asks Kanbus for transport-independent claims and uses the strongest configured provider: Git soft coordination, optional MQTT acceleration, and optional Mutex API hard arbitration. Git-only installations remain valid, and duplicate work remains possible under soft coordination.\n\nScheduling uses a short scheduler-epoch claim plus issue and capacity resources so cooperating routers cannot exceed configured limits when hard arbitration exists. Every run carries a claim ID and logical revision. Current-claim checks fence lifecycle transitions, accepted checkpoints, branch publication, pull-request creation, and result publication.\n\nExecution liveness and ownership staleness are separate clocks. Short leases detect dead processes and trigger bounded retry with backoff. Only structured progress or checkpoint reports attributed to the current claim reset the default 24-hour stale-ownership clock. Human comments and empty heartbeats do not.\n\nEach claim receives an isolated worktree and run-specific branch. The router owns checkpoints, push, and pull-request publication so an obsolete run cannot overwrite current work. Failed or stale runs preserve a router-owned WIP checkpoint; a takeover starts from the latest accepted checkpoint. After three retryable failures, the package moves to the configured blocked status with diagnostic history. Agent-class routes reconsider eligible providers on takeover; exact-provider routes remain pinned.\n\n## Agent and admission contracts\n\nAntigravity, Codex, Cursor, and Claude Code are first-class adapters. They implement one narrow structured contract for start, progress, checkpoint, cancellation, optional session resumption, usage telemetry, and final outcome. Provider capabilities remain explicit rather than hidden behind a false universal abstraction.\n\nThe router owns issue lifecycle. Agents may propose scoped descendant transitions through structured results; the router validates package scope, workflow policy, claim revision, and current issue revisions before applying them.\n\nVersion one uses deterministic fixed concurrency and an internal admission interface. The interface is designed for later built-in session-quota awareness, API-key budgets, token and cost accounting, and provider-specific capacity without assuming that all products use resetting sessions.\n\n## Review and forge integration\n\nA forge-independent reconciliation boundary observes pull-request creation, CI state, requested changes, approval, closure, and merge, with GitHub as the first implementation. External review state becomes auditable Kanbus events rather than a second queue.\n\nThe router provides deterministic pause, provider hold, package cancellation, and budget kill-switch controls. Parent-package size and runtime safeguards prevent unbounded context, change, and review units. Revision-cycle limits prevent endless implementation and review loops.\n\n## Success measures\n\nMeasure pending-to-merge lead time, review queue age, requested-change cycles, duplicate or obsolete runs, blocked-package age, cost per merged package, and post-merge failure or rollback rate.\n\n## Out of scope\n\n- Automatic merge in the initial system\n- LLM-based scheduling or an agent loop inside the router\n- A second durable task queue\n- Mandatory MQTT, Mutex API, or other cloud infrastructure\n- Universal enforcement of WIP limits on manual Kanbus transitions\n- Spotticus-style session-quota policy or monetary budget enforcement in version one",
+  "type": "initiative",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
+      "type": "relates-to"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-09-16T00:44:08.525781Z",
+  "updated_at": "2026-09-17T09:18:54.809350Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5",
+    "name": "Issue Router planning"
+  },
+  "right_now_summary": "The router is being tested with isolated workers, and multi-router lease contention testing is next.",
+  "right_now_updated_at": "2026-09-18T14:02:38.160340Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

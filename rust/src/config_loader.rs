@@ -2,13 +2,38 @@
 
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_yaml::{Mapping, Value};
 
 use crate::config::default_project_configuration;
 use crate::error::KanbusError;
-use crate::models::ProjectConfiguration;
+use crate::models::{validate_http_endpoint, HttpEndpointError, ProjectConfiguration};
+
+/// Filename for the user congregation env file in the home directory.
+pub const CONGREGATION_ENV_FILENAME: &str = ".kanbus.env";
+
+/// Return the user congregation env file path.
+///
+/// # Returns
+///
+/// Path to `~/.kanbus.env`.
+pub fn congregation_env_path() -> PathBuf {
+    user_home_directory().join(CONGREGATION_ENV_FILENAME)
+}
+
+/// Load congregation and project dotenv files into the process environment.
+///
+/// Loads `~/.kanbus.env` first, then `repository_root/.env`. Values already
+/// present in the process environment are never overwritten.
+///
+/// # Arguments
+///
+/// * `repository_root` - Repository root containing `.kanbus.yml`.
+pub fn load_repository_environment(repository_root: &Path) {
+    load_dotenv(&congregation_env_path());
+    load_dotenv(&repository_root.join(".env"));
+}
 
 /// Load a project configuration from disk.
 ///
@@ -20,12 +45,8 @@ use crate::models::ProjectConfiguration;
 ///
 /// Returns `KanbusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
-    let dotenv_path = path.parent().unwrap_or(Path::new(".")).join(".env");
-    if let Some(home) = std::env::var_os("HOME") {
-        let global_dotenv = Path::new(&home).join(".kanbus.env");
-        load_dotenv(&global_dotenv);
-    }
-    load_dotenv(&dotenv_path);
+    let repository_root = path.parent().unwrap_or(Path::new("."));
+    load_repository_environment(repository_root);
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             KanbusError::Configuration("configuration file not found".to_string())
@@ -39,8 +60,11 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     let overrides = load_override_configuration(path.parent().unwrap_or(Path::new(".")))?;
     merged_value = apply_overrides(merged_value, overrides);
     handle_legacy_fields(&mut merged_value);
+    default_missing_semantic_categories(&mut merged_value);
+    reject_standup_lookback_hours(&merged_value)?;
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
+    validate_router_yaml(&merged_value)?;
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
 
@@ -50,6 +74,212 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+/// Fill in `semantic_category` for statuses that omit it (older configurations),
+/// so they keep loading. An explicit value is never overridden.
+fn default_missing_semantic_categories(configuration: &mut Mapping) {
+    let Some(Value::Sequence(statuses)) =
+        configuration.get_mut(Value::String("statuses".to_string()))
+    else {
+        return;
+    };
+    let field = Value::String("semantic_category".to_string());
+    for status in statuses {
+        let Value::Mapping(status) = status else {
+            continue;
+        };
+        let declared = status
+            .get(&field)
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty());
+        if declared {
+            continue;
+        }
+        let text = |name: &str| {
+            status
+                .get(Value::String(name.to_string()))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        };
+        let derived =
+            crate::status_semantics::derive_semantic_category(&text("key"), &text("name"));
+        status.insert(field.clone(), Value::String(derived.to_string()));
+    }
+}
+
+fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
+    let router_key = Value::String("router".to_string());
+    let Some(router) = configuration.get(&router_key) else {
+        return Ok(());
+    };
+    if router.is_null() {
+        return Ok(());
+    }
+    let Some(router_mapping) = router.as_mapping() else {
+        return Err(KanbusError::Configuration(
+            "router must be a mapping".to_string(),
+        ));
+    };
+    validate_yaml_fields(
+        router_mapping,
+        "router",
+        &[
+            "enabled",
+            "workflow",
+            "limits",
+            "providers",
+            "classes",
+            "retries",
+            "watch_interval",
+            "forge",
+        ],
+    )?;
+    if let Some(workflow) = router_mapping.get(Value::String("workflow".to_string())) {
+        if let Some(mapping) = workflow.as_mapping() {
+            validate_yaml_fields(
+                mapping,
+                "router.workflow",
+                &["pending", "active", "review", "blocked", "terminal"],
+            )?;
+        }
+    }
+    if let Some(limits) = router_mapping.get(Value::String("limits".to_string())) {
+        if let Some(mapping) = limits.as_mapping() {
+            validate_yaml_fields(
+                mapping,
+                "router.limits",
+                &["project_wip", "review_wip", "class_wip", "provider_wip"],
+            )?;
+            for key in ["project_wip", "review_wip"] {
+                if let Some(value) = mapping.get(Value::String(key.to_string())) {
+                    if !is_positive_integer(value) {
+                        return Err(KanbusError::Configuration(format!(
+                            "router.limits.{key} must be a positive integer"
+                        )));
+                    }
+                }
+            }
+            for key in ["class_wip", "provider_wip"] {
+                if let Some(value) = mapping.get(Value::String(key.to_string())) {
+                    if let Some(entries) = value.as_mapping() {
+                        for (name, limit) in entries {
+                            if !is_positive_integer(limit) {
+                                let name = name.as_str().unwrap_or("unknown");
+                                return Err(KanbusError::Configuration(format!(
+                                    "router.limits.{key}.{name} must be a positive integer"
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(providers) = router_mapping.get(Value::String("providers".to_string())) {
+        if let Some(profiles) = providers.as_mapping() {
+            for (name, profile) in profiles {
+                let name = name.as_str().unwrap_or("unknown");
+                if let Some(profile) = profile.as_mapping() {
+                    validate_yaml_fields(
+                        profile,
+                        &format!("router.providers.{name}"),
+                        &["adapter", "command", "args", "model", "env", "service_tier"],
+                    )?;
+                }
+            }
+        }
+    }
+    if let Some(classes) = router_mapping.get(Value::String("classes".to_string())) {
+        if let Some(class_values) = classes.as_mapping() {
+            for (name, class) in class_values {
+                let name = name.as_str().unwrap_or("unknown");
+                if let Some(class) = class.as_mapping() {
+                    validate_yaml_fields(class, &format!("router.classes.{name}"), &["providers"])?;
+                }
+            }
+        }
+    }
+    if let Some(retries) = router_mapping.get(Value::String("retries".to_string())) {
+        if let Some(mapping) = retries.as_mapping() {
+            validate_yaml_fields(mapping, "router.retries", &["max_attempts"])?;
+            if let Some(value) = mapping.get(Value::String("max_attempts".to_string())) {
+                if !is_positive_integer(value) {
+                    return Err(KanbusError::Configuration(
+                        "router.retries.max_attempts must be a positive integer".to_string(),
+                    ));
+                }
+            }
+        }
+    }
+    if let Some(interval) = router_mapping.get(Value::String("watch_interval".to_string())) {
+        let valid = interval
+            .as_str()
+            .is_some_and(|value| crate::coordination::parse_duration_seconds(value).is_ok());
+        if !valid {
+            return Err(KanbusError::Configuration(
+                "router.watch_interval must be a positive duration".to_string(),
+            ));
+        }
+    }
+    if let Some(forge) = router_mapping.get(Value::String("forge".to_string())) {
+        if let Some(mapping) = forge.as_mapping() {
+            if !mapping.contains_key(Value::String("repository".to_string())) {
+                return Err(KanbusError::Configuration(
+                    "router.forge.repository is required".to_string(),
+                ));
+            }
+            validate_yaml_fields(
+                mapping,
+                "router.forge",
+                &[
+                    "provider",
+                    "repository",
+                    "base_branch",
+                    "api_url",
+                    "token_env",
+                ],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_yaml_fields(
+    mapping: &Mapping,
+    prefix: &str,
+    allowed_fields: &[&str],
+) -> Result<(), KanbusError> {
+    for key in mapping.keys() {
+        let Some(name) = key.as_str() else {
+            continue;
+        };
+        if !allowed_fields.contains(&name) {
+            return Err(KanbusError::Configuration(format!(
+                "{prefix}.{name} is an unknown field"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn is_positive_integer(value: &Value) -> bool {
+    value.as_u64().is_some_and(|number| number > 0)
+}
+
+fn user_home_directory() -> PathBuf {
+    if let Ok(home) = env::var("HOME") {
+        if !home.trim().is_empty() {
+            return PathBuf::from(home);
+        }
+    }
+    if let Ok(profile) = env::var("USERPROFILE") {
+        if !profile.trim().is_empty() {
+            return PathBuf::from(profile);
+        }
+    }
+    PathBuf::from(".")
 }
 
 fn load_dotenv(path: &Path) {
@@ -305,6 +535,27 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     validate_hooks(configuration, &mut errors);
     validate_sort_order(configuration, &mut errors);
     validate_right_now(configuration, &mut errors);
+    errors.extend(crate::coordination::validate_coordination_configuration(
+        configuration,
+    ));
+    if let Some(forge) = configuration
+        .router
+        .as_ref()
+        .and_then(|router| router.forge.as_ref())
+    {
+        match validate_http_endpoint(&forge.api_url) {
+            Err(HttpEndpointError::Credentials) => {
+                errors.push("router.forge.api_url must not include URL credentials".to_string())
+            }
+            Err(HttpEndpointError::Insecure) => errors.push(
+                "router.forge.api_url must use HTTPS unless the host is loopback".to_string(),
+            ),
+            Err(HttpEndpointError::Invalid) | Ok(()) => {}
+        }
+    }
+    errors.extend(crate::router::validate_issue_router_configuration(
+        configuration,
+    ));
 
     errors
 }
@@ -486,8 +737,26 @@ fn handle_legacy_fields(mapping: &mut Mapping) {
     }
 }
 
+const STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE: &str = "standup.lookback_hours was removed; use standup.lookback with a duration string such as 24h or 1d";
+
+fn reject_standup_lookback_hours(mapping: &Mapping) -> Result<(), KanbusError> {
+    let standup_key = Value::String("standup".to_string());
+    let lookback_hours_key = Value::String("lookback_hours".to_string());
+    if let Some(Value::Mapping(standup)) = mapping.get(&standup_key) {
+        if standup.contains_key(&lookback_hours_key) {
+            return Err(KanbusError::Configuration(
+                STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn map_configuration_error(error: &serde_yaml::Error) -> String {
     let message = error.to_string();
+    if message.contains("lookback_hours") {
+        return STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string();
+    }
     if message.contains("unknown field") {
         return "unknown configuration fields".to_string();
     }
@@ -575,6 +844,24 @@ fn apply_overrides(mut value: Mapping, overrides: Mapping) -> Mapping {
 }
 
 fn apply_environment_overrides(mapping: &mut Mapping) {
+    if let Ok(value) = env::var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["coordination", "mutex_api", "endpoint"],
+                Value::String(value),
+            );
+        }
+    }
+    if let Ok(value) = env::var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN") {
+        if !value.trim().is_empty() {
+            set_nested_value(
+                mapping,
+                &["coordination", "mutex_api", "bearer_token"],
+                Value::String(value),
+            );
+        }
+    }
     if let Ok(value) = env::var("KANBUS_REALTIME_TRANSPORT") {
         if !value.trim().is_empty() {
             set_nested_value(mapping, &["realtime", "transport"], Value::String(value));
@@ -669,5 +956,161 @@ fn set_nested_value(mapping: &mut Mapping, path: &[&str], value: Value) {
     }
     if let Some(Value::Mapping(child)) = mapping.get_mut(&key) {
         set_nested_value(child, &path[1..], value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{
+        IssueRouterConfiguration, IssueRouterForgeConfiguration, IssueRouterLimitsConfiguration,
+        IssueRouterProviderConfiguration, IssueRouterWorkflowConfiguration,
+    };
+    use std::collections::BTreeMap;
+    use std::fs;
+    use tempfile::TempDir;
+
+    struct MutexApiEnvironmentRestore {
+        endpoint: Option<std::ffi::OsString>,
+        token: Option<std::ffi::OsString>,
+    }
+
+    impl Drop for MutexApiEnvironmentRestore {
+        fn drop(&mut self) {
+            match self.endpoint.take() {
+                Some(value) => env::set_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT", value),
+                None => env::remove_var("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            }
+            match self.token.take() {
+                Some(value) => env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", value),
+                None => env::remove_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_standup_lookback_hours_with_migration_message() {
+        let temp_dir = TempDir::new().expect("temp dir");
+        let project_dir = temp_dir.path().join("project");
+        fs::create_dir(&project_dir).expect("project dir");
+        let config_path = temp_dir.path().join(".kanbus.yml");
+        fs::write(
+            &config_path,
+            "project_directory: project\nstandup:\n  lookback_hours: 24\n",
+        )
+        .expect("write config");
+
+        let error = load_project_configuration(&config_path).expect_err("migration error");
+        match error {
+            KanbusError::Configuration(message) => {
+                assert_eq!(message, STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE);
+            }
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn applies_mutex_api_environment_overrides_to_nested_config() {
+        let _restore = MutexApiEnvironmentRestore {
+            endpoint: env::var_os("KANBUS_COORDINATION_MUTEX_API_ENDPOINT"),
+            token: env::var_os("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN"),
+        };
+        env::set_var(
+            "KANBUS_COORDINATION_MUTEX_API_ENDPOINT",
+            "https://env.example.test",
+        );
+        env::set_var("KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN", "env-secret");
+        let mut mapping = serde_yaml::to_value(default_project_configuration())
+            .expect("default config value")
+            .as_mapping()
+            .expect("config mapping")
+            .clone();
+
+        apply_environment_overrides(&mut mapping);
+
+        assert_eq!(
+            mapping
+                .get("coordination")
+                .and_then(|value| value.get("mutex_api"))
+                .and_then(|value| value.get("endpoint"))
+                .and_then(Value::as_str),
+            Some("https://env.example.test")
+        );
+        assert_eq!(
+            mapping
+                .get("coordination")
+                .and_then(|value| value.get("mutex_api"))
+                .and_then(|value| value.get("bearer_token"))
+                .and_then(Value::as_str),
+            Some("env-secret")
+        );
+    }
+
+    fn project_configuration_with_forge_url(api_url: &str) -> ProjectConfiguration {
+        let mut configuration = default_project_configuration();
+        configuration.router = Some(IssueRouterConfiguration {
+            enabled: true,
+            workflow: IssueRouterWorkflowConfiguration {
+                pending: "backlog".to_string(),
+                active: "in_progress".to_string(),
+                review: "open".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: IssueRouterLimitsConfiguration {
+                project_wip: 3,
+                review_wip: 2,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "default".to_string(),
+                IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: Some("codex".to_string()),
+                    args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: Default::default(),
+            watch_interval: "30s".to_string(),
+            forge: Some(IssueRouterForgeConfiguration {
+                provider: "github".to_string(),
+                repository: "example/repository".to_string(),
+                base_branch: "main".to_string(),
+                api_url: api_url.to_string(),
+                token_env: "GITHUB_TOKEN".to_string(),
+            }),
+        });
+        configuration
+    }
+
+    #[test]
+    fn forge_api_url_requires_tls_except_for_loopback_and_rejects_credentials() {
+        for endpoint in [
+            "https://api.github.com",
+            "http://localhost:8080",
+            "http://[::1]:8080",
+        ] {
+            let configuration = project_configuration_with_forge_url(endpoint);
+            assert!(
+                validate_project_configuration(&configuration).is_empty(),
+                "expected valid endpoint: {endpoint}"
+            );
+        }
+
+        let insecure = project_configuration_with_forge_url("http://forge.example.test/api");
+        assert!(validate_project_configuration(&insecure).contains(
+            &"router.forge.api_url must use HTTPS unless the host is loopback".to_string()
+        ));
+
+        let credentials =
+            project_configuration_with_forge_url("https://user:secret@forge.example.test/api");
+        assert!(validate_project_configuration(&credentials)
+            .contains(&"router.forge.api_url must not include URL credentials".to_string()));
     }
 }

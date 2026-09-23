@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use cucumber::{given, then, when};
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::{IssueComment, IssueData};
 
@@ -311,7 +311,7 @@ fn when_ensure_comment_ids(world: &mut KanbusWorld, identifier: String) {
         identifier,
     ];
 
-    match run_from_args_with_output(argv, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(argv, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -345,7 +345,7 @@ fn when_update_comment(
         new_text,
     ];
 
-    match run_from_args_with_output(argv, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(argv, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -373,7 +373,7 @@ fn when_delete_comment(world: &mut KanbusWorld, comment_prefix: String, identifi
         comment_prefix,
     ];
 
-    match run_from_args_with_output(argv, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(argv, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -413,7 +413,7 @@ fn when_attempt_update_comment(
         new_text,
     ];
 
-    match run_from_args_with_output(argv, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(argv, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -445,7 +445,7 @@ fn when_attempt_delete_comment(
         comment_prefix,
     ];
 
-    match run_from_args_with_output(argv, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(argv, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -472,7 +472,7 @@ fn when_attempt_ensure_comment_ids(world: &mut KanbusWorld, identifier: String) 
         identifier,
     ];
 
-    match run_from_args_with_output(argv, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(argv, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);

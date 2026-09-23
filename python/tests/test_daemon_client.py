@@ -88,6 +88,38 @@ def test_request_index_list_spawns_when_socket_missing(
     assert spawned.get("spawned") is True
 
 
+def test_request_index_list_restarts_daemon_on_config_schema_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    socket_path = root / "sock"
+    socket_path.write_text("", encoding="utf-8")
+    attempts = {"count": 0}
+    restarted = {"value": False}
+    monkeypatch.setattr(daemon_client, "get_daemon_socket_path", lambda _r: socket_path)
+
+    def track_restart(_root: Path) -> None:
+        restarted["value"] = True
+
+    monkeypatch.setattr(daemon_client, "restart_daemon", track_restart)
+
+    def responder(_s: Path, request: object, _r: Path) -> ResponseEnvelope:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            return error_response(
+                request.request_id, daemon_client.DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE
+            )
+        return ok_response(request.request_id, {"issues": [{"id": "kanbus-1"}]})
+
+    monkeypatch.setattr(daemon_client, "_request_with_recovery", responder)
+    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    daemon_client.reset_daemon_restart_recorded_for_testing()
+
+    issues = daemon_client.request_index_list(root)
+    assert issues == [{"id": "kanbus-1"}]
+    assert restarted["value"] is True
+
+
 def test_request_index_list_error_response_uses_envelope_message(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -282,9 +314,7 @@ def test_send_request_success_empty_and_connection_failures(
         raise OSError("socket down")
 
     monkeypatch.setattr(daemon_client.socket, "socket", raising_socket)
-    with pytest.raises(
-        daemon_client.DaemonClientError, match="daemon connection failed"
-    ):
+    with pytest.raises(daemon_client.DaemonClientError, match="daemon connect failed"):
         daemon_client.send_request(socket_path, request)
 
 
@@ -297,7 +327,6 @@ def test_spawn_daemon_invokes_subprocess(
     def fake_popen(cmd, **kwargs):
         captured["cmd"] = cmd
         captured["kwargs"] = kwargs
-        return None
 
     monkeypatch.setattr(daemon_client.subprocess, "Popen", fake_popen)
     daemon_client.spawn_daemon(root)

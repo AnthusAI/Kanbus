@@ -8,6 +8,8 @@ import chokidar from "chokidar";
 import rateLimit from "express-rate-limit";
 import { resolvePortOrExit } from "../scripts/resolvePort";
 import type { IssuesSnapshot } from "../src/types/issues";
+import type { WikiPageListItem } from "../src/types/wiki";
+import { wikiPageDisplayTitle } from "./wikiTitle";
 
 const fsPromises = fs.promises;
 
@@ -107,7 +109,7 @@ app.use(
 );
 
 let cachedSnapshot: IssuesSnapshot | null = null;
-let snapshotPromise: Promise<IssuesSnapshot> | null = null;
+let snapshotRefreshTail: Promise<IssuesSnapshot> | null = null;
 
 function logConsoleEvent(
   label: string,
@@ -121,44 +123,127 @@ function logConsoleEvent(
   writeConsoleLog({ type: "event", label, payload });
 }
 
-async function runSnapshot(): Promise<IssuesSnapshot> {
+function kanbusCommandEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    KANBUS_NO_DAEMON: process.env.KANBUS_NO_DAEMON ?? "1",
+    PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
+  };
+}
+
+async function runKanbusConsoleCommand(
+  subcommand: string,
+  extraArgs: string[] = []
+): Promise<string> {
   const command = kanbusPython ?? "kanbus";
   const args = kanbusPython
-    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "console", "snapshot"]
-    : ["console", "snapshot"];
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "console", subcommand, ...extraArgs]
+    : ["console", subcommand, ...extraArgs];
   const { stdout } = await execFileAsync(command, args, {
     cwd: repoRoot,
-    env: {
-      ...process.env,
-      KANBUS_NO_DAEMON: "1",
-      PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
-    },
+    env: kanbusCommandEnv(),
     maxBuffer: 10 * 1024 * 1024
   });
+  return stdout;
+}
+
+async function runKanbusCommand(args: string[]): Promise<string> {
+  const command = kanbusPython ?? "kanbus";
+  const commandArgs = kanbusPython
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", ...args]
+    : args;
+  try {
+    const { stdout } = await execFileAsync(command, commandArgs, {
+      cwd: repoRoot,
+      env: kanbusCommandEnv(),
+      maxBuffer: 10 * 1024 * 1024
+    });
+    return stdout;
+  } catch (error) {
+    const failure = error as Error & { stderr?: string; stdout?: string };
+    const detail = [failure.stderr, failure.stdout, failure.message]
+      .filter((value) => Boolean(value))
+      .join("\n")
+      .trim();
+    throw new Error(detail || "Kanbus write failed");
+  }
+}
+
+async function issueIsAwaitingAgentReply(issueId: string): Promise<boolean> {
+  const eventsRoot = path.join(projectRoot ?? "", "events");
+  if (!fs.existsSync(eventsRoot)) return false;
+  const records: Array<{ occurred_at?: string; event_type?: string; issue_id?: string; payload?: Record<string, unknown> }> = [];
+  for (const entry of await fsPromises.readdir(eventsRoot)) {
+    if (!entry.endsWith(".json")) continue;
+    try {
+      const record = JSON.parse(await fsPromises.readFile(path.join(eventsRoot, entry), "utf-8")) as typeof records[number];
+      if (record.issue_id === `router:${issueId}` && (record.event_type === "router.conversation" || record.event_type === "router_conversation")) {
+        records.push(record);
+      }
+    } catch {
+      // Ignore malformed historical event files; the CLI remains authoritative.
+    }
+  }
+  records.sort((left, right) => `${left.occurred_at ?? ""}`.localeCompare(`${right.occurred_at ?? ""}`));
+  const latest = records.at(-1);
+  return latest?.payload?.lifecycle === "blocked";
+}
+
+async function runSnapshot(): Promise<IssuesSnapshot> {
+  const stdout = await runKanbusConsoleCommand("snapshot");
   return JSON.parse(stdout) as IssuesSnapshot;
+}
+
+async function runNowIssues(): Promise<IssuesSnapshot["issues"]> {
+  const stdout = await runKanbusConsoleCommand("now");
+  return JSON.parse(stdout) as IssuesSnapshot["issues"];
+}
+
+type StandupGenerateRequest = {
+  profile?: string;
+  window?: string;
+  lookback?: string;
+  skip_weekends?: boolean;
+};
+
+async function runStandupReport(request: StandupGenerateRequest): Promise<Record<string, unknown>> {
+  const stdout = await runKanbusConsoleCommand(
+    "standup",
+    ["--request-json", JSON.stringify(request)]
+  );
+  return JSON.parse(stdout) as Record<string, unknown>;
 }
 
 async function getSnapshot(): Promise<IssuesSnapshot> {
   if (cachedSnapshot) {
     return cachedSnapshot;
   }
-  if (!snapshotPromise) {
-    snapshotPromise = runSnapshot()
-      .then((snapshot) => {
-        cachedSnapshot = snapshot;
-        return snapshot;
-      })
-      .finally(() => {
-        snapshotPromise = null;
-      });
-  }
-  return snapshotPromise;
+  return refreshSnapshot();
 }
 
+/* Serialize snapshot reads so an older CLI result cannot overwrite a newer one. */
 async function refreshSnapshot(): Promise<IssuesSnapshot> {
-  const snapshot = await runSnapshot();
-  cachedSnapshot = snapshot;
-  return snapshot;
+  const predecessor = snapshotRefreshTail;
+  const current = (async () => {
+    if (predecessor) {
+      try {
+        await predecessor;
+      } catch {
+        // A failed refresh must not prevent a later refresh from recovering.
+      }
+    }
+    const snapshot = await runSnapshot();
+    cachedSnapshot = snapshot;
+    return snapshot;
+  })();
+  snapshotRefreshTail = current;
+  try {
+    return await current;
+  } finally {
+    if (snapshotRefreshTail === current) {
+      snapshotRefreshTail = null;
+    }
+  }
 }
 
 function shouldRefreshSnapshot(
@@ -181,9 +266,12 @@ async function getSnapshotForRequest(
   return getSnapshot();
 }
 
+const testCommandRateLimitMax = Number(process.env.KANBUS_TEST_WIKI_RATE_LIMIT_MAX);
 const commandRateLimit = rateLimit({
   windowMs: 60_000,
-  max: 120,
+  max: Number.isSafeInteger(testCommandRateLimitMax) && testCommandRateLimitMax > 0
+    ? testCommandRateLimitMax
+    : 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "rate limit exceeded" }
@@ -275,18 +363,152 @@ apiRouter.get("/issues/:id", async (req, res) => {
   }
 });
 
-const sseClients = new Set<express.Response>();
+// There is no per-user authentication on this server, and it listens on
+// 0.0.0.0 by default, so a write from another device on the network would be
+// anonymous and unauthorized. Refuse writes from anything but the machine
+// running the console; reads stay reachable from other devices as before.
+function requireLoopback(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const address = req.socket.remoteAddress ?? "";
+  const isLoopback = address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+  if (!isLoopback) {
+    res.status(403).json({ error: "writes are only allowed from localhost" });
+    return;
+  }
+  next();
+}
+
+// Move a package back to the router's ready queue after a human reply.
+//
+// A blocked package's workflow does not allow "blocked" -> "open" directly
+// (see .kanbus.yml's default workflow); it must pass through "in_progress"
+// first, the same two-hop path an operator uses by hand.
+async function requeueToReady(issueId: string): Promise<void> {
+  try {
+    await runKanbusCommand(["update", issueId, "--status", "open"]);
+  } catch (error) {
+    await runKanbusCommand(["update", issueId, "--status", "in_progress"]);
+    await runKanbusCommand(["update", issueId, "--status", "open"]);
+  }
+}
+
+apiRouter.post("/issues/:id/comments", requireLoopback, express.json({ limit: "64kb" }), async (req, res) => {
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  if (!text) {
+    res.status(400).json({ error: "comment text is required" });
+    return;
+  }
+  try {
+    const wasAwaitingReply = await issueIsAwaitingAgentReply(req.params.id);
+    await runKanbusCommand(["comment", req.params.id, text]);
+    // A blocked router package is requeued to "open" (Ready), not
+    // "in_progress": the router only resumes a saved session for a package
+    // it finds in the ready-to-run queue (see pending_reply_plan /
+    // _pending_reply_plan). "in_progress" never re-enters scheduling, so the
+    // reply would be silently stranded.
+    if (wasAwaitingReply) {
+      await requeueToReady(req.params.id);
+    }
+    const snapshot = await refreshSnapshot();
+    broadcastSnapshot(snapshot);
+    const issue = snapshot.issues.find((item) => item.id === req.params.id);
+    if (!issue) {
+      res.status(404).json({ error: "issue not found after comment" });
+      return;
+    }
+    res.json({ issue, resumed: wasAwaitingReply });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.post("/issues/:id/status", requireLoopback, express.json({ limit: "16kb" }), async (req, res) => {
+  const status = typeof req.body?.status === "string" ? req.body.status.trim() : "";
+  if (!status) {
+    res.status(400).json({ error: "status is required" });
+    return;
+  }
+  try {
+    await runKanbusCommand(["update", req.params.id, "--status", status]);
+    const snapshot = await refreshSnapshot();
+    broadcastSnapshot(snapshot);
+    const issue = snapshot.issues.find((item) => item.id === req.params.id);
+    if (!issue) {
+      res.status(404).json({ error: "issue not found after status update" });
+      return;
+    }
+    res.json({ issue });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.get("/now", async (_req, res) => {
+  try {
+    const issues = await runNowIssues();
+    res.json(issues);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+apiRouter.post("/standup", async (req, res) => {
+  if (process.env.KANBUS_TEST_STANDUP_FAIL === "1") {
+    res.status(500).json({ error: "standup generation failed" });
+    return;
+  }
+  try {
+    const response = await runStandupReport(req.body as StandupGenerateRequest);
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+const snapshotSseClients = new Set<express.Response>();
+const realtimeSseClients = new Set<express.Response>();
 const telemetryClients = new Set<express.Response>();
 
-apiRouter.get("/events", async (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
+function writeSsePayload(clients: Set<express.Response>, payload: string): void {
+  for (const client of clients) {
+    try {
+      if (!client.writableEnded) {
+        client.write(payload);
+      }
+    } catch {
+      // The connection may close between the writable check and the write.
+    }
+  }
+}
 
-  sseClients.add(res);
-  logConsoleEvent("sse-client-connected", { clients: sseClients.size });
+function openSseStream(
+  req: express.Request,
+  res: express.Response,
+  onClose: () => void
+): void {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+  res.write("retry: 3000\n\n");
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) {
+      res.write(": keep-alive\n\n");
+    }
+  }, 15000);
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    onClose();
+  });
+}
+
+apiRouter.get("/events", async (req, res) => {
+  snapshotSseClients.add(res);
+  openSseStream(req, res, () => {
+    snapshotSseClients.delete(res);
+    logConsoleEvent("sse-client-disconnected", { clients: snapshotSseClients.size });
+  });
+  logConsoleEvent("sse-client-connected", { clients: snapshotSseClients.size });
 
   try {
     const snapshot = await getSnapshot();
@@ -299,62 +521,31 @@ apiRouter.get("/events", async (req, res) => {
       })}\n\n`
     );
   }
-
-  req.on("close", () => {
-    sseClients.delete(res);
-    logConsoleEvent("sse-client-disconnected", { clients: sseClients.size });
-  });
 });
 
 // Realtime stream alias used by the web client.
 apiRouter.get("/events/realtime", async (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
-
-  sseClients.add(res);
-  logConsoleEvent("sse-client-connected", {
-    clients: sseClients.size,
-    stream: "realtime"
-  });
-
-  try {
-    const snapshot = await getSnapshot();
-    res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
-  } catch (error) {
-    res.write(
-      `data: ${JSON.stringify({
-        error: (error as Error).message,
-        updated_at: new Date().toISOString()
-      })}\n\n`
-    );
-  }
-
-  req.on("close", () => {
-    sseClients.delete(res);
+  realtimeSseClients.add(res);
+  openSseStream(req, res, () => {
+    realtimeSseClients.delete(res);
     logConsoleEvent("sse-client-disconnected", {
-      clients: sseClients.size,
+      clients: realtimeSseClients.size,
       stream: "realtime"
     });
+  });
+  logConsoleEvent("sse-client-connected", {
+    clients: realtimeSseClients.size,
+    stream: "realtime"
   });
 });
 
 apiRouter.get("/telemetry/console/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-  res.write("retry: 1000\n\n");
-
   telemetryClients.add(res);
-  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
-
-  req.on("close", () => {
+  openSseStream(req, res, () => {
     telemetryClients.delete(res);
     logConsoleEvent("telemetry-client-disconnected", { clients: telemetryClients.size });
   });
+  logConsoleEvent("telemetry-client-connected", { clients: telemetryClients.size });
 });
 
 apiRouter.post(
@@ -449,7 +640,7 @@ function absoluteWikiPath(normalizedPath: string): string {
 async function collectMarkdownPages(
   dirPath: string,
   relativePrefix: string,
-  pages: string[]
+  pages: WikiPageListItem[]
 ): Promise<void> {
   const entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -458,31 +649,53 @@ async function collectMarkdownPages(
     if (entry.isDirectory()) {
       await collectMarkdownPages(full, relative, pages);
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      pages.push(relative.replace(/\\/g, "/"));
+      const normalized = relative.replace(/\\/g, "/");
+      const content = await fsPromises.readFile(full, "utf-8");
+      pages.push({
+        path: normalized,
+        title: wikiPageDisplayTitle(content, normalized)
+      });
     }
   }
 }
 
-async function listWikiPages(): Promise<{ pages: string[] }> {
+async function listWikiPages(): Promise<{ pages: WikiPageListItem[]; wiki_directory_exists: boolean }> {
   if (!fs.existsSync(wikiRoot)) {
-    return { pages: [] };
+    return { pages: [], wiki_directory_exists: false };
   }
-  const pages: string[] = [];
+  const pages: WikiPageListItem[] = [];
   await collectMarkdownPages(wikiRoot, "", pages);
-  pages.sort();
-  return { pages };
+  pages.sort((left, right) => left.path.localeCompare(right.path));
+  return { pages, wiki_directory_exists: true };
 }
 
-async function wikiRenderPage(relativePagePath: string): Promise<string> {
+type WikiCliRenderResult = {
+  rendered_markdown: string;
+  rendered_html: string;
+};
+
+function parseWikiRenderJson(stdout: string): WikiCliRenderResult {
+  const payload = JSON.parse(stdout) as { rendered?: unknown; rendered_html?: unknown };
+  if (typeof payload.rendered !== "string" || typeof payload.rendered_html !== "string") {
+    throw new Error("wiki render did not return rendered_html");
+  }
+  return { rendered_markdown: payload.rendered, rendered_html: payload.rendered_html };
+}
+
+async function wikiRenderPage(relativePagePath: string): Promise<WikiCliRenderResult> {
   const rustKbs = getRustKbsPath();
   if (rustKbs) {
     try {
-      const { stdout } = await execFileAsync(rustKbs, ["wiki", "render", relativePagePath], {
-        cwd: repoRoot,
-        env: { ...process.env },
-        maxBuffer: 2 * 1024 * 1024
-      });
-      return stdout.trimEnd();
+      const { stdout } = await execFileAsync(
+        rustKbs,
+        ["wiki", "render", relativePagePath, "--json"],
+        {
+          cwd: repoRoot,
+          env: { ...process.env },
+          maxBuffer: 2 * 1024 * 1024
+        }
+      );
+      return parseWikiRenderJson(stdout.trimEnd());
     } catch (rustError) {
       const err = rustError as Error & { stderr?: string; stdout?: string };
       const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim();
@@ -492,8 +705,8 @@ async function wikiRenderPage(relativePagePath: string): Promise<string> {
 
   const command = kanbusPython ?? "kanbus";
   const args = kanbusPython
-    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "wiki", "render", relativePagePath]
-    : ["wiki", "render", relativePagePath];
+    ? [...kanbusPythonArgs, "-m", "kanbus.cli", "wiki", "render", relativePagePath, "--json"]
+    : ["wiki", "render", relativePagePath, "--json"];
   const { stdout } = await execFileAsync(command, args, {
     cwd: repoRoot,
     env: {
@@ -503,7 +716,7 @@ async function wikiRenderPage(relativePagePath: string): Promise<string> {
     },
     maxBuffer: 2 * 1024 * 1024
   });
-  return stdout.trimEnd();
+  return parseWikiRenderJson(stdout.trimEnd());
 }
 
 apiRouter.get("/wiki/pages", commandRateLimit, async (_req, res) => {
@@ -624,7 +837,13 @@ apiRouter.delete("/wiki/page", commandRateLimit, async (req, res) => {
       return;
     }
     await fsPromises.unlink(absolute);
-    res.json({ path: normalized, deleted: true });
+    const remaining = await listWikiPages();
+    res.json({
+      path: normalized,
+      deleted: true,
+      pages: remaining.pages,
+      wiki_directory_exists: remaining.wiki_directory_exists
+    });
   } catch (error) {
     const message = (error as Error).message;
     if (message === "invalid wiki path" || message === "wiki path must end with .md") {
@@ -708,7 +927,11 @@ apiRouter.post(
 
       try {
         const rendered = await wikiRenderPage(renderPath);
-        res.json({ path: normalized, rendered_markdown: rendered });
+        res.json({
+          path: normalized,
+          rendered_markdown: rendered.rendered_markdown,
+          rendered_html: rendered.rendered_html
+        });
       } catch (renderError) {
         const err = renderError as Error & { stderr?: string; stdout?: string };
         const detail = [err.stderr, err.stdout, err.message].filter(Boolean).join("\n").trim() || err.message;
@@ -734,10 +957,7 @@ app.use("/:account/:project/api", apiRouter);
 app.use("/api", apiRouter);
 
 function broadcastSnapshot(snapshot: IssuesSnapshot) {
-  const payload = `data: ${JSON.stringify(snapshot)}\n\n`;
-  for (const client of sseClients) {
-    client.write(payload);
-  }
+  writeSsePayload(snapshotSseClients, `data: ${JSON.stringify(snapshot)}\n\n`);
 }
 
 function broadcastTelemetry(payload: Record<string, unknown>) {
@@ -772,20 +992,19 @@ watcher.on("all", (eventName, filePath) => {
       broadcastSnapshot(snapshot);
       logConsoleEvent("snapshot-broadcast", {
         durationMs: Date.now() - refreshStartedAt,
-        clients: sseClients.size
+        clients: snapshotSseClients.size
       });
     } catch (error) {
-      const payload = {
-        error: (error as Error).message,
-        updated_at: new Date().toISOString()
-      };
-      const message = `data: ${JSON.stringify(payload)}\n\n`;
-      for (const client of sseClients) {
-        client.write(message);
-      }
+      writeSsePayload(
+        snapshotSseClients,
+        `data: ${JSON.stringify({
+          error: (error as Error).message,
+          updated_at: new Date().toISOString()
+        })}\n\n`
+      );
       logConsoleEvent("snapshot-error", {
         durationMs: Date.now() - refreshStartedAt,
-        clients: sseClients.size,
+        clients: snapshotSseClients.size,
         error: (error as Error).message
       });
     }

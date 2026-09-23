@@ -1,0 +1,50 @@
+{
+  "id": "kbs-794391e3-4b9b-4f74-93b8-d93334679b5e",
+  "title": "Gherkin: claim/lease primitives (resource, owner, claim_id, contention, TTL, renew, expire, release, collision, failure)",
+  "description": "## Behavior to specify\n\nOne protocol, independent of Git / MQTT / DynamoDB:\n\n- resource identity, owner identity, claim IDs\n- contention window (discover simultaneous claims) separate from lease TTL (winner ownership)\n- heartbeat/renewal during long work\n- expiration returns abandoned work to eligibility\n- release/completion\n- deterministic tie-break when competing claims appear in the contention window\n- failure modes (timeout, lost renewal, split brain at each provider strength)\n\n## Notes\n\nDo not reuse `kbs update --claim` for this. That command sets assignee and `in_progress`; it is not a lease.\n\n## Acceptance\n\nGherkin scenarios are the contract. Dual-runtime implementation is a later story.",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-c29c46d9-4948-4278-a89a-6069d081f5ef",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1ca62d4b-6b56-4c2f-b016-afbe070ab8ae",
+      "author": "ubuntu",
+      "text": "Gherkin draft: features/coordination/claim_lease_primitives.feature (@wip). Covers resource/owner/claim IDs, contention window vs lease TTL, renew, expire, release, tie-break, Git-only partition duplicate work.",
+      "created_at": "2026-09-14T13:42:21.190323185Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "Composer 2.5",
+        "name": "Cloud Agent"
+      }
+    },
+    {
+      "id": "d7276aed-e4d7-4a7f-b645-0f987c47e1b3",
+      "author": "ubuntu",
+      "text": "Closed: Gherkin contract drafted under features/coordination/ (@wip). Implementation stories remain separate.",
+      "created_at": "2026-09-14T13:43:32.129021856Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "Composer 2.5",
+        "name": "Cloud Agent"
+      }
+    }
+  ],
+  "created_at": "2026-09-14T13:33:29.142552897Z",
+  "updated_at": "2026-09-14T13:43:32.129044614Z",
+  "closed_at": "2026-09-14T13:43:24.168917050Z",
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "The Gherkin contract is drafted, while implementation stories remain separate.",
+  "right_now_updated_at": "2026-09-14T13:43:34.997156760Z",
+  "custom": {}
+}

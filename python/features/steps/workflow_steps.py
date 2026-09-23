@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from pathlib import Path
+
 import copy
 
 import yaml
@@ -25,6 +27,13 @@ def _parse_labels(labels_csv: str) -> list[str]:
     return [label.strip() for label in labels_csv.split(",") if label.strip()]
 
 
+def _resolve_primary_project_directory(context: object) -> Path:
+    virtual_state = getattr(context, "virtual_project_state", None)
+    if virtual_state is not None:
+        return virtual_state.current_project_dir
+    return load_project_directory(context)
+
+
 def _write_issue_with_overrides(
     context: object,
     identifier: str,
@@ -38,7 +47,21 @@ def _write_issue_with_overrides(
     assignee: str | None = None,
     priority: int = 2,
 ) -> None:
-    project_dir = load_project_directory(context)
+    from features.steps.query_steps import _resolve_issue_project_directory
+
+    virtual_state = getattr(context, "virtual_project_state", None)
+    if virtual_state is not None:
+        for project in virtual_state.virtual_projects.values():
+            if (project.shared_dir / "issues" / f"{identifier}.json").exists():
+                project_dir = project.shared_dir
+                break
+            if (project.local_dir / "issues" / f"{identifier}.json").exists():
+                project_dir = project.local_dir
+                break
+        else:
+            project_dir = virtual_state.current_project_dir
+    else:
+        project_dir = _resolve_issue_project_directory(context, identifier)
     issue = build_issue(
         identifier,
         title,
@@ -313,6 +336,7 @@ def given_epic_workflow_allows_transition(
                 "key": to_status,
                 "name": display_name,
                 "category": "To do",
+                "semantic_category": "todo",
                 "collapsed": False,
             }
         )
@@ -326,6 +350,99 @@ def given_epic_workflow_allows_transition(
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
+
+
+def _rename_status_key_in_configuration(
+    payload: dict[str, object], old_key: str, new_key: str
+) -> None:
+    for status in payload.get("statuses", []):
+        if isinstance(status, dict) and status.get("key") == old_key:
+            status["key"] = new_key
+            break
+    for workflow in payload.get("workflows", {}).values():
+        if not isinstance(workflow, dict):
+            continue
+        renamed_workflow: dict[str, list[str]] = {}
+        for from_status, targets in workflow.items():
+            next_from = new_key if from_status == old_key else from_status
+            renamed_targets = [
+                new_key if target == old_key else target for target in targets
+            ]
+            renamed_workflow[next_from] = renamed_targets
+        workflow.clear()
+        workflow.update(renamed_workflow)
+    for workflow_labels in payload.get("transition_labels", {}).values():
+        if not isinstance(workflow_labels, dict):
+            continue
+        renamed_labels: dict[str, dict[str, str]] = {}
+        for from_status, targets in workflow_labels.items():
+            next_from = new_key if from_status == old_key else from_status
+            renamed_targets = {
+                (new_key if target == old_key else target): label
+                for target, label in targets.items()
+            }
+            renamed_labels[next_from] = renamed_targets
+        workflow_labels.clear()
+        workflow_labels.update(renamed_labels)
+
+
+@given('the primary in_progress status key is configured as "{new_key}"')
+def given_primary_in_progress_status_key(context: object, new_key: str) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    _rename_status_key_in_configuration(payload, "in_progress", new_key)
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+def _write_status_configuration(
+    context: object, key: str, semantic_category: str | None, strip_all: bool
+) -> None:
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    statuses = payload.setdefault("statuses", [])
+    if strip_all:
+        for status in statuses:
+            status.pop("semantic_category", None)
+    entry = {
+        "key": key,
+        "name": key.replace("_", " ").title(),
+        "category": "In progress",
+        "color": None,
+        "collapsed": False,
+    }
+    if semantic_category is not None:
+        entry["semantic_category"] = semantic_category
+    statuses.append(entry)
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+@given('the configuration omits every semantic category and adds the status "{key}"')
+def given_configuration_omits_semantic_categories(context: object, key: str) -> None:
+    _write_status_configuration(context, key, None, strip_all=True)
+
+
+@given('the configuration adds the status "{key}" with semantic category "{category}"')
+def given_configuration_adds_status_with_category(
+    context: object, key: str, category: str
+) -> None:
+    _write_status_configuration(context, key, category, strip_all=False)
+
+
+@then('the configured status "{key}" should have semantic category "{category}"')
+def then_configured_status_semantic_category(
+    context: object, key: str, category: str
+) -> None:
+    from kanbus.config_loader import load_project_configuration
+
+    configuration = load_project_configuration(
+        Path(context.working_directory) / ".kanbus.yml"
+    )
+    actual = {status.key: status.semantic_category for status in configuration.statuses}
+    assert actual.get(key) == category, actual
 
 
 @given('epic workflow allows transition from "open" to "ready"')
@@ -346,6 +463,114 @@ def given_epic_open_to_in_progress(context: object) -> None:
 @given('epic workflow allows transition from "blocked" to "in_progress"')
 def given_epic_blocked_to_in_progress(context: object) -> None:
     given_epic_workflow_allows_transition(context, "blocked", "in_progress")
+
+
+EDITORIAL_STORY_WORKFLOW_CONFIGURATION = {
+    **DEFAULT_CONFIGURATION,
+    "workflows": {
+        **DEFAULT_CONFIGURATION["workflows"],
+        "story": {
+            "backlog": ["Discovery", "closed"],
+            "Discovery": ["copy_writing", "backlog"],
+            "copy_writing": ["in_progress", "backlog"],
+            "in_progress": ["copy_writing", "blocked", "closed", "backlog"],
+            "blocked": ["in_progress", "closed"],
+            "closed": ["backlog"],
+        },
+    },
+    "statuses": [
+        {
+            "key": "backlog",
+            "name": "Backlog",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": True,
+        },
+        {
+            "key": "open",
+            "name": "Ready",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": False,
+        },
+        {
+            "key": "Discovery",
+            "name": "Discovery",
+            "category": "To do",
+            "semantic_category": "todo",
+            "collapsed": False,
+        },
+        {
+            "key": "copy_writing",
+            "name": "Copy Writing",
+            "category": "In progress",
+            "semantic_category": "in_progress",
+            "collapsed": False,
+        },
+        {
+            "key": "in_progress",
+            "name": "In Progress",
+            "category": "In progress",
+            "semantic_category": "in_progress",
+            "collapsed": False,
+        },
+        {
+            "key": "blocked",
+            "name": "Blocked",
+            "category": "In progress",
+            "semantic_category": "in_progress",
+            "collapsed": True,
+        },
+        {
+            "key": "closed",
+            "name": "Done",
+            "category": "Done",
+            "semantic_category": "done",
+            "collapsed": True,
+        },
+    ],
+    "transition_labels": {
+        **DEFAULT_CONFIGURATION["transition_labels"],
+        "story": {
+            "backlog": {
+                "Discovery": "Start discovery",
+                "closed": "Drop",
+            },
+            "Discovery": {
+                "copy_writing": "Start copy",
+                "backlog": "Back to backlog",
+            },
+            "copy_writing": {
+                "in_progress": "Start work",
+                "backlog": "Back to backlog",
+            },
+            "in_progress": {
+                "copy_writing": "Back to copy",
+                "blocked": "Block",
+                "closed": "Complete",
+                "backlog": "Back to backlog",
+            },
+            "blocked": {
+                "in_progress": "Unblock",
+                "closed": "Drop",
+            },
+            "closed": {
+                "backlog": "Back to backlog",
+            },
+        },
+    },
+}
+
+
+@given("a Kanbus project with an editorial story workflow configuration")
+def given_editorial_story_workflow_configuration(context: object) -> None:
+    initialize_default_project(context)
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    config_path.write_text(
+        yaml.safe_dump(EDITORIAL_STORY_WORKFLOW_CONFIGURATION, sort_keys=False),
+        encoding="utf-8",
+    )
 
 
 @given("a configuration without a default workflow")

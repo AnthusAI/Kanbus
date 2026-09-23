@@ -3,7 +3,7 @@
   "title": "Now defaults to in-progress work",
   "description": "Now is a look at work that is happening. By default it shows only in-progress issues.\n\nOperators can choose other statuses with `--status` (CLI) or the Now status filter (console). `--status all` shows every status. Named issue IDs still show those issues even when they are not in progress.\n\n## Gherkin\n\n```gherkin\nFeature: Now status filter\n  Scenario: Now lists only in-progress issues by default\n    Given an in-progress issue and an open issue\n    When I run \"kanbus now --list\"\n    Then stdout contains only the in-progress issue\n\n  Scenario: Now --status all lists every status\n    When I run \"kanbus now --list --status all\"\n    Then stdout contains both issues\n\n  Scenario: Now panel defaults to in-progress issues\n    When I switch to the \"Now\" view\n    Then only in-progress issues are listed\n```",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
@@ -17,11 +17,23 @@
       "text": "Now defaults to in-progress on both CLI and console.\n\nCLI: `kbs now` lists only in_progress. `--status all` shows every status. Comma-separated values work. Named issue IDs skip the default filter.\n\nConsole: Status select on the Now panel defaults to In Progress. Chattic.us Now shows the two in-progress items by default; All reveals the rest of the tree.\n",
       "created_at": "2026-09-02T22:59:43.575099Z",
       "comment_type": "default"
+    },
+    {
+      "id": "9029b9b5-050e-49fa-8510-12882a343936",
+      "author": "ubuntu",
+      "text": "Closed after verify. Now tab, tree, board name, and JIT backfill are on develop (PRs #214, #219, #220).",
+      "created_at": "2026-09-07T20:11:22.894604540Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
     }
   ],
   "created_at": "2026-09-02T22:22:37.032496Z",
-  "updated_at": "2026-09-02T22:59:43.575135Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:11:22.945358354Z",
+  "closed_at": "2026-09-07T20:11:22.938585597Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

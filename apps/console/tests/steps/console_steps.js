@@ -261,6 +261,22 @@ async function waitForIssueUpdate(issueId, predicate) {
   throw new Error(`Timed out waiting for issue update: ${issueId}`);
 }
 
+async function reloadConsoleAfterSetup(world) {
+  if (!world?.page) {
+    return;
+  }
+  await world.page.reload({ waitUntil: "domcontentloaded" });
+}
+
+async function applyServerSnapshotToPage(page) {
+  await page.evaluate(async () => {
+    const refreshHandle = window;
+    if (typeof refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ === "function") {
+      await refreshHandle.__KANBUS_REFRESH_SNAPSHOT__();
+    }
+  });
+}
+
 function normalizeTimestamp(value) {
   if (!value) {
     return null;
@@ -664,13 +680,8 @@ When("I select the {string} type filter", async function (filterName) {
   await this.page.getByRole("tab", { name: filterName }).click();
 });
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function boardColumnLocator(page, label) {
-  const titleExact = new RegExp(`^${escapeRegExp(label)}$`);
-  return page.locator(".kb-column").filter({ has: page.getByText(titleExact) });
+  return page.locator(".kb-column").filter({ has: page.getByText(label, { exact: true }) });
 }
 
 Then("the board should show the column {string}", async function (label) {
@@ -710,6 +721,7 @@ When("a new task issue named {string} is added", async function (title) {
   const filePath = path.join(projectRoot, "issues", `${issueId}.json`);
   await writeFile(filePath, JSON.stringify(issue, null, 2));
   await waitForIssueUpdate(issueId, (entry) => entry.title === title);
+  await applyServerSnapshotToPage(this.page);
 });
 
 Given(
@@ -751,6 +763,7 @@ Given(
             === normalizeTimestamp(timestamp)
       )
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -773,6 +786,7 @@ Given(
         && normalizeTimestamp(entry.updated_at)
           === normalizeTimestamp(updatedAt)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -798,6 +812,7 @@ Given(
         && normalizeTimestamp(entry.closed_at)
           === normalizeTimestamp(closedAt)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -812,6 +827,7 @@ Given(
     issue.assignee = assignee;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => entry.assignee === assignee);
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -969,6 +985,18 @@ Then("the issue metadata should include assignee {string}", async function (assi
   );
 });
 
+Then("the issue agent assignment should show route {string}", async function (route) {
+  await expect(this.page.getByTestId("issue-agent-assignment-route")).toHaveText(route);
+});
+
+Then("the issue agent assignment should show effective {string}", async function (value) {
+  await expect(this.page.getByTestId("issue-agent-effective-configuration")).toContainText(value);
+});
+
+Then("the issue agent assignment should show unassigned", async function () {
+  await expect(this.page.getByTestId("issue-agent-assignment-empty")).toHaveText("Unassigned");
+});
+
 Given(
   "the console has a task {string} with agent platform {string} model {string}",
   async function (title, platform, model) {
@@ -984,6 +1012,7 @@ Given(
       (entry) =>
         entry.agent?.platform === platform && entry.agent?.model === model
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -998,6 +1027,33 @@ Given(
     delete issue.agent;
     await writeIssue(issue);
     await waitForIssueUpdate(issue.id, (entry) => !entry.agent);
+    await reloadConsoleAfterSetup(this);
+  }
+);
+
+Given(
+  "the console has a task {string} without agent assignment",
+  async function (title) {
+    const issues = await loadIssues();
+    const issue = issues.find((entry) => entry.title === title);
+    if (!issue) {
+      throw new Error(`Issue not found: ${title}`);
+    }
+    delete issue.agent_assignment;
+    if (issue.custom) {
+      delete issue.custom.agent_assignment;
+      delete issue.custom.routing_assignment;
+    }
+    issue.labels = (issue.labels ?? []).filter(
+      (label) => !label.startsWith("agent-class:") && !label.startsWith("agent-provider:")
+    );
+    await writeIssue(issue);
+    await waitForIssueUpdate(issue.id, (entry) =>
+      !entry.agent_assignment
+      && !(entry.custom ?? {}).agent_assignment
+      && !(entry.custom ?? {}).routing_assignment
+    );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -1029,6 +1085,7 @@ Given(
             && comment.agent?.model === model
         )
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
@@ -1054,6 +1111,7 @@ Given(
         Array.isArray(entry.comments)
         && entry.comments.some((comment) => comment.author === author)
     );
+    await reloadConsoleAfterSetup(this);
   }
 );
 
