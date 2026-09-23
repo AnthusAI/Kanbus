@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::body::Bytes;
-use axum::extract::{Path as AxumPath, Query, State};
+use axum::extract::{ConnectInfo, Path as AxumPath, Query, State};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -43,10 +43,16 @@ use kanbus::console_wiki::{
     WikiCreateRequest, WikiRenameRequest, WikiRenderRequestPayload, WikiServiceError,
     WikiUpdateRequest,
 };
+use kanbus::error::KanbusError;
 use kanbus::event_history::{load_issue_events, EventRecord};
 use kanbus::file_io::{detect_repairable_project_issues, repair_project_structure};
 use kanbus::gossip::{run_gossip_bridge, GossipEnvelope};
+use kanbus::issue_comment::add_comment;
+use kanbus::issue_update::update_issue;
+use kanbus::models::IssueData;
 use kanbus::notification_events::{NotificationEvent, UiControlAction};
+use kanbus::router::{issue_awaiting_agent_reply, read_shared_router_events};
+use kanbus::users::get_current_user;
 
 #[cfg(feature = "embed-assets")]
 use rust_embed::RustEmbed;
@@ -204,6 +210,8 @@ async fn main() {
         .route("/api/now", get(get_now_root))
         .route("/api/standup", post(post_standup_root))
         .route("/api/issues/:id", get(get_issue_root))
+        .route("/api/issues/:id/comments", post(post_issue_comment_root))
+        .route("/api/issues/:id/status", post(post_issue_status_root))
         .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
@@ -241,6 +249,14 @@ async fn main() {
         .route("/:account/:project/api/now", get(get_now))
         .route("/:account/:project/api/standup", post(post_standup))
         .route("/:account/:project/api/issues/:id", get(get_issue))
+        .route(
+            "/:account/:project/api/issues/:id/comments",
+            post(post_issue_comment),
+        )
+        .route(
+            "/:account/:project/api/issues/:id/status",
+            post(post_issue_status),
+        )
         .route(
             "/:account/:project/api/issues/:id/events",
             get(get_issue_events),
@@ -331,9 +347,12 @@ async fn main() {
         );
     }
 
-    axum::serve(listener, app.into_make_service())
-        .await
-        .expect("server failure");
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("server failure");
 }
 
 fn maybe_prompt_project_repair(root: &Path) {
@@ -642,6 +661,232 @@ async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<St
     Json(matches[0]).into_response()
 }
 
+/// Writes (comments, status changes) are refused from anything but the
+/// loopback interface. `kbsc` binds `0.0.0.0` so it is reachable from other
+/// devices on the network for reads; there is no per-user authentication, so
+/// a remote write would be anonymous and unauthorized. Localhost is treated
+/// as the operator's own shell.
+fn require_loopback(addr: SocketAddr) -> Option<Response> {
+    if addr.ip().is_loopback() {
+        return None;
+    }
+    Some(error_response(
+        "writes are only allowed from localhost",
+        StatusCode::FORBIDDEN,
+    ))
+}
+
+#[derive(Debug, Deserialize)]
+struct IssueCommentRequest {
+    text: String,
+}
+
+#[derive(Debug, Serialize)]
+struct IssueCommentResponse {
+    issue: IssueData,
+    resumed: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct IssueStatusRequest {
+    status: String,
+}
+
+/// The router treats a status of "open" as the ready-to-run queue. Requeuing
+/// here after a human reply must land on that same status so the router's
+/// resume logic (`pending_reply_plan`) picks the saved session back up,
+/// rather than "in_progress", which never re-enters scheduling.
+const ROUTER_READY_STATUS: &str = "open";
+
+/// Move a package back to the router's ready queue after a human reply.
+///
+/// A blocked package's workflow does not allow "blocked" -> "open" directly
+/// (see `.kanbus.yml`'s default workflow); it must pass through
+/// "in_progress" first, the same two-hop path an operator uses by hand.
+/// A package that was awaiting reply from some other status (already
+/// "in_progress") reaches "open" directly.
+fn requeue_to_ready(root: &Path, identifier: &str) -> Result<(), KanbusError> {
+    match set_status(root, identifier, ROUTER_READY_STATUS) {
+        Ok(()) => Ok(()),
+        Err(KanbusError::InvalidTransition(_)) => {
+            set_status(root, identifier, "in_progress")?;
+            set_status(root, identifier, ROUTER_READY_STATUS)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn set_status(root: &Path, identifier: &str, status: &str) -> Result<(), KanbusError> {
+    update_issue(
+        root,
+        identifier,
+        None,
+        None,
+        Some(status),
+        None,
+        None,
+        false,
+        true,
+        &[],
+        &[],
+        None,
+        None,
+        None,
+    )?;
+    Ok(())
+}
+
+async fn issue_comment_response(store: FileStore, id: String, text: String) -> Response {
+    let text = text.trim().to_string();
+    if text.is_empty() {
+        return error_response("comment text is required", StatusCode::BAD_REQUEST);
+    }
+    let result =
+        tokio::task::spawn_blocking(move || -> Result<IssueCommentResponse, KanbusError> {
+            let snapshot = store.build_snapshot()?;
+            let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+            if matches.is_empty() {
+                return Err(KanbusError::IssueOperation("issue not found".to_string()));
+            }
+            if matches.len() > 1 {
+                return Err(KanbusError::IssueOperation(
+                    "issue id is ambiguous".to_string(),
+                ));
+            }
+            let identifier = matches[0].identifier.clone();
+            let project_dir = crate_project_dir(store.root())?;
+            let was_awaiting_reply = issue_awaiting_agent_reply(&project_dir, &identifier);
+            let author = get_current_user();
+            add_comment(store.root(), &identifier, &author, &text, None)?;
+            if was_awaiting_reply {
+                requeue_to_ready(store.root(), &identifier)?;
+            }
+            let refreshed = store.build_snapshot()?;
+            let issue = refreshed
+                .issues
+                .into_iter()
+                .find(|item| item.identifier == identifier)
+                .ok_or_else(|| {
+                    KanbusError::IssueOperation("issue not found after write".to_string())
+                })?;
+            Ok(IssueCommentResponse {
+                issue,
+                resumed: was_awaiting_reply,
+            })
+        })
+        .await;
+    match result {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(error)) => error_response(error.to_string(), StatusCode::BAD_REQUEST),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn issue_status_response(store: FileStore, id: String, status: String) -> Response {
+    let status = status.trim().to_string();
+    if status.is_empty() {
+        return error_response("status is required", StatusCode::BAD_REQUEST);
+    }
+    let result = tokio::task::spawn_blocking(move || -> Result<IssueData, KanbusError> {
+        let snapshot = store.build_snapshot()?;
+        let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+        if matches.is_empty() {
+            return Err(KanbusError::IssueOperation("issue not found".to_string()));
+        }
+        if matches.len() > 1 {
+            return Err(KanbusError::IssueOperation(
+                "issue id is ambiguous".to_string(),
+            ));
+        }
+        let identifier = matches[0].identifier.clone();
+        set_status(store.root(), &identifier, &status)?;
+        let refreshed = store.build_snapshot()?;
+        refreshed
+            .issues
+            .into_iter()
+            .find(|item| item.identifier == identifier)
+            .ok_or_else(|| KanbusError::IssueOperation("issue not found after write".to_string()))
+    })
+    .await;
+    match result {
+        Ok(Ok(issue)) => Json(issue).into_response(),
+        Ok(Err(error)) => error_response(error.to_string(), StatusCode::BAD_REQUEST),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+fn crate_project_dir(root: &Path) -> Result<PathBuf, KanbusError> {
+    kanbus::file_io::load_project_directory(root)
+}
+
+async fn post_issue_comment_root(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    Json(payload): Json<IssueCommentRequest>,
+) -> Response {
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    issue_comment_response(store, id, payload.text).await
+}
+
+async fn post_issue_comment(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    Json(payload): Json<IssueCommentRequest>,
+) -> Response {
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    let store = store_for(&state, &account, &project);
+    issue_comment_response(store, id, payload.text).await
+}
+
+async fn post_issue_status_root(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    Json(payload): Json<IssueStatusRequest>,
+) -> Response {
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    issue_status_response(store, id, payload.status).await
+}
+
+async fn post_issue_status(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    Json(payload): Json<IssueStatusRequest>,
+) -> Response {
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    let store = store_for(&state, &account, &project);
+    issue_status_response(store, id, payload.status).await
+}
+
 async fn get_issue_events_root(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
@@ -672,13 +917,16 @@ async fn get_issue_events_root(
     let issue_id = matches[0].identifier.clone();
     let project_dir = store.root().join(&snapshot.config.project_directory);
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) =
-        match load_issue_events(&project_dir, &issue_id, query.before.as_deref(), limit) {
-            Ok(result) => result,
-            Err(error) => {
-                return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+    let (events, next_before) = match load_console_issue_events(
+        store.root(),
+        &project_dir,
+        &issue_id,
+        query.before.as_deref(),
+        limit,
+    ) {
+        Ok(result) => result,
+        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    };
     Json(IssueEventsResponse {
         issue_id,
         events,
@@ -709,19 +957,66 @@ async fn get_issue_events(
     let issue_id = matches[0].identifier.clone();
     let project_dir = store.root().join(&snapshot.config.project_directory);
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) =
-        match load_issue_events(&project_dir, &issue_id, query.before.as_deref(), limit) {
-            Ok(result) => result,
-            Err(error) => {
-                return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+    let (events, next_before) = match load_console_issue_events(
+        store.root(),
+        &project_dir,
+        &issue_id,
+        query.before.as_deref(),
+        limit,
+    ) {
+        Ok(result) => result,
+        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    };
     Json(IssueEventsResponse {
         issue_id,
         events,
         next_before,
     })
     .into_response()
+}
+
+/// Load canonical issue events and, on the newest page, durable agent turns
+/// from the shared router-state branch.  Router-state is an availability
+/// enhancement: a transient Git fetch failure must not hide canonical issue
+/// history, which remains locally readable and is the console's fallback.
+fn load_console_issue_events(
+    root: &Path,
+    project_dir: &Path,
+    issue_id: &str,
+    before: Option<&str>,
+    limit: usize,
+) -> Result<(Vec<EventRecord>, Option<String>), KanbusError> {
+    let (mut events, next_before) = load_issue_events(project_dir, issue_id, before, limit)?;
+    if before.is_some() {
+        return Ok((events, next_before));
+    }
+
+    if let Ok(router_events) = read_shared_router_events(root) {
+        merge_router_conversation_events(&mut events, router_events, issue_id, limit);
+    }
+    Ok((events, next_before))
+}
+
+fn merge_router_conversation_events(
+    events: &mut Vec<EventRecord>,
+    router_events: Vec<EventRecord>,
+    issue_id: &str,
+    limit: usize,
+) {
+    events.extend(router_events.into_iter().filter(|event| {
+        event.issue_id == format!("router:{issue_id}")
+            && matches!(
+                event.event_type,
+                kanbus::event_history::EventType::RouterConversation
+            )
+    }));
+    events.sort_by(|left, right| {
+        right
+            .occurred_at
+            .cmp(&left.occurred_at)
+            .then_with(|| right.event_id.cmp(&left.event_id))
+    });
+    events.truncate(limit);
 }
 
 async fn get_events(
@@ -1859,6 +2154,202 @@ mod tests {
             .join(format!("{identifier}.json"));
         let payload = serde_json::to_string_pretty(&issue).expect("serialize issue");
         std::fs::write(issue_path, payload).expect("write issue");
+    }
+
+    fn write_awaiting_reply_event(root: &Path, issue_id: &str, session_id: &str) {
+        let project_dir = kanbus::file_io::load_project_directory(root).expect("project dir");
+        let events_dir = project_dir.join("events");
+        std::fs::create_dir_all(&events_dir).expect("create events dir");
+        let event = EventRecord::new(
+            format!("router:{issue_id}"),
+            kanbus::event_history::EventType::RouterConversation,
+            "router",
+            serde_json::json!({
+                "action": "awaiting_reply",
+                "lifecycle": "blocked",
+                "session_id": session_id,
+            }),
+            "2026-09-19T20:00:00.000Z".to_string(),
+        );
+        let filename = kanbus::event_history::event_filename(&event.occurred_at, &event.event_id);
+        let payload = serde_json::to_string_pretty(&event).expect("serialize event");
+        std::fs::write(events_dir.join(filename), payload).expect("write event");
+    }
+
+    fn loopback_addr() -> SocketAddr {
+        "127.0.0.1:52341".parse().expect("loopback addr")
+    }
+
+    fn remote_addr() -> SocketAddr {
+        // TEST-NET-3 (RFC 5737): guaranteed never to be loopback.
+        "203.0.113.5:52341".parse().expect("remote addr")
+    }
+
+    #[test]
+    fn require_loopback_allows_127_0_0_1_and_refuses_other_addresses() {
+        assert!(require_loopback(loopback_addr()).is_none());
+        assert!(require_loopback("[::1]:1".parse().unwrap()).is_none());
+        let refused = require_loopback(remote_addr()).expect("remote address refused");
+        assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn post_issue_comment_root_refuses_a_non_loopback_caller() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-remote");
+        let state = test_state(root.clone(), root.clone(), false);
+
+        let response = post_issue_comment_root(
+            ConnectInfo(remote_addr()),
+            State(state),
+            AxumPath("kbs-remote".to_string()),
+            Json(IssueCommentRequest {
+                text: "should be refused".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+        let issue_path = root.join("project").join("issues").join("kbs-remote.json");
+        let stored = std::fs::read_to_string(issue_path).expect("read issue");
+        assert!(
+            !stored.contains("should be refused"),
+            "a refused write must not touch disk: {stored}"
+        );
+    }
+
+    #[tokio::test]
+    async fn post_issue_comment_root_accepts_a_loopback_caller_and_writes_the_comment() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-local");
+        let state = test_state(root.clone(), root, false);
+
+        let response = post_issue_comment_root(
+            ConnectInfo(loopback_addr()),
+            State(state),
+            AxumPath("kbs-local".to_string()),
+            Json(IssueCommentRequest {
+                text: "hello from localhost".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn post_issue_status_root_rejects_an_invalid_status() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-status");
+        let state = test_state(root.clone(), root, false);
+
+        let response = post_issue_status_root(
+            ConnectInfo(loopback_addr()),
+            State(state),
+            AxumPath("kbs-status".to_string()),
+            Json(IssueStatusRequest {
+                status: "not-a-status".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn a_reply_to_a_blocked_package_requeues_it_to_open_not_in_progress() {
+        // Regression test: #332's first Node implementation requeued to
+        // "in_progress", which the router never schedules from (only "open"
+        // is polled as ready-to-run), silently stranding the human's reply.
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        // `issue_awaiting_agent_reply` reads router events through the
+        // router's shared-event plumbing, which resolves a git repository
+        // root; a bare temp dir would make that lookup fail silently.
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(&root)
+            .status()
+            .expect("git init");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-blocked");
+        {
+            let issue_path = root.join("project").join("issues").join("kbs-blocked.json");
+            let mut issue: kanbus::models::IssueData =
+                serde_json::from_str(&std::fs::read_to_string(&issue_path).unwrap()).unwrap();
+            issue.status = "blocked".to_string();
+            std::fs::write(&issue_path, serde_json::to_string_pretty(&issue).unwrap()).unwrap();
+        }
+        write_awaiting_reply_event(&root, "kbs-blocked", "session-A");
+        let state = test_state(root.clone(), root.clone(), false);
+
+        let response = post_issue_comment_root(
+            ConnectInfo(loopback_addr()),
+            State(state),
+            AxumPath("kbs-blocked".to_string()),
+            Json(IssueCommentRequest {
+                text: "please continue".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let issue_path = root.join("project").join("issues").join("kbs-blocked.json");
+        let issue: kanbus::models::IssueData =
+            serde_json::from_str(&std::fs::read_to_string(issue_path).unwrap()).unwrap();
+        assert_eq!(issue.status, "open");
+    }
+
+    #[test]
+    fn router_conversation_events_merge_only_for_the_requested_issue() {
+        let mut events = vec![EventRecord::new(
+            "kbs-target",
+            kanbus::event_history::EventType::CommentAdded,
+            "human",
+            serde_json::json!({}),
+            "2026-09-19T00:00:00.000Z".to_string(),
+        )];
+        let target = EventRecord::new(
+            "router:kbs-target",
+            kanbus::event_history::EventType::RouterConversation,
+            "router",
+            serde_json::json!({"lifecycle":"review"}),
+            "2026-09-19T00:02:00.000Z".to_string(),
+        );
+        let unrelated = EventRecord::new(
+            "router:kbs-other",
+            kanbus::event_history::EventType::RouterConversation,
+            "router",
+            serde_json::json!({"lifecycle":"review"}),
+            "2026-09-19T00:03:00.000Z".to_string(),
+        );
+        let not_a_conversation = EventRecord::new(
+            "router:kbs-target",
+            kanbus::event_history::EventType::RouterResult,
+            "router",
+            serde_json::json!({}),
+            "2026-09-19T00:04:00.000Z".to_string(),
+        );
+
+        merge_router_conversation_events(
+            &mut events,
+            vec![unrelated, not_a_conversation, target.clone()],
+            "kbs-target",
+            50,
+        );
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].event_id, target.event_id);
+        assert_eq!(events[1].issue_id, "kbs-target");
     }
 
     fn install_fake_d2(temp_root: &Path, script_body: &str) -> PathBuf {

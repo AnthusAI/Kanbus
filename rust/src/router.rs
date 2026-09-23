@@ -531,7 +531,12 @@ fn retry_router_state_fetch(mut fetch: impl FnMut() -> bool) -> bool {
     false
 }
 
-pub(crate) fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
+/// Read durable router-owned records from the shared router-state branch.
+///
+/// Console and cloud presentation layers use this read-only projection to
+/// surface agent activity without requiring the viewer's checkout to have
+/// merged the router-state branch.
+pub fn read_shared_router_events(root: &Path) -> Result<Vec<EventRecord>, KanbusError> {
     let Some(state_ref) = remote_router_state_ref(root, true)? else {
         return Ok(Vec::new());
     };
@@ -1980,10 +1985,27 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         errors.push("router.providers must not be empty".to_string());
     }
     for (profile, provider) in &router.providers {
-        if provider.adapter != "codex" {
-            errors.push(format!("router.providers.{profile}.adapter must be codex"));
+        let adapter_kind = RouterAdapterKind::from_name(&provider.adapter);
+        if adapter_kind.is_none() {
+            errors.push(format!(
+                "router.providers.{profile}.adapter must be {}",
+                RouterAdapterKind::NAMES.join(" or ")
+            ));
         }
-        if provider.command.trim().is_empty() {
+        if let Some(tier) = &provider.service_tier {
+            if !["flex", "priority", "default"].contains(&tier.as_str()) {
+                errors.push(format!(
+                    "router.providers.{profile}.service_tier must be flex, priority or default"
+                ));
+            } else if !adapter_kind.is_some_and(RouterAdapterKind::supports_service_tier)
+                || !provider.model.as_deref().is_some_and(|m| m.contains('/'))
+            {
+                errors.push(format!(
+                    "router.providers.{profile}.service_tier requires adapter opencode and a provider/model model"
+                ));
+            }
+        }
+        if provider.resolved_command().trim().is_empty() {
             errors.push(format!(
                 "router.providers.{profile}.command must not be empty"
             ));
@@ -2942,6 +2964,35 @@ fn apply_router_issue_comments(
 
 /// Preserve visible evidence when a completed agent turn fails during later
 /// checkpoint, branch, forge, or result publication.
+/// Comment and block a package whose agent never produced a durable turn (for
+/// example the agent binary could not start), so the failure is never silent.
+fn block_after_launch_failure(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+    error: &KanbusError,
+) -> Result<(), KanbusError> {
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    crate::issue_comment::add_comment_without_right_now(
+        root,
+        &claim.issue_id,
+        "Kanbus Issue Router",
+        &format!("The router could not start an agent session: {error}"),
+        None,
+    )?;
+    assert_current_router_claim(project_dir, configuration, claim)?;
+    if let Some(router) = configuration.router.as_ref() {
+        apply_shared_issue_status(
+            root,
+            configuration,
+            &claim.issue_id,
+            &router.workflow.blocked,
+        )?;
+    }
+    Ok(())
+}
+
 fn preserve_completed_turn_after_publication_failure(
     root: &Path,
     project_dir: &Path,
@@ -2973,7 +3024,7 @@ fn preserve_completed_turn_after_publication_failure(
     let session_id = payload_text(&conversation, "session_id").unwrap_or("unknown");
     let worktree = payload_text(&conversation, "worktree").unwrap_or("unknown");
     let diagnostic = format!(
-        "## Agent turn preserved for review\n\nThe agent completed work, but automatic publication failed. \n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
+        "## Agent turn preserved for review\n\nThe agent completed work, but the router could not accept or publish its result automatically.\n\n- Branch: `{branch}`\n- Session: `{session_id}`\n- Worktree: `{worktree}`\n- Router detail: {publication_error}"
     );
     crate::issue_comment::add_comment_without_right_now(
         root,
@@ -3653,6 +3704,32 @@ fn run_issue_router_once(
     let result = match run_result {
         Ok(result) => result,
         Err(error) => {
+            // `execute_router_adapter` writes a review-lifecycle conversation
+            // before it parses the final Codex payload. A normal `kbs commit`
+            // can therefore leave durable work even when the final envelope is
+            // rejected. Preserve that turn as a publication failure; otherwise
+            // cleanup releases a valid session with no result event or Review
+            // transition.
+            let recovery = if has_preserved_review_conversation(
+                &load_router_events(project_dir).unwrap_or_default(),
+                &package.issue_id,
+            ) {
+                preserve_completed_turn_after_publication_failure(
+                    root,
+                    project_dir,
+                    &configuration,
+                    &claim,
+                    &error,
+                )
+            } else {
+                block_after_launch_failure(root, project_dir, &configuration, &claim, &error)
+            };
+            let error = match recovery {
+                Ok(()) => error,
+                Err(recovery_error) => KanbusError::IssueOperation(format!(
+                    "{error}; completed-turn preservation also failed: {recovery_error}"
+                )),
+            };
             let renewer_stop = lease_renewer
                 .as_mut()
                 .map_or(Ok(()), RouterLeaseRenewalGuard::stop);
@@ -3735,6 +3812,11 @@ fn run_issue_router_once(
                 let branch = prior_pr
                     .as_ref()
                     .map(|pull| pull.branch.clone())
+                    .or_else(|| {
+                        load_router_events(project_dir).ok().and_then(|events| {
+                            router_started_branch(&events, &package.issue_id, &claim.claim_id)
+                        })
+                    })
                     .unwrap_or_else(|| format!("codex/router/{}/r{}", package.issue_id, revision));
                 let published_branch = publish_router_branch(
                     root,
@@ -3929,13 +4011,18 @@ fn run_issue_router_once(
             // The adapter records its completed conversation before this
             // publication phase. Do not let a later publication failure turn
             // that completed work into an invisible active card.
-            let _ = preserve_completed_turn_after_publication_failure(
+            let error = match preserve_completed_turn_after_publication_failure(
                 root,
                 project_dir,
                 &configuration,
                 &claim,
                 &error,
-            );
+            ) {
+                Ok(()) => error,
+                Err(recovery_error) => KanbusError::IssueOperation(format!(
+                    "{error}; completed-turn preservation also failed: {recovery_error}"
+                )),
+            };
             if let Some(renewer) = lease_renewer.as_mut() {
                 let renew_result = renewer.stop();
                 if let Err(renew_error) = renew_result {
@@ -5052,6 +5139,175 @@ fn stale_claim_error(
     ))
 }
 
+const ROUTER_COMMENT_AUTHOR: &str = "Kanbus Issue Router";
+
+/// A blocked agent's saved session plus the human reply that answers it.
+#[derive(Debug, Clone)]
+struct ResumePlan {
+    session_id: String,
+    reply: String,
+    branch: Option<String>,
+    worktree: Option<PathBuf>,
+}
+
+/// How a run relates to a saved session.
+#[derive(Debug, Clone, Copy)]
+enum ResumeMode<'a> {
+    /// A new session with no human reply.
+    Fresh,
+    /// Continue the saved session with the human's reply.
+    Resume(&'a ResumePlan),
+    /// The saved session could not be resumed: start a new one that carries the reply.
+    FreshWithReply(&'a ResumePlan),
+}
+
+impl<'a> ResumeMode<'a> {
+    fn decide(plan: Option<&'a ResumePlan>, resumable: bool) -> Self {
+        match plan {
+            Some(plan) if resumable => Self::Resume(plan),
+            Some(plan) => Self::FreshWithReply(plan),
+            None => Self::Fresh,
+        }
+    }
+}
+
+/// Return the saved session to resume when a human answered a question.
+///
+/// The latest conversation record must be the agent's question
+/// (`awaiting_reply`) with a saved session, and a human (not the router) must
+/// have commented after it. Anything else starts a fresh session.
+fn pending_reply_plan(root: &Path, project_dir: &Path, issue_id: &str) -> Option<ResumePlan> {
+    let events = load_router_events(project_dir).ok()?;
+    let question = events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })?;
+    if payload_text(question, "action") != Some("awaiting_reply") {
+        return None;
+    }
+    let session_id = payload_text(question, "session_id").filter(|id| !id.is_empty())?;
+    let asked_at = DateTime::parse_from_rfc3339(&question.occurred_at)
+        .ok()?
+        .with_timezone(&Utc);
+    let issue_path = crate::file_io::load_project_directory(root)
+        .ok()?
+        .join("issues")
+        .join(format!("{issue_id}.json"));
+    let issue = read_issue_from_file(&issue_path).ok()?;
+    let mut comments = issue
+        .comments
+        .iter()
+        .filter(|comment| comment.author != ROUTER_COMMENT_AUTHOR)
+        .filter(|comment| comment.created_at > asked_at)
+        .filter_map(|comment| {
+            let text = comment.text.as_deref()?.trim();
+            (!text.is_empty()).then(|| (comment.created_at, text.to_string()))
+        })
+        .collect::<Vec<_>>();
+    if comments.is_empty() {
+        return None;
+    }
+    comments.sort_by_key(|(created_at, _)| *created_at);
+    Some(ResumePlan {
+        session_id: session_id.to_string(),
+        reply: comments
+            .into_iter()
+            .map(|(_, text)| text)
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        branch: payload_text(question, "branch").map(str::to_string),
+        worktree: payload_text(question, "worktree").map(PathBuf::from),
+    })
+}
+
+/// Whether the issue's latest router conversation event is an unanswered
+/// agent question (the package is blocked awaiting a human reply).
+///
+/// Used by console write endpoints to decide whether a new comment should
+/// requeue the package for a resumed session rather than an ordinary write.
+pub fn issue_awaiting_agent_reply(project_dir: &Path, issue_id: &str) -> bool {
+    let Ok(events) = load_router_events(project_dir) else {
+        return false;
+    };
+    let Some(latest) = events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+    else {
+        return false;
+    };
+    payload_text(latest, "action") == Some("awaiting_reply")
+}
+
+/// The prompt for a fresh session, or the human's reply for a resumed one.
+fn agent_prompt(prompt: &str, mode: ResumeMode<'_>) -> String {
+    match mode {
+        ResumeMode::Resume(plan) => format!(
+            "A human replied to your question:\n\n{}\n\nContinue the work from where you stopped, in this same session. {prompt}",
+            plan.reply
+        ),
+        ResumeMode::FreshWithReply(plan) => format!(
+            "A human replied to a question from an earlier session that could not be resumed. Start from the issue and any work already on this branch, and take the reply into account:\n\n{}\n\n{prompt}",
+            plan.reply
+        ),
+        ResumeMode::Fresh => prompt.to_string(),
+    }
+}
+
+/// Where an adapter keeps its own session data for one run.
+enum AdapterDataHome {
+    /// Removed when the run ends.
+    Temporary(tempfile::TempDir),
+    /// Kept across attempts so a saved session can be resumed.
+    Persistent(PathBuf),
+}
+
+impl AdapterDataHome {
+    fn path(&self) -> &Path {
+        match self {
+            Self::Temporary(directory) => directory.path(),
+            Self::Persistent(path) => path,
+        }
+    }
+}
+
+/// The branch a run's conversation started on, when one was recorded.
+fn router_started_branch(events: &[EventRecord], issue_id: &str, claim_id: &str) -> Option<String> {
+    events
+        .iter()
+        .filter(|event| event.issue_id == format!("router:{issue_id}"))
+        .filter(|event| matches!(&event.event_type, EventType::RouterConversation))
+        .filter(|event| payload_text(event, "action") == Some("started"))
+        .filter(|event| payload_text(event, "claim_id") == Some(claim_id))
+        .max_by(|left, right| {
+            left.occurred_at
+                .cmp(&right.occurred_at)
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+        .and_then(|event| payload_text(event, "branch").map(str::to_string))
+}
+
+fn kind_for_resume(
+    profile: &crate::models::IssueRouterProviderConfiguration,
+) -> Result<RouterAdapterKind, KanbusError> {
+    RouterAdapterKind::from_name(&profile.adapter).ok_or_else(|| {
+        KanbusError::IssueOperation(format!(
+            "router.providers adapter {} is not supported",
+            profile.adapter
+        ))
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn execute_router_adapter(
     root: &Path,
@@ -5064,20 +5320,39 @@ fn execute_router_adapter(
     checkpoint: Option<(String, u64)>,
     external_renewer: Option<&RouterLeaseRenewalGuard>,
 ) -> Result<RouterAgentResult, KanbusError> {
-    let worktree = create_router_worktree(root, issue_id, claim, checkpoint.as_ref())?;
+    let resume = pending_reply_plan(root, project_dir, issue_id);
+    let worktree =
+        create_router_worktree(root, issue_id, claim, checkpoint.as_ref(), resume.as_ref())?;
+    let reused_worktree = resume
+        .as_ref()
+        .and_then(|plan| plan.worktree.as_deref())
+        .is_some_and(|previous| {
+            fs::canonicalize(previous).ok() == fs::canonicalize(&worktree).ok()
+        });
+    let resumed = resume.is_some()
+        && (!kind_for_resume(profile)?.resume_requires_original_directory() || reused_worktree);
+    // A resumed run keeps the branch the agent already worked on.
+    let branch = resume
+        .as_ref()
+        .and_then(|plan| plan.branch.clone())
+        .unwrap_or_else(|| format!("codex/router/{issue_id}/r{}", claim.revision));
+    // Everything the agent commits after this point is judged against this base.
+    let base_commit = router_worktree_head(&worktree)?;
     append_router_event(
         project_dir,
         &format!("router:{issue_id}"),
         EventType::RouterConversation,
         json!({
-            "action":"started", "provider":"codex", "lifecycle":"in_progress",
+            "action":"started", "provider":profile.adapter, "lifecycle":"in_progress",
+            "resumed_session":resume.as_ref().filter(|_| resumed).map(|plan| plan.session_id.clone()),
+            "message":(resume.is_some() && !resumed).then_some("The saved session could not be resumed because its worktree is gone; started a fresh session with the human's reply."),
             "claim_id":claim.claim_id, "revision":claim.revision,
-            "worktree":worktree, "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+            "worktree":worktree, "branch":branch,
         }),
     )?;
     set_active_router_state(root, issue_id, &claim.claim_id, None)?;
     let prompt = format!(
-        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure.",
+        "Complete Kanbus package {issue_id} in this isolated worktree. Only update issue IDs in this package: {}. Current claim {} has logical revision {}. Latest accepted checkpoint: {}. Return one JSON object with keys schema_version, outcome, summary, issue_updates, issue_comments, checkpoint, and artifacts. Put requested comments in issue_comments as {{issue_id, text}}; do not edit project issue files directly. Allowed outcomes are completed, blocked, and retryable_failure. schema_version must be the JSON number 1, not a string. The router owns issue status and commits board state: do not run kbs commit, kbs update or kbs comment; report comments through issue_comments.",
         package_issue_ids.join(", "),
         claim.claim_id,
         claim.revision,
@@ -5088,20 +5363,31 @@ fn execute_router_adapter(
             ))
             .unwrap_or_else(|| "null".to_string())
     );
-    let mut command = Command::new(&profile.command);
+    let kind = RouterAdapterKind::from_name(&profile.adapter).ok_or_else(|| {
+        KanbusError::IssueOperation(format!(
+            "router.providers adapter {} is not supported",
+            profile.adapter
+        ))
+    })?;
+    let adapter_name = kind.display_name();
+    let data_home = kind.private_data_home(profile, root, issue_id)?;
+    let mut command = Command::new(profile.resolved_command());
+    command.args(&profile.args);
+    kind.configure(
+        &mut command,
+        profile,
+        &prompt,
+        &worktree,
+        data_home.as_ref(),
+        ResumeMode::decide(resume.as_ref(), resumed),
+    );
     command
-        .args(&profile.args)
-        .arg("exec")
-        .arg("--json")
-        .arg("--cd")
-        .arg(&worktree)
-        .arg(prompt)
         .current_dir(&worktree)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .map_err(|_| KanbusError::IssueOperation("Codex router adapter failed".to_string()))?;
+    let mut child = command.spawn().map_err(|_| {
+        KanbusError::IssueOperation(format!("{adapter_name} router adapter failed"))
+    })?;
     set_active_router_state(root, issue_id, &claim.claim_id, Some(child.id()))?;
     let stdout_reader = child.stdout.take().map(|mut stream| {
         thread::spawn(move || {
@@ -5153,9 +5439,9 @@ fn execute_router_adapter(
         }
         if started.elapsed() > Duration::from_secs(3600) {
             let _ = child.kill();
-            return Err(KanbusError::IssueOperation(
-                "Codex router adapter failed".to_string(),
-            ));
+            return Err(KanbusError::IssueOperation(format!(
+                "{adapter_name} router adapter failed"
+            )));
         }
         if Instant::now() >= next_renewal {
             let renew_result = if claim.hard && external_renewer.is_some() {
@@ -5180,37 +5466,50 @@ fn execute_router_adapter(
             let stderr = stderr_reader
                 .and_then(|reader| reader.join().ok())
                 .unwrap_or_default();
-            let session_id = codex_session_id(&stdout);
+            let session_id = kind.session_id(&stdout);
             append_router_event(
                 project_dir,
                 &format!("router:{issue_id}"),
                 EventType::RouterConversation,
                 json!({
-                    "action":"agent_turn", "provider":"codex", "lifecycle":"review",
+                    "action":"agent_turn", "provider":profile.adapter, "lifecycle":"review",
                     "claim_id":claim.claim_id, "revision":claim.revision,
                     "session_id":session_id, "worktree":worktree,
-                    "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+                    "branch":branch,
                     "log":redact_router_log(&format!("{stdout}\n{stderr}")),
                 }),
             )?;
             if !status.success() {
-                return Err(KanbusError::IssueOperation(
-                    "Codex router adapter failed".to_string(),
-                ));
+                return Err(KanbusError::IssueOperation(format!(
+                    "{adapter_name} router adapter failed"
+                )));
             }
             break stdout;
         }
         thread::sleep(Duration::from_millis(100));
     };
-    let result = parse_router_result(&output)?;
+    let mut result = kind.parse_result(&output)?;
+    let changed =
+        router_agent_changed_paths(&worktree, &base_commit, &configuration.project_directory)?;
+    validate_router_worktree_changes(&changed, &configuration.project_directory)?;
+    // A completed package must leave evidence: a file change, a requested issue
+    // comment, or an issue update. Models sometimes report work they never did.
+    if result.outcome == "completed"
+        && result.issue_comments.is_empty()
+        && result.issue_updates.is_empty()
+        && changed.is_empty()
+    {
+        result.outcome = "retryable_failure".to_string();
+        result.summary = NO_CHANGE_SUMMARY.to_string();
+    }
     if result.schema_version != 1 {
-        return Err(KanbusError::IssueOperation(
-            "Codex router adapter returned invalid result".to_string(),
-        ));
+        return Err(KanbusError::IssueOperation(format!(
+            "{adapter_name} router adapter returned invalid result"
+        )));
     }
     if !["completed", "blocked", "retryable_failure"].contains(&result.outcome.as_str()) {
         return Err(KanbusError::IssueOperation(format!(
-            "invalid Codex router outcome \"{}\"",
+            "invalid {adapter_name} router outcome \"{}\"",
             result.outcome
         )));
     }
@@ -5224,14 +5523,388 @@ fn execute_router_adapter(
             &format!("router:{issue_id}"),
             EventType::RouterConversation,
             json!({
-                "action":"awaiting_reply", "provider":"codex", "lifecycle":"blocked",
+                "action":"awaiting_reply", "provider":profile.adapter, "lifecycle":"blocked",
                 "claim_id":claim.claim_id, "revision":claim.revision,
-                "session_id":codex_session_id(&output), "worktree":worktree,
-                "branch":format!("codex/router/{issue_id}/r{}", claim.revision),
+                "session_id":kind.session_id(&output), "worktree":worktree,
+                "branch":branch,
             }),
         )?;
     }
     Ok(result)
+}
+
+const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Leave issue_updates empty: the router moves finished packages to review itself and rejects agent status changes such as closing an issue. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+
+fn router_worktree_head(worktree: &Path) -> Result<String, KanbusError> {
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(worktree)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !output.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "router isolated worktree operation failed".to_string(),
+        ));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+const NO_CHANGE_SUMMARY: &str =
+    "The agent reported completed work but changed nothing and reported no comments or updates.";
+
+/// Every path the agent changed in its worktree, committed or not.
+///
+/// `<project>/.cache` is derived data and is excluded.
+fn router_agent_changed_paths(
+    worktree: &Path,
+    base_commit: &str,
+    project_directory: &str,
+) -> Result<Vec<String>, KanbusError> {
+    let project = Path::new(project_directory);
+    if project.is_absolute()
+        || project
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return Err(KanbusError::IssueOperation(
+            "router project directory must be repository-relative".to_string(),
+        ));
+    }
+    let inspect = || {
+        KanbusError::IssueOperation(
+            "router could not inspect isolated worktree changes".to_string(),
+        )
+    };
+    let mut changed: Vec<String> = Vec::new();
+    let status = Command::new("git")
+        .args([
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+            "--no-renames",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|_| inspect())?;
+    if !status.status.success() {
+        return Err(inspect());
+    }
+    for record in status.stdout.split(|byte| *byte == 0) {
+        if record.len() >= 4 {
+            changed.push(String::from_utf8_lossy(&record[3..]).to_string());
+        }
+    }
+    let committed = Command::new("git")
+        .args([
+            "diff",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            base_commit,
+            "HEAD",
+        ])
+        .current_dir(worktree)
+        .output()
+        .map_err(|_| inspect())?;
+    if !committed.status.success() {
+        return Err(inspect());
+    }
+    for path in committed.stdout.split(|byte| *byte == 0) {
+        if !path.is_empty() {
+            changed.push(String::from_utf8_lossy(path).to_string());
+        }
+    }
+    let cache = project.join(".cache");
+    Ok(changed
+        .into_iter()
+        .filter(|path| !Path::new(path).starts_with(&cache))
+        .collect())
+}
+
+/// Reject adapter edits to Kanbus project state outside canonical mutations.
+///
+/// Both uncommitted and committed edits count: an agent that runs `kbs commit`
+/// inside the worktree must not smuggle board changes past the guard.
+fn validate_router_worktree_changes(
+    changed: &[String],
+    project_directory: &str,
+) -> Result<(), KanbusError> {
+    let project = Path::new(project_directory);
+    if changed
+        .iter()
+        .any(|path| Path::new(path).starts_with(project))
+    {
+        return Err(KanbusError::IssueOperation(
+            "router adapter may not modify Kanbus project state directly".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// The private OpenCode data dir for one package.
+///
+/// Concurrent OpenCode processes share one SQLite session database and fail
+/// with "database is locked", so each package gets its own directory. It lives
+/// beside the repository's other host-local router state and persists across
+/// attempts so a saved session can be resumed with a human's reply. When the
+/// repository directory cannot be found it is a temporary directory instead.
+/// `auth.json` is copied in so non-AWS providers keep working.
+fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
+    let common_dir = Command::new("git")
+        .args(["rev-parse", "--git-common-dir"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .map(|text| {
+            let path = PathBuf::from(text);
+            if path.is_absolute() {
+                path
+            } else {
+                root.join(path)
+            }
+        });
+    let key: String = issue_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let home = match common_dir {
+        Some(common) => {
+            let path = common
+                .join("kanbus-router-adapters")
+                .join("opencode")
+                .join(key);
+            fs::create_dir_all(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+            AdapterDataHome::Persistent(path)
+        }
+        None => AdapterDataHome::Temporary(
+            tempfile::Builder::new()
+                .prefix("kanbus-opencode-")
+                .tempdir()
+                .map_err(|error| KanbusError::Io(error.to_string()))?,
+        ),
+    };
+    let shared = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local").join("share"))
+        });
+    if let Some(auth) = shared.map(|base| base.join("opencode").join("auth.json")) {
+        let target = home.path().join("opencode");
+        if auth.is_file() && !target.join("auth.json").exists() {
+            fs::create_dir_all(&target).map_err(|error| KanbusError::Io(error.to_string()))?;
+            let _ = fs::copy(&auth, target.join("auth.json"));
+        }
+    }
+    Ok(home)
+}
+
+/// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
+///
+/// OpenCode only honours `serviceTier` in per-model options; provider-level
+/// options are silently ignored (verified against Bedrock's ResolvedServiceTier).
+fn opencode_config_content(
+    profile: &crate::models::IssueRouterProviderConfiguration,
+) -> Option<String> {
+    let tier = profile.service_tier.as_ref()?;
+    let (provider, model_id) = profile.model.as_deref()?.split_once('/')?;
+    let mut config = profile
+        .env
+        .get("OPENCODE_CONFIG_CONTENT")
+        .or(std::env::var("OPENCODE_CONFIG_CONTENT").ok().as_ref())
+        .and_then(|text| serde_json::from_str::<Value>(text).ok())
+        .filter(Value::is_object)
+        .unwrap_or_else(|| json!({}));
+    config["provider"][provider]["models"][model_id]["options"]["serviceTier"] = json!(tier);
+    Some(config.to_string())
+}
+
+/// Agent CLIs the router can dispatch to. Add a variant here (plus its Python
+/// counterpart in `router_adapters.py`) to support another agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RouterAdapterKind {
+    Codex,
+    OpenCode,
+}
+
+impl RouterAdapterKind {
+    const NAMES: [&'static str; 2] = ["codex", "opencode"];
+
+    fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "codex" => Some(Self::Codex),
+            "opencode" => Some(Self::OpenCode),
+            _ => None,
+        }
+    }
+
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::Codex => "Codex",
+            Self::OpenCode => "OpenCode",
+        }
+    }
+
+    /// OpenCode binds a session to the directory it started in and, resumed from
+    /// anywhere else, silently does nothing and hangs. Such an adapter is only
+    /// resumed in its original worktree.
+    fn resume_requires_original_directory(self) -> bool {
+        self == Self::OpenCode
+    }
+
+    fn supports_service_tier(self) -> bool {
+        self == Self::OpenCode
+    }
+
+    /// Concurrent OpenCode processes share one SQLite session database and fail
+    /// with "database is locked", so each run gets a private data directory.
+    fn private_data_home(
+        self,
+        profile: &crate::models::IssueRouterProviderConfiguration,
+        root: &Path,
+        issue_id: &str,
+    ) -> Result<Option<AdapterDataHome>, KanbusError> {
+        if self == Self::OpenCode && !profile.env.contains_key("XDG_DATA_HOME") {
+            opencode_data_home(root, issue_id).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn configure(
+        self,
+        command: &mut Command,
+        profile: &crate::models::IssueRouterProviderConfiguration,
+        prompt: &str,
+        worktree: &Path,
+        data_home: Option<&AdapterDataHome>,
+        mode: ResumeMode<'_>,
+    ) {
+        let prompt = agent_prompt(prompt, mode);
+        let resume = match mode {
+            ResumeMode::Resume(plan) => Some(plan),
+            _ => None,
+        };
+        match self {
+            Self::Codex => {
+                command.arg("exec");
+                if let Some(plan) = resume {
+                    // `codex exec resume` has no --cd; the process working
+                    // directory is the worktree and the session is found by id.
+                    command.arg("resume").arg("--json");
+                    if let Some(model) = &profile.model {
+                        command.arg("--model").arg(model);
+                    }
+                    command.arg(&plan.session_id);
+                } else {
+                    command.arg("--json");
+                    if let Some(model) = &profile.model {
+                        command.arg("--model").arg(model);
+                    }
+                    command.arg("--cd").arg(worktree);
+                }
+                command
+                    .arg(prompt)
+                    .envs(&profile.env)
+                    // The prompt is an argument; an inherited stdin makes
+                    // `codex exec` wait for EOF on it.
+                    .stdin(Stdio::null());
+            }
+            Self::OpenCode => {
+                command.arg("run").arg("--format").arg("json");
+                if let Some(model) = &profile.model {
+                    command.arg("--model").arg(model);
+                }
+                if let Some(plan) = resume {
+                    command.arg("--session").arg(&plan.session_id);
+                }
+                command
+                    .arg(format!("{prompt}{OPENCODE_FORMAT_HINT}"))
+                    .envs(&profile.env)
+                    .env("PWD", worktree)
+                    .envs(
+                        opencode_config_content(profile)
+                            .map(|content| ("OPENCODE_CONFIG_CONTENT", content)),
+                    )
+                    // `opencode run` waits on piped stdin until EOF.
+                    .stdin(Stdio::null());
+                if let Some(data_home) = data_home {
+                    command.env("XDG_DATA_HOME", data_home.path());
+                }
+            }
+        }
+    }
+
+    fn session_id(self, stdout: &str) -> Option<String> {
+        match self {
+            Self::Codex => codex_session_id(stdout),
+            Self::OpenCode => stdout.lines().find_map(|line| {
+                serde_json::from_str::<Value>(line)
+                    .ok()?
+                    .get("sessionID")?
+                    .as_str()
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+            }),
+        }
+    }
+
+    fn parse_result(self, stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+        match self {
+            Self::Codex => parse_router_result(stdout),
+            Self::OpenCode => parse_opencode_result(stdout),
+        }
+    }
+}
+
+/// Concatenate the assistant text parts of OpenCode's JSON event stream.
+fn opencode_text(stdout: &str) -> String {
+    stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|event| event.get("type").and_then(Value::as_str) == Some("text"))
+        .filter_map(|event| event.pointer("/part/text")?.as_str().map(str::to_string))
+        .collect()
+}
+
+/// Find the last result object embedded anywhere in free-form model text.
+fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+    let text = opencode_text(stdout);
+    let mut found: Option<Value> = None;
+    let mut offset = 0;
+    while let Some(relative) = text[offset..].find('{') {
+        let start = offset + relative;
+        let mut stream = serde_json::Deserializer::from_str(&text[start..]).into_iter::<Value>();
+        match stream.next() {
+            Some(Ok(value)) => {
+                if value.get("outcome").is_some() && value.get("schema_version").is_some() {
+                    found = Some(value);
+                }
+                offset = start + stream.byte_offset().max(1);
+            }
+            _ => offset = start + 1,
+        }
+    }
+    found
+        .ok_or_else(|| {
+            KanbusError::IssueOperation("OpenCode router adapter returned invalid JSON".to_string())
+        })
+        .and_then(|value| {
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "OpenCode router adapter returned invalid result".to_string(),
+                    )
+                })
+        })
 }
 
 fn codex_session_id(stdout: &str) -> Option<String> {
@@ -5325,12 +5998,30 @@ fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
             KanbusError::IssueOperation("Codex router adapter returned invalid JSON".to_string())
         })
         .and_then(|value| {
-            serde_json::from_value(normalize_router_artifacts(value)).map_err(|_| {
-                KanbusError::IssueOperation(
-                    "Codex router adapter returned invalid result".to_string(),
-                )
-            })
+            serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
+                .map_err(|_| {
+                    KanbusError::IssueOperation(
+                        "Codex router adapter returned invalid result".to_string(),
+                    )
+                })
         })
+}
+
+/// Accept the contract version written as "1", "1.0" or 1.0.
+///
+/// Models routinely quote the number. The version is a constant of the
+/// contract, so coercing these spellings loses nothing; every other value is
+/// still rejected by the strict deserializer.
+fn normalize_schema_version(mut value: Value) -> Value {
+    let coerce = match value.get("schema_version") {
+        Some(Value::String(text)) => matches!(text.trim(), "1" | "1.0"),
+        Some(Value::Number(number)) => number.as_f64() == Some(1.0) && !number.is_u64(),
+        _ => false,
+    };
+    if coerce {
+        value["schema_version"] = json!(1);
+    }
+    value
 }
 
 /// Normalize advisory artifact metadata without relaxing the result contract.
@@ -5560,7 +6251,15 @@ fn create_router_worktree(
     issue_id: &str,
     claim: &RouterClaim,
     checkpoint: Option<&(String, u64)>,
+    resume: Option<&ResumePlan>,
 ) -> Result<PathBuf, KanbusError> {
+    // A resumed agent keeps its own worktree: its saved session refers to
+    // absolute paths there, and it may hold the agent's unfinished work.
+    if let Some(previous) = resume.and_then(|plan| plan.worktree.as_deref()) {
+        if worktree_is_registered(root, previous) {
+            return Ok(previous.to_path_buf());
+        }
+    }
     let worktree = router_worktree_path(issue_id, &claim.claim_id);
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -5627,6 +6326,25 @@ fn create_router_worktree(
         ));
     }
     Ok(worktree)
+}
+
+/// Whether `path` still exists and is a registered worktree of `root`'s repository.
+fn worktree_is_registered(root: &Path, path: &Path) -> bool {
+    if !path.is_dir() {
+        return false;
+    }
+    let Ok(output) = Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(root)
+        .output()
+    else {
+        return false;
+    };
+    let wanted = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+        .any(|listed| fs::canonicalize(listed).unwrap_or_else(|_| PathBuf::from(listed)) == wanted)
 }
 
 fn router_worktree_path(issue_id: &str, claim_id: &str) -> PathBuf {
@@ -7157,8 +7875,11 @@ mod tests {
                 "codex".to_string(),
                 crate::models::IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),
@@ -7381,6 +8102,174 @@ mod tests {
         assert_eq!(
             git_success(root, &["status", "--porcelain"]),
             "A  new_agent_test.rs\nM  tracked.rs"
+        );
+    }
+
+    #[test]
+    fn run_once_preserves_review_turn_when_adapter_result_validation_fails() {
+        let (_temp, root, _remote, _base_sha) = git_remote_fixture();
+        crate::file_io::initialize_project(&root, false).expect("initialize project");
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.project_directory = "project".to_string();
+        configuration.router = Some(IssueRouterConfiguration {
+            enabled: true,
+            workflow: crate::models::IssueRouterWorkflowConfiguration {
+                pending: "open".to_string(),
+                active: "in_progress".to_string(),
+                review: "review".to_string(),
+                blocked: "blocked".to_string(),
+                terminal: vec!["closed".to_string()],
+            },
+            limits: crate::models::IssueRouterLimitsConfiguration {
+                project_wip: 1,
+                review_wip: 1,
+                class_wip: BTreeMap::new(),
+                provider_wip: BTreeMap::new(),
+            },
+            providers: BTreeMap::from([(
+                "default".to_string(),
+                IssueRouterProviderConfiguration {
+                    adapter: "codex".to_string(),
+                    command: Some("/bin/sh".to_string()),
+                    args: vec![
+                        "-c".to_string(),
+                        "printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"session-validation-failure\"}' '{\"schema_version\":1,\"outcome\":\"not-a-router-outcome\"}'"
+                            .to_string(),
+                    ],
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
+                },
+            )]),
+            classes: BTreeMap::new(),
+            retries: crate::models::IssueRouterRetryConfiguration { max_attempts: 3 },
+            watch_interval: "30s".to_string(),
+            forge: Some(crate::models::IssueRouterForgeConfiguration {
+                provider: "github".to_string(),
+                repository: "example/repo".to_string(),
+                base_branch: "main".to_string(),
+                api_url: "https://api.github.com".to_string(),
+                token_env: "PATH".to_string(),
+            }),
+        });
+        configuration
+            .statuses
+            .push(crate::models::StatusDefinition {
+                key: "review".to_string(),
+                name: "Review".to_string(),
+                category: "In progress".to_string(),
+                semantic_category: "in_progress".to_string(),
+                color: None,
+                collapsed: false,
+            });
+        configuration
+            .workflows
+            .get_mut("default")
+            .expect("default workflow")
+            .insert(
+                "in_progress".to_string(),
+                vec![
+                    "open".to_string(),
+                    "blocked".to_string(),
+                    "review".to_string(),
+                    "closed".to_string(),
+                ],
+            );
+        configuration
+            .transition_labels
+            .get_mut("default")
+            .expect("default transition labels")
+            .get_mut("in_progress")
+            .expect("in-progress transition labels")
+            .insert("review".to_string(), "Request review".to_string());
+        fs::write(
+            get_configuration_path(&root).expect("configuration path"),
+            serde_yaml::to_string(&configuration).expect("serialize configuration"),
+        )
+        .expect("write router configuration");
+        let project_dir = load_project_directory(&root).expect("project directory");
+        let issue_id = "kbs-955";
+        let now = Utc::now();
+        let issue = IssueData {
+            identifier: issue_id.to_string(),
+            title: "Preserve validation failure".to_string(),
+            description: String::new(),
+            issue_type: "task".to_string(),
+            status: "open".to_string(),
+            priority: 2,
+            assignee: None,
+            creator: None,
+            parent: None,
+            labels: vec!["agent-provider:default".to_string()],
+            dependencies: Vec::new(),
+            comments: Vec::new(),
+            created_at: now,
+            updated_at: now,
+            closed_at: None,
+            agent: None,
+            right_now_summary: None,
+            right_now_updated_at: None,
+            custom: BTreeMap::new(),
+        };
+        fs::write(
+            project_dir.join("issues").join(format!("{issue_id}.json")),
+            serde_json::to_vec_pretty(&issue).expect("serialize issue"),
+        )
+        .expect("write routed issue");
+        git_success(&root, &["add", "-A"]);
+        git_success(&root, &["commit", "-m", "router adapter error fixture"]);
+        git_success(&root, &["push", "origin", "main"]);
+
+        let router = configuration.router.clone().expect("router configuration");
+        let canonical_root = repository_root(&root).expect("canonical repository root");
+        let project_dir =
+            load_project_directory(&canonical_root).expect("canonical project directory");
+        let error = run_issue_router_once(&canonical_root, &router, &project_dir)
+            .expect_err("invalid adapter outcome must reach the recovery branch");
+        assert!(
+            error
+                .to_string()
+                .contains("invalid Codex router outcome \"not-a-router-outcome\""),
+            "{error}"
+        );
+        assert!(
+            !error.to_string().contains("preservation also failed"),
+            "{error}"
+        );
+
+        let events = load_router_events(&project_dir).expect("load router events");
+        assert!(events.iter().any(|event| {
+            event.issue_id == format!("router:{issue_id}")
+                && matches!(&event.event_type, EventType::RouterConversation)
+                && payload_text(event, "lifecycle") == Some("review")
+        }));
+        assert!(
+            events.iter().any(|event| {
+                event.issue_id == format!("router:{issue_id}")
+                    && matches!(&event.event_type, EventType::RouterResult)
+                    && event
+                        .payload
+                        .get("publication_failed")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            }),
+            "{events:#?}"
+        );
+
+        let mut issues = load_project_issues(&project_dir).expect("load issues");
+        apply_router_status_overlay(
+            &mut issues,
+            &events,
+            &router,
+            &issue_event_history(&project_dir).expect("load issue events"),
+        );
+        assert_eq!(
+            issues
+                .iter()
+                .find(|issue| issue.identifier == issue_id)
+                .expect("routed issue")
+                .status,
+            "review"
         );
     }
 
@@ -8182,8 +9071,11 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::from([(
@@ -8878,8 +9770,11 @@ mod tests {
                 "default".to_string(),
                 IssueRouterProviderConfiguration {
                     adapter: "codex".to_string(),
-                    command: "codex".to_string(),
+                    command: Some("codex".to_string()),
                     args: Vec::new(),
+                    model: None,
+                    env: BTreeMap::new(),
+                    service_tier: None,
                 },
             )]),
             classes: BTreeMap::new(),
@@ -9176,5 +10071,252 @@ mod tests {
         assert_eq!(pull.number, 42);
         assert_eq!(pull.branch, "codex/router/kbs-test/r1");
         server.join().expect("mock GitHub API");
+    }
+
+    #[test]
+    fn opencode_result_is_extracted_from_prose_and_session_from_events() {
+        let text =
+            "Done. Result: {\"schema_version\":1,\"outcome\":\"completed\",\"summary\":\"ok\"}";
+        let stdout = [
+            json!({"type":"step_start","sessionID":"ses_1","part":{}}),
+            json!({"type":"text","sessionID":"ses_1","part":{"text":"thinking {not json"}}),
+            json!({"type":"text","sessionID":"ses_1","part":{"text":text}}),
+        ]
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+        let result = parse_opencode_result(&stdout).expect("result");
+        assert_eq!(result.outcome, "completed");
+        assert_eq!(
+            RouterAdapterKind::OpenCode.session_id(&stdout).as_deref(),
+            Some("ses_1")
+        );
+    }
+
+    #[test]
+    fn quoted_schema_versions_of_one_are_coerced_and_others_rejected() {
+        for accepted in ["\"1\"", "\" 1.0 \"", "1.0", "1"] {
+            let payload = format!(
+                "{{\"schema_version\":{accepted},\"outcome\":\"completed\",\"summary\":\"ok\"}}"
+            );
+            let result = parse_router_result(&payload).expect("coerced version");
+            assert_eq!(result.schema_version, 1, "{accepted}");
+        }
+        for rejected in ["\"2\"", "\"1.1\"", "true", "1.5", "null", "\"one\""] {
+            let payload = format!(
+                "{{\"schema_version\":{rejected},\"outcome\":\"completed\",\"summary\":\"ok\"}}"
+            );
+            assert!(parse_router_result(&payload).is_err(), "{rejected}");
+        }
+    }
+
+    #[test]
+    fn opencode_rejects_missing_or_unsupported_schema_version() {
+        let none = json!({"type":"text","part":{"text":"no json"}}).to_string();
+        let error = parse_opencode_result(&none).unwrap_err().to_string();
+        assert!(error.contains("OpenCode router adapter returned invalid JSON"));
+        let string_version = json!({"type":"text","part":{"text":"{\"schema_version\":\"2\",\"outcome\":\"completed\"}"}}).to_string();
+        let error = parse_opencode_result(&string_version)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("OpenCode router adapter returned invalid result"));
+    }
+
+    fn git_in(directory: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .current_dir(directory)
+            .output()
+            .expect("run git");
+        assert!(output.status.success(), "git {args:?} failed");
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn agent_changed_paths_cover_uncommitted_and_committed_edits_and_skip_the_cache() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let repo = directory.path();
+        git_in(repo, &["init", "-q", "-b", "main"]);
+        fs::write(repo.join("README.md"), "base\n").unwrap();
+        git_in(repo, &["add", "-A"]);
+        git_in(repo, &["commit", "-q", "-m", "base"]);
+        let base = git_in(repo, &["rev-parse", "HEAD"]);
+
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("clean");
+        assert!(changed.is_empty());
+
+        fs::create_dir_all(repo.join("project/.cache")).unwrap();
+        fs::write(repo.join("project/.cache/index.json"), "{}").unwrap();
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("cache only");
+        assert!(
+            changed.is_empty(),
+            "the derived cache is exempt: {changed:?}"
+        );
+        assert!(validate_router_worktree_changes(&changed, "project").is_ok());
+
+        fs::write(repo.join("app.txt"), "work\n").unwrap();
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("edit");
+        assert_eq!(changed, vec!["app.txt".to_string()]);
+        assert!(validate_router_worktree_changes(&changed, "project").is_ok());
+
+        fs::create_dir_all(repo.join("project/issues")).unwrap();
+        fs::write(repo.join("project/issues/x.json"), "{}").unwrap();
+        git_in(repo, &["add", "-A", "--", "project/issues"]);
+        git_in(repo, &["commit", "-q", "-m", "agent board commit"]);
+        let changed = router_agent_changed_paths(repo, &base, "project").expect("committed");
+        let error = validate_router_worktree_changes(&changed, "project").unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("may not modify Kanbus project state directly"));
+
+        let escape = router_agent_changed_paths(repo, &base, "../outside");
+        assert!(escape.is_err());
+    }
+
+    fn resume_plan() -> ResumePlan {
+        ResumePlan {
+            session_id: "ses_saved".to_string(),
+            reply: "Use option B.".to_string(),
+            branch: Some("codex/router/kbs-1/r1".to_string()),
+            worktree: None,
+        }
+    }
+
+    fn profile(
+        adapter: &str,
+        model: Option<&str>,
+    ) -> crate::models::IssueRouterProviderConfiguration {
+        crate::models::IssueRouterProviderConfiguration {
+            adapter: adapter.to_string(),
+            command: None,
+            args: Vec::new(),
+            model: model.map(str::to_string),
+            env: BTreeMap::new(),
+            service_tier: None,
+        }
+    }
+
+    fn arguments(command: &Command) -> Vec<String> {
+        command
+            .get_args()
+            .map(|value| value.to_string_lossy().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn codex_resume_uses_exec_resume_with_the_session_id_and_no_cd() {
+        let mut command = Command::new("codex");
+        let plan = resume_plan();
+        RouterAdapterKind::Codex.configure(
+            &mut command,
+            &profile("codex", Some("gpt-x")),
+            "contract",
+            Path::new("/work"),
+            None,
+            ResumeMode::Resume(&plan),
+        );
+        let args = arguments(&command);
+        assert_eq!(
+            &args[..6],
+            ["exec", "resume", "--json", "--model", "gpt-x", "ses_saved"]
+        );
+        assert!(!args.contains(&"--cd".to_string()));
+        assert!(args
+            .last()
+            .unwrap()
+            .contains("A human replied to your question"));
+        assert!(args.last().unwrap().contains("Use option B."));
+    }
+
+    #[test]
+    fn a_fresh_codex_run_keeps_the_original_command_shape() {
+        let mut command = Command::new("codex");
+        RouterAdapterKind::Codex.configure(
+            &mut command,
+            &profile("codex", None),
+            "contract",
+            Path::new("/work"),
+            None,
+            ResumeMode::Fresh,
+        );
+        assert_eq!(
+            arguments(&command),
+            ["exec", "--json", "--cd", "/work", "contract"]
+        );
+    }
+
+    #[test]
+    fn opencode_resume_continues_the_saved_session() {
+        let mut command = Command::new("opencode");
+        let plan = resume_plan();
+        RouterAdapterKind::OpenCode.configure(
+            &mut command,
+            &profile("opencode", Some("amazon-bedrock/m")),
+            "contract",
+            Path::new("/work"),
+            None,
+            ResumeMode::Resume(&plan),
+        );
+        let args = arguments(&command);
+        let session = args
+            .iter()
+            .position(|arg| arg == "--session")
+            .expect("--session");
+        assert_eq!(args[session + 1], "ses_saved");
+        assert!(args.last().unwrap().contains("Use option B."));
+    }
+
+    #[test]
+    fn opencode_data_home_persists_per_package_inside_the_repository() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let repo = directory.path();
+        git_in(repo, &["init", "-q", "-b", "main"]);
+        let first = opencode_data_home(repo, "kbs-9").expect("data home");
+        let AdapterDataHome::Persistent(path) = &first else {
+            panic!("expected a persistent directory");
+        };
+        assert!(path.ends_with("kanbus-router-adapters/opencode/kbs-9"));
+        assert!(path.is_dir());
+        let again = opencode_data_home(repo, "kbs-9").expect("data home");
+        assert_eq!(first.path(), again.path());
+        let other = opencode_data_home(repo, "kbs-10").expect("data home");
+        assert_ne!(first.path(), other.path());
+    }
+
+    #[test]
+    fn only_opencode_needs_its_original_directory_to_resume() {
+        assert!(RouterAdapterKind::OpenCode.resume_requires_original_directory());
+        assert!(!RouterAdapterKind::Codex.resume_requires_original_directory());
+    }
+
+    #[test]
+    fn a_reply_without_a_resumable_session_reaches_a_fresh_session() {
+        let plan = resume_plan();
+        let resumed = agent_prompt("contract", ResumeMode::Resume(&plan));
+        assert!(resumed.contains("in this same session"));
+        let fresh = agent_prompt("contract", ResumeMode::FreshWithReply(&plan));
+        assert!(fresh.contains("could not be resumed"));
+        assert!(fresh.contains("Use option B."));
+        assert_eq!(agent_prompt("contract", ResumeMode::Fresh), "contract");
+        // A fresh-with-reply run never passes --session.
+        let mut command = Command::new("opencode");
+        RouterAdapterKind::OpenCode.configure(
+            &mut command,
+            &profile("opencode", None),
+            "contract",
+            Path::new("/work"),
+            None,
+            ResumeMode::FreshWithReply(&plan),
+        );
+        assert!(!arguments(&command).contains(&"--session".to_string()));
     }
 }

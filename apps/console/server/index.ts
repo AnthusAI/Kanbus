@@ -326,7 +326,35 @@ apiRouter.get("/issues/:id", async (req, res) => {
   }
 });
 
-apiRouter.post("/issues/:id/comments", express.json({ limit: "64kb" }), async (req, res) => {
+// There is no per-user authentication on this server, and it listens on
+// 0.0.0.0 by default, so a write from another device on the network would be
+// anonymous and unauthorized. Refuse writes from anything but the machine
+// running the console; reads stay reachable from other devices as before.
+function requireLoopback(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const address = req.socket.remoteAddress ?? "";
+  const isLoopback = address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+  if (!isLoopback) {
+    res.status(403).json({ error: "writes are only allowed from localhost" });
+    return;
+  }
+  next();
+}
+
+// Move a package back to the router's ready queue after a human reply.
+//
+// A blocked package's workflow does not allow "blocked" -> "open" directly
+// (see .kanbus.yml's default workflow); it must pass through "in_progress"
+// first, the same two-hop path an operator uses by hand.
+async function requeueToReady(issueId: string): Promise<void> {
+  try {
+    await runKanbusCommand(["update", issueId, "--status", "open"]);
+  } catch (error) {
+    await runKanbusCommand(["update", issueId, "--status", "in_progress"]);
+    await runKanbusCommand(["update", issueId, "--status", "open"]);
+  }
+}
+
+apiRouter.post("/issues/:id/comments", requireLoopback, express.json({ limit: "64kb" }), async (req, res) => {
   const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
   if (!text) {
     res.status(400).json({ error: "comment text is required" });
@@ -335,11 +363,13 @@ apiRouter.post("/issues/:id/comments", express.json({ limit: "64kb" }), async (r
   try {
     const wasAwaitingReply = await issueIsAwaitingAgentReply(req.params.id);
     await runKanbusCommand(["comment", req.params.id, text]);
-    // A blocked router package is made eligible again by the normal validated
-    // transition. Its next router turn receives the saved issue conversation
-    // and the new human comment through the existing package context.
+    // A blocked router package is requeued to "open" (Ready), not
+    // "in_progress": the router only resumes a saved session for a package
+    // it finds in the ready-to-run queue (see pending_reply_plan /
+    // _pending_reply_plan). "in_progress" never re-enters scheduling, so the
+    // reply would be silently stranded.
     if (wasAwaitingReply) {
-      await runKanbusCommand(["update", req.params.id, "--status", "in_progress"]);
+      await requeueToReady(req.params.id);
     }
     const snapshot = await refreshSnapshot();
     broadcastSnapshot(snapshot);
@@ -354,7 +384,7 @@ apiRouter.post("/issues/:id/comments", express.json({ limit: "64kb" }), async (r
   }
 });
 
-apiRouter.post("/issues/:id/status", express.json({ limit: "16kb" }), async (req, res) => {
+apiRouter.post("/issues/:id/status", requireLoopback, express.json({ limit: "16kb" }), async (req, res) => {
   const status = typeof req.body?.status === "string" ? req.body.status.trim() : "";
   if (!status) {
     res.status(400).json({ error: "status is required" });
