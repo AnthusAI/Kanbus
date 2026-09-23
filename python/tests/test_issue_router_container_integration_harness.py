@@ -441,3 +441,184 @@ def test_fake_codex_hang_mode_reports_a_thread_and_keeps_running(
     finally:
         process.kill()
         process.wait(timeout=5)
+
+
+def test_worker_config_with_soft_coordination_sets_git_provider(tmp_path: Path) -> None:
+    config = tmp_path / ".kanbus.yml"
+    config.write_text(
+        "project_directory: project\nrouter:\n  forge:\n    provider: github\n"
+        "  providers:\n    codex-luna-flex:\n      args: [--model, gpt-5.6-luna]\n"
+        "  limits:\n    class_wip:\n      implementation: 1\n"
+        "  classes:\n    implementation:\n      providers: [codex-luna-flex]\n",
+        encoding="utf-8",
+    )
+    harness._configure_worker_for_test(
+        tmp_path, "router-container-it-test", soft_coordination=True
+    )
+    loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert loaded["router"]["coordination"]["providers"] == ["git"]
+
+
+def test_worker_config_with_lease_ttl_sets_coordination_ttl(tmp_path: Path) -> None:
+    config = tmp_path / ".kanbus.yml"
+    config.write_text(
+        "project_directory: project\nrouter:\n  forge:\n    provider: github\n"
+        "  providers:\n    codex-luna-flex:\n      args: [--model, gpt-5.6-luna]\n"
+        "  limits:\n    class_wip:\n      implementation: 1\n"
+        "  classes:\n    implementation:\n      providers: [codex-luna-flex]\n",
+        encoding="utf-8",
+    )
+    harness._configure_worker_for_test(
+        tmp_path, "router-container-it-test", lease_ttl="5s"
+    )
+    loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert loaded["router"]["coordination"]["default_lease_ttl"] == "5s"
+
+
+def test_soft_duplicate_permitted_accepts_one_start() -> None:
+    loser = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(0, "started=0", "")
+    )
+    winner = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=1", "")
+    )
+    total = harness.assert_soft_duplicate_permitted([loser, winner])
+    assert total == 1
+
+
+def test_soft_duplicate_permitted_accepts_two_starts() -> None:
+    py_start = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(0, "started=1", "")
+    )
+    rs_start = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=1", "")
+    )
+    total = harness.assert_soft_duplicate_permitted([py_start, rs_start])
+    assert total == 2
+
+
+def test_soft_duplicate_permitted_rejects_zero_starts() -> None:
+    no_start = [
+        harness.WorkerResult(
+            "python", Path("python"), harness.ProcessResult(0, "started=0", "")
+        ),
+        harness.WorkerResult(
+            "rust", Path("rust"), harness.ProcessResult(0, "started=0", "")
+        ),
+    ]
+    with pytest.raises(harness.HarnessError, match="at least one worker to start"):
+        harness.assert_soft_duplicate_permitted(no_start)
+
+
+def test_soft_duplicate_permitted_rejects_non_zero_exit() -> None:
+    failed = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(1, "started=0", "error")
+    )
+    winner = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=1", "")
+    )
+    with pytest.raises(harness.HarnessError, match="failed"):
+        harness.assert_soft_duplicate_permitted([failed, winner])
+
+
+def test_interrupted_worker_accepts_in_progress_and_non_zero_exit() -> None:
+    worker = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(137, "", "")
+    )
+    issue = {"status": "in_progress", "comments": []}
+    harness.assert_interrupted_worker(worker, issue)
+
+
+def test_interrupted_worker_rejects_review_status() -> None:
+    worker = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(137, "", "")
+    )
+    issue = {"status": "review", "comments": []}
+    with pytest.raises(harness.HarnessError, match="should not publish review"):
+        harness.assert_interrupted_worker(worker, issue)
+
+
+def test_interrupted_worker_rejects_zero_exit() -> None:
+    worker = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(0, "", "")
+    )
+    issue = {"status": "in_progress", "comments": []}
+    with pytest.raises(harness.HarnessError, match="non-zero exit"):
+        harness.assert_interrupted_worker(worker, issue)
+
+
+def test_takeover_accepts_one_start_with_valid_result() -> None:
+    worker = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=1", "")
+    )
+    issue = {
+        "status": "review",
+        "comments": [
+            {
+                "author": "Kanbus Issue Router",
+                "text": "KANBUS-ROUTER-TEST:abc Lorem ipsum dolor sit amet.\n\n"
+                "Second paragraph.\n\nThird paragraph.",
+            }
+        ],
+    }
+    harness.assert_takeover(worker, issue, "KANBUS-ROUTER-TEST:abc")
+
+
+def test_takeover_rejects_zero_starts() -> None:
+    worker = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=0", "")
+    )
+    issue = {"status": "review", "comments": []}
+    with pytest.raises(harness.HarnessError, match="started=0"):
+        harness.assert_takeover(worker, issue, "marker")
+
+
+def test_takeover_rejects_non_zero_exit() -> None:
+    worker = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(1, "started=1", "error")
+    )
+    issue = {"status": "review", "comments": []}
+    with pytest.raises(harness.HarnessError, match="failed"):
+        harness.assert_takeover(worker, issue, "marker")
+
+
+def test_run_harness_rejects_invalid_scenario() -> None:
+    with pytest.raises(harness.HarnessError, match="invalid scenario"):
+        harness.run_harness(
+            repo_root=Path("."),
+            live=True,
+            publish_board=True,
+            keep=False,
+            timeout=1.0,
+            image="test",
+            fake_agent=True,
+            scenario="bogus",
+        )
+
+
+def test_run_harness_soft_duplicate_requires_fake_agent() -> None:
+    with pytest.raises(harness.HarnessError, match="requires --fake-agent"):
+        harness.run_harness(
+            repo_root=Path("."),
+            live=True,
+            publish_board=True,
+            keep=False,
+            timeout=1.0,
+            image="test",
+            fake_agent=False,
+            scenario="soft-duplicate",
+        )
+
+
+def test_run_harness_expiry_takeover_requires_fake_agent() -> None:
+    with pytest.raises(harness.HarnessError, match="requires --fake-agent"):
+        harness.run_harness(
+            repo_root=Path("."),
+            live=True,
+            publish_board=True,
+            keep=False,
+            timeout=1.0,
+            image="test",
+            fake_agent=False,
+            scenario="expiry-takeover",
+        )
