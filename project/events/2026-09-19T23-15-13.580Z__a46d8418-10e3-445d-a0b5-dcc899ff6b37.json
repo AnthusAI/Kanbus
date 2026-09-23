@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "a46d8418-10e3-445d-a0b5-dcc899ff6b37",
+  "issue_id": "router:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-19T23:15:13.580Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "cancelled",
+    "claim_id": "5e1dfff2-a639-4a1d-903b-15e0b5bd1253",
+    "revision": 4,
+    "checkpoint_ref": null
+  }
+}

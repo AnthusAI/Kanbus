@@ -1080,6 +1080,14 @@ fn cell<'a>(headers: &[String], row: &'a [String], name: &str) -> &'a str {
     row[index].trim()
 }
 
+fn optional_cell<'a>(headers: &[String], row: &'a [String], name: &str) -> &'a str {
+    headers
+        .iter()
+        .position(|header| header == name)
+        .and_then(|index| row.get(index))
+        .map_or("", |value| value.trim())
+}
+
 #[given("the issue hierarchy and labels are:")]
 fn given_issue_hierarchy(world: &mut KanbusWorld, step: &Step) {
     let (headers, data) = rows(step);
@@ -1190,11 +1198,27 @@ fn given_router_candidates(world: &mut KanbusWorld, step: &Step) {
 
 #[given(regex = r#"^project WIP limit is (?P<limit>\d+)$"#)]
 fn given_project_wip_limit(world: &mut KanbusWorld, limit: String) {
+    let limit = limit.parse::<i64>().unwrap();
     set_router_path(
         world,
         &["limits", "project_wip"],
-        Yaml::Number(limit.parse::<i64>().unwrap().into()),
+        Yaml::Number(limit.into()),
     );
+    // router.limits.review_wip must not exceed project_wip; clamp it down
+    // when the fixture default (2) would otherwise violate that invariant
+    // for a smaller project limit set by this step.
+    let review_wip = read_yaml(world)
+        .1
+        .as_mapping()
+        .and_then(|root| root.get(Yaml::String("router".to_string())))
+        .and_then(Yaml::as_mapping)
+        .and_then(|router| router.get(Yaml::String("limits".to_string())))
+        .and_then(Yaml::as_mapping)
+        .and_then(|limits| limits.get(Yaml::String("review_wip".to_string())))
+        .and_then(Yaml::as_i64);
+    if review_wip.is_some_and(|value| value > limit) {
+        set_router_path(world, &["limits", "review_wip"], Yaml::Number(limit.into()));
+    }
 }
 
 #[given("project issues in router WIP statuses are:")]
@@ -1217,6 +1241,23 @@ fn given_project_wip_issues(world: &mut KanbusWorld, step: &Step) {
             Utc.with_ymd_and_hms(2026, 9, 16, 10, 0, 0).unwrap(),
             Vec::new(),
         );
+        let issue_type = optional_cell(headers, row, "type");
+        let labels = optional_cell(headers, row, "labels");
+        if !issue_type.is_empty() || !labels.is_empty() {
+            let mut issue = load_issue(world, id);
+            if !issue_type.is_empty() {
+                issue.issue_type = issue_type.to_string();
+            }
+            if !labels.is_empty() {
+                issue.labels = labels
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|label| !label.is_empty())
+                    .map(str::to_string)
+                    .collect();
+            }
+            write_issue_fixture(world, &issue);
+        }
     }
 }
 

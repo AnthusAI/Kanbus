@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d0bfdf7d-e7d8-4f80-a464-a2420c342d99",
+  "issue_id": "router:kbs-28adb94d-7773-4107-aa8a-f4552c3f2704",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-19T19:13:27.284Z",
+  "actor_id": "home",
+  "payload": {
+    "action": "started",
+    "attempt": 1,
+    "claim_id": "084491f7-a3bf-44f3-9a20-f11b896b7b3b",
+    "revision": 1,
+    "provider_profile": "codex-value",
+    "package_issue_ids": [
+      "kbs-28adb94d-7773-4107-aa8a-f4552c3f2704"
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+{"completion_tokens": 60, "cost": 0.00012399999999999998, "issue_id": "kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5", "mock": false, "model": "gpt-5.6-luna", "operation": "right_now_summary", "prompt_tokens": 260, "timestamp": "2026-09-17T20:35:25.128362+00:00", "total_tokens": 320}
+{"completion_tokens": 66, "cost": 0.0001044, "issue_id": "kbs-d3973c07-13a1-4598-8f32-85e010278121", "mock": false, "model": "gpt-5.6-luna", "operation": "right_now_summary", "prompt_tokens": 126, "timestamp": "2026-09-17T20:35:27.212095+00:00", "total_tokens": 192}

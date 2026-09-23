@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "f22ad201-da96-4768-9c05-a2c4dcf15702",
+  "issue_id": "router:kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-17T20:16:42.347165Z",
+  "actor_id": "issue-router",
+  "payload": {
+    "claim_id": "a05a5c29-5e2f-46ea-8438-d1d19ee0f898",
+    "resource": "router:state",
+    "message": "The following paths are ignored by one of your .gitignore files:\nproject/events\nhint: Use -f if you really want to add them.\nhint: Turn this message off by running\nhint: \"git config advice.addIgnoredFile false\"",
+    "action": "lease_renewal_failed"
+  }
+}
