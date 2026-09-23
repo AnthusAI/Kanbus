@@ -49,6 +49,7 @@ export interface KanbanConfig {
   priorities: Record<number, KanbanPriorityDefinition>;
   type_colors: Record<string, string>;
   sort_order?: KanbanSortOrder;
+  workflows?: Record<string, Record<string, string[]>>;
 }
 
 export interface KanbanIssue {
