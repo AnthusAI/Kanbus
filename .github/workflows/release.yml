@@ -387,8 +387,8 @@ jobs:
       - name: Verify console assets bundled for crate
         run: |
           test -f rust/embedded_assets/console/index.html
-          (cd rust && cargo package --locked --list) | grep -Eq '^embedded_assets/console/index.html$'
-          (cd rust && cargo package --locked --list) | grep -Eq '^testdata/mock_board_screenshot.png$'
+          (cd rust && cargo package --locked --allow-dirty --list) | grep -Eq '^embedded_assets/console/index.html$'
+          (cd rust && cargo package --locked --allow-dirty --list) | grep -Eq '^testdata/mock_board_screenshot.png$'
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
@@ -446,7 +446,7 @@ jobs:
 
       - name: package (verification)
         working-directory: rust
-        run: cargo package --locked
+        run: cargo package --locked --allow-dirty
 
       - name: Check if crate version already exists
         id: crate_version_check
@@ -490,4 +490,4 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         working-directory: rust
-        run: cargo publish --locked --token "$CARGO_REGISTRY_TOKEN"
+        run: cargo publish --locked --allow-dirty --token "$CARGO_REGISTRY_TOKEN"
