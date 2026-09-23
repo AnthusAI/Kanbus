@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "event_id": "98cb4e87-0850-4b5e-abb2-7fabc1679185",
+  "issue_id": "router:kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-23T12:54:48.725Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Completed agent turn preserved for review after publication failure",
+    "diagnostic": "## Agent turn preserved for review\n\nThe agent completed work, but the router could not accept or publish its result automatically.\n\n- Branch: `codex/router/kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a/r1`\n- Session: `01a0ce4d-091b-7da3-921a-235efa22c7ee`\n- Worktree: `/var/folders/h8/bff490w93nl9c87021k92f0m0000gp/T/kanbus-router-worktrees/kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a-ce520924-513c-412c-ba81-0a2bcd5fb1cf`\n- Router detail: router result cannot transition package kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a from in_progress to closed",
+    "publication_failed": true,
+    "claim_id": "ce520924-513c-412c-ba81-0a2bcd5fb1cf",
+    "revision": 1,
+    "session_id": "01a0ce4d-091b-7da3-921a-235efa22c7ee",
+    "branch": "codex/router/kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a/r1",
+    "worktree": "/var/folders/h8/bff490w93nl9c87021k92f0m0000gp/T/kanbus-router-worktrees/kbs-68060c04-fee3-4b7d-91c4-0a2c86bf8e2a-ce520924-513c-412c-ba81-0a2bcd5fb1cf"
+  }
+}
