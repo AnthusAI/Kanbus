@@ -3,7 +3,7 @@
   "title": "Codex adapter resume and preserved review flow",
   "description": "Implement Codex session capture, question publication, same-session reply via codex exec resume, validation feedback, and draft-PR/checkpoint preservation for every pause/final turn.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -17,11 +17,18 @@
       "text": "Validation of the merged transparent-delegation work found that neither runtime implements saved-session reply. The current Codex adapter is one-shot `codex exec --json`: it records a session ID only after the turn exits, while `router resume` only resumes scheduler operation. This story now owns the required lifecycle: detect/persist a question, publish it as an issue comment, move to Blocked, then invoke the same saved session with the human reply and preserve the resulting work for Review.",
       "created_at": "2026-09-19T10:39:13.047742Z",
       "comment_type": "default"
+    },
+    {
+      "id": "07da4b15-fe06-47c0-8abe-c1e9b8b5f16a",
+      "author": "home",
+      "text": "Confirmed shipped: session capture, blocked-question publication, and same-session reply via codex exec resume are implemented in both runtimes (ResumeMode/ResumePlan/pending_reply_plan in rust/src/router.rs; _ResumePlan/_pending_reply_plan/_can_resume in python/src/kanbus/router_execution.py), covered by features/router/router_agent_resume.feature (5 scenarios), and verified live end-to-end against kbs-d9c9ee this session. Closing.",
+      "created_at": "2026-09-23T10:18:37.055241Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-18T21:53:50.524123Z",
-  "updated_at": "2026-09-19T10:39:13.047772Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T10:18:37.176755Z",
+  "closed_at": "2026-09-23T10:18:37.150250Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-5",
