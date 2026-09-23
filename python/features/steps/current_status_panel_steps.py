@@ -622,6 +622,46 @@ def then_status_feed_row_count(context: object, count: int) -> None:
         raise AssertionError(f"expected {count} feed rows, got {actual}")
 
 
+@when("I request the console now snapshot")
+def when_request_console_now_snapshot(context: object) -> None:
+    import urllib.error
+    import urllib.request
+
+    port = getattr(context, "console_server_port", None) or getattr(
+        context, "console_port", None
+    )
+    if port is None:
+        raise AssertionError("console port not set")
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/api/now", timeout=30
+        ) as response:
+            body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise AssertionError(
+            f"console now snapshot failed: {error.code} {detail}"
+        ) from error
+    context.console_now_issues = json.loads(body)
+
+
+@then(
+    'the console now response should include issue "{issue_id}" with right-now summary "{expected}"'
+)
+def then_console_now_response_includes_summary(
+    context: object, issue_id: str, expected: str
+) -> None:
+    issues = getattr(context, "console_now_issues", None)
+    if issues is None:
+        raise AssertionError("console now response not loaded")
+    match = next((item for item in issues if item.get("id") == issue_id), None)
+    if match is None:
+        raise AssertionError(f"issue not found in now response: {issue_id}")
+    actual = match.get("right_now_summary") or ""
+    if actual != expected:
+        raise AssertionError(f"expected summary {expected}, got {actual}")
+
+
 @then("the now panel should not show right-now placeholder text")
 def then_now_panel_no_right_now_placeholder(context: object) -> None:
     state = _require_console_state(context)
@@ -638,7 +678,7 @@ def then_now_panel_no_right_now_placeholder(context: object) -> None:
 
 
 @when("I request the console now snapshot from the API")
-def when_request_console_now_snapshot(context: object) -> None:
+def when_request_console_now_snapshot_from_api(context: object) -> None:
     import json
     import urllib.error
     import urllib.request

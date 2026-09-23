@@ -114,6 +114,57 @@ fn given_issue_with_agent_metadata(
     save_issue(&project_dir, &issue);
 }
 
+#[given(
+    expr = "an issue {string} exists with agent metadata platform {string} model {string} and name {string}"
+)]
+fn given_issue_with_complete_agent_metadata(
+    world: &mut KanbusWorld,
+    identifier: String,
+    platform: String,
+    model: String,
+    name: String,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = build_issue(&identifier, "Agent tagged issue", "task", "open");
+    issue.agent = Some(AgentMetadata {
+        platform,
+        model,
+        name: Some(name),
+        settings: Default::default(),
+    });
+    save_issue(&project_dir, &issue);
+}
+
+#[then("the created issue should not have agent metadata")]
+fn then_created_issue_has_no_agent_metadata(world: &mut KanbusWorld) {
+    let identifier = world.last_kanbus_issue_id.as_ref().expect("issue id");
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, identifier);
+    assert!(issue.agent.is_none());
+}
+
+#[then(expr = "issue {string} should have agent metadata platform {string} and model {string}")]
+fn then_issue_has_agent_metadata(
+    world: &mut KanbusWorld,
+    identifier: String,
+    platform: String,
+    model: String,
+) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, &identifier);
+    let agent = issue.agent.as_ref().expect("agent metadata");
+    assert_eq!(agent.platform, platform);
+    assert_eq!(agent.model, model);
+}
+
+#[then(expr = "issue {string} should have agent name {string}")]
+fn then_issue_has_agent_name(world: &mut KanbusWorld, identifier: String, name: String) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, &identifier);
+    let agent = issue.agent.as_ref().expect("agent metadata");
+    assert_eq!(agent.name.as_deref(), Some(name.as_str()));
+}
+
 #[then(expr = "the created issue should have agent metadata platform {string} and model {string}")]
 fn then_created_issue_has_agent_metadata(world: &mut KanbusWorld, platform: String, model: String) {
     let identifier = world.last_kanbus_issue_id.as_ref().expect("issue id");
@@ -136,6 +187,14 @@ fn then_latest_comment_has_agent_metadata(
     let agent = latest.agent.as_ref().expect("agent metadata");
     assert_eq!(agent.platform, platform);
     assert_eq!(agent.model, model);
+}
+
+#[then("the latest comment should have text \"Done\"")]
+fn then_latest_comment_has_text_done(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let issue = load_issue(&project_dir, "kanbus-aaa");
+    let latest = issue.comments.last().expect("comment");
+    assert_eq!(latest.text.as_deref(), Some("Done"));
 }
 
 #[then(expr = "the latest comment should have agent settings speed {string}")]
@@ -190,12 +249,59 @@ fn given_issue_comment_with_agent_metadata(
     save_issue(&project_dir, &issue);
 }
 
+#[given(
+    expr = "issue {string} has a comment from {string} with text {string} with complete agent metadata platform {string} model {string} name {string}"
+)]
+fn given_issue_comment_with_complete_agent_metadata(
+    world: &mut KanbusWorld,
+    identifier: String,
+    author: String,
+    text: String,
+    platform: String,
+    model: String,
+    name: String,
+) {
+    let project_dir = load_project_dir(world);
+    let mut issue = load_issue(&project_dir, &identifier);
+    issue.comments = vec![IssueComment {
+        id: Some("abc123def456".to_string()),
+        author,
+        text: Some(text),
+        created_at: Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap(),
+        comment_type: "default".to_string(),
+        data: Default::default(),
+        agent: Some(AgentMetadata {
+            platform,
+            model,
+            name: Some(name),
+            settings: Default::default(),
+        }),
+    }];
+    save_issue(&project_dir, &issue);
+}
+
 #[when("I resolve agent metadata with no CLI overrides")]
 fn when_resolve_agent_metadata(world: &mut KanbusWorld) {
     let saved = apply_environment_overrides(&world.environment_overrides);
     world.resolved_agent_metadata = resolve_agent_metadata(&AgentMetadataRequest::default())
         .ok()
         .flatten();
+    restore_environment(saved);
+}
+
+#[when(expr = "I resolve agent metadata with platform {string} and model {string}")]
+fn when_resolve_agent_metadata_with_platform_and_model(
+    world: &mut KanbusWorld,
+    platform: String,
+    model: String,
+) {
+    let saved = apply_environment_overrides(&world.environment_overrides);
+    let request = AgentMetadataRequest {
+        platform: Some(platform),
+        model: Some(model),
+        ..AgentMetadataRequest::default()
+    };
+    world.resolved_agent_metadata = resolve_agent_metadata(&request).ok().flatten();
     restore_environment(saved);
 }
 

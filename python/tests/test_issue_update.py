@@ -10,6 +10,8 @@ from kanbus.hierarchy import InvalidHierarchyError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.workflows import InvalidTransitionError
 
+from kanbus.issue_mutation import PersistIssueMutationRequest
+
 from test_helpers import (
     build_issue,
     build_project_configuration,
@@ -85,7 +87,7 @@ def test_update_issue_matching_values_succeed_without_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     lookup, _cfg, _issues_dir = _setup(monkeypatch, tmp_path)
-    persist_calls: list[object] = []
+    persist_calls: list[PersistIssueMutationRequest] = []
     monkeypatch.setattr(
         issue_update,
         "persist_issue_mutation",

@@ -40,6 +40,14 @@ const DocsIndexPage = ({ location }: PageProps) => {
               that make up the Kanbus interface.
             </li>
             <li>
+              <strong>Agent Provenance:</strong> How coding agents tag product, model, and session
+              name, and how to give each host those names without putting them in shared AGENTS.md.{" "}
+              <Link to="/docs/agent-provenance" className="text-selected font-semibold hover:underline">
+                Read the guide
+              </Link>
+              .
+            </li>
+            <li>
               <strong>Configuration:</strong> Understand how to customize Kanbus, define 
               your issue hierarchy, and set up your workflow states.
             </li>

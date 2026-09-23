@@ -72,6 +72,24 @@ Rules for product-code commits, branch names, pull requests, reviews, and when h
 
 Read AGENTS.md before you push code or open a pull request. CONTRIBUTING_AGENT.md describes Kanbus workflow and board mechanics only.
 
+## Agent provenance metadata
+
+Tag `create` and `comment` with Title Case product, model, and session name using `--agent-platform`, `--agent-model`, and `--agent-name` (or `KANBUS_AGENT_PLATFORM`, `KANBUS_AGENT_MODEL`, `KANBUS_AGENT_NAME`, and optional `KANBUS_AGENT_SETTINGS`). Complete provenance is platform + model + name; settings stay optional.
+
+If tags are omitted on `create` or `comment`, the write still succeeds and stderr warns with a ready `kbs update` or `kbs comment update` command. Copy that command to fill the same issue or comment. `--no-agent-provenance` silences the warning when tagging does not apply.
+
+`update` and `comment update` fill missing provenance; once platform, model, and name are set, they are not replaced. `close` has no agent flags.
+
+**Preferred products** (examples, not an allowlist): Cursor, Codex, Claude Code, Antigravity, Grok Bot.
+
+**Model examples** (not exhaustive): Composer 2.5, GPT-5.6, Claude Sonnet 4, Grok 4.
+
+Kanbus stores platform lowercased with spaces as underscores (for example `Claude Code` becomes `claude_code`); model is stored as you pass it.
+
+In Beads compatibility mode, agent metadata is rejected with `agent metadata requires native Kanbus issue storage`.
+
+Host identity snippets live in `docs/AGENT_PROVENANCE.md`. Do not put product or model names in `AGENTS.md`.
+
 ## The Order of Being
 
 All work is structured.
