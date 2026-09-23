@@ -70,17 +70,19 @@ class LiveInputs:
 
     def docker_environment(self) -> dict[str, str]:
         """Return only the service inputs required inside a worker container."""
-        return {
+        environment = {
             MUTEX_ENDPOINT: self.mutex_endpoint,
             MUTEX_TOKEN: self.mutex_token,
             MQTT_BROKER: self.mqtt_broker,
             MQTT_AUTHORIZER: self.mqtt_authorizer,
             MQTT_TOKEN: self.mqtt_token,
-            CODEX_API_KEY: self.openai_key,
             "KANBUS_REALTIME_TRANSPORT": "mqtt",
             "KANBUS_REALTIME_AUTOSTART": "false",
             "KANBUS_REALTIME_KEEPALIVE": "false",
         }
+        if self.openai_key:
+            environment[CODEX_API_KEY] = self.openai_key
+        return environment
 
 
 @dataclass(frozen=True)
@@ -102,13 +104,14 @@ class WorkerResult:
 
 
 def validate_live_inputs(
-    env: Mapping[str, str], *, live: bool, publish_board: bool
+    env: Mapping[str, str], *, live: bool, publish_board: bool, fake_agent: bool = False
 ) -> LiveInputs:
     """Validate explicit mutation gates and all live credentials before setup.
 
     :param env: Environment supplied to the harness.
     :param live: Whether the caller explicitly requested live services.
     :param publish_board: Whether the caller explicitly authorized board pushes.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
     :return: Complete allowlisted service credentials.
     :raises HarnessError: If any gate or required service input is missing.
     """
@@ -126,7 +129,16 @@ def validate_live_inputs(
         MQTT_TOKEN: env.get(MQTT_TOKEN, "").strip(),
         OPENAI_KEY: env.get(OPENAI_KEY, "").strip(),
     }
-    missing = [name for name, value in values.items() if not value]
+    required_keys = {
+        MUTEX_ENDPOINT,
+        MUTEX_TOKEN,
+        MQTT_BROKER,
+        MQTT_AUTHORIZER,
+        MQTT_TOKEN,
+    }
+    if not fake_agent:
+        required_keys.add(OPENAI_KEY)
+    missing = [name for name in required_keys if not values[name]]
     if missing:
         raise HarnessError("missing live inputs: " + ", ".join(missing))
     if not re.fullmatch(r"https://[^\s/]+(?:/[^\s]*)?", values[MUTEX_ENDPOINT]):
@@ -327,8 +339,15 @@ def _project_directory(root: Path) -> Path:
     return relative
 
 
-def _configure_worker_for_test(root: Path, agent_class: str) -> None:
-    """Isolate the task to these workers and prevent GitHub PR creation."""
+def _configure_worker_for_test(
+    root: Path, agent_class: str, fake_agent: bool = False
+) -> None:
+    """Isolate the task to these workers and prevent GitHub PR creation.
+
+    :param root: Worker checkout directory.
+    :param agent_class: Unique agent class identifier for this test.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
+    """
     path = root / ".kanbus.yml"
     try:
         config = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -360,6 +379,8 @@ def _configure_worker_for_test(root: Path, agent_class: str) -> None:
         isinstance(argument, str) for argument in provider_args
     ):
         raise HarnessError("worker provider profile has no argument list")
+    if fake_agent and isinstance(provider_profile, dict):
+        provider_profile["command"] = "/opt/fake-codex/codex"
     provider_args.extend(
         (
             "--dangerously-bypass-approvals-and-sandbox",
@@ -476,6 +497,8 @@ def _container_command(
     runtime: str,
     live: LiveInputs,
     barrier_directory: Path,
+    fake_agent: bool = False,
+    fake_agent_mode: str = "complete",
 ) -> list[str]:
     command = [
         "docker",
@@ -498,15 +521,28 @@ def _container_command(
         "--env",
         f"KANBUS_REALTIME_UDS_SOCKET_PATH=/tmp/{name}.sock",
     ]
+    if fake_agent:
+        fake_codex_path = (
+            Path(__file__).parent / "issue_router_container" / "fake_codex.py"
+        )
+        command.extend(
+            (
+                "--mount",
+                f"type=bind,source={fake_codex_path.resolve()},target=/opt/fake-codex/codex,readonly",
+            )
+        )
     for key in (
         MUTEX_ENDPOINT,
         MUTEX_TOKEN,
         MQTT_BROKER,
         MQTT_AUTHORIZER,
         MQTT_TOKEN,
-        CODEX_API_KEY,
     ):
         command.extend(("--env", key))
+    if live.openai_key:
+        command.extend(("--env", CODEX_API_KEY))
+    if fake_agent:
+        command.extend(("--env", f"FAKE_CODEX_MODE={fake_agent_mode}"))
     command.extend(
         (
             "--env",
@@ -544,7 +580,24 @@ def _start_worker(
     live: LiveInputs,
     env: Mapping[str, str],
     barrier_directory: Path,
+    fake_agent: bool = False,
+    fake_agent_mode: str = "complete",
 ) -> subprocess.Popen[str]:
+    """Start an isolated router container worker.
+
+    :param name: Unique container name.
+    :param worker_root: Worker checkout directory.
+    :param remote: Shared bare Git mirror.
+    :param image: Docker image tag.
+    :param runtime: Python or Rust runtime.
+    :param live: Validated live service credentials.
+    :param env: Host environment for Docker invocation.
+    :param barrier_directory: Shared startup barrier directory.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
+    :param fake_agent_mode: Mode for fake Codex (complete or hang).
+    :return: Running container process.
+    :raises HarnessError: If the container cannot be started.
+    """
     command = _container_command(
         name=name,
         worker_root=worker_root,
@@ -553,6 +606,8 @@ def _start_worker(
         runtime=runtime,
         live=live,
         barrier_directory=barrier_directory,
+        fake_agent=fake_agent,
+        fake_agent_mode=fake_agent_mode,
     )
     try:
         return subprocess.Popen(
@@ -650,6 +705,7 @@ def run_harness(
     timeout: float,
     image: str,
     kbs_command: str | None = None,
+    fake_agent: bool = False,
 ) -> Path | None:
     """Race two router runtimes in containers against a real board test issue.
 
@@ -660,10 +716,13 @@ def run_harness(
     :param timeout: Maximum duration for each container worker.
     :param image: Docker image tag to build/use.
     :param kbs_command: Optional host Kanbus CLI command prefix.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
     :return: Retained workspace when ``keep`` is true, otherwise ``None``.
     :raises HarnessError: If preflight, execution, verification, or cleanup fails.
     """
-    inputs = validate_live_inputs(os.environ, live=live, publish_board=publish_board)
+    inputs = validate_live_inputs(
+        os.environ, live=live, publish_board=publish_board, fake_agent=fake_agent
+    )
     repo_root = repo_root.resolve()
     if timeout <= 0:
         raise HarnessError("timeout must be positive")
@@ -759,7 +818,7 @@ def run_harness(
             _git(
                 worker_root, "remote", "set-url", "origin", "file:///kanbus-shared.git"
             )
-            _configure_worker_for_test(worker_root, agent_class)
+            _configure_worker_for_test(worker_root, agent_class, fake_agent=fake_agent)
 
         workers = [
             _start_worker(
@@ -771,6 +830,7 @@ def run_harness(
                 inputs,
                 safe_env,
                 barrier_directory,
+                fake_agent=fake_agent,
             ),
             _start_worker(
                 names[1],
@@ -781,6 +841,7 @@ def run_harness(
                 inputs,
                 safe_env,
                 barrier_directory,
+                fake_agent=fake_agent,
             ),
         ]
         _release_worker_barrier(names, workers, barrier_directory, timeout)
@@ -889,6 +950,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--keep", action="store_true", help="retain fixture checkout/logs"
     )
+    parser.add_argument(
+        "--fake-agent",
+        action="store_true",
+        help="run deterministic fake Codex workers; no model API key required",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=300.0)
     parser.add_argument("--image", default=TEST_IMAGE)
     parser.add_argument("--kbs-command", help="host Kanbus CLI command prefix")
@@ -905,6 +971,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             timeout=args.timeout_seconds,
             image=args.image,
             kbs_command=args.kbs_command,
+            fake_agent=args.fake_agent,
         )
     except HarnessError as error:
         print(
