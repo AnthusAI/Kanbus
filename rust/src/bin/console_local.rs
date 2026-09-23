@@ -692,6 +692,11 @@ struct IssueStatusRequest {
     status: String,
 }
 
+#[derive(Debug, Serialize)]
+struct IssueStatusResponse {
+    issue: IssueData,
+}
+
 /// The router treats a status of "open" as the ready-to-run queue. Requeuing
 /// here after a human reply must land on that same status so the router's
 /// resume logic (`pending_reply_plan`) picks the saved session back up,
@@ -787,29 +792,33 @@ async fn issue_status_response(store: FileStore, id: String, status: String) -> 
     if status.is_empty() {
         return error_response("status is required", StatusCode::BAD_REQUEST);
     }
-    let result = tokio::task::spawn_blocking(move || -> Result<IssueData, KanbusError> {
-        let snapshot = store.build_snapshot()?;
-        let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-        if matches.is_empty() {
-            return Err(KanbusError::IssueOperation("issue not found".to_string()));
-        }
-        if matches.len() > 1 {
-            return Err(KanbusError::IssueOperation(
-                "issue id is ambiguous".to_string(),
-            ));
-        }
-        let identifier = matches[0].identifier.clone();
-        set_status(store.root(), &identifier, &status)?;
-        let refreshed = store.build_snapshot()?;
-        refreshed
-            .issues
-            .into_iter()
-            .find(|item| item.identifier == identifier)
-            .ok_or_else(|| KanbusError::IssueOperation("issue not found after write".to_string()))
-    })
-    .await;
+    let result =
+        tokio::task::spawn_blocking(move || -> Result<IssueStatusResponse, KanbusError> {
+            let snapshot = store.build_snapshot()?;
+            let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+            if matches.is_empty() {
+                return Err(KanbusError::IssueOperation("issue not found".to_string()));
+            }
+            if matches.len() > 1 {
+                return Err(KanbusError::IssueOperation(
+                    "issue id is ambiguous".to_string(),
+                ));
+            }
+            let identifier = matches[0].identifier.clone();
+            set_status(store.root(), &identifier, &status)?;
+            let refreshed = store.build_snapshot()?;
+            let issue = refreshed
+                .issues
+                .into_iter()
+                .find(|item| item.identifier == identifier)
+                .ok_or_else(|| {
+                    KanbusError::IssueOperation("issue not found after write".to_string())
+                })?;
+            Ok(IssueStatusResponse { issue })
+        })
+        .await;
     match result {
-        Ok(Ok(issue)) => Json(issue).into_response(),
+        Ok(Ok(response)) => Json(response).into_response(),
         Ok(Err(error)) => error_response(error.to_string(), StatusCode::BAD_REQUEST),
         Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
