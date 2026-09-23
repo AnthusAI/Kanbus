@@ -1161,6 +1161,11 @@ fn given_router_candidates(world: &mut KanbusWorld, step: &Step) {
         let state = cell(headers, row, "state");
         let pending = utc(cell(headers, row, "pending_since"));
         let created = utc(cell(headers, row, "created_at"));
+        let priority = headers
+            .iter()
+            .position(|header| header == "priority")
+            .map(|index| row[index].parse::<i32>().expect("fixture priority"))
+            .unwrap_or(2);
         let status = if state == "recoverable_active" {
             "in_progress"
         } else {
@@ -1176,6 +1181,16 @@ fn given_router_candidates(world: &mut KanbusWorld, step: &Step) {
             created,
             Vec::new(),
         );
+        let path = issue_path(world, id);
+        let mut issue: IssueData =
+            serde_json::from_slice(&fs::read(&path).expect("read router fixture issue"))
+                .expect("parse router fixture issue");
+        issue.priority = priority;
+        fs::write(
+            path,
+            serde_json::to_vec_pretty(&issue).expect("serialize router fixture issue"),
+        )
+        .expect("write router fixture issue");
         if state == "requested_changes" {
             router_event(
                 world,

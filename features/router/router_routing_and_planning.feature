@@ -99,6 +99,14 @@ Feature: Deterministic Issue Router planning
     When I run "kanbus router plan --json"
     Then eligible package order should be "kbs-150, kbs-151, kbs-152"
 
+  Scenario: Pending work uses business priority before entered time
+    Given router candidates are:
+      | issue_id | state   | priority | pending_since          | created_at              |
+      | kbs-153  | pending | 1        | 2026-09-17T08:00:00Z   | 2026-09-16T07:00:00Z    |
+      | kbs-154  | pending | 0        | 2026-09-17T09:00:00Z   | 2026-09-16T08:00:00Z    |
+    When I run "kanbus router plan --json"
+    Then eligible package order should be "kbs-154, kbs-153"
+
   Scenario: Human-owned active, review, and blocked issues do not consume router WIP
     Given project WIP limit is 3
     And project issues in router WIP statuses are:

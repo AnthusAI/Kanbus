@@ -172,6 +172,7 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
     candidates.sort(
         key=lambda candidate: (
             candidate.scheduling_rank,
+            candidate.issue.priority if candidate.scheduling_rank == 2 else 0,
             candidate.pending_since,
             candidate.issue.created_at.astimezone(UTC),
             candidate.issue.identifier,
