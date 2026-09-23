@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "4110d55f-a3c7-4d16-8a51-82af482d68ff",
+  "issue_id": "router:kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-17T20:31:32.469601Z",
+  "actor_id": "issue-router:37902",
+  "payload": {
+    "claim_id": "cae12df9-f9db-461f-8101-49845b742578",
+    "revision": 3,
+    "attempt": 2,
+    "provider_profile": "codex-luna-flex",
+    "package_issue_ids": [
+      "kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5"
+    ],
+    "owner": "issue-router:37902",
+    "provider_used": "mutex_api",
+    "action": "started"
+  }
+}

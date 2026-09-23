@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "d9a7c1ed-6454-4d87-b18d-bcb4e4a46aed",
+  "issue_id": "router:package:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3:artifact:modified-files",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-19T23:41:57.809Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3:artifact:modified-files",
+    "revision": 5,
+    "artifact": "python/src/kanbus/router_execution.py, python/tests/test_router_execution_coverage.py, rust/src/router.rs"
+  }
+}

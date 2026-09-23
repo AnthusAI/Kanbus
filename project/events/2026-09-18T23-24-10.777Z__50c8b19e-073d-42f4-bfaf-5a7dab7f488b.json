@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "50c8b19e-073d-42f4-bfaf-5a7dab7f488b",
+  "issue_id": "router:kbs-5a3cf5f2-4011-4192-a329-58f961649969",
+  "event_type": "router.conversation",
+  "occurred_at": "2026-09-18T23:24:10.777Z",
+  "actor_id": "home",
+  "payload": {
+    "action": "started",
+    "provider": "codex",
+    "lifecycle": "in_progress",
+    "claim_id": "c578eafc-d0fd-46d4-974a-eee243abc14d",
+    "revision": 1,
+    "worktree": "/var/folders/h8/bff490w93nl9c87021k92f0m0000gp/T/kanbus-router-worktrees/kbs-5a3cf5f2-4011-4192-a329-58f961649969-c578eafc-d0fd-46d4-974a-eee243abc14d",
+    "branch": "codex/router/kbs-5a3cf5f2-4011-4192-a329-58f961649969/r1"
+  }
+}

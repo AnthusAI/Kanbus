@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "ebc4e8eb-a72b-491c-8854-072f0f81888f",
+  "issue_id": "router:kbs-fa8c602b-bffb-4f40-a546-e58092b8db15",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-23T10:22:36.842Z",
+  "actor_id": "home",
+  "payload": {
+    "action": "retryable_failure",
+    "attempt": 1,
+    "next_attempt": 2,
+    "retry_at": "2026-09-23T10:23:06Z",
+    "claim_id": "04636b1f-1fb8-4365-9f1a-f6aab368c982",
+    "revision": 1,
+    "diagnostic": "No implementation was completed. The current console assignment UI uses an ad hoc issue field and label fallback; neither Python nor Rust resolves a canonical, redacted assignment from router configuration. The task also lacks a defined user-level configuration location/merge contract, which is required before safely implementing the requested defaults and overrides."
+  }
+}

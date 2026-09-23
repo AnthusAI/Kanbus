@@ -187,6 +187,89 @@ def test_unrouted_board_work_does_not_consume_router_wip(
     ]
 
 
+def test_hierarchy_and_invalid_route_wip_do_not_consume_project_capacity(
+    tmp_path: Path,
+) -> None:
+    context = _planning_context(
+        tmp_path,
+        project_wip=2,
+        review_wip=2,
+        blocker_status="in_progress",
+    )
+    now = datetime.now(UTC)
+    context.issues.extend(
+        [
+            IssueData(
+                id="kbs-active-epic",
+                title="Active hierarchy card",
+                type="epic",
+                status="in_progress",
+                priority=2,
+                labels=["agent-provider:codex"],
+                created_at=now,
+                updated_at=now,
+            ),
+            IssueData(
+                id="kbs-invalid-route",
+                title="Active invalid route",
+                type="task",
+                status="in_progress",
+                priority=2,
+                labels=["agent-provider:not-configured"],
+                created_at=now,
+                updated_at=now,
+            ),
+            IssueData(
+                id="kbs-pending-router-work",
+                title="Dispatchable router work",
+                type="task",
+                status="open",
+                priority=2,
+                labels=["agent-provider:codex"],
+                created_at=now,
+                updated_at=now,
+            ),
+        ]
+    )
+
+    plan = build_router_plan(context)
+
+    assert [item.issue_id for item in plan.eligible] == [
+        "kbs-recoverable",
+        "kbs-pending-router-work",
+    ]
+
+
+def test_active_routable_leaf_consumes_project_capacity(tmp_path: Path) -> None:
+    context = _planning_context(
+        tmp_path,
+        project_wip=1,
+        review_wip=1,
+        blocker_status="in_progress",
+    )
+    now = datetime.now(UTC)
+    context.issues.append(
+        IssueData(
+            id="kbs-pending-router-work",
+            title="Dispatchable router work",
+            type="task",
+            status="open",
+            priority=2,
+            labels=["agent-provider:codex"],
+            created_at=now,
+            updated_at=now,
+        )
+    )
+
+    plan = build_router_plan(context)
+
+    assert [item.issue_id for item in plan.eligible] == ["kbs-recoverable"]
+    assert [(item.issue_id, item.reason) for item in plan.deferred] == [
+        ("kbs-capacity-holder", "invalid_route"),
+        ("kbs-pending-router-work", "project_wip_limit"),
+    ]
+
+
 def test_legacy_review_without_conversation_does_not_consume_review_capacity(
     tmp_path: Path,
 ) -> None:

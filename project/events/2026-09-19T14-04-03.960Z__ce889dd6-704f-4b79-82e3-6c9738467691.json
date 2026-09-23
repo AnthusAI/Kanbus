@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "ce889dd6-704f-4b79-82e3-6c9738467691",
+  "issue_id": "router:package:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3:artifact:commit",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-19T14:04:03.960Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3:artifact:commit",
+    "revision": 2,
+    "artifact": "0ab556f6f075fe55638c13eaa36467640b4c45a8"
+  }
+}
