@@ -208,7 +208,43 @@ right_now:
   model: gpt-5.6-luna
 ```
 
-Set `OPENAI_API_KEY` in the environment, project `.env`, or `~/.kanbus.env`. Do not commit API keys to `.kanbus.yml`.
+### Credentials
+
+Run `kbs setup ai` (or `kanbus setup ai`) once per user to store an LLM API key. It prompts for
+the key (hidden input) and writes it to `~/.kanbus.env` (mode `600`), so every project on the
+machine picks it up without a per-project `.env`.
+
+Lookup order: shell environment, then `~/.kanbus.env`, then the project `.env` file.
+
+```bash
+kbs setup ai                         # interactive prompt
+pbpaste | kbs setup ai --from-stdin  # read from stdin, e.g. a clipboard or secrets manager
+kbs setup ai --variable ANTHROPIC_API_KEY   # store a different provider's variable
+kbs setup ai --status                # show which source (if any) provides the key
+```
+
+Check `kbs setup ai --status` or `kbs doctor` to confirm a key is configured. Never store API
+keys in `.kanbus.yml`.
+
+For a LiteLLM proxy instead of a direct provider key, set `LITELLM_API_KEY` alongside
+`LITELLM_API_BASE` or `LITELLM_PROXY_URL` (the Rust `kbs now`/standup path also accepts
+`OPENAI_API_BASE`); these follow the same shell-environment / `~/.kanbus.env` / project-`.env`
+lookup order.
+
+#### Machine-wide settings
+
+Any `KANBUS_*` environment override can also live in `~/.kanbus.env`, so every clone and
+worktree on the machine shares it, using the same `kbs setup env NAME --value ...` (or
+`--from-stdin`) command used for credentials. Environment overrides always beat `.kanbus.yml`.
+This is useful for settings that should be consistent machine-wide rather than per project, such
+as the realtime transport/broker/autostart/keepalive variables, `KANBUS_REALTIME_MQTT_API_TOKEN`,
+`KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME`, and the coordination mutex endpoint/token
+(`KANBUS_COORDINATION_MUTEX_API_ENDPOINT`, `KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN`).
+
+```bash
+kbs setup env KANBUS_REALTIME_BROKER --value mqtt://127.0.0.1:1883
+pbpaste | kbs setup env KANBUS_REALTIME_MQTT_API_TOKEN --from-stdin
+```
 
 ## Standup windows
 

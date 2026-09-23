@@ -59,6 +59,86 @@ kanbus gossip watch --transport mqtt --broker auto
 
 If Mosquitto is installed and no broker is reachable, Kanbus will autostart a local broker and write `~/.kanbus/run/broker.json`.
 
+## Always-on local broker (recommended for many worktrees and agents)
+
+Every `kbs`/`kanbus` process in every clone and worktree on the machine publishes to the same
+broker, so one always-on broker gives one live stream of everything happening on the system.
+Kanbus's autostart only lives as long as the process that started it (`keepalive=false` kills it
+on exit) and is not started at boot, so it is not a substitute for a broker you keep running.
+
+**Install:**
+
+```bash
+brew install mosquitto                                  # macOS
+sudo apt install mosquitto mosquitto-clients             # Debian/Ubuntu
+```
+
+Kanbus's own autostart shells out to `mosquitto` via `PATH`. Homebrew installs it under
+`/opt/homebrew/sbin` (Apple Silicon) or `/usr/local/sbin` (Intel), which `brew shellenv` adds to
+login shells but GUI-launched apps or launchd/cron contexts may not have. Running Mosquitto as
+an always-on service (below) sidesteps this entirely, which is one more reason to prefer it over
+relying on autostart.
+
+**Configure a loopback-only anonymous listener.** This is explicit because Mosquitto 2.x
+defaults changed to refuse anonymous connections. Create or append to the config file — on
+Homebrew, `mosquitto.conf` may not exist yet (only `mosquitto.conf.example`), so create it:
+
+- macOS: `$(brew --prefix)/etc/mosquitto/mosquitto.conf`
+- Linux: `/etc/mosquitto/conf.d/kanbus-local.conf`
+
+```
+listener 1883 127.0.0.1
+allow_anonymous true
+```
+
+This binds to loopback only. Do not expose it on a network interface without authentication.
+
+**Run as a service that survives reboot:**
+
+```bash
+brew services start mosquitto        # macOS: launchd, restarts at login
+sudo systemctl enable --now mosquitto   # Linux
+```
+
+Check it is up with `mosquitto_sub -h 127.0.0.1 -t 'projects/#' -v`; it should connect and wait.
+
+**Point Kanbus at it once, machine-wide:**
+
+Both lines are required, not just the broker URL:
+
+```bash
+kbs setup env KANBUS_REALTIME_BROKER --value mqtt://127.0.0.1:1883
+kbs setup env KANBUS_REALTIME_TRANSPORT --value mqtt
+```
+
+With `transport: auto` (the default), Kanbus prefers the console's local UDS hub
+(`~/.kanbus/run/bus.sock`) whenever one exists, so events never reach the broker even with
+`KANBUS_REALTIME_BROKER` set. Forcing `mqtt` routes every Kanbus process on the machine,
+including `kbsc`, through the broker. `KANBUS_REALTIME_TRANSPORT` is the same setting a team
+later leaves as `mqtt` while flipping the broker to `mqtts://` for a shared AWS IoT endpoint.
+
+An explicit broker URL bypasses `~/.kanbus/run/broker.json` discovery. That file is never
+pruned, so if Kanbus previously autostarted a broker, either set the explicit URL (recommended)
+or delete `~/.kanbus/run/broker.json`. Autostart stays harmless either way: Kanbus only starts
+Mosquitto when the configured broker is unreachable, and only ever kills brokers it started
+itself.
+
+**Verify end to end:** keep `mosquitto_sub -h 127.0.0.1 -t 'projects/#' -v` running in one terminal and run
+`kbs update <id> --status in_progress` in any checkout; the update should appear in the subscriber.
+Throwaway test projects can share a `project_key` (and therefore an MQTT topic) with a real
+project, so use the topic in the `mosquitto_sub -v` output to tell them apart.
+
+**Seeing everything:**
+
+- `mosquitto_sub -t 'projects/#' -v` — the raw whole-machine firehose, every project and worktree.
+- `kbs gossip watch --print` — follows the projects known to the current checkout (including `virtual_projects`). Do not add `--broker auto` when verifying: `auto` runs Kanbus's own discovery/autostart, ignores the configured broker, and can start a second Mosquitto (observed on port 1884) that writes a stale `~/.kanbus/run/broker.json`. Plain `kbs gossip watch --print` (no `--broker`) uses the configured broker correctly.
+- `kbsc` — the board UI for one checkout.
+
+**Next step up:** for a shared broker across a team instead of one machine, see
+[CLOUD_CONSOLE_RUNTIME.md](CLOUD_CONSOLE_RUNTIME.md) for a shared AWS IoT broker
+(`mqtts://` plus `KANBUS_REALTIME_MQTT_API_TOKEN`) — the same `~/.kanbus.env` settings are all
+that change on each developer's machine.
+
 ## Transport selection
 
 Transport selection follows this rule order:
@@ -222,13 +302,17 @@ overlay:
 
 ## Environment overrides
 
-Environment values override `.kanbus.yml` (and `.env` can supply these when not already set):
+Environment values override `.kanbus.yml` (and `.env` can supply these when not already set).
+Set any of these in `~/.kanbus.env` (via `kbs setup env NAME --value ...`) when the setting
+should apply machine-wide, across every clone and worktree, rather than per project:
 
 - `KANBUS_REALTIME_TRANSPORT`
 - `KANBUS_REALTIME_BROKER`
 - `KANBUS_REALTIME_AUTOSTART`
 - `KANBUS_REALTIME_KEEPALIVE`
 - `KANBUS_REALTIME_UDS_SOCKET_PATH`
+- `KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME`
+- `KANBUS_REALTIME_MQTT_API_TOKEN`
 - `KANBUS_REALTIME_TOPICS_PROJECT_EVENTS`
 - `KANBUS_OVERLAY_ENABLED`
 - `KANBUS_OVERLAY_TTL_S`
@@ -236,7 +320,7 @@ Environment values override `.kanbus.yml` (and `.env` can supply these when not 
 ## Troubleshooting
 
 - **Mosquitto missing:** only required for explicit MQTT gossip commands. Routine CLI board work does not need Mosquitto. Install with `brew install mosquitto` (macOS) or `apt install mosquitto` (Debian/Ubuntu). Kanbus prints at most one install hint per process for MQTT commands unless `KANBUS_REALTIME_WARN_MOSQUITTO=0`.
-- **Broker not reachable:** verify `realtime.broker` and `broker.json` endpoint; try `mqtt://127.0.0.1:1883`.
+- **Broker not reachable:** verify `realtime.broker` and `broker.json` endpoint; try `mqtt://127.0.0.1:1883`. If Kanbus previously autostarted a broker, `~/.kanbus/run/broker.json` may point at a broker that is no longer running — set an explicit `KANBUS_REALTIME_BROKER` (recommended) or delete that file.
 - **UDS socket missing:** start the broker with `kanbus gossip broker`.
 
 ## AWS IoT Core outline

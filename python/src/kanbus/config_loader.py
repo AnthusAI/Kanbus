@@ -231,6 +231,38 @@ def load_repository_environment(repository_root: Path) -> None:
     load_dotenv_file(repository_root / ".env")
 
 
+def parse_dotenv_lines(content: str) -> list[tuple[str, str]]:
+    """Parse dotenv-style content into an ordered list of key/value pairs.
+
+    Blank lines and ``#`` comments are skipped, a leading ``export `` is
+    stripped, and a single pair of matching surrounding quotes is removed
+    from the value. Lines without an ``=`` are skipped.
+
+    :param content: Raw dotenv file content.
+    :type content: str
+    :return: Ordered list of ``(key, value)`` pairs, duplicates included.
+    :rtype: list[tuple[str, str]]
+    """
+    pairs: list[tuple[str, str]] = []
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.lower().startswith("export "):
+            stripped = stripped[7:].lstrip()
+        if "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        pairs.append((key, value))
+    return pairs
+
+
 def load_dotenv_file(path: Path) -> None:
     """Load key/value pairs from a dotenv file without overriding existing env vars.
 
@@ -244,21 +276,9 @@ def load_dotenv_file(path: Path) -> None:
     except OSError:
         return
 
-    for line in content.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
+    for key, value in parse_dotenv_lines(content):
+        if key in os.environ:
             continue
-        if stripped.lower().startswith("export "):
-            stripped = stripped[7:].lstrip()
-        if "=" not in stripped:
-            continue
-        key, value = stripped.split("=", 1)
-        key = key.strip()
-        if not key or key in os.environ:
-            continue
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-            value = value[1:-1]
         os.environ[key] = value
 
 

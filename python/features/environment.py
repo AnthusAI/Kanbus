@@ -11,6 +11,44 @@ SRC_DIR = PYTHON_DIR / "src"
 sys.path.insert(0, str(PYTHON_DIR))
 sys.path.insert(0, str(SRC_DIR))
 
+# Env vars the suite must never inherit from the developer's real shell or
+# real ~/.kanbus.env: AI credentials, LiteLLM settings, and any KANBUS_*
+# setting (realtime broker, coordination endpoints, etc). Scenarios that need
+# one of these set it explicitly via context.environment_overrides, which is
+# layered on top of a clean os.environ.copy() by run_cli/run_cli_args.
+_DEVELOPER_ENV_PREFIXES = ("KANBUS_", "LITELLM_")
+_DEVELOPER_ENV_EXACT_NAMES = {"OPENAI_API_KEY"}
+# KANBUS_ENABLE_COVERAGE_HELPER is set by CI/Makefile invocations of `behave`
+# itself (see .github/workflows/ci.yml) and must survive the strip.
+_DEVELOPER_ENV_KEEP_NAMES = {"KANBUS_ENABLE_COVERAGE_HELPER"}
+
+
+def _strip_developer_environment_variables() -> list[str]:
+    """Remove developer-shell/real-home env vars that could leak into the suite.
+
+    Without this, a developer's real ``~/.kanbus.env`` (e.g. one created by
+    running ``kanbus setup ai`` or ``kanbus setup env`` on their own machine)
+    or exported shell variables such as ``OPENAI_API_KEY`` or
+    ``KANBUS_REALTIME_BROKER`` would be inherited by every scenario via
+    ``os.environ``, silently changing behavior (for example, pointing
+    realtime/coordination scenarios at a real MQTT broker).
+
+    :return: Names of the environment variables that were removed.
+    :rtype: list[str]
+    """
+    import os
+
+    removed = []
+    for name in list(os.environ):
+        if name in _DEVELOPER_ENV_KEEP_NAMES:
+            continue
+        if name in _DEVELOPER_ENV_EXACT_NAMES or name.startswith(
+            _DEVELOPER_ENV_PREFIXES
+        ):
+            os.environ.pop(name, None)
+            removed.append(name)
+    return removed
+
 
 def before_scenario(context: object, scenario: object) -> None:
     """Reset context state before each scenario.
@@ -57,8 +95,25 @@ def before_scenario(context: object, scenario: object) -> None:
 
 
 def before_all(context: object) -> None:
-    """Run optional coverage helpers before the suite."""
+    """Isolate the suite from the developer's real home directory and env.
+
+    Redirects HOME to a fresh temporary directory for the whole run (so
+    ``~/.kanbus.env``, ``~/.kanbus/run``, etc. never resolve to the real
+    machine's files) and strips developer-shell env vars (KANBUS_*,
+    LITELLM_*, OPENAI_API_KEY) that could otherwise leak into scenarios.
+    Also runs optional coverage helpers.
+
+    :param context: Behave context object.
+    :type context: object
+    """
     import os
+    import tempfile
+
+    context.bdd_home_dir = tempfile.mkdtemp(prefix="kanbus-bdd-home-")
+    context._original_home = os.environ.get("HOME")
+    os.environ["HOME"] = context.bdd_home_dir
+
+    context._stripped_developer_env_vars = _strip_developer_environment_variables()
 
     if os.environ.get("KANBUS_ENABLE_COVERAGE_HELPER") != "1":
         return
@@ -66,6 +121,25 @@ def before_all(context: object) -> None:
         _run_coverage_helper()
     except Exception:
         return
+
+
+def after_all(context: object) -> None:
+    """Restore HOME and remove the temporary home directory created for the run.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    import os
+    import shutil
+
+    bdd_home_dir = getattr(context, "bdd_home_dir", None)
+    original_home = getattr(context, "_original_home", None)
+    if original_home is not None:
+        os.environ["HOME"] = original_home
+    else:
+        os.environ.pop("HOME", None)
+    if bdd_home_dir is not None:
+        shutil.rmtree(bdd_home_dir, ignore_errors=True)
 
 
 def after_scenario(context: object, scenario: object) -> None:
