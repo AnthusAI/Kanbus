@@ -3,7 +3,7 @@
   "title": "Exclude non-routable hierarchy items from router WIP capacity",
   "description": "Router planning currently counts every issue in the active workflow state toward router.limits.project_wip, including initiatives and epics that have no valid agent route. On the live Kanbus board this produces project_wip_limit with no active worker packages and blocks real leaf stories such as KBS-d9c9ee. Count only routable leaf packages (or equivalent active router runs) in Python and Rust. Add parity coverage proving active epics and invalid-route issues do not consume capacity, while active routable packages still do. Preserve configured WIP limits.",
   "type": "bug",
-  "status": "review",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -26,11 +26,18 @@
       "text": "## Agent turn complete\n\nExcluded initiative and epic hierarchy cards from router dispatch and WIP capacity in Python and Rust. Added parity scenarios and Python regression coverage for invalid routes and active routable leaf capacity.\n\n- Draft PR: https://github.com/AnthusAI/Kanbus/pull/349\n- Branch: `codex/router/kbs-f954adf7-c812-4187-bd88-440aea4966d4/r1`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-f954adf7-c812-4187-bd88-440aea4966d4`\n- Artifacts:\n  - `issue_router.py`: `python/src/kanbus/issue_router.py`\n  - `router.rs`: `rust/src/router.rs`\n  - `router_routing_and_planning.feature`: `features/router/router_routing_and_planning.feature`\n  - `test_issue_router_planning.py`: `python/tests/test_issue_router_planning.py`",
       "created_at": "2026-09-23T10:36:45.238462Z",
       "comment_type": "default"
+    },
+    {
+      "id": "f87dc242-77e1-4237-8f4e-003ac288a6a8",
+      "author": "home",
+      "text": "Merged: PR #349 (merge commit e98cb13d) into develop. Fixed a build-red CI issue along the way (the router.limits.review_wip must not exceed project_wip invariant, tripped by two new Gherkin scenarios setting project_wip=1 without lowering review_wip) in both runtimes, plus black formatting. Full suites clean: cargo test --lib (510), cucumber (1232 scenarios), pytest, behave (1366 scenarios, only pre-existing environment gaps non-passing). Closing.",
+      "created_at": "2026-09-23T12:44:37.378314Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T23:17:11.117039Z",
-  "updated_at": "2026-09-23T10:37:09.119132Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T12:44:37.694190Z",
+  "closed_at": "2026-09-23T12:44:37.634051Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
