@@ -3,7 +3,7 @@
   "title": "Render effective agent assignment in issue detail",
   "description": "Add a first-class Agent assignment section to console issue detail. It must show unassigned versus class/provider assignment, resolved effective configuration, and clearly separate immutable creator/comment provenance from routing assignment. Use the shared UI package and add accessibility, empty-state, API fixture, and UI coverage. No write controls in this story.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,25 @@
     "agent-class:value"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "9065f9ea-8a88-4e0b-83d7-0f2bfa3884c8",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent run recovered\n\nThe Issue Router recovered preserved agent evidence without starting a replacement session.\n\n- Provider: `codex`\n- Lifecycle: `review`\n- Branch: `codex/router/kbs-28adb94d-7773-4107-aa8a-f4552c3f2704/r1`\n- Session: `01a0bb16-bfb7-7522-bfb1-d7c107340bd7`\n- Worktree: `/var/folders/h8/bff490w93nl9c87021k92f0m0000gp/T/kanbus-router-worktrees/kbs-28adb94d-7773-4107-aa8a-f4552c3f2704-084491f7-a3bf-44f3-9a20-f11b896b7b3b`",
+      "created_at": "2026-09-19T21:58:45.444121Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "0a49453c-e886-4abc-be1d-9383881c86f6",
+      "author": "home",
+      "text": "Reviewer acceptance: the preserved Codex session corrected the assignment snapshot and shared Gherkin coverage in follow-up turns. Draft PR #331 merged into develop as 1e2dd736 after full CI passed: Python, Rust, console UI, both parity suites, coverage ratchet, binary smoke, and Beads interop. No issue was auto-closed by the agent.",
+      "created_at": "2026-09-19T22:47:05.792512Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:32:04.440355Z",
-  "updated_at": "2026-09-19T14:32:15.923169Z",
-  "closed_at": null,
+  "updated_at": "2026-09-19T22:47:06.757098Z",
+  "closed_at": "2026-09-19T22:47:06.682138Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {

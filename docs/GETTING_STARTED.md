@@ -94,6 +94,17 @@ kbs init --local
 
 That creates `project-local/` alongside `project/` and adds it to `.gitignore`.
 
+Before running wiki render, compaction, or right-now summary commands, store an LLM API key once:
+
+```bash
+kbs setup ai
+# or: kanbus setup ai
+```
+
+This saves the key to `~/.kanbus.env` (mode `600`) so it works across every project on the
+machine. You can also set `OPENAI_API_KEY` in your shell environment or a project `.env` instead.
+See [CONFIGURATION.md](CONFIGURATION.md) for `ai` and `right_now` fields.
+
 ## Step 1b: Keep agent guidance updated
 
 Kanbus keeps agent instructions in sync with your configuration. Run this anytime the template or configuration changes.

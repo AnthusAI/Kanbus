@@ -99,6 +99,14 @@ Feature: Deterministic Issue Router planning
     When I run "kanbus router plan --json"
     Then eligible package order should be "kbs-150, kbs-151, kbs-152"
 
+  Scenario: Pending work uses business priority before entered time
+    Given router candidates are:
+      | issue_id | state   | priority | pending_since          | created_at              |
+      | kbs-153  | pending | 1        | 2026-09-17T08:00:00Z   | 2026-09-16T07:00:00Z    |
+      | kbs-154  | pending | 0        | 2026-09-17T09:00:00Z   | 2026-09-16T08:00:00Z    |
+    When I run "kanbus router plan --json"
+    Then eligible package order should be "kbs-154, kbs-153"
+
   Scenario: Human-owned active, review, and blocked issues do not consume router WIP
     Given project WIP limit is 3
     And project issues in router WIP statuses are:
@@ -109,6 +117,25 @@ Feature: Deterministic Issue Router planning
     And pending issue "kbs-163" has routing label "agent-provider:codex-default"
     When I run "kanbus router plan --json"
     Then issue "kbs-163" should be eligible with provider profile "codex-default"
+
+  Scenario: Only routable leaf packages consume project WIP
+    Given project WIP limit is 1
+    And project issues in router WIP statuses are:
+      | issue_id | status      | assignee | type       | labels                              |
+      | kbs-164  | in_progress |          | epic       | agent-provider:codex-default        |
+      | kbs-165  | in_progress |          | task       | agent-provider:not-configured       |
+    And pending issue "kbs-166" has routing label "agent-provider:codex-default"
+    When I run "kanbus router plan --json"
+    Then issue "kbs-166" should be eligible with provider profile "codex-default"
+
+  Scenario: An active routable leaf package consumes project WIP
+    Given project WIP limit is 1
+    And project issues in router WIP statuses are:
+      | issue_id | status      | assignee | type | labels                       |
+      | kbs-167  | in_progress |          | task | agent-provider:codex-default |
+    And pending issue "kbs-168" has routing label "agent-provider:codex-default"
+    When I run "kanbus router plan --json"
+    Then issue "kbs-168" should be deferred with reason "project_wip_limit"
 
   Scenario Outline: Each WIP limit has a stable deferral reason
     Given pending issue "kbs-170" has routing label "<route>"

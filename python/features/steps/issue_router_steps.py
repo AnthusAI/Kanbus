@@ -147,14 +147,16 @@ def _write_issue(
     labels: list[str] | None = None,
     parent: str | None = None,
     assignee: str | None = None,
+    issue_type: str = "task",
     created_at: str = "2026-09-16T10:00:00Z",
     title: str | None = None,
+    priority: int = 2,
 ) -> None:
     project_dir = load_project_directory(context)
     issue = build_issue(
         issue_id,
         title or f"Implement {issue_id}",
-        "task",
+        issue_type,
         status,
         parent,
         labels or [],
@@ -163,6 +165,7 @@ def _write_issue(
             "assignee": assignee,
             "created_at": datetime.fromisoformat(created_at.replace("Z", "+00:00")),
             "updated_at": datetime.fromisoformat(created_at.replace("Z", "+00:00")),
+            "priority": priority,
         }
     )
     write_issue_file(project_dir, issue)
@@ -1140,6 +1143,7 @@ def given_router_candidates_table(context: object) -> None:
             status=status,
             labels=["agent-provider:codex-default"],
             created_at=row["created_at"].strip(),
+            priority=int(row.get("priority", "2")),
         )
         _seed_status_event(context, issue_id, "open", pending_since)
         if state == "requested_changes":
@@ -1166,6 +1170,12 @@ def given_router_candidates_table(context: object) -> None:
 def given_project_wip_limit(context: object, limit: int) -> None:
     config = _config(context)
     config["router"]["limits"]["project_wip"] = limit
+    # router.limits.review_wip must not exceed project_wip; clamp it down
+    # when the fixture default would otherwise violate that invariant for
+    # a smaller project limit set by this step.
+    review_wip = config["router"]["limits"].get("review_wip")
+    if review_wip is not None and review_wip > limit:
+        config["router"]["limits"]["review_wip"] = limit
     _save_config(context, config)
 
 
@@ -1177,6 +1187,15 @@ def given_existing_router_wip_issues(context: object) -> None:
             row["issue_id"].strip(),
             status=row["status"].strip(),
             assignee=row["assignee"].strip() or None,
+            issue_type=row.get("type", "task").strip() or "task",
+            labels=(
+                [
+                    label.strip()
+                    for label in row.get("labels", "").split(",")
+                    if label.strip()
+                ]
+                or None
+            ),
         )
 
 

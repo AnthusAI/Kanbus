@@ -18,6 +18,9 @@
   "closed_at": "2026-09-18T20:00:33.000000Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {},
+  "custom": {
+    "source": "shared",
+    "project_label": "kbs"
+  },
   "agent": null
 }

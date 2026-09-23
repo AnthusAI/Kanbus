@@ -17,6 +17,7 @@ from kanbus.comment_summary import (
     get_summary_rewritten_description,
     get_virtualized_description,
 )
+from kanbus.ai_credentials import missing_api_key_message, requires_openai_key
 from kanbus.config_loader import load_project_configuration
 from kanbus.issue_files import write_issue_to_file
 from kanbus.issue_listing import load_issues_from_directory
@@ -350,11 +351,24 @@ def _completion(
     if litellm is None:
         raise RuntimeError("litellm package is not installed")
 
+    if requires_openai_key(model) and not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise RuntimeError(missing_api_key_message())
+
     completion_kwargs: dict[str, object] = {"model": model, "messages": messages}
     if temperature is not None:
         completion_kwargs["temperature"] = temperature
 
-    response = litellm.completion(**completion_kwargs)
+    try:
+        response = litellm.completion(**completion_kwargs)
+    except Exception as error:
+        error_class_name = type(error).__name__
+        error_message = str(error)
+        if "AuthenticationError" in error_class_name or any(
+            token in error_message
+            for token in ("Missing credentials", "OPENAI_API_KEY", "api_key")
+        ):
+            raise RuntimeError(f"{missing_api_key_message()} ({error})") from error
+        raise
     text = response.choices[0].message.content or ""
     total_tokens = 0
     total_cost = 0.0

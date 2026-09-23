@@ -2,6 +2,7 @@
 
 pub mod agent_metadata;
 pub mod agents_management;
+pub mod ai_credentials;
 pub mod beads_write;
 pub mod cache;
 pub mod cli;

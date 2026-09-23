@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "fba14cb2-5e4d-45b6-aff1-23e21c471a4f",
+  "issue_id": "router:capacity:class:smart:0",
+  "event_type": "coordination.claim",
+  "occurred_at": "2026-09-19T14:37:27.788Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "78540121-2966-4734-b8c8-12eabee32899",
+    "lease_expires_at": "2026-09-19T14:42:27.788Z",
+    "contention_window_s": 5,
+    "ttl_s": 300,
+    "revision": 1,
+    "operation_sequence": 15
+  }
+}

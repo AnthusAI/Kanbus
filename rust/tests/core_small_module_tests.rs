@@ -208,4 +208,8 @@ fn doctor_fails_without_git_and_succeeds_with_git_and_config() {
             .canonicalize()
             .expect("canonical expected")
     );
+    assert!(matches!(
+        result.ai_credential_source,
+        "process environment" | "~/.kanbus.env" | "project .env" | "not set"
+    ));
 }

@@ -3,7 +3,7 @@
   "title": "Add validated console issue write API for comments and state transitions",
   "description": "Add authenticated/local console mutation endpoints and client support for normal Kanbus comments and configured status transitions. Reuse canonical Python/Rust validation and event history; enforce workflow transitions, conflict/fencing behavior, and useful errors. Successful writes update the snapshot/realtime path and Git refresh fallback. Do not add arbitrary direct JSON editing.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "agent-class:smart"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7099fa30-58c0-4419-87cc-595a44651cef",
+      "author": "home",
+      "text": "Already shipped: PR #344 (merged, live on main) adds POST /api/issues/:id/comments and /status to both console backends (kbsc and the Node dev server), reusing the canonical Rust/Python update_issue path so workflow transitions, validation, and event history all go through the same logic the CLI uses. Writes are localhost-only (decided explicitly: no per-user auth for the local console). Closing to avoid a duplicate router run.",
+      "created_at": "2026-09-23T10:14:44.977539Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:32:05.250404Z",
-  "updated_at": "2026-09-19T14:32:16.904422Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T10:14:45.105953Z",
+  "closed_at": "2026-09-23T10:14:45.082218Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
