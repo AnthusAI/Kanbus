@@ -2,6 +2,8 @@
 
 Kanbus wiki pages are Markdown files with Jinja2-style templates. At render time, Kanbus evaluates the template against the live issue index and outputs a fully rendered Markdown document.
 
+For the two-stage Jinja + Markus HTML pipeline, PyPI `markus` vs `anthus-markus`, and smoke-test commands, see the canonical guide: [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md).
+
 ## Where wiki pages live
 
 Wiki pages live in `project/wiki/`. Use `kanbus wiki render <page>` to render a page and print the result to stdout.

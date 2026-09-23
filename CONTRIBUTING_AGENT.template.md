@@ -39,6 +39,31 @@ Direct file system access is strictly forbidden:
 - Do not inspect the file system structure for issues or events
 - All work on issues and events must pass through the kbs command
 
+## Committing project state to git
+
+Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted.
+
+After you update or close cards, persist Kanbus-written issue state:
+
+```bash
+kbs commit
+```
+
+Then push to the branch your project uses for shared board state (see **AGENTS.md** in this repository).
+
+`kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
+
+Notes:
+- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after board changes so collaborators see current state.
+- `project/events/` holds event logs. `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files. `kbs commit` persists Kanbus-written issue state without hand-editing JSON.
+
+## Git commits and pull requests
+
+Rules for product-code commits, branch names, pull requests, reviews, and when human approval is required are **project-specific**. They live in this repository's **AGENTS.md**, not in this file.
+
+Read AGENTS.md before you push code or open a pull request. CONTRIBUTING_AGENT.md describes Kanbus workflow and board mechanics only.
+
 ## Running Kanbus (Do This Exactly)
 
 CRITICAL: Always run Kanbus from the repository root so it can find `.kanbus.yml`.

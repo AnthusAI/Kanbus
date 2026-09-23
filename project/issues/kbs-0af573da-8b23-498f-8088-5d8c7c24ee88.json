@@ -3,17 +3,30 @@
   "title": "Hide type selector on Now view",
   "description": "The initiative / epic / issues type selector does not apply to Now. Now is already hierarchical and shows all levels, so that selector should be hidden when Now is the active panel.\n\nBoard (and other modes that use type filtering) keep the selector.\n\n```mermaid\nflowchart LR\n  now[\"Now selected\"] --> hide[\"hide type selector\"]\n  board[\"Board selected\"] --> show[\"show type selector\"]\n```",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "agent",
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ce226fbd-9b1b-4fe3-adc1-e8041fea14fc",
+      "author": "ubuntu",
+      "text": "Closed after verify. Now tab, tree, board name, and JIT backfill are on develop (PRs #214, #219, #220).",
+      "created_at": "2026-09-07T20:11:22.491597308Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
+    }
+  ],
   "created_at": "2026-09-03T02:12:08.480218Z",
-  "updated_at": "2026-09-03T02:12:19.659788Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:11:22.542294296Z",
+  "closed_at": "2026-09-07T20:11:22.535458091Z",
   "right_now_summary": "The type selector is hidden when the Now view is active.",
   "right_now_updated_at": "2026-09-03T02:18:40.306205Z",
   "custom": {}

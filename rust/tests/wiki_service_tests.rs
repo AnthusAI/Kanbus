@@ -57,11 +57,11 @@ priorities:
   4: { name: trivial }
 default_priority: 2
 statuses:
-  - { key: open, name: Open, category: todo }
-  - { key: in_progress, name: In Progress, category: doing }
-  - { key: blocked, name: Blocked, category: todo }
-  - { key: closed, name: Closed, category: done }
-  - { key: backlog, name: Backlog, category: todo }
+  - { key: open, name: Open, category: todo, semantic_category: todo }
+  - { key: in_progress, name: In Progress, category: doing, semantic_category: in_progress }
+  - { key: blocked, name: Blocked, category: todo, semantic_category: in_progress }
+  - { key: closed, name: Closed, category: done, semantic_category: done }
+  - { key: backlog, name: Backlog, category: todo, semantic_category: todo }
 categories:
   - { name: todo }
   - { name: doing }
@@ -225,7 +225,10 @@ fn wiki_list_pages_only_markdown() {
     fs::write(wiki_root.join("a.md"), "a").expect("write a");
     fs::write(wiki_root.join("b.txt"), "b").expect("write b");
     let list = list_pages(&store).expect("list pages");
-    assert_eq!(list.pages, vec!["a.md"]);
+    assert_eq!(list.pages.len(), 1);
+    assert_eq!(list.pages[0].path, "a.md");
+    assert_eq!(list.pages[0].title, "a");
+    assert!(list.wiki_directory_exists);
 }
 
 #[test]
@@ -234,6 +237,7 @@ fn wiki_list_pages_empty_when_wiki_root_missing() {
     write_config(&store.root().to_path_buf());
     let list = list_pages(&store).expect("list pages");
     assert!(list.pages.is_empty());
+    assert!(!list.wiki_directory_exists);
 }
 
 #[test]
@@ -283,11 +287,11 @@ priorities:
   4: { name: trivial }
 default_priority: 2
 statuses:
-  - { key: open, name: Open, category: todo }
-  - { key: in_progress, name: In Progress, category: doing }
-  - { key: blocked, name: Blocked, category: todo }
-  - { key: closed, name: Closed, category: done }
-  - { key: backlog, name: Backlog, category: todo }
+  - { key: open, name: Open, category: todo, semantic_category: todo }
+  - { key: in_progress, name: In Progress, category: doing, semantic_category: in_progress }
+  - { key: blocked, name: Blocked, category: todo, semantic_category: in_progress }
+  - { key: closed, name: Closed, category: done, semantic_category: done }
+  - { key: backlog, name: Backlog, category: todo, semantic_category: todo }
 categories:
   - { name: todo }
   - { name: doing }

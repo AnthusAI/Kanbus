@@ -101,6 +101,8 @@ def _persist_comment_mutation(
     before_issue: IssueData,
     event_type: str,
     payload: dict,
+    *,
+    regenerate_right_now: bool = True,
 ) -> IssueData:
     actor_id = get_current_user()
     event = create_event(
@@ -120,6 +122,7 @@ def _persist_comment_mutation(
                 events=[event],
                 before_issue=before_issue,
                 root=root,
+                regenerate_right_now=regenerate_right_now,
             )
         )
     except Exception as error:  # noqa: BLE001
@@ -141,6 +144,8 @@ def add_comment(
     author: str,
     text: str,
     agent: Optional[AgentMetadata] = None,
+    *,
+    regenerate_right_now: bool = True,
 ) -> IssueCommentResult:
     """Add a comment to an issue.
 
@@ -154,6 +159,8 @@ def add_comment(
     :type text: str
     :param agent: Optional agent provenance metadata for this comment.
     :type agent: Optional[AgentMetadata]
+    :param regenerate_right_now: Whether this comment should refresh AI summaries.
+    :type regenerate_right_now: bool
     :return: Comment result including the updated issue.
     :rtype: IssueCommentResult
     :raises IssueCommentError: If the issue cannot be found or updated.
@@ -184,6 +191,7 @@ def add_comment(
         lookup.issue,
         "comment_added",
         comment_payload(comment_id, comment.author, comment.agent),
+        regenerate_right_now=regenerate_right_now,
     )
     return IssueCommentResult(issue=persisted, comment=comment)
 

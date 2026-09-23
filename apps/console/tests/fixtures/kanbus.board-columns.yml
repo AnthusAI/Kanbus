@@ -21,14 +21,10 @@ workflows:
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
     Discovery: [open, backlog]
-    done: [open, backlog]
-    todo: [open, backlog]
-    deferred: [open, backlog]
   epic:
-    open: [in_progress, closed, done]
-    in_progress: [open, closed, done]
+    open: [in_progress, closed]
+    in_progress: [open, closed]
     closed: [open]
-    done: [open]
   story:
     backlog: [open, closed]
     open: [copy_writing, in_progress, closed, backlog]
@@ -42,39 +38,34 @@ statuses:
   - key: backlog
     name: Backlog
     category: To do
-    collapsed: true
-  - key: todo
-    name: Todo (Legacy)
-    category: To do
+    semantic_category: todo
     collapsed: true
   - key: Discovery
     name: Discovery
     category: To do
+    semantic_category: todo
     collapsed: false
   - key: open
     name: Ready
     category: To do
+    semantic_category: todo
   - key: copy_writing
     name: Copy Writing
     category: In progress
+    semantic_category: in_progress
   - key: in_progress
     name: In Progress
     category: In progress
+    semantic_category: in_progress
   - key: blocked
     name: Blocked
     category: In progress
-    collapsed: true
-  - key: deferred
-    name: Deferred (Legacy)
-    category: To do
+    semantic_category: in_progress
     collapsed: true
   - key: closed
     name: Done
     category: Done
-    collapsed: true
-  - key: done
-    name: Done (Legacy)
-    category: Done
+    semantic_category: done
     collapsed: true
 
 categories:
@@ -109,27 +100,14 @@ transition_labels:
     Discovery:
       open: Start work
       backlog: Back to backlog
-    done:
-      open: Reopen
-      backlog: Back to backlog
-    todo:
-      open: Start work
-      backlog: Back to backlog
-    deferred:
-      open: Resume
-      backlog: Back to backlog
   epic:
     open:
       in_progress: Start
       closed: Complete
-      done: Complete
     in_progress:
       open: Pause
       closed: Complete
-      done: Complete
     closed:
-      open: Reopen
-    done:
       open: Reopen
   story:
     backlog:

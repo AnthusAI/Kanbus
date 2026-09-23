@@ -11,12 +11,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, List, Optional
 
+import yaml
 from behave import given, then, when
 
 from features.steps.shared import (
     build_issue,
     ensure_git_repository,
     ensure_project_directory,
+    load_project_directory,
     read_issue_file,
     write_issue_file,
 )
@@ -399,9 +401,54 @@ def simulate_virtual_project_command(
     return False
 
 
+def _adopt_existing_repository_for_virtual_projects(
+    context: object,
+) -> VirtualProjectState:
+    root = Path(context.working_directory)
+    current_project_dir = load_project_directory(context)
+    current_local_dir = root / "project-local"
+    current_local_dir.mkdir(parents=True, exist_ok=True)
+    (current_local_dir / "issues").mkdir(parents=True, exist_ok=True)
+    (current_local_dir / "events").mkdir(parents=True, exist_ok=True)
+    state = VirtualProjectState(
+        root=root,
+        current_label="kbs",
+        current_project_dir=current_project_dir,
+        current_local_dir=current_local_dir,
+        virtual_projects={},
+    )
+    context.virtual_project_state = state
+    return state
+
+
+def _write_virtual_projects_configuration(state: VirtualProjectState) -> None:
+    config_path = state.root / ".kanbus.yml"
+    payload = {}
+    if config_path.exists():
+        payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    virtual_projects: Dict[str, Dict[str, str]] = {}
+    for label, project in state.virtual_projects.items():
+        virtual_projects[label] = {
+            "path": str(project.shared_dir.relative_to(state.root))
+        }
+    payload["virtual_projects"] = virtual_projects
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @given("a Kanbus project with virtual projects configured")
 def given_project_with_virtual_projects(context: object) -> None:
+    if getattr(context, "virtual_project_state", None) is None:
+        if getattr(context, "working_directory", None) is not None:
+            state = _adopt_existing_repository_for_virtual_projects(context)
+        else:
+            state = _ensure_virtual_state(context)
+    else:
+        state = _ensure_virtual_state(context)
     state = _configure_virtual_projects(context, ["alpha", "beta"])
+    _write_virtual_projects_configuration(state)
     state.new_issue_project = None
     for issue_path in (state.current_project_dir / "issues").glob("*.json"):
         issue_path.unlink()
@@ -417,6 +464,41 @@ def given_project_with_virtual_projects(context: object) -> None:
 @given('virtual projects "{alpha}" and "{beta}" are configured')
 def given_virtual_projects_alpha_beta(context: object, alpha: str, beta: str) -> None:
     _configure_virtual_projects(context, [alpha, beta])
+
+
+@given('virtual project "{label}" has display name "{display_name}"')
+def given_virtual_project_display_name(
+    context: object, label: str, display_name: str
+) -> None:
+    state = _ensure_virtual_state(context)
+    if label not in state.virtual_projects and label != state.current_label:
+        _configure_virtual_projects(context, [label])
+    config_path = state.root / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    virtual_projects = payload.setdefault("virtual_projects", {})
+    if label in state.virtual_projects:
+        project = state.virtual_projects[label]
+        virtual_projects.setdefault(label, {})
+        virtual_projects[label]["path"] = str(
+            project.shared_dir.relative_to(state.root)
+        )
+    virtual_projects[label]["display_name"] = display_name
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@given('congregation primary display name is "{display_name}"')
+def given_congregation_primary_display_name(context: object, display_name: str) -> None:
+    state = _ensure_virtual_state(context)
+    config_path = state.root / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload["name"] = display_name
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
 
 
 @given('a Kanbus project with new_issue_project set to "{label}"')

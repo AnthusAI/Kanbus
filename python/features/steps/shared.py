@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from kanbus.router_adapters import (
+    FakeRouterAdapter,
+    RouterAgentResult,
+    RouterExecutionRequest,
+)
+
 import json
 import os
 import re
 import shlex
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Iterable
 
@@ -143,6 +150,7 @@ def run_cli(context: object, command: str) -> None:
     :param command: Full command string.
     :type command: str
     """
+    context.last_command = command
     runner = CliRunner()
     args = shlex.split(command)[1:]
 
@@ -192,6 +200,21 @@ def run_cli(context: object, command: str) -> None:
             stderr=stderr,
             output=result.output,
         )
+        if (
+            result.exit_code == 0
+            and "standup" in command
+            and "--json" in command
+            and stdout
+            and stdout.strip().startswith("{")
+        ):
+            try:
+                payload = json.loads(stdout)
+                if isinstance(payload, dict) and "profile" in payload:
+                    profiles = getattr(context, "standup_json_by_profile", {})
+                    profiles[payload["profile"]] = payload
+                    context.standup_json_by_profile = profiles
+            except json.JSONDecodeError:
+                pass
     finally:
         os.chdir(previous)
 
@@ -458,3 +481,21 @@ def build_issue(
         closed_at=None,
         custom={},
     )
+
+
+class WorkingFakeAdapter(FakeRouterAdapter):
+    """A fake agent that, like a real one, leaves a change in its worktree.
+
+    The router rejects a ``completed`` result that changed nothing, so fixtures
+    that model a finished agent must do some work. Set ``does_work = False`` to
+    model an agent that only claimed to.
+    """
+
+    does_work = True
+
+    def execute(self, request: RouterExecutionRequest) -> RouterAgentResult:
+        if self.does_work:
+            (Path(request.worktree_path) / "agent-work.txt").write_text(
+                "work\n", encoding="utf-8"
+            )
+        return super().execute(request)

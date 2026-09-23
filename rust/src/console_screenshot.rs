@@ -343,3 +343,247 @@ fn which_node_executable() -> Result<String, KanbusError> {
     }
     Ok(path)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::sync::{Mutex, OnceLock};
+    use tempfile::TempDir;
+
+    fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("screenshot test lock")
+    }
+
+    fn clear_screenshot_test_env() {
+        for key in [
+            "KANBUS_TEST_SCREENSHOT_MOCK",
+            "KANBUS_TEST_SCREENSHOT_ASSUME_SERVER",
+            "CONSOLE_PORT",
+            TEST_LAST_MODE_ENV,
+            TEST_CAPTURE_OPTIONS_ENV,
+            TEST_PREREQUISITES_VERIFIED_ENV,
+            TEST_SCRIPT_SEARCH_ROOT_ENV,
+            TEST_HIDE_PACKAGE_SCRIPT_ENV,
+            TEST_FORCE_NODE_MISSING_ENV,
+            TEST_NODE_EXECUTABLE_ENV,
+        ] {
+            env::remove_var(key);
+        }
+    }
+
+    #[test]
+    fn mock_success_writes_png() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        let temp = TempDir::new().expect("tempdir");
+        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "success");
+        env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
+        let path = capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
+            .expect("capture");
+        assert!(path.is_file());
+        clear_screenshot_test_env();
+    }
+
+    #[test]
+    fn mock_unavailable_returns_actionable_error() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        let temp = TempDir::new().expect("tempdir");
+        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "unavailable");
+        env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
+        let error =
+            capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
+                .unwrap_err();
+        let message = error.to_string().to_ascii_lowercase();
+        assert!(message.contains("headless browser"));
+        assert!(message.contains("playwright"));
+        clear_screenshot_test_env();
+    }
+
+    #[test]
+    fn resolve_port_from_env_and_invalid_fallback() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        let temp = TempDir::new().expect("tempdir");
+        env::set_var("CONSOLE_PORT", "4242");
+        assert_eq!(resolve_console_port(temp.path()), 4242);
+        env::set_var("CONSOLE_PORT", "nope");
+        assert_eq!(resolve_console_port(temp.path()), 5174);
+        env::remove_var("CONSOLE_PORT");
+        assert_eq!(resolve_console_port(temp.path()), 5174);
+        clear_screenshot_test_env();
+    }
+
+    #[test]
+    fn server_not_running_on_closed_port() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        let temp = TempDir::new().expect("tempdir");
+        assert!(!is_console_server_running(temp.path(), Some(1)));
+        let error =
+            capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
+                .unwrap_err();
+        assert!(error.to_string().contains("Console server is not running"));
+        clear_screenshot_test_env();
+    }
+
+    #[test]
+    fn build_options_and_output_path_and_script() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        let temp = TempDir::new().expect("tempdir");
+        let options = build_capture_options(
+            Some("DARK".to_string()),
+            Some("epics".to_string()),
+            true,
+            vec!["backlog".to_string()],
+            vec!["closed".to_string()],
+        )
+        .expect("options");
+        assert_eq!(options.appearance_mode, "dark");
+        assert_eq!(options.view.as_deref(), Some("epics"));
+        assert!(options.expand_all);
+        assert!(options
+            .to_capture_json()
+            .expect("json")
+            .contains("expandAll"));
+
+        let nested =
+            resolve_output_path(temp.path(), Some("exports/board.png".to_string())).expect("path");
+        assert!(nested.parent().expect("parent").is_dir());
+
+        let script_dir = temp.path().join("scripts");
+        std::fs::create_dir_all(&script_dir).expect("scripts dir");
+        let script = script_dir.join("capture_console_screenshot.mjs");
+        std::fs::write(&script, "export {}\n").expect("script");
+        env::set_var(TEST_SCRIPT_SEARCH_ROOT_ENV, temp.path());
+        assert_eq!(locate_capture_script(temp.path()).expect("script"), script);
+
+        let missing = TempDir::new().expect("missing root");
+        env::set_var(TEST_SCRIPT_SEARCH_ROOT_ENV, missing.path());
+        env::set_var(TEST_HIDE_PACKAGE_SCRIPT_ENV, "1");
+        let located = locate_capture_script(missing.path());
+        assert!(located.unwrap_err().to_string().contains("not found"));
+
+        assert!(normalize_appearance_mode(Some("sepia".to_string())).is_err());
+        assert!(normalize_view(Some("pods".to_string())).is_err());
+        assert!(normalize_view(None).expect("none").is_none());
+        assert_eq!(normalize_appearance_mode(None).expect("default"), "light");
+        clear_screenshot_test_env();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn live_capture_with_stub_node_success_and_errors() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        let temp = TempDir::new().expect("tempdir");
+        let scripts = temp.path().join("scripts");
+        std::fs::create_dir_all(&scripts).expect("scripts");
+        std::fs::write(
+            scripts.join("capture_console_screenshot.mjs"),
+            "export {}\n",
+        )
+        .expect("script");
+
+        let bin = temp.path().join("bin");
+        std::fs::create_dir(&bin).expect("bin");
+        let node = bin.join("node");
+        let output_copy = temp.path().join("kanbus-board.png");
+        std::fs::write(
+            &node,
+            "#!/bin/sh\nprintf '\\211PNG\\r\\n\\032\\n' > \"$3\"\nexit 0\n",
+        )
+        .expect("node stub");
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&node, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+
+        env::set_var(TEST_NODE_EXECUTABLE_ENV, &node);
+        env::set_var(TEST_SCRIPT_SEARCH_ROOT_ENV, temp.path());
+        env::set_var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER", "1");
+
+        let path = capture_console_screenshot(
+            temp.path(),
+            None,
+            Some("light".to_string()),
+            Some("all".to_string()),
+            true,
+            vec!["backlog".to_string()],
+            vec![],
+        )
+        .expect("live stub capture");
+        assert!(path.is_file());
+        assert_eq!(path, output_copy);
+
+        std::fs::write(
+            &node,
+            "#!/bin/sh\necho \"Cannot find module 'playwright'\" >&2\nexit 1\n",
+        )
+        .expect("node fail playwright");
+        let error = capture_console_screenshot(
+            temp.path(),
+            Some("missing.png".to_string()),
+            None,
+            None,
+            false,
+            vec![],
+            vec![],
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .to_ascii_lowercase()
+            .contains("playwright"));
+
+        std::fs::write(&node, "#!/bin/sh\necho boom >&2\nexit 1\n").expect("node fail generic");
+        let error = capture_console_screenshot(
+            temp.path(),
+            Some("generic.png".to_string()),
+            None,
+            None,
+            false,
+            vec![],
+            vec![],
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("headless browser capture failed"));
+
+        std::fs::write(&node, "#!/bin/sh\nexit 0\n").expect("node no file");
+        let error = capture_console_screenshot(
+            temp.path(),
+            Some("no-file.png".to_string()),
+            None,
+            None,
+            false,
+            vec![],
+            vec![],
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("did not produce an output file"));
+
+        clear_screenshot_test_env();
+    }
+
+    #[test]
+    fn mock_mode_aliases_and_which_node() {
+        let _guard = test_lock();
+        clear_screenshot_test_env();
+        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "yes");
+        assert_eq!(mock_mode().as_deref(), Some("success"));
+        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "fail");
+        assert_eq!(mock_mode().as_deref(), Some("unavailable"));
+        env::set_var("KANBUS_TEST_SCREENSHOT_MOCK", "custom");
+        assert_eq!(mock_mode().as_deref(), Some("custom"));
+        env::remove_var("KANBUS_TEST_SCREENSHOT_MOCK");
+        assert!(mock_mode().is_none());
+        let node = which_node_executable();
+        assert!(node.is_ok() || node.unwrap_err().to_string().contains("Node.js"));
+        clear_screenshot_test_env();
+    }
+}

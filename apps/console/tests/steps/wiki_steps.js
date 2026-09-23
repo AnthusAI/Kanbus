@@ -1,4 +1,4 @@
-import { Before, Given, When, Then } from "@cucumber/cucumber";
+import { After, Before, Given, When, Then } from "@cucumber/cucumber";
 import { expect } from "@playwright/test";
 import { mkdir, rm, writeFile, access } from "fs/promises";
 import path from "path";
@@ -48,11 +48,7 @@ function pathLeaf(relativePath) {
 }
 
 function wikiPageButton(page, relativePath) {
-  const leaf = pathLeaf(relativePath);
-  return page
-    .locator(".wiki-directory-listing button")
-    .filter({ hasText: leaf })
-    .first();
+  return page.locator(`.wiki-directory-listing button[data-wiki-path="${relativePath}"]`).first();
 }
 
 function encodeWikiPath(pathValue) {
@@ -112,9 +108,12 @@ async function reloadIfWikiStale(world) {
       const postReloadWikiToggle = world.page.getByTestId("view-toggle-wiki");
       if ((await postReloadWikiToggle.count()) > 0) {
         const postActive = await postReloadWikiToggle.getAttribute("data-active");
-        if (postActive !== "true") {
-          await postReloadWikiToggle.click();
+        if (postActive === "true") {
+          // A reload can preserve the Wiki route. Cycle away and back so the
+          // panel's active-state refresh runs against the newly written fixture.
+          await world.page.getByTestId("view-toggle-board").click();
         }
+        await postReloadWikiToggle.click();
       }
       await expect(world.page.getByTestId("wiki-view")).toBeVisible({ timeout: 15000 });
       world.wikiStale = false;
@@ -127,22 +126,40 @@ async function reloadIfWikiStale(world) {
 
 Before(function () {
   this.wikiStale = false;
+  this.wikiTouched = false;
+});
+
+After({ tags: "@wiki-markus" }, async function () {
+  if (!wikiRoot) {
+    return;
+  }
+  await resetWiki();
+  this.wikiTouched = false;
 });
 
 Given("the wiki storage is empty", async function () {
   await resetWiki();
   this.wikiStale = true;
+  this.wikiTouched = true;
 });
 
 Given("a wiki page {string} exists with content:", async function (relativePath, docString) {
   await writeWikiPage(relativePath, docString);
   this.wikiStale = true;
+  this.wikiTouched = true;
 });
 
 When("I select wiki page {string}", async function (relativePath) {
   await reloadIfWikiStale(this);
   await navigateToWikiPage(this.page, relativePath);
   await expect(this.page.getByTestId(`wiki-path-${pathLeaf(relativePath)}`)).toBeVisible({ timeout: 15000 });
+});
+
+When("I select the wiki page titled {string}", async function (title) {
+  await reloadIfWikiStale(this);
+  const button = this.page.locator(".wiki-directory-listing button").filter({ hasText: title }).first();
+  await expect(button).toBeVisible({ timeout: 15000 });
+  await button.click();
 });
 
 When("I create a wiki page named {string}", async function (relativePath) {
@@ -210,6 +227,28 @@ When("I render the wiki page", async function () {
   }
 });
 
+When("I render the wiki page through the backend", async function () {
+  await reloadIfWikiStale(this);
+  const renderButton = this.page.getByRole("button", { name: /Render/ });
+  if ((await renderButton.count()) > 0) {
+    await renderButton.first().click();
+  }
+  await expect
+    .poll(
+      async () => {
+        const previewHtml = this.page.locator(".wiki-preview-html");
+        const errorBanner = this.page.locator(".wiki-error");
+        const htmlReady = (await previewHtml.count()) > 0;
+        const errorReady =
+          (await errorBanner.count()) > 0 &&
+          (await errorBanner.first().isVisible().catch(() => false));
+        return htmlReady || errorReady;
+      },
+      { timeout: 20000 }
+    )
+    .toBe(true);
+});
+
 When("I attempt to select wiki page {string} without confirming", async function (relativePath) {
   await reloadIfWikiStale(this);
   this.page.once("dialog", (dialog) => dialog.dismiss());
@@ -237,31 +276,77 @@ Then("the wiki view should be inactive", async function () {
   await expect(this.page.getByTestId("wiki-view")).not.toBeVisible();
 });
 
+Given("the console wiki directory is missing", async function () {
+  const root = requireWikiRoot();
+  await rm(root, { recursive: true, force: true });
+  this.wikiStale = true;
+  this.wikiTouched = true;
+});
+
+Given("the console wiki pages request fails", async function () {
+  await this.page.route("**/api/wiki/pages", async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "wiki pages request failed" })
+    });
+  });
+});
+
+Given("the console wiki pages request hangs", async function () {
+  await this.page.route("**/api/wiki/pages", () => new Promise(() => {}));
+});
+
+Then("the wiki directory listing should show {string}", async function (text) {
+  await reloadIfWikiStale(this);
+  const listing = this.page.locator(".wiki-directory-listing");
+  const button = listing.locator("button").filter({ hasText: text }).first();
+  await expect(button).toBeVisible({ timeout: 15000 });
+});
+
+Then("the wiki directory listing should not show {string}", async function (text) {
+  await reloadIfWikiStale(this);
+  const listing = this.page.locator(".wiki-directory-listing");
+  await expect(listing).toBeVisible({ timeout: 15000 });
+  await expect(listing.locator("button").filter({ hasText: text })).toHaveCount(0);
+});
+
 Then("the wiki empty state should be visible", async function () {
-  await expect(this.page.getByText("This directory is empty.")).toBeVisible();
+  await expect(this.page.getByTestId("wiki-empty-directory")).toBeVisible();
+  await expect(this.page.getByTestId("wiki-missing-directory")).toHaveCount(0);
+});
+
+Then("the wiki empty state should not be visible", async function () {
+  await expect(this.page.getByTestId("wiki-empty-directory")).toHaveCount(0);
+});
+
+Then("the wiki missing-directory state should be visible", async function () {
+  await expect(this.page.getByTestId("wiki-missing-directory")).toBeVisible();
+  await expect(this.page.getByText("The wiki folder is missing.")).toBeVisible();
+  await expect(this.page.getByTestId("wiki-empty-directory")).toHaveCount(0);
 });
 
 Then("the wiki page list should include {string}", async function (relativePath) {
   const leaf = pathLeaf(relativePath);
-  const inDirectory = this.page.locator(".wiki-directory-listing button").filter({ hasText: leaf }).first();
+  const inDirectory = this.page.locator(`.wiki-directory-listing button[data-wiki-path="${relativePath}"]`).first();
   const inHeader = this.page.getByTestId(`wiki-path-${leaf}`).or(this.page.getByRole("button", { name: relativePath })).first();
-  const total = (await inDirectory.count()) + (await inHeader.count());
-  if (total > 0) {
-    return;
-  }
-  const currentPath = new URL(this.page.url()).pathname;
-  if (currentPath.includes(`/wiki/${encodeWikiPath(relativePath)}`)) {
-    return;
-  }
-  const candidate = path.join(requireWikiRoot(), relativePath);
-  await access(candidate);
+  await expect
+    .poll(
+      async () => {
+        const directoryVisible =
+          (await inDirectory.count()) > 0 && (await inDirectory.isVisible().catch(() => false));
+        const headerVisible =
+          (await inHeader.count()) > 0 && (await inHeader.isVisible().catch(() => false));
+        return directoryVisible || headerVisible;
+      },
+      { timeout: 15000 }
+    )
+    .toBe(true);
 });
 
 Then("the wiki page list should not include {string}", async function (relativePath) {
-  const leaf = pathLeaf(relativePath);
   const listingItem = this.page
-    .locator(".wiki-directory-listing button")
-    .filter({ hasText: leaf })
+    .locator(`.wiki-directory-listing button[data-wiki-path="${relativePath}"]`)
     .first();
   await expect(listingItem).toHaveCount(0, { timeout: 15000 });
 
@@ -300,8 +385,7 @@ Then("the wiki editor path should be {string}", async function (relativePath) {
   }
 
   const listingButton = this.page
-    .locator(".wiki-directory-listing button")
-    .filter({ hasText: leaf })
+    .locator(`.wiki-directory-listing button[data-wiki-path="${relativePath}"]`)
     .first();
   if ((await listingButton.count()) > 0) {
     await listingButton.click();
@@ -335,12 +419,29 @@ Then("the wiki preview should contain {string}", async function (expected) {
   await expect(preview).toContainText(expected);
 });
 
+Then("the wiki preview HTML should contain element with class {string}", async function (cssClass) {
+  const preview = this.page.locator(".wiki-preview-html");
+  await expect(preview.locator(`.${cssClass}`).first()).toBeVisible({ timeout: 15000 });
+});
+
+Then("the wiki preview HTML should contain {string}", async function (expected) {
+  const preview = this.page.locator(".wiki-preview-html");
+  await expect(preview).toContainText(expected, { timeout: 15000 });
+});
+
+Then("the wiki preview HTML should not contain {string}", async function (unexpected) {
+  const preview = this.page.locator(".wiki-preview-html");
+  await expect(preview).toBeVisible({ timeout: 15000 });
+  const html = await preview.innerHTML();
+  expect(html).not.toContain(unexpected);
+});
+
 Then("the wiki status should show {string}", async function (expected) {
   await expect(this.page.locator(".wiki-editor")).toContainText(expected);
 });
 
 Then("the wiki error banner should contain {string}", async function (message) {
-  await expect(this.page.locator(".wiki-error")).toContainText(message);
+  await expect(this.page.locator(".wiki-error")).toContainText(message, { timeout: 20000 });
 });
 
 Then("the wiki preview should still contain {string}", async function (expected) {

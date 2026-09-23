@@ -3,7 +3,7 @@
   "title": "Now tree expands the full descendant hierarchy",
   "description": "Now tree view must let operators expand and collapse nodes that have descendants, including children that do not match the current Status filter.\n\nDefault Status is in_progress. An in-progress epic must still show an expand control when it has open, blocked, or closed children. Expanding drills into the full descendant tree; collapsing hides those children again.\n\nFlat feed (Tree off) stays status-filtered. Generation still does not backfill closed descendants; this is display only.\n\n```mermaid\nflowchart TD\n  filter[\"Status filter\"] --> roots[\"matching issues as roots\"]\n  roots --> expand[\"expand control if descendants exist\"]\n  expand --> children[\"all descendants any status\"]\n```",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": "agent",
   "creator": null,
@@ -17,11 +17,23 @@
       "text": "Now tree includes descendants outside the Status filter. Matching issues stay collapsed by default and show an expand control when they have children. Expanding drills one level at a time through the full descendant tree. Type filter is hidden on Now.",
       "created_at": "2026-09-03T02:25:17.397672Z",
       "comment_type": "default"
+    },
+    {
+      "id": "fd8d43f7-ede5-4d06-9088-422703533446",
+      "author": "ubuntu",
+      "text": "Closed after verify. Now tab, tree, board name, and JIT backfill are on develop (PRs #214, #219, #220).",
+      "created_at": "2026-09-07T20:11:22.592392716Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
     }
   ],
   "created_at": "2026-09-03T02:20:40.113255Z",
-  "updated_at": "2026-09-03T02:25:17.397690Z",
-  "closed_at": null,
+  "updated_at": "2026-09-07T20:11:22.641510477Z",
+  "closed_at": "2026-09-07T20:11:22.634937650Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

@@ -1,0 +1,45 @@
+{
+  "id": "kbs-a7156690-6f59-420a-8703-951819c7ff16",
+  "title": "Reconcile #261 commit message vs post-rebase diff (ruff F401 claim)",
+  "description": "SD soft nit on #261: commit body cites ruff F401 unused-import removals, but post-rebase diff vs develop no longer shows those import removals (likely landed via #250 or rebase drop). Amend message on follow-up or document.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c328f3c6-3997-4155-9007-232daef0e3fd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "382c6abd-bed5-49e2-9f7e-49a081e8e0a9",
+      "author": "Codex",
+      "text": "Closed as obsolete historical cleanup. PR #261 is already merged; its commit message is immutable, and the post-rebase diff accurately contains no F401 removals to recover.",
+      "created_at": "2026-09-16T03:42:19.423540Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    },
+    {
+      "id": "9cb71591-9836-40de-8655-18a2e37f993a",
+      "author": "Codex",
+      "text": "Closed as obsolete historical cleanup. PR #261 is already merged; its commit message is immutable, and the post-rebase diff accurately contains no F401 removals to recover.",
+      "created_at": "2026-09-16T03:42:23.835063Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5",
+        "name": "Issue Router planning"
+      }
+    }
+  ],
+  "created_at": "2026-09-09T23:25:17.529196Z",
+  "updated_at": "2026-09-16T03:42:26.547025Z",
+  "closed_at": "2026-09-16T03:42:26.526260Z",
+  "right_now_summary": "The commit message still claims F401 removals that no longer appear in the rebased diff.",
+  "right_now_updated_at": "2026-09-09T23:25:22.095013Z",
+  "custom": {}
+}

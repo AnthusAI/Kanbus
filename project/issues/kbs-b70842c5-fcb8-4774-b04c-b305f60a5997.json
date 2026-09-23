@@ -1,0 +1,38 @@
+{
+  "id": "kbs-b70842c5-fcb8-4774-b04c-b305f60a5997",
+  "title": "CI cleanup soft nits (PR #259)",
+  "description": "Non-blocking follow-ups from SD ACCEPT of PR #259 (develop CI cleanup). Do not block merge; track polish after fmt / parity / standup console-ui fixes land.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a3a0d110-2ebf-40e5-83eb-0b0ace9db44e",
+      "author": "home",
+      "text": "All three child soft-nit cards have been verified completed or obsolete against current develop and closed. Closing the follow-up epic.",
+      "created_at": "2026-09-16T23:00:18.679476Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "f1a3700b-a1d8-4cb6-8d8f-cdf2e0c97f08",
+      "author": "home",
+      "text": "All three child soft-nit cards have been verified completed or obsolete against current develop and closed. Closing the follow-up epic.",
+      "created_at": "2026-09-16T23:00:19.798244Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-09T22:16:18.938158Z",
+  "updated_at": "2026-09-16T23:00:23.347574Z",
+  "closed_at": "2026-09-16T23:00:23.327629Z",
+  "right_now_summary": "Three CI cleanup follow-ups remain: preserve the env value, remove dead code, and switch the fail test flag.",
+  "right_now_updated_at": "2026-09-09T22:17:03.602619Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

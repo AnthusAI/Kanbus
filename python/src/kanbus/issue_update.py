@@ -25,6 +25,10 @@ from kanbus.agent_metadata import (
 )
 from kanbus.models import AgentMetadata, IssueData
 from kanbus.project import get_configuration_path
+from kanbus.status_semantics import (
+    SEMANTIC_IN_PROGRESS,
+    resolve_primary_status_key_for_semantic_category,
+)
 from kanbus.workflows import (
     InvalidTransitionError,
     apply_transition_side_effects,
@@ -67,6 +71,7 @@ def update_issue(
     parent: Optional[str] = None,
     issue_type: Optional[str] = None,
     agent: Optional[AgentMetadata] = None,
+    regenerate_right_now: bool = True,
 ) -> IssueUpdateResult:
     """Update an issue and persist it to disk.
 
@@ -96,6 +101,8 @@ def update_issue(
     :type parent: Optional[str]
     :param agent: Agent provenance to set when the issue has none or is incomplete.
     :type agent: Optional[AgentMetadata]
+    :param regenerate_right_now: Whether to regenerate AI summaries after persisting.
+    :type regenerate_right_now: bool
     :return: Updated issue data and whether disk state changed.
     :rtype: IssueUpdateResult
     :raises IssueUpdateError: If the update fails.
@@ -128,7 +135,9 @@ def update_issue(
 
     resolved_status = status
     if claim:
-        resolved_status = "in_progress"
+        resolved_status = resolve_primary_status_key_for_semantic_category(
+            configuration, SEMANTIC_IN_PROGRESS
+        )
     resolved_type = issue_type.strip() if issue_type is not None else None
     if resolved_type == "":
         resolved_type = None
@@ -268,6 +277,7 @@ def update_issue(
                     configuration,
                     resolved_type or updated_issue.issue_type,
                     resolved_status,
+                    updated_issue.identifier,
                 )
                 validate_status_transition(
                     configuration,
@@ -353,6 +363,7 @@ def update_issue(
                 events=events,
                 before_issue=before_issue,
                 root=root,
+                regenerate_right_now=regenerate_right_now,
             )
         )
     except Exception as error:  # noqa: BLE001

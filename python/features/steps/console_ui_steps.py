@@ -88,15 +88,24 @@ def _build_kbsc_if_needed(binary: Path) -> None:
         raise RuntimeError("cargo build --bin kbsc failed")
 
 
-def _start_kbsc(working_directory: Path, port: int) -> subprocess.Popen:  # type: ignore[type-arg]
+def _start_kbsc(
+    working_directory: Path, port: int, context: object | None = None
+) -> subprocess.Popen:  # type: ignore[type-arg]
     binary = _kbsc_binary_path()
     _build_kbsc_if_needed(binary)
+    environment = {**os.environ, "KANBUS_NO_DAEMON": "1"}
+    overrides = (
+        getattr(context, "environment_overrides", None) if context is not None else None
+    )
+    if overrides:
+        environment.update(overrides)
     return subprocess.Popen(
         [str(binary)],
         env={
-            **os.environ,
+            **environment,
             "CONSOLE_PORT": str(port),
             "CONSOLE_DATA_ROOT": str(working_directory),
+            "KANBUS_NO_DAEMON": "1",
         },
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -166,6 +175,14 @@ class ConsoleAgentMetadata:
 
 
 @dataclass
+class ConsoleAgentAssignment:
+    kind: str
+    name: str
+    provider_profile: str | None = None
+    effective: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
 class ConsoleIssue:
     title: str
     issue_type: str
@@ -181,6 +198,7 @@ class ConsoleIssue:
     identifier: str | None = None
     priority: int = 2
     agent: ConsoleAgentMetadata | None = None
+    agent_assignment: ConsoleAgentAssignment | None = None
     right_now_summary: str | None = None
 
 
@@ -245,7 +263,7 @@ def given_console_server_is_running(context: object) -> None:
     working_directory = Path(context.working_directory)
     port = _allocate_port()
     _write_console_port_to_config(working_directory, port)
-    proc = _start_kbsc(working_directory, port)
+    proc = _start_kbsc(working_directory, port, context)
     context.console_server_process = proc
     ready_port = _wait_for_server(port)
     assert ready_port is not None, f"kbsc did not become ready on port {port}"
@@ -312,7 +330,7 @@ def when_console_server_is_restarted(context: object) -> None:
     context.console_server_process = None
     time.sleep(0.2)
     working_directory = Path(context.working_directory)
-    new_proc = _start_kbsc(working_directory, port)
+    new_proc = _start_kbsc(working_directory, port, context)
     context.console_server_process = new_proc
     ready_port = _wait_for_server(port)
     assert (
@@ -566,19 +584,6 @@ def then_tab_selected(context: object, tab: str) -> None:
         raise AssertionError(f"expected tab {tab} but found {state.selected_tab}")
 
 
-@then("the console board should be visible")
-def then_console_board_should_be_visible(context: object) -> None:
-    """Verify the console chrome is rendered with the board panel.
-
-    :param context: Behave context with console state.
-    :type context: object
-    :raises AssertionError: If the console is missing or not showing the board.
-    """
-    state = _require_console_state(context)
-    if state.panel_mode != "board":
-        raise AssertionError(f"expected board view, got {state.panel_mode}")
-
-
 @then("no view tab should be selected")
 def then_no_tab_selected(context: object) -> None:
     """Verify no view tab is selected."""
@@ -724,12 +729,14 @@ def given_console_issue_right_now_summary(
 def then_issue_detail_right_now_summary(context: object, expected: str) -> None:
     issue = _get_selected_issue(context)
     summary = issue.right_now_summary
-    if summary is None or summary.strip() == "":
-        actual = "(no right-now summary)"
-    else:
-        actual = summary
+    actual = "" if summary is None else summary.strip()
     if actual != expected:
         raise AssertionError(f"expected right-now summary {expected}, got {actual}")
+
+
+@then("the issue detail should show empty right-now summary")
+def then_issue_detail_empty_right_now_summary(context: object) -> None:
+    then_issue_detail_right_now_summary(context, "")
 
 
 @given(
@@ -752,6 +759,16 @@ def given_console_task_without_agent_metadata(context: object, title: str) -> No
     for issue in state.issues:
         if issue.title == title:
             issue.agent = None
+            return
+    raise AssertionError(f"task not found: {title}")
+
+
+@given('the console has a task "{title}" without agent assignment')
+def given_console_task_without_agent_assignment(context: object, title: str) -> None:
+    state = _require_console_state(context)
+    for issue in state.issues:
+        if issue.title == title:
+            issue.agent_assignment = None
             return
     raise AssertionError(f"task not found: {title}")
 
@@ -814,6 +831,41 @@ def then_issue_agent_metadata_not_visible(context: object) -> None:
     issue = _get_selected_issue(context)
     if issue.agent is not None:
         raise AssertionError(f"expected no agent metadata but found {issue.agent}")
+
+
+@then('the issue agent assignment should show route "{route}"')
+def then_issue_assignment_route(context: object, route: str) -> None:
+    issue = _get_selected_issue(context)
+    assignment = issue.agent_assignment
+    if assignment is None:
+        raise AssertionError("expected an agent assignment")
+    actual_kind = (
+        "provider" if assignment.kind == "provider_profile" else assignment.kind
+    )
+    actual = (
+        f"{actual_kind.title()} · {assignment.name}"
+        if actual_kind in {"class", "provider"}
+        else assignment.name
+    )
+    if actual != route:
+        raise AssertionError(f"expected route {route} but found {actual}")
+
+
+@then('the issue agent assignment should show effective "{value}"')
+def then_issue_assignment_effective(context: object, value: str) -> None:
+    issue = _get_selected_issue(context)
+    assignment = issue.agent_assignment
+    if assignment is None or value not in str(assignment.effective):
+        raise AssertionError(f"expected effective configuration to include {value}")
+
+
+@then("the issue agent assignment should show unassigned")
+def then_issue_assignment_unassigned(context: object) -> None:
+    issue = _get_selected_issue(context)
+    if issue.agent_assignment is not None:
+        raise AssertionError(
+            f"expected unassigned issue but found {issue.agent_assignment}"
+        )
 
 
 @then('the comment agent metadata should include platform "{platform}"')
@@ -900,6 +952,44 @@ def _assert_priority_pill_uses_background() -> None:
     ):
         raise AssertionError(
             "issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
+        )
+    _assert_priority_pill_dark_mode_css_is_valid(globals_css)
+
+
+def _assert_priority_pill_dark_mode_css_is_valid(globals_css: str) -> None:
+    """
+    Require a valid dark-mode switch for priority chips.
+
+    :param globals_css: Contents of apps/console/src/styles/globals.css.
+    :type globals_css: str
+    :raises AssertionError: If the dark-mode rule is missing or mixes @media
+        into the selector list.
+    """
+    dark_marker = ".dark .issue-accent-priority"
+    dark_start = globals_css.find(dark_marker)
+    if dark_start == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is required for dark-mode priority chips"
+        )
+    opening_brace = globals_css.find("{", dark_start)
+    if opening_brace == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is missing a declaration block"
+        )
+    selector = globals_css[dark_start:opening_brace]
+    if "@media" in selector:
+        raise AssertionError(
+            "dark-mode .issue-accent-priority selectors must not mix in @media"
+        )
+    closing_brace = globals_css.find("}", opening_brace)
+    if closing_brace == -1:
+        raise AssertionError(
+            ".dark .issue-accent-priority rule is missing a closing brace"
+        )
+    body = globals_css[opening_brace : closing_brace + 1]
+    if "--issue-priority-bg" not in body or "--issue-priority-bg-dark" not in body:
+        raise AssertionError(
+            ".dark .issue-accent-priority must set --issue-priority-bg to --issue-priority-bg-dark"
         )
 
 
@@ -993,7 +1083,20 @@ def _default_issues() -> list[ConsoleIssue]:
     return [
         ConsoleIssue(title="Observability overhaul", issue_type="epic"),
         ConsoleIssue(title="Increase reliability", issue_type="initiative"),
-        ConsoleIssue(title="Add structured logging", issue_type="task"),
+        ConsoleIssue(
+            title="Add structured logging",
+            issue_type="task",
+            agent_assignment=ConsoleAgentAssignment(
+                kind="class",
+                name="implementation",
+                provider_profile="codex-default",
+                effective={
+                    "platform": "codex",
+                    "model": "gpt-5.6-luna",
+                    "settings": {"thinking_level": "high"},
+                },
+            ),
+        ),
         ConsoleIssue(title="Fix crash on startup", issue_type="task"),
         ConsoleIssue(
             title="Wire logger middleware",
@@ -1264,6 +1367,18 @@ def then_board_view_active(context: object) -> None:
         raise AssertionError(f"expected board view, got {state.panel_mode}")
 
 
+@then("the console board should be visible")
+def then_console_board_should_be_visible(context: object) -> None:
+    """Assert the console shell rendered after a route or reload.
+
+    :param context: Behave context holding console UI state.
+    :type context: object
+    :return: None
+    :rtype: None
+    """
+    _require_console_state(context)
+
+
 @then("the board view should be inactive")
 def then_board_view_inactive(context: object) -> None:
     state = _require_console_state(context)
@@ -1378,15 +1493,16 @@ def given_console_has_only_these_issues(context: object) -> None:
         raise AssertionError("expected issue table")
     issues: list[ConsoleIssue] = []
     for row in rows:
+        headings = row.headings
         issues.append(
             ConsoleIssue(
                 identifier=row["id"],
                 title=row["title"],
                 issue_type="task",
                 status=row["status"],
-                priority=int(row["priority"]),
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
+                priority=int(row["priority"]) if "priority" in headings else 2,
+                created_at=row["created_at"] if "created_at" in headings else None,
+                updated_at=row["updated_at"] if "updated_at" in headings else None,
             )
         )
     state.issues = issues

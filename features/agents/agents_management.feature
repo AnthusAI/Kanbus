@@ -15,6 +15,9 @@ Feature: Manage AGENTS.md Kanbus instructions
     And CONTRIBUTING_AGENT.md should contain "Title Case"
     And CONTRIBUTING_AGENT.md should contain "--no-agent-provenance"
     And CONTRIBUTING_AGENT.md should contain "Complete provenance is platform + model + name"
+    And CONTRIBUTING_AGENT.md should contain "KANBUS_AGENT_PLATFORM"
+    And CONTRIBUTING_AGENT.md should contain "## Git commits and pull requests"
+    And CONTRIBUTING_AGENT.md should contain "live in this repository's **AGENTS.md**"
 
   Scenario: Insert Kanbus section after H1 when missing
     Given a Kanbus repository with AGENTS.md without a Kanbus section

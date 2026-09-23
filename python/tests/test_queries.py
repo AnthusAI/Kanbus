@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from kanbus import queries
@@ -97,3 +99,15 @@ def test_search_issues_empty_term_returns_all() -> None:
     issues = [build_issue("kanbus-1"), build_issue("kanbus-2")]
     assert queries.search_issues(issues, None) == issues
     assert queries.search_issues(issues, "") == issues
+
+
+def test_sort_issues_by_recently_updated_handles_naive_timestamps() -> None:
+    naive = build_issue("kanbus-naive")
+    naive.updated_at = datetime(2026, 3, 9, 12, 0, 0)
+    aware = build_issue("kanbus-aware")
+    aware.updated_at = datetime(2026, 3, 10, 12, 0, 0, tzinfo=timezone.utc)
+    sorted_issues = queries.sort_issues_by_recently_updated([naive, aware])
+    assert [issue.identifier for issue in sorted_issues] == [
+        "kanbus-aware",
+        "kanbus-naive",
+    ]

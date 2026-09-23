@@ -1,0 +1,25 @@
+{
+  "id": "kbs-4652629a-2d49-4140-885f-39d454b07b76",
+  "title": "PR #278 ACCEPT soft nits",
+  "description": "Non-blocking follow-ups from Software Director ACCEPT of Kanbus PR #278 (merged at 713e4411). Hard fails: none. Specs already on develop under features/coordination/.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-4a9419c4-0c93-4aa6-bf1f-194541c2fa3a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-14T14:07:36.763365181Z",
+  "updated_at": "2026-09-14T14:07:36.776092978Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "grok_bot",
+    "model": "grok-4.6",
+    "name": "Kanbus"
+  },
+  "right_now_summary": "PR #278 is merged; three follow-ups await Git lease, Mutex API, and Level 2 MQTT work.",
+  "right_now_updated_at": "2026-09-18T18:21:13.653432Z",
+  "custom": {}
+}

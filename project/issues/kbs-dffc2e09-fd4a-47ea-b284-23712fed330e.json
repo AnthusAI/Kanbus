@@ -1,0 +1,20 @@
+{
+  "id": "kbs-dffc2e09-fd4a-47ea-b284-23712fed330e",
+  "title": "Fix develop CI failures post-#259",
+  "description": "Fix real CI regressions on develop tip 44e826ef: ruff F401, rust standup/JSON field order, rust-console-parity JIT panic, console-ui failures.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-09T22:28:42.716873550Z",
+  "updated_at": "2026-09-09T23:21:32.474940956Z",
+  "closed_at": "2026-09-09T23:21:32.466963799Z",
+  "right_now_summary": "The team is fixing CI regressions in linting, Rust output, JIT, and the console UI.",
+  "right_now_updated_at": "2026-09-09T23:21:36.096513973Z",
+  "custom": {}
+}

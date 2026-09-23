@@ -13,6 +13,7 @@ import yaml
 from behave import given, then, when
 
 from kanbus.config import DEFAULT_CONFIGURATION
+from kanbus.config_loader import CONGREGATION_ENV_FILENAME
 from kanbus.overlay import write_overlay_issue
 from kanbus.right_now import (
     LLM_USAGE_LOG,
@@ -33,6 +34,9 @@ from features.steps.shared import (
     write_issue_file,
 )
 
+TEST_OPENAI_API_KEY_DOTENV = "test-openai-key-from-dotenv"
+TEST_OPENAI_API_KEY_CONGREGATION = "test-openai-key-from-congregation"
+
 
 @given('issue "{identifier}" has right now summary "{summary}"')
 def given_issue_has_right_now_summary(
@@ -47,7 +51,9 @@ def given_issue_has_right_now_summary(
     :param summary: Right-now summary text.
     :type summary: str
     """
-    project_dir = load_project_directory(context)
+    from features.steps.query_steps import _resolve_issue_project_directory
+
+    project_dir = _resolve_issue_project_directory(context, identifier)
     issue = read_issue_file(project_dir, identifier)
     issue.right_now_summary = summary
     write_issue_file(project_dir, issue)
@@ -159,6 +165,23 @@ def then_issue_has_right_now_updated_at(
     if actual.tzinfo is None:
         actual = actual.replace(tzinfo=timezone.utc)
     assert actual == expected_timestamp
+
+
+@then('issue "{identifier}" should have a non-empty right now summary')
+def then_issue_has_non_empty_right_now_summary(
+    context: object, identifier: str
+) -> None:
+    """Verify an issue has a non-empty right-now summary.
+
+    :param context: Behave context object.
+    :type context: object
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, identifier)
+    assert issue.right_now_summary is not None
+    assert issue.right_now_summary.strip()
 
 
 @then('issue "{identifier}" should have no right now summary')
@@ -285,6 +308,110 @@ def then_right_now_summary_result_unset(context: object) -> None:
     assert context.right_now_summary_result is None
 
 
+@given("OPENAI_API_KEY is provided via project .env file only")
+def given_openai_api_key_via_project_dotenv(context: object) -> None:
+    """Create project .env with OpenAI credentials and remove them from process env.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    repository = Path(context.working_directory)
+    (repository / ".env").write_text(
+        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_DOTENV}\n",
+        encoding="utf-8",
+    )
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is not None:
+        overrides.pop("OPENAI_API_KEY", None)
+    os.environ.pop("OPENAI_API_KEY", None)
+
+
+@given("OPENAI_API_KEY is provided via congregation file only")
+def given_openai_api_key_via_congregation_file(context: object) -> None:
+    """Create congregation env file with OpenAI credentials and remove process env.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    repository = Path(context.working_directory)
+    congregation_home = repository / ".test-congregation-home"
+    congregation_home.mkdir(exist_ok=True)
+    (congregation_home / CONGREGATION_ENV_FILENAME).write_text(
+        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_CONGREGATION}\n",
+        encoding="utf-8",
+    )
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    overrides["HOME"] = str(congregation_home)
+    overrides.pop("OPENAI_API_KEY", None)
+    os.environ.pop("OPENAI_API_KEY", None)
+    project_dotenv = repository / ".env"
+    if project_dotenv.exists():
+        project_dotenv.unlink()
+
+
+@given("right now generation requires loaded OpenAI credentials")
+def given_right_now_generation_requires_loaded_openai_credentials(
+    context: object,
+) -> None:
+    """Require repository env loading to populate OPENAI_API_KEY before mock AI runs.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    overrides["KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS"] = "1"
+
+
+@given('right now native litellm test completion is "{summary}"')
+def given_right_now_native_litellm_test_completion(
+    context: object, summary: str
+) -> None:
+    """Stub native LiteLLM completion for dual-runtime generation tests.
+
+    :param context: Behave context object.
+    :type context: object
+    :param summary: Completion text returned by the LiteLLM layer.
+    :type summary: str
+    """
+    from features.steps.configuration_steps import _track_env_restore
+
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    _track_env_restore(context, "KANBUS_TEST_LITELLM_COMPLETION")
+    overrides["KANBUS_TEST_LITELLM_COMPLETION"] = summary
+    os.environ["KANBUS_TEST_LITELLM_COMPLETION"] = summary
+
+
+@given('right now generation uses completion "{summary}"')
+def given_right_now_generation_uses_completion(context: object, summary: str) -> None:
+    """Stub right-now generation with a fixed completion string.
+
+    :param context: Behave context object.
+    :type context: object
+    :param summary: Completion text returned by generation.
+    :type summary: str
+    """
+    from features.steps.configuration_steps import _track_env_restore
+
+    overrides = getattr(context, "environment_overrides", None)
+    if overrides is None:
+        context.environment_overrides = {}
+        overrides = context.environment_overrides
+    _track_env_restore(context, "KANBUS_TEST_RIGHT_NOW_COMPLETION")
+    overrides["KANBUS_TEST_RIGHT_NOW_COMPLETION"] = summary
+    os.environ["KANBUS_TEST_RIGHT_NOW_COMPLETION"] = summary
+    _track_env_restore(context, "KANBUS_TEST_AI_MOCK")
+    os.environ.pop("KANBUS_TEST_AI_MOCK", None)
+
+
 @given("right now litellm call tracking is reset")
 def given_right_now_litellm_call_tracking_reset(context: object) -> None:
     """Clear right-now LiteLLM call tracking before mock AI scenarios.
@@ -307,7 +434,7 @@ def given_kanbus_project_has_no_ai_configuration(context: object) -> None:
     config_path = repository / ".kanbus.yml"
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
-        payload.pop("ai", None)
+        payload["ai"] = None
         config_path.write_text(
             yaml.safe_dump(payload, sort_keys=False),
             encoding="utf-8",

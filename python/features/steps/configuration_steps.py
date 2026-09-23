@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import os
 import shutil
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -338,7 +339,8 @@ def given_no_file_exists(context: object, filename: str) -> None:
 @given('a Kanbus project with a file "kanbus.yml" containing:')
 def given_project_with_kanbus_yml_containing(context: object) -> None:
     """Create kanbus.yml merging default config with the given YAML (context.text)."""
-    initialize_default_project(context)
+    if not getattr(context, "working_directory", None):
+        initialize_default_project(context)
     repository = Path(context.working_directory)
     config_path = repository / ".kanbus.yml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -487,12 +489,14 @@ def given_invalid_config_duplicate_statuses(context: object) -> None:
             "key": "open",
             "name": "Open",
             "category": "To do",
+            "semantic_category": "todo",
             "collapsed": False,
         },
         {
             "key": "open_duplicate",
             "name": "Open",
             "category": "To do",
+            "semantic_category": "todo",
             "collapsed": False,
         },
     ]
@@ -514,6 +518,7 @@ def given_invalid_config_workflow_statuses(context: object) -> None:
             "key": "open",
             "name": "Open",
             "category": "To do",
+            "semantic_category": "todo",
             "collapsed": False,
         }
     ]
@@ -992,6 +997,19 @@ def then_ai_provider_matches(context: object, expected: str) -> None:
     ), f"Expected AI provider '{expected}', got '{configuration.ai.provider}'"
 
 
+@then('the AI model should be "{expected}"')
+def then_ai_model_matches(context: object, expected: str) -> None:
+    """Verify AI model matches expected value."""
+    configuration = getattr(context, "configuration", None)
+    if configuration is None:
+        raise AssertionError("No configuration loaded")
+    if configuration.ai is None:
+        raise AssertionError("No AI configuration in .kanbus.yml")
+    assert (
+        configuration.ai.model == expected
+    ), f"Expected AI model '{expected}', got '{configuration.ai.model}'"
+
+
 @then('the default priority should be "{expected}"')
 def then_default_priority_matches(context: object, expected: str) -> None:
     """Verify default priority matches."""
@@ -1025,3 +1043,10 @@ def then_attempt_priority_update(context: object, priority: str) -> None:
             context.result = SimpleNamespace(
                 exit_code=1, stdout="", stderr="invalid priority"
             )
+
+
+@given("litellm is not installed")
+def given_litellm_is_not_installed(context: object) -> None:
+    """Simulate a uv tool install environment without litellm."""
+    context.original_litellm_module = sys.modules.get("litellm")
+    sys.modules["litellm"] = None

@@ -6,7 +6,7 @@ use cucumber::{given, then, when};
 use serde_json::{json, Value};
 use tempfile::TempDir;
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::file_io::load_project_directory;
 use kanbus::ids::format_issue_key;
 use kanbus::models::IssueData;
@@ -21,7 +21,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);

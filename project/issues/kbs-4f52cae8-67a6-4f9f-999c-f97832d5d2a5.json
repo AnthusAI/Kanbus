@@ -1,0 +1,33 @@
+{
+  "id": "kbs-4f52cae8-67a6-4f9f-999c-f97832d5d2a5",
+  "title": "Persist router lifecycle transitions to the canonical board",
+  "description": "## Problem\n\nThe live router run for KBS-c11aec preserved a Codex session, raw transcript, checkpoint, branch, and draft PR, and emitted `open -> in_progress -> review` state-transition events on the shared router-state branch. The canonical issue JSON remained `open`, however. `kbs router recover` then attempted an invalid direct `open -> review` transition, leaving the board unable to show the reviewable work without manual reconciliation.\n\n## Required behavior\n\nEvery router lifecycle transition must be atomically reflected in canonical Kanbus issue state through the configured lifecycle path, as well as in the durable router event stream. A completed run must visibly land in Review; an agent question or launcher fault must visibly land in Blocked. Recovery must be idempotent and must never attempt an invalid shortcut transition.\n\n## Acceptance criteria\n\n- Python and Rust persist `Open -> In Progress -> Review` (or `Blocked`) to the canonical issue.\n- Router state, board state, and console/API responses converge after a restart or Git refresh.\n- `router recover` is idempotent and respects configured lifecycle transitions.\n- A completed live or scripted Codex turn always has a visible summary/comment, draft PR, and the configured board status.\n- Regression coverage exercises the KBS-c11aec event sequence and Git-only refresh path.",
+  "type": "bug",
+  "status": "review",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [
+    "agent-class:smart"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "dacbebbc-13dd-4ec9-ac43-c82c99be36a8",
+      "author": "home",
+      "text": "The interrupted router run is preserved for review in draft PR #321. The worker produced a Python/Rust lifecycle-transition fix; I corrected its no-op regression during review. Checked: focused Python regression tests, Ruff, Black, Rust formatting, and Rust compilation/tests. The run itself stopped only because the machine ran out of disk while publishing router state; source work and its draft PR were retained.",
+      "created_at": "2026-09-19T14:51:08.612143Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-19T13:49:19.527247Z",
+  "updated_at": "2026-09-19T14:51:08.612226Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

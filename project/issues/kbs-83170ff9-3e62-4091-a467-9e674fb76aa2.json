@@ -1,0 +1,28 @@
+{
+  "id": "kbs-83170ff9-3e62-4091-a467-9e674fb76aa2",
+  "title": "macOS 0.27.0 init acceptance findings",
+  "description": "Acceptance testing on Kanbus 0.27.0 (macOS) while initializing a new project. Track the five findings as child bugs. Source: external dogfood report.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a1764a39-090c-4633-bba3-d6f9fa3716a1",
+      "author": "ryan",
+      "text": "Filed from macOS 0.27.0 init dogfood. Next priorities: P1 short dep IDs (kbs-acbf77) and daemon errno diagnostics (kbs-bd1f9b).",
+      "created_at": "2026-09-12T19:21:50.082127Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-12T18:35:31.132082Z",
+  "updated_at": "2026-09-12T22:09:44.244111Z",
+  "closed_at": "2026-09-12T22:09:44.220085Z",
+  "right_now_summary": "The team is fixing short dependency IDs and adding clear daemon errors after macOS acceptance testing.",
+  "right_now_updated_at": "2026-09-12T22:09:46.115534Z",
+  "custom": {}
+}

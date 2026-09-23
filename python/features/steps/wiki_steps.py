@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -557,6 +558,65 @@ def then_json_field_not_contains(context: object, field: str, text: str) -> None
     assert text not in str(
         value
     ), f"expected {field} not to contain {text!r}, got {value!r}"
+
+
+def _html_contains_class(html: str, css_class: str) -> bool:
+    """Return whether HTML includes an element with the given class name.
+
+    :param html: HTML document or fragment.
+    :type html: str
+    :param css_class: Class token to find.
+    :type css_class: str
+    :return: True when the class token is present.
+    :rtype: bool
+    """
+    pattern = re.compile(r'class=(["\'])([^"\']*)\1')
+    for match in pattern.finditer(html):
+        if css_class in match.group(2).split():
+            return True
+    return False
+
+
+@then('stdout should contain HTML element with class "{css_class}"')
+def then_stdout_contains_html_class(context: object, css_class: str) -> None:
+    """Assert stdout includes an HTML element with a CSS class.
+
+    :param context: Behave context with CLI result.
+    :type context: object
+    :param css_class: Expected class token.
+    :type css_class: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the class is missing.
+    """
+    stdout = _strip_ansi(context.result.stdout)
+    assert _html_contains_class(
+        stdout, css_class
+    ), f"expected HTML class {css_class!r} in {stdout!r}"
+
+
+@then('JSON field "{field}" should contain HTML element with class "{css_class}"')
+def then_json_field_contains_html_class(
+    context: object, field: str, css_class: str
+) -> None:
+    """Assert a JSON string field includes an HTML element with a CSS class.
+
+    :param context: Behave context with CLI result.
+    :type context: object
+    :param field: JSON object field name.
+    :type field: str
+    :param css_class: Expected class token.
+    :type css_class: str
+    :return: None
+    :rtype: None
+    :raises AssertionError: If the field or class is missing.
+    """
+    payload = _load_stdout_json(context)
+    assert field in payload, f"missing field {field!r} in {payload!r}"
+    value = str(payload[field])
+    assert _html_contains_class(
+        value, css_class
+    ), f"expected {field} to contain HTML class {css_class!r}, got {value!r}"
 
 
 @then('JSON field "{field}" should be empty')

@@ -56,6 +56,8 @@ project/
 .kanbus.yml
 ```
 
+New projects ship with LiteLLM as the LLM client and `gpt-5.6-luna` as the default model for summarization and other AI tasks. Set `OPENAI_API_KEY` in your environment, project `.env`, or `~/.kanbus.env` before running wiki render, compaction, or right-now summary commands. See [CONFIGURATION.md](CONFIGURATION.md) for `ai` and `right_now` fields.
+
 ## Step 2: Create your first issue
 
 ```bash
@@ -100,6 +102,8 @@ kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
 
 ## Realtime quickstart
 
+Routine `kbs` board commands do not require Mosquitto. Local MQTT is optional and only needed for explicit gossip watch workflows (see [docs/REALTIME.md](docs/REALTIME.md)).
+
 ### One console hub (UDS)
 
 Terminal 1:
@@ -129,7 +133,7 @@ curl -N http://127.0.0.1:5174/api/events/realtime
 kanbus gossip watch --transport mqtt --broker auto
 ```
 
-If Mosquitto is installed, Kanbus will autostart it and record `~/.kanbus/run/broker.json`.
+Mosquitto is optional for basic board CLI use. If you run MQTT gossip watch and Mosquitto is installed, Kanbus will autostart it and record `~/.kanbus/run/broker.json`.
 
 ### Overlay maintenance
 

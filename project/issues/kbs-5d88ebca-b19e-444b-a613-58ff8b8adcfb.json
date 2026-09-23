@@ -1,0 +1,41 @@
+{
+  "id": "kbs-5d88ebca-b19e-444b-a613-58ff8b8adcfb",
+  "title": "Wiki Markus integration specs",
+  "description": "Gherkin for the Jinja-first, Markus-second wiki render pipeline.\n\nSpecs PR: https://github.com/AnthusAI/Kanbus/pull/217",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bd41d7ca-09b7-44f6-8187-dafac10706b3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3e0f1d84-e357-495f-b730-7996d0df9a17",
+      "author": "ubuntu",
+      "text": "Composer is implementing the Markus pipeline on a new cloud agent (bc-6c6bbb11). Specs PR is #217.",
+      "created_at": "2026-09-07T20:15:52.463531035Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "cursor-grok-4.6",
+        "name": "board-hygiene"
+      }
+    }
+  ],
+  "created_at": "2026-09-07T20:15:51.985969413Z",
+  "updated_at": "2026-09-07T20:55:29.747632626Z",
+  "closed_at": "2026-09-07T20:55:29.741035259Z",
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "board-hygiene"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "kbs-82fcbb5c-bf52-442c-91d1-1bd8967503f9",
+  "title": "Console wiki preview consumes Markus HTML",
+  "description": "Console /api/wiki/render returns backend Markus HTML. Preview injects semantic classes only; no client-side :::directive parsing.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bd41d7ca-09b7-44f6-8187-dafac10706b3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-07T20:15:52.163644836Z",
+  "updated_at": "2026-09-07T20:55:29.663560234Z",
+  "closed_at": "2026-09-07T20:55:29.657015508Z",
+  "agent": {
+    "platform": "cursor",
+    "model": "cursor-grok-4.6",
+    "name": "board-hygiene"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

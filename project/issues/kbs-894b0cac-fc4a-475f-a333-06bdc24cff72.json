@@ -1,0 +1,47 @@
+{
+  "id": "kbs-894b0cac-fc4a-475f-a333-06bdc24cff72",
+  "title": "Make router invocation from a repository subdirectory safe",
+  "description": "## Problem\n\nA real operator test invoked kbs router run --once from the repository rust subdirectory. The CLI found configuration relative to that subdirectory and failed only after attempting shared-router publication: shared router state requires project_directory inside the repository. No agent session, issue transition, or visible diagnostic was recorded.\n\n## Required behavior\n\nkbs router must resolve the enclosing Git repository root before loading Kanbus configuration and router state, so an invocation from any repository subdirectory behaves exactly like one from the root. If the repository cannot be resolved, fail before claiming or launching with a clear user-facing diagnostic.\n\n## Acceptance criteria\n\n- Python and Rust router commands invoked from a repository subdirectory use the enclosing root configuration and project directory.\n- plan, run --once, and status remain equivalent to root invocation; no duplicated worktrees or claims.\n- An invocation outside a repository fails early with an exact actionable message.\n- Tests cover the subdirectory invocation path and preserve Git-only coordination.\n- A successful routed agent run ends in Review and never terminally closes the issue.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
+  "labels": [
+    "agent-class:implementation"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7ade9e03-c471-48b9-9063-7cb920f8d8ec",
+      "author": "home",
+      "text": "Correction from the live test: the earlier orphaned-PR hypothesis was wrong. The run was launched from rust/, causing the router to resolve project_directory against the wrong root. This story now tracks the actual subdirectory-invocation hardening required for a smooth operator workflow.",
+      "created_at": "2026-09-19T11:58:41.134945Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "d940d1f1-ce19-4ef3-8ceb-04e9b83b1272",
+      "author": "home",
+      "text": "Agent completion preserved in draft PR #304: implemented Git-root resolution for Python and Rust router commands, including subdirectory equivalence and early non-Git diagnostics. The agent verified root/subdirectory smoke checks, focused Python tests, focused Rust unit tests, and Rust formatting. Router publication then failed after the agent session with the exact error: project/events is ignored and the checkpoint staging path did not force-add it. The branch and agent worktree are preserved; this issue is in Review, not closed.",
+      "created_at": "2026-09-19T12:16:41.304573Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "d19a68d1-0553-4acf-95c3-419f992e0c64",
+      "author": "home",
+      "text": "Accepted: merged in PR #304 after all CI gates passed. Independently verified Python and Rust router parity from the repository root and rust/ subdirectory, plus the early non-Git diagnostic. This removes the operator-path failure that stranded the previous router run.",
+      "created_at": "2026-09-19T13:31:15.928928Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-19T11:52:21.304932Z",
+  "updated_at": "2026-09-19T13:31:16.724015Z",
+  "closed_at": "2026-09-19T13:31:16.653526Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

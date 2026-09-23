@@ -50,6 +50,7 @@ Feature: Console project filter
 
   Scenario: Project filter combined with shared-only
     Given the console is open with virtual projects configured
+    And local issues exist in virtual project "alpha"
     When I select project "alpha" in the project filter
     And I select "project only" in the local filter
     Then I should only see shared issues from "alpha"

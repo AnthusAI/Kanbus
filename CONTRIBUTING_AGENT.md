@@ -41,22 +41,28 @@ Direct file system access is strictly forbidden:
 
 ## Committing project state to git
 
-Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted — collaborators pulling `develop` do not see the current board state.
+Kanbus writes board state to `project/issues/*.json` and event logs to `project/events/*.json`, but it does **not** auto-commit these files to git. The board drifts if they are left uncommitted.
 
-To keep the board current, commit Kanbus-written issue files to `develop`:
+After you update or close cards, persist Kanbus-written issue state:
 
 ```bash
 kbs commit
-git push origin develop
 ```
+
+Then push to the branch your project uses for shared board state (see **AGENTS.md** in this repository).
 
 `kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
 
 Notes:
-- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after you update or close cards so collaborators see current board state on `develop`.
-- `project/events/` holds event logs (LLM usage transcripts). `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
-- Do this proactively as you close/update cards, not as a separate chore — the board should stay current as you work.
-- Never manually edit the JSON content of `project/issues/` or `project/events/` files (the rule above). `kbs commit` persists Kanbus-written issue state without editing it.
+- `project/issues/` is the board state Kanbus writes. Use `kbs commit` after board changes so collaborators see current state.
+- `project/events/` holds event logs. `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
+- Never manually edit the JSON content of `project/issues/` or `project/events/` files. `kbs commit` persists Kanbus-written issue state without hand-editing JSON.
+
+## Git commits and pull requests
+
+Rules for product-code commits, branch names, pull requests, reviews, and when human approval is required are **project-specific**. They live in this repository's **AGENTS.md**, not in this file.
+
+Read AGENTS.md before you push code or open a pull request. CONTRIBUTING_AGENT.md describes Kanbus workflow and board mechanics only.
 
 ## Running Kanbus (Do This Exactly)
 
@@ -82,6 +88,20 @@ python -m kanbus.cli <command> [args...]
 ```
 
 NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
+
+## Right-now WIP (`kbs now`)
+
+On demand, agents can read current WIP from the board without waiting for compaction hooks:
+
+```bash
+kbs now                  # whole-project tree (default cap 30 in-progress issues)
+kbs now --list           # flat list with right-now summaries
+kbs now --json --list    # JSON flat list (includes priority and status)
+kbs now kbs-abc          # focused: issue kbs-abc and descendants
+kbs now kbs-abc --no-recursive   # that issue only
+```
+
+Scoped `kbs now <id>` is for self-directed focus. Whole-project reinjection after coding-agent compaction uses the same JSON payload without issue identifiers; see [docs/AGENT_COMPACTION_RIGHT_NOW.md](docs/AGENT_COMPACTION_RIGHT_NOW.md).
 
 ## Agent provenance metadata
 
@@ -357,6 +377,8 @@ Severity is not emotion. It is signal.
 ## Wiki Workflow
 
 The wiki lives under project/wiki/. You may edit Markdown files there directly.
+
+Wiki HTML uses **Markus** (Anthus-Flavored Markdown, package `anthus-markus` / `markusmd.convert`). **Do not `pip install markus`** — the PyPI `markus` package is an unrelated metrics library. See [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md#markus-renderer-not-pypi-markus) for the correct dependency, install path, and smoke-test commands (`kbs wiki render ... --html`).
 
 When to use the wiki:
 - Add and edit project/wiki/*.md for reports, status pages, and documentation.

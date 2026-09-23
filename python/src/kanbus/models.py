@@ -2,10 +2,47 @@
 
 from __future__ import annotations
 
+import ipaddress
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
+
+from kanbus.status_semantic_defaults import derive_semantic_category
+
+
+def _is_loopback_http_url(value: str) -> bool:
+    """Return whether an HTTP URL targets an explicitly loopback host.
+
+    :param value: Absolute HTTP URL to inspect.
+    :type value: str
+    :return: Whether the URL host is localhost or an IP loopback address.
+    :rtype: bool
+    """
+    parsed = urlparse(value)
+    if (
+        parsed.scheme != "http"
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        return False
+    hostname = parsed.hostname
+    if hostname is None:
+        return False
+    if hostname.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 class AgentMetadata(BaseModel):
@@ -27,6 +64,21 @@ class AgentMetadata(BaseModel):
     model: str = Field(min_length=1, max_length=128)
     name: Optional[str] = Field(default=None, min_length=1, max_length=128)
     settings: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentAssignment(BaseModel):
+    """Router assignment and resolved configuration shown in the console."""
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: Optional[str] = None
+    name: Optional[str] = None
+    agent_class: Optional[str] = None
+    provider: Optional[str] = None
+    provider_profile: Optional[str] = None
+    effective: Dict[str, Any] = Field(default_factory=dict)
+    effective_configuration: Dict[str, Any] = Field(default_factory=dict)
+    effective_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class CategoryDefinition(BaseModel):
@@ -175,6 +227,7 @@ class IssueData(BaseModel):
     right_now_updated_at: Optional[datetime] = None
     custom: Dict[str, object] = Field(default_factory=dict)
     agent: Optional[AgentMetadata] = None
+    agent_assignment: Optional[AgentAssignment] = None
 
 
 class StatusDefinition(BaseModel):
@@ -183,8 +236,17 @@ class StatusDefinition(BaseModel):
     key: str = Field(min_length=1)
     name: str = Field(min_length=1)
     category: str = Field(min_length=1)
+    # Older configurations omit this; a missing value is derived from the key and
+    # name (see status_semantic_defaults) instead of failing to load.
+    semantic_category: str = ""
     color: Optional[str] = None
     collapsed: bool = False
+
+    @model_validator(mode="after")
+    def _derive_missing_semantic_category(self) -> "StatusDefinition":
+        if not self.semantic_category.strip():
+            self.semantic_category = derive_semantic_category(self.key, self.name)
+        return self
 
 
 class PriorityDefinition(BaseModel):
@@ -197,9 +259,9 @@ class PriorityDefinition(BaseModel):
 class AiConfiguration(BaseModel):
     """AI provider configuration for wiki summarization.
 
-    :param provider: AI provider identifier (e.g. openai).
+    :param provider: AI provider identifier (`litellm` routes through LiteLLM).
     :type provider: str
-    :param model: Model identifier (e.g. gpt-4o).
+    :param model: Model identifier (e.g. gpt-5.6-luna).
     :type model: str
     """
 
@@ -225,7 +287,28 @@ class RightNowConfiguration(BaseModel):
     enabled: bool = True
     default_tree_expanded: bool = False
     max_length: int = 120
-    model: Optional[str] = None
+    model: Optional[str] = "gpt-5.6-luna"
+
+
+class StandupConfiguration(BaseModel):
+    """On-demand standup report configuration.
+
+    :param window: Standup window mode (`rolling` or `calendar`).
+    :type window: str
+    :param lookback: Rolling lookback duration (for example `24h` or `1d`).
+    :type lookback: str
+    :param skip_weekends: Whether calendar mode bundles weekends on Monday.
+    :type skip_weekends: bool
+    :param timezone: Optional IANA timezone for calendar buckets.
+    :type timezone: Optional[str]
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    window: str = "rolling"
+    lookback: str = "24h"
+    skip_weekends: bool = False
+    timezone: Optional[str] = None
 
 
 class JiraConfiguration(BaseModel):
@@ -271,11 +354,18 @@ class GithubSecurityConfiguration(BaseModel):
 
 
 class VirtualProjectConfig(BaseModel):
-    """Configuration for a single virtual project."""
+    """Configuration for a single virtual project.
+
+    :param path: Relative or absolute path to the virtual project directory.
+    :type path: str
+    :param display_name: Optional stable human label for standup and console output.
+    :type display_name: Optional[str]
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     path: str
+    display_name: Optional[str] = None
 
 
 class RealtimeTopics(BaseModel):
@@ -308,6 +398,267 @@ class OverlayConfig(BaseModel):
 
     enabled: bool = True
     ttl_s: int = 86400
+
+
+class MutexApiConfiguration(BaseModel):
+    """Optional hard coordination API connection settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint: Optional[str] = None
+    bearer_token: Optional[str] = None
+
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        endpoint = value.strip()
+        parsed = urlparse(endpoint)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("must be an absolute http(s) URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("must not include URL credentials")
+        if parsed.scheme == "http" and not _is_loopback_http_url(endpoint):
+            raise ValueError("must use HTTPS unless the host is loopback")
+        return endpoint
+
+    @field_validator("bearer_token")
+    @classmethod
+    def normalize_bearer_token(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        return value.strip()
+
+
+class CoordinationConfiguration(BaseModel):
+    """Soft coordination defaults and provider preferences.
+
+    :param providers: Configured coordination providers, ordered strongest first.
+    :type providers: List[str]
+    :param contention_window: Claim contention duration (for example ``5s``).
+    :type contention_window: str
+    :param default_lease_ttl: Default soft lease duration (for example ``300s``).
+    :type default_lease_ttl: str
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    providers: List[str] = Field(default_factory=lambda: ["git"])
+    contention_window: str = "5s"
+    default_lease_ttl: str = "300s"
+    mutex_api: MutexApiConfiguration = Field(default_factory=MutexApiConfiguration)
+
+    @field_validator("providers")
+    @classmethod
+    def validate_providers(cls, value: List[str]) -> List[str]:
+        """Require the canonical strongest-first provider fallback chain."""
+        allowed = (["git"], ["mqtt", "git"], ["mutex_api", "mqtt", "git"])
+        if value not in allowed:
+            raise ValueError(
+                "coordination providers must be one of: git; mqtt,git; "
+                "mutex_api,mqtt,git"
+            )
+        return value
+
+    @field_validator("contention_window", "default_lease_ttl")
+    @classmethod
+    def validate_duration(cls, value: str) -> str:
+        """Require a positive integer followed by a supported unit."""
+        import re
+
+        if not re.fullmatch(r"[1-9][0-9]*[smh]", value):
+            raise ValueError(
+                "duration must be a positive integer followed by s, m, or h"
+            )
+        return value
+
+
+class RouterWorkflowRoles(BaseModel):
+    """Explicit workflow statuses used by the deterministic issue router."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pending: str = Field(min_length=1)
+    active: str = Field(min_length=1)
+    review: str = Field(min_length=1)
+    blocked: str = Field(min_length=1)
+    terminal: List[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_distinct_roles(self) -> "RouterWorkflowRoles":
+        """Reject ambiguous role assignments."""
+        roles = [self.pending, self.active, self.review, self.blocked, *self.terminal]
+        if len(roles) != len(set(roles)):
+            raise ValueError("router workflow roles must use distinct statuses")
+        return self
+
+
+class RouterLimits(BaseModel):
+    """Router-owned WIP and retry limits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    project_wip: int = Field(ge=1, strict=True)
+    review_wip: int = Field(ge=1, strict=True)
+    class_wip: Dict[str, int] = Field(default_factory=dict)
+    provider_wip: Dict[str, int] = Field(default_factory=dict)
+
+    @field_validator("class_wip", "provider_wip")
+    @classmethod
+    def validate_positive_limits(cls, value: Dict[str, int]) -> Dict[str, int]:
+        """Require named limits to be positive integers."""
+        if any(
+            not key.strip()
+            or isinstance(limit, bool)
+            or not isinstance(limit, int)
+            or limit < 1
+            for key, limit in value.items()
+        ):
+            raise ValueError("router named limits must be positive integers")
+        return value
+
+
+ROUTER_ADAPTERS = ("codex", "opencode")
+ROUTER_SERVICE_TIERS = ("flex", "priority", "default")
+
+
+class RouterAgentProfile(BaseModel):
+    """Structured execution profile for one agent provider."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    adapter: str
+    command: Optional[str] = None
+    args: List[str] = Field(default_factory=list)
+    model: Optional[str] = None
+    env: Dict[str, str] = Field(default_factory=dict)
+    service_tier: Optional[str] = None
+
+    @field_validator("adapter")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        """Require an adapter supported by the router."""
+        normalized = value.strip().lower()
+        if normalized not in ROUTER_ADAPTERS:
+            raise ValueError("router provider adapter must be codex or opencode")
+        return normalized
+
+    @model_validator(mode="after")
+    def default_command(self) -> "RouterAgentProfile":
+        """Default the executable to the adapter name."""
+        if self.command is None:
+            self.command = self.adapter
+        if self.service_tier is not None:
+            if self.service_tier not in ROUTER_SERVICE_TIERS:
+                raise ValueError(
+                    "router provider service_tier must be flex, priority or default"
+                )
+            if self.adapter != "opencode" or not self.model or "/" not in self.model:
+                raise ValueError(
+                    "router provider service_tier requires adapter opencode and a provider/model model"
+                )
+        return self
+
+
+class RouterAgentClass(BaseModel):
+    """Ordered provider profiles available to a routed agent class."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    providers: List[str] = Field(min_length=1)
+
+
+class RouterRetryConfiguration(BaseModel):
+    """Retry limit for an issue package."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_attempts: int = Field(default=3, ge=1)
+
+
+class RouterForgeConfiguration(BaseModel):
+    """Forge-neutral pull request integration settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str = "github"
+    repository: str = Field(min_length=3)
+    base_branch: str = "main"
+    api_url: str = "https://api.github.com"
+    token_env: str = "GITHUB_TOKEN"
+
+    @model_validator(mode="after")
+    def validate_forge(self) -> "RouterForgeConfiguration":
+        """Require repository coordinates for GitHub operation."""
+        if self.provider != "github":
+            raise ValueError("router forge provider must be github")
+        if len(self.repository.split("/")) != 2 or not all(self.repository.split("/")):
+            raise ValueError("router forge repository must use owner/repository")
+        import re
+
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.token_env):
+            raise ValueError(
+                "router forge token_env must be a valid environment variable name"
+            )
+        parsed_api_url = urlparse(self.api_url)
+        if parsed_api_url.scheme not in {"http", "https"} or not parsed_api_url.netloc:
+            raise ValueError("router forge api_url must be an absolute http(s) URL")
+        if parsed_api_url.username is not None or parsed_api_url.password is not None:
+            raise ValueError("router forge api_url must not include URL credentials")
+        if parsed_api_url.scheme == "http" and not _is_loopback_http_url(self.api_url):
+            raise ValueError(
+                "router forge api_url must use HTTPS unless the host is loopback"
+            )
+        return self
+
+
+class IssueRouterConfiguration(BaseModel):
+    """Optional deterministic issue router configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    workflow: RouterWorkflowRoles | None = None
+    limits: RouterLimits | None = None
+    providers: Dict[str, RouterAgentProfile] = Field(default_factory=dict)
+    classes: Dict[str, RouterAgentClass] = Field(default_factory=dict)
+    retries: RouterRetryConfiguration = Field(default_factory=RouterRetryConfiguration)
+    forge: Optional[RouterForgeConfiguration] = None
+    watch_interval: str = "30s"
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_enabled_fields(cls, value: Any) -> Any:
+        """Allow an explicit disabled marker without requiring execution settings."""
+        if isinstance(value, dict) and value.get("enabled", True) is not False:
+            missing = [
+                key for key in ("workflow", "limits", "providers") if key not in value
+            ]
+            if missing:
+                raise ValueError("router workflow, limits, and providers are required")
+        return value
+
+    @model_validator(mode="after")
+    def validate_enabled_configuration(self) -> "IssueRouterConfiguration":
+        """Require usable routes on enabled router configurations."""
+        if self.enabled and (
+            self.workflow is None or self.limits is None or not self.providers
+        ):
+            raise ValueError("router workflow, limits, and providers are required")
+        return self
+
+    @field_validator("watch_interval")
+    @classmethod
+    def validate_watch_interval(cls, value: str) -> str:
+        """Require a positive duration using seconds, minutes, or hours."""
+        import re
+
+        if not re.fullmatch(r"[1-9][0-9]*[smh]", value):
+            raise ValueError(
+                "duration must be a positive integer followed by s, m, or h"
+            )
+        return value
 
 
 class HookDefinition(BaseModel):
@@ -376,6 +727,8 @@ class ProjectConfiguration(BaseModel):
     :type sort_order: Dict[str, object]
     :param right_now: Right-now summary configuration.
     :type right_now: RightNowConfiguration
+    :param standup: Standup report configuration.
+    :type standup: StandupConfiguration
     :param jira: Optional Jira synchronization configuration.
     :type jira: Optional[JiraConfiguration]
     :param snyk: Optional Snyk vulnerability synchronization configuration.
@@ -419,9 +772,14 @@ class ProjectConfiguration(BaseModel):
     wiki_directory: Optional[str] = None
     ai: Optional[AiConfiguration] = None
     right_now: RightNowConfiguration = Field(default_factory=RightNowConfiguration)
+    standup: StandupConfiguration = Field(default_factory=StandupConfiguration)
     jira: Optional[JiraConfiguration] = None
     snyk: Optional[SnykConfiguration] = None
     realtime: RealtimeConfig = Field(default_factory=RealtimeConfig)
+    coordination: CoordinationConfiguration = Field(
+        default_factory=CoordinationConfiguration
+    )
+    router: Optional[IssueRouterConfiguration] = None
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
     hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
     github_security: Optional[GithubSecurityConfiguration] = None

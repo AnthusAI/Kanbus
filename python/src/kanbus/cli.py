@@ -22,6 +22,16 @@ from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
 from kanbus.issue_creation import IssueCreationError, create_issue
+from kanbus.coordination import (
+    CoordinationError,
+    claim as coordination_claim,
+    inspect_lease as inspect_coordination_lease,
+    operation_sequence_for_event,
+    release as coordination_release,
+    publish_result as publish_coordination_result,
+    renew as coordination_renew,
+    utc_now,
+)
 from kanbus.issue_close import IssueCloseError, close_issue
 from kanbus.issue_comment import IssueCommentError, add_comment, update_comment
 from kanbus.issue_delete import (
@@ -32,13 +42,15 @@ from kanbus.issue_delete import (
 from kanbus.beads_write import (
     BeadsDeleteError,
     BeadsWriteError,
+    add_beads_comment,
     create_beads_issue,
     delete_beads_issue,
     get_beads_descendant_identifiers,
     update_beads_issue,
 )
 from kanbus.issue_display import format_issue_for_display
-from kanbus.models import IssueData
+from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.coordination import LeaseState
 from kanbus.ids import format_issue_key
 from kanbus.issue_line import compute_widths, format_issue_line
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
@@ -79,6 +91,7 @@ from kanbus.wiki import (
     WikiRenderRequest,
     apply_wiki_page_limit,
     check_wiki_page_links,
+    convert_wiki_markdown_to_html,
     format_wiki_link_problem,
     format_wiki_list_json,
     format_wiki_render_json,
@@ -98,11 +111,21 @@ from kanbus.text_editor import (
     edit_create,
     edit_insert,
 )
+from kanbus.console_now import build_now_issues
 from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_standup import (
+    StandupGenerateRequest,
+    StandupGenerateResponseModel,
+    generate_standup_report,
+)
 from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import (
+    ConfigurationError,
+    load_project_configuration,
+    load_repository_environment,
+)
 from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
 from kanbus.agent_metadata import (
     AgentMetadataRequest,
@@ -135,8 +158,16 @@ from kanbus.right_now import (
 from kanbus.right_now_command import (
     RightNowCommandError,
     RightNowCommandOptions,
+    resolve_right_now_output_format,
     run_right_now_command,
 )
+from kanbus.standup import StandupError
+from kanbus.standup_command import (
+    StandupCommandError,
+    StandupCommandOptions,
+    run_standup_command,
+)
+from kanbus.router_cli import router_group
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -254,6 +285,7 @@ def cli(
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
     _enforce_kanbus_version(context)
+    _preload_repository_environment()
     resolved, forced = _resolve_beads_mode(context, beads_mode)
     context.obj = {
         "beads_mode": resolved,
@@ -262,6 +294,14 @@ def cli(
         "no_hooks": no_hooks,
     }
     _maybe_prompt_project_repair(context)
+
+
+def _preload_repository_environment() -> None:
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+    except (ProjectMarkerError, ConfigurationError):
+        return
+    load_repository_environment(configuration_path.parent)
 
 
 def _should_check_project_structure(context: click.Context) -> bool:
@@ -906,7 +946,10 @@ def update(
 
             if configuration and proposed_issue.status != before_issue.status:
                 validate_status_value(
-                    configuration, proposed_issue.issue_type, proposed_issue.status
+                    configuration,
+                    proposed_issue.issue_type,
+                    proposed_issue.status,
+                    proposed_issue.identifier,
                 )
                 validate_status_transition(
                     configuration,
@@ -1188,8 +1231,9 @@ def bulk_update(
 
 @cli.command("close")
 @click.argument("identifier")
+@click.option("--comment", "comment_text", help="Add a comment before closing.")
 @click.pass_context
-def close(context: click.Context, identifier: str) -> None:
+def close(context: click.Context, identifier: str, comment_text: Optional[str]) -> None:
     """Close an issue.
 
     :param identifier: Issue identifier.
@@ -1199,6 +1243,84 @@ def close(context: click.Context, identifier: str) -> None:
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
     if beads_mode:
         root = _resolve_beads_root(root)
+
+    # This deliberately is not transactional: a failed close retains a
+    # successfully recorded comment, matching explicit comment-then-close.
+    if comment_text is not None:
+        if not comment_text.strip():
+            raise click.ClickException("comment text is required")
+        comment_quality_result = apply_text_quality_signals(comment_text)
+        comment_text = comment_quality_result.text
+        try:
+            validate_code_blocks(comment_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+        before_comment_issue = None
+        if beads_mode:
+            try:
+                before_comment_issue = load_beads_issue(root, identifier)
+            except MigrationError:
+                before_comment_issue = None
+        else:
+            try:
+                before_comment_issue = load_issue_from_project(root, identifier).issue
+            except IssueLookupError:
+                before_comment_issue = None
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_COMMENT,
+            operation={
+                "identifier": identifier,
+                "comment_text": comment_text,
+                "comment_length": len(comment_text),
+                "before_issue": serialize_issue(before_comment_issue),
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+        result_comment = None
+        try:
+            if beads_mode:
+                add_beads_comment(root, identifier, get_current_user(), comment_text)
+                emit_signals(comment_quality_result, "comment", issue_id=identifier)
+                try:
+                    after_comment_issue = load_beads_issue(root, identifier)
+                except MigrationError:
+                    after_comment_issue = None
+            else:
+                result_comment = add_comment(
+                    root=root,
+                    identifier=identifier,
+                    author=get_current_user(),
+                    text=comment_text,
+                )
+                emit_signals(
+                    comment_quality_result,
+                    "comment",
+                    issue_id=identifier,
+                    comment_id=result_comment.comment.id,
+                )
+                after_comment_issue = result_comment.issue
+        except (IssueCommentError, BeadsWriteError, MigrationError) as error:
+            raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_COMMENT,
+            operation={
+                "identifier": identifier,
+                "issue": serialize_issue(after_comment_issue),
+                "comment_id": (
+                    result_comment.comment.id
+                    if result_comment is not None
+                    and result_comment.comment.id is not None
+                    else None
+                ),
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
 
     before_issue = None
     if beads_mode:
@@ -2123,13 +2245,16 @@ def wiki() -> None:
 @wiki.command("render")
 @click.argument("page")
 @click.option("--json", "as_json", is_flag=True)
-def render_wiki(page: str, as_json: bool) -> None:
+@click.option("--html", "as_html", is_flag=True)
+def render_wiki(page: str, as_json: bool, as_html: bool) -> None:
     """Render a wiki page.
 
     :param page: Wiki page path.
     :type page: str
     :param as_json: Emit JSON output when set.
     :type as_json: bool
+    :param as_html: Emit Markus HTML after Jinja when set.
+    :type as_html: bool
     """
     root = Path.cwd()
     request = WikiRenderRequest(root=root, page_path=Path(page))
@@ -2137,6 +2262,9 @@ def render_wiki(page: str, as_json: bool) -> None:
         link_problems = check_wiki_page_links(root, page)
         reference_warnings: list[str] = []
         output = render_wiki_page(request, reference_warnings=reference_warnings)
+        rendered_html = ""
+        if as_json or as_html:
+            rendered_html = convert_wiki_markdown_to_html(output)
     except WikiError as error:
         raise click.ClickException(str(error)) from error
     for problem in link_problems:
@@ -2148,7 +2276,12 @@ def render_wiki(page: str, as_json: bool) -> None:
             resolved_page = resolve_wiki_page_path(root, page)
         except WikiError as error:
             raise click.ClickException(str(error)) from error
-        click.echo(format_wiki_render_json(resolved_page.as_posix(), output))
+        click.echo(
+            format_wiki_render_json(resolved_page.as_posix(), output, rendered_html)
+        )
+        return
+    if as_html:
+        click.echo(rendered_html)
         return
     click.echo(output)
 
@@ -2628,6 +2761,56 @@ def console_snapshot() -> None:
     click.echo(payload)
 
 
+@console.command("now")
+def console_now() -> None:
+    """Emit JSON issues for the Now panel with JIT right-now summaries."""
+    root = Path.cwd()
+    try:
+        issues = build_now_issues(root)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+    payload = json.dumps(
+        [issue.model_dump(by_alias=True, mode="json") for issue in issues],
+        indent=2,
+        sort_keys=False,
+    )
+    click.echo(payload)
+
+
+@console.command("standup")
+@click.option(
+    "--request-json",
+    default=None,
+    help="Standup request JSON. When omitted, JSON is read from stdin.",
+)
+def console_standup(request_json: str | None) -> None:
+    """Emit a JSON standup report for the console API."""
+    root = Path.cwd()
+    raw_request = request_json if request_json is not None else sys.stdin.read()
+    if not raw_request.strip():
+        raise click.ClickException("standup request JSON is required")
+    try:
+        request = StandupGenerateRequest.model_validate(json.loads(raw_request))
+        response = generate_standup_report(root, request)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+    payload = StandupGenerateResponseModel(
+        profile=response.profile,
+        sections=[
+            {"name": section.name, "bullets": section.bullets}
+            for section in response.sections
+        ],
+        text=response.text,
+        source_issues=response.source_issues,
+        right_now_texts=response.right_now_texts,
+    ).model_dump()
+    click.echo(json.dumps(payload, indent=2, sort_keys=False))
+
+
 @console.command("screenshot")
 @click.option(
     "--output",
@@ -3102,11 +3285,19 @@ def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
 @click.option("--expanded", is_flag=True, default=False)
 @click.option("--collapsed", is_flag=True, default=False)
 @click.option("--raw", is_flag=True, default=False)
+@click.option("--yaml", "as_yaml", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False)
+@click.option("--text", "as_text", is_flag=True, default=False)
 @click.option(
     "--status",
     default=None,
     help="Status filter. Default: in_progress. Use all for every status.",
+)
+@click.option(
+    "--purge",
+    is_flag=True,
+    default=False,
+    help="Clear right_now_summary and right_now_updated_at across the board.",
 )
 def right_now_command(
     issue_ids: tuple[str, ...],
@@ -3117,41 +3308,133 @@ def right_now_command(
     expanded: bool,
     collapsed: bool,
     raw: bool,
+    as_yaml: bool,
     as_json: bool,
+    as_text: bool,
     status: str | None,
+    purge: bool,
 ) -> None:
     """List recently-updated issues with right-now summaries.
 
     \b
 
     Examples:
-      kbs now                          tree of recently-updated issues (cap 30)
-      kbs now --list                   reverse-chronological list
-      kbs now --all                    every issue as a tree
+      kbs now                          YAML tree of recently-updated issues (cap 30)
+      kbs now --list                   reverse-chronological YAML list
+      kbs now --all                    every issue as a YAML tree
       kbs now --limit 10               10 most recently updated
-      kbs now kbs-abc                  issue and descendants as a tree
+      kbs now kbs-abc                  issue and descendants as a YAML tree
       kbs now kbs-abc --no-recursive   that issue only
-      kbs now kbs-abc --list           descendants as a flat list
+      kbs now kbs-abc --list           descendants as a flat YAML list
       kbs now --json                   machine-readable JSON for agents
+      kbs now --text                   human-readable text lines
       kbs now --raw                    titles only, no summaries
       kbs now --status all             every status, not just in-progress
+      kbs now --purge                  clear all right-now summaries on the board
     """
     root = Path.cwd()
+    try:
+        output_format = resolve_right_now_output_format(
+            as_yaml=as_yaml,
+            as_json=as_json,
+            as_text=as_text,
+        )
+    except RightNowCommandError as error:
+        raise click.ClickException(str(error)) from error
     options = RightNowCommandOptions(
         limit=limit,
         tree=not as_list,
         expanded=expanded,
         collapsed=collapsed,
         raw=raw,
-        as_json=as_json,
+        output_format=output_format,
         show_all=show_all,
         recursive=not no_recursive,
         issue_ids=issue_ids,
         status=status,
+        purge=purge,
     )
     try:
         output = run_right_now_command(root, options)
     except (IssueListingError, RightNowCommandError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=not output.endswith("\n"))
+
+
+@cli.command("standup")
+@click.argument("issue_ids", nargs=-1)
+@click.option(
+    "--profile",
+    default=None,
+    help="Standup profile: meeting-script or director-brief (default: meeting-script).",
+)
+@click.option(
+    "--window",
+    default=None,
+    type=click.Choice(["rolling", "calendar"]),
+    help="Standup window mode: rolling or calendar.",
+)
+@click.option(
+    "--lookback",
+    default=None,
+    help="Rolling lookback duration (for example 24h or 1d).",
+)
+@click.option("--skip-weekends", is_flag=True, default=False)
+@click.option("--no-skip-weekends", is_flag=True, default=False)
+@click.option("--json", "as_json", is_flag=True, default=False)
+@click.option("--no-recursive", is_flag=True, default=False)
+@click.option(
+    "--rollup",
+    default=None,
+    type=click.Choice(["flat", "project", "tree"]),
+    help="Today rollup: flat, project (multi-board default), or tree.",
+)
+def standup_command(
+    issue_ids: tuple[str, ...],
+    profile: str | None,
+    window: str | None,
+    lookback: str | None,
+    skip_weekends: bool,
+    no_skip_weekends: bool,
+    as_json: bool,
+    no_recursive: bool,
+    rollup: str | None,
+) -> None:
+    """Generate on-demand standup reports from right-now facts.
+
+    \b
+
+    Examples:
+      kbs standup                              board-wide meeting script
+      kbs standup --profile director-brief     executive brief
+      kbs standup --rollup project             one bullet per virtual project
+      kbs standup kbs-abc kbs-def              scoped report
+      kbs standup kbs-abc --no-recursive       selected issues only
+      kbs standup kbs-abc --json               machine-readable JSON
+    """
+    root = Path.cwd()
+    skip_weekends_override = None
+    if skip_weekends and no_skip_weekends:
+        raise click.ClickException(
+            "cannot use both --skip-weekends and --no-skip-weekends"
+        )
+    if skip_weekends:
+        skip_weekends_override = True
+    elif no_skip_weekends:
+        skip_weekends_override = False
+    options = StandupCommandOptions(
+        issue_ids=issue_ids,
+        profile=profile,
+        as_json=as_json,
+        recursive=not no_recursive,
+        window=window,
+        lookback=lookback,
+        skip_weekends=skip_weekends_override,
+        rollup=rollup,
+    )
+    try:
+        output = run_standup_command(root, options)
+    except (IssueListingError, StandupCommandError, StandupError) as error:
         raise click.ClickException(str(error)) from error
     click.echo(output, nl=not output.endswith("\n"))
 
@@ -3701,6 +3984,7 @@ def bugs_alias(context: click.Context) -> None:
 def right_now_generate_internal(issue_id: str) -> None:
     """Generate a right-now summary for internal runtime delegation."""
     root = Path.cwd()
+    load_repository_environment(root)
     try:
         lookup = load_issue_from_project(root, issue_id)
     except IssueLookupError as error:
@@ -3823,6 +4107,465 @@ def compact_command(
 cli.add_command(lifecycle)
 
 
-if __name__ == "__main__":
+@cli.group("coordination")
+def coordination_group() -> None:
+    """Manage soft coordination leases."""
 
+
+def _coordination_context() -> tuple[Path, Path, ProjectConfiguration]:
+    """Load the current project directory and coordination configuration."""
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise click.ClickException(str(error)) from error
+    return (
+        root,
+        config_path.parent / configuration.project_directory,
+        configuration,
+    )
+
+
+def _coordination_provider(root: Path, configuration: ProjectConfiguration) -> str:
+    """Select the first available configured provider, falling back to Git."""
+    from kanbus.coordination_mutex_api import is_configured
+
+    if "mutex_api" in configuration.coordination.providers and is_configured(
+        configuration.coordination.mutex_api
+    ):
+        return "mutex_api"
+    return _coordination_fallback_provider(root, configuration)
+
+
+def _coordination_fallback_provider(
+    root: Path, configuration: ProjectConfiguration
+) -> str:
+    """Select MQTT when it is usable, otherwise retain Git as the fallback."""
+    from kanbus.coordination_runtime import select_soft_provider
+
+    return select_soft_provider(root, configuration)
+
+
+def _mutex_lease_state(lease, *, operation_event_id: str | None = None) -> LeaseState:
+    return LeaseState(
+        resource=lease.resource,
+        owner=lease.owner,
+        claim_id=lease.claim_id,
+        expires_at=lease.expires_at,
+        active=True,
+        event_id=operation_event_id,
+        operation_event_id=operation_event_id,
+        claimed_at=lease.claimed_at,
+        revision=lease.revision,
+    )
+
+
+def _echo_coordination_state(state: LeaseState, provider: str) -> None:
+    click.echo(f"provider: {provider}")
+    click.echo(f"resource: {state.resource}")
+    if state.active:
+        click.echo(
+            "state: active hard mutex"
+            if provider == "mutex_api"
+            else "state: active soft ownership"
+        )
+        click.echo(f"owner: {state.owner}")
+        click.echo(f"claim_id: {state.claim_id}")
+        if state.revision is not None:
+            click.echo(f"revision: {state.revision}")
+        if provider == "mutex_api" and state.claimed_at is not None:
+            click.echo(
+                "claimed_at: "
+                f"{state.claimed_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
+            )
+        click.echo(
+            f"expires_at: {state.expires_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
+        )
+    else:
+        click.echo("state: eligible")
+
+
+@coordination_group.command("claim")
+@click.option("--resource", required=True, help="Resource to claim.")
+@click.option("--owner", required=True, help="Stable worker identifier.")
+@click.option("--claim-id", required=True, help="Unique claim identifier.")
+@click.option(
+    "--revision",
+    type=click.IntRange(min=1),
+    default=1,
+    show_default=True,
+    help="Positive fencing revision for hard mutex providers.",
+)
+def coordination_claim_command(
+    resource: str, owner: str, claim_id: str, revision: int
+) -> None:
+    """Record a durable soft claim and announce it over MQTT when available."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus.coordination import parse_duration
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            acquire as acquire_mutex_lease,
+            release as release_mutex_lease,
+        )
+
+        try:
+            lease = acquire_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+                revision=revision,
+                ttl_seconds=parse_duration(
+                    configuration.coordination.default_lease_ttl
+                ),
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                state = coordination_claim(
+                    project_dir / "events",
+                    configuration.coordination,
+                    resource=resource,
+                    owner=owner,
+                    claim_id=claim_id,
+                    revision=revision,
+                    # The mutex service supplies the authoritative lease epoch.
+                    # Persist it so Python and Rust write the same hard-claim
+                    # timestamp and derived expiry from an API response.
+                    now=lease.claimed_at,
+                )
+            except CoordinationError as error:
+                rollback_error = None
+                try:
+                    release_mutex_lease(
+                        configuration.coordination.mutex_api,
+                        resource=resource,
+                        owner=owner,
+                        claim_id=claim_id,
+                    )
+                except CoordinationError as release_error:
+                    rollback_error = release_error
+                message = (
+                    "mutex api acquired lease but durable Git claim could not be recorded: "
+                    f"{error}"
+                )
+                if rollback_error is not None:
+                    message += f"; best-effort mutex release failed: {rollback_error}"
+                raise click.ClickException(message) from error
+            state = _mutex_lease_state(
+                lease, operation_event_id=state.operation_event_id
+            )
+            _echo_coordination_state(state, "mutex_api")
+            return
+    try:
+        state = coordination_claim(
+            project_dir / "events",
+            configuration.coordination,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            revision=revision,
+            now=occurred_at,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    if provider == "mqtt" and state.operation_event_id:
+        from kanbus.coordination_mqtt import inspect_lease as inspect_mqtt_lease
+        from kanbus.coordination_runtime import publish_claim_visibility
+        from kanbus.coordination import parse_duration
+
+        published = publish_claim_visibility(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=state.operation_event_id,
+            occurred_at=occurred_at,
+            lease_ttl_s=parse_duration(configuration.coordination.default_lease_ttl),
+            operation_sequence=state.operation_sequence,
+        )
+        if published:
+            state = inspect_mqtt_lease(
+                project_dir / "events",
+                project_dir,
+                resource,
+                configuration,
+                now=occurred_at,
+            )
+        else:
+            provider = "git"
+    _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("renew")
+@click.option("--resource", required=True, help="Resource to renew.")
+@click.option("--owner", required=True, help="Current lease owner.")
+@click.option("--claim-id", required=True, help="Current claim identifier.")
+@click.option(
+    "--extend",
+    "extend_duration",
+    default=None,
+    help="Duration to add to the current expiry (for example 120s).",
+)
+def coordination_renew_command(
+    resource: str, owner: str, claim_id: str, extend_duration: str | None
+) -> None:
+    """Extend the current winning soft lease."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus import coordination
+        from kanbus.coordination import format_timestamp, parse_duration
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            renew as renew_mutex_lease,
+        )
+
+        try:
+            extension_seconds = parse_duration(
+                extend_duration or configuration.coordination.default_lease_ttl
+            )
+            lease = renew_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+                extend_seconds=extension_seconds,
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                coordination._record_event(
+                    project_dir / "events",
+                    resource=resource,
+                    event_type="coordination.renew",
+                    owner=owner,
+                    claim_id=claim_id,
+                    payload={
+                        "lease_expires_at": format_timestamp(lease.expires_at),
+                        "revision": lease.revision,
+                    },
+                    occurred_at=occurred_at,
+                )
+            except CoordinationError as error:
+                raise click.ClickException(
+                    "mutex api renewed lease but durable Git renewal could not be "
+                    f"recorded: {error}"
+                ) from error
+            _echo_coordination_state(_mutex_lease_state(lease), "mutex_api")
+            return
+    try:
+        state = coordination_renew(
+            project_dir / "events",
+            configuration.coordination,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            extend=extend_duration,
+            now=occurred_at,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    if (
+        provider == "mqtt"
+        and state.active
+        and state.event_id
+        and state.claimed_at
+        and state.expires_at
+        and state.contention_window_ends_at
+        and occurred_at >= state.contention_window_ends_at
+    ):
+        from kanbus.coordination_runtime import publish_renewal_visibility
+
+        published = publish_renewal_visibility(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            occurred_at=occurred_at,
+            state=state,
+        )
+        if not published:
+            provider = "git"
+    _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("release")
+@click.option("--resource", required=True, help="Resource to release.")
+@click.option("--owner", required=True, help="Current lease owner.")
+@click.option("--claim-id", required=True, help="Current claim identifier.")
+def coordination_release_command(resource: str, owner: str, claim_id: str) -> None:
+    """Release the current soft lease and publish the visibility change."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus import coordination
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            release as release_mutex_lease,
+        )
+
+        try:
+            release_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                coordination._record_event(
+                    project_dir / "events",
+                    resource=resource,
+                    event_type="coordination.release",
+                    owner=owner,
+                    claim_id=claim_id,
+                    payload={},
+                    occurred_at=occurred_at,
+                )
+            except CoordinationError as error:
+                raise click.ClickException(
+                    "mutex api released lease but durable Git release could not be "
+                    f"recorded: {error}"
+                ) from error
+            click.echo("provider: mutex_api")
+            click.echo(f"resource: {resource}")
+            click.echo("state: released")
+            return
+    try:
+        release_event_id = coordination_release(
+            project_dir / "events",
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            now=occurred_at,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    if provider == "mqtt":
+        from kanbus.coordination_runtime import publish_release_visibility
+
+        published = publish_release_visibility(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=release_event_id,
+            occurred_at=occurred_at,
+            operation_sequence=operation_sequence_for_event(
+                project_dir / "events", resource, release_event_id
+            ),
+        )
+        if not published:
+            provider = "git"
+    click.echo(f"provider: {provider}")
+    click.echo(f"resource: {resource}")
+    click.echo("state: released")
+
+
+@coordination_group.command("inspect")
+@click.option("--resource", required=True, help="Resource to inspect.")
+def coordination_inspect_command(resource: str) -> None:
+    """Inspect a resource's derived soft coordination lease."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    events_dir = project_dir / "events"
+    if provider == "mutex_api":
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            inspect as inspect_mutex_lease,
+        )
+
+        try:
+            lease = inspect_mutex_lease(
+                configuration.coordination.mutex_api, resource=resource
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            state = (
+                _mutex_lease_state(lease)
+                if lease is not None
+                else LeaseState(resource=resource)
+            )
+            _echo_coordination_state(state, "mutex_api")
+            return
+    try:
+        if provider == "mqtt":
+            from kanbus.coordination_mqtt import reconcile_lease
+
+            state, published = reconcile_lease(
+                root,
+                project_dir,
+                events_dir,
+                resource,
+                configuration,
+            )
+            if not published:
+                provider = "git"
+        else:
+            state = inspect_coordination_lease(events_dir, resource)
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("publish-result")
+@click.option("--resource", required=True, help="Logical resource being published.")
+@click.option(
+    "--revision",
+    required=True,
+    type=click.IntRange(min=1),
+    help="Positive logical task revision.",
+)
+@click.option("--artifact", required=True, help="Artifact reference to publish.")
+def coordination_publish_result_command(
+    resource: str, revision: int, artifact: str
+) -> None:
+    """Publish an artifact reference only when its logical revision is current."""
+    _, project_dir, _ = _coordination_context()
+    try:
+        publication = publish_coordination_result(
+            project_dir / "events",
+            resource=resource,
+            revision=revision,
+            artifact=artifact,
+            actor_id=get_current_user(),
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("provider: git")
+    click.echo(f"resource: {publication.resource}")
+    click.echo(f"revision: {publication.revision}")
+    click.echo("state: published")
+
+
+cli.add_command(router_group)
+
+
+if __name__ == "__main__":
     cli()

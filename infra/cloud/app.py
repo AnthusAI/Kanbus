@@ -4,6 +4,10 @@
 from aws_cdk import App, Environment
 
 from kanbus_cloud.cloud_stack import KanbusCloudFoundationStack
+from kanbus_cloud.coordination_stack import (
+    KanbusCoordinationIntegrationStack,
+    KanbusCoordinationProductionStack,
+)
 
 app = App()
 
@@ -16,11 +20,16 @@ env = None
 if account and region:
     env = Environment(account=account, region=region)
 
-KanbusCloudFoundationStack(
-    app,
-    stack_name,
-    env_name=env_name,
-    env=env,
+stack_type = (
+    KanbusCoordinationIntegrationStack
+    if stack_name == "KanbusCoordinationIntegration"
+    else (
+        KanbusCoordinationProductionStack
+        if stack_name == "KanbusCoordinationProduction"
+        else KanbusCloudFoundationStack
+    )
 )
+
+stack_type(app, stack_name, env_name=env_name, env=env)
 
 app.synth()

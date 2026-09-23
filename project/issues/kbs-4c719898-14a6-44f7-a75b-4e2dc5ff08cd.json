@@ -1,0 +1,54 @@
+{
+  "id": "kbs-4c719898-14a6-44f7-a75b-4e2dc5ff08cd",
+  "title": "Write a short board-dispatch test report and post it as a comment",
+  "description": "Disposable real-board smoke-test task for the containerized Issue Router. Read the parent epic description, write a concise report of the safe multi-worker dispatch goals in 3 short paragraphs, and post those exact paragraphs as a comment on this issue using the router result issue_comments field. Do not modify source code, documentation, issue files, or any other board issue. Do not claim that integration tests passed; this task only verifies real issue dispatch and comment publication. A human will review the comment and close the task after the router run.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-d3973c07-13a1-4598-8f32-85e010278121",
+  "labels": [
+    "agent-class:implementation"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "000cc2ab-5447-4cff-8bb4-9f82fc0b7b8c",
+      "author": "home",
+      "text": "Router launcher diagnostic: no Codex session was started because GITHUB_TOKEN was unavailable to the configured GitHub forge client. The worker and branch were not created. Retrying after loading the machine’s existing GitHub CLI credential.",
+      "created_at": "2026-09-18T23:22:34.734037Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "07e2278a-4c6c-47c7-8259-019f84f85dd9",
+      "author": "home",
+      "text": "Retry authorized with the local GitHub CLI credential. Starting a fresh router attempt.",
+      "created_at": "2026-09-18T23:22:46.941755Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "8ec7d478-5898-4e1d-be27-43bdf3577e92",
+      "author": "Kanbus Issue Router",
+      "text": "This smoke test covers the real-board dispatch path for one bounded Kanbus package: a routed worker receives an isolated worktree, an explicit claim, and a logical revision, then may act only on the package's issue IDs. The package boundary prevents a worker from changing unrelated issues, while durable router state preserves the claim and checkpoint context needed for recovery.\n\nSafe multi-worker dispatch depends on deterministic planning, WIP limits, lease or claim fencing, and revision-checked publication. Soft Git or MQTT coordination can race, so newer claims must reject stale checkpoints and results; hard Mutex API coordination must prevent a weaker provider from starting work when the lease is unavailable. Each accepted transition, comment, checkpoint, and artifact reference must remain auditable in router state.\n\nThis report verifies only that the router dispatched this disposable task to an isolated worker and that the requested comment payload is ready for canonical publication on the target issue. It does not claim that integration tests passed, that a live multi-worker harness ran, or that broader repository validation succeeded; those checks are outside this smoke test.",
+      "created_at": "2026-09-19T00:43:54.683558Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "ac5723ef-87ff-42e9-bb74-432474d43ba2",
+      "author": "home",
+      "text": "Accepted: the board-dispatch smoke report is complete and its result is preserved in issue activity.",
+      "created_at": "2026-09-19T11:41:15.823631Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-18T11:19:17.503779Z",
+  "updated_at": "2026-09-19T11:41:16.825374Z",
+  "closed_at": "2026-09-19T11:41:16.746384Z",
+  "right_now_summary": "A real-board smoke test is waiting for a concise dispatch report to be posted as a comment.",
+  "right_now_updated_at": "2026-09-18T11:19:20.209407Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

@@ -8,7 +8,11 @@ from typing import List
 
 from kanbus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
 from kanbus.config_loader import ConfigurationError, load_project_configuration
-from kanbus.daemon_client import is_daemon_enabled, request_index_list
+from kanbus.daemon_client import (
+    is_daemon_config_schema_error,
+    is_daemon_enabled,
+    request_index_list,
+)
 from kanbus.index import build_index_from_directory
 from kanbus.issue_files import read_issue_from_file
 from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
@@ -146,8 +150,7 @@ def list_issues(
     shared_issues: List[IssueData]
     if is_daemon_enabled():
         try:
-            payloads = request_index_list(root)
-            shared_issues = [IssueData.model_validate(payload) for payload in payloads]
+            shared_issues = _load_shared_issues_via_daemon_or_filesystem(root)
             shared_issues = [
                 _tag_issue_source(issue, "shared") for issue in shared_issues
             ]
@@ -229,6 +232,24 @@ def _list_with_project_filter(
     return _apply_query(
         issues, status, issue_type, assignee, label, sort, search, parent
     )
+
+
+def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
+    """Load shared issues from the daemon, falling back to filesystem listing.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Shared issues from the project index.
+    :rtype: List[IssueData]
+    :raises IssueListingError: When daemon and filesystem listing both fail.
+    """
+    try:
+        payloads = request_index_list(root)
+        return [IssueData.model_validate(payload) for payload in payloads]
+    except Exception as error:
+        if is_daemon_config_schema_error(str(error)):
+            return _list_issues_locally(root)
+        raise IssueListingError(str(error)) from error
 
 
 def _list_issues_locally(root: Path) -> List[IssueData]:

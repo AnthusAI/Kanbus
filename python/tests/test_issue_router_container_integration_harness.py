@@ -1,0 +1,253 @@
+"""Focused checks for the opt-in board-backed container harness."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+import issue_router_container_integration_harness as harness
+
+
+def _live_environment() -> dict[str, str]:
+    return {
+        harness.LIVE_GATE: "1",
+        harness.MUTEX_ENDPOINT: "https://mutex.example.test/prod",
+        harness.MUTEX_TOKEN: "mutex-secret",
+        harness.MQTT_BROKER: "mqtts://broker.example.test:8883",
+        harness.MQTT_AUTHORIZER: "kanbus-mqtt-token-test",
+        harness.MQTT_TOKEN: "mqtt-secret",
+        harness.OPENAI_KEY: "openai-secret",
+    }
+
+
+def test_live_inputs_require_both_explicit_gates() -> None:
+    with pytest.raises(harness.HarnessError, match="set --live"):
+        harness.validate_live_inputs(
+            _live_environment(), live=False, publish_board=True
+        )
+    with pytest.raises(harness.HarnessError, match="--publish-board"):
+        harness.validate_live_inputs(
+            _live_environment(), live=True, publish_board=False
+        )
+
+
+def test_live_inputs_are_allowlisted_and_normalized() -> None:
+    inputs = harness.validate_live_inputs(
+        _live_environment(), live=True, publish_board=True
+    )
+    assert inputs.mutex_endpoint == "https://mutex.example.test/prod"
+    assert inputs.docker_environment()[harness.MUTEX_TOKEN] == "mutex-secret"
+    assert set(inputs.docker_environment()) == {
+        harness.MUTEX_ENDPOINT,
+        harness.MUTEX_TOKEN,
+        harness.MQTT_BROKER,
+        harness.MQTT_AUTHORIZER,
+        harness.MQTT_TOKEN,
+        harness.CODEX_API_KEY,
+        "KANBUS_REALTIME_TRANSPORT",
+        "KANBUS_REALTIME_AUTOSTART",
+        "KANBUS_REALTIME_KEEPALIVE",
+    }
+
+
+def test_docker_command_uses_barrier_and_never_puts_secrets_in_argv(
+    tmp_path: Path,
+) -> None:
+    inputs = harness.validate_live_inputs(
+        _live_environment(), live=True, publish_board=True
+    )
+    command = harness._container_command(
+        name="worker-test",
+        worker_root=tmp_path / "worker",
+        remote=tmp_path / "board.git",
+        image="kanbus-test",
+        runtime="python",
+        live=inputs,
+        barrier_directory=tmp_path / "barrier",
+    )
+    assert any("while [ ! -f /harness-control/start ]" in arg for arg in command)
+    assert harness.MUTEX_TOKEN in command
+    assert harness.CODEX_API_KEY in command
+    assert "mutex-secret" not in command
+    assert "mqtt-secret" not in command
+    assert "openai-secret" not in command
+
+
+def test_container_launcher_maps_openai_key_to_codex_environment_name() -> None:
+    inputs = harness.validate_live_inputs(
+        _live_environment(), live=True, publish_board=True
+    )
+    host_environment = {"PATH": "/usr/bin", harness.OPENAI_KEY: "openai-secret"}
+    launcher_environment = harness._container_launcher_environment(
+        host_environment, inputs
+    )
+    assert launcher_environment[harness.CODEX_API_KEY] == "openai-secret"
+    assert harness.CODEX_API_KEY not in host_environment
+    assert launcher_environment[harness.OPENAI_KEY] == "openai-secret"
+
+
+@pytest.mark.parametrize(
+    "environment, expected",
+    [
+        ({harness.MQTT_BROKER: "mqtt://broker.example.test"}, harness.MQTT_BROKER),
+        ({harness.MUTEX_ENDPOINT: "http://mutex.example.test"}, harness.MUTEX_ENDPOINT),
+    ],
+)
+def test_live_input_schemes_are_validated(
+    environment: dict[str, str], expected: str
+) -> None:
+    with pytest.raises(harness.HarnessError, match=expected):
+        harness.validate_live_inputs(
+            _live_environment() | environment, live=True, publish_board=True
+        )
+
+
+def test_test_epic_is_created_only_when_missing() -> None:
+    assert harness.validate_test_epic(None) == "create"
+    assert (
+        harness.validate_test_epic(
+            {
+                "id": harness.TEST_EPIC_ID,
+                "type": "epic",
+                "title": harness.TEST_EPIC_TITLE,
+            }
+        )
+        == "reuse"
+    )
+
+
+def test_worker_mirror_is_pinned_to_develop_not_remote_default(tmp_path: Path) -> None:
+    command = harness._bare_remote_clone_command(
+        "git@github.com:AnthusAI/Kanbus.git", tmp_path / "board.git"
+    )
+    assert command == [
+        "git",
+        "clone",
+        "--bare",
+        "--single-branch",
+        "--branch",
+        "develop",
+        "git@github.com:AnthusAI/Kanbus.git",
+        str(tmp_path / "board.git"),
+    ]
+
+
+def test_worker_config_disables_github_forge(tmp_path: Path) -> None:
+    config = tmp_path / ".kanbus.yml"
+    config.write_text(
+        "project_directory: project\nrouter:\n  forge:\n    provider: github\n"
+        "  providers:\n    codex-luna-flex:\n      args: [--model, gpt-5.6-luna, -c, 'service_tier=flex']\n"
+        "    repository: example/project\n  limits:\n    class_wip:\n"
+        "      implementation: 1\n  classes:\n    implementation:\n"
+        "      providers: [codex-luna-flex]\n",
+        encoding="utf-8",
+    )
+    harness._configure_worker_for_test(tmp_path, "router-container-it-test")
+    loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert loaded["router"]["forge"] is None
+    assert loaded["project_directory"] == "project"
+    assert loaded["router"]["classes"]["router-container-it-test"] == {
+        "providers": ["codex-luna-flex"]
+    }
+    assert loaded["router"]["providers"]["codex-luna-flex"]["args"][-3:] == [
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-c",
+        "model_catalog_json=/opt/kanbus/codex-models.json",
+    ]
+    assert loaded["router"]["classes"] == {
+        "router-container-it-test": {"providers": ["codex-luna-flex"]}
+    }
+    assert loaded["router"]["limits"]["class_wip"]["router-container-it-test"] == 1
+    assert loaded["router"]["limits"]["class_wip"] == {"router-container-it-test": 1}
+
+
+@pytest.mark.parametrize(
+    "issue",
+    [
+        {"id": "different-id", "type": "epic", "title": harness.TEST_EPIC_TITLE},
+        {"id": harness.TEST_EPIC_ID, "type": "task", "title": harness.TEST_EPIC_TITLE},
+        {"id": harness.TEST_EPIC_ID, "type": "epic", "title": "Other epic"},
+    ],
+)
+def test_test_epic_id_collision_is_fatal(issue: dict[str, str]) -> None:
+    with pytest.raises(harness.HarnessError):
+        harness.validate_test_epic(issue)
+
+
+def test_start_assertion_requires_one_successful_runtime() -> None:
+    loser = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(0, "started=0", "")
+    )
+    winner = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=1", "")
+    )
+    assert harness.assert_single_router_start([loser, winner]) is winner
+    rust_loser = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=0", "")
+    )
+    with pytest.raises(harness.HarnessError, match="got 0"):
+        harness.assert_single_router_start([loser, rust_loser])
+    with pytest.raises(harness.HarnessError, match="exactly one Python and one Rust"):
+        harness.assert_single_router_start([winner, winner])
+
+
+def test_task_result_requires_review_and_router_comment() -> None:
+    issue = {
+        "status": "review",
+        "comments": [
+            {
+                "author": "Kanbus Issue Router",
+                "text": "KANBUS-ROUTER-TEST:abc Lorem ipsum dolor sit amet.\n\n"
+                "Second paragraph.\n\nThird paragraph.",
+            }
+        ],
+    }
+    harness.assert_task_result(issue, "KANBUS-ROUTER-TEST:abc")
+    with pytest.raises(harness.HarnessError, match="in review"):
+        harness.assert_task_result({"status": "open", "comments": []}, "marker")
+    with pytest.raises(harness.HarnessError, match="three paragraphs"):
+        harness.assert_task_result(
+            {
+                "status": "review",
+                "comments": [{"author": "Kanbus Issue Router", "text": "marker only"}],
+            },
+            "marker",
+        )
+    with pytest.raises(harness.HarnessError, match="Lorem ipsum"):
+        harness.assert_task_result(
+            {
+                "status": "review",
+                "comments": [
+                    {
+                        "author": "Kanbus Issue Router",
+                        "text": "marker one\n\ntwo\n\nthree",
+                    }
+                ],
+            },
+            "marker",
+        )
+
+
+def test_loser_must_not_publish_result() -> None:
+    harness.assert_loser_untouched({"status": "open", "comments": []}, "marker")
+    with pytest.raises(harness.HarnessError, match="independently mutated"):
+        harness.assert_loser_untouched(
+            {
+                "status": "open",
+                "comments": [{"text": "result marker"}],
+            },
+            "marker",
+        )
+
+
+def test_redaction_removes_secret_values() -> None:
+    assert (
+        harness.redact(
+            "token=abc and Authorization: Bearer xyz",
+            {harness.MQTT_TOKEN: "abc", "OTHER": "xyz"},
+        )
+        == "token=<redacted> and Authorization: Bearer <redacted>"
+    )

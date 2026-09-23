@@ -1,0 +1,38 @@
+{
+  "id": "kbs-c77a6b89-8999-47da-8f63-20b040917aa2",
+  "title": "Run hard-lease integration with isolated router workers and test tasks",
+  "description": "Provision an isolated Kanbus test project and one routed test task. Run two independent router-worker processes against the same MQTT broker and Mutex API. Assert one hard acquire/transition succeeds, the competitor receives the documented contention response and performs no task transition, expiry permits takeover, and disabling Mutex permits documented soft duplicate work. Capture logs and clean only generated fixture data.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-63679c63-d6de-4d75-927b-c50322dc0254",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a5f0b724-9df0-4ffd-86c5-7ea179f6b0ba",
+      "author": "home",
+      "text": "Defer the two-worker hard-lease integration run until after the single-worker milestone; there is not yet a recorded live multi-worker run.",
+      "created_at": "2026-09-18T10:39:51.525655Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "d98b707a-9aef-4a83-8700-e2c8fe1045e9",
+      "author": "home",
+      "text": "Activated after the successful single-worker router test. Begin isolated-worker hard-lease integration using disposable test tasks; capture acquire contention, expiry/takeover, and soft-provider behavior without changing real board tasks.",
+      "created_at": "2026-09-18T10:57:48.800630Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-17T00:55:24.620070Z",
+  "updated_at": "2026-09-18T10:57:48.800682Z",
+  "closed_at": null,
+  "right_now_summary": "The isolated two-worker hard-lease test is starting with disposable tasks and captured contention logs.",
+  "right_now_updated_at": "2026-09-18T10:57:51.422491Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "kbs-6c3131a9-b50c-4af4-a2b2-9020109dd2b3",
+  "title": "Spec: kbs now JIT fail-closed and purge",
+  "description": "Gherkin scenarios for fail-closed JIT generation and purge command.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-e2f6d66e-899a-4ec4-862c-538c670b5d5d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cb3a8385-0f50-48ee-b5cf-be7a6325a3ed",
+      "author": "ubuntu",
+      "text": "Duplicate of kbs-0fe175. Shipped in PR #239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2. Use epic kbs-0fe175 for SD acceptance tracking.",
+      "created_at": "2026-09-09T17:09:21.183906644Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "4b0c1b44-19df-4dbf-9037-36b477318576",
+      "author": "ubuntu",
+      "text": "Duplicate of canonical epic kbs-0fe175. Shipped via PR #239 merge SHA 0cd2fc4e63b5772616fd44a81e9ed077519760c2. Track SD acceptance on kbs-0fe175.",
+      "created_at": "2026-09-09T17:10:05.132548608Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-09T16:13:39.156658431Z",
+  "updated_at": "2026-09-09T17:10:05.132561893Z",
+  "closed_at": "2026-09-09T17:09:21.264122320Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -7,10 +7,10 @@ import os
 import socket
 import subprocess
 import sys
-import uuid
 import time
+import uuid
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from kanbus.daemon_paths import get_daemon_socket_path
 from kanbus.daemon_protocol import (
@@ -23,6 +23,21 @@ from kanbus.daemon_protocol import (
 
 class DaemonClientError(RuntimeError):
     """Raised when daemon communication fails."""
+
+
+DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE = "unknown configuration fields"
+_daemon_restart_recorded_for_testing = False
+
+
+def is_daemon_config_schema_error(message: str) -> bool:
+    """Return whether a daemon error indicates stale config schema parsing.
+
+    :param message: Daemon error message text.
+    :type message: str
+    :return: True when the message is a config schema rejection.
+    :rtype: bool
+    """
+    return message == DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE
 
 
 def is_daemon_enabled() -> bool:
@@ -54,7 +69,9 @@ def send_request(socket_path: Path, request: RequestEnvelope) -> ResponseEnvelop
             sock.sendall(payload)
             response_raw = sock.makefile("rb").readline()
     except OSError as error:
-        raise DaemonClientError("daemon connection failed") from error
+        raise DaemonClientError(
+            f"daemon connect failed: {socket_path}: {error}"
+        ) from error
 
     if not response_raw:
         raise DaemonClientError("empty daemon response")
@@ -68,16 +85,56 @@ def spawn_daemon(root: Path) -> None:
     :param root: Repository root path.
     :type root: Path
     """
-    subprocess.Popen(
-        [sys.executable, "-m", "kanbus.daemon", "--root", str(root)],
-        cwd=root,
-        start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        subprocess.Popen(
+            [sys.executable, "-m", "kanbus.daemon", "--root", str(root)],
+            cwd=root,
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as error:
+        raise DaemonClientError(
+            f"daemon spawn failed: {error}. "
+            "Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+        ) from error
 
 
-def request_index_list(root: Path) -> List[Dict[str, Any]]:
+def was_daemon_restarted_for_testing() -> bool:
+    """Return whether restart_daemon ran during the current test scenario.
+
+    :return: True when restart_daemon was invoked.
+    :rtype: bool
+    """
+    return _daemon_restart_recorded_for_testing
+
+
+def reset_daemon_restart_recorded_for_testing() -> None:
+    """Clear the restart_daemon test recorder."""
+    global _daemon_restart_recorded_for_testing
+    _daemon_restart_recorded_for_testing = False
+
+
+def restart_daemon(root: Path) -> None:
+    """Restart the daemon after a stale process rejects the current config schema.
+
+    :param root: Repository root path.
+    :type root: Path
+    """
+    global _daemon_restart_recorded_for_testing
+    _daemon_restart_recorded_for_testing = True
+    try:
+        request_shutdown(root)
+    except DaemonClientError:
+        pass
+    socket_path = get_daemon_socket_path(root)
+    if socket_path.exists():
+        socket_path.unlink()
+    spawn_daemon(root)
+    time.sleep(0.05)
+
+
+def request_index_list(root: Path) -> list[dict[str, Any]]:
     """Request the index list from the daemon, spawning it if needed.
 
     :param root: Repository root path.
@@ -102,12 +159,21 @@ def request_index_list(root: Path) -> List[Dict[str, Any]]:
         error = response.error or ErrorEnvelope(
             code="internal_error", message="daemon error", details={}
         )
-        raise DaemonClientError(error.message)
+        if is_daemon_config_schema_error(error.message):
+            restart_daemon(root)
+            response = _request_with_recovery(socket_path, request, root)
+            if response.status != "ok":
+                retry_error = response.error or ErrorEnvelope(
+                    code="internal_error", message="daemon error", details={}
+                )
+                raise DaemonClientError(retry_error.message)
+        else:
+            raise DaemonClientError(error.message)
     result = response.result or {}
     return list(result.get("issues", []))
 
 
-def request_status(root: Path) -> Dict[str, Any]:
+def request_status(root: Path) -> dict[str, Any]:
     """Request daemon status.
 
     :param root: Repository root path.
@@ -133,7 +199,7 @@ def request_status(root: Path) -> Dict[str, Any]:
     return response.result or {}
 
 
-def request_shutdown(root: Path) -> Dict[str, Any]:
+def request_shutdown(root: Path) -> dict[str, Any]:
     """Request daemon shutdown.
 
     :param root: Repository root path.
@@ -165,7 +231,10 @@ def _request_with_recovery(
     try:
         return send_request(socket_path, request)
     except DaemonClientError as error:
-        if str(error) != "daemon connection failed":
+        if not (
+            str(error).startswith("daemon connect failed:")
+            or str(error) == "daemon connection failed"
+        ):
             raise
         if socket_path.exists():
             socket_path.unlink()
@@ -175,8 +244,14 @@ def _request_with_recovery(
             try:
                 return send_request(socket_path, request)
             except DaemonClientError as retry_error:
-                if str(retry_error) != "daemon connection failed":
+                if not (
+                    str(retry_error).startswith("daemon connect failed:")
+                    or str(retry_error) == "daemon connection failed"
+                ):
                     raise
                 last_error = retry_error
                 time.sleep(0.05)
-        raise last_error
+        raise DaemonClientError(
+            f"daemon connection failed after retries: {socket_path}. "
+            "Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+        ) from last_error

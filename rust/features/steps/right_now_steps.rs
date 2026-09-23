@@ -6,6 +6,7 @@ use cucumber::{given, then, when};
 use serde_yaml::{Mapping, Value};
 
 use kanbus::config::default_project_configuration;
+use kanbus::config_loader::CONGREGATION_ENV_FILENAME;
 use kanbus::file_io::load_project_directory;
 use kanbus::models::IssueData;
 use kanbus::right_now::{
@@ -72,7 +73,8 @@ fn given_issues_with_identifier_prefix(world: &mut KanbusWorld, count: i32, pref
 
 #[given(expr = "issue {string} has right now summary {string}")]
 fn given_issue_has_right_now_summary(world: &mut KanbusWorld, identifier: String, summary: String) {
-    let project_dir = load_project_dir(world);
+    let project_dir =
+        crate::step_definitions::query_steps::resolve_issue_project_directory(world, &identifier);
     let mut issue = read_issue_file(&project_dir, &identifier);
     issue.right_now_summary = Some(summary);
     write_issue_file(&project_dir, &issue);
@@ -139,6 +141,17 @@ fn then_issue_has_right_now_updated_at(
     assert_eq!(issue.right_now_updated_at, Some(expected_timestamp));
 }
 
+#[then(expr = "issue {string} should have a non-empty right now summary")]
+fn then_issue_has_non_empty_right_now_summary(world: &mut KanbusWorld, identifier: String) {
+    let project_dir = load_project_dir(world);
+    let issue = read_issue_file(&project_dir, &identifier);
+    let summary = issue
+        .right_now_summary
+        .as_deref()
+        .expect("right now summary");
+    assert!(!summary.trim().is_empty());
+}
+
 #[then(expr = "issue {string} should have no right now summary")]
 fn then_issue_has_no_right_now_summary(world: &mut KanbusWorld, identifier: String) {
     let issue = if let Some(issue) = world.reloaded_issue.clone() {
@@ -179,6 +192,100 @@ fn then_right_now_summary_result_unset(world: &mut KanbusWorld) {
     assert!(result.is_none());
 }
 
+const TEST_OPENAI_API_KEY_DOTENV: &str = "test-openai-key-from-dotenv";
+const TEST_OPENAI_API_KEY_CONGREGATION: &str = "test-openai-key-from-congregation";
+
+#[given("OPENAI_API_KEY is provided via project .env file only")]
+fn given_openai_api_key_via_project_dotenv(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    fs::write(
+        root.join(".env"),
+        format!("OPENAI_API_KEY={TEST_OPENAI_API_KEY_DOTENV}\n"),
+    )
+    .expect("write project .env");
+    world.environment_overrides.remove("OPENAI_API_KEY");
+    std::env::remove_var("OPENAI_API_KEY");
+}
+
+#[given("OPENAI_API_KEY is provided via congregation file only")]
+fn given_openai_api_key_via_congregation_file(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let congregation_home = root.join(".test-congregation-home");
+    fs::create_dir_all(&congregation_home).expect("create congregation home");
+    fs::write(
+        congregation_home.join(CONGREGATION_ENV_FILENAME),
+        format!("OPENAI_API_KEY={TEST_OPENAI_API_KEY_CONGREGATION}\n"),
+    )
+    .expect("write congregation env");
+    world.environment_overrides.insert(
+        "HOME".to_string(),
+        congregation_home.to_string_lossy().to_string(),
+    );
+    world.environment_overrides.remove("OPENAI_API_KEY");
+    std::env::remove_var("OPENAI_API_KEY");
+    let project_dotenv = root.join(".env");
+    if project_dotenv.exists() {
+        fs::remove_file(project_dotenv).expect("remove project .env");
+    }
+}
+
+#[given("right now generation requires loaded OpenAI credentials")]
+fn given_right_now_generation_requires_loaded_openai_credentials(world: &mut KanbusWorld) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS".to_string(),
+        "1".to_string(),
+    );
+}
+
+#[given(expr = "right now native litellm test completion is {string}")]
+fn given_right_now_native_litellm_test_completion(world: &mut KanbusWorld, summary: String) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_LITELLM_COMPLETION".to_string(),
+        summary.clone(),
+    );
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_LITELLM_COMPLETION")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_LITELLM_COMPLETION".to_string(),
+            std::env::var("KANBUS_TEST_LITELLM_COMPLETION").ok(),
+        ));
+    }
+    std::env::set_var("KANBUS_TEST_LITELLM_COMPLETION", summary);
+}
+
+#[given(expr = "right now generation uses completion {string}")]
+fn given_right_now_generation_uses_completion(world: &mut KanbusWorld, summary: String) {
+    world.environment_overrides.insert(
+        "KANBUS_TEST_RIGHT_NOW_COMPLETION".to_string(),
+        summary.clone(),
+    );
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_RIGHT_NOW_COMPLETION")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_RIGHT_NOW_COMPLETION".to_string(),
+            std::env::var("KANBUS_TEST_RIGHT_NOW_COMPLETION").ok(),
+        ));
+    }
+    std::env::set_var("KANBUS_TEST_RIGHT_NOW_COMPLETION", summary);
+    if !world
+        .jira_unset_env_vars
+        .iter()
+        .any(|(name, _)| name == "KANBUS_TEST_AI_MOCK")
+    {
+        world.jira_unset_env_vars.push((
+            "KANBUS_TEST_AI_MOCK".to_string(),
+            std::env::var("KANBUS_TEST_AI_MOCK").ok(),
+        ));
+    }
+    std::env::remove_var("KANBUS_TEST_AI_MOCK");
+}
+
 #[given("right now litellm call tracking is reset")]
 fn given_right_now_litellm_call_tracking_reset(world: &mut KanbusWorld) {
     world.litellm_called_env = Some(std::env::var("KANBUS_RIGHT_NOW_LITELLM_CALLED").ok());
@@ -191,7 +298,7 @@ fn given_kanbus_project_has_no_ai_configuration(world: &mut KanbusWorld) {
     let config_path = root.join(".kanbus.yml");
     let contents = fs::read_to_string(&config_path).expect("read config");
     let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
-    mapping.remove(&Value::String("ai".to_string()));
+    mapping.insert(Value::String("ai".to_string()), Value::Null);
     let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
     fs::write(config_path, yaml).expect("write config");
 }

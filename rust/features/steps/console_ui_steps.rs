@@ -101,6 +101,8 @@ pub struct WikiWorkspaceState {
     pub preview_content: String,
     pub status: String,
     pub error_banner: Option<String>,
+    pub wiki_directory_exists: bool,
+    pub pages_request_failed: bool,
 }
 
 impl WikiWorkspaceState {
@@ -113,6 +115,8 @@ impl WikiWorkspaceState {
             preview_content: "No preview yet".to_string(),
             status: "Saved".to_string(),
             error_banner: None,
+            wiki_directory_exists: true,
+            pages_request_failed: false,
         }
     }
 }
@@ -693,12 +697,6 @@ fn then_tab_selected(world: &mut KanbusWorld, tab: String) {
     assert_eq!(state.selected_tab, tab);
 }
 
-#[then("the console board should be visible")]
-fn then_console_board_should_be_visible(world: &mut KanbusWorld) {
-    let state = require_console_state(world);
-    assert_eq!(state.panel_mode, "board");
-}
-
 #[then(expr = "no view tab should be selected")]
 fn then_no_tab_selected(world: &mut KanbusWorld) {
     let state = require_console_state(world);
@@ -937,11 +935,17 @@ fn given_console_issue_right_now_summary(world: &mut KanbusWorld, title: String,
 #[then(expr = "the issue detail should show right-now summary {string}")]
 fn then_issue_detail_right_now_summary(world: &mut KanbusWorld, expected: String) {
     let issue = get_selected_issue(world);
-    let actual = match issue.right_now_summary.as_deref() {
-        None | Some("") => "(no right-now summary)",
-        Some(summary) => summary,
-    };
+    let actual = issue
+        .right_now_summary
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default();
     assert_eq!(actual, expected);
+}
+
+#[then("the issue detail should show empty right-now summary")]
+fn then_issue_detail_empty_right_now_summary(world: &mut KanbusWorld) {
+    then_issue_detail_right_now_summary(world, String::new());
 }
 
 #[when(expr = "I open the console route {string}")]
@@ -1029,9 +1033,10 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
         world.console_local_storage.panel_mode = Some("wiki".to_string());
         ensure_wiki_state(world);
         let wiki = world.console_wiki_state.as_mut().expect("wiki state");
-        if wiki.selected_path.is_none() && !wiki.page_order.is_empty() {
-            let first = wiki.page_order[0].clone();
-            select_wiki_page(wiki, &first);
+        if wiki.pages_request_failed {
+            wiki.error_banner = Some("wiki pages request failed".to_string());
+            wiki.selected_path = None;
+            return;
         }
         return;
     }
@@ -1048,6 +1053,11 @@ fn when_switch_metrics_view(world: &mut KanbusWorld, view: String) {
 fn then_board_view_active(world: &mut KanbusWorld) {
     let state = require_console_state(world);
     assert_eq!(state.panel_mode, "board");
+}
+
+#[then("the console board should be visible")]
+fn then_console_board_should_be_visible(world: &mut KanbusWorld) {
+    require_console_state(world);
 }
 
 #[then("the board view should be inactive")]
@@ -1746,6 +1756,32 @@ fn assert_priority_pill_uses_background() {
         || !issue_colors.contains("issue-priority-bg-dark")
     {
         panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
+    }
+    assert_priority_pill_dark_mode_css_is_valid(&globals_css);
+}
+
+fn assert_priority_pill_dark_mode_css_is_valid(globals_css: &str) {
+    let dark_marker = ".dark .issue-accent-priority";
+    let dark_start = globals_css
+        .find(dark_marker)
+        .expect(".dark .issue-accent-priority rule is required for dark-mode priority chips");
+    let opening_brace = globals_css[dark_start..]
+        .find('{')
+        .map(|offset| dark_start + offset)
+        .expect(".dark .issue-accent-priority rule is missing a declaration block");
+    let selector = &globals_css[dark_start..opening_brace];
+    if selector.contains("@media") {
+        panic!("dark-mode .issue-accent-priority selectors must not mix in @media");
+    }
+    let closing_brace = globals_css[opening_brace..]
+        .find('}')
+        .map(|offset| opening_brace + offset)
+        .expect(".dark .issue-accent-priority rule is missing a closing brace");
+    let body = &globals_css[opening_brace..=closing_brace];
+    if !body.contains("--issue-priority-bg") || !body.contains("--issue-priority-bg-dark") {
+        panic!(
+            ".dark .issue-accent-priority must set --issue-priority-bg to --issue-priority-bg-dark"
+        );
     }
 }
 

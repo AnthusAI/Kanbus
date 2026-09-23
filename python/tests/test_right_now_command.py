@@ -12,11 +12,11 @@ from kanbus.right_now_command import (
     CANNOT_COMBINE_ALL_WITH_ISSUE_IDENTIFIERS,
     CANNOT_COMBINE_ALL_WITH_LIMIT,
     DEFAULT_RIGHT_NOW_LIMIT,
-    DEFAULT_RIGHT_NOW_STATUS,
     EMPTY_STATUS_FILTER,
     NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS,
     RightNowCommandError,
     RightNowCommandOptions,
+    _dump_right_now_yaml,
     _effective_right_now_limit,
     _format_updated_at,
     _load_configuration,
@@ -83,19 +83,24 @@ def test_validate_right_now_options_rejects_conflicts() -> None:
         RightNowCommandError, match=NO_RECURSIVE_REQUIRES_ISSUE_IDENTIFIERS
     ):
         _validate_right_now_options(RightNowCommandOptions(recursive=False))
+    with pytest.raises(RightNowCommandError, match=EMPTY_STATUS_FILTER):
+        _validate_right_now_options(RightNowCommandOptions(status=" , "))
     _validate_right_now_options(RightNowCommandOptions())
 
 
 def test_resolve_right_now_statuses_defaults_to_in_progress_for_board() -> None:
-    assert _resolve_right_now_statuses(None, False) == {DEFAULT_RIGHT_NOW_STATUS}
-    assert _resolve_right_now_statuses(None, True) is None
-    assert _resolve_right_now_statuses("all", False) is None
-    assert _resolve_right_now_statuses("in_progress,open", False) == {
+    configuration = build_project_configuration()
+    assert _resolve_right_now_statuses(None, False, configuration) == {
+        "in_progress",
+    }
+    assert _resolve_right_now_statuses(None, True, configuration) is None
+    assert _resolve_right_now_statuses("all", False, configuration) is None
+    assert _resolve_right_now_statuses("in_progress,open", False, configuration) == {
         "in_progress",
         "open",
     }
     with pytest.raises(RightNowCommandError, match=EMPTY_STATUS_FILTER):
-        _resolve_right_now_statuses(" , ", False)
+        _resolve_right_now_statuses(" , ", False, configuration)
 
 
 def test_effective_right_now_limit_uses_selection_policy() -> None:
@@ -118,20 +123,92 @@ def test_effective_right_now_limit_uses_selection_policy() -> None:
 def test_run_right_now_command_keeps_issue_when_reload_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    issue = build_issue("kanbus-now")
-    issue.status = "in_progress"
-    monkeypatch.setattr("kanbus.right_now_command.list_issues", lambda _root: [issue])
+    issue = build_issue("kanbus-now", status="in_progress")
+    issue.right_now_summary = "Already generated summary."
     monkeypatch.setattr(
-        "kanbus.right_now_command.ensure_right_now_summaries", lambda *_a: None
+        "kanbus.right_now_command._select_right_now_issues",
+        lambda *_args: [issue],
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.ensure_right_now_summaries", lambda *_a, **_k: None
     )
     monkeypatch.setattr(
         "kanbus.right_now_command.load_issue_from_project",
         lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing after backfill")),
     )
     monkeypatch.setattr(
-        "kanbus.right_now_command._load_configuration", lambda _root: None
+        "kanbus.right_now_command._load_configuration",
+        lambda *_a: build_project_configuration(),
     )
     output = run_right_now_command(
         tmp_path, RightNowCommandOptions(tree=False, raw=False)
     )
     assert "kanbus-now" in output
+
+
+def test_run_right_now_command_fails_when_summary_missing_after_reload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    issue = build_issue("kanbus-rn", status="in_progress", title="Active work")
+    monkeypatch.setattr(
+        "kanbus.right_now_command._select_right_now_issues",
+        lambda *_args: [issue],
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.ensure_right_now_summaries",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command.load_issue_from_project",
+        lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
+    )
+    monkeypatch.setattr(
+        "kanbus.right_now_command._load_configuration",
+        lambda *_a: build_project_configuration(),
+    )
+    with pytest.raises(RightNowCommandError, match="right-now summary missing"):
+        run_right_now_command(
+            tmp_path,
+            RightNowCommandOptions(tree=False, recursive=True),
+        )
+
+
+def test_dump_right_now_yaml_keeps_long_strings_on_one_line() -> None:
+    long_summary = (
+        "This is a very long right now summary that should not be wrapped across "
+        "multiple lines when emitted as YAML from kbs now command output for human "
+        "readability and parser safety."
+    )
+    payload = [
+        {
+            "id": "kanbus-wrap",
+            "title": "YAML wrap flat issue with a long title that should remain on one scalar line when serialized",
+            "right_now_summary": long_summary,
+        }
+    ]
+    output = _dump_right_now_yaml(payload)
+    assert f"right_now_summary: {long_summary}" in output
+    lines = output.splitlines()
+    summary_index = next(
+        index for index, line in enumerate(lines) if "right_now_summary:" in line
+    )
+    if summary_index + 1 < len(lines):
+        summary_line = lines[summary_index]
+        next_line = lines[summary_index + 1]
+        summary_indent = len(summary_line) - len(summary_line.lstrip())
+        next_indent = len(next_line) - len(next_line.lstrip())
+        assert next_indent <= summary_indent or ":" in next_line.split(":", 1)[0]
+
+
+def test_run_right_now_command_purge_returns_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kanbus.right_now_command.purge_right_now_summaries",
+        lambda *_a: 3,
+    )
+    output = run_right_now_command(
+        tmp_path,
+        RightNowCommandOptions(purge=True),
+    )
+    assert output == "Purged right-now summaries for 3 issues\n"

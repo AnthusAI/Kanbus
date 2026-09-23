@@ -29,6 +29,36 @@ pub enum EventType {
     IssueDeleted,
     IssueLocalized,
     IssuePromoted,
+    /// A worker appended a soft claim for a coordination resource.
+    #[serde(rename = "coordination.claim")]
+    CoordinationClaim,
+    /// The selected worker extended a coordination lease.
+    #[serde(rename = "coordination.renew")]
+    CoordinationRenew,
+    /// The selected worker released a coordination lease.
+    #[serde(rename = "coordination.release")]
+    CoordinationRelease,
+    /// A worker published an artifact for a logical coordination revision.
+    #[serde(rename = "coordination.result_published")]
+    CoordinationResultPublished,
+    /// Issue Router pause, hold, cancellation, and scheduling controls.
+    #[serde(rename = "router.control")]
+    RouterControl,
+    /// Issue Router package attempt and retry state.
+    #[serde(rename = "router.attempt")]
+    RouterAttempt,
+    /// Issue Router adapter result.
+    #[serde(rename = "router.result")]
+    RouterResult,
+    /// Issue Router forge observation.
+    #[serde(rename = "router.forge")]
+    RouterForge,
+    /// Durable issue-attached agent conversation activity.
+    ///
+    /// This intentionally has its own event type: agent output is evidence,
+    /// not an adapter result that may be discarded by a validator.
+    #[serde(rename = "router.conversation")]
+    RouterConversation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -424,6 +454,17 @@ mod tests {
     fn event_filename_uses_timestamp_and_id() {
         let filename = event_filename("2026-03-06T12:00:00.000Z", "abc123");
         assert_eq!(filename, "2026-03-06T12-00-00.000Z__abc123.json");
+    }
+
+    #[test]
+    fn event_timestamps_use_millisecond_precision() {
+        let timestamp = now_timestamp();
+        let fractional = timestamp
+            .split_once('.')
+            .and_then(|(_, suffix)| suffix.strip_suffix('Z'))
+            .expect("UTC timestamp should contain fractional seconds");
+        assert_eq!(fractional.len(), 3);
+        assert!(fractional.bytes().all(|byte| byte.is_ascii_digit()));
     }
 
     #[test]

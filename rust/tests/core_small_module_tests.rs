@@ -137,14 +137,25 @@ fn workflows_validate_transitions_and_status_values() {
         other => panic!("expected invalid transition, got {other:?}"),
     }
 
-    validate_status_value(&cfg, "task", "open").expect("known status");
-    match validate_status_value(&cfg, "task", "nope") {
+    validate_status_value(&cfg, "task", "open", None).expect("known status");
+    match validate_status_value(&cfg, "task", "nope", None) {
         Err(KanbusError::InvalidTransition(_)) => {}
         other => panic!("expected invalid status, got {other:?}"),
     }
 
+    cfg.workflows.insert(
+        "task".to_string(),
+        BTreeMap::from([("open".to_string(), vec!["in_progress".to_string()])]),
+    );
+    match validate_status_value(&cfg, "task", "closed", None) {
+        Err(KanbusError::InvalidTransition(message)) => {
+            assert!(message.contains("status 'closed' is not allowed for type 'task'"));
+        }
+        other => panic!("expected workflow mismatch, got {other:?}"),
+    }
+
     env::set_var("KANBUS_TEST_INVALID_STATUS", "1");
-    match validate_status_value(&cfg, "task", "open") {
+    match validate_status_value(&cfg, "task", "open", None) {
         Err(KanbusError::InvalidTransition(msg)) => assert_eq!(msg, "unknown status"),
         other => panic!("expected forced invalid status, got {other:?}"),
     }

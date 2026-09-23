@@ -1,0 +1,28 @@
+{
+  "id": "kbs-fb18007d-7568-4444-93ad-367ac949f933",
+  "title": "Standup time windows follow-ups (PR #254 soft nits)",
+  "description": "Non-blocking follow-ups from SD acceptance of PR #254 (window/lookback/skip_weekends dual-runtime). Do not block merge; track polish and parity debt.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "agent",
+  "creator": null,
+  "parent": "kbs-60f3d0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "79b7bdf6-c270-4c07-b41d-c0d1a38c7685",
+      "author": "ryan",
+      "text": "PR #272 implements the six soft nits: https://github.com/AnthusAI/Kanbus/pull/272",
+      "created_at": "2026-09-12T11:56:17.362202Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-09T21:25:44.354901701Z",
+  "updated_at": "2026-09-12T19:21:44.811240Z",
+  "closed_at": "2026-09-12T19:21:44.779948Z",
+  "right_now_summary": "PR #272 implements six follow-ups; Rust parity, docs, UI, timezone, and lookback work remain.",
+  "right_now_updated_at": "2026-09-12T19:21:46.553653Z",
+  "custom": {}
+}

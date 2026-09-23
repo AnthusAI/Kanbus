@@ -70,6 +70,7 @@ const SHOW_SHARED_STORAGE_KEY = "kanbus.console.showShared";
 const SHOW_TYPE_FILTER_TOOLBAR_KEY = "kanbus.console.showTypeFilterToolbar";
 const SHOW_INITIATIVES_IN_TYPE_FILTER_KEY = "kanbus.console.showInitiativesInTypeFilter";
 const PANEL_MODE_STORAGE_KEY = "kanbus.console.panelMode";
+const SNAPSHOT_FALLBACK_INTERVAL_MS = 15_000;
 
 function loadStoredEnabledProjects(): Set<string> | null {
   if (typeof window === "undefined") {
@@ -285,6 +286,7 @@ function parseRoute(pathname: string, queryString?: string): RouteContext {
       viewMode: null,
       issueId: null,
       parentId: null,
+      wikiPath: null,
       ...qp,
       error: null
     };
@@ -679,6 +681,8 @@ export default function App() {
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
+  const snapshotFallbackTimerRef = React.useRef<number | null>(null);
+  const snapshotFallbackRequestRef = React.useRef<Promise<void> | null>(null);
   useAppearance();
   const config = snapshot?.config;
   const issues = useMemo(() => {
@@ -696,12 +700,61 @@ export default function App() {
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
   const refreshSnapshot = useCallback(() => {
     if (!apiBase) {
+      return Promise.resolve();
+    }
+    if (snapshotFallbackRequestRef.current) {
+      return snapshotFallbackRequestRef.current;
+    }
+    // This path is used when realtime delivery is unavailable. Rebuild the
+    // backend snapshot from its Git checkout instead of reading stale memory.
+    const request = fetchSnapshot(apiBase, { refresh: true })
+      .then((data) => {
+        lastSnapshotSuccessAtRef.current = Date.now();
+        snapshotRef.current = data;
+        setSnapshot(data);
+        setError(null);
+        setErrorTime(null);
+      })
+      .catch((err) => {
+        console.warn("[snapshot] refresh failed", err);
+        setError("Unable to reach the server. Showing stale data.");
+        setErrorTime(Date.now());
+      });
+    snapshotFallbackRequestRef.current = request;
+    void request.finally(() => {
+      if (snapshotFallbackRequestRef.current === request) {
+        snapshotFallbackRequestRef.current = null;
+      }
+    });
+    return request;
+  }, [apiBase]);
+  const stopSnapshotFallback = useCallback(() => {
+    if (snapshotFallbackTimerRef.current !== null) {
+      window.clearInterval(snapshotFallbackTimerRef.current);
+      snapshotFallbackTimerRef.current = null;
+    }
+  }, []);
+  const startSnapshotFallback = useCallback(() => {
+    if (!apiBase || snapshotFallbackTimerRef.current !== null) {
       return;
     }
-    fetchSnapshot(apiBase)
-      .then((data) => setSnapshot(data))
-      .catch((err) => console.warn("[snapshot] refresh failed", err));
-  }, [apiBase]);
+    setError("Realtime updates unavailable. Refreshing from Git.");
+    setErrorTime(Date.now());
+    void refreshSnapshot();
+    snapshotFallbackTimerRef.current = window.setInterval(() => {
+      void refreshSnapshot();
+    }, SNAPSHOT_FALLBACK_INTERVAL_MS);
+  }, [apiBase, refreshSnapshot]);
+  useEffect(() => stopSnapshotFallback, [stopSnapshotFallback]);
+  useEffect(() => {
+    const refreshHandle = window as Window & {
+      __KANBUS_REFRESH_SNAPSHOT__?: () => Promise<void>;
+    };
+    refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ = refreshSnapshot;
+    return () => {
+      delete refreshHandle.__KANBUS_REFRESH_SNAPSHOT__;
+    };
+  }, [refreshSnapshot]);
   const showAllTypes = route.typeFilter === "all";
 
   useEffect(() => {
@@ -766,7 +819,6 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
-    let unsubscribe: (() => void) | null = null;
     setAuthReady(false);
     setLoading(true);
     if (route.basePath == null) {
@@ -805,25 +857,6 @@ export default function App() {
         setError(null);
         setAuthReady(true);
         setLoading(false);
-        unsubscribe = subscribeToSnapshots(
-          apiBase,
-          (nextSnapshot) => {
-            lastSnapshotSuccessAtRef.current = Date.now();
-            setSnapshot(nextSnapshot);
-            setError(null);
-            setErrorTime(null);
-          },
-          () => {
-            const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
-            // EventSource reconnects are expected in some gateway paths.
-            // Only surface a hard outage when snapshots have actually gone stale.
-            if (staleMs < 15_000) {
-              return;
-            }
-            setError("SSE connection issue. Attempting to reconnect.");
-            setErrorTime(Date.now());
-          }
-        );
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize auth";
         // Redirect flow intentionally throws after assigning location.
@@ -841,16 +874,46 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      unsubscribe?.();
       setAuthHeaderProvider(null);
       setAuthQueryProvider(null);
       setMqttTokenProvider(null);
     };
   }, [route.basePath]);
 
+  useEffect(() => {
+    if (route.basePath == null || !authReady) {
+      return;
+    }
+    const snapshotApiBase = `${route.basePath}/api`;
+    const unsubscribe = subscribeToSnapshots(
+      snapshotApiBase,
+      (nextSnapshot) => {
+        lastSnapshotSuccessAtRef.current = Date.now();
+        snapshotRef.current = nextSnapshot;
+        setSnapshot(nextSnapshot);
+        setError(null);
+        setErrorTime(null);
+        stopSnapshotFallback();
+      },
+      () => {
+        const staleMs = Date.now() - lastSnapshotSuccessAtRef.current;
+        startSnapshotFallback();
+        if (staleMs < SNAPSHOT_FALLBACK_INTERVAL_MS) {
+          return;
+        }
+        setError("Unable to reach the server. Showing stale data.");
+        setErrorTime(Date.now());
+      }
+    );
+    return () => {
+      unsubscribe();
+      stopSnapshotFallback();
+    };
+  }, [route.basePath, authReady, startSnapshotFallback, stopSnapshotFallback]);
+
   // Real-time notification subscription (MQTT-over-WSS primary + SSE fallback)
   useEffect(() => {
-    if (!route.basePath || !authReady) {
+    if (route.basePath == null || !authReady) {
       return;
     }
     const apiBase = `${route.basePath}/api`;
@@ -915,13 +978,15 @@ export default function App() {
       },
       (error) => {
         console.warn("[notifications] connection error", error);
+        startSnapshotFallback();
       }
     );
 
     return () => {
       unsubscribe();
+      stopSnapshotFallback();
     };
-  }, [route.basePath, authReady]);
+  }, [route.basePath, authReady, startSnapshotFallback, stopSnapshotFallback]);
 
   // Auto-select focused issue in detail panel and encode focus in URL
   useEffect(() => {
@@ -2072,6 +2137,7 @@ export default function App() {
                     defaultTreeExpanded={config?.right_now?.default_tree_expanded ?? false}
                     onSelectIssue={handleSelectIssue}
                     selectedIssueId={selectedTask?.id ?? null}
+                    apiBase={apiBase}
                   />
                 </div>
               </div>

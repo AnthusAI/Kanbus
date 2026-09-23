@@ -138,6 +138,15 @@ async function writeTypedIssue({
   );
 }
 
+async function applyServerSnapshotToPage(page) {
+  await page.evaluate(async () => {
+    const refreshHandle = window;
+    if (typeof refreshHandle.__KANBUS_REFRESH_SNAPSHOT__ === "function") {
+      await refreshHandle.__KANBUS_REFRESH_SNAPSHOT__();
+    }
+  });
+}
+
 async function waitForIssueField(issueId, predicate, timeoutMs = 8000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -332,6 +341,9 @@ Given(
       issue.id,
       (entry) => entry.right_now_summary === summary
     );
+    if (this.page) {
+      await this.page.reload({ waitUntil: "domcontentloaded" });
+    }
   }
 );
 
@@ -385,6 +397,7 @@ When(
       issue.id,
       (entry) => entry.right_now_summary === summary
     );
+    await applyServerSnapshotToPage(this.page);
     await expect
       .poll(async () => feedRow(this.page, title).getByTestId("status-feed-summary").textContent(), {
         timeout: 8000
@@ -407,6 +420,7 @@ When(
       issue.id,
       (entry) => entry.right_now_summary === summary
     );
+    await applyServerSnapshotToPage(this.page);
     await expect
       .poll(async () => feedRow(this.page, title).getByTestId("status-feed-summary").textContent(), {
         timeout: 8000
@@ -608,3 +622,13 @@ Then(
     }
   }
 );
+
+Then("the issue detail should show empty right-now summary", async function () {
+  await expect(this.page.getByTestId("issue-right-now-summary")).toHaveText("");
+});
+
+Then("the now panel should not show right-now placeholder text", async function () {
+  await expect(this.page.getByTestId("current-status-panel")).not.toContainText(
+    "(no right-now summary)"
+  );
+});

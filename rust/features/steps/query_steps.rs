@@ -6,7 +6,7 @@ use std::process::Command;
 use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
-use kanbus::cli::run_from_args_with_output;
+use crate::step_definitions::initialization_steps::run_from_args_in_blocking_thread;
 use kanbus::config_loader::load_project_configuration;
 use kanbus::daemon_client::{has_test_daemon_response, set_test_daemon_response};
 use kanbus::daemon_protocol::{RequestEnvelope, PROTOCOL_VERSION};
@@ -44,7 +44,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    match run_from_args_with_output(args, cwd.as_path()) {
+    match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);
             world.stdout = Some(output.stdout);
@@ -76,6 +76,29 @@ fn initialize_project(world: &mut KanbusWorld) {
 fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     let cwd = world.working_directory.as_ref().expect("cwd");
     load_project_directory(cwd).expect("project dir")
+}
+
+pub(crate) fn resolve_issue_project_directory(world: &KanbusWorld, identifier: &str) -> PathBuf {
+    if let Some(state) = &world.virtual_project_state {
+        for project in state.virtual_projects.values() {
+            let shared_issue = project
+                .shared_dir
+                .join("issues")
+                .join(format!("{identifier}.json"));
+            if shared_issue.exists() {
+                return project.shared_dir.clone();
+            }
+            let local_issue = project
+                .local_dir
+                .join("issues")
+                .join(format!("{identifier}.json"));
+            if local_issue.exists() {
+                return project.local_dir.clone();
+            }
+        }
+        return state.current_project_dir.clone();
+    }
+    load_project_dir(world)
 }
 
 fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
@@ -147,8 +170,16 @@ fn given_repo_unreadable_project_dir(world: &mut KanbusWorld) {
 
 #[given(expr = "issue {string} has status {string}")]
 fn given_issue_has_status(world: &mut KanbusWorld, identifier: String, status: String) {
-    let project_dir = load_project_dir(world);
-    let mut issue = build_issue(&identifier);
+    let project_dir = resolve_issue_project_directory(world, &identifier);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let mut issue = if issue_path.exists() {
+        let contents = fs::read_to_string(&issue_path).expect("read issue");
+        serde_json::from_str(&contents).expect("parse issue")
+    } else {
+        build_issue(&identifier)
+    };
     issue.status = status;
     write_issue_file(&project_dir, &issue);
 }
@@ -185,7 +216,15 @@ fn given_issue_has_labels(world: &mut KanbusWorld, identifier: String, label_tex
 #[given(expr = "issue {string} has priority {int}")]
 fn given_issue_has_priority(world: &mut KanbusWorld, identifier: String, priority: String) {
     let project_dir = load_project_dir(world);
-    let mut issue = build_issue(&identifier);
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", identifier));
+    let mut issue = if issue_path.exists() {
+        let contents = fs::read_to_string(&issue_path).expect("read issue");
+        serde_json::from_str(&contents).expect("parse issue")
+    } else {
+        build_issue(&identifier)
+    };
     let parsed = priority.parse::<i32>().expect("priority int");
     issue.priority = parsed;
     write_issue_file(&project_dir, &issue);

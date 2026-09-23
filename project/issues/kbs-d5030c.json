@@ -1,0 +1,42 @@
+{
+  "id": "kbs-d5030c",
+  "title": "Inject right-now WIP reminder on agent compaction",
+  "description": "Inject a right-now WIP reminder into coding-agent compaction hooks so agents regain board awareness after context compaction without manual intervention.\n\n## Product rule (Ryan 2026-09-09)\n\nCompaction-hook injection = **whole-project WIP summary** (general board awareness), NOT pinned-issue scoped.\n\nWhen an agent runs `kbs now` itself, it may scope to its own work for focused WIP.\n\nAgents should be aware of both modes; compaction should be followed by whole-project WIP.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-75e1a4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f1a852a9-c5c5-40d7-abd0-676b9fa587b2",
+      "author": "ubuntu",
+      "text": "PR #234 README path fixes pushed. Tip SHA: 85616cc97b0cd443524784c16293d78b4778c338 — awaiting SD greenlight before merge.",
+      "created_at": "2026-09-09T12:33:19.855851Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "composer-2.5"
+      }
+    },
+    {
+      "id": "a48f37af-f79a-4c29-8e04-5b8e64094bd6",
+      "author": "ubuntu",
+      "text": "Merged PR #234 to develop at 32959eece349f5e2e82fc7dff884c4b6a87d45e5. All epic children closed; Codex example deferred per product rule (docs-only, not a separate card).",
+      "created_at": "2026-09-09T12:36:57.192723490Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-09T11:38:20.498660826Z",
+  "updated_at": "2026-09-09T12:36:57.192742465Z",
+  "closed_at": "2026-09-09T12:36:51.773649221Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "kbs-b0a148ae-1b09-41df-9504-c6d3acc352c9",
+  "title": "Deliver close --comment specs, Python/Rust parity, and documentation",
+  "description": "## User story\n\nAs an AI agent closing a Kanbus task, I want `kbs close <id> --comment \"...\"` to record the closing note and close the task in one command, so the completion record and status transition stay together.\n\n## Gherkin source of truth\n\nWrite shared executable scenarios before production code in the existing issue-close feature area. Run both behavior runners and capture their expected failure before implementation.\n\nScenarios must cover:\n- success: normal comment is appended, status becomes `closed`, and `closed_at` is set;\n- plain close: no comment and unchanged behavior;\n- empty/whitespace comment: fails before any mutation;\n- rejected close after a valid comment: comment remains and issue stays open;\n- lifecycle order: comment before/after hooks complete before close before/after hooks;\n- Beads-compatible project behavior;\n- Python/Rust matching persisted state, events, output, and exit status.\n\n## Implementation sequence\n\n1. Add `--comment <text>` to Python Click and Rust Clap close commands.\n2. Reuse normal comment behavior for validation, author, IDs, events, text-quality signals, hooks, and Beads compatibility.\n3. Execute comment first, then close. Preserve normal close output only; do not introduce an extra success line.\n4. Keep lower-level close domain functions status-transition-only; this is a CLI composite operation.\n5. Keep `close <id>` without `--comment` behavior unchanged.\n6. Ensure both binary help outputs expose the option.\n7. Verify existing reference docs, getting-started content, web docs, and agent guidance describe the delivered canonical command; edit only where accuracy needs it.\n\n## Required verification\n\nRun focused behavior/unit tests, Python quality gates, Rust quality gates, and `python tools/check_spec_parity.py`. Provide command output or concise results in the final Kanbus comment.\n\n## Delivery protocol\n\nWork on a feature branch from `develop`; open a PR targeting `develop`. Record milestone comments with:\n\n`Progress: …`\n`Evidence: …`\n`Next: …`\n`Risk/Blocker: …`\n\nUse Codex provenance on all comments. Close this story only after the PR-ready implementation has all specified checks green and the final comment records commit/PR plus exact verification commands.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": "luna",
+  "creator": null,
+  "parent": "kbs-fe1eab02-677b-4937-9a92-89d7b58f9f7a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "48c736f7-12ea-4e61-86bd-4ba8ec6840bb",
+      "author": "ryan",
+      "text": "Progress: Created the epic and delivery story, published board state, and delegated implementation to the GPT-5.6 Luna sub-agent on `codex/close-with-comment`.\nEvidence: epic `kbs-fe1eab`; story `kbs-b0a148`; board commit `f8dc56d9` is pushed to `origin/develop`.\nNext: implement Gherkin-first CLI parity in the isolated feature worktree, then independently verify Python, Rust, and parity checks.\nRisk/Blocker: `kbs validate` currently reports pre-existing legacy board-data violations unrelated to these new records.",
+      "created_at": "2026-09-15T22:43:16.078796Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5.6",
+        "name": "close-comment-coordinator"
+      }
+    },
+    {
+      "id": "4e364e90-7135-4f78-8ceb-dd7c07ba358c",
+      "author": "ryan",
+      "text": "Progress: Delivery implementation is complete and PR-ready. Evidence: commit 5288f4ab on codex/close-with-comment; PR #281 https://github.com/AnthusAI/Kanbus/pull/281. Verified: focused Behave (33 scenarios), Python pytest (864 passed), Rust cargo test, Rust Cucumber, and non-strict spec parity. Next: review and merge PR #281 into develop; then verify the merged command before closing the epic. Risk/Blocker: strict parity and kbs validate report pre-existing unrelated board gaps.",
+      "created_at": "2026-09-15T23:02:40.491374Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-5.6",
+        "name": "close-comment-coordinator"
+      }
+    }
+  ],
+  "created_at": "2026-09-15T22:42:35.136234Z",
+  "updated_at": "2026-09-15T23:02:40.491450Z",
+  "closed_at": "2026-09-15T23:02:07.329173Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-5.6",
+    "name": "close-comment-planning"
+  },
+  "right_now_summary": "PR #281 is ready with the implementation and verification complete, pending review and merge.",
+  "right_now_updated_at": "2026-09-15T23:02:42.382644Z",
+  "custom": {}
+}
