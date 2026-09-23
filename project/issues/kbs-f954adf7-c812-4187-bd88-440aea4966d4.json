@@ -3,7 +3,7 @@
   "title": "Exclude non-routable hierarchy items from router WIP capacity",
   "description": "Router planning currently counts every issue in the active workflow state toward router.limits.project_wip, including initiatives and epics that have no valid agent route. On the live Kanbus board this produces project_wip_limit with no active worker packages and blocks real leaf stories such as KBS-d9c9ee. Count only routable leaf packages (or equivalent active router runs) in Python and Rust. Add parity coverage proving active epics and invalid-route issues do not consume capacity, while active routable packages still do. Preserve configured WIP limits.",
   "type": "bug",
-  "status": "open",
+  "status": "in_progress",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -14,9 +14,11 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-19T23:17:11.117039Z",
-  "updated_at": "2026-09-19T23:17:11.182782Z",
+  "updated_at": "2026-09-23T10:26:10.317076Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "source": "shared"
+  }
 }
