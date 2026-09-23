@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "dd40cf72-e478-46f1-a3b4-6a750c992c49",
+  "issue_id": "kbs-f7c9a964-5b8e-4bd1-ba0a-78081af6dbd7",
+  "event_type": "comment_added",
+  "occurred_at": "2026-09-23T21:41:19.693Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "449b8bf5-5e3e-4640-ba92-a7d69216e18d",
+    "comment_author": "Kanbus Issue Router"
+  }
+}
