@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "6acd0a75-3a29-4b4e-86c6-e8c63121d474",
+  "issue_id": "router:capacity:provider-profile:codex-luna-flex:0",
+  "event_type": "coordination.release",
+  "occurred_at": "2026-09-17T20:35:43.420Z",
+  "actor_id": "issue-router:37902",
+  "payload": {
+    "owner": "issue-router:37902",
+    "claim_id": "cae12df9-f9db-461f-8101-49845b742578",
+    "operation_sequence": 19
+  }
+}

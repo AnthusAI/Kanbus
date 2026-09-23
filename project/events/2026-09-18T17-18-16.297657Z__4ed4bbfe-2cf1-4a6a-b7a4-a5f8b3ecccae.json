@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "4ed4bbfe-2cf1-4a6a-b7a4-a5f8b3ecccae",
+  "issue_id": "router:kbs-8a77ee6e-261a-40b9-bd23-8ca3b66f3c99",
+  "event_type": "router.attempt",
+  "occurred_at": "2026-09-18T17:18:16.297657Z",
+  "actor_id": "issue-router",
+  "payload": {
+    "claim_id": "5c12c5b1-538a-45b0-bb63-145c3d2bf4bc",
+    "revision": 2,
+    "summary": "Updated Kanban board ordering so every column sorts by updated_at descending with deterministic ID tie-breaking. Diff validation passed; package build could not run because dependencies are not installed.",
+    "action": "progress"
+  }
+}

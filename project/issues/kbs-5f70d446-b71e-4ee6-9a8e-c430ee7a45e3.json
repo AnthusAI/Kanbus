@@ -3,7 +3,7 @@
   "title": "Preserve completed router turns when checkpoint events are ignored",
   "description": "## Problem\n\nThe real Codex run for kbs-894b0c completed valid Python and Rust changes, but its router failed after the agent session while staging the checkpoint event. The exact error was: project/events is ignored and the checkpoint staging path did not force-add it. The branch and draft PR had to be preserved manually.\n\n## Required behavior\n\nEvery router checkpoint and agent-turn event must be force-added through the same safe, scoped Git path used for shared router events. A completed or paused agent turn must publish its transcript metadata, checkpoint, branch, draft PR, summary/comment, and configured Review or Blocked state even when project/events is ignored. Nothing may be silently discarded.\n\n## Acceptance criteria\n\n- Python and Rust force-add only the configured event/checkpoint artifact, never unrelated ignored files.\n- A completed agent result with an ignored project/events directory creates or updates its draft PR, adds the summary to the issue, and moves the issue to Review.\n- A publication failure after a session exists produces a visible issue diagnostic and Review, preserving branch/session/log references.\n- Tests exercise the ignored-event failure shape that occurred in kbs-894b0c.\n- Git-only coordination remains sufficient; no MQTT, AWS, or automatic closure.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -40,11 +40,46 @@
       "text": "Review rejected draft PR #318: it adds post-session publication recovery only in Python. Rust production `run_issue_router_once` still returns the publication error, releases the claim, and does not preserve the completed turn in Review. Keep #318 and its branch as evidence; continue this issue with equivalent Rust recovery behavior and cross-runtime regression coverage before requesting review again.",
       "created_at": "2026-09-19T14:35:57.618100Z",
       "comment_type": "default"
+    },
+    {
+      "id": "6309b075-39e8-4110-973f-caa57e882476",
+      "author": "home",
+      "text": "New live reproduction: KBS-d9c9ee produced a valid completed Codex result and committed its required Kanbus state with `kbs commit`, but the router wrote `router.conversation` and released all leases without publishing `router.result`, the Review transition, or the agent summary. Recovery required a visible manual Review/comment. The durable record is event `68fb6a5a-b78c-4df6-a8be-adce50b0b06e`, session `01a0bbfe-06c8-7f40-854d-17404253271b`. Extend this recovery work so a valid turn survives this normal agent workflow automatically in both runtimes.",
+      "created_at": "2026-09-19T23:34:30.096390Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "5e33e9eb-bcf7-4a7f-81d2-4b1e53f1b313",
+      "author": "Kanbus Issue Router",
+      "text": "Implemented recovery for the live failure shape: Rust and Python now route review-lifecycle adapter validation failures through completed-turn preservation, publishing diagnostics, Review, and router-result evidence. Verified Rust focused recovery test and formatting; Python compiled successfully, but pytest could not run because the required py311 environment and system pytest are unavailable.",
+      "created_at": "2026-09-19T23:43:15.722331Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "23eb7b8f-3333-4417-837a-3492b9b7152d",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent turn complete\n\nImplemented cross-runtime recovery for completed Codex turns whose final result validation fails: both routers now preserve diagnostics, Review state, and canonical router result evidence instead of silently releasing the claim. Added Python regression coverage.\n\n- Draft PR: https://github.com/AnthusAI/Kanbus/pull/334\n- Branch: `codex/router/kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3/r5`\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-5f70d446-b71e-4ee6-9a8e-c430ee7a45e3`\n- Artifacts:\n  - `rust-focused-test`: `cargo test --lib publication_failure_after_completed_turn_preserves_review_evidence`\n  - `modified-files`: `python/src/kanbus/router_execution.py, python/tests/test_router_execution_coverage.py, rust/src/router.rs`",
+      "created_at": "2026-09-19T23:43:21.585274Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "d639e4f0-2be8-43fc-9ade-f108d022bc65",
+      "author": "home",
+      "text": "Clean review branch: https://github.com/AnthusAI/Kanbus/pull/335. It now contains the reviewed Python and Rust recovery path plus integration-level regression tests for malformed Codex completion output. The router-generated PR #334 remains preserved as execution evidence only; review the clean PR #335 for the mergeable patch.",
+      "created_at": "2026-09-20T00:05:57.548864Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "47ad7315-9866-49ac-be80-efa24ab48479",
+      "author": "home",
+      "text": "Confirmed shipped: PR #335 merged into develop and is now live on main via today's release (PR #346, merge commit 2f8a2400). The regression test from the evidence trail (publication_failure_after_completed_turn_preserves_review_evidence) has been passing consistently across today's full test runs. Closing.",
+      "created_at": "2026-09-23T10:13:05.058160Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T12:17:21.814359Z",
-  "updated_at": "2026-09-19T14:35:57.618143Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T10:13:05.151433Z",
+  "closed_at": "2026-09-23T10:13:05.130479Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
