@@ -16,7 +16,7 @@ Kanbus wiki HTML uses **[Markus](https://anthusai.github.io/Markus)** — Anthus
 | Toolchain | Markus dependency | Install notes |
 |-----------|-------------------|---------------|
 | `kbs` (Rust release binary) | Built-in `wiki_markus` module | No separate Markus package; build with `cargo build --release` |
-| `kanbus` (Python CLI) | `anthus-markus @ git+https://github.com/AnthusAI/Markus.git` | Pulled in by `pip install -e python`; do not substitute PyPI `markus` |
+| `kanbus` (Python CLI) | `anthus-markus` (PyPI) | Pulled in by `pip install -e python`; do not substitute PyPI `markus` |
 | Papyrus / newsroom pods | Same as Kanbus | Use `kbs wiki render` from the pod checkout; no ElevenLabs or site build required |
 
 To smoke-test Markus HTML rendering from the repository root (no console server, no ElevenLabs, no full site build):
@@ -36,7 +36,7 @@ The JSON payload includes `rendered` (post-Jinja Markdown) and `rendered_html` (
 If you need the Markus library outside Kanbus (for example, to experiment in a Python REPL):
 
 ```bash
-pip install "anthus-markus @ git+https://github.com/AnthusAI/Markus.git@v0.5.1"
+pip install anthus-markus
 python -c "from markusmd import convert; print(convert('# Hello', include_css=False, full_document=False))"
 ```
 

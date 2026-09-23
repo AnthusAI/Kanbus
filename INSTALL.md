@@ -27,7 +27,7 @@ Note: the `kanbus` console script is available when the virtual environment is a
 
 ### Wiki Markus dependency (`anthus-markus`, not PyPI `markus`)
 
-Wiki HTML rendering uses [Markus](https://anthusai.github.io/Markus) (Anthus-Flavored Markdown). The Python CLI pulls in **`anthus-markus`** from GitHub (`markusmd.convert`). This is declared in `python/pyproject.toml` and installs with `pip install -e python`.
+Wiki HTML rendering uses [Markus](https://anthusai.github.io/Markus) (Anthus-Flavored Markdown). The Python CLI pulls in **`anthus-markus`** from PyPI (`markusmd.convert`). This is declared in `python/pyproject.toml` and installs with `pip install -e python`.
 
 **Do not `pip install markus`.** The [PyPI package `markus`](https://pypi.org/project/markus/) is an unrelated metrics library. It will not render wiki `:::directives`.
 
