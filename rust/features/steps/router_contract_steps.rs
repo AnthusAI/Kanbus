@@ -1198,11 +1198,27 @@ fn given_router_candidates(world: &mut KanbusWorld, step: &Step) {
 
 #[given(regex = r#"^project WIP limit is (?P<limit>\d+)$"#)]
 fn given_project_wip_limit(world: &mut KanbusWorld, limit: String) {
+    let limit = limit.parse::<i64>().unwrap();
     set_router_path(
         world,
         &["limits", "project_wip"],
-        Yaml::Number(limit.parse::<i64>().unwrap().into()),
+        Yaml::Number(limit.into()),
     );
+    // router.limits.review_wip must not exceed project_wip; clamp it down
+    // when the fixture default (2) would otherwise violate that invariant
+    // for a smaller project limit set by this step.
+    let review_wip = read_yaml(world)
+        .1
+        .as_mapping()
+        .and_then(|root| root.get(Yaml::String("router".to_string())))
+        .and_then(Yaml::as_mapping)
+        .and_then(|router| router.get(Yaml::String("limits".to_string())))
+        .and_then(Yaml::as_mapping)
+        .and_then(|limits| limits.get(Yaml::String("review_wip".to_string())))
+        .and_then(Yaml::as_i64);
+    if review_wip.is_some_and(|value| value > limit) {
+        set_router_path(world, &["limits", "review_wip"], Yaml::Number(limit.into()));
+    }
 }
 
 #[given("project issues in router WIP statuses are:")]
