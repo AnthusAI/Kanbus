@@ -3,16 +3,24 @@
   "title": "Interactive console issue controls",
   "description": "## Goal\n\nMake the Kanbus console a trustworthy human control surface for issue workflow and agent routing, beginning with a clear, editable agent assignment on every issue detail view.\n\n## Product boundary\n\nAn issue has two distinct agent concepts:\n\n- **Provenance** (`issue.agent` / comment agent metadata): immutable evidence of who created or wrote something.\n- **Routing assignment** (`agent-class:*` or `agent-provider:*`): the editable instruction used by the issue router to select future work.\n\nThe console must never present provenance as an editable assignment. It must show the effective resolved routing configuration without exposing secrets, and write through validated Kanbus operations so Git history, events, router fencing, and realtime/Git refresh remain coherent.\n\n## Outcome\n\nA human can inspect and safely change an eligible issue’s routing assignment, status, and comments in the console. The detail panel clearly shows the requested class/provider and the effective product, model, reasoning effort, service tier/flex mode, and other non-secret parameters. Changes are visible locally and through the existing event/realtime and Git-refresh paths.",
   "type": "initiative",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "9cbd4e8e-4a29-44f0-a592-a72f76779ff3",
+      "author": "home",
+      "text": "Moved out of Ready: its only child epic, kbs-fc24ca, is in progress with most stories delivered.",
+      "created_at": "2026-09-23T23:04:51.933922Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:31:41.599446Z",
-  "updated_at": "2026-09-19T14:31:41.667529Z",
+  "updated_at": "2026-09-23T23:04:52.006269Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

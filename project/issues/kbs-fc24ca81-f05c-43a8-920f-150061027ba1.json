@@ -3,16 +3,24 @@
   "title": "Console agent assignment inspector and controls",
   "description": "## Purpose\n\nDeliver the first safe issue-write controls in the console, centered on agent routing assignment. The work must make a clear distinction between immutable agent provenance and editable future-work routing.\n\n## Acceptance\n\n- Detail view shows an explicit **Agent assignment** section even when unassigned.\n- It resolves the selected class/provider to a redacted effective configuration: product/provider, model, effort, service tier/flex mode, and relevant non-secret arguments.\n- A human can safely update assignment, state, and comments through validated console APIs; all writes create normal Kanbus events and flow through realtime plus Git fallback.\n- Assignment edits honor router claims and never alter immutable provenance or a live agent conversation without an explicit safe transition.\n- Python/Rust configuration and mutation behavior remain parity-tested; console interactions have API/UI coverage.",
   "type": "epic",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-22c4a245-9b14-43e4-9db2-4e768d70e22b",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "10c46080-8f0b-414a-bdeb-586ddf6d3e4e",
+      "author": "home",
+      "text": "Moved out of Ready: three of five child stories are closed (effective assignment rendering, validated console write API, composer and status controls) and the remaining two are parked in Backlog pending the agent-assignment configuration contract. Work has begun and mostly landed, so this epic is in progress.",
+      "created_at": "2026-09-23T23:04:51.714590Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:32:02.763642Z",
-  "updated_at": "2026-09-19T14:32:02.829571Z",
+  "updated_at": "2026-09-23T23:04:51.833859Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
