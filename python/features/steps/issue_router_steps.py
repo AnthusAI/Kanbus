@@ -147,6 +147,7 @@ def _write_issue(
     labels: list[str] | None = None,
     parent: str | None = None,
     assignee: str | None = None,
+    issue_type: str = "task",
     created_at: str = "2026-09-16T10:00:00Z",
     title: str | None = None,
 ) -> None:
@@ -154,7 +155,7 @@ def _write_issue(
     issue = build_issue(
         issue_id,
         title or f"Implement {issue_id}",
-        "task",
+        issue_type,
         status,
         parent,
         labels or [],
@@ -1177,6 +1178,11 @@ def given_existing_router_wip_issues(context: object) -> None:
             row["issue_id"].strip(),
             status=row["status"].strip(),
             assignee=row["assignee"].strip() or None,
+            issue_type=row.get("type", "task").strip() or "task",
+            labels=(
+                [label.strip() for label in row.get("labels", "").split(",") if label.strip()]
+                or None
+            ),
         )
 
 

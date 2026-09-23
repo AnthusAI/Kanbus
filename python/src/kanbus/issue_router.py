@@ -610,6 +610,11 @@ def _collect_candidates(
     current_time = datetime.now(UTC)
     candidates: list[_Candidate] = []
     for issue in context.issues:
+        # Initiatives and epics organize work; they are never dispatchable
+        # router packages, even if a stale or accidental route label is
+        # present.  Only the leaf work beneath them can own router capacity.
+        if not _is_routable_package_issue(issue):
+            continue
         # A child belongs to the nearest routed ancestor's package.  An
         # un-routed parent, however, must not make its children disappear
         # from planning: they remain independently diagnosable (and receive
@@ -917,7 +922,7 @@ def _current_route_counts(
         context.router.workflow.blocked,
     }
     for issue in issues_by_id.values():
-        if issue.status not in wip_statuses:
+        if issue.status not in wip_statuses or not _is_routable_package_issue(issue):
             continue
         route = _resolve_route(context.router, issue, events)
         route_kind, route_name, profile, error = route
@@ -928,6 +933,16 @@ def _current_route_counts(
             class_counts[route_name] += 1
         provider_counts[profile] += 1
     return active_counts, class_counts, provider_counts
+
+
+def _is_routable_package_issue(issue: IssueData) -> bool:
+    """Return whether an issue type can represent agent-executed work.
+
+    Initiatives and epics are hierarchy containers, rather than router work
+    packages.  Keeping this independent from route-label validation means a
+    malformed or stale label on one of those cards cannot consume WIP.
+    """
+    return issue.issue_type not in {"initiative", "epic"}
 
 
 def _has_blocking_dependency(
