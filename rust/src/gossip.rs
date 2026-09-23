@@ -2,8 +2,8 @@
 
 use chrono::Utc;
 use rumqttc::{
-    AsyncClient, Event, MqttOptions, Outgoing, Packet, QoS, SubscribeReasonCode, TlsConfiguration,
-    Transport,
+    AsyncClient, Event, EventLoop, MqttOptions, Outgoing, Packet, QoS, SubscribeReasonCode,
+    TlsConfiguration, Transport,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(unix)]
@@ -1287,6 +1287,23 @@ fn publish_mqtt(
     // custom-authorizer setup can take longer than the crate's 5s default.
     network_options.set_connection_timeout(15);
     eventloop.set_network_options(network_options);
+    // Drive the publish on a dedicated thread with its own runtime so callers
+    // already running inside a Tokio executor (the console server, async test
+    // harnesses) never nest `block_on` on an executor thread.
+    std::thread::scope(|scope| {
+        scope
+            .spawn(move || publish_mqtt_on_dedicated_runtime(client, eventloop, topic, payload))
+            .join()
+            .map_err(|_| KanbusError::Io("mqtt publish thread panicked".to_string()))?
+    })
+}
+
+fn publish_mqtt_on_dedicated_runtime(
+    client: AsyncClient,
+    mut eventloop: EventLoop,
+    topic: &str,
+    payload: Vec<u8>,
+) -> Result<(), KanbusError> {
     let runtime =
         tokio::runtime::Runtime::new().map_err(|error| KanbusError::Io(error.to_string()))?;
     runtime.block_on(async move {
