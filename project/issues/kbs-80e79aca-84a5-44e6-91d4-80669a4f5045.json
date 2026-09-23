@@ -3,7 +3,7 @@
   "title": "Add console composer and status controls to issue detail",
   "description": "Add a normal comment composer and an allowed-transition status control to issue detail, using the validated write API. When a blocked issue awaits an agent reply, a normal comment must resume its saved conversation as specified by the router; otherwise it remains a normal visible Kanbus comment. Render pending/error/success states and confirm updates arrive via realtime or Git fallback.",
   "type": "story",
-  "status": "review",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -54,11 +54,18 @@
       "text": "Review: the router's second run (draft PR #332, revision 2) re-implemented the write API that already shipped in #344, on a stale base, with Rust tests not run, and did not include the composer UI. Not accepted. The UI from the first run on codex/router/kbs-80-clean-review was ported onto current develop as PR https://github.com/AnthusAI/Kanbus/pull/351 (comment composer, status control, resumed indicator); UI build, console typecheck and Vite production build pass. PR #332 and its branches are preserved as evidence.",
       "created_at": "2026-09-23T14:55:11.046117Z",
       "comment_type": "default"
+    },
+    {
+      "id": "15916f6c-3333-4147-a650-c125884727b0",
+      "author": "home",
+      "text": "Accepted: composer UI merged via https://github.com/AnthusAI/Kanbus/pull/351 (all CI green). Closing.",
+      "created_at": "2026-09-23T15:25:49.992652Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T14:32:06.793324Z",
-  "updated_at": "2026-09-23T14:55:11.046265Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T15:25:50.203940Z",
+  "closed_at": "2026-09-23T15:25:50.185527Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
