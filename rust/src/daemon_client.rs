@@ -337,10 +337,27 @@ fn spawn_daemon(root: &Path) -> Result<(), KanbusError> {
     if is_test_spawn_disabled() {
         return Ok(());
     }
+    // Resolve to a canonical, existing directory before handing it to the
+    // respawned process. `root` is passed as a single argv entry (never
+    // through a shell, so shell metacharacters are inert), but canonicalize
+    // still gives a hard guarantee that we only ever pass on a real
+    // filesystem path this process already found, not an arbitrary string.
+    let canonical_root = root.canonicalize().map_err(|error| {
+        KanbusError::Io(format!(
+            "cannot resolve daemon root {}: {error}",
+            root.display()
+        ))
+    })?;
+    if !canonical_root.is_dir() {
+        return Err(KanbusError::Io(format!(
+            "daemon root is not a directory: {}",
+            canonical_root.display()
+        )));
+    }
     Command::new(std::env::current_exe().map_err(|error| KanbusError::Io(error.to_string()))?)
         .arg("daemon")
         .arg("--root")
-        .arg(root)
+        .arg(&canonical_root)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
