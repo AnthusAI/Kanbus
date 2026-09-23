@@ -3,7 +3,7 @@
   "title": "Define resolved agent-assignment configuration and API contract",
   "description": "Create the canonical, redacted read model for a routing assignment. It must distinguish requested agent-class / agent-provider from effective provider configuration, including provider/product, model, effort, service tier/flex mode, and non-secret arguments. Support user-level defaults with project overrides and deterministic Python/Rust resolution. Expose this through the console snapshot/detail API without leaking tokens or arbitrary command arguments. Add validation and parity tests.",
   "type": "story",
-  "status": "open",
+  "status": "blocked",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,17 @@
     "agent-class:smart"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "8c4768e7-5407-4be4-8d30-6f571c333cce",
+      "author": "home",
+      "text": "Router attempt 1 returned retryable_failure: no canonical agent-assignment resolver exists yet in either runtime, and there is no defined user-level configuration location/merge contract for the 'user-level defaults with project overrides' requirement. Moving to Blocked pending a scoping decision rather than re-consuming router attempts on the same gap; unblock once scope is narrowed (e.g. project-level config only for a first pass, or the user-level config location is specified).",
+      "created_at": "2026-09-23T10:24:40.764931Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:32:03.653305Z",
-  "updated_at": "2026-09-19T14:32:14.835953Z",
+  "updated_at": "2026-09-23T10:24:41.048719Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
