@@ -1,0 +1,22 @@
+{
+  "id": "kbs-db23027c-cea8-4f9c-827e-795b4fd6a2e9",
+  "title": "Router container smoke test cbc8263ead90",
+  "description": "Disposable live integration task. Generate exactly three short paragraphs of Lorem ipsum placeholder text. Post them as one issue comment beginning with KANBUS-ROUTER-TEST:cbc8263ead90 using the router result issue_comments field. Do not change source files or any other issue. Do not claim the integration suite passed; this task only proves that a real board issue was dispatched and its comment was published.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-d3973c07-13a1-4598-8f32-85e010278121",
+  "labels": [
+    "agent-class:router-container-it-cbc8263ead90"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-23T19:53:37.285905Z",
+  "updated_at": "2026-09-23T19:53:37.330371Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

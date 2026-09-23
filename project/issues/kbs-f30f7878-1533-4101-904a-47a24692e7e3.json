@@ -3,17 +3,25 @@
   "title": "Add setup ai and setup env for machine-wide configuration and always-on local realtime",
   "description": "Users should configure Kanbus once per machine, not per clone or worktree. Adds 'kbs setup ai' (stores an LLM API key in ~/.kanbus.env, mode 600) and 'kbs setup env NAME' (any machine-wide setting, e.g. KANBUS_REALTIME_BROKER), with --status reporting where each value comes from. Missing-key errors, doctor, and init now point at setup ai. Docs cover credential precedence (shell env, then ~/.kanbus.env, then project .env) and a boot-surviving local Mosquitto service so every worktree and agent on the machine shares realtime updates. Test suites isolate HOME so a developer's ~/.kanbus.env and live broker cannot leak in. Python and Rust in parity via features/cli/setup_ai.feature and setup_env.feature.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f64ec5f3-d74f-4245-a3c7-630a2bb126a9",
+      "author": "home",
+      "text": "Shipped: setup ai and setup env merged to develop in AnthusAI/Kanbus#352 and released to main in AnthusAI/Kanbus#353. Verified live on a Mac with an always-on Mosquitto launchd service that survived a reboot.",
+      "created_at": "2026-09-23T16:43:23.465678Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-23T12:32:46.347209Z",
-  "updated_at": "2026-09-23T14:47:08.553132Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T16:43:23.558498Z",
+  "closed_at": "2026-09-23T16:43:23.529238Z",
   "agent": {
     "platform": "claude_code",
     "model": "Claude Fable 5.1",

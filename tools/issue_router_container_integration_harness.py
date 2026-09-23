@@ -51,6 +51,9 @@ SECRET_NAME_RE = re.compile(
     r"token|secret|password|credential|authorization|private[_-]?key|api[_-]?key",
     re.IGNORECASE,
 )
+EXPIRY_TTL = "5s"
+EXPIRY_WAIT_SECONDS = 15.0
+VALID_SCENARIOS = {"hard-race", "soft-duplicate", "expiry-takeover"}
 
 
 class HarnessError(RuntimeError):
@@ -70,17 +73,19 @@ class LiveInputs:
 
     def docker_environment(self) -> dict[str, str]:
         """Return only the service inputs required inside a worker container."""
-        return {
+        environment = {
             MUTEX_ENDPOINT: self.mutex_endpoint,
             MUTEX_TOKEN: self.mutex_token,
             MQTT_BROKER: self.mqtt_broker,
             MQTT_AUTHORIZER: self.mqtt_authorizer,
             MQTT_TOKEN: self.mqtt_token,
-            CODEX_API_KEY: self.openai_key,
             "KANBUS_REALTIME_TRANSPORT": "mqtt",
             "KANBUS_REALTIME_AUTOSTART": "false",
             "KANBUS_REALTIME_KEEPALIVE": "false",
         }
+        if self.openai_key:
+            environment[CODEX_API_KEY] = self.openai_key
+        return environment
 
 
 @dataclass(frozen=True)
@@ -102,13 +107,14 @@ class WorkerResult:
 
 
 def validate_live_inputs(
-    env: Mapping[str, str], *, live: bool, publish_board: bool
+    env: Mapping[str, str], *, live: bool, publish_board: bool, fake_agent: bool = False
 ) -> LiveInputs:
     """Validate explicit mutation gates and all live credentials before setup.
 
     :param env: Environment supplied to the harness.
     :param live: Whether the caller explicitly requested live services.
     :param publish_board: Whether the caller explicitly authorized board pushes.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
     :return: Complete allowlisted service credentials.
     :raises HarnessError: If any gate or required service input is missing.
     """
@@ -126,7 +132,16 @@ def validate_live_inputs(
         MQTT_TOKEN: env.get(MQTT_TOKEN, "").strip(),
         OPENAI_KEY: env.get(OPENAI_KEY, "").strip(),
     }
-    missing = [name for name, value in values.items() if not value]
+    required_keys = {
+        MUTEX_ENDPOINT,
+        MUTEX_TOKEN,
+        MQTT_BROKER,
+        MQTT_AUTHORIZER,
+        MQTT_TOKEN,
+    }
+    if not fake_agent:
+        required_keys.add(OPENAI_KEY)
+    missing = [name for name in required_keys if not values[name]]
     if missing:
         raise HarnessError("missing live inputs: " + ", ".join(missing))
     if not re.fullmatch(r"https://[^\s/]+(?:/[^\s]*)?", values[MUTEX_ENDPOINT]):
@@ -257,6 +272,73 @@ def assert_loser_untouched(issue: object, marker: str) -> None:
         raise HarnessError("losing worker independently mutated the test issue")
 
 
+def assert_soft_duplicate_permitted(results: Sequence[WorkerResult]) -> int:
+    """Permit zero, one, or two starts in soft coordination mode.
+
+    Soft coordination allows documented duplicate starts. This assertion
+    ensures exactly one Python and one Rust worker participated, each
+    either did not start (started=0) or started exactly once (started=1),
+    all returned successfully, and the total count is 1 or 2.
+
+    :param results: Completed worker invocations.
+    :return: Total number of starts (1 or 2).
+    :raises HarnessError: If the result violates the contract.
+    """
+    if len(results) != 2 or {worker.name for worker in results} != {"python", "rust"}:
+        raise HarnessError("race must include exactly one Python and one Rust worker")
+    starts: list[int] = []
+    for worker in results:
+        if worker.result.returncode != 0:
+            raise HarnessError(
+                f"soft-duplicate worker {worker.name} failed (exit={worker.result.returncode})"
+            )
+        matches = STARTED_RE.findall(worker.result.stdout)
+        count = int(matches[-1]) if matches else 0
+        if count not in (0, 1):
+            raise HarnessError(f"{worker.name} reported unexpected started={count}")
+        starts.append(count)
+    total = sum(starts)
+    if total == 0:
+        raise HarnessError(
+            "soft-duplicate scenario requires at least one worker to start"
+        )
+    return total
+
+
+def assert_interrupted_worker(worker: WorkerResult, issue: object) -> None:
+    """Require a killed worker to have left the issue in progress, not review.
+
+    :param worker: Killed worker result.
+    :param issue: Issue state in the worker's checkout.
+    :raises HarnessError: If the worker exited cleanly or mutated the issue.
+    """
+    if worker.result.returncode == 0:
+        raise HarnessError("interrupted worker should have non-zero exit code, got 0")
+    if not isinstance(issue, dict):
+        raise HarnessError("interrupted worker issue record is invalid")
+    if issue.get("status") == "review":
+        raise HarnessError("killed worker should not publish review status")
+
+
+def assert_takeover(worker: WorkerResult, issue: object, marker: str) -> None:
+    """Require the takeover worker to have started and completed the task.
+
+    :param worker: The second worker that took over after lease expiry.
+    :param issue: Issue state from the router-state commit.
+    :param marker: Unique test comment marker.
+    :raises HarnessError: If the takeover did not succeed.
+    """
+    matches = STARTED_RE.findall(worker.result.stdout)
+    count = int(matches[-1]) if matches else 0
+    if count != 1:
+        raise HarnessError(
+            f"takeover worker must start exactly once, got started={count}"
+        )
+    if worker.result.returncode != 0:
+        raise HarnessError(f"takeover worker failed (exit={worker.result.returncode})")
+    assert_task_result(issue, marker)
+
+
 def redact(text: str, env: Mapping[str, str]) -> str:
     """Redact secret-valued environment entries and bearer-token text."""
     secrets = {
@@ -327,8 +409,21 @@ def _project_directory(root: Path) -> Path:
     return relative
 
 
-def _configure_worker_for_test(root: Path, agent_class: str) -> None:
-    """Isolate the task to these workers and prevent GitHub PR creation."""
+def _configure_worker_for_test(
+    root: Path,
+    agent_class: str,
+    fake_agent: bool = False,
+    soft_coordination: bool = False,
+    lease_ttl: str | None = None,
+) -> None:
+    """Isolate the task to these workers and prevent GitHub PR creation.
+
+    :param root: Worker checkout directory.
+    :param agent_class: Unique agent class identifier for this test.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
+    :param soft_coordination: Use git-only coordination; otherwise hard Mutex API.
+    :param lease_ttl: Optional lease TTL for coordination (e.g., "5s").
+    """
     path = root / ".kanbus.yml"
     try:
         config = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -360,6 +455,8 @@ def _configure_worker_for_test(root: Path, agent_class: str) -> None:
         isinstance(argument, str) for argument in provider_args
     ):
         raise HarnessError("worker provider profile has no argument list")
+    if fake_agent and isinstance(provider_profile, dict):
+        provider_profile["command"] = "/opt/fake-codex/codex"
     provider_args.extend(
         (
             "--dangerously-bypass-approvals-and-sandbox",
@@ -379,6 +476,14 @@ def _configure_worker_for_test(root: Path, agent_class: str) -> None:
     classes[agent_class] = {"providers": [providers[0]]}
     class_wip[agent_class] = 1
     router["forge"] = None
+    coordination = config.setdefault("coordination", {})
+    if not isinstance(coordination, dict):
+        raise HarnessError("worker coordination configuration must be a mapping")
+    coordination["providers"] = (
+        ["git"] if soft_coordination else ["mutex_api", "mqtt", "git"]
+    )
+    if lease_ttl is not None:
+        coordination["default_lease_ttl"] = lease_ttl
     path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
 
 
@@ -476,6 +581,8 @@ def _container_command(
     runtime: str,
     live: LiveInputs,
     barrier_directory: Path,
+    fake_agent: bool = False,
+    fake_agent_mode: str = "complete",
 ) -> list[str]:
     command = [
         "docker",
@@ -486,7 +593,7 @@ def _container_command(
         "--network",
         "bridge",
         "--mount",
-        f"type=bind,source={worker_root.resolve()},target=/workspace",
+        f"type=bind,source={worker_root.resolve()},target=/workspace-source,readonly",
         "--mount",
         f"type=bind,source={remote.resolve()},target=/kanbus-shared.git",
         "--mount",
@@ -498,15 +605,28 @@ def _container_command(
         "--env",
         f"KANBUS_REALTIME_UDS_SOCKET_PATH=/tmp/{name}.sock",
     ]
+    if fake_agent:
+        fake_codex_path = (
+            Path(__file__).parent / "issue_router_container" / "fake_codex.py"
+        )
+        command.extend(
+            (
+                "--mount",
+                f"type=bind,source={fake_codex_path.resolve()},target=/opt/fake-codex/codex,readonly",
+            )
+        )
     for key in (
         MUTEX_ENDPOINT,
         MUTEX_TOKEN,
         MQTT_BROKER,
         MQTT_AUTHORIZER,
         MQTT_TOKEN,
-        CODEX_API_KEY,
     ):
         command.extend(("--env", key))
+    if live.openai_key:
+        command.extend(("--env", CODEX_API_KEY))
+    if fake_agent:
+        command.extend(("--env", f"FAKE_CODEX_MODE={fake_agent_mode}"))
     command.extend(
         (
             "--env",
@@ -527,6 +647,7 @@ def _container_command(
             image,
             "/bin/sh",
             "-c",
+            "cp -a /workspace-source/. /workspace/ && touch /tmp/harness-ready && "
             'while [ ! -f /harness-control/start ]; do sleep 0.02; done; exec "$@"',
             "kanbus-harness",
             *worker_command,
@@ -544,7 +665,24 @@ def _start_worker(
     live: LiveInputs,
     env: Mapping[str, str],
     barrier_directory: Path,
+    fake_agent: bool = False,
+    fake_agent_mode: str = "complete",
 ) -> subprocess.Popen[str]:
+    """Start an isolated router container worker.
+
+    :param name: Unique container name.
+    :param worker_root: Worker checkout directory.
+    :param remote: Shared bare Git mirror.
+    :param image: Docker image tag.
+    :param runtime: Python or Rust runtime.
+    :param live: Validated live service credentials.
+    :param env: Host environment for Docker invocation.
+    :param barrier_directory: Shared startup barrier directory.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
+    :param fake_agent_mode: Mode for fake Codex (complete or hang).
+    :return: Running container process.
+    :raises HarnessError: If the container cannot be started.
+    """
     command = _container_command(
         name=name,
         worker_root=worker_root,
@@ -553,6 +691,8 @@ def _start_worker(
         runtime=runtime,
         live=live,
         barrier_directory=barrier_directory,
+        fake_agent=fake_agent,
+        fake_agent_mode=fake_agent_mode,
     )
     try:
         return subprocess.Popen(
@@ -594,10 +734,10 @@ def _release_worker_barrier(
             raise HarnessError("a Docker worker exited before the race barrier")
         ready = all(
             _run(
-                ["docker", "inspect", "--format", "{{.State.Running}}", name],
+                ["docker", "exec", name, "test", "-f", "/tmp/harness-ready"],
                 check=False,
-            ).stdout.strip()
-            == "true"
+            ).returncode
+            == 0
             for name in names
         )
         if ready:
@@ -641,6 +781,181 @@ def _read_router_state_issue(
     return issue
 
 
+def _run_hard_or_soft_race_scenario(
+    names: Sequence[str],
+    worker_roots: Sequence[Path],
+    remote: Path,
+    image: str,
+    inputs: LiveInputs,
+    env: Mapping[str, str],
+    barrier_directory: Path,
+    fake_agent: bool,
+    timeout: float,
+) -> list[WorkerResult]:
+    """Run the standard hard-race or soft-duplicate race: both workers simultaneous."""
+    workers = [
+        _start_worker(
+            names[0],
+            worker_roots[0],
+            remote,
+            image,
+            "python",
+            inputs,
+            env,
+            barrier_directory,
+            fake_agent=fake_agent,
+        ),
+        _start_worker(
+            names[1],
+            worker_roots[1],
+            remote,
+            image,
+            "rust",
+            inputs,
+            env,
+            barrier_directory,
+            fake_agent=fake_agent,
+        ),
+    ]
+    _release_worker_barrier(names, workers, barrier_directory, timeout)
+    results: list[WorkerResult] = []
+    for index, (name, process, worker_root) in enumerate(
+        zip(names, workers, worker_roots, strict=True)
+    ):
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            _run(["docker", "rm", "--force", name], check=False)
+            process.kill()
+            process.communicate()
+            raise HarnessError(f"container worker {name} timed out") from error
+        redacted_stdout = redact(stdout, inputs.docker_environment())
+        redacted_stderr = redact(stderr, inputs.docker_environment())
+        results.append(
+            WorkerResult(
+                "python" if index == 0 else "rust",
+                worker_root,
+                ProcessResult(
+                    process.returncode or 0, redacted_stdout, redacted_stderr
+                ),
+            )
+        )
+    return results
+
+
+def _run_expiry_takeover_scenario(
+    names: Sequence[str],
+    worker_roots: Sequence[Path],
+    remote: Path,
+    image: str,
+    inputs: LiveInputs,
+    env: Mapping[str, str],
+    barrier_directory: Path,
+    fake_agent: bool,
+    timeout: float,
+    task_id: str,
+    marker: str,
+) -> list[WorkerResult]:
+    """Run the expiry-takeover scenario: A hangs, kill it, B takes over."""
+    results: list[WorkerResult] = []
+    py_name = names[0]
+    py_root = worker_roots[0]
+    rs_name = names[1]
+    rs_root = worker_roots[1]
+
+    barrier_a = barrier_directory / "barrier-a"
+    barrier_a.mkdir()
+    worker_a = _start_worker(
+        py_name,
+        py_root,
+        remote,
+        image,
+        "python",
+        inputs,
+        env,
+        barrier_a,
+        fake_agent=fake_agent,
+        fake_agent_mode="hang",
+    )
+    _release_worker_barrier([py_name], [worker_a], barrier_a, timeout)
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        state_sha = _git(
+            remote,
+            "rev-parse",
+            "--verify",
+            f"refs/heads/{STATE_BRANCH}",
+            check=False,
+            bare=True,
+        )
+        if state_sha:
+            try:
+                state_issue = _read_router_state_issue(remote, py_root, task_id)
+                if state_issue.get("status") == "in_progress":
+                    break
+            except HarnessError:
+                pass
+        time.sleep(1)
+    else:
+        _run(["docker", "kill", py_name], check=False)
+        worker_a.kill()
+        raise HarnessError("worker A did not claim the package before timeout")
+
+    _run(["docker", "kill", py_name], check=False)
+    try:
+        worker_a.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        worker_a.kill()
+        worker_a.communicate()
+    local_issue_a = _read_issue(py_root, task_id)
+    assert_interrupted_worker(
+        WorkerResult(
+            "python", py_root, ProcessResult(worker_a.returncode or 0, "", "")
+        ),
+        local_issue_a,
+    )
+
+    time.sleep(EXPIRY_WAIT_SECONDS)
+
+    barrier_b = barrier_directory / "barrier-takeover"
+    barrier_b.mkdir()
+    worker_b = _start_worker(
+        rs_name,
+        rs_root,
+        remote,
+        image,
+        "rust",
+        inputs,
+        env,
+        barrier_b,
+        fake_agent=fake_agent,
+        fake_agent_mode="complete",
+    )
+    _release_worker_barrier([rs_name], [worker_b], barrier_b, timeout)
+
+    try:
+        stdout, stderr = worker_b.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        _run(["docker", "rm", "--force", rs_name], check=False)
+        worker_b.kill()
+        worker_b.communicate()
+        raise HarnessError(f"container worker {rs_name} timed out") from error
+    redacted_stdout = redact(stdout, inputs.docker_environment())
+    redacted_stderr = redact(stderr, inputs.docker_environment())
+    result_b = WorkerResult(
+        "rust",
+        rs_root,
+        ProcessResult(worker_b.returncode or 0, redacted_stdout, redacted_stderr),
+    )
+    results.append(result_b)
+
+    state_issue_b = _read_router_state_issue(remote, rs_root, task_id)
+    assert_takeover(result_b, state_issue_b, marker)
+    print("takeover succeeded after lease expiry")
+    return results
+
+
 def run_harness(
     *,
     repo_root: Path,
@@ -650,6 +965,8 @@ def run_harness(
     timeout: float,
     image: str,
     kbs_command: str | None = None,
+    fake_agent: bool = False,
+    scenario: str = "hard-race",
 ) -> Path | None:
     """Race two router runtimes in containers against a real board test issue.
 
@@ -660,10 +977,22 @@ def run_harness(
     :param timeout: Maximum duration for each container worker.
     :param image: Docker image tag to build/use.
     :param kbs_command: Optional host Kanbus CLI command prefix.
+    :param fake_agent: Whether to use a deterministic fake Codex worker.
+    :param scenario: Test scenario: "hard-race", "soft-duplicate", or "expiry-takeover".
     :return: Retained workspace when ``keep`` is true, otherwise ``None``.
     :raises HarnessError: If preflight, execution, verification, or cleanup fails.
     """
-    inputs = validate_live_inputs(os.environ, live=live, publish_board=publish_board)
+    if scenario not in VALID_SCENARIOS:
+        raise HarnessError(
+            f"invalid scenario {scenario!r}; must be one of {sorted(VALID_SCENARIOS)}"
+        )
+    if scenario != "hard-race" and not fake_agent:
+        raise HarnessError(
+            f"scenario {scenario!r} requires --fake-agent for deterministic timing"
+        )
+    inputs = validate_live_inputs(
+        os.environ, live=live, publish_board=publish_board, fake_agent=fake_agent
+    )
     repo_root = repo_root.resolve()
     if timeout <= 0:
         raise HarnessError("timeout must be positive")
@@ -759,65 +1088,79 @@ def run_harness(
             _git(
                 worker_root, "remote", "set-url", "origin", "file:///kanbus-shared.git"
             )
-            _configure_worker_for_test(worker_root, agent_class)
-
-        workers = [
-            _start_worker(
-                names[0],
-                worker_roots[0],
-                remote,
-                image,
-                "python",
-                inputs,
-                safe_env,
-                barrier_directory,
-            ),
-            _start_worker(
-                names[1],
-                worker_roots[1],
-                remote,
-                image,
-                "rust",
-                inputs,
-                safe_env,
-                barrier_directory,
-            ),
-        ]
-        _release_worker_barrier(names, workers, barrier_directory, timeout)
-        results: list[WorkerResult] = []
-        for index, (name, process, worker_root) in enumerate(
-            zip(names, workers, worker_roots, strict=True)
-        ):
-            try:
-                stdout, stderr = process.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired as error:
-                _run(["docker", "rm", "--force", name], check=False)
-                process.kill()
-                process.communicate()
-                raise HarnessError(f"container worker {name} timed out") from error
-            redacted_stdout = redact(stdout, inputs.docker_environment())
-            redacted_stderr = redact(stderr, inputs.docker_environment())
-            results.append(
-                WorkerResult(
-                    "python" if index == 0 else "rust",
-                    worker_root,
-                    ProcessResult(
-                        process.returncode or 0, redacted_stdout, redacted_stderr
-                    ),
-                )
+            soft_coord = scenario == "soft-duplicate"
+            lease_ttl = EXPIRY_TTL if scenario == "expiry-takeover" else None
+            _configure_worker_for_test(
+                worker_root,
+                agent_class,
+                fake_agent=fake_agent,
+                soft_coordination=soft_coord,
+                lease_ttl=lease_ttl,
             )
-        winner = assert_single_router_start(results)
-        state_ref = f"refs/heads/{STATE_BRANCH}"
-        state_sha = _git(
-            remote, "rev-parse", "--verify", state_ref, check=False, bare=True
-        )
-        if not state_sha:
-            raise HarnessError("workers did not publish shared router state")
-        winning_issue = _read_router_state_issue(remote, winner.issue_root, task_id)
-        assert_task_result(winning_issue, marker)
-        for worker in results:
-            if worker is not winner:
-                assert_loser_untouched(_read_issue(worker.issue_root, task_id), marker)
+            _git(
+                worker_root,
+                "-c",
+                "user.name=Router Harness",
+                "-c",
+                "user.email=router-harness@example.invalid",
+                "commit",
+                "--all",
+                "--message",
+                "harness: configure isolated test router",
+            )
+
+        if scenario == "expiry-takeover":
+            results = _run_expiry_takeover_scenario(
+                names,
+                worker_roots,
+                remote,
+                image,
+                inputs,
+                safe_env,
+                barrier_directory,
+                fake_agent,
+                timeout,
+                task_id,
+                marker,
+            )
+        else:
+            results = _run_hard_or_soft_race_scenario(
+                names,
+                worker_roots,
+                remote,
+                image,
+                inputs,
+                safe_env,
+                barrier_directory,
+                fake_agent,
+                timeout,
+            )
+
+        if scenario == "soft-duplicate":
+            total_starts = assert_soft_duplicate_permitted(results)
+            starter = next(w for w in results if STARTED_RE.findall(w.result.stdout))
+            winning_issue = _read_router_state_issue(
+                remote, starter.issue_root, task_id
+            )
+            assert_task_result(winning_issue, marker)
+            print(f"soft-duplicate observed: {total_starts} worker(s) started")
+        elif scenario == "expiry-takeover":
+            winning_issue = _read_router_state_issue(remote, worker_roots[1], task_id)
+        else:
+            winner = assert_single_router_start(results)
+            state_ref = f"refs/heads/{STATE_BRANCH}"
+            state_sha = _git(
+                remote, "rev-parse", "--verify", state_ref, check=False, bare=True
+            )
+            if not state_sha:
+                raise HarnessError("workers did not publish shared router state")
+            winning_issue = _read_router_state_issue(remote, winner.issue_root, task_id)
+            assert_task_result(winning_issue, marker)
+            for worker in results:
+                if worker is not winner:
+                    assert_loser_untouched(
+                        _read_issue(worker.issue_root, task_id), marker
+                    )
 
         # Copy only the router-mutated test issue into the board checkout. The
         # router-state ref remains in the disposable mirror; this commit
@@ -889,6 +1232,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--keep", action="store_true", help="retain fixture checkout/logs"
     )
+    parser.add_argument(
+        "--fake-agent",
+        action="store_true",
+        help="run deterministic fake Codex workers; no model API key required",
+    )
+    parser.add_argument(
+        "--scenario",
+        choices=sorted(VALID_SCENARIOS),
+        default="hard-race",
+        help="test scenario (default: hard-race)",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=300.0)
     parser.add_argument("--image", default=TEST_IMAGE)
     parser.add_argument("--kbs-command", help="host Kanbus CLI command prefix")
@@ -905,6 +1259,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             timeout=args.timeout_seconds,
             image=args.image,
             kbs_command=args.kbs_command,
+            fake_agent=args.fake_agent,
+            scenario=args.scenario,
         )
     except HarnessError as error:
         print(
