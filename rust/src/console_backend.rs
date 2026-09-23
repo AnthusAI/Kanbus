@@ -358,7 +358,20 @@ mod tests {
     use super::*;
     use crate::right_now::{active_right_now_tree, DEFAULT_RIGHT_NOW_STATUS};
     use chrono::{TimeZone, Utc};
+    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
+
+    /// Serializes tests that mutate the process-global `KANBUS_TEST_AI_MOCK`
+    /// env var. Cargo runs `#[test]` functions on multiple threads by
+    /// default, and this var is process-wide, so unguarded concurrent
+    /// set/restore races and can leak "unset" into a sibling test mid-run.
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     fn issue(identifier: &str) -> IssueData {
         let timestamp = Utc.with_ymd_and_hms(2026, 3, 6, 0, 0, 0).unwrap();
@@ -605,6 +618,7 @@ mod tests {
 
     #[test]
     fn file_store_backfills_active_issue_ancestors() {
+        let _guard = env_guard();
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
         let temp_dir = TempDir::new().expect("tempdir");
@@ -664,6 +678,7 @@ mod tests {
 
     #[test]
     fn file_store_backfills_visible_cards_in_virtual_projects() {
+        let _guard = env_guard();
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
         let temp_dir = TempDir::new().expect("tempdir");
@@ -717,6 +732,7 @@ mod tests {
 
     #[test]
     fn file_store_backfills_expandable_active_tree_by_default() {
+        let _guard = env_guard();
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
         let temp_dir = TempDir::new().expect("tempdir");
