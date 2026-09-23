@@ -57,6 +57,7 @@ gherkin = "0.15"
 regex = "1.10.4"
 rumqttc = "0.24"
 base64 = "0.22"
+rpassword = "7"
 
 [dev-dependencies]
 serial_test = "3"

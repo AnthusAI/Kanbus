@@ -53,6 +53,7 @@ pub mod right_now_cli_steps;
 pub mod right_now_steps;
 pub mod router_contract_steps;
 pub mod router_steps;
+pub mod setup_ai_steps;
 pub mod standup_panel_steps;
 pub mod standup_steps;
 pub mod standup_window_steps;

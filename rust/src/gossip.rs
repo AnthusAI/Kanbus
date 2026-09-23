@@ -1723,7 +1723,105 @@ mod tests {
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         static ENV_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
-        ENV_LOCK.lock().expect("env lock")
+        // Recover from poisoning instead of propagating the panic: a single
+        // flaky/timing-sensitive test panicking while holding this lock must
+        // not cascade into every other test that locks it afterward. The
+        // guarded state (saved/restored env vars) is still consistent even
+        // after a panic, since each holder restores what it changed via its
+        // own RAII guard before the MutexGuard is dropped.
+        ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Env var prefixes/exact keys stripped by `IsolatedHomeGuard` in
+    /// addition to redirecting HOME, mirroring
+    /// `tests/cucumber.rs::isolate_process_environment_for_cucumber_suite`.
+    ///
+    /// Redirecting HOME alone is not enough: `config_loader::load_dotenv`
+    /// sets these vars into the *process* environment via `env::set_var` the
+    /// first time any test anywhere in this ~500-test binary loads a real
+    /// `~/.kanbus.env` (before HOME is redirected), and nothing ever clears
+    /// them afterward. Once set, `apply_environment_overrides` keeps reading
+    /// that stale value regardless of HOME, so a later test's own HOME
+    /// isolation cannot undo an earlier test's leak. Stripping the vars
+    /// explicitly, every time, closes that gap.
+    const ISOLATED_ENV_PREFIXES: [&str; 3] =
+        ["KANBUS_REALTIME_", "KANBUS_COORDINATION_", "LITELLM_"];
+    const ISOLATED_ENV_EXACT_KEYS: [&str; 1] = ["OPENAI_API_KEY"];
+
+    /// RAII guard that redirects `HOME` to an isolated temp dir for the
+    /// duration of a test and restores the prior value on drop (including
+    /// on panic), so a developer's real `~/.kanbus.env` never leaks into
+    /// hermetic broker tests.
+    struct IsolatedHomeGuard {
+        prior_home: Option<String>,
+        prior_stripped: Vec<(String, Option<String>)>,
+        _home_dir: TempDir,
+    }
+
+    impl IsolatedHomeGuard {
+        fn new() -> Self {
+            let home_dir = TempDir::new().expect("isolated home dir");
+            let prior_home = std::env::var("HOME").ok();
+            std::env::set_var("HOME", home_dir.path());
+
+            let keys_to_strip: Vec<String> = std::env::vars()
+                .map(|(key, _)| key)
+                .filter(|key| {
+                    ISOLATED_ENV_EXACT_KEYS.contains(&key.as_str())
+                        || ISOLATED_ENV_PREFIXES
+                            .iter()
+                            .any(|prefix| key.starts_with(prefix))
+                })
+                .collect();
+            let mut prior_stripped = Vec::with_capacity(keys_to_strip.len());
+            for key in keys_to_strip {
+                prior_stripped.push((key.clone(), std::env::var(&key).ok()));
+                std::env::remove_var(&key);
+            }
+
+            Self {
+                prior_home,
+                prior_stripped,
+                _home_dir: home_dir,
+            }
+        }
+
+        /// Force `KANBUS_REALTIME_BROKER` / `KANBUS_REALTIME_TRANSPORT` to
+        /// the given values in the process environment, in addition to what
+        /// [`Self::new`] already did.
+        ///
+        /// `new()` alone closes the leak for *this* test's own config loads
+        /// (nothing else in its call path re-reads a real `~/.kanbus.env`,
+        /// since HOME now points at an empty temp dir). It does not stop a
+        /// *different*, concurrently-running test thread elsewhere in this
+        /// ~500-test binary — one that never touches HOME — from loading a
+        /// real project config, calling `config_loader::load_dotenv`, and
+        /// setting `KANBUS_REALTIME_BROKER` back into the process mid-test.
+        /// Setting the value here (rather than merely clearing it) closes
+        /// that residual race too: `load_dotenv` only sets a key that isn't
+        /// already set, so once we've set it ourselves, no unrelated test's
+        /// dotenv load can overwrite it.
+        fn force_realtime_broker(&self, broker: &str, transport: &str) {
+            std::env::set_var("KANBUS_REALTIME_BROKER", broker);
+            std::env::set_var("KANBUS_REALTIME_TRANSPORT", transport);
+        }
+    }
+
+    impl Drop for IsolatedHomeGuard {
+        fn drop(&mut self) {
+            match self.prior_home.take() {
+                Some(value) => std::env::set_var("HOME", value),
+                None => std::env::remove_var("HOME"),
+            }
+            for (key, value) in self.prior_stripped.drain(..) {
+                match value {
+                    Some(value) => std::env::set_var(&key, value),
+                    None => std::env::remove_var(&key),
+                }
+            }
+        }
     }
 
     fn accept_mock_connection_with_deadline(
@@ -2078,6 +2176,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn uds_socket_path_prefers_env_runtime_dir() {
         let _guard = env_lock();
         let prior_runtime = std::env::var("XDG_RUNTIME_DIR").ok();
@@ -2092,6 +2191,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn resolve_broker_endpoint_auto_defaults_when_no_metadata() {
         let _guard = env_lock();
         let tmp = TempDir::new().expect("temp dir");
@@ -2115,6 +2215,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn resolve_broker_endpoint_auto_prefers_metadata_endpoint() {
         let _guard = env_lock();
         let tmp = TempDir::new().expect("temp dir");
@@ -2260,9 +2361,22 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay() {
         use std::io::{Read, Write};
         use std::net::TcpListener;
+
+        // This test speaks a hand-rolled MQTT protocol against its own mock
+        // broker on an ephemeral loopback port. If the developer's real
+        // ~/.kanbus.env sets KANBUS_REALTIME_BROKER (e.g. to a live
+        // Mosquitto on 127.0.0.1:1883), config_loader::load_repository_environment
+        // would load it into the process env and
+        // config_loader::apply_environment_overrides would let it override
+        // this test's .kanbus.yml broker setting, pointing the client at the
+        // real broker instead of the mock one. Redirect HOME to an empty
+        // temp dir so no real congregation file is ever read.
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
 
         fn read_packet_after_header(stream: &mut std::net::TcpStream, header: u8) -> (u8, Vec<u8>) {
             let mut multiplier = 1_usize;
@@ -2317,6 +2431,7 @@ mod tests {
             .set_nonblocking(true)
             .expect("make mock broker accept nonblocking");
         let port = listener.local_addr().expect("broker address").port();
+        _home_guard.force_realtime_broker(&format!("mqtt://127.0.0.1:{port}"), "mqtt");
         write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (published_tx, published_rx) = mpsc::channel();
         let broker = thread::spawn(move || {
@@ -2464,9 +2579,16 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn denied_coordination_mqtt_subscription_falls_back_without_publishing() {
         use std::io::{Read, Write};
         use std::sync::atomic::{AtomicBool, Ordering};
+
+        // See the comment in bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay:
+        // isolate HOME so a real ~/.kanbus.env cannot redirect this test's
+        // client at a live broker instead of its own mock one.
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
 
         fn read_packet(stream: &mut std::net::TcpStream) -> (u8, Vec<u8>) {
             let mut header = [0_u8; 1];
@@ -2494,6 +2616,7 @@ mod tests {
             .set_nonblocking(true)
             .expect("make denied-subscription accept nonblocking");
         let port = listener.local_addr().expect("broker address").port();
+        _home_guard.force_realtime_broker(&format!("mqtt://127.0.0.1:{port}"), "mqtt");
         write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (broker_finished_tx, broker_finished_rx) = mpsc::channel();
         let broker = thread::spawn(move || {
@@ -2645,6 +2768,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn broker_metadata_round_trip_and_invalid_payload_handling() {
         let _guard = env_lock();
         let tmp = TempDir::new().expect("temp dir");
@@ -2806,7 +2930,14 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn run_gossip_consumer_rejects_unknown_project_label() {
+        // Isolate HOME so a real ~/.kanbus.env cannot override this test's
+        // `broker: off` config with a live broker address (see
+        // IsolatedHomeGuard's doc comment for the full explanation).
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
+        _home_guard.force_realtime_broker("off", "mqtt");
         let temp = TempDir::new().expect("temp dir");
         write_test_config(temp.path(), "off", "mqtt");
         let result = run_gossip_consumer(
@@ -2831,7 +2962,13 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn run_gossip_consumer_broker_off_respects_error_policy() {
+        // See run_gossip_consumer_rejects_unknown_project_label: isolate HOME
+        // so the real ~/.kanbus.env cannot override `broker: off`.
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
+        _home_guard.force_realtime_broker("off", "mqtt");
         let temp = TempDir::new().expect("temp dir");
         write_test_config(temp.path(), "off", "mqtt");
 
@@ -2873,7 +3010,13 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn publish_issue_mutation_early_returns_when_broker_off() {
+        // See run_gossip_consumer_rejects_unknown_project_label: isolate HOME
+        // so the real ~/.kanbus.env cannot override `broker: off`.
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
+        _home_guard.force_realtime_broker("off", "mqtt");
         let temp = TempDir::new().expect("temp dir");
         write_test_config(temp.path(), "off", "mqtt");
         let issue = IssueData {
@@ -2908,7 +3051,13 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn publish_issue_deleted_early_returns_when_broker_off() {
+        // See run_gossip_consumer_rejects_unknown_project_label: isolate HOME
+        // so the real ~/.kanbus.env cannot override `broker: off`.
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
+        _home_guard.force_realtime_broker("off", "mqtt");
         let temp = TempDir::new().expect("temp dir");
         write_test_config(temp.path(), "off", "mqtt");
         // Should return early and not panic or error.
@@ -2921,7 +3070,13 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn run_gossip_watch_returns_error_when_broker_off_and_no_override() {
+        // See run_gossip_consumer_rejects_unknown_project_label: isolate HOME
+        // so the real ~/.kanbus.env cannot override `broker: off`.
+        let _guard = env_lock();
+        let _home_guard = IsolatedHomeGuard::new();
+        _home_guard.force_realtime_broker("off", "mqtt");
         let temp = TempDir::new().expect("temp dir");
         write_test_config(temp.path(), "off", "mqtt");
         let result = run_gossip_watch(temp.path(), None, None, None, None, None, false);
@@ -2933,6 +3088,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn maybe_warn_mosquitto_missing_prints_once_per_session() {
         let _guard = env_lock();
         reset_mosquitto_missing_warning();
@@ -2942,6 +3098,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn maybe_warn_mosquitto_missing_respects_disable_env() {
         let _guard = env_lock();
         reset_mosquitto_missing_warning();
