@@ -1,0 +1,25 @@
+{
+  "id": "kbs-0fb358ae-d1bf-4ac8-a3e2-447840432f99",
+  "title": "Fix nested Tokio runtime in MQTT publish and isolate test HOME from user kanbus.env",
+  "description": "Rust cucumber scenario 'Contention window closes into LEASE for the deterministic winner' (features/coordination/mqtt_soft_mutex.feature) panics with 'Cannot start a runtime from within a runtime' when a live MQTT broker is reachable. Root cause: gossip::publish_mqtt builds a Tokio runtime and block_on on the caller thread; the step calls publish_coordination_lease_if_ready from the cucumber async executor. CI is green because no broker is reachable there, so publish short-circuits before the runtime. Both Rust and Python harnesses also load the developer's ~/.kanbus.env (KANBUS_REALTIME_BROKER/TRANSPORT), making the suites non-hermetic. Fix: run publish_mqtt on a dedicated thread; isolate HOME in both harnesses.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-23T15:43:52.905091Z",
+  "updated_at": "2026-09-23T21:29:23.324890Z",
+  "closed_at": "2026-09-23T21:29:23.075093Z",
+  "agent": {
+    "platform": "claude_code",
+    "model": "Claude Opus 5.5",
+    "name": "Claude Code"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
