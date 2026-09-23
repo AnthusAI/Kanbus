@@ -2430,6 +2430,13 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
     candidates.sort_by(|left, right| {
         left.priority
             .cmp(&right.priority)
+            .then_with(|| {
+                if left.priority == 2 && right.priority == 2 {
+                    left.issue.priority.cmp(&right.issue.priority)
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
             .then_with(|| left.pending_since.cmp(&right.pending_since))
             .then_with(|| left.issue.created_at.cmp(&right.issue.created_at))
             .then_with(|| left.issue.identifier.cmp(&right.issue.identifier))
