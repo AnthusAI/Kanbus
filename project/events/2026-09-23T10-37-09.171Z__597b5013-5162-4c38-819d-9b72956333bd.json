@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "event_id": "597b5013-5162-4c38-819d-9b72956333bd",
+  "issue_id": "router:kbs-f954adf7-c812-4187-bd88-440aea4966d4",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-23T10:37:09.171Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Excluded initiative and epic hierarchy cards from router dispatch and WIP capacity in Python and Rust. Added parity scenarios and Python regression coverage for invalid routes and active routable leaf capacity.",
+    "claim_id": "c406b53b-82b7-41ab-98a8-a1a724dd9b28",
+    "revision": 1,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-f954adf7-c812-4187-bd88-440aea4966d4",
+    "checkpoint_revision": 1,
+    "artifacts": [
+      {
+        "name": "issue_router.py",
+        "ref": "python/src/kanbus/issue_router.py"
+      },
+      {
+        "name": "router.rs",
+        "ref": "rust/src/router.rs"
+      },
+      {
+        "name": "router_routing_and_planning.feature",
+        "ref": "features/router/router_routing_and_planning.feature"
+      },
+      {
+        "name": "test_issue_router_planning.py",
+        "ref": "python/tests/test_issue_router_planning.py"
+      }
+    ],
+    "issue_updates": []
+  }
+}
