@@ -3,7 +3,7 @@
   "title": "Validate multi-router coordination across isolated workers",
   "description": "Build repeatable multi-machine validation for the Issue Router coordination substrate. The harness uses separate worker checkouts and disposable Kanbus task fixtures, forces broker-only messaging (no shared UDS), and verifies Git-only soft behavior, MQTT soft visibility, and Mutex API hard exclusivity without changing real board tasks.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -24,11 +24,18 @@
       "text": "The single-worker production dispatch milestone is complete. Starting the next stage: validate coordination across isolated router workers, with hard-lease contention as the first live integration case.",
       "created_at": "2026-09-18T10:57:29.309399Z",
       "comment_type": "default"
+    },
+    {
+      "id": "e8984eee-ad12-4b0b-a816-c0b1adb42402",
+      "author": "home",
+      "text": "Complete: multi-router coordination validated across isolated Python and Rust workers for Git soft, and Mutex API hard exclusivity, including expiry takeover. Verified live on 2026-09-23 with tools/issue_router_container_integration_harness.py (Docker workers on independent checkouts, no shared UDS, the production Mutex API and MQTT broker, a deterministic fake Codex agent so no model key is needed; disposable test tasks under the fixed epic kbs-d3973c07). hard-race: exactly one of the Python and Rust workers started the task, the other got the documented 'package already claimed' response and made no transition, and the winner's task reached Review with the router comment (test issue kbs-ed894564). soft-duplicate (Mutex disabled, git coordination): passed, one worker started (kbs-5e94f099). expiry-takeover: the lease holder was killed, its 30s lease expired, and a second worker took over and completed the task (kbs-6c66c6a6). PRs: #354 fake-agent mode, #355 scenarios, #357 config and coordination fixes, #358, #362 loser/full-id/start-event/TTL fixes, #356 Rust forge-less run parity. Live findings filed: kbs-f7c9a9 (router event rescan cost), kbs-7d2e34 (long-lived Mutex tokens). Successful test tasks are left in Review and failed ones preserved for inspection.",
+      "created_at": "2026-09-23T21:20:46.747286Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-17T00:55:03.709726Z",
-  "updated_at": "2026-09-18T10:57:29.309440Z",
-  "closed_at": null,
+  "updated_at": "2026-09-23T21:20:47.147215Z",
+  "closed_at": "2026-09-23T21:20:46.983326Z",
   "right_now_summary": "Testing two isolated router workers with disposable tasks and captured logs for hard-lease contention.",
   "right_now_updated_at": "2026-09-18T10:57:53.534654Z",
   "custom": {
