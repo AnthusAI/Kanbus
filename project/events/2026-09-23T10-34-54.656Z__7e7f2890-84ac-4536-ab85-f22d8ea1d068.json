@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "7e7f2890-84ac-4536-ab85-f22d8ea1d068",
+  "issue_id": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:router.rs",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-23T10:34:54.656Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:router.rs",
+    "revision": 1,
+    "artifact": "rust/src/router.rs"
+  }
+}
