@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "973eb422-1858-43c7-ac80-499f6593fe8a",
+  "issue_id": "router:kbs-80e79aca-84a5-44e6-91d4-80669a4f5045",
+  "event_type": "router.result",
+  "occurred_at": "2026-09-23T14:53:20.527Z",
+  "actor_id": "home",
+  "payload": {
+    "outcome": "completed",
+    "summary": "Completed validated console issue-write controls, Rust/Node mutation APIs, localhost protection, router requeue handling, and parity coverage. Formatting and Python syntax checks pass; Rust tests are blocked by the environment's Cargo/Rust toolchain mismatch.",
+    "claim_id": "101ed6cf-3013-4f8b-a418-d99a6af91e86",
+    "revision": 2,
+    "checkpoint_ref": "refs/kanbus/router/checkpoints/kbs-80e79aca-84a5-44e6-91d4-80669a4f5045",
+    "checkpoint_revision": 2,
+    "artifacts": [],
+    "issue_updates": [
+      {
+        "issue_id": "kbs-80e79aca-84a5-44e6-91d4-80669a4f5045",
+        "status": "review"
+      }
+    ]
+  }
+}
