@@ -3,7 +3,7 @@
   "title": "Define resolved agent-assignment configuration and API contract",
   "description": "Create the canonical, redacted read model for a routing assignment. It must distinguish requested agent-class / agent-provider from effective provider configuration, including provider/product, model, effort, service tier/flex mode, and non-secret arguments. Support user-level defaults with project overrides and deterministic Python/Rust resolution. Expose this through the console snapshot/detail API without leaking tokens or arbitrary command arguments. Add validation and parity tests.",
   "type": "story",
-  "status": "blocked",
+  "status": "backlog",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -19,10 +19,17 @@
       "text": "Router attempt 1 returned retryable_failure: no canonical agent-assignment resolver exists yet in either runtime, and there is no defined user-level configuration location/merge contract for the 'user-level defaults with project overrides' requirement. Moving to Blocked pending a scoping decision rather than re-consuming router attempts on the same gap; unblock once scope is narrowed (e.g. project-level config only for a first pass, or the user-level config location is specified).",
       "created_at": "2026-09-23T10:24:40.764931Z",
       "comment_type": "default"
+    },
+    {
+      "id": "6609b3b5-4db8-46fe-baff-8695e89e696b",
+      "author": "home",
+      "text": "Moving to Backlog instead of leaving in Blocked: confirmed live that Blocked still consumes router.limits.class_wip capacity even with no active claim, starving daf353 and f954ad behind it — a direct, reproducible instance of the exact bug kbs-f954ad describes. Will pull back to Ready once scope is narrowed.",
+      "created_at": "2026-09-23T10:25:15.568554Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T14:32:03.653305Z",
-  "updated_at": "2026-09-23T10:24:41.048719Z",
+  "updated_at": "2026-09-23T10:25:15.706766Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
