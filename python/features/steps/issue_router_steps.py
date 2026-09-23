@@ -150,6 +150,7 @@ def _write_issue(
     issue_type: str = "task",
     created_at: str = "2026-09-16T10:00:00Z",
     title: str | None = None,
+    priority: int = 2,
 ) -> None:
     project_dir = load_project_directory(context)
     issue = build_issue(
@@ -164,6 +165,7 @@ def _write_issue(
             "assignee": assignee,
             "created_at": datetime.fromisoformat(created_at.replace("Z", "+00:00")),
             "updated_at": datetime.fromisoformat(created_at.replace("Z", "+00:00")),
+            "priority": priority,
         }
     )
     write_issue_file(project_dir, issue)
@@ -1141,6 +1143,7 @@ def given_router_candidates_table(context: object) -> None:
             status=status,
             labels=["agent-provider:codex-default"],
             created_at=row["created_at"].strip(),
+            priority=int(row.get("priority", "2")),
         )
         _seed_status_event(context, issue_id, "open", pending_since)
         if state == "requested_changes":
