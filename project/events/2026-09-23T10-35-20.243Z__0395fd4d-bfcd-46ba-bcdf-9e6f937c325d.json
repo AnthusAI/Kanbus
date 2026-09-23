@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "0395fd4d-bfcd-46ba-bcdf-9e6f937c325d",
+  "issue_id": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:test_issue_router_planning.py",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-23T10:35:20.243Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:test_issue_router_planning.py",
+    "revision": 1,
+    "artifact": "python/tests/test_issue_router_planning.py"
+  }
+}
