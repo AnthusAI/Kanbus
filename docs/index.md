@@ -6,6 +6,7 @@ Welcome to the Kanbus documentation site. Kanbus is a git-backed project managem
 
 - [Getting Started](GETTING_STARTED.md)
 - [CLI Reference](CLI_REFERENCE.md)
+- [Agent Provenance](AGENT_PROVENANCE.md)
 - [Issue Router Operator Guide](ISSUE_ROUTER_OPERATOR_GUIDE.md)
 - [Issue Router Design](ISSUE_ROUTER_DESIGN.md)
 - [Configuration](CONFIGURATION.md)

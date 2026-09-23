@@ -91,91 +91,21 @@ NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is 
 
 ## Agent provenance metadata
 
-When you act as an AI coding agent (Cursor, Claude Code, Codex, Antigravity, or similar), you MUST record agent provenance on every `kbs create` and `kbs comment`. Provenance goes beyond `author: agent` or `KANBUS_USER=agent`: it identifies which platform and model produced the change so multi-agent workflows stay auditable.
+Tag `create` and `comment` with Title Case product, model, and session name using `--agent-platform`, `--agent-model`, and `--agent-name` (or `KANBUS_AGENT_PLATFORM`, `KANBUS_AGENT_MODEL`, `KANBUS_AGENT_NAME`, and optional `KANBUS_AGENT_SETTINGS`). Complete provenance is platform + model + name; settings stay optional.
 
-Recording provenance is part of **Recorded** under The Discipline of Work. It is not optional polish for AI agents.
+If tags are omitted on `create` or `comment`, the write still succeeds and stderr warns with a ready `kbs update` or `kbs comment update` command. Copy that command to fill the same issue or comment. `--no-agent-provenance` silences the warning when tagging does not apply.
 
-Purely human authors do not need agent metadata. Omit the `agent` field when a human creates issues or comments without an AI acting on their behalf.
+`update` and `comment update` fill missing provenance; once platform, model, and name are set, they are not replaced. `close` has no agent flags.
 
-Set session defaults once per run with environment variables; override with CLI flags when the model or tool changes mid-session. When metadata is absent, Kanbus omits the `agent` field entirely (not `null`) and does not show an Agent row in CLI output.
+**Preferred products** (examples, not an allowlist): Cursor, Codex, Claude Code, Antigravity, Grok Bot.
 
-### Environment variables
+**Model examples** (not exhaustive): Composer 2.5, GPT-5.6, Claude Sonnet 4, Grok 4.
 
-Set defaults once per session; CLI flags override environment values. Empty or whitespace-only environment values are treated as absent.
+Kanbus stores platform lowercased with spaces as underscores (for example `Claude Code` becomes `claude_code`); model is stored as you pass it.
 
-| Variable | Purpose |
-| --- | --- |
-| `KANBUS_AGENT_PLATFORM` | Default agent platform |
-| `KANBUS_AGENT_MODEL` | Default model identifier |
-| `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
-| `KANBUS_AGENT_NAME` | Optional session or bot name for display |
+In Beads compatibility mode, agent metadata is rejected with `agent metadata requires native Kanbus issue storage`.
 
-Platform and model must both be present or both absent. Partial metadata fails with `agent metadata requires both platform and model`.
-
-### CLI flags
-
-These flags are available on `create` and `comment` only:
-
-- `--agent-platform <id>`
-- `--agent-model <id>`
-- `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
-- `--agent-name <name>` — Optional session or bot display name
-
-`kanbus update` does not accept agent flags. Issue `agent` metadata is set at create only and cannot be changed afterward. Use `comment` with `--agent-*` for per-action provenance on comments.
-
-### Canonical platforms
-
-Prefer these platform identifiers:
-
-- `claude_code`
-- `codex`
-- `antigravity`
-- `cursor`
-
-Kanbus accepts any lowercase string matching `^[a-z0-9_-]{1,64}$`. The canonical list is for consistency and autocomplete; storage is not a closed enum.
-
-### Settings
-
-`--agent-settings` and `KANBUS_AGENT_SETTINGS` accept a JSON object. Recommended keys:
-
-- `temperature` — model temperature (for example `0.7`)
-- `thinking_level` — reasoning depth (for example `off`, `low`, `medium`, `high`)
-- `max_output_tokens` — positive integer output limit
-
-Other non-secret keys are accepted (for example `speed`, `reasoning_effort`). Kanbus does not enforce a closed allowlist of settings keys.
-
-**No secrets:** Never store API keys, tokens, passwords, or credentials in agent metadata. Keys whose names match `api_key`, `token`, `secret`, `password`, or `credential` (case-insensitive) are rejected with `agent settings must not contain secret-like keys`. Keep credentials in your agent host environment instead.
-
-The serialized `agent` block is limited to 2 KB.
-
-### Beads compatibility
-
-In Beads compatibility mode (`--beads` or `beads_compatibility: true` in `.kanbus.yml`), agent flags and environment defaults that would produce metadata are rejected:
-
-```
-agent metadata requires native Kanbus issue storage
-```
-
-Use native Kanbus issue storage when you need agent provenance.
-
-### Example workflow
-
-```bash
-export KANBUS_AGENT_PLATFORM=cursor
-export KANBUS_AGENT_MODEL=composer-2.5
-
-kbs create "Implement feature X" --type task --parent <epic-id>
-kbs comment <id> "Progress: schema drafted"
-```
-
-Override defaults for a single comment:
-
-```bash
-kbs comment <id> "Deep review done" \
-  --agent-platform codex \
-  --agent-model gpt-5 \
-  --agent-settings '{"thinking_level":"high"}'
-```
+Host identity snippets live in `docs/AGENT_PROVENANCE.md`. Do not put product or model names in `AGENTS.md`.
 
 ## The Order of Being
 

@@ -737,6 +737,7 @@ fn set_status(root: &Path, identifier: &str, status: &str) -> Result<(), KanbusE
         None,
         None,
         None,
+        None,
     )?;
     Ok(())
 }

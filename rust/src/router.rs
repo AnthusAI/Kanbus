@@ -1219,6 +1219,7 @@ fn apply_shared_issue_status(
             None,
             None,
             None,
+            None,
         )?;
     }
     Ok(())
