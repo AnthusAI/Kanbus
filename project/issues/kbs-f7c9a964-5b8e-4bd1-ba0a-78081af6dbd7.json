@@ -3,7 +3,7 @@
   "title": "Router candidate collection rescans every coordination event file per candidate",
   "description": "Found during live container harness runs. python/src/kanbus/issue_router.py _collect_candidates calls _has_live_package_claim -> coordination.inspect_lease -> _load_coordination_events for each candidate, and each call globs and JSON-parses every file in project/events (544 files on the develop board). On a slow filesystem (a Docker Desktop bind mount) one scan took 1.5-3s and a single router plan needed many minutes, so a router run exceeded a 600s timeout without ever launching an agent. Even on a native disk this is O(candidates x events) and gets worse as the board grows. Load and index the coordination events once per plan (or per resource on demand with a cache) and confirm the Rust runtime does not have the same per-candidate rescan. Spec first: add a Gherkin scenario asserting the plan reads each event file at most once. Both runtimes must keep identical behavior.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -14,11 +14,9 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-23T17:03:04.801298Z",
-  "updated_at": "2026-09-23T21:39:52.418465Z",
+  "updated_at": "2026-09-23T21:39:10.328175Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {
-    "source": "shared"
-  }
+  "custom": {}
 }
