@@ -128,7 +128,9 @@ fn resolve_litellm_endpoint_and_api_key() -> Result<(String, String), KanbusErro
                         .to_string(),
                 )
             })?;
-        return Ok((join_chat_completions_url(&base_url), api_key));
+        let endpoint = join_chat_completions_url(&base_url);
+        require_encrypted_transport(&endpoint)?;
+        return Ok((endpoint, api_key));
     }
 
     let api_key = read_non_empty_env("OPENAI_API_KEY").ok_or_else(|| {
@@ -138,8 +140,43 @@ fn resolve_litellm_endpoint_and_api_key() -> Result<(String, String), KanbusErro
     let endpoint = read_non_empty_env("OPENAI_API_BASE")
         .map(|base| join_chat_completions_url(&base))
         .unwrap_or_else(|| OPENAI_CHAT_COMPLETIONS_URL.to_string());
+    require_encrypted_transport(&endpoint)?;
 
     Ok((endpoint, api_key))
+}
+
+/// Refuse to send the API key over a plaintext connection.
+///
+/// `LITELLM_API_BASE` / `LITELLM_PROXY_URL` / `OPENAI_API_BASE` are
+/// operator-configurable, so a misconfigured value could otherwise carry the
+/// `Authorization: Bearer` header in cleartext. Loopback addresses are
+/// exempt: a local LiteLLM proxy on `http://127.0.0.1:...` or
+/// `http://localhost:...` never leaves the machine, which is a common,
+/// intentional local-development setup.
+///
+/// # Errors
+///
+/// Returns `KanbusError::IssueOperation` when the endpoint is neither
+/// `https://` nor a loopback `http://` address.
+fn require_encrypted_transport(endpoint: &str) -> Result<(), KanbusError> {
+    if endpoint.starts_with("https://") {
+        return Ok(());
+    }
+    if let Some(rest) = endpoint.strip_prefix("http://") {
+        let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+        let host = authority.rsplit('@').next().unwrap_or(authority);
+        let hostname = if let Some(bracketed) = host.strip_prefix('[') {
+            bracketed.split(']').next().unwrap_or("")
+        } else {
+            host.split(':').next().unwrap_or(host)
+        };
+        if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
+            return Ok(());
+        }
+    }
+    Err(KanbusError::IssueOperation(format!(
+        "litellm endpoint must use https (or a loopback http:// address for local development): {endpoint}"
+    )))
 }
 
 fn read_litellm_base_url() -> Option<String> {
@@ -203,6 +240,21 @@ mod tests {
             join_chat_completions_url("https://proxy.example.com/chat/completions"),
             "https://proxy.example.com/chat/completions"
         );
+    }
+
+    #[test]
+    fn require_encrypted_transport_allows_https_and_loopback_http() {
+        assert!(require_encrypted_transport("https://api.openai.com/v1/chat/completions").is_ok());
+        assert!(require_encrypted_transport("http://127.0.0.1:4000/chat/completions").is_ok());
+        assert!(require_encrypted_transport("http://localhost:4000/chat/completions").is_ok());
+        assert!(require_encrypted_transport("http://[::1]:4000/chat/completions").is_ok());
+    }
+
+    #[test]
+    fn require_encrypted_transport_rejects_plaintext_remote_endpoints() {
+        let error = require_encrypted_transport("http://proxy.example.com/chat/completions")
+            .expect_err("plaintext remote endpoint must be rejected");
+        assert!(error.to_string().contains("https"));
     }
 
     #[test]
