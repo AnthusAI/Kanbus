@@ -458,7 +458,7 @@ def test_worker_config_with_soft_coordination_sets_git_provider(tmp_path: Path) 
         tmp_path, "router-container-it-test", soft_coordination=True
     )
     loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
-    assert loaded["router"]["coordination"]["providers"] == ["git"]
+    assert loaded["coordination"]["providers"] == ["git"]
 
 
 def test_worker_config_with_lease_ttl_sets_coordination_ttl(tmp_path: Path) -> None:
@@ -474,7 +474,7 @@ def test_worker_config_with_lease_ttl_sets_coordination_ttl(tmp_path: Path) -> N
         tmp_path, "router-container-it-test", lease_ttl="5s"
     )
     loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
-    assert loaded["router"]["coordination"]["default_lease_ttl"] == "5s"
+    assert loaded["coordination"]["default_lease_ttl"] == "5s"
 
 
 def test_soft_duplicate_permitted_accepts_one_start() -> None:
@@ -624,3 +624,17 @@ def test_run_harness_expiry_takeover_requires_fake_agent() -> None:
             fake_agent=False,
             scenario="expiry-takeover",
         )
+
+
+def test_worker_config_defaults_to_hard_mutex_coordination(tmp_path: Path) -> None:
+    config = tmp_path / ".kanbus.yml"
+    config.write_text(
+        "project_directory: project\ncoordination:\n  providers: [git]\nrouter:\n"
+        "  providers:\n    codex-luna-flex:\n      args: [--model, gpt-5.6-luna]\n"
+        "  limits:\n    class_wip:\n      implementation: 1\n  classes:\n"
+        "    implementation:\n      providers: [codex-luna-flex]\n",
+        encoding="utf-8",
+    )
+    harness._configure_worker_for_test(tmp_path, "router-container-it-test")
+    loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert loaded["coordination"]["providers"] == ["mutex_api", "mqtt", "git"]
