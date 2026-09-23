@@ -81,6 +81,7 @@ async function main() {
     KANBUS_PYTHON: kanbusPython,
     KANBUS_PYTHON_ARGS: kanbusPythonArgs,
     KANBUS_PYTHONPATH: process.env.KANBUS_PYTHONPATH ?? pythonPath,
+    KANBUS_TEST_AI_MOCK: process.env.KANBUS_TEST_AI_MOCK ?? "1",
     KANBUS_TEST_WIKI_RATE_LIMIT_MAX:
       process.env.KANBUS_TEST_WIKI_RATE_LIMIT_MAX ?? "1000"
   };

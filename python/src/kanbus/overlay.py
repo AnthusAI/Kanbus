@@ -68,6 +68,28 @@ def write_overlay_issue(
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def replace_overlay_issue_if_present(project_dir: Path, issue: IssueData) -> None:
+    """Replace an existing overlay snapshot with the mutated issue.
+
+    Overlay timestamps and event identifiers stay unchanged so a newer overlay
+    remains the live store after a canonical write.
+
+    :param project_dir: Shared project directory.
+    :type project_dir: Path
+    :param issue: Mutated issue to store in the overlay snapshot.
+    :type issue: IssueData
+    """
+    overlay_record = load_overlay_issue(project_dir, issue.identifier)
+    if overlay_record is None:
+        return
+    write_overlay_issue(
+        project_dir,
+        issue,
+        overlay_record.overlay_ts,
+        overlay_record.overlay_event_id,
+    )
+
+
 def write_tombstone(
     project_dir: Path,
     tombstone: OverlayTombstone,

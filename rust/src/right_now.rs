@@ -252,19 +252,17 @@ pub fn load_child_issues(
     root: &Path,
     issue_identifier: &str,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    crate::issue_listing::list_issues(
-        root,
-        None,
-        None,
-        None,
-        None,
-        Some(issue_identifier),
-        None,
-        None,
-        &[],
-        true,
-        false,
-    )
+    // JIT summary backfill must use the same file-backed data that the
+    // console response renders. The general issue-listing path may query a
+    // daemon index, which can be stale or unavailable and previously caused
+    // visible descendant branches to be silently skipped.
+    let store = crate::console_backend::FileStore::new(root);
+    let configuration = store.load_config()?;
+    Ok(store
+        .load_issues(&configuration)?
+        .into_iter()
+        .filter(|issue| issue.parent.as_deref() == Some(issue_identifier))
+        .collect())
 }
 
 /// Assemble leaf-issue context from title, description, and recent comments.
@@ -328,7 +326,7 @@ pub fn generate_right_now_summary(
         return Ok(truncate_to_max_length(stub_completion.trim(), max_length));
     }
 
-    if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+    if cfg!(test) || std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
         let summary = mock_right_now_summary_text(&issue.identifier);
         record_llm_usage(
             root,
@@ -737,6 +735,101 @@ pub fn ensure_right_now_subtree(
     Ok(result)
 }
 
+/// Return roots and every issue in association trees for the given seeds.
+///
+/// Walks ancestors of each seed, then every descendant of those nodes, so a Now
+/// listing can backfill and render the complete tree regardless of status.
+///
+/// # Arguments
+///
+/// * `issues` - All issues in the project.
+/// * `seed_identifiers` - Issue identifiers that matched the Now filter.
+///
+/// # Returns
+///
+/// Sorted tree roots and the complete selected identifier set.
+pub fn association_trees_for_seeds(
+    issues: &[IssueData],
+    seed_identifiers: &HashSet<String>,
+) -> (Vec<String>, HashSet<String>) {
+    let parents: HashMap<&str, Option<&str>> = issues
+        .iter()
+        .map(|issue| (issue.identifier.as_str(), issue.parent.as_deref()))
+        .collect();
+    let mut selected_identifiers = HashSet::new();
+    let mut children_by_parent: HashMap<&str, Vec<&str>> = HashMap::new();
+    for issue in issues {
+        if let Some(parent) = issue.parent.as_deref() {
+            children_by_parent
+                .entry(parent)
+                .or_default()
+                .push(issue.identifier.as_str());
+        }
+    }
+
+    for seed in seed_identifiers {
+        if !parents.contains_key(seed.as_str()) {
+            continue;
+        }
+        let mut current = seed.as_str();
+        let mut visited = HashSet::new();
+        while visited.insert(current) {
+            selected_identifiers.insert(current.to_string());
+            match parents.get(current).and_then(|parent| *parent) {
+                Some(parent) if parents.contains_key(parent) => current = parent,
+                _ => break,
+            }
+        }
+    }
+
+    let mut pending: Vec<String> = selected_identifiers.iter().cloned().collect();
+    while let Some(identifier) = pending.pop() {
+        for child in children_by_parent
+            .get(identifier.as_str())
+            .into_iter()
+            .flatten()
+        {
+            if selected_identifiers.insert((*child).to_string()) {
+                pending.push((*child).to_string());
+            }
+        }
+    }
+
+    let mut roots: Vec<String> = selected_identifiers
+        .iter()
+        .filter(|identifier| {
+            !parents
+                .get(identifier.as_str())
+                .and_then(|parent| *parent)
+                .is_some_and(|parent| selected_identifiers.contains(parent))
+        })
+        .cloned()
+        .collect();
+    if roots.is_empty() && !selected_identifiers.is_empty() {
+        roots.extend(selected_identifiers.iter().cloned());
+    }
+    roots.sort();
+    (roots, selected_identifiers)
+}
+
+/// Return roots and every issue in trees containing in-progress work.
+///
+/// # Arguments
+///
+/// * `issues` - All issues in the project.
+///
+/// # Returns
+///
+/// Sorted tree roots and the complete selected identifier set.
+pub fn active_right_now_tree(issues: &[IssueData]) -> (Vec<String>, HashSet<String>) {
+    let seeds: HashSet<String> = issues
+        .iter()
+        .filter(|issue| issue.status == DEFAULT_RIGHT_NOW_STATUS)
+        .map(|issue| issue.identifier.clone())
+        .collect();
+    association_trees_for_seeds(issues, &seeds)
+}
+
 /// Backfill right-now summaries for the issues in the current Now view.
 ///
 /// Descendants that are not in `issue_identifiers` are not generated.
@@ -756,12 +849,29 @@ pub fn ensure_right_now_summaries(
     fail_closed: bool,
 ) -> Result<(), KanbusError> {
     let selected_identifiers: HashSet<String> = issue_identifiers.iter().cloned().collect();
+    ensure_right_now_summary_subtrees(root, issue_identifiers, &selected_identifiers, fail_closed)
+}
+
+/// Backfill selected right-now subtrees from their actual roots.
+///
+/// `root_identifiers` may be ancestors of the active issues. Every node that
+/// may be visited must also be included in `selected_identifiers`.
+///
+/// # Errors
+///
+/// Returns `KanbusError` when `fail_closed` is true and generation cannot run.
+pub fn ensure_right_now_summary_subtrees(
+    root: &Path,
+    root_identifiers: &[String],
+    selected_identifiers: &HashSet<String>,
+    fail_closed: bool,
+) -> Result<(), KanbusError> {
     let mut memo = HashMap::new();
-    for identifier in issue_identifiers {
+    for identifier in root_identifiers {
         ensure_right_now_subtree(
             root,
             identifier,
-            &selected_identifiers,
+            selected_identifiers,
             &mut memo,
             fail_closed,
         )?;

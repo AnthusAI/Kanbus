@@ -19,6 +19,7 @@ from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.queries import sort_issues_by_recently_updated
 from kanbus.right_now import (
     RightNowError,
+    association_trees_for_seeds,
     ensure_right_now_summaries,
     purge_right_now_summaries,
     require_display_right_now_summary,
@@ -30,7 +31,6 @@ from kanbus.status_semantics import (
 
 DEFAULT_RIGHT_NOW_LIMIT = 30
 PURGE_OUTPUT_TEMPLATE = "Purged right-now summaries for {count} issues"
-DEFAULT_RIGHT_NOW_STATUS = "in_progress"
 RIGHT_NOW_STATUS_ALL = "all"
 EMPTY_STATUS_FILTER = "status filter must not be empty"
 CANNOT_COMBINE_ALL_WITH_LIMIT = "cannot combine --all with --limit"
@@ -303,7 +303,11 @@ def _select_right_now_issues(
 ) -> List[IssueData]:
     issues = list_issues(root)
     if not options.issue_ids:
-        return _filter_right_now_issues_by_status(root, issues, options)
+        filtered = _filter_right_now_issues_by_status(root, issues, options)
+        _roots, selected = association_trees_for_seeds(
+            issues, {issue.identifier for issue in filtered}
+        )
+        return [issue for issue in issues if issue.identifier in selected]
     issues_by_identifier: Dict[str, IssueData] = {
         issue.identifier: issue for issue in issues
     }
