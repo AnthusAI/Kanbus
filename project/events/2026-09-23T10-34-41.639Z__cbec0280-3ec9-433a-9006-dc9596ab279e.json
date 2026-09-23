@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "cbec0280-3ec9-433a-9006-dc9596ab279e",
+  "issue_id": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:issue_router.py",
+  "event_type": "coordination.result_published",
+  "occurred_at": "2026-09-23T10:34:41.639Z",
+  "actor_id": "home",
+  "payload": {
+    "resource": "router:package:kbs-f954adf7-c812-4187-bd88-440aea4966d4:artifact:issue_router.py",
+    "revision": 1,
+    "artifact": "python/src/kanbus/issue_router.py"
+  }
+}
