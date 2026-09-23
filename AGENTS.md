@@ -43,7 +43,7 @@ This may require sudo once to create the links in `/usr/local/bin`. After that, 
 Kanbus wiki HTML uses [Markus](https://anthusai.github.io/Markus) (`anthus-markus`, import `markusmd`). **Do not `pip install markus`** — PyPI `markus` is Mozilla's metrics library and is unrelated.
 
 - Rust `kbs`: built-in `wiki_markus` (no separate install)
-- Python `kanbus`: `anthus-markus` from GitHub, installed via `pip install -e python`
+- Python `kanbus`: `anthus-markus` from PyPI, installed via `pip install -e python`
 - Smoke test: `kbs wiki render project/wiki/index.md --html | grep markus-document`
 
 Full guide: [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md#markus-renderer-not-pypi-markus).
