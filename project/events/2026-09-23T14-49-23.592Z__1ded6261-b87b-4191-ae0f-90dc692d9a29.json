@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "1ded6261-b87b-4191-ae0f-90dc692d9a29",
+  "issue_id": "router:issue:kbs-80e79aca-84a5-44e6-91d4-80669a4f5045",
+  "event_type": "coordination.renew",
+  "occurred_at": "2026-09-23T14:49:23.592Z",
+  "actor_id": "home",
+  "payload": {
+    "owner": "home",
+    "claim_id": "101ed6cf-3013-4f8b-a418-d99a6af91e86",
+    "lease_expires_at": "2026-09-23T14:54:21.582Z",
+    "operation_sequence": 6
+  }
+}
