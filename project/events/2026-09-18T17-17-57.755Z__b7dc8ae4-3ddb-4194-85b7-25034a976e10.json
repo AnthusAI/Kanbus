@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "event_id": "b7dc8ae4-3ddb-4194-85b7-25034a976e10",
+  "issue_id": "router:capacity:project:0",
+  "event_type": "coordination.renew",
+  "occurred_at": "2026-09-18T17:17:57.755Z",
+  "actor_id": "issue-router:13678",
+  "payload": {
+    "owner": "issue-router:13678",
+    "claim_id": "5c12c5b1-538a-45b0-bb63-145c3d2bf4bc",
+    "lease_expires_at": "2026-09-18T17:22:58.130Z",
+    "operation_sequence": 35
+  }
+}

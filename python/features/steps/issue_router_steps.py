@@ -147,6 +147,7 @@ def _write_issue(
     labels: list[str] | None = None,
     parent: str | None = None,
     assignee: str | None = None,
+    issue_type: str = "task",
     created_at: str = "2026-09-16T10:00:00Z",
     title: str | None = None,
 ) -> None:
@@ -154,7 +155,7 @@ def _write_issue(
     issue = build_issue(
         issue_id,
         title or f"Implement {issue_id}",
-        "task",
+        issue_type,
         status,
         parent,
         labels or [],
@@ -1166,6 +1167,12 @@ def given_router_candidates_table(context: object) -> None:
 def given_project_wip_limit(context: object, limit: int) -> None:
     config = _config(context)
     config["router"]["limits"]["project_wip"] = limit
+    # router.limits.review_wip must not exceed project_wip; clamp it down
+    # when the fixture default would otherwise violate that invariant for
+    # a smaller project limit set by this step.
+    review_wip = config["router"]["limits"].get("review_wip")
+    if review_wip is not None and review_wip > limit:
+        config["router"]["limits"]["review_wip"] = limit
     _save_config(context, config)
 
 
@@ -1177,6 +1184,15 @@ def given_existing_router_wip_issues(context: object) -> None:
             row["issue_id"].strip(),
             status=row["status"].strip(),
             assignee=row["assignee"].strip() or None,
+            issue_type=row.get("type", "task").strip() or "task",
+            labels=(
+                [
+                    label.strip()
+                    for label in row.get("labels", "").split(",")
+                    if label.strip()
+                ]
+                or None
+            ),
         )
 
 
