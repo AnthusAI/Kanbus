@@ -404,7 +404,13 @@ def test_fake_codex_result_is_accepted_by_the_router_parser(tmp_path: Path) -> N
     from kanbus import router_adapters
 
     completed = subprocess.run(
-        [sys.executable, str(FAKE_CODEX), "exec", "--json", f"package {FAKE_ISSUE_ID}"],
+        [
+            sys.executable,
+            str(FAKE_CODEX),
+            "exec",
+            "--json",
+            f"Complete Kanbus package {FAKE_ISSUE_ID}. Only update: {FAKE_ISSUE_ID}.",
+        ],
         capture_output=True,
         text=True,
         env=_fake_codex_environment(tmp_path, "complete"),

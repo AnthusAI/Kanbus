@@ -61,9 +61,12 @@ def main() -> int:
         while True:
             time.sleep(3600)
     prompt = sys.argv[-1]
-    issue_ids = ISSUE_ID_RE.findall(prompt)
+    issue_ids = sorted(set(ISSUE_ID_RE.findall(prompt)))
     if len(issue_ids) != 1:
-        print("expected exactly one package issue id in the prompt", file=sys.stderr)
+        print(
+            "expected exactly one distinct package issue id in the prompt",
+            file=sys.stderr,
+        )
         return 3
     marker = _read_marker(issue_ids[0])
     if marker is None:
