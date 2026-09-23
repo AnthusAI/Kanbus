@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.30.0 (2026-09-23)
+
+### Bug Fixes
+
+- **security**: Harden daemon respawn and LiteLLM transport; exclude test fixture from CodeQL
+  ([`3681b69`](https://github.com/AnthusAI/Kanbus/commit/3681b69866305942ad5cb053871bdb3d6be73386))
+
+- **test**: Serialize console_backend tests that mutate KANBUS_TEST_AI_MOCK
+  ([`ff91f4f`](https://github.com/AnthusAI/Kanbus/commit/ff91f4f47fba3daa347e1bb6070d3607a109e535))
+
+
 ## v0.29.0 (2026-09-18)
 
 ### Features
