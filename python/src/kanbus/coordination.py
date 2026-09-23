@@ -7,6 +7,7 @@ same winner from the immutable event set.
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from dataclasses import dataclass, replace
@@ -16,6 +17,46 @@ from typing import Any
 
 from kanbus.event_history import create_event, write_events_batch
 from kanbus.models import CoordinationConfiguration
+
+_event_file_cache: dict[Path, tuple[tuple[int, int], Any]] = {}
+
+
+def _clear_event_file_cache() -> None:
+    """Clear the parsed event file cache for test isolation."""
+    _event_file_cache.clear()
+
+
+def _read_event_file(path: Path) -> Any | None:
+    """
+    Read and parse an event file with per-process caching.
+
+    Caches parsed JSON keyed by path and validated by (st_mtime_ns, st_size).
+    Skips files that cannot be stat'd or parsed.
+
+    :param path: Path to the event JSON file.
+    :type path: Path
+    :return: Parsed JSON object, or None if file is unreadable or invalid.
+    :rtype: Any | None
+    """
+    try:
+        stat = path.stat()
+        stat_key = (stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        _event_file_cache.pop(path, None)
+        return None
+
+    if path in _event_file_cache:
+        cached_stat_key, cached_parsed = _event_file_cache[path]
+        if cached_stat_key == stat_key:
+            return cached_parsed
+
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    _event_file_cache[path] = (stat_key, parsed)
+    return parsed
 
 
 class CoordinationError(RuntimeError):
@@ -92,24 +133,24 @@ def _load_coordination_events(events_dir: Path, resource: str) -> list[dict[str,
     if not events_dir.is_dir():
         return records
     for path in events_dir.glob("*.json"):
-        try:
-            record = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        parsed = _read_event_file(path)
+        if parsed is None:
             continue
         if (
-            isinstance(record, dict)
-            and record.get("issue_id") == resource
-            and record.get("event_type")
+            isinstance(parsed, dict)
+            and parsed.get("issue_id") == resource
+            and parsed.get("event_type")
             in {
                 "coordination.claim",
                 "coordination.renew",
                 "coordination.release",
             }
-            and isinstance(record.get("payload"), dict)
+            and isinstance(parsed.get("payload"), dict)
         ):
-            if not _has_valid_operation_sequence(record["payload"]):
+            if not _has_valid_operation_sequence(parsed["payload"]):
                 continue
             try:
+                record = copy.deepcopy(parsed)
                 record["_occurred_at"] = parse_timestamp(record["occurred_at"])
             except (KeyError, TypeError, ValueError):
                 continue
