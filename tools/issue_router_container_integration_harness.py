@@ -421,7 +421,7 @@ def _configure_worker_for_test(
     :param root: Worker checkout directory.
     :param agent_class: Unique agent class identifier for this test.
     :param fake_agent: Whether to use a deterministic fake Codex worker.
-    :param soft_coordination: Whether to disable Mutex API and use git coordination.
+    :param soft_coordination: Use git-only coordination; otherwise hard Mutex API.
     :param lease_ttl: Optional lease TTL for coordination (e.g., "5s").
     """
     path = root / ".kanbus.yml"
@@ -476,15 +476,13 @@ def _configure_worker_for_test(
     classes[agent_class] = {"providers": [providers[0]]}
     class_wip[agent_class] = 1
     router["forge"] = None
-    if soft_coordination:
-        coordination = router.setdefault("coordination", {})
-        if not isinstance(coordination, dict):
-            raise HarnessError("worker router coordination must be a mapping")
-        coordination["providers"] = ["git"]
+    coordination = config.setdefault("coordination", {})
+    if not isinstance(coordination, dict):
+        raise HarnessError("worker coordination configuration must be a mapping")
+    coordination["providers"] = (
+        ["git"] if soft_coordination else ["mutex_api", "mqtt", "git"]
+    )
     if lease_ttl is not None:
-        coordination = router.setdefault("coordination", {})
-        if not isinstance(coordination, dict):
-            raise HarnessError("worker router coordination must be a mapping")
         coordination["default_lease_ttl"] = lease_ttl
     path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
 
@@ -1098,6 +1096,17 @@ def run_harness(
                 fake_agent=fake_agent,
                 soft_coordination=soft_coord,
                 lease_ttl=lease_ttl,
+            )
+            _git(
+                worker_root,
+                "-c",
+                "user.name=Router Harness",
+                "-c",
+                "user.email=router-harness@example.invalid",
+                "commit",
+                "--all",
+                "--message",
+                "harness: configure isolated test router",
             )
 
         if scenario == "expiry-takeover":
