@@ -3,7 +3,7 @@
   "title": "Router container smoke test 19fa9c173c50",
   "description": "Disposable live integration task. Generate exactly three short paragraphs of Lorem ipsum placeholder text. Post them as one issue comment beginning with KANBUS-ROUTER-TEST:19fa9c173c50 using the router result issue_comments field. Do not change source files or any other issue. Do not claim the integration suite passed; this task only proves that a real board issue was dispatched and its comment was published.",
   "type": "task",
-  "status": "open",
+  "status": "review",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,11 +12,29 @@
     "agent-class:router-container-it-19fa9c173c50"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2680df0f-01bd-4fbb-ad8d-972da407c8fe",
+      "author": "Kanbus Issue Router",
+      "text": "KANBUS-ROUTER-TEST:19fa9c173c50 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam, quis nostrud exercitation ullamco.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse.",
+      "created_at": "2026-09-23T19:59:57.462622336Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "15f18885-992e-461d-9135-aabefd12083b",
+      "author": "Kanbus Issue Router",
+      "text": "## Agent turn complete\n\nFake agent completed the disposable task.\n\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-5e94f099-182a-45cb-8a63-8347174f3d11`",
+      "created_at": "2026-09-23T20:00:01.306083755Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-23T19:58:05.764871Z",
-  "updated_at": "2026-09-23T19:58:05.811474Z",
+  "updated_at": "2026-09-23T20:00:13.688585302Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
