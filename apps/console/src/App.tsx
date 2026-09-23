@@ -29,6 +29,8 @@ import {
   setAuthQueryProvider,
   subscribeToSnapshots,
   subscribeToRealtimeFeed,
+  addIssueComment,
+  transitionIssue,
   type NotificationEvent,
   type UiControlAction,
 } from "./api/client";
@@ -2273,6 +2275,22 @@ export default function App() {
                   focusedIssueId={focusedIssueId}
                   focusedCommentId={focusedCommentId}
                   onNavigateToDescendant={handleSelectIssue}
+                  onAddComment={async (issueId, text) => {
+                    const result = await addIssueComment(apiBase, issueId, text);
+                    setSnapshot((current) => current ? {
+                      ...current,
+                      issues: current.issues.map((issue) => issue.id === issueId ? result.issue : issue),
+                      updated_at: new Date().toISOString()
+                    } : current);
+                  }}
+                  onChangeStatus={async (issueId, status) => {
+                    const result = await transitionIssue(apiBase, issueId, status);
+                    setSnapshot((current) => current ? {
+                      ...current,
+                      issues: current.issues.map((issue) => issue.id === issueId ? result.issue : issue),
+                      updated_at: new Date().toISOString()
+                    } : current);
+                  }}
                 />
               </div>
               <div
