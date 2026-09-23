@@ -73,6 +73,8 @@ def test_docker_command_uses_barrier_and_never_puts_secrets_in_argv(
         barrier_directory=tmp_path / "barrier",
     )
     assert any("while [ ! -f /harness-control/start ]" in arg for arg in command)
+    assert any("cp -a /workspace-source/. /workspace/" in arg for arg in command)
+    assert any("target=/workspace-source,readonly" in arg for arg in command)
     assert harness.MUTEX_TOKEN in command
     assert harness.CODEX_API_KEY in command
     assert "mutex-secret" not in command

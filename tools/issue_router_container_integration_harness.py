@@ -595,7 +595,7 @@ def _container_command(
         "--network",
         "bridge",
         "--mount",
-        f"type=bind,source={worker_root.resolve()},target=/workspace",
+        f"type=bind,source={worker_root.resolve()},target=/workspace-source,readonly",
         "--mount",
         f"type=bind,source={remote.resolve()},target=/kanbus-shared.git",
         "--mount",
@@ -649,6 +649,7 @@ def _container_command(
             image,
             "/bin/sh",
             "-c",
+            "cp -a /workspace-source/. /workspace/ && touch /tmp/harness-ready && "
             'while [ ! -f /harness-control/start ]; do sleep 0.02; done; exec "$@"',
             "kanbus-harness",
             *worker_command,
@@ -735,10 +736,10 @@ def _release_worker_barrier(
             raise HarnessError("a Docker worker exited before the race barrier")
         ready = all(
             _run(
-                ["docker", "inspect", "--format", "{{.State.Running}}", name],
+                ["docker", "exec", name, "test", "-f", "/tmp/harness-ready"],
                 check=False,
-            ).stdout.strip()
-            == "true"
+            ).returncode
+            == 0
             for name in names
         )
         if ready:
