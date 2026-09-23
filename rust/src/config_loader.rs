@@ -268,7 +268,7 @@ fn is_positive_integer(value: &Value) -> bool {
     value.as_u64().is_some_and(|number| number > 0)
 }
 
-fn user_home_directory() -> PathBuf {
+pub(crate) fn user_home_directory() -> PathBuf {
     if let Ok(home) = env::var("HOME") {
         if !home.trim().is_empty() {
             return PathBuf::from(home);
@@ -288,28 +288,11 @@ fn load_dotenv(path: &Path) {
     };
 
     for line in contents.lines() {
-        let mut stripped = line.trim();
-        if stripped.is_empty() || stripped.starts_with('#') {
-            continue;
-        }
-        if let Some(rest) = stripped.strip_prefix("export ") {
-            stripped = rest.trim_start();
-        }
-        let Some((key, value)) = stripped.split_once('=') else {
+        let Some((key, value)) = crate::ai_credentials::parse_dotenv_line(line) else {
             continue;
         };
-        let key = key.trim();
-        if key.is_empty() || env::var_os(key).is_some() {
+        if env::var_os(&key).is_some() {
             continue;
-        }
-        let mut value = value.trim().to_string();
-        if value.len() >= 2 {
-            let bytes = value.as_bytes();
-            let first = bytes[0];
-            let last = bytes[bytes.len() - 1];
-            if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
-                value = value[1..value.len() - 1].to_string();
-            }
         }
         env::set_var(key, value);
     }

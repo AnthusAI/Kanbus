@@ -449,6 +449,58 @@ mod tests {
         (format!("http://{address}"), handle)
     }
 
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        // Recover from poisoning so one flaky test panicking while holding
+        // this lock doesn't cascade into every later test that locks it.
+        ENV_LOCK
+            .get_or_init(|| std::sync::Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// RAII guard that forces `KANBUS_REALTIME_BROKER=off` in the process
+    /// environment for the duration of a test, restoring the prior value on
+    /// drop (including on panic).
+    ///
+    /// `conflict_is_not_downgraded_and_unavailability_falls_back_to_git`
+    /// drives `mutex_api::acquire` into `Unavailable` and then expects
+    /// `run_coordination` to also find MQTT unavailable, so it falls all the
+    /// way through to the `git` provider. That assumption does not hold on a
+    /// machine running a live Mosquitto broker on the default
+    /// `127.0.0.1:1883` (the REALTIME guide documents running exactly that
+    /// broker): `config_loader::load_project_configuration` loads a real
+    /// `~/.kanbus.env`, which can set `KANBUS_REALTIME_BROKER` to that
+    /// broker's address, letting the MQTT publish succeed and turning the
+    /// expected `provider: git` into `provider: mqtt`. Forcing the env var
+    /// here (rather than only writing `broker: off` into the test's own
+    /// config file) closes that gap, since `load_dotenv` only sets a key
+    /// that is not already present in the process environment. Mirrors
+    /// `gossip::tests::IsolatedHomeGuard::force_realtime_broker` and the
+    /// Python fix in
+    /// `python/tests/test_coordination_mutex_api.py::test_mutex_api_unavailability_falls_back_to_git_without_aws_credentials`
+    /// (`monkeypatch.setenv("KANBUS_REALTIME_BROKER", "off")`).
+    struct DisabledBrokerGuard {
+        prior_broker: Option<String>,
+    }
+
+    impl DisabledBrokerGuard {
+        fn new() -> Self {
+            let prior_broker = std::env::var("KANBUS_REALTIME_BROKER").ok();
+            std::env::set_var("KANBUS_REALTIME_BROKER", "off");
+            Self { prior_broker }
+        }
+    }
+
+    impl Drop for DisabledBrokerGuard {
+        fn drop(&mut self) {
+            match self.prior_broker.take() {
+                Some(value) => std::env::set_var("KANBUS_REALTIME_BROKER", value),
+                None => std::env::remove_var("KANBUS_REALTIME_BROKER"),
+            }
+        }
+    }
+
     fn configured_project(endpoint: &str) -> TempDir {
         let temp = tempfile::tempdir().expect("temporary project");
         std::fs::create_dir_all(temp.path().join("project/events")).expect("project events");
@@ -691,7 +743,10 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn conflict_is_not_downgraded_and_unavailability_falls_back_to_git() {
+        let _env_guard = env_lock();
+        let _broker_guard = DisabledBrokerGuard::new();
         let (endpoint, server) = mock_server(409, r#"{"message":"lease already held"}"#);
         let temp = configured_project(&endpoint);
         let result = crate::cli::run_from_args_with_output(

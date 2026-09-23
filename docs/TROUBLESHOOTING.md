@@ -157,6 +157,33 @@ A parent-child relationship violates the configured hierarchy or a non-hierarchi
 - Review the `hierarchy` and `types` settings in `project/config.yaml`.
 - Update the issue to a valid parent or change the issue type.
 
+## `OPENAI_API_KEY is not set`
+
+**Symptom**
+
+```
+OPENAI_API_KEY is not set. Run 'kbs setup ai' (or 'kanbus setup ai') to store it once in
+~/.kanbus.env, or set it in your shell environment or the project .env file.
+```
+
+**Cause**
+
+Compaction, right-now summaries, standup rollups, and wiki summarization call an LLM, and no
+`OPENAI_API_KEY` (or provider-equivalent variable) was found in the shell environment,
+`~/.kanbus.env`, or the project `.env`.
+
+**Fix**
+
+Store a key once for your user:
+
+```bash
+kbs setup ai
+# or: kanbus setup ai
+```
+
+Or set `OPENAI_API_KEY` in your shell environment or the project `.env` file. Check
+`kbs setup ai --status` or `kbs doctor` to confirm which source provides the key.
+
 ## Still stuck
 
 If you cannot resolve an issue, run `kanbus validate` to get a full integrity report and inspect the errors for additional context.

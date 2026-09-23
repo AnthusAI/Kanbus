@@ -56,7 +56,14 @@ project/
 .kanbus.yml
 ```
 
-New projects ship with LiteLLM as the LLM client and `gpt-5.6-luna` as the default model for summarization and other AI tasks. Set `OPENAI_API_KEY` in your environment, project `.env`, or `~/.kanbus.env` before running wiki render, compaction, or right-now summary commands. See [CONFIGURATION.md](CONFIGURATION.md) for `ai` and `right_now` fields.
+New projects ship with LiteLLM as the LLM client and `gpt-5.6-luna` as the default model for summarization and other AI tasks. Before running wiki render, compaction, or right-now summary commands, store an API key once with:
+
+```bash
+kbs setup ai
+# or: kanbus setup ai
+```
+
+This saves the key to `~/.kanbus.env` (mode `600`) so it works across every project. You can also set `OPENAI_API_KEY` in your shell environment or a project `.env` instead. See [CONFIGURATION.md](CONFIGURATION.md) for `ai` and `right_now` fields.
 
 ## Step 2: Create your first issue
 
