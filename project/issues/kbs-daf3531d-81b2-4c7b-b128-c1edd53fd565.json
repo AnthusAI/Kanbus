@@ -3,7 +3,7 @@
   "title": "Add safe console editor for routing assignment",
   "description": "Build the issue-detail assignment editor on the resolved assignment API and write foundation. A human may select an allowed class or provider, inspect the effective model/effort/tier before saving, or clear an assignment. Preserve unrelated labels, reject conflicting assignment labels, do not mutate issue.agent provenance, and prevent unsafe changes for an actively claimed/running router package. Add confirmation/error UX and API/UI parity coverage.",
   "type": "story",
-  "status": "open",
+  "status": "backlog",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,9 +12,17 @@
     "agent-class:smart"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "8f76d443-9ec8-4288-9cf1-e5179b6e9025",
+      "author": "home",
+      "text": "Depends on kbs-fa8c60's resolved agent-assignment API contract, which just moved to Backlog pending a scoping decision. Moving this alongside it rather than letting the router burn an attempt on a dependency that doesn't exist yet.",
+      "created_at": "2026-09-23T10:25:26.327970Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-19T14:32:06.033450Z",
-  "updated_at": "2026-09-19T14:32:17.899052Z",
+  "updated_at": "2026-09-23T10:25:26.621477Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
