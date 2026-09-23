@@ -11,3 +11,10 @@ paths-ignore:
   - "recover_files.py"
   - "parse_transcripts.py"
   - "**/playwright/.cache/**"
+  # Behave step definitions that write hardcoded, non-secret placeholder
+  # values (e.g. "test-openai-key-from-dotenv") into fixture .env files,
+  # specifically to test that Kanbus loads credentials from those files.
+  # CodeQL's py/clear-text-storage-sensitive-data matches on the
+  # OPENAI_API_KEY= pattern alone and can't distinguish a fixture literal
+  # from a real secret.
+  - "python/features/steps/right_now_steps.py"
