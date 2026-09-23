@@ -8,11 +8,13 @@
   "assignee": null,
   "creator": null,
   "parent": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d",
-  "labels": [],
+  "labels": [
+    "agent-class:smart"
+  ],
   "dependencies": [],
   "comments": [],
   "created_at": "2026-09-23T17:03:04.801298Z",
-  "updated_at": "2026-09-23T17:03:04.835174Z",
+  "updated_at": "2026-09-23T21:39:10.328175Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
