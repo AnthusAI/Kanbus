@@ -7,10 +7,20 @@ use crate::models::ProjectConfiguration;
 pub const SEMANTIC_TODO: &str = "todo";
 /// Semantic category for statuses representing active work.
 pub const SEMANTIC_IN_PROGRESS: &str = "in_progress";
+/// Semantic category for work awaiting human review.
+pub const SEMANTIC_IN_REVIEW: &str = "in_review";
+/// Semantic category for work that cannot proceed.
+pub const SEMANTIC_BLOCKED: &str = "blocked";
 /// Semantic category for completed statuses.
 pub const SEMANTIC_DONE: &str = "done";
 
-const VALID_SEMANTIC_CATEGORIES: &[&str] = &[SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE];
+pub(crate) const VALID_SEMANTIC_CATEGORIES: &[&str] = &[
+    SEMANTIC_TODO,
+    SEMANTIC_IN_PROGRESS,
+    SEMANTIC_IN_REVIEW,
+    SEMANTIC_BLOCKED,
+    SEMANTIC_DONE,
+];
 
 /// Validate a semantic category value.
 ///
@@ -24,7 +34,7 @@ pub fn validate_semantic_category(semantic_category: &str) -> Result<(), KanbusE
         Ok(())
     } else {
         Err(KanbusError::Configuration(format!(
-            "invalid semantic_category '{}': must be one of todo, in_progress, done",
+            "invalid semantic_category '{}': must be one of todo, in_progress, in_review, blocked, done",
             semantic_category
         )))
     }
@@ -236,7 +246,7 @@ mod tests {
             validate_semantic_category("paused")
                 .unwrap_err()
                 .to_string(),
-            "invalid semantic_category 'paused': must be one of todo, in_progress, done"
+            "invalid semantic_category 'paused': must be one of todo, in_progress, in_review, blocked, done"
         );
     }
 

@@ -10,7 +10,7 @@ import yaml
 from pydantic import ValidationError
 
 from kanbus.config import DEFAULT_CONFIGURATION
-from kanbus.models import ProjectConfiguration
+from kanbus.models import ProjectConfiguration, router_marker_errors
 
 CONGREGATION_ENV_FILENAME = ".kanbus.env"
 
@@ -336,6 +336,34 @@ def _load_override_configuration(path: Path) -> dict:
     return data
 
 
+def _validate_router_markers(configuration: ProjectConfiguration) -> list[str]:
+    """
+    Validate router status markers and the transitions the router relies on.
+
+    :param configuration: Loaded configuration with derived router roles.
+    :type configuration: ProjectConfiguration
+    :return: Error messages, empty when the router lifecycle is configured.
+    :rtype: list[str]
+    """
+    marker_errors = router_marker_errors(configuration.statuses)
+    if marker_errors:
+        return marker_errors
+    roles = configuration.router.workflow
+    default_workflow = configuration.workflows.get("default", {})
+    transitions = [
+        (roles.pending, roles.active),
+        (roles.active, roles.review),
+        (roles.active, roles.blocked),
+        (roles.review, roles.terminal[0]),
+    ]
+    return [
+        f'workflow "default" does not allow router transition '
+        f'from "{from_status}" to "{to_status}"'
+        for from_status, to_status in transitions
+        if to_status not in default_workflow.get(from_status, [])
+    ][:1]
+
+
 def validate_project_configuration(configuration: ProjectConfiguration) -> list[str]:
     """Validate configuration rules beyond schema validation.
 
@@ -451,21 +479,29 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> list[
             break
         status_names.add(status.name)
 
+    # Validate semantic categories for all statuses
+    from kanbus.status_semantics import VALID_SEMANTIC_CATEGORIES
+
+    semantic_category_errors = []
+    for status in configuration.statuses:
+        if status.semantic_category not in VALID_SEMANTIC_CATEGORIES:
+            semantic_category_errors.append(
+                f'statuses.{status.key}.semantic_category "{status.semantic_category}" '
+                "must be one of todo, in_progress, in_review, blocked, done"
+            )
+
+    if semantic_category_errors:
+        errors.extend(semantic_category_errors)
+        _validate_sort_order(configuration, errors)
+        return errors
+
     # Build set of valid status keys
     valid_statuses = {s.key for s in configuration.statuses}
 
-    if router is not None and router.enabled and router.workflow is not None:
-        for role in ("pending", "active", "review", "blocked"):
-            status = getattr(router.workflow, role)
-            if status not in valid_statuses:
-                errors.append(
-                    f'router.workflow.{role} references undefined status "{status}"'
-                )
-        for status in router.workflow.terminal:
-            if status not in valid_statuses:
-                errors.append(
-                    f'router.workflow.terminal references undefined status "{status}"'
-                )
+    if router is not None and router.enabled:
+        router_errors = _validate_router_markers(configuration)
+        if router_errors:
+            errors.extend(router_errors)
 
     # Validate that initial_status exists in statuses
     if configuration.initial_status not in valid_statuses:
@@ -699,12 +735,11 @@ def _router_validation_error(error: ValidationError) -> str | None:
         if len(location) == 1 and error_type == "model_type":
             return "router must be a mapping"
         if len(location) == 1 and error_type == "value_error":
-            if "workflow, limits, and providers are required" in str(
-                item.get("msg", "")
-            ):
-                return (
-                    "router.workflow, router.limits, and router.providers are required"
-                )
+            msg = str(item.get("msg", ""))
+            if "workflow is an unknown field" in msg:
+                return "router.workflow is an unknown field"
+            if "limits and providers are required" in msg:
+                return "router.limits and router.providers are required"
         if location == ("router", "workflow") and error_type == "value_error":
             return "router.workflow roles must use distinct statuses"
         if location == ("router", "workflow", "terminal") and error_type == "too_short":

@@ -143,6 +143,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "todo".to_string(),
             collapsed: true,
             color: None,
+            router: false,
         },
         StatusDefinition {
             key: "open".to_string(),
@@ -151,6 +152,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "todo".to_string(),
             collapsed: false,
             color: None,
+            router: false,
         },
         StatusDefinition {
             key: "Discovery".to_string(),
@@ -159,6 +161,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "todo".to_string(),
             collapsed: false,
             color: None,
+            router: false,
         },
         StatusDefinition {
             key: "copy_writing".to_string(),
@@ -167,6 +170,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "in_progress".to_string(),
             collapsed: false,
             color: None,
+            router: false,
         },
         StatusDefinition {
             key: "in_progress".to_string(),
@@ -175,6 +179,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "in_progress".to_string(),
             collapsed: false,
             color: None,
+            router: false,
         },
         StatusDefinition {
             key: "blocked".to_string(),
@@ -183,6 +188,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "in_progress".to_string(),
             collapsed: true,
             color: None,
+            router: false,
         },
         StatusDefinition {
             key: "closed".to_string(),
@@ -191,6 +197,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             semantic_category: "done".to_string(),
             collapsed: true,
             color: None,
+            router: false,
         },
     ];
 }
@@ -653,6 +660,7 @@ fn given_epic_workflow_allows_transition(
             semantic_category: "todo".to_string(),
             color: None,
             collapsed: false,
+            router: false,
         });
     }
 

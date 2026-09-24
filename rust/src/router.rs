@@ -1912,50 +1912,29 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         return Vec::new();
     };
     let mut errors = Vec::new();
-    for (role, status) in [
-        ("pending", router.workflow.pending.as_str()),
-        ("active", router.workflow.active.as_str()),
-        ("review", router.workflow.review.as_str()),
-        ("blocked", router.workflow.blocked.as_str()),
-    ] {
-        if !configuration
-            .statuses
-            .iter()
-            .any(|entry| entry.key == status)
-        {
-            errors.push(format!(
-                "router.workflow.{role} references undefined status \"{status}\""
-            ));
+    if router.enabled {
+        let marker_errors = crate::models::router_marker_errors(&configuration.statuses);
+        if marker_errors.is_empty() {
+            let roles = &router.workflow;
+            let default_workflow = configuration.workflows.get("default");
+            let transitions = [
+                (&roles.pending, &roles.active),
+                (&roles.active, &roles.review),
+                (&roles.active, &roles.blocked),
+                (&roles.review, &roles.terminal[0]),
+            ];
+            if let Some((from_status, to_status)) = transitions.into_iter().find(|(from, to)| {
+                !default_workflow
+                    .and_then(|workflow| workflow.get(*from))
+                    .is_some_and(|allowed| allowed.contains(to))
+            }) {
+                errors.push(format!(
+                    "workflow \"default\" does not allow router transition from \"{from_status}\" to \"{to_status}\""
+                ));
+            }
+        } else {
+            errors.extend(marker_errors);
         }
-    }
-    for status in &router.workflow.terminal {
-        if !configuration
-            .statuses
-            .iter()
-            .any(|entry| entry.key == *status)
-        {
-            errors.push(format!(
-                "router.workflow.terminal references undefined status \"{status}\""
-            ));
-        }
-    }
-    let mut role_names = BTreeSet::new();
-    for status in [
-        &router.workflow.pending,
-        &router.workflow.active,
-        &router.workflow.review,
-        &router.workflow.blocked,
-    ]
-    .into_iter()
-    .chain(router.workflow.terminal.iter())
-    {
-        if !role_names.insert(status) {
-            errors.push("router.workflow roles must use distinct statuses".to_string());
-            break;
-        }
-    }
-    if router.workflow.terminal.is_empty() {
-        errors.push("router.workflow.terminal must be a nonempty list".to_string());
     }
     if router.limits.project_wip == 0 {
         errors.push("router.limits.project_wip must be a positive integer".to_string());
@@ -7448,6 +7427,45 @@ fn publish_router_checkpoint_ref(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn mark_router_test_statuses(configuration: &mut ProjectConfiguration) {
+        for status in configuration.statuses.iter_mut() {
+            let category = match status.key.as_str() {
+                "open" => "todo",
+                "in_progress" => "in_progress",
+                "review" => "in_review",
+                "blocked" => "blocked",
+                "closed" => "done",
+                _ => continue,
+            };
+            status.semantic_category = category.to_string();
+            status.router = true;
+        }
+        for (from, to) in [
+            ("open", "in_progress"),
+            ("in_progress", "review"),
+            ("in_progress", "blocked"),
+            ("review", "closed"),
+        ] {
+            let allowed = configuration
+                .workflows
+                .entry("default".to_string())
+                .or_default()
+                .entry(from.to_string())
+                .or_default();
+            if !allowed.iter().any(|status| status == to) {
+                allowed.push(to.to_string());
+            }
+            configuration
+                .transition_labels
+                .entry("default".to_string())
+                .or_default()
+                .entry(from.to_string())
+                .or_default()
+                .entry(to.to_string())
+                .or_insert_with(|| "Move".to_string());
+        }
+    }
     use std::process::Output;
 
     #[test]
@@ -8207,6 +8225,7 @@ mod tests {
                 semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: false,
+                router: false,
             });
         configuration
             .workflows
@@ -8228,6 +8247,7 @@ mod tests {
             .get_mut("in_progress")
             .expect("in-progress transition labels")
             .insert("review".to_string(), "Request review".to_string());
+        mark_router_test_statuses(&mut configuration);
         fs::write(
             get_configuration_path(&root).expect("configuration path"),
             serde_yaml::to_string(&configuration).expect("serialize configuration"),
@@ -9149,7 +9169,9 @@ mod tests {
                 semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: false,
+                router: false,
             });
+        mark_router_test_statuses(&mut configuration);
         std::fs::write(
             get_configuration_path(&root).expect("configuration path"),
             serde_yaml::to_string(&configuration).expect("serialize configuration"),
