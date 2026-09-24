@@ -1,0 +1,20 @@
+{
+  "id": "kbs-15ffe1b5-b905-4861-ac2c-c594061d912b",
+  "title": "Show agent conversation summary and run metadata in the issue event history",
+  "description": "Follow-up to kbs-3310c1. The issue detail Event History renders router.conversation events as provider, lifecycle, session, branch and an expandable redacted output. The event's own message (the agent's summary or the awaiting-reply text) and the run metadata (claim id, revision, worktree) are stored on the event but not displayed. Render them in packages/ui/src/kanban/TaskDetailPanel.tsx (case router.conversation) and confirm visually against the preserved run kbs-4c7198, whose console API already returns started, agent_turn and four recovered events.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fc24ca81-f05c-43a8-920f-150061027ba1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-09-24T00:22:34.105029Z",
+  "updated_at": "2026-09-24T00:22:34.127291Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

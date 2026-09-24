@@ -3,7 +3,7 @@
   "title": "Console agent conversation timeline and reply composer",
   "description": "Expose agent conversation state, summaries, redacted logs, run metadata, and a normal-comment composer that resumes awaiting Codex sessions. Add realtime plus Git-backed refresh.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -17,11 +17,18 @@
       "text": "Live-router validation found a concrete gap after PR #296: router.conversation records, raw agent output, and recovery metadata are durable on kanbus/router-state, but the current console issue API/UI exposes only ordinary issue comments. The preserved Review run for kbs-4c719898 is visible as a normal report, but there is no Agent conversation timeline, redacted log expander, run metadata, or comment-to-resume path yet. This must be implemented and verified against a real preserved run before transparent delegation is considered smooth.",
       "created_at": "2026-09-19T10:29:46.129883Z",
       "comment_type": "default"
+    },
+    {
+      "id": "0683a613-9ee9-4236-bc73-6c74e8f89991",
+      "author": "home",
+      "text": "Substantially delivered; closing with one small follow-up filed. Shipped: router.conversation events are merged into the issue event history by the Rust console backend (rust/src/bin/console_local.rs merge_router_conversation_events) and the Node server (apps/console/server/index.ts); the issue detail renders provider, lifecycle, session, branch and an expandable Redacted agent output (redaction in both runtimes); the comment composer, status control and blocked-agent reply resume shipped in PR #351 on top of the write API in #344; the console refreshes from SSE snapshots every 15 seconds. Verified against the real preserved run kbs-4c7198 through the console API: it returns its started, agent_turn (with log and session) and four recovered conversation events. Not shown yet: the event's message/summary and claim, revision and worktree metadata, tracked in the new follow-up story. The rendered timeline itself was not confirmed visually because the browser pane kept hiding.",
+      "created_at": "2026-09-24T00:22:34.257197Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-18T21:53:55.261293Z",
-  "updated_at": "2026-09-19T10:29:46.129938Z",
-  "closed_at": null,
+  "updated_at": "2026-09-24T00:22:34.352291Z",
+  "closed_at": "2026-09-24T00:22:34.331144Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-5",
