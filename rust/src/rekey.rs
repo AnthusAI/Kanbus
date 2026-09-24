@@ -208,10 +208,18 @@ fn rewrite_id_references(
 
     let result = re.replace_all(text, |caps: &regex::Captures| {
         let full_match = caps.get(0).unwrap().as_str();
+        // Check if this is a full ID in valid_ids
         if valid_ids.contains(full_match) {
             count += 1;
             full_match.replacen(&format!("{}-", old_key), &format!("{}-", new_key), 1)
         } else {
+            // Check if this could be a short ID that matches a full ID prefix
+            for valid_id in valid_ids {
+                if valid_id.starts_with(full_match) {
+                    count += 1;
+                    return full_match.replacen(&format!("{}-", old_key), &format!("{}-", new_key), 1);
+                }
+            }
             full_match.to_string()
         }
     });
