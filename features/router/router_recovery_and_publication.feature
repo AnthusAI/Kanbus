@@ -46,6 +46,15 @@ Feature: Issue Router retries, checkpoints, and fenced publication
     Then package "kbs-304" should transition to status "blocked"
     And package "kbs-304" should not receive a retry time
 
+  Scenario: An agent that cannot be launched leaves a visible diagnostic and blocks the package
+    Given active package "kbs-305" is at attempt 1
+    And provider profile "codex-default" uses a command that does not exist
+    And the router forge is not configured
+    When I run "kanbus router run --once"
+    Then the command should fail with exit code 1
+    And package "kbs-305" should transition to status "blocked"
+    And package "kbs-305" should have a router comment starting with "The router could not start an agent session:"
+
   Scenario: A current claim may publish its checkpoint and artifact references
     Given package "kbs-310" has current claim "claim-current" at logical revision 5
     When claim "claim-current" publishes result:

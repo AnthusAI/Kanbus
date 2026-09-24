@@ -478,6 +478,15 @@ def given_provider_command_args(
     _save_config(context, config)
 
 
+@given('provider profile "{profile}" uses a command that does not exist')
+def given_provider_nonexistent_command(context: object, profile: str) -> None:
+    config = _config(context)
+    config["router"]["providers"][profile].update(
+        command="/nonexistent/kanbus-agent-binary"
+    )
+    _save_config(context, config)
+
+
 @given('provider profile "{profile}" has model "{model}" and environment {environment}')
 def given_provider_model_env(
     context: object, profile: str, model: str, environment: str
@@ -909,6 +918,26 @@ def then_package_comment(
         comment.author == author and text in (comment.text or "")
         for comment in comments
     ), f"no {author} comment containing {text!r} on {issue_id}: " + repr(
+        [(comment.author, comment.text) for comment in comments]
+    )
+
+
+@then('package "{issue_id}" should have a router comment starting with "{text}"')
+def then_router_package_comment_starts_with(
+    context: object, issue_id: str, text: str
+) -> None:
+    project_dir = (
+        _root(context)
+        / load_project_configuration(
+            get_configuration_path(_root(context))
+        ).project_directory
+    )
+    comments = read_issue_file(project_dir, issue_id).comments
+    assert any(
+        comment.author == "Kanbus Issue Router"
+        and (comment.text or "").startswith(text)
+        for comment in comments
+    ), f"no Kanbus Issue Router comment starting with {text!r} on {issue_id}: " + repr(
         [(comment.author, comment.text) for comment in comments]
     )
 
