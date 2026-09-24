@@ -179,6 +179,8 @@ Feature: Project rekey
     When I run "kanbus rekey new"
     And I run "kanbus show new-task0000-1234-5678-abcd-123456789012"
     Then the command should succeed
+    And stdout should contain "new-task00"
+    When I run "kanbus show old-task0000-1234-5678-abcd-123456789012"
+    Then the command should fail with exit code 1
     When I run "kanbus list"
     Then the command should succeed
-    And stdout should contain "new-task00"
