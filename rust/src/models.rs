@@ -406,8 +406,8 @@ pub struct MutexApiConfiguration {
     pub bearer_token: Option<String>,
 }
 
-/// Issue Router lifecycle status roles, derived from router-marked statuses.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Issue Router lifecycle status roles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IssueRouterWorkflowConfiguration {
     /// Status assigned while a package awaits a router worker.
@@ -512,8 +512,7 @@ pub struct IssueRouterConfiguration {
     /// Whether the configured router is enabled.
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Lifecycle roles derived from router-marked statuses; never read from YAML.
-    #[serde(skip)]
+    /// Workflow statuses assigned to router lifecycle roles.
     pub workflow: IssueRouterWorkflowConfiguration,
     /// WIP limits that gate package scheduling.
     pub limits: IssueRouterLimitsConfiguration,
@@ -735,72 +734,6 @@ pub struct StatusDefinition {
     pub color: Option<String>,
     #[serde(default)]
     pub collapsed: bool,
-    /// Marks the canonical router status for this semantic category.
-    #[serde(default)]
-    pub router: bool,
-}
-
-/// Canonical semantic categories the router lifecycle needs, in check order.
-pub const ROUTER_SEMANTIC_CATEGORIES: [&str; 5] =
-    ["todo", "in_progress", "in_review", "blocked", "done"];
-
-/// Report missing or duplicated router status markers.
-///
-/// A router-enabled project needs exactly one status marked `router: true` for
-/// each canonical semantic category.
-///
-/// # Arguments
-/// * `statuses` - Status definitions in configuration order.
-///
-/// # Returns
-/// Error messages in category order, empty when the markers are valid.
-pub fn router_marker_errors(statuses: &[StatusDefinition]) -> Vec<String> {
-    let mut errors = Vec::new();
-    for category in ROUTER_SEMANTIC_CATEGORIES {
-        let keys: Vec<&str> = statuses
-            .iter()
-            .filter(|status| status.router && status.semantic_category == category)
-            .map(|status| status.key.as_str())
-            .collect();
-        match keys.as_slice() {
-            [] => errors.push(format!(
-                "router requires one router: true status for semantic_category \"{category}\""
-            )),
-            [first, second, ..] => errors.push(format!(
-                "router status marker for semantic_category \"{category}\" is used by both \"{first}\" and \"{second}\""
-            )),
-            _ => {}
-        }
-    }
-    errors
-}
-
-/// Derive the router lifecycle roles from router-marked statuses.
-///
-/// # Arguments
-/// * `statuses` - Status definitions with valid router markers.
-///
-/// # Returns
-/// The derived roles, or `None` when the markers are missing or duplicated.
-pub fn derive_router_workflow_roles(
-    statuses: &[StatusDefinition],
-) -> Option<IssueRouterWorkflowConfiguration> {
-    if !router_marker_errors(statuses).is_empty() {
-        return None;
-    }
-    let marked = |category: &str| {
-        statuses
-            .iter()
-            .find(|status| status.router && status.semantic_category == category)
-            .map(|status| status.key.clone())
-    };
-    Some(IssueRouterWorkflowConfiguration {
-        pending: marked("todo")?,
-        active: marked("in_progress")?,
-        review: marked("in_review")?,
-        blocked: marked("blocked")?,
-        terminal: vec![marked("done")?],
-    })
 }
 
 /// Priority definition containing label and optional color.

@@ -311,7 +311,6 @@ mod tests {
                 semantic_category: "todo".to_string(),
                 color: Some("bright_green".to_string()),
                 collapsed: false,
-                router: false,
             }],
             categories: vec![CategoryDefinition {
                 name: "todo".to_string(),
