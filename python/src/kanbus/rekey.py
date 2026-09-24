@@ -90,9 +90,16 @@ def _rewrite_id_references(text: str, old_key: str, new_key: str, valid_ids: set
         nonlocal rewrite_count
         full_match = match.group(0)
 
+        # Check if this is a full ID in valid_ids
         if full_match in valid_ids:
             rewrite_count += 1
             return full_match.replace(old_key, new_key, 1)
+
+        # Check if this could be a short ID (6+ chars) that matches a full ID prefix
+        for valid_id in valid_ids:
+            if valid_id.startswith(full_match):
+                rewrite_count += 1
+                return full_match.replace(old_key, new_key, 1)
 
         return full_match
 
