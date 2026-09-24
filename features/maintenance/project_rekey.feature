@@ -7,12 +7,13 @@ Feature: Project rekey
     Given a Kanbus project with key "old"
     And a "task" issue "old-abc123de-1234-5678-abcd-123456789012" exists
     And a "task" issue "old-def456gh-5678-1234-abcd-123456789012" exists
+    And the project is committed to git
     When I run "kanbus rekey new"
     Then the command should succeed
     And issue "new-abc123de-1234-5678-abcd-123456789012" should exist
     And issue "new-def456gh-5678-1234-abcd-123456789012" should exist
     And issue "old-abc123de-1234-5678-abcd-123456789012" should not exist
-    And the project key should be "new"
+    And .kanbus.yml should have project_key "new"
 
   Scenario: Rekey preserves short ID hex suffixes
     Given a Kanbus project with key "apricitus"
