@@ -2565,3 +2565,119 @@ def then_adapter_request_claim_revision(
 ) -> None:
     request = context.router_adapter.requests[-1]
     assert (request.claim_id, request.revision) == (claim_id, revision)
+
+
+@given("the project configuration includes:")
+def given_project_configuration_includes(context: object) -> None:
+    payload = yaml.safe_load(context.text) or {}
+    config = _config(context)
+    config.update(payload)
+    _save_config(context, config)
+
+
+@given('status "{key}" has semantic_category "{category}"')
+def given_status_semantic_category(context: object, key: str, category: str) -> None:
+    config = _config(context)
+    status = next(item for item in config["statuses"] if item["key"] == key)
+    status["semantic_category"] = category
+    _save_config(context, config)
+
+
+@given('status "{key}" has router marker "{value}"')
+def given_status_router_marker(context: object, key: str, value: str) -> None:
+    config = _config(context)
+    status = next(item for item in config["statuses"] if item["key"] == key)
+    status["router"] = value.lower() == "true"
+    _save_config(context, config)
+
+
+@given(
+    'status "{key}" is defined as "{name}" with semantic_category "{category}" and router marker "{value}"'
+)
+def given_status_defined(
+    context: object, key: str, name: str, category: str, value: str
+) -> None:
+    config = _config(context)
+    statuses = config.setdefault("statuses", [])
+    router_bool = value.lower() == "true"
+
+    column_map = {
+        "todo": "To do",
+        "done": "Done",
+    }
+    display_category = column_map.get(category, "In progress")
+
+    new_status = {
+        "key": key,
+        "name": name,
+        "category": display_category,
+        "semantic_category": category,
+        "router": router_bool,
+    }
+    statuses.append(new_status)
+    _save_config(context, config)
+
+
+@given('workflow "{workflow}" allows "{from_status}" to "{to_status}"')
+def given_workflow_allows(
+    context: object, workflow: str, from_status: str, to_status: str
+) -> None:
+    config = _config(context)
+    transitions = config.setdefault("workflows", {}).setdefault(workflow, {})
+    allowed = transitions.setdefault(from_status, [])
+    if to_status not in allowed:
+        allowed.append(to_status)
+    labels = config.setdefault("transition_labels", {}).setdefault(workflow, {})
+    labels.setdefault(from_status, {}).setdefault(to_status, f"Move to {to_status}")
+    _save_config(context, config)
+
+
+@given('workflow "{workflow}" does not allow "{from_status}" to "{to_status}"')
+def given_workflow_does_not_allow(
+    context: object, workflow: str, from_status: str, to_status: str
+) -> None:
+    config = _config(context)
+    allowed = config["workflows"][workflow][from_status]
+    assert (
+        to_status in allowed
+    ), f"{workflow} does not list {from_status} to {to_status}"
+    allowed.remove(to_status)
+    del config["transition_labels"][workflow][from_status][to_status]
+    _save_config(context, config)
+
+
+@given('routed package "{issue_id}" is in status "{status}"')
+def given_routed_package_in_status(context: object, issue_id: str, status: str) -> None:
+    project_dir = Path(context.working_directory) / "project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    issue = build_issue(
+        issue_id,
+        f"Implement {issue_id}",
+        "task",
+        status,
+        None,
+        ["agent-provider:codex-default"],
+    ).model_copy(
+        update={
+            "created_at": datetime.fromisoformat("2026-09-17T10:00:00+00:00"),
+            "updated_at": datetime.fromisoformat("2026-09-17T10:00:00+00:00"),
+        }
+    )
+    write_issue_file(project_dir, issue)
+    event = create_event(
+        issue_id=issue_id,
+        event_type="state_transition",
+        actor_id="fixture",
+        payload={"from_status": "backlog", "to_status": status},
+        occurred_at="2026-09-17T10:00:00Z",
+    )
+    events_dir = project_dir / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    write_events_batch(events_dir, [event])
+
+
+@then("no package should be eligible")
+def then_no_package_eligible(context: object) -> None:
+    payload = json.loads(context.result.stdout)
+    eligible = payload.get("eligible", [])
+    assert eligible == [], f"Expected no eligible packages, but got {eligible}"
