@@ -433,10 +433,7 @@ def then_project_permission_denied(context: object) -> None:
 @given('a Kanbus project with key "{key}"')
 def given_project_with_key(context: object, key: str) -> None:
     """Create a Kanbus project with specified key."""
-    from features.steps.shared import (
-        initialize_default_project,
-        write_default_kanbus_config,
-    )
+    from features.steps.shared import initialize_default_project
 
     initialize_default_project(context)
     config_path = Path(context.working_directory) / ".kanbus.yml"
@@ -464,7 +461,7 @@ def then_project_key_still_is(context: object, key: str) -> None:
     assert config_content.get("project_key") == key
 
 
-@then('the working tree has uncommitted changes under project/')
+@then("the working tree has uncommitted changes under project/")
 def given_uncommitted_changes(context: object) -> None:
     """Create uncommitted changes in project/ directory."""
     project_dir = load_project_directory(context)
@@ -473,10 +470,14 @@ def given_uncommitted_changes(context: object) -> None:
 
 
 @then('issue "{issue_id}" should have description "{description}"')
-def then_issue_has_description(context: object, issue_id: str, description: str) -> None:
+def then_issue_has_description(
+    context: object, issue_id: str, description: str
+) -> None:
     """Verify issue description."""
     from features.steps.shared import read_issue_file
 
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, issue_id)
-    assert issue.description == description, f"Expected description '{description}' but got '{issue.description}'"
+    assert (
+        issue.description == description
+    ), f"Expected description '{description}' but got '{issue.description}'"

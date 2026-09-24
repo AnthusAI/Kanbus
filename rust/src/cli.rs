@@ -1720,9 +1720,8 @@ fn execute_command(
             Ok(Some("Project structure repaired.".to_string()))
         }
         Commands::Rekey { new_key, dry_run } => {
-            let config = crate::config_loader::load_project_configuration(
-                &get_configuration_path(root)?
-            )?;
+            let config =
+                crate::config_loader::load_project_configuration(&get_configuration_path(root)?)?;
             let old_key = config.project_key.clone();
 
             let mut plan = crate::rekey::plan_rekey(root, &old_key, &new_key, dry_run)?;
@@ -1736,7 +1735,10 @@ fn execute_command(
                 let mut output = String::new();
                 for (old_id, new_id) in &plan.issue_renames {
                     let rewrites = plan.text_rewrites.get(old_id).unwrap_or(&0);
-                    output.push_str(&format!("{} -> {} ({} rewrites)\n", old_id, new_id, rewrites));
+                    output.push_str(&format!(
+                        "{} -> {} ({} rewrites)\n",
+                        old_id, new_id, rewrites
+                    ));
                 }
                 Ok(Some(output))
             } else {

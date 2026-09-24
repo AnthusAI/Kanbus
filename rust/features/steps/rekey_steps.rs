@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
-use cucumber::{given, when, then};
+use cucumber::{given, then, when};
 use serde_json::{json, Value};
 use serde_yaml;
 
@@ -74,19 +74,28 @@ fn setup_project_with_key(world: &mut KanbusWorld, key: &str) {
         .output()
         .expect("git init");
 
-    // Create project structure
-    fs::create_dir_all(repo_path.join("project").join("issues")).expect("create dirs");
-    fs::create_dir_all(repo_path.join("project").join("events")).expect("create events");
+    // Run kanbus init to properly initialize project
+    let init_output = std::process::Command::new("kanbus")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("kanbus init");
 
-    // Write .kanbus.yml with specified key
-    let config_content = format!(
-        r#"project_key: {}
-project_name: Test Project
-project_description: Test project for rekey scenarios
-"#,
-        key
-    );
-    fs::write(repo_path.join(".kanbus.yml"), config_content).expect("write config");
+    if !init_output.status.success() {
+        panic!(
+            "kanbus init failed: {}",
+            String::from_utf8_lossy(&init_output.stderr)
+        );
+    }
+
+    // Update .kanbus.yml with specified key
+    let config_path = repo_path.join(".kanbus.yml");
+    let config_content = fs::read_to_string(&config_path).expect("read config");
+    let mut config: serde_yaml::Value =
+        serde_yaml::from_str(&config_content).expect("parse config");
+    config["project_key"] = serde_yaml::Value::String(key.to_string());
+    let updated_config = serde_yaml::to_string(&config).expect("serialize config");
+    fs::write(config_path, updated_config).expect("write config");
 
     world.working_directory = Some(repo_path.clone());
     world.temp_dir = Some(temp_dir);
@@ -141,11 +150,7 @@ fn given_issue_with_parent(world: &mut KanbusWorld, issue_id: String, parent_id:
 }
 
 #[given(expr = "an issue {string} exists with description {string}")]
-fn given_issue_with_description(
-    world: &mut KanbusWorld,
-    issue_id: String,
-    description: String,
-) {
+fn given_issue_with_description(world: &mut KanbusWorld, issue_id: String, description: String) {
     let project_dir = load_project_dir(world);
     let mut issue = build_issue(&issue_id, &issue_id, "task", "open", None);
     issue.description = description;
@@ -270,14 +275,18 @@ fn then_rekey_succeeds(world: &mut KanbusWorld) {
 #[then(expr = "issue {string} should exist")]
 fn then_issue_exists(world: &mut KanbusWorld, issue_id: String) {
     let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join(format!("{}.json", issue_id));
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", issue_id));
     assert!(issue_path.exists(), "Issue {} should exist", issue_id);
 }
 
 #[then(expr = "issue {string} should not exist")]
 fn then_issue_not_exists(world: &mut KanbusWorld, issue_id: String) {
     let project_dir = load_project_dir(world);
-    let issue_path = project_dir.join("issues").join(format!("{}.json", issue_id));
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{}.json", issue_id));
     assert!(!issue_path.exists(), "Issue {} should not exist", issue_id);
 }
 
@@ -317,18 +326,16 @@ fn then_issue_has_dependency(
     let issue_json = read_issue(&project_dir, &issue_id);
     let deps = issue_json.get("dependencies").and_then(|d| d.as_array());
     assert!(
-        deps.map(|d| d
-            .iter()
-            .any(|dep| dep
-                .get("target")
+        deps.map(|d| d.iter().any(|dep| dep
+            .get("target")
+            .and_then(|t| t.as_str())
+            .map(|t| t == target_id)
+            .unwrap_or(false)
+            && dep
+                .get("dependency_type")
                 .and_then(|t| t.as_str())
-                .map(|t| t == target_id)
-                .unwrap_or(false)
-                && dep
-                    .get("dependency_type")
-                    .and_then(|t| t.as_str())
-                    .map(|t| t == dep_type)
-                    .unwrap_or(false)))
+                .map(|t| t == dep_type)
+                .unwrap_or(false)))
             .unwrap_or(false),
         "Dependency {} -> {} not found",
         dep_type,
@@ -369,13 +376,11 @@ fn then_issue_has_comment(world: &mut KanbusWorld, issue_id: String, comment_tex
     let comments = issue_json.get("comments").and_then(|c| c.as_array());
     assert!(
         comments
-            .map(|c| c
-                .iter()
-                .any(|comment| comment
-                    .get("body")
-                    .and_then(|b| b.as_str())
-                    .map(|b| b.contains(&comment_text))
-                    .unwrap_or(false)))
+            .map(|c| c.iter().any(|comment| comment
+                .get("body")
+                .and_then(|b| b.as_str())
+                .map(|b| b.contains(&comment_text))
+                .unwrap_or(false)))
             .unwrap_or(false),
         "Comment not found: {}",
         comment_text
@@ -523,10 +528,12 @@ fn given_issue_blocked(world: &mut KanbusWorld, id: String, blocker: String) {
         .expect("run kanbus dep");
 
     if output.status.code().unwrap_or(-1) != 0 {
-        panic!("Failed to add dependency: {}", String::from_utf8_lossy(&output.stderr));
+        panic!(
+            "Failed to add dependency: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 }
-
 
 #[then(expr = "issue {string} should be blocked by {string}")]
 fn then_issue_blocked(world: &mut KanbusWorld, id: String, blocker: String) {
@@ -534,23 +541,21 @@ fn then_issue_blocked(world: &mut KanbusWorld, id: String, blocker: String) {
     let issue_json = read_issue(&project_dir, &id);
     let deps = issue_json.get("dependencies").and_then(|d| d.as_array());
     assert!(
-        deps.map(|d| d
-            .iter()
-            .any(|dep| dep
-                .get("target")
+        deps.map(|d| d.iter().any(|dep| dep
+            .get("target")
+            .and_then(|t| t.as_str())
+            .map(|t| t == blocker)
+            .unwrap_or(false)
+            && (dep
+                .get("type")
                 .and_then(|t| t.as_str())
-                .map(|t| t == blocker)
+                .map(|t| t == "blocked-by")
                 .unwrap_or(false)
-                && (dep
-                    .get("type")
+                || dep
+                    .get("dependency_type")
                     .and_then(|t| t.as_str())
                     .map(|t| t == "blocked-by")
-                    .unwrap_or(false)
-                    || dep
-                        .get("dependency_type")
-                        .and_then(|t| t.as_str())
-                        .map(|t| t == "blocked-by")
-                        .unwrap_or(false))))
+                    .unwrap_or(false))))
             .unwrap_or(false),
         "Dependency blocked-by -> {} not found",
         blocker
@@ -571,6 +576,9 @@ fn then_project_key_file(world: &mut KanbusWorld, key: String) {
         &key,
         "Expected project_key '{}' but got '{}'",
         key,
-        config.get("project_key").and_then(|k| k.as_str()).unwrap_or("")
+        config
+            .get("project_key")
+            .and_then(|k| k.as_str())
+            .unwrap_or("")
     );
 }
