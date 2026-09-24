@@ -65,8 +65,10 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
     validate_router_yaml(&merged_value)?;
-    let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
-        .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
+    let mut configuration: ProjectConfiguration =
+        serde_yaml::from_value(Value::Mapping(merged_value))
+            .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
+    derive_router_roles(&mut configuration);
 
     let errors = validate_project_configuration(&configuration);
     if !errors.is_empty() {
@@ -74,6 +76,19 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     }
 
     Ok(configuration)
+}
+
+/// Derive the router lifecycle roles from the router-marked statuses.
+fn derive_router_roles(configuration: &mut ProjectConfiguration) {
+    let Some(router) = configuration.router.as_mut() else {
+        return;
+    };
+    if !router.enabled {
+        return;
+    }
+    if let Some(roles) = crate::models::derive_router_workflow_roles(&configuration.statuses) {
+        router.workflow = roles;
+    }
 }
 
 /// Fill in `semantic_category` for statuses that omit it (older configurations),
@@ -127,7 +142,6 @@ fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
         "router",
         &[
             "enabled",
-            "workflow",
             "limits",
             "providers",
             "classes",
@@ -136,15 +150,6 @@ fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
             "forge",
         ],
     )?;
-    if let Some(workflow) = router_mapping.get(Value::String("workflow".to_string())) {
-        if let Some(mapping) = workflow.as_mapping() {
-            validate_yaml_fields(
-                mapping,
-                "router.workflow",
-                &["pending", "active", "review", "blocked", "terminal"],
-            )?;
-        }
-    }
     if let Some(limits) = router_mapping.get(Value::String("limits".to_string())) {
         if let Some(mapping) = limits.as_mapping() {
             validate_yaml_fields(
@@ -308,6 +313,23 @@ fn load_dotenv(path: &Path) {
 ///
 /// A list of validation errors.
 pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> Vec<String> {
+    let category_errors: Vec<String> = configuration
+        .statuses
+        .iter()
+        .filter(|status| {
+            !crate::status_semantics::VALID_SEMANTIC_CATEGORIES
+                .contains(&status.semantic_category.as_str())
+        })
+        .map(|status| {
+            format!(
+                "statuses.{}.semantic_category \"{}\" must be one of todo, in_progress, in_review, blocked, done",
+                status.key, status.semantic_category
+            )
+        })
+        .collect();
+    if !category_errors.is_empty() {
+        return category_errors;
+    }
     let mut errors = Vec::new();
 
     if configuration.project_directory.trim().is_empty() {
@@ -1033,7 +1055,7 @@ mod tests {
     fn project_configuration_with_forge_url(api_url: &str) -> ProjectConfiguration {
         let mut configuration = default_project_configuration();
         configuration.router = Some(IssueRouterConfiguration {
-            enabled: true,
+            enabled: false,
             workflow: IssueRouterWorkflowConfiguration {
                 pending: "backlog".to_string(),
                 active: "in_progress".to_string(),

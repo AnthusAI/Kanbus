@@ -8,9 +8,17 @@ from kanbus.models import ProjectConfiguration
 
 SEMANTIC_TODO = "todo"
 SEMANTIC_IN_PROGRESS = "in_progress"
+SEMANTIC_IN_REVIEW = "in_review"
+SEMANTIC_BLOCKED = "blocked"
 SEMANTIC_DONE = "done"
 
-VALID_SEMANTIC_CATEGORIES = {SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE}
+VALID_SEMANTIC_CATEGORIES = {
+    SEMANTIC_TODO,
+    SEMANTIC_IN_PROGRESS,
+    SEMANTIC_IN_REVIEW,
+    SEMANTIC_BLOCKED,
+    SEMANTIC_DONE,
+}
 
 
 class SemanticCategoryError(ValueError):
@@ -28,7 +36,7 @@ def validate_semantic_category(semantic_category: str) -> None:
     if semantic_category not in VALID_SEMANTIC_CATEGORIES:
         raise SemanticCategoryError(
             f"invalid semantic_category '{semantic_category}': "
-            "must be one of todo, in_progress, done"
+            "must be one of todo, in_progress, in_review, blocked, done"
         )
 
 

@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import yaml
 import pytest
 
+from router_status_markers import mark_router_statuses
 from kanbus import router_state
 from kanbus.config_loader import load_project_configuration
 from kanbus.coordination import claim as soft_claim
@@ -221,17 +222,11 @@ def test_second_clone_observes_claim_without_harness_push(
     }
     labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
     config["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 3, "review_wip": 2},
         "providers": {"codex-default": {"adapter": "codex"}},
         "classes": {},
     }
+    mark_router_statuses(config)
     (source / ".kanbus.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
     (source / ".gitignore").write_text("project/events/\n", encoding="utf-8")
     (source / "project" / "issues").mkdir(parents=True)
@@ -491,13 +486,6 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
         (REPOSITORY_ROOT / ".kanbus.yml").read_text(encoding="utf-8")
     )
     config["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 3, "review_wip": 2},
         "providers": {"codex-default": {"adapter": "codex"}},
         "classes": {},
@@ -522,6 +510,7 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
         "review": "Ready for review",
     }
     labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
+    mark_router_statuses(config)
     (source / ".kanbus.yml").write_text(yaml.safe_dump(config), encoding="utf-8")
     (source / "project" / "issues").mkdir(parents=True)
     (source / "project" / "events").mkdir(parents=True)

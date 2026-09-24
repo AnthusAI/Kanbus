@@ -14,12 +14,6 @@ Feature: Optional Issue Router configuration
     Given a Kanbus project with router configuration:
       """
       router:
-        workflow:
-          pending: open
-          active: in_progress
-          review: review
-          blocked: blocked
-          terminal: [closed]
         limits:
           project_wip: 2
           review_wip: 1
@@ -31,6 +25,39 @@ Feature: Optional Issue Router configuration
         classes:
           implementation:
             providers: [codex-default]
+      """
+    And the project configuration includes:
+      """
+      statuses:
+        - key: backlog
+          name: Backlog
+          category: To do
+          semantic_category: todo
+        - key: open
+          name: Ready
+          category: To do
+          semantic_category: todo
+          router: true
+        - key: in_progress
+          name: In progress
+          category: In progress
+          semantic_category: in_progress
+          router: true
+        - key: review
+          name: Review
+          category: In progress
+          semantic_category: in_review
+          router: true
+        - key: blocked
+          name: Blocked
+          category: In progress
+          semantic_category: blocked
+          router: true
+        - key: closed
+          name: Done
+          category: Done
+          semantic_category: done
+          router: true
       """
     When the router configuration is loaded
     Then the configuration should be valid
@@ -94,20 +121,6 @@ Feature: Optional Issue Router configuration
       | poll_seconds|
       | fallback    |
 
-  Scenario Outline: Workflow roles must name configured statuses
-    Given a valid router configuration with workflow role "<role>" set to "<status>"
-    When the router configuration is loaded
-    Then the command should fail with exit code 1
-    And stderr should equal "error: router.workflow.<role> references undefined status \"<status>\"\n"
-
-    Examples:
-      | role     | status       |
-      | pending  | unknown      |
-      | active   | unknown      |
-      | review   | unknown      |
-      | blocked  | unknown      |
-      | terminal | ["unknown"]  |
-
   Scenario Outline: Router WIP limits must be positive integers
     Given a valid router configuration with "<field>" set to "<value>"
     When the router configuration is loaded
@@ -125,18 +138,6 @@ Feature: Optional Issue Router configuration
     When the router configuration is loaded
     Then the command should fail with exit code 1
     And stderr should equal "error: router.limits.review_wip must not exceed project_wip\n"
-
-  Scenario: Router workflow roles use distinct statuses
-    Given a valid router configuration with active status "in_progress" and review status "in_progress"
-    When the router configuration is loaded
-    Then the command should fail with exit code 1
-    And stderr should equal "error: router.workflow roles must use distinct statuses\n"
-
-  Scenario: Terminal status list must not be empty
-    Given a valid router configuration with terminal statuses "[]"
-    When the router configuration is loaded
-    Then the command should fail with exit code 1
-    And stderr should equal "error: router.workflow.terminal must be a nonempty list\n"
 
   Scenario: The router accepts only the Codex and OpenCode adapters
     Given a valid router configuration with provider profile "claude-default" using adapter "claude"

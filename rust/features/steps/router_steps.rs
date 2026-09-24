@@ -24,12 +24,6 @@ use kanbus::file_io::{get_configuration_path, load_project_directory};
 use kanbus::models::{IssueData, ProjectConfiguration};
 
 const VALID_ROUTER: &str = r#"router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 4
     review_wip: 2
@@ -101,16 +95,42 @@ fn set_router_yaml(world: &KanbusWorld, source: &str) {
     let mut root_value = read_yaml(world).1;
     let router_doc: Yaml = serde_yaml::from_str(source).expect("router fixture yaml");
     let router = router_doc.get("router").cloned().expect("router key");
-    if router
-        .get("workflow")
-        .and_then(|workflow| workflow.get("review"))
-        .and_then(Yaml::as_str)
-        == Some("review")
-    {
-        add_review_status_and_workflow(&mut root_value);
-    }
+    add_review_status_and_workflow(&mut root_value);
+    mark_router_statuses(&mut root_value);
     mapping(&mut root_value).insert(Yaml::String("router".to_string()), router);
     write_yaml(world, &root_value);
+}
+
+const ROUTER_STATUS_CATEGORIES: [(&str, &str); 5] = [
+    ("open", "todo"),
+    ("in_progress", "in_progress"),
+    ("review", "in_review"),
+    ("blocked", "blocked"),
+    ("closed", "done"),
+];
+
+fn mark_router_statuses(root_value: &mut Yaml) {
+    let statuses = mapping(root_value)
+        .get_mut(Yaml::String("statuses".to_string()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("status list");
+    for status in statuses.iter_mut().filter_map(Yaml::as_mapping_mut) {
+        let key = status
+            .get(Yaml::String("key".to_string()))
+            .and_then(Yaml::as_str)
+            .map(str::to_string);
+        let category = ROUTER_STATUS_CATEGORIES
+            .iter()
+            .find(|(status_key, _)| Some(*status_key) == key.as_deref())
+            .map(|(_, category)| *category);
+        if let Some(category) = category {
+            status.insert(
+                Yaml::String("semantic_category".to_string()),
+                Yaml::String(category.to_string()),
+            );
+            status.insert(Yaml::String("router".to_string()), Yaml::Bool(true));
+        }
+    }
 }
 
 fn add_review_status_and_workflow(root_value: &mut Yaml) {
