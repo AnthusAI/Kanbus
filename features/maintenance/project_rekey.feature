@@ -26,7 +26,8 @@ Feature: Project rekey
   Scenario: Rekey updates parent references
     Given a Kanbus project with key "old"
     And an "epic" issue "old-parent01-1234-5678-abcd-123456789012" exists
-    And a "task" issue "old-child001-1234-5678-abcd-123456789012" exists with parent "old-parent01-1234-5678-abcd-123456789012"
+    And a "task" issue "old-child001-1234-5678-abcd-123456789012" exists
+    And issue "old-child001-1234-5678-abcd-123456789012" has parent "old-parent01-1234-5678-abcd-123456789012"
     And the project is committed to git
     When I run "kanbus rekey new"
     Then the command should succeed
@@ -44,7 +45,8 @@ Feature: Project rekey
 
   Scenario: Rekey rewrites ID mentions in issue descriptions
     Given a Kanbus project with key "old"
-    And a "task" issue "old-issue01-1234-5678-abcd-123456789012" exists with description "See old-issue02-1234-5678-abcd-123456789012 for details"
+    And a "task" issue "old-issue01-1234-5678-abcd-123456789012" exists
+    And issue "old-issue01-1234-5678-abcd-123456789012" has description "See old-issue02-1234-5678-abcd-123456789012 for details"
     And a "task" issue "old-issue02-1234-5678-abcd-123456789012" exists
     And the project is committed to git
     When I run "kanbus rekey new"
@@ -62,7 +64,8 @@ Feature: Project rekey
 
   Scenario: Rekey rewrites short ID mentions in descriptions when they resolve
     Given a Kanbus project with key "old"
-    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists with description "See old-1a2b3c for details"
+    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists
+    And issue "old-task0000-1234-5678-abcd-123456789012" has description "See old-1a2b3c for details"
     And a "task" issue "old-1a2b3c00-1234-5678-abcd-123456789012" exists
     And the project is committed to git
     When I run "kanbus rekey new"
@@ -71,7 +74,8 @@ Feature: Project rekey
 
   Scenario: Rekey ignores short ID mentions that don't resolve
     Given a Kanbus project with key "old"
-    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists with description "See old-nomatch for details"
+    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists
+    And issue "old-task0000-1234-5678-abcd-123456789012" has description "See old-nomatch for details"
     And the project is committed to git
     When I run "kanbus rekey new"
     Then the command should succeed
@@ -79,7 +83,8 @@ Feature: Project rekey
 
   Scenario: Rekey ignores key mentions that are not valid issue IDs
     Given a Kanbus project with key "old"
-    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists with description "This is the old project documentation"
+    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists
+    And issue "old-task0000-1234-5678-abcd-123456789012" has description "This is the old project documentation"
     And the project is committed to git
     When I run "kanbus rekey new"
     Then the command should succeed
@@ -97,7 +102,8 @@ Feature: Project rekey
 
   Scenario: Rekey respects word boundaries for ID mentions
     Given a Kanbus project with key "old"
-    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists with description "See old-task0000-1234-5678-abcd-123456789012 now"
+    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists
+    And issue "old-task0000-1234-5678-abcd-123456789012" has description "See old-task0000-1234-5678-abcd-123456789012 now"
     And the project is committed to git
     When I run "kanbus rekey new"
     Then the command should succeed
