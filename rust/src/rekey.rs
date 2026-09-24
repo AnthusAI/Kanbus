@@ -22,11 +22,17 @@ pub fn plan_rekey(
     new_key: &str,
     dry_run: bool,
 ) -> Result<RekeyPlan, KanbusError> {
-    if old_key == new_key {
-        return Err(KanbusError::IssueOperation("new key equals old key".to_string()));
-    }
-
     validate_project_key(new_key)?;
+
+    // If already rekeyed to this key, return empty plan
+    if old_key == new_key {
+        return Ok(RekeyPlan {
+            old_key: old_key.to_string(),
+            new_key: new_key.to_string(),
+            issue_renames: HashMap::new(),
+            text_rewrites: HashMap::new(),
+        });
+    }
 
     if !dry_run {
         check_git_tree_clean(root)?;
