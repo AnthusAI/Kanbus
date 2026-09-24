@@ -2758,3 +2758,193 @@ fn assert_forge_body(world: &mut KanbusWorld, predicate: impl FnOnce(Value) -> b
         .expect("request body JSON");
     assert!(predicate(body));
 }
+
+#[given("the project configuration includes:")]
+fn given_project_configuration_includes(world: &mut KanbusWorld, step: &Step) {
+    let (_, mut config) = read_yaml(world);
+    let payload: Yaml = serde_yaml::from_str(step.docstring().expect("configuration docstring"))
+        .expect("parse configuration update");
+    if let (Some(mapping), Some(update)) = (config.as_mapping_mut(), payload.as_mapping()) {
+        for (key, value) in update.iter() {
+            mapping.insert(key.clone(), value.clone());
+        }
+    }
+    write_yaml(world, &config);
+}
+
+#[given(regex = r#"^status "(?P<key>[^\"]+)" has semantic_category "(?P<category>[^\"]+)"$"#)]
+fn given_status_semantic_category(world: &mut KanbusWorld, key: String, category: String) {
+    let (_, mut config) = read_yaml(world);
+    status_entry(&mut config, &key).insert(
+        Yaml::String("semantic_category".into()),
+        Yaml::String(category),
+    );
+    write_yaml(world, &config);
+}
+
+fn status_entry<'a>(config: &'a mut Yaml, key: &str) -> &'a mut Mapping {
+    config
+        .get_mut(Yaml::String("statuses".into()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("statuses sequence")
+        .iter_mut()
+        .filter_map(Yaml::as_mapping_mut)
+        .find(|status| {
+            status
+                .get(Yaml::String("key".into()))
+                .and_then(Yaml::as_str)
+                == Some(key)
+        })
+        .unwrap_or_else(|| panic!("status {key} is not configured"))
+}
+
+#[given(regex = r#"^status "(?P<key>[^\"]+)" has router marker "(?P<value>[^\"]+)"$"#)]
+fn given_status_router_marker(world: &mut KanbusWorld, key: String, value: String) {
+    let (_, mut config) = read_yaml(world);
+    status_entry(&mut config, &key).insert(
+        Yaml::String("router".into()),
+        Yaml::Bool(value.eq_ignore_ascii_case("true")),
+    );
+    write_yaml(world, &config);
+}
+
+#[given(
+    regex = r#"^status "(?P<key>[^\"]+)" is defined as "(?P<name>[^\"]+)" with semantic_category "(?P<category>[^\"]+)" and router marker "(?P<value>[^\"]+)"$"#
+)]
+fn given_status_defined(
+    world: &mut KanbusWorld,
+    key: String,
+    name: String,
+    category: String,
+    value: String,
+) {
+    let (_, mut config) = read_yaml(world);
+    let router_bool = value.to_lowercase() == "true";
+
+    let display_category = match category.as_str() {
+        "todo" => "To do",
+        "done" => "Done",
+        _ => "In progress",
+    };
+
+    let mut new_status = Mapping::new();
+    new_status.insert(Yaml::String("key".into()), Yaml::String(key));
+    new_status.insert(Yaml::String("name".into()), Yaml::String(name));
+    new_status.insert(
+        Yaml::String("category".into()),
+        Yaml::String(display_category.into()),
+    );
+    new_status.insert(
+        Yaml::String("semantic_category".into()),
+        Yaml::String(category),
+    );
+    new_status.insert(Yaml::String("router".into()), Yaml::Bool(router_bool));
+
+    config
+        .get_mut(Yaml::String("statuses".into()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("statuses sequence")
+        .push(Yaml::Mapping(new_status));
+    write_yaml(world, &config);
+}
+
+#[given(
+    regex = r#"^workflow "(?P<workflow>[^\"]+)" allows "(?P<from>[^\"]+)" to "(?P<to>[^\"]+)"$"#
+)]
+fn given_workflow_allows(world: &mut KanbusWorld, workflow: String, from: String, to: String) {
+    let (_, mut config) = read_yaml(world);
+    let root = mapping(&mut config);
+    let allowed = root
+        .entry(Yaml::String("workflows".into()))
+        .or_insert_with(|| Yaml::Mapping(Mapping::new()))
+        .as_mapping_mut()
+        .expect("workflows mapping")
+        .entry(Yaml::String(workflow.clone()))
+        .or_insert_with(|| Yaml::Mapping(Mapping::new()))
+        .as_mapping_mut()
+        .expect("workflow mapping")
+        .entry(Yaml::String(from.clone()))
+        .or_insert_with(|| Yaml::Sequence(Vec::new()))
+        .as_sequence_mut()
+        .expect("transitions sequence");
+    let to_value = Yaml::String(to.clone());
+    if !allowed.contains(&to_value) {
+        allowed.push(to_value);
+    }
+    root.entry(Yaml::String("transition_labels".into()))
+        .or_insert_with(|| Yaml::Mapping(Mapping::new()))
+        .as_mapping_mut()
+        .expect("transition_labels mapping")
+        .entry(Yaml::String(workflow))
+        .or_insert_with(|| Yaml::Mapping(Mapping::new()))
+        .as_mapping_mut()
+        .expect("workflow labels mapping")
+        .entry(Yaml::String(from))
+        .or_insert_with(|| Yaml::Mapping(Mapping::new()))
+        .as_mapping_mut()
+        .expect("from labels mapping")
+        .entry(Yaml::String(to.clone()))
+        .or_insert_with(|| Yaml::String(format!("Move to {to}")));
+    write_yaml(world, &config);
+}
+
+#[given(
+    regex = r#"^workflow "(?P<workflow>[^\"]+)" does not allow "(?P<from>[^\"]+)" to "(?P<to>[^\"]+)"$"#
+)]
+fn given_workflow_does_not_allow(
+    world: &mut KanbusWorld,
+    workflow: String,
+    from: String,
+    to: String,
+) {
+    let (_, mut config) = read_yaml(world);
+    let root = mapping(&mut config);
+    let to_value = Yaml::String(to.clone());
+    let allowed = root
+        .get_mut(Yaml::String("workflows".into()))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|workflows| workflows.get_mut(Yaml::String(workflow.clone())))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|transitions| transitions.get_mut(Yaml::String(from.clone())))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("workflow transitions to remove");
+    let before = allowed.len();
+    allowed.retain(|item| item != &to_value);
+    assert!(
+        allowed.len() < before,
+        "{workflow} does not list {from} to {to}"
+    );
+    root.get_mut(Yaml::String("transition_labels".into()))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|labels| labels.get_mut(Yaml::String(workflow)))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|labels| labels.get_mut(Yaml::String(from)))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("transition labels to remove")
+        .remove(Yaml::String(to));
+    write_yaml(world, &config);
+}
+
+#[given(regex = r#"^routed package "(?P<id>[^\"]+)" is in status "(?P<status>[^\"]+)"$"#)]
+fn given_routed_package_in_status(world: &mut KanbusWorld, id: String, status: String) {
+    seed_issue(
+        world,
+        &id,
+        &status,
+        vec!["agent-provider:codex-default".to_string()],
+        None,
+        None,
+        Utc.with_ymd_and_hms(2026, 9, 17, 10, 0, 0).unwrap(),
+        Vec::new(),
+    );
+}
+
+#[then("no package should be eligible")]
+fn then_no_package_eligible(world: &mut KanbusWorld) {
+    let eligible = plan_order(world);
+    assert!(
+        eligible.is_empty(),
+        "Expected no eligible packages, but got {:?}",
+        eligible
+    );
+}
