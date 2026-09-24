@@ -862,7 +862,6 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
             semantic_category: semantic_category_for_beads_status_key(key).to_string(),
             color: None,
             collapsed: false,
-            router: false,
         })
         .collect();
 
