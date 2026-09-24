@@ -96,7 +96,9 @@ def _rewrite_id_references(text: str, old_key: str, new_key: str, valid_ids: set
 
         return full_match
 
-    pattern = rf"\b{re.escape(old_key)}-[0-9a-fA-F]{{6,}}\b"
+    # Match: word boundary, key, dash, then 6+ chars (alphanumeric/dashes/hex)
+    # This matches both short IDs like "old-1a2b3c" and full IDs like "old-issue01-1234-5678-abcd-123456789012"
+    pattern = rf"\b{re.escape(old_key)}-[0-9a-zA-Z][0-9a-zA-Z-]*\b"
     result = re.sub(pattern, replace_id, text)
 
     return result, rewrite_count

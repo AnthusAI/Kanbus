@@ -201,7 +201,9 @@ fn rewrite_id_references(
     valid_ids: &HashSet<String>,
 ) -> (String, usize) {
     let mut count = 0;
-    let pattern = format!(r"\b{}-[0-9a-fA-F]{{6,}}\b", regex::escape(old_key));
+    // Match: word boundary, key, dash, then 1+ alphanumeric, then 0+ alphanumerics/dashes
+    // This matches both short IDs like "old-1a2b3c" and full IDs like "old-issue01-1234-5678-abcd-123456789012"
+    let pattern = format!(r"\b{}-[0-9a-zA-Z][0-9a-zA-Z-]*\b", regex::escape(old_key));
     let re = Regex::new(&pattern).unwrap();
 
     let result = re.replace_all(text, |caps: &regex::Captures| {
