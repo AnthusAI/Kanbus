@@ -63,35 +63,18 @@ def when_run_rekey(context: object, args: str) -> None:
 @given('issue "{identifier}" is blocked by "{blocker}"')
 def given_issue_blocked_by(context: object, identifier: str, blocker: str) -> None:
     """Add a blocked-by dependency to an issue."""
-    from features.steps.shared import load_project_directory, read_issue_file, write_issue_file
-    from kanbus.models import DependencyLink
+    from features.steps.shared import load_project_directory, read_issue_file, write_issue_file, run_cli
     project_dir = load_project_directory(context)
-    issue = read_issue_file(project_dir, identifier)
-    deps = list(issue.dependencies) if issue.dependencies else []
-    deps.append(DependencyLink(target=blocker, type="blocked-by"))
-    issue = issue.model_copy(update={"dependencies": deps})
-    write_issue_file(project_dir, issue)
+    # Use kanbus dep command to add dependency
+    run_cli(context, f'kanbus dep "{identifier}" --blocked-by "{blocker}"')
 
 
 @given('issue "{identifier}" has a comment "{text}"')
 def given_issue_has_comment(context: object, identifier: str, text: str) -> None:
     """Add a comment to an issue."""
-    from features.steps.shared import load_project_directory, read_issue_file, write_issue_file
-    from datetime import datetime, timezone
-    project_dir = load_project_directory(context)
-    issue = read_issue_file(project_dir, identifier)
-    timestamp = datetime(2026, 2, 11, tzinfo=timezone.utc)
-    comment = {
-        "id": "comment-1",
-        "author": "test",
-        "body": text,
-        "created_at": timestamp.isoformat(),
-        "updated_at": timestamp.isoformat(),
-    }
-    comments = list(issue.comments) if issue.comments else []
-    comments.append(comment)
-    issue = issue.model_copy(update={"comments": comments})
-    write_issue_file(project_dir, issue)
+    from features.steps.shared import run_cli
+    # Use kanbus comment command to add comment
+    run_cli(context, f'kanbus comment "{identifier}" "{text}"')
 
 
 @then('issue "{identifier}" should be blocked by "{blocker}"')
@@ -101,7 +84,7 @@ def then_issue_blocked_by(context: object, identifier: str, blocker: str) -> Non
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
     for dep in issue.dependencies:
-        if dep.type == "blocked-by" and dep.target == blocker:
+        if dep.dependency_type == "blocked-by" and dep.target == blocker:
             return
     raise AssertionError(f"Issue {identifier} should be blocked by {blocker}")
 
@@ -113,7 +96,8 @@ def then_issue_has_comment(context: object, identifier: str, text: str) -> None:
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
     for comment in issue.comments:
-        if text in comment.get("body", ""):
+        body = comment.get("body") if isinstance(comment, dict) else comment.body
+        if text in body:
             return
     raise AssertionError(f"Comment '{text}' not found in issue {identifier}")
 
