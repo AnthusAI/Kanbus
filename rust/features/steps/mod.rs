@@ -47,6 +47,7 @@ pub mod project_steps;
 pub mod pytest_migration_steps;
 pub mod query_steps;
 pub mod realtime_steps;
+pub mod rekey_steps;
 pub mod revision_publication_steps;
 pub mod rich_text_signal_steps;
 pub mod right_now_cli_steps;
