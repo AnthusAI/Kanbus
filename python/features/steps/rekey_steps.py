@@ -7,7 +7,7 @@ from pathlib import Path
 from behave import given, then, when
 import yaml
 
-from features.steps.shared import load_project_directory, run_cli
+from features.steps.shared import run_cli
 
 
 @given("the project is committed to git")
@@ -48,6 +48,7 @@ def given_project_committed(context: object) -> None:
 @given("the project directory has uncommitted changes")
 def given_uncommitted_changes(context: object) -> None:
     """Create uncommitted changes in project/ directory."""
+    from features.steps.shared import load_project_directory
     project_dir = load_project_directory(context)
     test_file = project_dir / "test-change.txt"
     test_file.write_text("uncommitted")
