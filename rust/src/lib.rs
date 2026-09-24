@@ -65,6 +65,7 @@ pub mod policy_loader;
 pub mod policy_steps;
 pub mod project;
 pub mod project_management_template;
+pub mod rekey;
 pub mod queries;
 pub mod rich_text_signals;
 pub mod right_now;
