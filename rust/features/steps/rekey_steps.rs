@@ -74,19 +74,24 @@ fn setup_project_with_key(world: &mut KanbusWorld, key: &str) {
         .output()
         .expect("git init");
 
-    // Create project structure
-    fs::create_dir_all(repo_path.join("project").join("issues")).expect("create dirs");
-    fs::create_dir_all(repo_path.join("project").join("events")).expect("create events");
+    // Run kanbus init to properly initialize project
+    let init_output = std::process::Command::new("kanbus")
+        .args(["init"])
+        .current_dir(&repo_path)
+        .output()
+        .expect("kanbus init");
 
-    // Write .kanbus.yml with specified key
-    let config_content = format!(
-        r#"project_key: {}
-project_name: Test Project
-project_description: Test project for rekey scenarios
-"#,
-        key
-    );
-    fs::write(repo_path.join(".kanbus.yml"), config_content).expect("write config");
+    if !init_output.status.success() {
+        panic!("kanbus init failed: {}", String::from_utf8_lossy(&init_output.stderr));
+    }
+
+    // Update .kanbus.yml with specified key
+    let config_path = repo_path.join(".kanbus.yml");
+    let config_content = fs::read_to_string(&config_path).expect("read config");
+    let mut config: serde_yaml::Value = serde_yaml::from_str(&config_content).expect("parse config");
+    config["project_key"] = serde_yaml::Value::String(key.to_string());
+    let updated_config = serde_yaml::to_string(&config).expect("serialize config");
+    fs::write(config_path, updated_config).expect("write config");
 
     world.working_directory = Some(repo_path.clone());
     world.temp_dir = Some(temp_dir);
