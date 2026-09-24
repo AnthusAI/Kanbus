@@ -2080,6 +2080,17 @@ fn given_provider_command_args(
     add_provider_profile(world, &profile, "codex", Some(&command), args);
 }
 
+#[given(expr = "provider profile {string} uses a command that does not exist")]
+fn given_provider_nonexistent_command(world: &mut KanbusWorld, profile: String) {
+    add_provider_profile(
+        world,
+        &profile,
+        "codex",
+        Some("/nonexistent/kanbus-agent-binary"),
+        vec![],
+    );
+}
+
 #[given(expr = "a Kanbus project with router configuration field {string}")]
 fn given_unknown_router_field(world: &mut KanbusWorld, field: String) {
     ensure_default_project(world);
@@ -2860,6 +2871,22 @@ fn then_router_package_comment(
         comments.iter().any(|comment| comment.author == author
             && comment.text.as_deref().unwrap_or("").contains(&text)),
         "no {author} comment containing {text:?} on {issue}: {:?}",
+        comments
+            .iter()
+            .map(|comment| (comment.author.clone(), comment.text.clone()))
+            .collect::<Vec<_>>()
+    );
+}
+
+#[then(expr = "package {string} should have a router comment starting with {string}")]
+fn then_router_package_comment_starts_with(world: &mut KanbusWorld, issue: String, text: String) {
+    let comments = load_issue(world, &issue).comments;
+    assert!(
+        comments
+            .iter()
+            .any(|comment| comment.author == "Kanbus Issue Router"
+                && comment.text.as_deref().unwrap_or("").starts_with(&text)),
+        "no Kanbus Issue Router comment starting with {text:?} on {issue}: {:?}",
         comments
             .iter()
             .map(|comment| (comment.author.clone(), comment.text.clone()))
