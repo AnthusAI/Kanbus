@@ -1910,7 +1910,8 @@ fn execute_command(
             let mut plan = crate::rekey::plan_rekey(root, &old_key, &new_key, dry_run)?;
 
             if plan.issue_renames.is_empty() {
-                return Err(KanbusError::IssueOperation("already rekeyed to this key".to_string()));
+                // Already rekeyed to this key - return success with message
+                return Ok(Some("Project is already rekeyed to this key\n".to_string()));
             }
 
             if dry_run {
