@@ -213,11 +213,13 @@ def execute_rekey(root: Path, plan: RekeyPlan) -> None:
 
         if "comments" in issue_data and issue_data["comments"]:
             for comment in issue_data["comments"]:
-                if "body" in comment and comment["body"]:
+                # Comments use "text" field, not "body"
+                text_field = "text" if "text" in comment else "body"
+                if text_field in comment and comment[text_field]:
                     rewritten, count = _rewrite_id_references(
-                        comment["body"], plan.old_key, plan.new_key, valid_ids
+                        comment[text_field], plan.old_key, plan.new_key, valid_ids
                     )
-                    comment["body"] = rewritten
+                    comment[text_field] = rewritten
                     if count > 0:
                         plan.text_rewrites[old_id] = plan.text_rewrites.get(old_id, 0) + count
 

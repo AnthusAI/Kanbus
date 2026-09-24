@@ -110,8 +110,8 @@ def then_issue_has_comment(context: object, identifier: str, text: str) -> None:
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
     for comment in issue.comments:
-        body = comment.get("body") if isinstance(comment, dict) else comment.body
-        if text in body:
+        comment_text = comment.get("text") if isinstance(comment, dict) else (comment.text or "")
+        if text in comment_text:
             return
     raise AssertionError(f"Comment '{text}' not found in issue {identifier}")
 

@@ -144,17 +144,19 @@ pub fn execute_rekey(root: &Path, plan: &mut RekeyPlan) -> Result<(), KanbusErro
             }
         }
 
-        // Rewrite comments
+        // Rewrite comments (comments use "text" field, not "body")
         if let Some(comments) = issue_data
             .get_mut("comments")
             .and_then(|c| c.as_array_mut())
         {
             for comment in comments {
-                if let Some(body) = comment.get("body").and_then(|b| b.as_str()) {
+                // Try "text" first (the correct field name), then fall back to "body"
+                let text_field = if comment.get("text").is_some() { "text" } else { "body" };
+                if let Some(text) = comment.get(text_field).and_then(|t| t.as_str()) {
                     let (rewritten, count) =
-                        rewrite_id_references(body, &plan.old_key, &plan.new_key, &valid_ids);
+                        rewrite_id_references(text, &plan.old_key, &plan.new_key, &valid_ids);
                     if count > 0 {
-                        comment["body"] = json!(rewritten);
+                        comment[text_field] = json!(rewritten);
                         *plan
                             .text_rewrites
                             .entry(old_id.clone())
