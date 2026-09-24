@@ -1,9 +1,8 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
-use cucumber::given;
-use cucumber::then;
+use cucumber::{given, when, then};
 use serde_json::{json, Value};
 use serde_yaml;
 
@@ -463,4 +462,115 @@ fn then_event_history_reflects_rekey(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);
     let events_dir = project_dir.join("events");
     assert!(events_dir.exists(), "Events directory should exist");
+}
+
+#[given("the project is committed to git")]
+fn given_project_committed(world: &mut KanbusWorld) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    // Configure git for tests
+    std::process::Command::new("git")
+        .args(&["config", "user.email", "test@example.com"])
+        .current_dir(cwd)
+        .output()
+        .ok();
+    std::process::Command::new("git")
+        .args(&["config", "user.name", "Test User"])
+        .current_dir(cwd)
+        .output()
+        .ok();
+    // Add and commit
+    std::process::Command::new("git")
+        .args(&["add", "-A"])
+        .current_dir(cwd)
+        .output()
+        .ok();
+    std::process::Command::new("git")
+        .args(&["commit", "-m", "test setup"])
+        .current_dir(cwd)
+        .output()
+        .ok();
+}
+
+#[given("the project directory has uncommitted changes")]
+fn given_project_dir_uncommitted_changes(world: &mut KanbusWorld) {
+    let project_dir = load_project_dir(world);
+    let test_file = project_dir.join("test-change.txt");
+    fs::write(test_file, "uncommitted").expect("write test file");
+}
+
+#[when(expr = "I run \"kanbus rekey {string}\"")]
+fn when_run_rekey(world: &mut KanbusWorld, args: String) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    let output = std::process::Command::new("kanbus")
+        .args(&["rekey", &args])
+        .current_dir(cwd)
+        .output()
+        .expect("run kanbus rekey");
+
+    world.exit_code = Some(output.status.code().unwrap_or(-1));
+    world.stdout = Some(String::from_utf8_lossy(&output.stdout).to_string());
+    world.stderr = Some(String::from_utf8_lossy(&output.stderr).to_string());
+}
+
+#[given(expr = "issue {string} is blocked by {string}")]
+fn given_issue_blocked(world: &mut KanbusWorld, id: String, blocker: String) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    // Use kanbus dep command to add dependency
+    let output = std::process::Command::new("kanbus")
+        .args(&["dep", &id, "blocked-by", &blocker])
+        .current_dir(cwd)
+        .output()
+        .expect("run kanbus dep");
+
+    if output.status.code().unwrap_or(-1) != 0 {
+        panic!("Failed to add dependency: {}", String::from_utf8_lossy(&output.stderr));
+    }
+}
+
+
+#[then(expr = "issue {string} should be blocked by {string}")]
+fn then_issue_blocked(world: &mut KanbusWorld, id: String, blocker: String) {
+    let project_dir = load_project_dir(world);
+    let issue_json = read_issue(&project_dir, &id);
+    let deps = issue_json.get("dependencies").and_then(|d| d.as_array());
+    assert!(
+        deps.map(|d| d
+            .iter()
+            .any(|dep| dep
+                .get("target")
+                .and_then(|t| t.as_str())
+                .map(|t| t == blocker)
+                .unwrap_or(false)
+                && (dep
+                    .get("type")
+                    .and_then(|t| t.as_str())
+                    .map(|t| t == "blocked-by")
+                    .unwrap_or(false)
+                    || dep
+                        .get("dependency_type")
+                        .and_then(|t| t.as_str())
+                        .map(|t| t == "blocked-by")
+                        .unwrap_or(false))))
+            .unwrap_or(false),
+        "Dependency blocked-by -> {} not found",
+        blocker
+    );
+}
+
+#[then(expr = ".kanbus.yml should have project_key {string}")]
+fn then_project_key_file(world: &mut KanbusWorld, key: String) {
+    let cwd = world.working_directory.as_ref().expect("working directory");
+    let config_path = cwd.join(".kanbus.yml");
+    let config_content = fs::read_to_string(&config_path).expect("read config");
+    let config: Value = serde_yaml::from_str(&config_content).expect("parse config");
+    assert_eq!(
+        config
+            .get("project_key")
+            .and_then(|k| k.as_str())
+            .unwrap_or(""),
+        &key,
+        "Expected project_key '{}' but got '{}'",
+        key,
+        config.get("project_key").and_then(|k| k.as_str()).unwrap_or("")
+    );
 }
