@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from behave import given, then, when
 from pathlib import Path
-from types import SimpleNamespace
-from datetime import datetime, timezone
-import json
 import subprocess
+import yaml
 
 from features.steps.shared import (
     build_issue,
@@ -16,8 +14,8 @@ from features.steps.shared import (
     read_issue_file,
     write_issue_file,
 )
-from kanbus.models import IssueData, DependencyLink
-import yaml
+from kanbus.models import DependencyLink
+from datetime import datetime, timezone
 
 
 @given("an issue {issue_id} exists")
@@ -30,21 +28,17 @@ def given_issue_exists(context: object, issue_id: str) -> None:
 
 @given("issues {ids} exist")
 def given_issues_exist(context: object, ids: str) -> None:
-    """Create multiple issues from a comma-separated list."""
-    issue_ids = [i.strip().strip('"') for i in ids.split("and")]
+    """Create multiple issues from a comma-separated or and-separated list."""
+    # Handle both "id1, id2" and "id1 and id2" patterns
+    if " and " in ids:
+        issue_ids = [i.strip().strip('"') for i in ids.split(" and ")]
+    else:
+        issue_ids = [i.strip().strip('"').strip(',') for i in ids.split(",")]
     project_dir = load_project_directory(context)
     for issue_id in issue_ids:
-        issue = build_issue(issue_id, issue_id, "task", "open", None, [])
-        write_issue_file(project_dir, issue)
-
-
-@given('issues "{id1}" and "{id2}" exist')
-def given_two_issues_exist(context: object, id1: str, id2: str) -> None:
-    """Create two specific issues."""
-    project_dir = load_project_directory(context)
-    for issue_id in [id1, id2]:
-        issue = build_issue(issue_id, issue_id, "task", "open", None, [])
-        write_issue_file(project_dir, issue)
+        if issue_id:  # Skip empty strings
+            issue = build_issue(issue_id, issue_id, "task", "open", None, [])
+            write_issue_file(project_dir, issue)
 
 
 @given('an issue "{issue_id}" exists with type "{issue_type}"')
@@ -63,36 +57,11 @@ def given_issue_with_parent(context: object, issue_id: str, parent_id: str) -> N
     write_issue_file(project_dir, issue)
 
 
-@given('an issue "{parent_id}" exists with type "{issue_type}"')
-def given_parent_issue(context: object, parent_id: str, issue_type: str) -> None:
-    """Create a parent issue (epic)."""
-    project_dir = load_project_directory(context)
-    issue = build_issue(parent_id, parent_id, issue_type, "open", None, [])
-    write_issue_file(project_dir, issue)
-
-
 @given('an issue "{issue_id}" exists with description "{description}"')
 def given_issue_with_description(context: object, issue_id: str, description: str) -> None:
     """Create an issue with specified description."""
     project_dir = load_project_directory(context)
     issue = build_issue(issue_id, issue_id, "task", "open", None, [])
-    issue = issue.model_copy(update={"description": description})
-    write_issue_file(project_dir, issue)
-
-
-@given('an issue "{issue_id}" exists with title "{title}"')
-def given_issue_with_title(context: object, issue_id: str, title: str) -> None:
-    """Create an issue with specified title."""
-    project_dir = load_project_directory(context)
-    issue = build_issue(issue_id, title, "task", "open", None, [])
-    write_issue_file(project_dir, issue)
-
-
-@given('an issue "{issue_id}" exists with title "{title}" and description "{description}"')
-def given_issue_with_title_and_desc(context: object, issue_id: str, title: str, description: str) -> None:
-    """Create an issue with title and description."""
-    project_dir = load_project_directory(context)
-    issue = build_issue(issue_id, title, "task", "open", None, [])
     issue = issue.model_copy(update={"description": description})
     write_issue_file(project_dir, issue)
 
@@ -135,10 +104,36 @@ def given_issue_already_exists(context: object, new_id: str) -> None:
     write_issue_file(project_dir, issue)
 
 
+@given("the working tree has uncommitted changes under project/")
+def given_uncommitted_changes(context: object) -> None:
+    """Create uncommitted changes in project/ directory."""
+    project_dir = load_project_directory(context)
+    test_file = project_dir / "test-change.txt"
+    test_file.write_text("uncommitted", encoding="utf-8")
+
+
 @when('I run "kanbus rekey {args}"')
 def when_run_rekey(context: object, args: str) -> None:
     """Run the rekey command."""
     run_cli(context, f"kanbus rekey {args}")
+
+
+@when("I run \"kanbus validate\"")
+def when_run_validate(context: object) -> None:
+    """Run validate command."""
+    run_cli(context, "kanbus validate")
+
+
+@when("I check the git history")
+def when_check_git_history(context: object) -> None:
+    """Check git history."""
+    result = subprocess.run(
+        ["git", "log", "--oneline"],
+        cwd=context.working_directory,
+        capture_output=True,
+        text=True,
+    )
+    context.git_history = result.stdout
 
 
 @then("the command should succeed")
@@ -210,12 +205,12 @@ def then_issue_has_dependency(context: object, issue_id: str, dep_type: str, tar
     raise AssertionError(f"Dependency {dep_type} -> {target_id} not found")
 
 
-@then('issue "{issue_id}" should have title "{title}"')
-def then_issue_has_title(context: object, issue_id: str, title: str) -> None:
-    """Verify issue title."""
+@then('issue "{issue_id}" should have description "{description}"')
+def then_issue_has_description(context: object, issue_id: str, description: str) -> None:
+    """Verify issue description."""
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, issue_id)
-    assert issue.title == title
+    assert issue.description == description
 
 
 @then('issue "{issue_id}" should have a comment "{comment_text}"')
@@ -269,28 +264,26 @@ def then_cache_invalidated(context: object) -> None:
     assert not cache_dir.exists() or cache_dir.stat().st_mtime > 0
 
 
-@when("I run \"kanbus validate\"")
-def when_run_validate(context: object) -> None:
-    """Run validate command."""
-    run_cli(context, "kanbus validate")
-
-
 @then("the validate command should succeed")
 def then_validate_succeeds(context: object) -> None:
     """Verify validate succeeded."""
     then_command_succeeds(context)
 
 
-@when("I check the git history")
-def when_check_git_history(context: object) -> None:
-    """Check git history."""
-    result = subprocess.run(
-        ["git", "log", "--oneline"],
-        cwd=context.working_directory,
-        capture_output=True,
-        text=True,
-    )
-    context.git_history = result.stdout
+@then('project key in .kanbus.yml should be "{key}"')
+def then_project_key_is(context: object, key: str) -> None:
+    """Verify project key in configuration."""
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+    config_content = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert config_content.get("project_key") == key
+
+
+@then('project key should still be "{key}"')
+def then_project_key_still_is(context: object, key: str) -> None:
+    """Verify project key hasn't changed."""
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+    config_content = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert config_content.get("project_key") == key
 
 
 @then("the event history should reflect the rekey operation")
