@@ -12,6 +12,7 @@ import yaml
 
 from features.steps.shared import (
     ensure_git_repository,
+    load_project_directory,
     write_default_kanbus_config,
     write_issue_file,
 )
@@ -21,7 +22,6 @@ from kanbus.project import (
     discover_project_directories,
     discover_kanbus_projects,
     get_configuration_path,
-    load_project_directory,
 )
 
 
@@ -480,4 +480,3 @@ def then_issue_has_description(context: object, issue_id: str, description: str)
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, issue_id)
     assert issue.description == description
-    assert "Permission denied" in context.project_error
