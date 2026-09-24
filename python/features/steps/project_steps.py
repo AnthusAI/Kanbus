@@ -479,4 +479,4 @@ def then_issue_has_description(context: object, issue_id: str, description: str)
 
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, issue_id)
-    assert issue.description == description
+    assert issue.description == description, f"Expected description '{description}' but got '{issue.description}'"
