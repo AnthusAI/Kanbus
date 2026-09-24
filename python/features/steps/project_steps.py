@@ -428,4 +428,56 @@ def then_config_path_missing(context: object) -> None:
 @then('project discovery should fail with "Permission denied"')
 def then_project_permission_denied(context: object) -> None:
     assert context.project_error is not None
+
+
+@given('a Kanbus project with key "{key}"')
+def given_project_with_key(context: object, key: str) -> None:
+    """Create a Kanbus project with specified key."""
+    from features.steps.shared import (
+        initialize_default_project,
+        write_default_kanbus_config,
+    )
+
+    initialize_default_project(context)
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+
+    config_content = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config_content["project_key"] = key
+    config_path.write_text(
+        yaml.safe_dump(config_content, sort_keys=False), encoding="utf-8"
+    )
+
+
+@then('project key in .kanbus.yml should be "{key}"')
+def then_project_key_is(context: object, key: str) -> None:
+    """Verify project key in configuration."""
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+    config_content = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert config_content.get("project_key") == key
+
+
+@then('project key should still be "{key}"')
+def then_project_key_still_is(context: object, key: str) -> None:
+    """Verify project key hasn't changed."""
+    config_path = Path(context.working_directory) / ".kanbus.yml"
+    config_content = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert config_content.get("project_key") == key
+
+
+@then('the working tree has uncommitted changes under project/')
+def given_uncommitted_changes(context: object) -> None:
+    """Create uncommitted changes in project/ directory."""
+    project_dir = load_project_directory(context)
+    test_file = project_dir / "test-change.txt"
+    test_file.write_text("uncommitted", encoding="utf-8")
+
+
+@then('issue "{issue_id}" should have description "{description}"')
+def then_issue_has_description(context: object, issue_id: str, description: str) -> None:
+    """Verify issue description."""
+    from features.steps.shared import read_issue_file
+
+    project_dir = load_project_directory(context)
+    issue = read_issue_file(project_dir, issue_id)
+    assert issue.description == description
     assert "Permission denied" in context.project_error
