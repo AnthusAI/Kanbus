@@ -241,6 +241,7 @@ class StatusDefinition(BaseModel):
     semantic_category: str = ""
     color: Optional[str] = None
     collapsed: bool = False
+    router: bool = False
 
     @model_validator(mode="after")
     def _derive_missing_semantic_category(self) -> "StatusDefinition":
@@ -619,7 +620,6 @@ class IssueRouterConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
-    workflow: RouterWorkflowRoles | None = None
     limits: RouterLimits | None = None
     providers: Dict[str, RouterAgentProfile] = Field(default_factory=dict)
     classes: Dict[str, RouterAgentClass] = Field(default_factory=dict)
@@ -627,25 +627,31 @@ class IssueRouterConfiguration(BaseModel):
     forge: Optional[RouterForgeConfiguration] = None
     watch_interval: str = "30s"
 
+    workflow: RouterWorkflowRoles | None = Field(default=None, exclude=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_workflow_field(cls, value: Any) -> Any:
+        """Reject workflow field which is now derived from status markers."""
+        if isinstance(value, dict) and "workflow" in value:
+            raise ValueError("workflow is an unknown field")
+        return value
+
     @model_validator(mode="before")
     @classmethod
     def require_enabled_fields(cls, value: Any) -> Any:
         """Allow an explicit disabled marker without requiring execution settings."""
         if isinstance(value, dict) and value.get("enabled", True) is not False:
-            missing = [
-                key for key in ("workflow", "limits", "providers") if key not in value
-            ]
+            missing = [key for key in ("limits", "providers") if key not in value]
             if missing:
-                raise ValueError("router workflow, limits, and providers are required")
+                raise ValueError("router limits and providers are required")
         return value
 
     @model_validator(mode="after")
     def validate_enabled_configuration(self) -> "IssueRouterConfiguration":
         """Require usable routes on enabled router configurations."""
-        if self.enabled and (
-            self.workflow is None or self.limits is None or not self.providers
-        ):
-            raise ValueError("router workflow, limits, and providers are required")
+        if self.enabled and (self.limits is None or not self.providers):
+            raise ValueError("router limits and providers are required")
         return self
 
     @field_validator("watch_interval")
@@ -684,6 +690,40 @@ class HooksConfiguration(BaseModel):
     default_timeout_ms: int = Field(default=5000, ge=1)
     before: Dict[str, List[HookDefinition]] = Field(default_factory=dict)
     after: Dict[str, List[HookDefinition]] = Field(default_factory=dict)
+
+
+ROUTER_SEMANTIC_CATEGORIES = ("todo", "in_progress", "in_review", "blocked", "done")
+
+
+def router_marker_errors(statuses: List[StatusDefinition]) -> List[str]:
+    """Report missing or duplicated router status markers.
+
+    A router-enabled project needs exactly one status marked ``router: true``
+    for each canonical semantic category.
+
+    :param statuses: Status definitions in configuration order.
+    :type statuses: List[StatusDefinition]
+    :return: Error messages in category order, empty when the markers are valid.
+    :rtype: List[str]
+    """
+    marked: Dict[str, List[str]] = {}
+    for status in statuses:
+        if status.router:
+            marked.setdefault(status.semantic_category, []).append(status.key)
+    errors: List[str] = []
+    for category in ROUTER_SEMANTIC_CATEGORIES:
+        keys = marked.get(category, [])
+        if len(keys) > 1:
+            errors.append(
+                f'router status marker for semantic_category "{category}" '
+                f'is used by both "{keys[0]}" and "{keys[1]}"'
+            )
+        elif not keys:
+            errors.append(
+                "router requires one router: true status for "
+                f'semantic_category "{category}"'
+            )
+    return errors
 
 
 class ProjectConfiguration(BaseModel):
@@ -783,3 +823,25 @@ class ProjectConfiguration(BaseModel):
     overlay: OverlayConfig = Field(default_factory=OverlayConfig)
     hooks: HooksConfiguration = Field(default_factory=HooksConfiguration)
     github_security: Optional[GithubSecurityConfiguration] = None
+
+    @model_validator(mode="after")
+    def derive_router_workflow_roles(self) -> "ProjectConfiguration":
+        """Derive the router's status roles from the router-marked statuses."""
+        if (
+            self.router is not None
+            and self.router.enabled
+            and not router_marker_errors(self.statuses)
+        ):
+            marked = {
+                status.semantic_category: status.key
+                for status in self.statuses
+                if status.router
+            }
+            self.router.workflow = RouterWorkflowRoles(
+                pending=marked["todo"],
+                active=marked["in_progress"],
+                review=marked["in_review"],
+                blocked=marked["blocked"],
+                terminal=[marked["done"]],
+            )
+        return self

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from router_status_markers import mark_router_statuses
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.issue_router import (
     RouterContext,
@@ -49,13 +50,6 @@ def _planning_context(
     }
     labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
     configuration_data["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {
             "project_wip": project_wip,
             "review_wip": review_wip,
@@ -65,6 +59,7 @@ def _planning_context(
         "providers": {"codex": {"adapter": "codex"}},
         "classes": {"backend": {"providers": ["codex"]}} if class_wip else {},
     }
+    mark_router_statuses(configuration_data)
     configuration = ProjectConfiguration.model_validate(configuration_data)
     now = datetime.now(UTC)
     issues = [

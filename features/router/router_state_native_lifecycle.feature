@@ -1,4 +1,3 @@
-@wip
 Feature: State-native Issue Router lifecycle
   As a Kanbus maintainer
   I want the router lifecycle to follow the router-marked status of each semantic category
@@ -172,7 +171,7 @@ Feature: State-native Issue Router lifecycle
     And the fake adapter returns outcome "retryable_failure" for attempt 1
     When I run "kanbus router run --once"
     Then the command should fail with exit code 1
-    And package "kbs-401" should remain in status "in_progress"
+    And package "kbs-401" should transition to status "in_progress"
 
   Scenario: Successful agent work moves to the marked in-review status and stays there
     Given routed package "kbs-401" is in status "Discovery"
