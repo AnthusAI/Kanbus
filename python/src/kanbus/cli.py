@@ -637,7 +637,9 @@ def rekey(new_key: str, dry_run: bool) -> None:
         raise click.ClickException(str(error)) from error
 
     if not plan.issue_renames:
-        raise click.ClickException("already rekeyed to this key")
+        # Already rekeyed to this key - print message to stderr and succeed
+        click.echo("Project is already rekeyed to this key", err=True)
+        return
 
     if dry_run:
         for old_id, new_id in sorted(plan.issue_renames.items()):

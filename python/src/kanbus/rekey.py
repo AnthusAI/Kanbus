@@ -126,10 +126,11 @@ def plan_rekey(root: Path, old_key: str, new_key: str, dry_run: bool = False) ->
     :rtype: RekeyPlan
     :raises RekeyError: If rekey is not possible.
     """
-    if old_key == new_key:
-        raise RekeyError("new key equals old key")
-
     _validate_project_key(new_key)
+
+    # If already rekeyed to this key, return empty plan
+    if old_key == new_key:
+        return RekeyPlan(old_key, new_key, {}, {})
 
     if not dry_run:
         _check_git_tree_clean(root)
