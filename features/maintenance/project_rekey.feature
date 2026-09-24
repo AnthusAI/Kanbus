@@ -5,13 +5,14 @@ Feature: Project rekey
 
   Scenario: Rekey renames project key and issue IDs with suffix preservation
     Given a Kanbus project with key "old"
-    And issues "old-abc123de-1234-5678-abcd-123456789012", "old-def456gh-5678-1234-abcd-123456789012" exist
+    And a "task" issue "old-abc123de-1234-5678-abcd-123456789012" exists
+    And a "task" issue "old-def456gh-5678-1234-abcd-123456789012" exists
     When I run "kanbus rekey new"
     Then the command should succeed
     And issue "new-abc123de-1234-5678-abcd-123456789012" should exist
     And issue "new-def456gh-5678-1234-abcd-123456789012" should exist
     And issue "old-abc123de-1234-5678-abcd-123456789012" should not exist
-    And project key in .kanbus.yml should be "new"
+    And the project key should be "new"
 
   Scenario: Rekey preserves short ID hex suffixes
     Given a Kanbus project with key "apricitus"
