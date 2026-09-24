@@ -63,10 +63,22 @@ def when_run_rekey(context: object, args: str) -> None:
 @given('issue "{identifier}" is blocked by "{blocker}"')
 def given_issue_blocked_by(context: object, identifier: str, blocker: str) -> None:
     """Add a blocked-by dependency to an issue."""
-    from features.steps.shared import load_project_directory, read_issue_file, write_issue_file, run_cli
+    from features.steps.shared import load_project_directory, read_issue_file, run_cli
     project_dir = load_project_directory(context)
     # Use kanbus dep command to add dependency
-    run_cli(context, f'kanbus dep "{identifier}" --blocked-by "{blocker}"')
+    run_cli(context, f'kanbus dep "{identifier}" blocked-by "{blocker}"')
+    # Check if the command succeeded
+    if context.result.exit_code != 0:
+        raise AssertionError(f"Failed to add dependency: {context.result.stderr}")
+    # Verify the dependency was created
+    issue = read_issue_file(project_dir, identifier)
+    found = False
+    for dep in issue.dependencies:
+        if dep.target == blocker and dep.dependency_type == "blocked-by":
+            found = True
+            break
+    if not found:
+        raise AssertionError(f"Dependency not created. Issue has: {[(d.target, d.dependency_type) for d in issue.dependencies]}")
 
 
 @given('issue "{identifier}" has a comment "{text}"')
@@ -86,7 +98,9 @@ def then_issue_blocked_by(context: object, identifier: str, blocker: str) -> Non
     for dep in issue.dependencies:
         if dep.dependency_type == "blocked-by" and dep.target == blocker:
             return
-    raise AssertionError(f"Issue {identifier} should be blocked by {blocker}")
+    # Debug: print all dependencies
+    deps_debug = [(d.target, d.dependency_type) for d in issue.dependencies]
+    raise AssertionError(f"Issue {identifier} should be blocked by {blocker}. Found dependencies: {deps_debug}")
 
 
 @then('issue "{identifier}" should have a comment "{text}"')
