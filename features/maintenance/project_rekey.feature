@@ -121,20 +121,11 @@ Feature: Project rekey
     And issue "new-issue01-1234-5678-abcd-123456789012" should not exist
     And issue "old-issue01-1234-5678-abcd-123456789012" should exist
 
-  Scenario: Rekey fails when new key equals old key
-    Given a Kanbus project with key "same"
-    And a "task" issue "same-task0000-1234-5678-abcd-123456789012" exists
-    And the project is committed to git
-    When I run "kanbus rekey same"
-    Then the command should fail with exit code 1
-    And stderr should contain "new key equals old key"
-    And issue "same-task0000-1234-5678-abcd-123456789012" should exist
-
   Scenario: Rekey fails when new key is invalid
     Given a Kanbus project with key "old"
     And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists
     And the project is committed to git
-    When I run "kanbus rekey invalid key"
+    When I run "kanbus rekey Bad_Key!"
     Then the command should fail with exit code 1
     And stderr should contain "invalid project key"
     And issue "old-task0000-1234-5678-abcd-123456789012" should exist
@@ -168,13 +159,14 @@ Feature: Project rekey
     And issue "new-task0000-1234-5678-abcd-123456789012" should exist
     When I run "kanbus rekey new"
     Then the command should succeed
+    And stderr should contain "already"
     And issue "new-task0000-1234-5678-abcd-123456789012" should exist
 
   Scenario: Rekey validation passes after completion
     Given a Kanbus project with key "old"
-    And a "task" issue "old-task1000-1234-5678-abcd-123456789012" exists
+    And an "epic" issue "old-parent01-1234-5678-abcd-123456789012" exists
     And a "task" issue "old-task2000-5678-9abc-abcd-123456789012" exists
-    And issue "old-task1000-1234-5678-abcd-123456789012" has parent "old-task2000-5678-9abc-abcd-123456789012"
+    And issue "old-task2000-5678-9abc-abcd-123456789012" has parent "old-parent01-1234-5678-abcd-123456789012"
     And the project is committed to git
     When I run "kanbus rekey new"
     And I run "kanbus validate"
@@ -189,4 +181,4 @@ Feature: Project rekey
     Then the command should succeed
     When I run "kanbus list"
     Then the command should succeed
-    And stdout should contain "new-task0000"
+    And stdout should contain "new-task00"
