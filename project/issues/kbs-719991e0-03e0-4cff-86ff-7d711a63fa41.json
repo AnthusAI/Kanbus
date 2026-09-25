@@ -3,7 +3,7 @@
   "title": "Clarify Mutex API TTL GC storage flavor in Gherkin",
   "description": "SD nit #6 on PR #278: minor TTL GC storage flavor gap on live-lease-only DynamoDB semantics.\n\nSpecify that abandoned leases expire and are garbage-collected (DynamoDB TTL when that provider is configured) without storing Kanbus history in the mutex store.",
   "type": "task",
-  "status": "backlog",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -37,14 +37,14 @@
     }
   ],
   "created_at": "2026-09-14T14:08:24.737330742Z",
-  "updated_at": "2026-09-16T03:44:15.148387Z",
+  "updated_at": "2026-09-25T02:50:31.177520Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-    "right_now_summary": "The TTL garbage-collection and storage wording awaits admission of the Mutex API work.",
-    "right_now_updated_at": "2026-09-18T18:21:07.299163Z",
+  "right_now_summary": "The TTL garbage-collection and storage wording awaits admission of the Mutex API work.",
+  "right_now_updated_at": "2026-09-18T18:21:07.299163Z",
   "custom": {}
 }

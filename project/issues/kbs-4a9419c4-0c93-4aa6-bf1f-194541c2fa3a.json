@@ -3,7 +3,7 @@
   "title": "Progressive coordination and mutual exclusion",
   "description": "## Objective\n\nExtend Kanbus with optional coordination for distributed workers, without compromising the core property: Kanbus must continue to work using Git alone. MQTT and a Mutex API are progressive enhancement, not dependencies.\n\nThis is initially motivated by Spoticus (one scheduler epoch, one dispatch decision) and by local-first / cloud-backstop workers (for example TTS), but it must be a generic Kanbus capability. Spoticus must not dictate the architecture.\n\n## Constraint versus Beads exclusive claim\n\nKanbus already has `kbs update --claim` (assignee + `in_progress`). That is not a mutex.\n\nThe README currently says exclusive claiming was removed because it does not align with distributed Git. This initiative does **not** reverse that: Git-only installs stay fully functional, and duplicate work remains possible at Level 1. We add an optional claim/lease layer on top, with stronger guarantees only when extra infrastructure is configured.\n\n## Three levels\n\n1. **Git (required):** Durable source of truth. Soft-lease via the issue/event model. Contention windows must tolerate Git latency. A Git-only installation is legitimate, not broken.\n2. **MQTT (optional):** Kanbus already has optional MQTT gossip/overlay (`docs/REALTIME.md`). Fast-path CLAIM → contention window (seconds) → deterministic tie-break → LEASE / renew / RELEASE. Soft mutex only; partitions can still duplicate.\n3. **Mutex API (optional):** Hard arbitration. Atomically create/claim resource X iff nobody currently owns X. Proposed shape: API Gateway REST → direct DynamoDB conditional write. No Lambda. No AppSync. Workers authenticate to the Kanbus Mutex API; they do not get the AWS account. DynamoDB holds only live leases (resource_id, owner_id, claim_id, revision, claimed_at, expires_at), not Kanbus history. TTL garbage-collects abandoned leases.\n\nA worker asks Kanbus to claim a resource. Kanbus uses the strongest configured provider. Business logic does not fork per transport.\n\n## Protocol (define first, Gherkin source of truth)\n\nOne transport-independent claim/lease protocol: resource identity, owner identity, claim IDs, contention behavior, lease TTLs and renewals, expiration, release/completion, deterministic collision resolution, revision semantics, and failure behavior. Then implement Git lease → MQTT fast-path → optional hard-mutex provider. Dual-runtime (Python + Rust) after Gherkin; no Python-only or Rust-only PRs.\n\n## Revision-aware results\n\nPublication is by logical task revision, not whoever finishes last. An obsolete local render must not overwrite a newer revision. Pattern: local-first → wait → cloud backstop, without making the cloud the queue or source of truth.\n\n## Out of scope\n\nThis is not a second queue competing with Kanbus. Durable history stays in Git. DynamoDB is ephemeral coordination state only.",
   "type": "initiative",
-  "status": "closed",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -43,11 +43,18 @@
       "text": "Back to in progress: its child epic kbs-465262 (PR #278 soft nits) is in progress, and a parent must not be closed while a child is open. Reopened by mistake-correction, not new scope.",
       "created_at": "2026-09-25T02:50:19.507623Z",
       "comment_type": "default"
+    },
+    {
+      "id": "8871f7ac-dc75-4b1e-9042-d3bb642e31de",
+      "author": "home",
+      "text": "Back to in progress: its child epic kbs-465262 (PR #278 soft nits) is in progress, and a parent must not be closed while a child is open. This corrects my earlier closure of the initiative.",
+      "created_at": "2026-09-25T02:50:31.626129Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-14T13:32:37.955737693Z",
-  "updated_at": "2026-09-25T02:50:19.507656Z",
-  "closed_at": "2026-09-23T21:20:59.287052Z",
+  "updated_at": "2026-09-25T02:50:31.626157Z",
+  "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
