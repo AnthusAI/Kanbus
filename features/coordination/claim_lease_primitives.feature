@@ -3,6 +3,11 @@ Feature: Coordination claim and lease primitives
   I want a transport-independent claim and lease protocol
   So that resource ownership is explicit without replacing Git as durable history
 
+  Collision rule: when several claims for one resource arrive inside the same
+  contention window, the winner is the claim with the lexicographically
+  smallest tuple of claim id, then owner, then event id. Later claims do not
+  displace the winner until its lease expires or is released.
+
   Background:
     Given a Kanbus project with default configuration
     And coordination is configured with contention window "5s" and default lease TTL "300s"
