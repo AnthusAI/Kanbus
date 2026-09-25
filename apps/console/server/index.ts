@@ -442,6 +442,85 @@ apiRouter.post("/issues/:id/status", requireLoopback, express.json({ limit: "16k
   }
 });
 
+const ROUTE_LABEL_PREFIXES = ["agent-class:", "agent-provider:"];
+
+type RouterAssignmentConfig = {
+  workflow?: { active?: string };
+  classes?: Record<string, unknown>;
+  providers?: Record<string, unknown>;
+};
+
+apiRouter.post("/issues/:id/assignment", requireLoopback, express.json({ limit: "16kb" }), async (req, res) => {
+  const body = req.body ?? {};
+  const clear = body.clear === true;
+  if (body.clear !== undefined && !clear) {
+    res.status(400).json({ error: "clear must be true" });
+    return;
+  }
+  const kind = typeof body.kind === "string" ? body.kind.trim() : "";
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (!clear && (!kind || !name)) {
+    res.status(400).json({ error: "assignment kind and name are required" });
+    return;
+  }
+  try {
+    const before = await refreshSnapshot();
+    const issue = before.issues.find((item) => item.id === req.params.id);
+    if (!issue) {
+      res.status(404).json({ error: "issue not found" });
+      return;
+    }
+    const router = (before.config as unknown as { router?: RouterAssignmentConfig }).router;
+    if (!router) {
+      res.status(400).json({ error: "router is not configured" });
+      return;
+    }
+    let desired: string | null = null;
+    if (!clear) {
+      if (kind !== "class" && kind !== "provider") {
+        res.status(400).json({ error: `assignment kind must be class or provider, got "${kind}"` });
+        return;
+      }
+      const known = kind === "class" ? router.classes : router.providers;
+      if (!known || !(name in known)) {
+        const noun = kind === "class" ? "agent class" : "provider profile";
+        res.status(400).json({ error: `unknown ${noun} "${name}"` });
+        return;
+      }
+      desired = `agent-${kind}:${name}`;
+    }
+    if (issue.status === router.workflow?.active) {
+      res.status(400).json({
+        error: "the router is running this issue; change its assignment after the run ends"
+      });
+      return;
+    }
+    const current = (issue.labels ?? []).filter((label) =>
+      ROUTE_LABEL_PREFIXES.some((prefix) => label.startsWith(prefix))
+    );
+    const remove = current.filter((label) => label !== desired);
+    const add = desired && !current.includes(desired) ? [desired] : [];
+    if (add.length > 0 || remove.length > 0) {
+      await runKanbusCommand([
+        "update",
+        req.params.id,
+        ...add.flatMap((label) => ["--add-label", label]),
+        ...remove.flatMap((label) => ["--remove-label", label])
+      ]);
+    }
+    const snapshot = await refreshSnapshot();
+    broadcastSnapshot(snapshot);
+    const updated = snapshot.issues.find((item) => item.id === req.params.id);
+    if (!updated) {
+      res.status(404).json({ error: "issue not found after assignment update" });
+      return;
+    }
+    res.json({ issue: updated });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
 apiRouter.get("/now", async (_req, res) => {
   try {
     const issues = await runNowIssues();

@@ -35,6 +35,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::{Any, CorsLayer};
 
+use kanbus::agent_assignment::{change_issue_assignment, AssignmentChoice};
 use kanbus::console_backend::{find_issue_matches, FileStore};
 use kanbus::console_standup::{generate_standup_report, StandupGenerateRequest};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
@@ -212,6 +213,10 @@ async fn main() {
         .route("/api/issues/:id", get(get_issue_root))
         .route("/api/issues/:id/comments", post(post_issue_comment_root))
         .route("/api/issues/:id/status", post(post_issue_status_root))
+        .route(
+            "/api/issues/:id/assignment",
+            post(post_issue_assignment_root),
+        )
         .route("/api/issues/:id/events", get(get_issue_events_root))
         .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
@@ -256,6 +261,10 @@ async fn main() {
         .route(
             "/:account/:project/api/issues/:id/status",
             post(post_issue_status),
+        )
+        .route(
+            "/:account/:project/api/issues/:id/assignment",
+            post(post_issue_assignment),
         )
         .route(
             "/:account/:project/api/issues/:id/events",
@@ -697,6 +706,19 @@ struct IssueStatusResponse {
     issue: IssueData,
 }
 
+/// Either a routing assignment to set or an explicit request to clear it.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum IssueAssignmentRequest {
+    Set { kind: String, name: String },
+    Clear { clear: bool },
+}
+
+#[derive(Debug, Serialize)]
+struct IssueAssignmentResponse {
+    issue: IssueData,
+}
+
 /// The router treats a status of "open" as the ready-to-run queue. Requeuing
 /// here after a human reply must land on that same status so the router's
 /// resume logic (`pending_reply_plan`) picks the saved session back up,
@@ -825,6 +847,53 @@ async fn issue_status_response(store: FileStore, id: String, status: String) -> 
     }
 }
 
+async fn issue_assignment_response(
+    store: FileStore,
+    id: String,
+    request: IssueAssignmentRequest,
+) -> Response {
+    if matches!(request, IssueAssignmentRequest::Clear { clear: false }) {
+        return error_response("clear must be true", StatusCode::BAD_REQUEST);
+    }
+    let result =
+        tokio::task::spawn_blocking(move || -> Result<IssueAssignmentResponse, KanbusError> {
+            let snapshot = store.build_snapshot()?;
+            let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
+            if matches.is_empty() {
+                return Err(KanbusError::IssueOperation("issue not found".to_string()));
+            }
+            if matches.len() > 1 {
+                return Err(KanbusError::IssueOperation(
+                    "issue id is ambiguous".to_string(),
+                ));
+            }
+            let identifier = matches[0].identifier.clone();
+            let choice = match &request {
+                IssueAssignmentRequest::Set { kind, name } => Some(AssignmentChoice {
+                    kind: kind.as_str(),
+                    name: name.as_str(),
+                }),
+                IssueAssignmentRequest::Clear { .. } => None,
+            };
+            change_issue_assignment(store.root(), &identifier, choice)?;
+            let refreshed = store.build_snapshot()?;
+            let issue = refreshed
+                .issues
+                .into_iter()
+                .find(|item| item.identifier == identifier)
+                .ok_or_else(|| {
+                    KanbusError::IssueOperation("issue not found after write".to_string())
+                })?;
+            Ok(IssueAssignmentResponse { issue })
+        })
+        .await;
+    match result {
+        Ok(Ok(response)) => Json(response).into_response(),
+        Ok(Err(error)) => error_response(error.to_string(), StatusCode::BAD_REQUEST),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
 fn crate_project_dir(root: &Path) -> Result<PathBuf, KanbusError> {
     kanbus::file_io::load_project_directory(root)
 }
@@ -895,6 +964,40 @@ async fn post_issue_status(
     }
     let store = store_for(&state, &account, &project);
     issue_status_response(store, id, payload.status).await
+}
+
+async fn post_issue_assignment_root(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    Json(payload): Json<IssueAssignmentRequest>,
+) -> Response {
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    let store = match store_for_root(&state) {
+        Some(store) => store,
+        None => {
+            return error_response(
+                "multi-tenant mode requires /:account/:project",
+                StatusCode::BAD_REQUEST,
+            )
+        }
+    };
+    issue_assignment_response(store, id, payload).await
+}
+
+async fn post_issue_assignment(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    Json(payload): Json<IssueAssignmentRequest>,
+) -> Response {
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    let store = store_for(&state, &account, &project);
+    issue_assignment_response(store, id, payload).await
 }
 
 async fn get_issue_events_root(
@@ -2250,6 +2353,87 @@ mod tests {
         )
         .await;
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn post_issue_assignment_root_refuses_a_non_loopback_caller() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-assign");
+        let state = test_state(root.clone(), root.clone(), false);
+
+        let response = post_issue_assignment_root(
+            ConnectInfo(remote_addr()),
+            State(state),
+            AxumPath("kbs-assign".to_string()),
+            Json(IssueAssignmentRequest::Set {
+                kind: "class".to_string(),
+                name: "implementation".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        let stored =
+            std::fs::read_to_string(root.join("project").join("issues").join("kbs-assign.json"))
+                .expect("read issue");
+        assert!(!stored.contains("agent-class"), "{stored}");
+    }
+
+    #[tokio::test]
+    async fn post_issue_assignment_root_rejects_a_project_without_a_router() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-assign");
+        let state = test_state(root.clone(), root, false);
+
+        let response = post_issue_assignment_root(
+            ConnectInfo(loopback_addr()),
+            State(state),
+            AxumPath("kbs-assign".to_string()),
+            Json(IssueAssignmentRequest::Set {
+                kind: "class".to_string(),
+                name: "implementation".to_string(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn post_issue_assignment_root_requires_clear_to_be_true() {
+        let _guard = env_guard();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path().canonicalize().expect("canonical root");
+        setup_project_root(&root);
+        write_issue(&root, "kbs-assign");
+        let state = test_state(root.clone(), root, false);
+
+        let response = post_issue_assignment_root(
+            ConnectInfo(loopback_addr()),
+            State(state),
+            AxumPath("kbs-assign".to_string()),
+            Json(IssueAssignmentRequest::Clear { clear: false }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn assignment_requests_deserialize_to_set_or_clear() {
+        let set: IssueAssignmentRequest =
+            serde_json::from_str(r#"{"kind":"class","name":"implementation"}"#).expect("set");
+        assert!(matches!(set, IssueAssignmentRequest::Set { .. }));
+        let clear: IssueAssignmentRequest =
+            serde_json::from_str(r#"{"clear":true}"#).expect("clear");
+        assert!(matches!(
+            clear,
+            IssueAssignmentRequest::Clear { clear: true }
+        ));
+        assert!(serde_json::from_str::<IssueAssignmentRequest>("{}").is_err());
     }
 
     #[tokio::test]

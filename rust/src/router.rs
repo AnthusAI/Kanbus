@@ -1577,6 +1577,29 @@ fn apply_router_status_overlay(
     }
 }
 
+/// Whether the router currently owns an issue: it holds a live claim on it, or
+/// the issue's effective status is the router's active status.
+///
+/// # Arguments
+/// * `root` - Repository root.
+/// * `issue_id` - Full issue identifier.
+///
+/// # Errors
+/// Returns a configuration or issue error when the project cannot be read.
+pub fn issue_is_running_in_router(root: &Path, issue_id: &str) -> Result<bool, KanbusError> {
+    let configuration =
+        crate::config_loader::load_project_configuration(&get_configuration_path(root)?)?;
+    let Some(router) = configuration.router.as_ref() else {
+        return Ok(false);
+    };
+    let project_dir = load_project_directory(root)?;
+    let events = load_router_events(&project_dir)?;
+    if has_live_router_claim(&events, issue_id, Utc::now()) {
+        return Ok(true);
+    }
+    Ok(effective_issue_router_status(root, issue_id)? == router.workflow.active)
+}
+
 /// Return the effective issue status after reducing router events and shared
 /// router-state publication, without mutating the caller's checkout.
 pub fn effective_issue_router_status(root: &Path, issue_id: &str) -> Result<String, KanbusError> {
