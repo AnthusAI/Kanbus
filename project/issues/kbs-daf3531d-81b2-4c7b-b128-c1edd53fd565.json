@@ -3,7 +3,7 @@
   "title": "Add safe console editor for routing assignment",
   "description": "Build the issue-detail assignment editor on the resolved assignment API and write foundation. A human may select an allowed class or provider, inspect the effective model/effort/tier before saving, or clear an assignment. Preserve unrelated labels, reject conflicting assignment labels, do not mutate issue.agent provenance, and prevent unsafe changes for an actively claimed/running router package. Add confirmation/error UX and API/UI parity coverage.",
   "type": "story",
-  "status": "backlog",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -29,7 +29,7 @@
     }
   ],
   "created_at": "2026-09-19T14:32:06.033450Z",
-  "updated_at": "2026-09-25T03:04:14.950761Z",
+  "updated_at": "2026-09-25T04:23:59.480471Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
