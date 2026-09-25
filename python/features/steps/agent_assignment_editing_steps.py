@@ -107,3 +107,56 @@ def then_write_api_shows_assignment(context: object, kind: str, name: str) -> No
 def then_write_api_shows_no_assignment(context: object) -> None:
     custom = context.issue_write_payload["issue"]["custom"]
     assert "agent_assignment" not in custom, custom
+
+
+@given("the console page is reloaded")
+def given_console_page_reloaded(context: object) -> None:
+    context.routing_choice = None
+
+
+@when('I choose the routing assignment "{label}"')
+def when_choose_routing_assignment(context: object, label: str) -> None:
+    if label == "Unassigned":
+        context.routing_choice = {"clear": True}
+        return
+    prefix, name = label.split(" · ", 1)
+    context.routing_choice = {"kind": prefix.lower(), "name": name}
+
+
+@when("I save the routing assignment")
+def when_save_routing_assignment(context: object) -> None:
+    issue_id = (
+        "kbs-running"
+        if context.console_state.selected_task_title == "Running issue"
+        else "kbs-assign"
+    )
+    _issue_write_request(context, issue_id, "assignment", context.routing_choice)
+    assert context.issue_write_status == 200, context.issue_write_payload
+
+
+@then("the routing assignment should be saved")
+def then_routing_assignment_saved(context: object) -> None:
+    assert context.issue_write_status == 200, context.issue_write_payload
+
+
+@then('the routing assignment should read "{text}"')
+def then_routing_assignment_reads(context: object, text: str) -> None:
+    custom = context.issue_write_payload["issue"]["custom"]
+    assignment = custom.get("agent_assignment")
+    actual = (
+        "Unassigned"
+        if assignment is None
+        else (f"{assignment['kind'].title()} · {assignment['name']}")
+    )
+    assert actual == text, actual
+
+
+@then("the routing assignment editor should be locked")
+def then_routing_assignment_editor_locked(context: object) -> None:
+    _issue_write_request(
+        context,
+        "kbs-running",
+        "assignment",
+        {"kind": "class", "name": "implementation"},
+    )
+    assert context.issue_write_status == 400, context.issue_write_payload
