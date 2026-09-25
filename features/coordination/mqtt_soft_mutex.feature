@@ -3,6 +3,10 @@ Feature: MQTT soft mutex fast path
   I want fast-path claim messages during a contention window
   So that soft mutual exclusion reduces duplicate work without requiring Mosquitto for Git-only installs
 
+  This feature specifies the Level 2 MQTT fast path (kbs-dab765). It builds on
+  the transport-independent claim and lease protocol in
+  claim_lease_primitives.feature.
+
   Background:
     Given a Kanbus project with default configuration
     And coordination providers are configured as "mqtt,git"
