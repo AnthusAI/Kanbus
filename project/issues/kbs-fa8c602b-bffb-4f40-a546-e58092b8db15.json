@@ -3,7 +3,7 @@
   "title": "Define resolved agent-assignment configuration and API contract",
   "description": "Create the canonical, redacted read model for a routing assignment. It must distinguish requested agent-class / agent-provider from effective provider configuration, including provider/product, model, effort, service tier/flex mode, and non-secret arguments. Support user-level defaults with project overrides and deterministic Python/Rust resolution. Expose this through the console snapshot/detail API without leaking tokens or arbitrary command arguments. Add validation and parity tests.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -33,11 +33,18 @@
       "text": "Scope decision (owner, 2026-09-25): there is no user-level agent configuration in Kanbus and none is wanted. Drop the 'user-level defaults with project overrides' requirement; resolution is project-level only, from router.providers, router.classes and the issue's agent-class or agent-provider label. The console UI for the effective assignment already shipped (PR #331) and reads agent_assignment from the issue, but nothing populates it; this story is the resolver and API that do, in Python and Rust, with redaction and parity tests.",
       "created_at": "2026-09-25T03:04:14.838260Z",
       "comment_type": "default"
+    },
+    {
+      "id": "df998747-22a0-4150-ba16-3005176fce93",
+      "author": "home",
+      "text": "Complete: merged in https://github.com/AnthusAI/Kanbus/pull/371 with CI green. Project-level only, per the owner's scope decision (no user-level defaults). Both runtimes now populate custom.agent_assignment in the console snapshot from the project's router configuration: exactly one valid agent-class or agent-provider label gives {kind, name, provider_profile, effective: {platform, model?, settings?}}, a class resolves to the first provider it lists, and only adapter, model and service tier are exposed. Missing, unknown or ambiguous labels add nothing. The existing issue-detail UI (PR #331) renders it. Also fixed in the same change: the console snapshot was sending the entire router config to the browser including provider env values and args; args are now emptied and env values are [redacted] in both runtimes. Spec: features/specs/console/console_snapshot_agent_assignment.feature (8 scenarios; 4 fail against develop's code, all pass in behave and cucumber), plus unit tests in each runtime.",
+      "created_at": "2026-09-25T04:23:59.058283Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T14:32:03.653305Z",
-  "updated_at": "2026-09-25T03:04:15.310372Z",
-  "closed_at": null,
+  "updated_at": "2026-09-25T04:23:59.200627Z",
+  "closed_at": "2026-09-25T04:23:59.174566Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
