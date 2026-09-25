@@ -36,10 +36,17 @@
       "text": "Complete. Level 1 (Git soft lease) and Level 2 (MQTT soft lease) are implemented in both runtimes; Level 3 (Mutex API on API Gateway plus DynamoDB, no Lambda in the lease path) is deployed with dual-runtime clients (kbs-b6c014). Isolated multi-router hard-lease validation is now recorded live: exactly-one-start contention, expiry takeover and soft-duplicate behavior (kbs-c77a6b, kbs-63679c). Follow-ups tracked separately: kbs-357ca6 (request-cost measurement) and kbs-7d2e34 (long-lived revocable Mutex tokens).",
       "created_at": "2026-09-23T21:20:58.829237Z",
       "comment_type": "default"
+    },
+    {
+      "id": "efb146d9-ff8e-4c6c-a066-57d7b11c9f61",
+      "author": "home",
+      "text": "Back to in progress: its child epic kbs-465262 (PR #278 soft nits) is in progress, and a parent must not be closed while a child is open. Reopened by mistake-correction, not new scope.",
+      "created_at": "2026-09-25T02:50:19.507623Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-14T13:32:37.955737693Z",
-  "updated_at": "2026-09-23T21:20:59.395123Z",
+  "updated_at": "2026-09-25T02:50:19.507656Z",
   "closed_at": "2026-09-23T21:20:59.287052Z",
   "agent": {
     "platform": "grok_bot",
