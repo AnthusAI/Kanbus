@@ -86,3 +86,25 @@ Then(
 Then("the issue write API response should show no agent assignment", async function () {
   expect(this.issueWritePayload.issue.custom?.agent_assignment).toBeUndefined();
 });
+
+Given("the console page is reloaded", async function () {
+  await this.page.reload({ waitUntil: "domcontentloaded" });
+});
+
+When("I choose the routing assignment {string}", async function (label) {
+  await this.page.getByLabel("Change agent assignment").selectOption({ label });
+});
+
+When("I save the routing assignment", async function () {
+  await this.page.getByRole("button", { name: "Save assignment" }).click();
+  await expect(this.page.getByRole("status")).toContainText("Assignment saved.");
+});
+
+Then("the routing assignment should be saved", async function () {
+  await expect(this.page.getByRole("status")).toContainText("Assignment saved.");
+});
+
+Then("the routing assignment editor should be locked", async function () {
+  await expect(this.page.getByTestId("issue-agent-assignment-locked")).toBeVisible();
+  await expect(this.page.getByLabel("Change agent assignment")).toBeDisabled();
+});

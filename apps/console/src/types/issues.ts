@@ -71,6 +71,11 @@ export interface ProjectConfig {
   type_colors: Record<string, string>;
   beads_compatibility: boolean;
   right_now?: RightNowConfiguration;
+  router?: {
+    classes?: Record<string, { providers?: string[] }>;
+    providers?: Record<string, { adapter?: string; model?: string; service_tier?: string }>;
+    workflow?: { active?: string };
+  };
 }
 
 export type AgentSettings = Record<string, unknown>;

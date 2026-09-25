@@ -297,6 +297,14 @@ export function transitionIssue(
   return issueMutation(apiBase, issueId, "status", { status });
 }
 
+export function setIssueAssignment(
+  apiBase: string,
+  issueId: string,
+  choice: { kind: "class" | "provider"; name: string } | null
+): Promise<IssueMutationResponse> {
+  return issueMutation(apiBase, issueId, "assignment", choice ?? { clear: true });
+}
+
 export async function fetchNowIssues(apiBase: string): Promise<Issue[]> {
   const response = await fetchWithAuth(`${apiBase}/now`);
   if (!response.ok) {
