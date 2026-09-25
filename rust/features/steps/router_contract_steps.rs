@@ -1495,6 +1495,25 @@ fn then_deferred_precedence(world: &mut KanbusWorld, step: &Step) {
 #[given("there are no eligible router packages")]
 fn given_no_packages(_world: &mut KanbusWorld) {}
 
+#[given(regex = r#"^the project has issue "(?P<id>[^"]+)" with labels "(?P<labels>[^"]*)"$"#)]
+fn given_project_has_issue_with_labels(world: &mut KanbusWorld, id: String, labels: String) {
+    let label_list: Vec<String> = labels
+        .split(',')
+        .map(|label| label.trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect();
+    seed_issue(
+        world,
+        &id,
+        "open",
+        label_list,
+        None,
+        None,
+        utc("2026-09-17T10:00:00Z"),
+        Vec::new(),
+    );
+}
+
 #[given(regex = r#"^pending routed packages are ordered "(?P<ids>[^\"]+)"$"#)]
 fn given_pending_packages(world: &mut KanbusWorld, ids: String) {
     for (ordinal, id) in ids.split(',').map(str::trim).enumerate() {
