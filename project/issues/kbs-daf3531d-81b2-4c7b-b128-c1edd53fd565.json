@@ -19,10 +19,17 @@
       "text": "Depends on kbs-fa8c60's resolved agent-assignment API contract, which just moved to Backlog pending a scoping decision. Moving this alongside it rather than letting the router burn an attempt on a dependency that doesn't exist yet.",
       "created_at": "2026-09-23T10:25:26.327970Z",
       "comment_type": "default"
+    },
+    {
+      "id": "dec2aaaa-7da2-4f99-986b-b7ca805d5436",
+      "author": "home",
+      "text": "Unblocked by the scope decision on kbs-fa8c60: assignment resolution is project-level only. Still depends on that resolver and API.",
+      "created_at": "2026-09-25T03:04:14.950721Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T14:32:06.033450Z",
-  "updated_at": "2026-09-23T10:25:26.621477Z",
+  "updated_at": "2026-09-25T03:04:14.950761Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
