@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "1bb59189-2660-464c-90de-d3be006440e5",
+  "issue_id": "kbs-217bf858-9c54-4591-9a08-f07c31d6d901",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-25T10:21:57.738Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Kanban board horizontal scroll jumps to the left periodically",
+    "description": "The web app kanban board periodically shifts all the way to the left in terms of horizontal scrolling. If the Backlog column is not visible, it briefly scrolls into view and then returns to where it was. It may happen on a timer by itself, or when realtime updates arrive from workers; the trigger is not yet known.\n\nExpected: the board's horizontal scroll position is never changed by background refreshes, realtime events or snapshot updates; only user action moves it.\n\nAcceptance: reproduce the trigger (idle timer versus realtime worker events), add a Gherkin scenario in features/console that scrolls the board horizontally, delivers a realtime update, and asserts the scroll position is unchanged, then fix it.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}
