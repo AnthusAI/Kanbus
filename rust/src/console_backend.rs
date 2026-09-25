@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 
+use crate::agent_assignment::{redact_router_config, resolve_agent_assignment};
 use crate::config::resolve_board_name;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
@@ -133,9 +134,25 @@ impl FileStore {
         ));
         let mut issues = self.load_issues(&configuration)?;
         issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+
+        for issue in &mut issues {
+            if let Some(assignment) =
+                resolve_agent_assignment(&issue.labels, configuration.router.as_ref())
+            {
+                issue
+                    .custom
+                    .insert("agent_assignment".to_string(), assignment);
+            }
+        }
+
+        let mut config_for_snapshot = configuration.clone();
+        if let Some(router) = &mut config_for_snapshot.router {
+            redact_router_config(router);
+        }
+
         let updated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
         Ok(ConsoleSnapshot {
-            config: configuration,
+            config: config_for_snapshot,
             issues,
             updated_at,
         })
