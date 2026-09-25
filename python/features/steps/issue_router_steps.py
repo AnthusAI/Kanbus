@@ -56,6 +56,13 @@ from kanbus.router_forge import (
 from kanbus.router_state import publish_router_state, router_state_root
 
 _ROUTER = {
+    "workflow": {
+        "pending": "open",
+        "active": "in_progress",
+        "review": "review",
+        "blocked": "blocked",
+        "terminal": ["closed"],
+    },
     "limits": {"project_wip": 3, "review_wip": 2},
     "providers": {"codex-default": {"adapter": "codex"}},
     "classes": {"implementation": {"providers": ["codex-default"]}},
@@ -82,143 +89,41 @@ def _save_config(context: object, payload: dict) -> None:
 
 def _add_review_status(config: dict) -> None:
     statuses = config.setdefault("statuses", [])
-
-    status_map = {s.get("key"): s for s in statuses}
-
-    if "open" not in status_map:
-        statuses.append(
-            {
-                "key": "open",
-                "name": "Ready",
-                "category": "To do",
-                "semantic_category": "todo",
-                "router": True,
-            }
-        )
-    else:
-        if "semantic_category" not in status_map["open"]:
-            status_map["open"]["semantic_category"] = "todo"
-
-    if "in_progress" not in status_map:
-        statuses.append(
-            {
-                "key": "in_progress",
-                "name": "In progress",
-                "category": "In progress",
-                "semantic_category": "in_progress",
-            }
-        )
-    else:
-        if "semantic_category" not in status_map["in_progress"]:
-            status_map["in_progress"]["semantic_category"] = "in_progress"
-
-    if "review" not in status_map:
+    if not any(status.get("key") == "review" for status in statuses):
         statuses.append(
             {
                 "key": "review",
                 "name": "Review",
                 "category": "In progress",
-                "semantic_category": "in_review",
+                "semantic_category": "in_progress",
+                "collapsed": False,
             }
         )
-    else:
-        if "semantic_category" not in status_map["review"]:
-            status_map["review"]["semantic_category"] = "in_review"
-
-    if "blocked" not in status_map:
-        statuses.append(
-            {
-                "key": "blocked",
-                "name": "Blocked",
-                "category": "In progress",
-                "semantic_category": "blocked",
-            }
-        )
-    else:
-        if "semantic_category" not in status_map["blocked"]:
-            status_map["blocked"]["semantic_category"] = "blocked"
-
-    if "closed" not in status_map:
-        statuses.append(
-            {
-                "key": "closed",
-                "name": "Done",
-                "category": "Done",
-                "semantic_category": "done",
-            }
-        )
-    else:
-        if "semantic_category" not in status_map["closed"]:
-            status_map["closed"]["semantic_category"] = "done"
-
     workflow = config.setdefault("workflows", {}).setdefault("default", {})
-    workflow.setdefault("open", [])
-    if "in_progress" not in workflow["open"]:
-        workflow["open"].append("in_progress")
-    if "closed" not in workflow["open"]:
-        workflow["open"].append("closed")
-
-    workflow.setdefault("in_progress", [])
-    for transition in ["open", "review", "blocked", "closed"]:
-        if transition not in workflow["in_progress"]:
-            workflow["in_progress"].append(transition)
-
+    workflow["open"] = list(
+        dict.fromkeys([*workflow.get("open", []), "in_progress", "closed"])
+    )
+    workflow["in_progress"] = list(
+        dict.fromkeys(
+            [*workflow.get("in_progress", []), "open", "blocked", "closed", "review"]
+        )
+    )
+    workflow["blocked"] = list(
+        dict.fromkeys([*workflow.get("blocked", []), "in_progress", "closed"])
+    )
     workflow["review"] = ["in_progress", "blocked", "closed"]
-
-    workflow.setdefault("blocked", [])
-    for transition in ["in_progress", "closed"]:
-        if transition not in workflow["blocked"]:
-            workflow["blocked"].append(transition)
-
-    workflow.setdefault("closed", [])
-    for transition in ["open"]:
-        if transition not in workflow["closed"]:
-            workflow["closed"].append(transition)
-
     transition_labels = config.setdefault("transition_labels", {}).setdefault(
         "default", {}
     )
-
-    transition_labels.setdefault("open", {})
-    transition_labels["open"].setdefault("in_progress", "Start work")
-    transition_labels["open"].setdefault("closed", "Drop")
-
-    transition_labels.setdefault("in_progress", {})
-    transition_labels["in_progress"].setdefault("open", "Pause")
-    transition_labels["in_progress"].setdefault("review", "Ready for review")
-    transition_labels["in_progress"].setdefault("blocked", "Block")
-    transition_labels["in_progress"].setdefault("closed", "Complete")
-
+    transition_labels["in_progress"] = {
+        **transition_labels.get("in_progress", {}),
+        "review": "Ready for review",
+    }
     transition_labels["review"] = {
         "in_progress": "Request changes",
         "blocked": "Close without merge",
         "closed": "Merge",
     }
-
-    transition_labels.setdefault("blocked", {})
-    transition_labels["blocked"].setdefault("in_progress", "Unblock")
-    transition_labels["blocked"].setdefault("closed", "Drop")
-
-    transition_labels.setdefault("closed", {})
-    transition_labels["closed"].setdefault("open", "Reopen")
-    _mark_router_statuses(config)
-
-
-_ROUTER_STATUS_CATEGORIES = {
-    "open": "todo",
-    "in_progress": "in_progress",
-    "review": "in_review",
-    "blocked": "blocked",
-    "closed": "done",
-}
-
-
-def _mark_router_statuses(config: dict) -> None:
-    for status in config["statuses"]:
-        category = _ROUTER_STATUS_CATEGORIES.get(status["key"])
-        if category is not None:
-            status["semantic_category"] = category
-            status["router"] = True
 
 
 def _install_router(context: object, router: dict | None = None) -> None:
@@ -363,13 +268,7 @@ def given_project_with_router(context: object) -> None:
 
 @given("a Kanbus project without a router configuration")
 def given_project_without_router(context: object) -> None:
-    if context.working_directory is None:
-        initialize_default_project(context)
-    config = _config(context)
-    _add_review_status(config)
-    if "router" in config:
-        del config["router"]
-    _save_config(context, config)
+    _install_router(context)
 
 
 @given('a Kanbus project with router configuration "{router_yaml}"')

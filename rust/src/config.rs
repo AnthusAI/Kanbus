@@ -210,7 +210,6 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 semantic_category: "todo".to_string(),
                 color: None,
                 collapsed: true,
-                router: false,
             },
             StatusDefinition {
                 key: "open".to_string(),
@@ -219,7 +218,6 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 semantic_category: "todo".to_string(),
                 color: None,
                 collapsed: false,
-                router: false,
             },
             StatusDefinition {
                 key: "in_progress".to_string(),
@@ -228,7 +226,6 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: false,
-                router: false,
             },
             StatusDefinition {
                 key: "blocked".to_string(),
@@ -237,7 +234,6 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: true,
-                router: false,
             },
             StatusDefinition {
                 key: "closed".to_string(),
@@ -246,7 +242,6 @@ pub fn default_project_configuration() -> ProjectConfiguration {
                 semantic_category: "done".to_string(),
                 color: None,
                 collapsed: true,
-                router: false,
             },
         ],
         categories,

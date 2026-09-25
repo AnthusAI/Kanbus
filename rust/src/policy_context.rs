@@ -164,7 +164,6 @@ mod tests {
                 semantic_category: "todo".to_string(),
                 color: None,
                 collapsed: false,
-                router: false,
             }],
             categories: Vec::new(),
             sort_order: BTreeMap::new(),
