@@ -3,7 +3,7 @@
   "title": "PR #278 ACCEPT soft nits",
   "description": "Non-blocking follow-ups from Software Director ACCEPT of Kanbus PR #278 (merged at 713e4411). Hard fails: none. Specs already on develop under features/coordination/.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -17,11 +17,18 @@
       "text": "Moved out of Ready: two child tasks are closed and three are parked in Backlog, so work on the PR #278 soft nits has begun.",
       "created_at": "2026-09-23T23:04:52.079212Z",
       "comment_type": "default"
+    },
+    {
+      "id": "17a00c49-5a1c-4f4f-b565-e644711c1301",
+      "author": "home",
+      "text": "All five sub-tasks closed; spec prose delivered in PR #370.",
+      "created_at": "2026-09-25T06:19:36.507199Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-14T14:07:36.763365181Z",
-  "updated_at": "2026-09-23T23:04:52.183777Z",
-  "closed_at": null,
+  "updated_at": "2026-09-25T06:19:36.591765Z",
+  "closed_at": "2026-09-25T06:19:36.573056Z",
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",

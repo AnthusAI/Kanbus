@@ -3,7 +3,7 @@
   "title": "Add safe console editor for routing assignment",
   "description": "Build the issue-detail assignment editor on the resolved assignment API and write foundation. A human may select an allowed class or provider, inspect the effective model/effort/tier before saving, or clear an assignment. Preserve unrelated labels, reject conflicting assignment labels, do not mutate issue.agent provenance, and prevent unsafe changes for an actively claimed/running router package. Add confirmation/error UX and API/UI parity coverage.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -26,11 +26,18 @@
       "text": "Unblocked by the scope decision on kbs-fa8c60: assignment resolution is project-level only. Still depends on that resolver and API.",
       "created_at": "2026-09-25T03:04:14.950721Z",
       "comment_type": "default"
+    },
+    {
+      "id": "2ef95b02-b32c-4208-acf3-829f7a308493",
+      "author": "home",
+      "text": "Delivered in PRs #371 (resolved assignment in the console snapshot, secrets redacted), #372 (write API in Rust kbsc and the Node dev server: choose, replace, clear; validated against router classes and providers; other labels kept; agent provenance untouched; refused while the router runs the issue) and #373 (detail-view editor with saving/success/error states, locked while running). 8 @kbs-daf353 scenarios pass in behave and cucumber-js. Deviation: the editor does not preview the effective model/tier before saving; the resolved effective configuration is shown after saving. Choices are project-level only (router classes and providers), per the decision not to add user-level defaults.",
+      "created_at": "2026-09-25T06:19:17.569989Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T14:32:06.033450Z",
-  "updated_at": "2026-09-25T04:23:59.480471Z",
-  "closed_at": null,
+  "updated_at": "2026-09-25T06:19:17.946928Z",
+  "closed_at": "2026-09-25T06:19:17.927981Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {
