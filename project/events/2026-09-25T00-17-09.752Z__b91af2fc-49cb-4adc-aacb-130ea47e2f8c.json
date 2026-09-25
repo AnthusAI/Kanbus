@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "b91af2fc-49cb-4adc-aacb-130ea47e2f8c",
+  "issue_id": "kbs-64d9b442-e2b5-4fc8-a415-46f1dffc568f",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-25T00:17:09.752Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "Add router markers and canonical semantics to Python and Rust configuration",
+        "to": "Withdrawn: not to be implemented (kbs-64d9b4)"
+      },
+      "description": {
+        "from": "Extend the Python and Rust status-definition models with router: boolean defaulting to false, and extend the canonical semantic categories to todo, in_progress, in_review, blocked, and done. Validate semantic-category values and router marker uniqueness with matching errors. When a router is enabled, require exactly one router-marked status for each canonical category. Remove router.workflow from both router configuration models and reject it as an unknown field. Preserve provider, class, WIP, retry, watch, forge, and coordination settings under the top-level router block. Acceptance: both runtimes load and validate the same YAML cases with parity-identical errors and parsed values.",
+        "to": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it."
+      }
+    }
+  }
+}

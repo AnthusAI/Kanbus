@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "4ee807d4-6946-4e85-af98-a234081e2c70",
+  "issue_id": "kbs-8d1cd759-8137-49e5-a3f4-cb9eb60b0c5c",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-25T00:16:59.017Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "State-Native Issue Router Lifecycle",
+        "to": "Withdrawn: not to be implemented"
+      },
+      "description": {
+        "from": "Unify Issue Router lifecycle selection with Kanbus status semantics. Extend the canonical semantic categories to todo, in_progress, in_review, blocked, and done. A status marked router: true is the canonical router status for its semantic category. Remove the duplicate router.workflow status map while keeping router-specific execution settings under the top-level router block. In Kanbus, Discovery is the sole router todo intake; a claimed issue moves directly from Discovery to In Progress. Ready, Backlog, and other unmarked todo statuses remain ineligible, and existing Ready issues are not migrated. Successful agent work moves to Review and remains there for human review. Deliver matching Python and Rust behavior, shared Gherkin coverage, updated docs, and an opt-in live container dispatch check.",
+        "to": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it."
+      }
+    }
+  }
+}

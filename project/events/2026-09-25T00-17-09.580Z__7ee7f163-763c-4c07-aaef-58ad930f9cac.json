@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "7ee7f163-763c-4c07-aaef-58ad930f9cac",
+  "issue_id": "kbs-b8f9e123-1a9b-4cd7-846f-a01e19cf693e",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-25T00:17:09.580Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "Specify router-aware semantic statuses in shared Gherkin",
+        "to": "Withdrawn: not to be implemented (kbs-b8f9e1)"
+      },
+      "description": {
+        "from": "Define the behavior contract for router-aware status configuration in shared Gherkin. Canonical semantic categories are todo, in_progress, in_review, blocked, and done. A status may set router: true to mark the canonical router status for its semantic category. Require unique router-marked statuses per category and exactly one of each category when the router is enabled. Unmarked todo statuses must not become dispatch candidates or router transition targets. Specify that router.workflow is rejected after migration. Cover missing or duplicate markers, unsupported categories, Discovery intake, Ready exclusion, lifecycle destinations, and configured transition validation. Acceptance: both Behave and Rust Cucumber can parse the scenarios, and the scenarios fail against the old exact-key workflow configuration for the expected reasons.",
+        "to": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it."
+      }
+    }
+  }
+}

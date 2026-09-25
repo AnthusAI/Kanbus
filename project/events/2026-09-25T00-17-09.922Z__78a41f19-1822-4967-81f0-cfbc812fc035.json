@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "78a41f19-1822-4967-81f0-cfbc812fc035",
+  "issue_id": "kbs-f7a1ac11-a48e-428f-ad32-4e30c88d4b44",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-25T00:17:09.922Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "Derive Issue Router planning and lifecycle from marked statuses",
+        "to": "Withdrawn: not to be implemented (kbs-f7a1ac)"
+      },
+      "description": {
+        "from": "Replace exact status-key role lookups with the router-marked status for each semantic category. Dispatch only issues in the marked todo status; move claimed packages to marked in_progress, completed agent work to marked in_review, blocked or cancelled work to marked blocked, and approved completion to marked done. Keep successful agent results in review rather than closing them. Resolve WIP counts, recovery order, retries, requested-change flow, terminal handling, events, plan output, and publication against these same configured statuses. Ensure other statuses sharing a semantic category, including unmarked Ready and Backlog, are not treated as router intake or destinations. Acceptance: Python and Rust behavior matches the shared Gherkin and existing router lifecycle contracts.",
+        "to": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it."
+      }
+    }
+  }
+}

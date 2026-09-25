@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "1b1e2d04-ab8d-4967-a1a2-6e34d2c41059",
+  "issue_id": "kbs-a2b5d3be-1b88-446c-ad77-b7e612873f04",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-25T00:17:10.248Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "Document and verify state-native real dispatch",
+        "to": "Withdrawn: not to be implemented (kbs-a2b5d3)"
+      },
+      "description": {
+        "from": "Update Issue Router configuration and operator documentation to show status-level router: true markers and remove examples that configure router.workflow. Extend the opt-in container integration harness so its generated routed task starts in Discovery, succeeds through the configured production coordination and MQTT paths, publishes the agent result to the issue, and remains in Review for human inspection. Preserve generated issues and diagnostic fixtures on failure. Add or update focused tests for the live harness contract. Acceptance: spec parity, Python/Rust router suites, formatting, lint, coverage gates, and a successful opt-in live container run are documented with the resulting task left visible in Review.",
+        "to": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it."
+      }
+    }
+  }
+}
