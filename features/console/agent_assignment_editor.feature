@@ -20,7 +20,7 @@ Feature: Console routing assignment editor
     And I choose the routing assignment "Class · implementation"
     And I save the routing assignment
     Then the routing assignment should be saved
-    And the issue agent assignment should show route "Class · implementation"
+    And the routing assignment should read "Class · implementation"
 
   Scenario: Clearing an assignment from the detail view
     When I switch to the "Tasks" tab
@@ -29,7 +29,7 @@ Feature: Console routing assignment editor
     And I save the routing assignment
     And I choose the routing assignment "Unassigned"
     And I save the routing assignment
-    Then the issue agent assignment should show unassigned
+    Then the routing assignment should read "Unassigned"
 
   Scenario: The editor is locked while the router runs the issue
     When I switch to the "Tasks" tab

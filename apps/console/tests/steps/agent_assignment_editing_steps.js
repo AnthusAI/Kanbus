@@ -108,3 +108,13 @@ Then("the routing assignment editor should be locked", async function () {
   await expect(this.page.getByTestId("issue-agent-assignment-locked")).toBeVisible();
   await expect(this.page.getByLabel("Change agent assignment")).toBeDisabled();
 });
+
+Then("the routing assignment should read {string}", async function (text) {
+  const section = this.page.getByTestId("issue-agent-assignment");
+  if (text === "Unassigned") {
+    await expect(this.page.getByTestId("issue-agent-assignment-empty")).toHaveText(text);
+  } else {
+    await expect(this.page.getByTestId("issue-agent-assignment-route")).toHaveText(text);
+  }
+  await expect(section).toBeVisible();
+});
