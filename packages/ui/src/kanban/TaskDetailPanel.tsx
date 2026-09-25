@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import {
@@ -171,7 +171,13 @@ function assignmentRouteLabel(assignment: AgentAssignment): string | null {
   return kind === "class" ? `Class · ${name}` : kind === "provider" ? `Provider · ${name}` : name;
 }
 
-function AgentAssignmentBlock({ issue }: { issue: TaskDetailIssue }) {
+function AgentAssignmentBlock({
+  issue,
+  editor
+}: {
+  issue: TaskDetailIssue;
+  editor?: ReactNode;
+}) {
   const assignment = getAgentAssignment(issue);
   const route = assignment ? assignmentRouteLabel(assignment) : null;
   const effective = assignment?.effective ?? assignment?.effective_configuration ?? assignment?.effective_config;
@@ -211,7 +217,105 @@ function AgentAssignmentBlock({ issue }: { issue: TaskDetailIssue }) {
       ) : (
         <p data-testid="issue-agent-assignment-empty">Unassigned</p>
       )}
+      {editor}
     </section>
+  );
+}
+
+const UNASSIGNED_VALUE = "";
+
+function assignmentOptionValue(kind: string, name: string) {
+  return `${kind}:${name}`;
+}
+
+function AgentAssignmentEditor({
+  issue,
+  config,
+  onChangeAssignment
+}: {
+  issue: TaskDetailIssue;
+  config?: TaskDetailConfig;
+  onChangeAssignment: NonNullable<TaskDetailPanelProps["onChangeAssignment"]>;
+}) {
+  const router = config?.router;
+  const classNames = Object.keys(router?.classes ?? {}).sort();
+  const providerNames = Object.keys(router?.providers ?? {}).sort();
+  const current = getAgentAssignment(issue);
+  const currentValue = current?.kind && current?.name
+    ? assignmentOptionValue(String(current.kind), String(current.name))
+    : UNASSIGNED_VALUE;
+  const [draft, setDraft] = useState(currentValue);
+  const [state, setState] = useState<"idle" | "pending" | "success" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const activeStatus = router?.workflow?.active;
+  const running = Boolean(activeStatus) && issue.status === activeStatus;
+
+  useEffect(() => {
+    setDraft(currentValue);
+  }, [currentValue, issue.id]);
+
+  if (classNames.length === 0 && providerNames.length === 0) return null;
+
+  const save = async () => {
+    if (state === "pending" || draft === currentValue) return;
+    setState("pending");
+    setMessage(null);
+    try {
+      if (draft === UNASSIGNED_VALUE) {
+        await onChangeAssignment(issue.id, null);
+      } else {
+        const separator = draft.indexOf(":");
+        await onChangeAssignment(issue.id, {
+          kind: draft.slice(0, separator) as "class" | "provider",
+          name: draft.slice(separator + 1)
+        });
+      }
+      setState("success");
+    } catch (error) {
+      setState("error");
+      setMessage(error instanceof Error ? error.message : "Unable to change assignment");
+    }
+  };
+
+  return (
+    <div className="grid gap-2" data-testid="issue-agent-assignment-editor">
+      <label className="grid gap-1 text-xs text-muted">
+        <span className="font-semibold uppercase tracking-[0.2em]">Assign agent</span>
+        <select
+          className="rounded border border-[var(--gray-6)] bg-[var(--card)] px-2 py-2 text-sm text-foreground"
+          aria-label="Change agent assignment"
+          value={draft}
+          disabled={running || state === "pending"}
+          onChange={(event) => setDraft(event.target.value)}
+        >
+          <option value={UNASSIGNED_VALUE}>Unassigned</option>
+          {classNames.map((name) => (
+            <option key={`class-${name}`} value={assignmentOptionValue("class", name)}>{`Class · ${name}`}</option>
+          ))}
+          {providerNames.map((name) => (
+            <option key={`provider-${name}`} value={assignmentOptionValue("provider", name)}>{`Provider · ${name}`}</option>
+          ))}
+        </select>
+      </label>
+      {running ? (
+        <p data-testid="issue-agent-assignment-locked">
+          The router is running this issue; the assignment cannot change until the run ends.
+        </p>
+      ) : (
+        <button
+          className="inline-flex items-center justify-center rounded-full bg-[var(--accent-9)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white disabled:cursor-not-allowed disabled:opacity-50"
+          type="button"
+          disabled={draft === currentValue || state === "pending"}
+          onClick={() => void save()}
+        >
+          {state === "pending" ? "Saving..." : "Save assignment"}
+        </button>
+      )}
+      {state === "success" ? (
+        <div className="text-green-600" role="status">Assignment saved.</div>
+      ) : null}
+      {state === "error" ? <div className="text-red-600" role="alert">{message}</div> : null}
+    </div>
   );
 }
 
@@ -299,6 +403,10 @@ interface TaskDetailPanelProps {
   onNavigateToDescendant?: (issue: TaskDetailIssue) => void;
   onAddComment?: (issueId: string, text: string) => Promise<void>;
   onChangeStatus?: (issueId: string, status: string) => Promise<void>;
+  onChangeAssignment?: (
+    issueId: string,
+    choice: { kind: "class" | "provider"; name: string } | null
+  ) => Promise<void>;
 }
 
 interface DescendantLinkProps {
@@ -404,7 +512,8 @@ export function TaskDetailPanel({
   focusedCommentId,
   onNavigateToDescendant,
   onAddComment,
-  onChangeStatus
+  onChangeStatus,
+  onChangeAssignment
 }: TaskDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -1139,7 +1248,16 @@ skinparam SequenceDividerFontColor white`
                 ) : null}
               </div>
             ) : null}
-            <AgentAssignmentBlock issue={taskToRender} />
+            <AgentAssignmentBlock
+              issue={taskToRender}
+              editor={onChangeAssignment ? (
+                <AgentAssignmentEditor
+                  issue={taskToRender}
+                  config={config}
+                  onChangeAssignment={onChangeAssignment}
+                />
+              ) : undefined}
+            />
             {taskToRender.creator ? (
               <section
                 aria-label="Issue provenance"

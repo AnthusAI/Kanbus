@@ -50,6 +50,13 @@ export interface KanbanConfig {
   type_colors: Record<string, string>;
   sort_order?: KanbanSortOrder;
   workflows?: Record<string, Record<string, string[]>>;
+  router?: KanbanRouterConfig;
+}
+
+export interface KanbanRouterConfig {
+  classes?: Record<string, { providers?: string[] }>;
+  providers?: Record<string, { adapter?: string; model?: string; service_tier?: string }>;
+  workflow?: { active?: string };
 }
 
 export interface KanbanIssue {
