@@ -1,9 +1,9 @@
 {
   "id": "kbs-8d1cd759-8137-49e5-a3f4-cb9eb60b0c5c",
-  "title": "State-Native Issue Router Lifecycle",
-  "description": "Unify Issue Router lifecycle selection with Kanbus status semantics. Extend the canonical semantic categories to todo, in_progress, in_review, blocked, and done. A status marked router: true is the canonical router status for its semantic category. Remove the duplicate router.workflow status map while keeping router-specific execution settings under the top-level router block. In Kanbus, Discovery is the sole router todo intake; a claimed issue moves directly from Discovery to In Progress. Ready, Backlog, and other unmarked todo statuses remain ineligible, and existing Ready issues are not migrated. Successful agent work moves to Review and remains there for human review. Deliver matching Python and Rust behavior, shared Gherkin coverage, updated docs, and an opt-in live container dispatch check.",
+  "title": "Withdrawn: not to be implemented",
+  "description": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -14,21 +14,21 @@
     {
       "id": "dfc6210a-daed-4589-83d6-fef47395a212",
       "author": "home",
-      "text": "Started on 2026-09-24 with the owner's go-ahead. Order follows the dependency chain: kbs-b8f9e1 (shared Gherkin) then kbs-64d9b4 (config models in both runtimes) then kbs-f7a1ac (planning and lifecycle) then kbs-38f428 (Kanbus project statuses) then kbs-a2b5d3 (docs and live harness check). Each story lands as its own PR with CI green before the next starts.",
+      "text": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
       "created_at": "2026-09-24T01:14:07.885814Z",
       "comment_type": "default"
     },
     {
       "id": "df45da07-a6cf-4bc3-aa9e-640a32a03599",
       "author": "home",
-      "text": "Reopened 2026-09-24: the router.workflow removal was started by mistake (the instruction was meant for a different session) and is being reverted in https://github.com/AnthusAI/Kanbus/pull/368. The router.workflow map stays. No work on this issue should proceed without the owner confirming the design; its earlier evidence comments are kept as history.",
+      "text": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
       "created_at": "2026-09-24T23:30:49.192754Z",
       "comment_type": "default"
     }
   ],
   "created_at": "2026-09-18T16:16:52.568718Z",
-  "updated_at": "2026-09-24T23:30:49.295148Z",
-  "closed_at": null,
+  "updated_at": "2026-09-25T00:17:08.940075Z",
+  "closed_at": "2026-09-25T00:16:58.966218Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

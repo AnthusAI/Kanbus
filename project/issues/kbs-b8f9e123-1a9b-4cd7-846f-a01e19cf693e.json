@@ -1,9 +1,9 @@
 {
   "id": "kbs-b8f9e123-1a9b-4cd7-846f-a01e19cf693e",
-  "title": "Specify router-aware semantic statuses in shared Gherkin",
-  "description": "Define the behavior contract for router-aware status configuration in shared Gherkin. Canonical semantic categories are todo, in_progress, in_review, blocked, and done. A status may set router: true to mark the canonical router status for its semantic category. Require unique router-marked statuses per category and exactly one of each category when the router is enabled. Unmarked todo statuses must not become dispatch candidates or router transition targets. Specify that router.workflow is rejected after migration. Cover missing or duplicate markers, unsupported categories, Discovery intake, Ready exclusion, lifecycle destinations, and configured transition validation. Acceptance: both Behave and Rust Cucumber can parse the scenarios, and the scenarios fail against the old exact-key workflow configuration for the expected reasons.",
+  "title": "Withdrawn: not to be implemented (kbs-b8f9e1)",
+  "description": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -14,21 +14,21 @@
     {
       "id": "4ac1b6ce-70ba-4c65-8283-ecda48110b1f",
       "author": "home",
-      "text": "Complete: merged in https://github.com/AnthusAI/Kanbus/pull/366. features/router/router_state_native_lifecycle.feature (22 scenarios) specifies the contract: router: true markers over todo, in_progress, in_review, blocked and done; one marker per category and exactly one of each when the router is enabled; router.workflow rejected as an unknown field; unsupported categories, duplicate and missing markers, and unallowed lifecycle transitions with fixed error strings; Discovery-only intake and Ready exclusion; and lifecycle destinations that follow the marked statuses even when another status shares the category. Tagged @wip so CI skips it until kbs-64d9b4 and kbs-f7a1ac implement it (they remove the tag). Eight new steps exist in both runtimes and no production code changed. Acceptance check with the wip tag included, in both runtimes: the scenarios parse, and 21 of 22 fail for the expected reason (today's config requires router.workflow), while the one that should pass today, a project without a router needing no markers, passes. Note for the next story: a few scenarios also need the fixture's default router block updated once router.workflow is removed.",
+      "text": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
       "created_at": "2026-09-24T11:44:15.120128Z",
       "comment_type": "default"
     },
     {
       "id": "2d3ad7cd-1ca1-4885-b72a-363c850849e9",
       "author": "home",
-      "text": "Reopened 2026-09-24: the router.workflow removal was started by mistake (the instruction was meant for a different session) and is being reverted in https://github.com/AnthusAI/Kanbus/pull/368. The router.workflow map stays. No work on this issue should proceed without the owner confirming the design; its earlier evidence comments are kept as history.",
+      "text": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
       "created_at": "2026-09-24T23:30:49.389525Z",
       "comment_type": "default"
     }
   ],
   "created_at": "2026-09-18T16:17:35.120738Z",
-  "updated_at": "2026-09-24T23:30:49.513110Z",
-  "closed_at": null,
+  "updated_at": "2026-09-25T00:17:09.580746Z",
+  "closed_at": "2026-09-25T00:17:09.540230Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
