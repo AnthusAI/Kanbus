@@ -3,7 +3,7 @@
   "title": "Point mqtt_soft_mutex.feature at Level 2 epic kbs-dab765 (or add MQTT Gherkin story)",
   "description": "SD nit #1 on PR #278: mqtt_soft_mutex.feature is mapped to protocol epic kbs-c29c46 rather than Level 2 epic kbs-dab765, and there is no dedicated MQTT Gherkin story id.\n\nFix: add a Gherkin story under kbs-dab765 and cite it from the feature, or retarget the existing file.",
   "type": "task",
-  "status": "backlog",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -37,14 +37,14 @@
     }
   ],
   "created_at": "2026-09-14T14:07:54.253026813Z",
-  "updated_at": "2026-09-16T03:44:28.526924Z",
+  "updated_at": "2026-09-25T02:50:31.485642Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-    "right_now_summary": "MQTT feature ownership awaits admission of the Level 2 MQTT work.",
-    "right_now_updated_at": "2026-09-18T18:21:10.867125Z",
+  "right_now_summary": "MQTT feature ownership awaits admission of the Level 2 MQTT work.",
+  "right_now_updated_at": "2026-09-18T18:21:10.867125Z",
   "custom": {}
 }
