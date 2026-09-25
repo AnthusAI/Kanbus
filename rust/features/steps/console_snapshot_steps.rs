@@ -1,7 +1,7 @@
 use std::fs;
 
-use cucumber::{given, when};
-use serde_json;
+use cucumber::{gherkin::Step, given, then, when};
+use serde_json::Value;
 
 use kanbus::console_snapshot::build_console_snapshot;
 use kanbus::file_io::load_project_directory;
@@ -85,4 +85,72 @@ fn when_build_console_snapshot_directly(world: &mut KanbusWorld) {
             world.stderr = Some(error.to_string());
         }
     }
+}
+
+fn snapshot_value(world: &KanbusWorld) -> Value {
+    serde_json::from_str(world.stdout.as_deref().expect("snapshot output")).expect("snapshot JSON")
+}
+
+fn snapshot_issue(world: &KanbusWorld, issue_id: &str) -> Value {
+    let snapshot = snapshot_value(world);
+    let matches: Vec<&Value> = snapshot["issues"]
+        .as_array()
+        .expect("snapshot issues")
+        .iter()
+        .filter(|issue| issue["id"] == issue_id)
+        .collect();
+    assert_eq!(matches.len(), 1, "expected one snapshot issue {issue_id}");
+    matches[0].clone()
+}
+
+#[then(regex = r#"^the snapshot issue "(?P<id>[^"]+)" agent_assignment should equal:$"#)]
+fn then_snapshot_issue_agent_assignment_equals(world: &mut KanbusWorld, step: &Step, id: String) {
+    let expected: Value =
+        serde_json::from_str(step.docstring().expect("expected JSON")).expect("expected JSON");
+    let actual = snapshot_issue(world, &id)["custom"]["agent_assignment"].clone();
+    assert_eq!(actual, expected);
+}
+
+#[then(regex = r#"^the snapshot issue "(?P<id>[^"]+)" should have no agent_assignment$"#)]
+fn then_snapshot_issue_has_no_agent_assignment(world: &mut KanbusWorld, id: String) {
+    let issue = snapshot_issue(world, &id);
+    assert!(
+        issue["custom"].get("agent_assignment").is_none(),
+        "unexpected agent_assignment: {}",
+        issue["custom"]["agent_assignment"]
+    );
+}
+
+#[then(regex = r#"^the snapshot router provider "(?P<name>[^"]+)" arguments should be empty$"#)]
+fn then_snapshot_provider_arguments_empty(world: &mut KanbusWorld, name: String) {
+    let snapshot = snapshot_value(world);
+    assert_eq!(
+        snapshot["config"]["router"]["providers"][&name]["args"],
+        serde_json::json!([])
+    );
+}
+
+#[then(
+    regex = r#"^the snapshot router provider "(?P<name>[^"]+)" environment variable "(?P<key>[^"]+)" should be "(?P<value>[^"]*)"$"#
+)]
+fn then_snapshot_provider_environment_value(
+    world: &mut KanbusWorld,
+    name: String,
+    key: String,
+    value: String,
+) {
+    let snapshot = snapshot_value(world);
+    assert_eq!(
+        snapshot["config"]["router"]["providers"][&name]["env"][&key],
+        value
+    );
+}
+
+#[then(regex = r#"^the snapshot should not contain "(?P<text>[^"]+)"$"#)]
+fn then_snapshot_does_not_contain(world: &mut KanbusWorld, text: String) {
+    assert!(!world
+        .stdout
+        .as_deref()
+        .expect("snapshot output")
+        .contains(&text));
 }
