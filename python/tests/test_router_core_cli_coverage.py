@@ -15,7 +15,6 @@ import pytest
 from click.testing import CliRunner
 
 import kanbus.cli as project_cli
-from router_status_markers import mark_router_statuses
 from kanbus import coordination_mutex_api
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.config_loader import ConfigurationError
@@ -74,6 +73,13 @@ def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
     transition_labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
     data["router"] = {
         "enabled": enabled,
+        "workflow": {
+            "pending": "open",
+            "active": "in_progress",
+            "review": "review",
+            "blocked": "blocked",
+            "terminal": ["closed"],
+        },
         "limits": {"project_wip": 4, "review_wip": 2},
         "providers": {
             "codex": {"adapter": "codex"},
@@ -81,7 +87,6 @@ def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
         },
         "classes": {"backend": {"providers": ["codex", "backup"]}},
     }
-    mark_router_statuses(data)
     return ProjectConfiguration.model_validate(data)
 
 
@@ -242,7 +247,6 @@ def _coordination_cli_setup(
             "bearer_token": "test-token",
         },
     )
-    mark_router_statuses(data)
     configuration = ProjectConfiguration.model_validate(data)
     project_dir = tmp_path / configuration.project_directory
     project_dir.mkdir(parents=True, exist_ok=True)
