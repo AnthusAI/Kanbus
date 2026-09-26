@@ -76,13 +76,13 @@
     {
       "id": "4f7293cf-6669-4480-a903-3e6ab3c4ab21",
       "author": "home",
-      "text": "Released in kanbus 0.33.0 (PyPI) via PR #374 (merge 591adaf5). Fix commit bff4a4c8: Rust rekey no longer corrupts .kanbus.yml (both runtimes now edit only the top-level project_key line; new scenario), Rust output matches Python, Rust steps rewritten to reuse shared steps and run the Rust CLI, restored project_steps discovery import and Permission denied assertion, and fixed macOS non-blocking socket flakes in three test fake servers. 19/19 rekey scenarios pass in Rust, 35/35 feature scenarios in Python, full suites green in CI.",
+      "text": "Released in kanbus 0.33.0 (PyPI) via PR #374 (merge 591adaf5). Fix commit bff4a4c8: Rust rekey no longer corrupts .kanbus.yml (both runtimes now edit only the top-level project_key line; new scenario), Rust output matches Python, Rust steps rewritten to reuse shared steps and run the Rust CLI, restored project_steps discovery import and Permission denied assertion, and fixed macOS non-blocking socket flakes in three test fake servers. The rekey feature passes 19/19 scenarios in Rust and 19/19 in Python; full suites green in CI.",
       "created_at": "2026-09-26T17:25:27.822527Z",
       "comment_type": "default"
     }
   ],
   "created_at": "2026-09-24T10:47:21.169298Z",
-  "updated_at": "2026-09-26T17:25:29.061966Z",
+  "updated_at": "2026-09-26T17:25:36.098782Z",
   "closed_at": "2026-09-26T17:25:29.038710Z",
   "agent": {
     "platform": "claude_code",
