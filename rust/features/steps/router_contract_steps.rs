@@ -710,6 +710,8 @@ fn start_fake_forge(world: &mut KanbusWorld) -> String {
             while !stop_thread.load(Ordering::Relaxed) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted sockets inherit the listener's non-blocking mode on macOS.
+                        let _ = stream.set_nonblocking(false);
                         let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
                         let mut request = Vec::new();
                         let mut buffer = [0_u8; 4096];
@@ -1494,6 +1496,25 @@ fn then_deferred_precedence(world: &mut KanbusWorld, step: &Step) {
 
 #[given("there are no eligible router packages")]
 fn given_no_packages(_world: &mut KanbusWorld) {}
+
+#[given(regex = r#"^the project has issue "(?P<id>[^"]+)" with labels "(?P<labels>[^"]*)"$"#)]
+fn given_project_has_issue_with_labels(world: &mut KanbusWorld, id: String, labels: String) {
+    let label_list: Vec<String> = labels
+        .split(',')
+        .map(|label| label.trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect();
+    seed_issue(
+        world,
+        &id,
+        "open",
+        label_list,
+        None,
+        None,
+        utc("2026-09-17T10:00:00Z"),
+        Vec::new(),
+    );
+}
 
 #[given(regex = r#"^pending routed packages are ordered "(?P<ids>[^\"]+)"$"#)]
 fn given_pending_packages(world: &mut KanbusWorld, ids: String) {

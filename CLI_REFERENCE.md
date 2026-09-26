@@ -513,6 +513,64 @@ kanbus wiki search <query> --limit 5
 
 ## Maintenance
 
+### `kanbus repair`
+
+Repair a broken project structure by recreating missing directories.
+
+```bash
+kanbus repair [--yes]
+```
+
+Flags:
+- `--yes` Skip confirmation prompts (required in non-interactive mode)
+
+### `kanbus rekey`
+
+Rename a project key and all issue IDs throughout the project.
+
+```bash
+kanbus rekey <new-key> [--dry-run]
+```
+
+Arguments:
+- `<new-key>` The new project key (must be valid per project-key rules)
+
+Flags:
+- `--dry-run` Print planned changes without modifying any files
+
+What it changes:
+- Project key in `.kanbus.yml`
+- All issue file names (preserving UUID suffixes)
+- Issue ID fields
+- Parent and dependency references
+- ID mentions in titles, descriptions, and comments (when they resolve to existing issues)
+- All caches and indexes (automatically invalidated)
+
+What it refuses:
+- New key equals old key
+- New key is invalid
+- Target file already exists
+- Working tree has uncommitted changes under `project/`
+
+Examples:
+
+```bash
+# Dry-run to see planned changes
+kanbus rekey apricity --dry-run
+
+# Execute the rekey
+kanbus rekey apricity
+
+# Verify the rekey with validation
+kanbus validate
+```
+
+Notes:
+- Old issue IDs in git commit messages are NOT changed
+- After a successful rekey, `kanbus validate` should pass
+- The operation is idempotent: rerunning with the same key is a no-op with a clear message
+- Short ID references (e.g., `apricitus-0a00f3`) in text are rewritten only when they resolve to existing issues and are at word boundaries
+
 ### `kanbus validate`
 
 Validate project integrity.

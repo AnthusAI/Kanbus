@@ -540,6 +540,14 @@ enum Commands {
         #[arg(long)]
         yes: bool,
     },
+    /// Rename a project key and all issue IDs.
+    Rekey {
+        /// New project key.
+        new_key: String,
+        /// Print planned changes without modifying files.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Promote a local issue to shared.
     Promote {
         /// Issue identifier.
@@ -1892,6 +1900,38 @@ fn execute_command(
 
             repair_project_structure(&plan)?;
             Ok(Some("Project structure repaired.".to_string()))
+        }
+        Commands::Rekey { new_key, dry_run } => {
+            let config =
+                crate::config_loader::load_project_configuration(&get_configuration_path(root)?)?;
+            let old_key = config.project_key.clone();
+
+            let mut plan = crate::rekey::plan_rekey(root, &old_key, &new_key, dry_run)?;
+
+            if plan.issue_renames.is_empty() {
+                crate::rich_text_signals::emit_stderr_line(
+                    "Project is already rekeyed to this key",
+                );
+                return Ok(None);
+            }
+
+            if !dry_run {
+                crate::rekey::execute_rekey(root, &mut plan)?;
+            }
+            let mut renames: Vec<(&String, &String)> = plan.issue_renames.iter().collect();
+            renames.sort();
+            let lines: Vec<String> = renames
+                .into_iter()
+                .map(|(old_id, new_id)| {
+                    if dry_run {
+                        let rewrites = plan.text_rewrites.get(old_id).unwrap_or(&0);
+                        format!("{old_id} -> {new_id} ({rewrites} rewrites)")
+                    } else {
+                        format!("Rekeyed {old_id} -> {new_id}")
+                    }
+                })
+                .collect();
+            Ok(Some(lines.join("\n")))
         }
         Commands::Setup { command } => match command {
             SetupCommands::Agents { force } => {

@@ -52,6 +52,33 @@ fn update_coordination_config(world: &KanbusWorld, key: &str, value: serde_yaml:
     .expect("write project config");
 }
 
+fn disable_realtime_broker(world: &KanbusWorld) {
+    let path = get_configuration_path(root(world)).expect("configuration path");
+    let contents = fs::read_to_string(&path).expect("read project config");
+    let mut configuration: serde_yaml::Value =
+        serde_yaml::from_str(&contents).expect("parse project config");
+    let root = configuration.as_mapping_mut().expect("config mapping");
+    let realtime_key = serde_yaml::Value::String("realtime".to_string());
+    if !root.contains_key(&realtime_key) {
+        root.insert(
+            realtime_key.clone(),
+            serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+        );
+    }
+    root.get_mut(&realtime_key)
+        .and_then(serde_yaml::Value::as_mapping_mut)
+        .expect("realtime mapping")
+        .insert(
+            serde_yaml::Value::String("broker".to_string()),
+            serde_yaml::Value::String("off".to_string()),
+        );
+    fs::write(
+        path,
+        serde_yaml::to_string(&configuration).expect("serialize config"),
+    )
+    .expect("write project config");
+}
+
 fn run_cli(world: &mut KanbusWorld, command: &str) {
     let args = shell_words::split(command).expect("parse command");
     let cwd = world
@@ -216,6 +243,7 @@ fn given_coordination_providers(world: &mut KanbusWorld, providers: String) {
                 .collect(),
         ),
     );
+    disable_realtime_broker(world);
 }
 
 #[given(expr = "coordination mutex API endpoint is unset")]
