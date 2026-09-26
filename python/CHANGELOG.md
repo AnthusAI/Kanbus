@@ -2,6 +2,82 @@
 
 <!-- version list -->
 
+## v0.33.0 (2026-09-26)
+
+### Bug Fixes
+
+- **gossip**: Run MQTT publish on a dedicated thread and isolate test HOME
+  ([`79a038e`](https://github.com/AnthusAI/Kanbus/commit/79a038efce85f5c1f8e816f7bafcc2de602b26ed))
+
+- **harness**: Make the hard-race, soft-duplicate and expiry-takeover scenarios pass live
+  ([`5c5c11e`](https://github.com/AnthusAI/Kanbus/commit/5c5c11e5a15242183b53c07cc9da725d73c1ac7a))
+
+### Chores
+
+- **kanbus**: Commit board state (issues)
+  ([`c12cad7`](https://github.com/AnthusAI/Kanbus/commit/c12cad72c6d9c87a09ddc1039567849cf3ce143c))
+
+- **kanbus**: Commit board state (issues)
+  ([`d929eb5`](https://github.com/AnthusAI/Kanbus/commit/d929eb535315e8be88a9b543f38f0f9365782578))
+
+- **kanbus**: Commit board state (issues)
+  ([`3b440b7`](https://github.com/AnthusAI/Kanbus/commit/3b440b76c750833330bde37f2e62660ed481254e))
+
+- **kanbus**: Commit board state (issues)
+  ([`5b28d87`](https://github.com/AnthusAI/Kanbus/commit/5b28d876ce25ceecbea6b9fe183a407f29ed8283))
+
+### Documentation
+
+- **coordination**: State tie-break, TTL garbage collection and Level 2 ownership in Gherkin prose
+  ([`5002988`](https://github.com/AnthusAI/Kanbus/commit/50029880820a7796fdb3ea5d8dcb88540684150d))
+
+### Features
+
+- **console**: Add a write API to change or clear an issue's routing assignment (kbs-daf353)
+  ([#372](https://github.com/AnthusAI/Kanbus/pull/372),
+  [`ed77d41`](https://github.com/AnthusAI/Kanbus/commit/ed77d41e686a055747b10e93e75c86bb807664ed))
+
+- **console**: Edit routing assignment from the issue detail view
+  ([#373](https://github.com/AnthusAI/Kanbus/pull/373),
+  [`84dce29`](https://github.com/AnthusAI/Kanbus/commit/84dce29b2d565c3de23c308f170d33db0cbb2843))
+
+- **console**: Edit routing assignment from the issue detail view (kbs-daf353)
+  ([#373](https://github.com/AnthusAI/Kanbus/pull/373),
+  [`84dce29`](https://github.com/AnthusAI/Kanbus/commit/84dce29b2d565c3de23c308f170d33db0cbb2843))
+
+- **console**: Resolve the effective agent assignment in the console snapshot (kbs-fa8c60)
+  ([`9786d35`](https://github.com/AnthusAI/Kanbus/commit/9786d358d4de4fa433beba77698928fe7808654c))
+
+- **kbs-a1201b**: Make kbs rekey pass CI in both runtimes
+  ([`bff4a4c`](https://github.com/AnthusAI/Kanbus/commit/bff4a4c89736492c2b1913681fa42f7e64814b3a))
+
+- **router**: Status-level router markers replace router.workflow (kbs-64d9b4)
+  ([`7add8dc`](https://github.com/AnthusAI/Kanbus/commit/7add8dc387d318cab03a62975253fd6ce13ea9de))
+
+### Performance Improvements
+
+- **router**: Parse each coordination event file once per process
+  ([`e5140c6`](https://github.com/AnthusAI/Kanbus/commit/e5140c6c0204d0a7dcb0f2c7552551cd68c0dc36))
+
+### Testing
+
+- **console**: Add Python steps and neutral assertion for the assignment editor feature
+  ([#373](https://github.com/AnthusAI/Kanbus/pull/373),
+  [`84dce29`](https://github.com/AnthusAI/Kanbus/commit/84dce29b2d565c3de23c308f170d33db0cbb2843))
+
+- **console**: Move the snapshot assignment spec out of the UI runner's path
+  ([`7fc63d3`](https://github.com/AnthusAI/Kanbus/commit/7fc63d3ac4c57dbbb5851bd39c1fed3ea073c982))
+
+- **coordination**: Keep MQTT coordination scenarios independent of host brokers
+  ([`44cc2ba`](https://github.com/AnthusAI/Kanbus/commit/44cc2bae91488db9cc3fb4f8f7b402599fa3357d))
+
+- **router**: Specify launch failure behavior for both runtimes
+  ([`c511b8e`](https://github.com/AnthusAI/Kanbus/commit/c511b8e810aee7df9efef4becb314574f1a9b735))
+
+- **router**: Specify state-native router lifecycle as shared Gherkin (kbs-b8f9e1)
+  ([`aa7785d`](https://github.com/AnthusAI/Kanbus/commit/aa7785d0731293b37302a3dc769e829fe62e3ebc))
+
+
 ## v0.32.0 (2026-09-23)
 
 ### Bug Fixes
