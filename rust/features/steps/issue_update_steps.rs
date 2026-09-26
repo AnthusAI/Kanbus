@@ -60,13 +60,6 @@ fn then_issue_has_title(world: &mut KanbusWorld, identifier: String, title: Stri
     assert_eq!(issue.title, title);
 }
 
-#[then("issue \"kanbus-aaa\" should have description \"Updated description\"")]
-fn then_issue_has_description(world: &mut KanbusWorld) {
-    let project_dir = load_project_dir(world);
-    let issue = load_issue(&project_dir, "kanbus-aaa");
-    assert_eq!(issue.description, "Updated description");
-}
-
 #[then("issue \"kanbus-aaa\" should have an updated_at timestamp")]
 fn then_issue_has_updated_at(world: &mut KanbusWorld) {
     let project_dir = load_project_dir(world);

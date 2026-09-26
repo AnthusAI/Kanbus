@@ -46,7 +46,7 @@ pub fn plan_rekey(
         for entry in fs::read_dir(&issues_dir).map_err(|e| KanbusError::Io(e.to_string()))? {
             let entry = entry.map_err(|e| KanbusError::Io(e.to_string()))?;
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "json") {
+            if path.extension().is_some_and(|ext| ext == "json") {
                 if let Some(filename) = path.file_stem() {
                     let id = filename.to_string_lossy().to_string();
                     if id.starts_with(&format!("{}-", old_key)) {
@@ -98,10 +98,9 @@ pub fn execute_rekey(root: &Path, plan: &mut RekeyPlan) -> Result<(), KanbusErro
             continue;
         }
 
-        let content = fs::read_to_string(&old_path)
-            .map_err(|e| KanbusError::Io(e.to_string()))?;
-        let mut issue_data: Value = serde_json::from_str(&content)
-            .map_err(|e| KanbusError::Io(e.to_string()))?;
+        let content = fs::read_to_string(&old_path).map_err(|e| KanbusError::Io(e.to_string()))?;
+        let mut issue_data: Value =
+            serde_json::from_str(&content).map_err(|e| KanbusError::Io(e.to_string()))?;
 
         issue_data["id"] = json!(new_id);
 
@@ -142,10 +141,7 @@ pub fn execute_rekey(root: &Path, plan: &mut RekeyPlan) -> Result<(), KanbusErro
                     rewrite_id_references(text, &plan.old_key, &plan.new_key, &valid_ids);
                 if count > 0 {
                     issue_data[field] = json!(rewritten);
-                    *plan
-                        .text_rewrites
-                        .entry(old_id.clone())
-                        .or_insert(0) += count;
+                    *plan.text_rewrites.entry(old_id.clone()).or_insert(0) += count;
                 }
             }
         }
@@ -157,16 +153,17 @@ pub fn execute_rekey(root: &Path, plan: &mut RekeyPlan) -> Result<(), KanbusErro
         {
             for comment in comments {
                 // Try "text" first (the correct field name), then fall back to "body"
-                let text_field = if comment.get("text").is_some() { "text" } else { "body" };
+                let text_field = if comment.get("text").is_some() {
+                    "text"
+                } else {
+                    "body"
+                };
                 if let Some(text) = comment.get(text_field).and_then(|t| t.as_str()) {
                     let (rewritten, count) =
                         rewrite_id_references(text, &plan.old_key, &plan.new_key, &valid_ids);
                     if count > 0 {
                         comment[text_field] = json!(rewritten);
-                        *plan
-                            .text_rewrites
-                            .entry(old_id.clone())
-                            .or_insert(0) += count;
+                        *plan.text_rewrites.entry(old_id.clone()).or_insert(0) += count;
                     }
                 }
             }
@@ -179,27 +176,37 @@ pub fn execute_rekey(root: &Path, plan: &mut RekeyPlan) -> Result<(), KanbusErro
             .map_err(|e| KanbusError::Io(e.to_string()))?;
 
         if old_path != new_path {
-            fs::remove_file(&old_path)
-                .map_err(|e| KanbusError::Io(e.to_string()))?;
+            fs::remove_file(&old_path).map_err(|e| KanbusError::Io(e.to_string()))?;
         }
     }
 
     // Update .kanbus.yml
     let config_path = get_configuration_path(root)?;
-    let config_content = fs::read_to_string(&config_path)
-        .map_err(|e| KanbusError::Io(e.to_string()))?;
-    let mut config: Value = serde_yaml::from_str(&config_content)
-        .map_err(|e| KanbusError::Io(e.to_string()))?;
-    config["project_key"] = json!(plan.new_key);
-
-    let yaml_str = serde_yaml::to_string(&config)
-        .map_err(|e| KanbusError::Io(e.to_string()))?;
-    fs::write(&config_path, yaml_str)
-        .map_err(|e| KanbusError::Io(e.to_string()))?;
+    let config_content =
+        fs::read_to_string(&config_path).map_err(|e| KanbusError::Io(e.to_string()))?;
+    let rewritten = rewrite_project_key(&config_content, &plan.new_key)?;
+    fs::write(&config_path, rewritten).map_err(|e| KanbusError::Io(e.to_string()))?;
 
     invalidate_caches(&project_dir)?;
 
     Ok(())
+}
+
+/// Replace the top-level `project_key` value, leaving every other line as written.
+fn rewrite_project_key(config_text: &str, new_key: &str) -> Result<String, KanbusError> {
+    let re = Regex::new(r"(?m)^project_key:[ \t]*[^#\n]*?(?P<comment>[ \t]+#[^\n]*)?$")
+        .expect("project_key pattern");
+    if !re.is_match(config_text) {
+        return Err(KanbusError::IssueOperation(
+            "project_key not found in .kanbus.yml".to_string(),
+        ));
+    }
+    Ok(re
+        .replacen(config_text, 1, |caps: &regex::Captures| {
+            let comment = caps.name("comment").map_or("", |m| m.as_str());
+            format!("project_key: {new_key}{comment}")
+        })
+        .into_owned())
 }
 
 fn rewrite_id_references(
@@ -225,7 +232,11 @@ fn rewrite_id_references(
             for valid_id in valid_ids {
                 if valid_id.starts_with(full_match) {
                     count += 1;
-                    return full_match.replacen(&format!("{}-", old_key), &format!("{}-", new_key), 1);
+                    return full_match.replacen(
+                        &format!("{}-", old_key),
+                        &format!("{}-", new_key),
+                        1,
+                    );
                 }
             }
             full_match.to_string()
@@ -241,7 +252,10 @@ fn validate_project_key(key: &str) -> Result<(), KanbusError> {
             "invalid project key: must not be empty".to_string(),
         ));
     }
-    if !key.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if !key
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         return Err(KanbusError::IssueOperation(
             "invalid project key: contains invalid characters".to_string(),
         ));
@@ -271,8 +285,7 @@ fn invalidate_caches(project_dir: &Path) -> Result<(), KanbusError> {
     for cache_name in &[".cache", ".index", ".overlay"] {
         let cache_path = project_dir.join(cache_name);
         if cache_path.exists() {
-            fs::remove_dir_all(&cache_path)
-                .map_err(|e| KanbusError::Io(e.to_string()))?;
+            fs::remove_dir_all(&cache_path).map_err(|e| KanbusError::Io(e.to_string()))?;
         }
     }
     Ok(())

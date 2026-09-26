@@ -1902,33 +1902,36 @@ fn execute_command(
             Ok(Some("Project structure repaired.".to_string()))
         }
         Commands::Rekey { new_key, dry_run } => {
-            let config = crate::config_loader::load_project_configuration(
-                &get_configuration_path(root)?
-            )?;
+            let config =
+                crate::config_loader::load_project_configuration(&get_configuration_path(root)?)?;
             let old_key = config.project_key.clone();
 
             let mut plan = crate::rekey::plan_rekey(root, &old_key, &new_key, dry_run)?;
 
             if plan.issue_renames.is_empty() {
-                // Already rekeyed to this key - return success with message
-                return Ok(Some("Project is already rekeyed to this key\n".to_string()));
+                crate::rich_text_signals::emit_stderr_line(
+                    "Project is already rekeyed to this key",
+                );
+                return Ok(None);
             }
 
-            if dry_run {
-                let mut output = String::new();
-                for (old_id, new_id) in &plan.issue_renames {
-                    let rewrites = plan.text_rewrites.get(old_id).unwrap_or(&0);
-                    output.push_str(&format!("{} -> {} ({} rewrites)\n", old_id, new_id, rewrites));
-                }
-                Ok(Some(output))
-            } else {
+            if !dry_run {
                 crate::rekey::execute_rekey(root, &mut plan)?;
-                let mut output = String::new();
-                for (old_id, new_id) in &plan.issue_renames {
-                    output.push_str(&format!("Rekeyed {} -> {}\n", old_id, new_id));
-                }
-                Ok(Some(output))
             }
+            let mut renames: Vec<(&String, &String)> = plan.issue_renames.iter().collect();
+            renames.sort();
+            let lines: Vec<String> = renames
+                .into_iter()
+                .map(|(old_id, new_id)| {
+                    if dry_run {
+                        let rewrites = plan.text_rewrites.get(old_id).unwrap_or(&0);
+                        format!("{old_id} -> {new_id} ({rewrites} rewrites)")
+                    } else {
+                        format!("Rekeyed {old_id} -> {new_id}")
+                    }
+                })
+                .collect();
+            Ok(Some(lines.join("\n")))
         }
         Commands::Setup { command } => match command {
             SetupCommands::Agents { force } => {

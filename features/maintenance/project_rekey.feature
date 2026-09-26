@@ -43,6 +43,18 @@ Feature: Project rekey
     Then the command should succeed
     And issue "new-task0001-1234-5678-abcd-123456789012" should be blocked by "new-task0002-5678-9abc-abcd-123456789012"
 
+  Scenario: Rekey changes only the top-level project key in .kanbus.yml
+    Given a Kanbus project with key "old"
+    And .kanbus.yml ends with the comment "# keep this comment"
+    And a "task" issue "old-task0000-1234-5678-abcd-123456789012" exists
+    And the project is committed to git
+    When I run "kanbus rekey new"
+    Then the command should succeed
+    And .kanbus.yml should have project_key "new"
+    And .kanbus.yml should contain "# keep this comment"
+    When I run "kanbus list"
+    Then the command should succeed
+
   Scenario: Rekey rewrites ID mentions in issue descriptions
     Given a Kanbus project with key "old"
     And a "task" issue "old-issue01-1234-5678-abcd-123456789012" exists

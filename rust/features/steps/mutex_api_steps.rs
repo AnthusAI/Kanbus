@@ -44,7 +44,12 @@ impl MutexApiFixture {
         let thread = thread::spawn(move || {
             while !thread_shutdown.load(Ordering::Relaxed) {
                 match listener.accept() {
-                    Ok((stream, _)) => handle_request(stream, &thread_leases, &thread_response),
+                    Ok((stream, _)) => {
+                        // Accepted sockets inherit the listener's non-blocking mode on macOS.
+                        if stream.set_nonblocking(false).is_ok() {
+                            handle_request(stream, &thread_leases, &thread_response);
+                        }
+                    }
                     Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                         thread::sleep(Duration::from_millis(5));
                     }

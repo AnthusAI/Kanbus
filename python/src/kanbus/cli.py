@@ -613,7 +613,12 @@ def repair(yes: bool) -> None:
 
 @cli.command("rekey")
 @click.argument("new_key")
-@click.option("--dry-run", is_flag=True, default=False, help="Print planned changes without modifying files")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print planned changes without modifying files",
+)
 def rekey(new_key: str, dry_run: bool) -> None:
     """Rename a project key and all issue IDs.
 
