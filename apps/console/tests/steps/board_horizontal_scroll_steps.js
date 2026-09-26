@@ -6,7 +6,7 @@ import path from "path";
 const projectRoot = process.env.CONSOLE_PROJECT_ROOT;
 
 When("I scroll the board to the right", async function () {
-  await this.page.getByText("Doing issue").first().waitFor({ timeout: 8000 });
+  await this.page.locator(".issue-card", { hasText: "Doing issue" }).first().waitFor({ timeout: 15000 });
   const scrollLeft = await this.page.evaluate(async () => {
     const board = document.querySelector(".kb-grid");
     board.scrollLeft = board.scrollWidth;
