@@ -127,6 +127,11 @@
   overflow: visible !important;
 }
 
+.kb-grid.is-flipping {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
 .issue-card {
   border-radius: 12px;
   background: var(--card);
