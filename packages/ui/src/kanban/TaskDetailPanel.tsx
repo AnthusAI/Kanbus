@@ -733,12 +733,29 @@ export function TaskDetailPanel({
         const session = typeof payload.session_id === "string" ? payload.session_id : null;
         const branch = typeof payload.branch === "string" ? payload.branch : null;
         const log = typeof payload.log === "string" ? payload.log : null;
+        const message = typeof payload.message === "string" && payload.message.trim() ? payload.message : null;
+        const claim = typeof payload.claim_id === "string" ? payload.claim_id : null;
+        const revision = typeof payload.revision === "number" ? payload.revision : null;
+        const worktree = typeof payload.worktree === "string" && payload.worktree ? payload.worktree : null;
         return (
           <div className="grid gap-2">
             <div>
               Agent conversation: {provider} · {lifecycle}
             </div>
+            {message ? (
+              <div className="whitespace-pre-wrap break-words text-sm text-foreground" data-testid="conversation-message">
+                {message}
+              </div>
+            ) : null}
             {session ? <div className="text-xs text-muted">Session: {session}</div> : null}
+            {claim ? (
+              <div className="text-xs text-muted" data-testid="conversation-claim">
+                Claim: {claim}{revision !== null ? ` · revision ${revision}` : ""}
+              </div>
+            ) : null}
+            {worktree ? (
+              <div className="break-all text-xs text-muted" data-testid="conversation-worktree">Worktree: {worktree}</div>
+            ) : null}
             {branch ? <div className="text-xs text-muted">Branch: {branch}</div> : null}
             {log ? (
               <details className="rounded-lg bg-[var(--card-muted)] p-2 text-xs text-muted">
