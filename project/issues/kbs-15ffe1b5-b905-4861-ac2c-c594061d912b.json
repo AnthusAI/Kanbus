@@ -3,17 +3,25 @@
   "title": "Show agent conversation summary and run metadata in the issue event history",
   "description": "Follow-up to kbs-3310c1. The issue detail Event History renders router.conversation events as provider, lifecycle, session, branch and an expandable redacted output. The event's own message (the agent's summary or the awaiting-reply text) and the run metadata (claim id, revision, worktree) are stored on the event but not displayed. Render them in packages/ui/src/kanban/TaskDetailPanel.tsx (case router.conversation) and confirm visually against the preserved run kbs-4c7198, whose console API already returns started, agent_turn and four recovered events.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-fc24ca81-f05c-43a8-920f-150061027ba1",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "667cf0cd-7aed-4849-ac34-d6e14790873e",
+      "author": "home",
+      "text": "Delivered in PR #376: Event History for router.conversation events now renders the event message and the run metadata (claim id and revision, worktree). Verified by features/console/conversation_event_details.feature (fails without the change, passes with it, passes in CI console-ui). Not done: the visual check against preserved run kbs-4c7198 that the story mentioned; the scenario mocks the events API because the Node dev server has no issue events route.",
+      "created_at": "2026-09-26T18:43:13.942517Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-24T00:22:34.105029Z",
-  "updated_at": "2026-09-26T18:16:36.750595Z",
-  "closed_at": null,
+  "updated_at": "2026-09-26T18:43:14.184154Z",
+  "closed_at": "2026-09-26T18:43:14.163410Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

@@ -3,7 +3,7 @@
   "title": "Interactive console issue controls",
   "description": "## Goal\n\nMake the Kanbus console a trustworthy human control surface for issue workflow and agent routing, beginning with a clear, editable agent assignment on every issue detail view.\n\n## Product boundary\n\nAn issue has two distinct agent concepts:\n\n- **Provenance** (`issue.agent` / comment agent metadata): immutable evidence of who created or wrote something.\n- **Routing assignment** (`agent-class:*` or `agent-provider:*`): the editable instruction used by the issue router to select future work.\n\nThe console must never present provenance as an editable assignment. It must show the effective resolved routing configuration without exposing secrets, and write through validated Kanbus operations so Git history, events, router fencing, and realtime/Git refresh remain coherent.\n\n## Outcome\n\nA human can inspect and safely change an eligible issue’s routing assignment, status, and comments in the console. The detail panel clearly shows the requested class/provider and the effective product, model, reasoning effort, service tier/flex mode, and other non-secret parameters. Changes are visible locally and through the existing event/realtime and Git-refresh paths.",
   "type": "initiative",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -24,11 +24,18 @@
       "text": "Console issue controls delivered: comments and status writes, effective assignment display, and the assignment editor.",
       "created_at": "2026-09-25T06:19:36.984336Z",
       "comment_type": "default"
+    },
+    {
+      "id": "c4cd7c99-757d-4190-b8fe-2c87e58748a4",
+      "author": "home",
+      "text": "All children closed; console issue controls complete.",
+      "created_at": "2026-09-26T18:43:14.496038Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-19T14:31:41.599446Z",
-  "updated_at": "2026-09-26T18:16:36.432864Z",
-  "closed_at": null,
+  "updated_at": "2026-09-26T18:43:14.565209Z",
+  "closed_at": "2026-09-26T18:43:14.544439Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
