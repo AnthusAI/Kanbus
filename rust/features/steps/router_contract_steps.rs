@@ -710,6 +710,8 @@ fn start_fake_forge(world: &mut KanbusWorld) -> String {
             while !stop_thread.load(Ordering::Relaxed) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted sockets inherit the listener's non-blocking mode on macOS.
+                        let _ = stream.set_nonblocking(false);
                         let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
                         let mut request = Vec::new();
                         let mut buffer = [0_u8; 4096];

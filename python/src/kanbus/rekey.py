@@ -8,12 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
-import yaml
-
-from kanbus.models import IssueData
 from kanbus.project import (
     get_configuration_path,
-    load_project_configuration,
     load_project_directory,
 )
 
@@ -33,6 +29,32 @@ class RekeyError(Exception):
     pass
 
 
+_PROJECT_KEY_LINE = re.compile(
+    r"^project_key:[ \t]*[^#\n]*?(?P<comment>[ \t]+#[^\n]*)?$", re.MULTILINE
+)
+
+
+def _rewrite_project_key(config_text: str, new_key: str) -> str:
+    """Replace the top-level project_key value, leaving every other line as written.
+
+    :param config_text: Contents of .kanbus.yml.
+    :type config_text: str
+    :param new_key: New project key.
+    :type new_key: str
+    :return: Updated contents.
+    :rtype: str
+    :raises RekeyError: If there is no top-level project_key line.
+    """
+    rewritten, count = _PROJECT_KEY_LINE.subn(
+        lambda match: f"project_key: {new_key}{match.group('comment') or ''}",
+        config_text,
+        count=1,
+    )
+    if count == 0:
+        raise RekeyError("project_key not found in .kanbus.yml")
+    return rewritten
+
+
 def _validate_project_key(key: str) -> None:
     """Validate project key format.
 
@@ -42,7 +64,7 @@ def _validate_project_key(key: str) -> None:
     """
     if not key or len(key) == 0:
         raise RekeyError("invalid project key: must not be empty")
-    if not all(c.isalnum() or c in '-_' for c in key):
+    if not all(c.isalnum() or c in "-_" for c in key):
         raise RekeyError("invalid project key: contains invalid characters")
 
 
@@ -68,7 +90,9 @@ def _check_git_tree_clean(root: Path) -> None:
             raise RekeyError(f"git status check failed: {error}") from error
 
 
-def _rewrite_id_references(text: str, old_key: str, new_key: str, valid_ids: set[str]) -> tuple[str, int]:
+def _rewrite_id_references(
+    text: str, old_key: str, new_key: str, valid_ids: set[str]
+) -> tuple[str, int]:
     """Rewrite ID references in text, respecting word boundaries.
 
     Only rewrites full or short IDs that resolve to existing issues.
@@ -111,7 +135,9 @@ def _rewrite_id_references(text: str, old_key: str, new_key: str, valid_ids: set
     return result, rewrite_count
 
 
-def plan_rekey(root: Path, old_key: str, new_key: str, dry_run: bool = False) -> RekeyPlan:
+def plan_rekey(
+    root: Path, old_key: str, new_key: str, dry_run: bool = False
+) -> RekeyPlan:
     """Plan a project rekey operation.
 
     :param root: Repository root.
@@ -146,7 +172,7 @@ def plan_rekey(root: Path, old_key: str, new_key: str, dry_run: bool = False) ->
 
     issue_renames = {}
     for old_id in sorted(old_ids):
-        suffix = old_id[len(old_key) + 1:]
+        suffix = old_id[len(old_key) + 1 :]
         new_id = f"{new_key}-{suffix}"
 
         if not dry_run and (project_dir / "issues" / f"{new_id}.json").exists():
@@ -155,7 +181,6 @@ def plan_rekey(root: Path, old_key: str, new_key: str, dry_run: bool = False) ->
         issue_renames[old_id] = new_id
 
     text_rewrites = {}
-    valid_old_ids = set(issue_renames.keys())
 
     for old_id in sorted(old_ids):
         new_id = issue_renames[old_id]
@@ -210,7 +235,9 @@ def execute_rekey(root: Path, plan: RekeyPlan) -> None:
                 )
                 issue_data[field] = rewritten
                 if count > 0:
-                    plan.text_rewrites[old_id] = plan.text_rewrites.get(old_id, 0) + count
+                    plan.text_rewrites[old_id] = (
+                        plan.text_rewrites.get(old_id, 0) + count
+                    )
 
         if "comments" in issue_data and issue_data["comments"]:
             for comment in issue_data["comments"]:
@@ -222,7 +249,9 @@ def execute_rekey(root: Path, plan: RekeyPlan) -> None:
                     )
                     comment[text_field] = rewritten
                     if count > 0:
-                        plan.text_rewrites[old_id] = plan.text_rewrites.get(old_id, 0) + count
+                        plan.text_rewrites[old_id] = (
+                            plan.text_rewrites.get(old_id, 0) + count
+                        )
 
         new_path = issues_dir / f"{new_id}.json"
         new_path.write_text(
@@ -233,13 +262,10 @@ def execute_rekey(root: Path, plan: RekeyPlan) -> None:
         if old_path != new_path:
             old_path.unlink()
 
-    config = load_project_configuration(config_path)
-    config.project_key = plan.new_key
-
-    config_dict = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    config_dict["project_key"] = plan.new_key
-
-    config_path.write_text(yaml.safe_dump(config_dict, sort_keys=False), encoding="utf-8")
+    config_path.write_text(
+        _rewrite_project_key(config_path.read_text(encoding="utf-8"), plan.new_key),
+        encoding="utf-8",
+    )
 
     invalidate_caches(project_dir)
 
@@ -253,14 +279,17 @@ def invalidate_caches(project_dir: Path) -> None:
     cache_dir = project_dir / ".cache"
     if cache_dir.exists():
         import shutil
+
         shutil.rmtree(cache_dir)
 
     index_dir = project_dir / ".index"
     if index_dir.exists():
         import shutil
+
         shutil.rmtree(index_dir)
 
     overlay_dir = project_dir / ".overlay"
     if overlay_dir.exists():
         import shutil
+
         shutil.rmtree(overlay_dir)
