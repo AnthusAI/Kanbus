@@ -200,6 +200,23 @@ def test_start_assertion_requires_one_successful_runtime() -> None:
         harness.assert_single_router_start([winner, winner])
 
 
+def test_loser_may_report_hard_lease_contention_but_not_other_errors() -> None:
+    winner = harness.WorkerResult(
+        "rust", Path("rust"), harness.ProcessResult(0, "started=1", "")
+    )
+    contended = harness.WorkerResult(
+        "python",
+        Path("python"),
+        harness.ProcessResult(1, "started=0", "error: package already claimed"),
+    )
+    assert harness.assert_single_router_start([contended, winner]) is winner
+    broken = harness.WorkerResult(
+        "python", Path("python"), harness.ProcessResult(1, "started=0", "error: boom")
+    )
+    with pytest.raises(harness.HarnessError, match="failed unexpectedly"):
+        harness.assert_single_router_start([broken, winner])
+
+
 def test_task_result_requires_review_and_router_comment() -> None:
     issue = {
         "status": "review",
@@ -644,3 +661,47 @@ def test_worker_config_defaults_to_hard_mutex_coordination(tmp_path: Path) -> No
     harness._configure_worker_for_test(tmp_path, "router-container-it-test")
     loaded = harness.yaml.safe_load(config.read_text(encoding="utf-8"))
     assert loaded["coordination"]["providers"] == ["mutex_api", "mqtt", "git"]
+
+
+def test_reported_issue_identifier_resolves_to_the_stored_full_identifier(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".kanbus.yml").write_text("project_directory: project\n")
+    issues = tmp_path / "project" / "issues"
+    issues.mkdir(parents=True)
+    full = "kbs-db23027c-cea8-4f9c-827e-795b4fd6a2e9"
+    (issues / f"{full}.json").write_text("{}")
+    assert harness._full_issue_identifier(tmp_path, "kbs-db2302") == full
+    with pytest.raises(harness.HarnessError, match="found 0"):
+        harness._full_issue_identifier(tmp_path, "kbs-ffffff")
+
+
+def _bare_state_repository(tmp_path: Path, events: dict[str, dict]) -> Path:
+    work = tmp_path / "work"
+    subprocess.run(["git", "init", "-q", "-b", "kanbus/router-state", str(work)])
+    (work / "project" / "events").mkdir(parents=True)
+    for name, event in events.items():
+        (work / "project" / "events" / name).write_text(json.dumps(event))
+    identity = ["-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    subprocess.run(["git", "-C", str(work), "add", "-A"])
+    subprocess.run(["git", "-C", str(work), *identity, "commit", "-q", "-m", "x"])
+    bare = tmp_path / "state.git"
+    subprocess.run(["git", "clone", "-q", "--bare", str(work), str(bare)])
+    return bare
+
+
+def test_start_event_detection_requires_a_started_attempt(tmp_path: Path) -> None:
+    issue = "kbs-0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+    claim = {"event_type": "coordination.claim", "issue_id": issue, "payload": {}}
+    started = {
+        "event_type": "router.attempt",
+        "issue_id": f"router:{issue}",
+        "payload": {"action": "started"},
+    }
+    only_claim = _bare_state_repository(tmp_path / "a", {"1.json": claim})
+    assert harness._start_event_published(only_claim, issue) is False
+    with_start = _bare_state_repository(
+        tmp_path / "b", {"1.json": claim, "2.json": started}
+    )
+    assert harness._start_event_published(with_start, issue) is True
+    assert harness._start_event_published(with_start, "kbs-other") is False

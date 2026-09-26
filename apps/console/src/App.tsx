@@ -31,6 +31,7 @@ import {
   subscribeToRealtimeFeed,
   addIssueComment,
   transitionIssue,
+  setIssueAssignment,
   type NotificationEvent,
   type UiControlAction,
 } from "./api/client";
@@ -2277,6 +2278,14 @@ export default function App() {
                   onNavigateToDescendant={handleSelectIssue}
                   onAddComment={async (issueId, text) => {
                     const result = await addIssueComment(apiBase, issueId, text);
+                    setSnapshot((current) => current ? {
+                      ...current,
+                      issues: current.issues.map((issue) => issue.id === issueId ? result.issue : issue),
+                      updated_at: new Date().toISOString()
+                    } : current);
+                  }}
+                  onChangeAssignment={async (issueId, choice) => {
+                    const result = await setIssueAssignment(apiBase, issueId, choice);
                     setSnapshot((current) => current ? {
                       ...current,
                       issues: current.issues.map((issue) => issue.id === issueId ? result.issue : issue),

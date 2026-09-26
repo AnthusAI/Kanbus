@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+from kanbus.agent_assignment import (
+    redact_router_config,
+    resolve_agent_assignment,
+)
 from kanbus.config_loader import (
     ConfigurationError,
     load_project_configuration,
@@ -13,7 +17,7 @@ from kanbus.config_loader import (
 )
 from kanbus.issue_files import read_issue_from_file
 from kanbus.migration import MigrationError, load_beads_issues
-from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.models import IssueData, IssueRouterConfiguration, ProjectConfiguration
 from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
     ProjectMarkerError,
@@ -25,6 +29,26 @@ from kanbus.project import (
 
 class ConsoleSnapshotError(RuntimeError):
     """Raised when building a console snapshot fails."""
+
+
+def _dump_issue(issue: IssueData, router: Optional[IssueRouterConfiguration]) -> dict:
+    """Serialize an issue for the console with its resolved agent assignment.
+
+    :param issue: Issue to serialize.
+    :type issue: IssueData
+    :param router: Router configuration, when the project has one.
+    :type router: Optional[IssueRouterConfiguration]
+    :return: JSON-ready issue mapping.
+    :rtype: dict
+    """
+    issue_dump = issue.model_dump(by_alias=True, mode="json")
+    assignment = resolve_agent_assignment(issue.labels, router)
+    if assignment is not None:
+        issue_dump["custom"] = {
+            **issue_dump.get("custom", {}),
+            "agent_assignment": assignment,
+        }
+    return issue_dump
 
 
 def build_console_snapshot(root: Path) -> Dict[str, object]:
@@ -41,9 +65,15 @@ def build_console_snapshot(root: Path) -> Dict[str, object]:
     config = config.model_copy(update={"name": resolved_name})
     issues = _load_console_issues(root, project_dir, config)
     updated_at = _format_timestamp(datetime.now(timezone.utc))
+
+    config_dump = config.model_dump()
+    config_dump = redact_router_config(config_dump)
+
+    issue_dumps = [_dump_issue(issue, config.router) for issue in issues]
+
     return {
-        "config": config.model_dump(),
-        "issues": [issue.model_dump(by_alias=True, mode="json") for issue in issues],
+        "config": config_dump,
+        "issues": issue_dumps,
         "updated_at": updated_at,
     }
 
@@ -67,7 +97,10 @@ def build_console_now_issues(root: Path) -> List[Dict[str, object]]:
     roots, selected_identifiers = active_right_now_tree(issues)
     ensure_right_now_summary_subtrees(root, roots, selected_identifiers)
     issues = _load_console_issues(root, project_dir, config)
-    return [issue.model_dump(by_alias=True, mode="json") for issue in issues]
+
+    issue_dumps = [_dump_issue(issue, config.router) for issue in issues]
+
+    return issue_dumps
 
 
 def get_issues_for_root(root: Path) -> List[IssueData]:

@@ -3,6 +3,10 @@ Feature: Mutex API acquire renew release inspect
   I want hard mutual exclusion for live leases only
   So that exactly one worker owns a resource until release or expiration
 
+  The store holds live leases only, never Kanbus history. Abandoned leases
+  expire and are garbage-collected by the store's time-to-live mechanism, which
+  is DynamoDB TTL when that provider is configured.
+
   Background:
     Given a Kanbus project with default configuration
     And coordination mutex API endpoint is "https://mutex.example.test"

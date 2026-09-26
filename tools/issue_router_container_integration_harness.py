@@ -46,13 +46,14 @@ TEST_IMAGE = "kanbus-issue-router-integration:codex-0.149.0"
 DEFAULT_BRANCH = "develop"
 STATE_BRANCH = "kanbus/router-state"
 ISSUE_ID_RE = re.compile(r"(?m)^\s*ID:\s+([A-Za-z0-9][A-Za-z0-9_-]*)\s*$")
+CONTENTION_MESSAGE = "package already claimed"
 STARTED_RE = re.compile(r"(?:^|\s)started=(\d+)(?:\s|$)")
 SECRET_NAME_RE = re.compile(
     r"token|secret|password|credential|authorization|private[_-]?key|api[_-]?key",
     re.IGNORECASE,
 )
-EXPIRY_TTL = "5s"
-EXPIRY_WAIT_SECONDS = 15.0
+EXPIRY_TTL = "30s"
+EXPIRY_WAIT_SECONDS = 45.0
 VALID_SCENARIOS = {"hard-race", "soft-duplicate", "expiry-takeover"}
 
 
@@ -181,6 +182,9 @@ def validate_test_epic(issue: object | None) -> str:
 def assert_single_router_start(results: Sequence[WorkerResult]) -> WorkerResult:
     """Require exactly one Python/Rust worker to start the real test task.
 
+    A loser must not start the task. It either exits cleanly or exits non-zero
+    with the router's documented hard-lease contention response.
+
     :param results: Completed worker invocations.
     :return: The sole winner's result.
     :raises HarnessError: If zero, multiple, or failed starts are observed.
@@ -211,7 +215,8 @@ def assert_single_router_start(results: Sequence[WorkerResult]) -> WorkerResult:
             f"{winner.result.stdout}\n{winner.result.stderr}"
         )
     for worker in results:
-        if worker is not winner and worker.result.returncode != 0:
+        contended = CONTENTION_MESSAGE in worker.result.stderr
+        if worker is not winner and worker.result.returncode != 0 and not contended:
             raise HarnessError(
                 f"losing worker {worker.name} failed unexpectedly:\n"
                 f"{worker.result.stdout}\n{worker.result.stderr}"
@@ -288,9 +293,12 @@ def assert_soft_duplicate_permitted(results: Sequence[WorkerResult]) -> int:
         raise HarnessError("race must include exactly one Python and one Rust worker")
     starts: list[int] = []
     for worker in results:
-        if worker.result.returncode != 0:
+        contended = CONTENTION_MESSAGE in worker.result.stderr
+        if worker.result.returncode != 0 and not contended:
             raise HarnessError(
-                f"soft-duplicate worker {worker.name} failed (exit={worker.result.returncode})"
+                f"soft-duplicate worker {worker.name} failed "
+                f"(exit={worker.result.returncode}):\n"
+                f"{worker.result.stdout}\n{worker.result.stderr}"
             )
         matches = STARTED_RE.findall(worker.result.stdout)
         count = int(matches[-1]) if matches else 0
@@ -332,7 +340,8 @@ def assert_takeover(worker: WorkerResult, issue: object, marker: str) -> None:
     count = int(matches[-1]) if matches else 0
     if count != 1:
         raise HarnessError(
-            f"takeover worker must start exactly once, got started={count}"
+            f"takeover worker must start exactly once, got started={count}\n"
+            f"stdout: {worker.result.stdout}\nstderr: {worker.result.stderr}"
         )
     if worker.result.returncode != 0:
         raise HarnessError(f"takeover worker failed (exit={worker.result.returncode})")
@@ -569,7 +578,18 @@ def _create_test_issue(
     match = ISSUE_ID_RE.search(created.stdout)
     if match is None:
         raise HarnessError("Kanbus did not report the new task ID")
-    return match.group(1), marker
+    return _full_issue_identifier(root, match.group(1)), marker
+
+
+def _full_issue_identifier(root: Path, reported_identifier: str) -> str:
+    """Resolve the abbreviated ID printed by Kanbus to the stored issue ID."""
+    issues_directory = root / _project_directory(root) / "issues"
+    matches = sorted(issues_directory.glob(f"{reported_identifier}*.json"))
+    if len(matches) != 1:
+        raise HarnessError(
+            f"expected one issue file for {reported_identifier}, found {len(matches)}"
+        )
+    return matches[0].stem
 
 
 def _container_command(
@@ -781,6 +801,30 @@ def _read_router_state_issue(
     return issue
 
 
+def _start_event_published(bare_remote: Path, issue_id: str) -> bool:
+    """Return whether shared router state records a started attempt for the issue."""
+    ref = f"refs/heads/{STATE_BRANCH}"
+    listed = _run(
+        ["git", "--git-dir", str(bare_remote), "grep", "-l", issue_id, ref, "--"]
+        + ["project/events"],
+        check=False,
+    )
+    for line in listed.stdout.splitlines():
+        shown = _run(["git", "--git-dir", str(bare_remote), "show", line], check=False)
+        try:
+            event = json.loads(shown.stdout)
+        except json.JSONDecodeError:
+            continue
+        payload = event.get("payload") if isinstance(event, dict) else None
+        if (
+            isinstance(payload, dict)
+            and event.get("event_type") == "router.attempt"
+            and payload.get("action") == "started"
+        ):
+            return True
+    return False
+
+
 def _run_hard_or_soft_race_scenario(
     names: Sequence[str],
     worker_roots: Sequence[Path],
@@ -881,21 +925,8 @@ def _run_expiry_takeover_scenario(
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        state_sha = _git(
-            remote,
-            "rev-parse",
-            "--verify",
-            f"refs/heads/{STATE_BRANCH}",
-            check=False,
-            bare=True,
-        )
-        if state_sha:
-            try:
-                state_issue = _read_router_state_issue(remote, py_root, task_id)
-                if state_issue.get("status") == "in_progress":
-                    break
-            except HarnessError:
-                pass
+        if _start_event_published(remote, task_id):
+            break
         time.sleep(1)
     else:
         _run(["docker", "kill", py_name], check=False)

@@ -611,6 +611,55 @@ def repair(yes: bool) -> None:
     click.echo("Project structure repaired.")
 
 
+@cli.command("rekey")
+@click.argument("new_key")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print planned changes without modifying files",
+)
+def rekey(new_key: str, dry_run: bool) -> None:
+    """Rename a project key and all issue IDs.
+
+    Changes the project key in .kanbus.yml, renames all issue files and IDs,
+    updates all references (parent, dependencies, text mentions), and invalidates
+    caches. Requires a clean git working tree under project/.
+    """
+    from kanbus.rekey import RekeyError, execute_rekey, plan_rekey
+
+    root = Path.cwd()
+
+    try:
+        config = load_project_configuration(get_configuration_path(root))
+        old_key = config.project_key
+    except (ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+
+    try:
+        plan = plan_rekey(root, old_key, new_key, dry_run=dry_run)
+    except RekeyError as error:
+        raise click.ClickException(str(error)) from error
+
+    if not plan.issue_renames:
+        # Already rekeyed to this key - print message to stderr and succeed
+        click.echo("Project is already rekeyed to this key", err=True)
+        return
+
+    if dry_run:
+        for old_id, new_id in sorted(plan.issue_renames.items()):
+            rewrites = plan.text_rewrites.get(old_id, 0)
+            click.echo(f"{old_id} -> {new_id} ({rewrites} rewrites)")
+    else:
+        try:
+            execute_rekey(root, plan)
+        except RekeyError as error:
+            raise click.ClickException(str(error)) from error
+
+        for old_id, new_id in sorted(plan.issue_renames.items()):
+            click.echo(f"Rekeyed {old_id} -> {new_id}")
+
+
 @cli.command("create")
 @click.argument("title", nargs=-1)
 @click.option("--type", "issue_type")

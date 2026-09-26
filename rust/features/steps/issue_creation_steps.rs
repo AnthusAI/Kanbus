@@ -178,7 +178,7 @@ fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
 }
 
 #[given("a Kanbus project with default configuration")]
-fn given_kanbus_project(world: &mut KanbusWorld) {
+pub(crate) fn given_kanbus_project(world: &mut KanbusWorld) {
     env::set_var("KANBUS_NO_DAEMON", "1");
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");

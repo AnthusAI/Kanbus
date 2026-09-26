@@ -1,5 +1,6 @@
 //! Kanbus Rust library.
 
+pub mod agent_assignment;
 pub mod agent_metadata;
 pub mod agents_management;
 pub mod ai_credentials;
@@ -65,6 +66,7 @@ pub mod policy_steps;
 pub mod project;
 pub mod project_management_template;
 pub mod queries;
+pub mod rekey;
 pub mod rich_text_signals;
 pub mod right_now;
 pub mod right_now_command;
