@@ -19,6 +19,7 @@ dependencies = [
     "requests",
     "litellm",
     "paho-mqtt",
+    "virtuus>=0.5.0",
     "behave",
     "pytest",
     "gherkin-official",

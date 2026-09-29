@@ -7,10 +7,9 @@ import socketserver
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
-from kanbus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
-from kanbus.daemon_paths import get_daemon_socket_path, get_index_cache_path
+from kanbus.daemon_paths import get_daemon_socket_path
 from kanbus.daemon_protocol import (
     PROTOCOL_VERSION,
     ErrorEnvelope,
@@ -19,9 +18,9 @@ from kanbus.daemon_protocol import (
     ResponseEnvelope,
     validate_protocol_compatibility,
 )
-from kanbus.index import IssueIndex, build_index_from_directory
 from kanbus.models import IssueData
 from kanbus.project import load_project_directory
+from virtuus import Table
 
 
 @dataclass
@@ -29,8 +28,7 @@ class DaemonState:
     """Daemon state for a single project root."""
 
     root: Path
-    index: Optional[IssueIndex] = None
-    cache_mtimes: Optional[Dict[str, float]] = None
+    table: Optional[Table] = None
 
 
 class DaemonCore:
@@ -40,19 +38,22 @@ class DaemonCore:
         self.state = DaemonState(root=root)
 
     def warm_start(self) -> None:
-        """Warm-start the index cache on daemon startup."""
+        """Warm-start the resident Virtuus issue table on daemon startup."""
         project_dir = load_project_directory(self.state.root)
         issues_dir = project_dir / "issues"
-        cache_path = get_index_cache_path(self.state.root)
-        cached = load_cache_if_valid(cache_path, issues_dir)
-        if cached is None:
-            index = build_index_from_directory(issues_dir)
-            mtimes = collect_issue_file_mtimes(issues_dir)
-            write_cache(index, cache_path, mtimes)
-            self.state.index = index
-            self.state.cache_mtimes = mtimes
-        else:
-            self.state.index = cached
+        table = Table(
+            "issues",
+            primary_key="identifier",
+            directory=str(issues_dir),
+            validation="error",
+            storage="memory",
+            pretty_json=True,
+            check_interval=2,
+        )
+        for name, field in (("by_status", "status"), ("by_type", "issue_type"), ("by_parent", "parent")):
+            table.add_gsi(name, field)
+        table.load_from_dir()
+        self.state.table = table
 
     def handle_request(self, request: RequestEnvelope) -> ResponseEnvelope:
         """Handle a validated daemon request."""
@@ -95,19 +96,10 @@ class DaemonCore:
         )
 
     def _load_index(self) -> list[IssueData]:
-        project_dir = load_project_directory(self.state.root)
-        issues_dir = project_dir / "issues"
-        cache_path = get_index_cache_path(self.state.root)
-        cached = load_cache_if_valid(cache_path, issues_dir)
-        if cached is None:
-            index = build_index_from_directory(issues_dir)
-            mtimes = collect_issue_file_mtimes(issues_dir)
-            write_cache(index, cache_path, mtimes)
-            self.state.index = index
-            self.state.cache_mtimes = mtimes
-        else:
-            self.state.index = cached
-        return list(self.state.index.by_id.values())
+        if self.state.table is None:
+            self.warm_start()
+        assert self.state.table is not None
+        return [IssueData.model_validate(record) for record in self.state.table.scan()]
 
 
 class DaemonRequestHandler(socketserver.StreamRequestHandler):
