@@ -89,6 +89,13 @@ def list_issue_identifiers(issues_directory: Path) -> Set[str]:
     """
     if not issues_directory.is_dir():
         return set()
+    if _use_service(issues_directory):
+        records = _service_request(issues_directory, {"action": "scan"})
+        return {
+            str(record["id"])
+            for record in records
+            if isinstance(record, dict) and "id" in record
+        }
     return {path.stem for path in issues_directory.glob("*.json")}
 
 
