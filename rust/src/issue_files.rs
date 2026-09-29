@@ -72,6 +72,19 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
     serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
+/// Load all canonical issue records from a directory through Virtuus.
+pub fn read_issues_from_directory(issues_directory: &Path) -> Result<Vec<IssueData>, KanbusError> {
+    let mut issues: Vec<IssueData> = issue_table(issues_directory)?
+        .scan()
+        .into_iter()
+        .map(|record| {
+            serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
+        })
+        .collect::<Result<_, _>>()?;
+    issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    Ok(issues)
+}
+
 /// Write an issue to a JSON file with pretty formatting.
 ///
 /// # Arguments

@@ -57,6 +57,16 @@ def read_issue_from_file(issue_path: Path) -> IssueData:
     return IssueData.model_validate(record)
 
 
+def read_issues_from_directory(issues_directory: Path) -> list[IssueData]:
+    """Load canonical issue files through one Virtuus table scan."""
+    if not issues_directory.is_dir():
+        return []
+    return sorted(
+        (IssueData.model_validate(record) for record in _issue_table(issues_directory).scan()),
+        key=lambda issue: issue.identifier,
+    )
+
+
 def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
     """Write an issue to a JSON file with pretty formatting.
 
