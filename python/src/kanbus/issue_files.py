@@ -22,6 +22,10 @@ def _issue_table(issues_directory: Path) -> Table:
     table.add_gsi("by_status", "status")
     table.add_gsi("by_type", "issue_type")
     table.add_gsi("by_parent", "parent")
+    table.add_gsi("by_label", "labels[*]")
+    table.add_gsi(
+        "blocked_by", "dependencies[dependency_type=blocked-by].target"
+    )
     table.load_from_dir()
     return table
 
