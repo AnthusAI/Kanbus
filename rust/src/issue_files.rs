@@ -102,6 +102,16 @@ pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>
     if !issues_directory.is_dir() {
         return Ok(HashSet::new());
     }
+    if use_service(issues_directory) {
+        return Ok(
+            service_request(issues_directory, json!({"action": "scan"}))?
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|record| record.get("id").and_then(Value::as_str).map(str::to_string))
+                .collect(),
+        );
+    }
     let identifiers = std::fs::read_dir(issues_directory)
         .map_err(|error| KanbusError::Io(error.to_string()))?
         .filter_map(|entry| entry.ok())

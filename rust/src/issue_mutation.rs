@@ -3,9 +3,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-#[cfg(test)]
-use std::fs;
-
 use chrono::Utc;
 
 use crate::error::KanbusError;
