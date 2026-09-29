@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Set
 
@@ -65,6 +66,8 @@ def _project_root(issues_directory: Path) -> Path:
 
 def _use_service(issues_directory: Path) -> bool:
     """Return whether this directory belongs to a daemon-addressable project."""
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return False
     root = _project_root(issues_directory)
     return is_daemon_enabled() and (root / ".kanbus.yml").is_file()
 

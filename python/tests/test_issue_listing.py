@@ -115,7 +115,7 @@ def test_overlay_config_resolution_paths(
     assert resolved[project_dir].enabled is True
 
 
-def test_list_issues_for_project_cache_and_missing_dir(
+def test_list_issues_for_project_uses_virtuus_and_reports_missing_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project_dir = tmp_path / "project"
@@ -126,33 +126,26 @@ def test_list_issues_for_project_cache_and_missing_dir(
 
     issues_dir = project_dir / "issues"
     issues_dir.mkdir(parents=True, exist_ok=True)
-    cached_issue = build_issue("kanbus-cache")
-    cached_index = SimpleNamespace(by_id={"kanbus-cache": cached_issue})
-    monkeypatch.setattr(issue_listing, "load_cache_if_valid", lambda *_a: cached_index)
-    cached = issue_listing._list_issues_for_project(project_dir)
-    assert [issue.identifier for issue in cached] == ["kanbus-cache"]
+    issue = build_issue("kanbus-store")
+    (issues_dir / "kanbus-store.json").write_text(
+        issue.model_dump_json(by_alias=True), encoding="utf-8"
+    )
+    loaded = issue_listing._list_issues_for_project(project_dir)
+    assert [issue.identifier for issue in loaded] == ["kanbus-store"]
 
 
-def test_list_issues_for_project_builds_index_when_cache_missing(
+def test_list_issues_for_project_reads_virtuus_table(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project_dir = tmp_path / "project"
     issues_dir = project_dir / "issues"
     issues_dir.mkdir(parents=True, exist_ok=True)
-    built_issue = build_issue("kanbus-index")
-    index = SimpleNamespace(by_id={"kanbus-index": built_issue})
-    monkeypatch.setattr(issue_listing, "load_cache_if_valid", lambda *_a: None)
-    monkeypatch.setattr(issue_listing, "build_index_from_directory", lambda _d: index)
-    monkeypatch.setattr(
-        issue_listing, "collect_issue_file_mtimes", lambda _d: {"a": 1.0}
-    )
-    called: dict[str, bool] = {}
-    monkeypatch.setattr(
-        issue_listing, "write_cache", lambda *_a: called.setdefault("write_cache", True)
+    issue = build_issue("kanbus-index")
+    (issues_dir / "kanbus-index.json").write_text(
+        issue.model_dump_json(by_alias=True), encoding="utf-8"
     )
     issues = issue_listing._list_issues_for_project(project_dir)
     assert [issue.identifier for issue in issues] == ["kanbus-index"]
-    assert called.get("write_cache") is True
 
 
 def test_list_issues_with_local_and_across_projects(
@@ -482,13 +475,12 @@ def test_local_helpers_and_query_pipeline(
     issues_dir.mkdir()
     b = build_issue("kanbus-b")
     a = build_issue("kanbus-a")
-    monkeypatch.setattr(
-        issue_listing,
-        "read_issue_from_file",
-        lambda p: b if p.name.startswith("kanbus-b") else a,
+    (issues_dir / "kanbus-b.json").write_text(
+        b.model_dump_json(by_alias=True), encoding="utf-8"
     )
-    (issues_dir / "kanbus-b.json").write_text("{}", encoding="utf-8")
-    (issues_dir / "kanbus-a.json").write_text("{}", encoding="utf-8")
+    (issues_dir / "kanbus-a.json").write_text(
+        a.model_dump_json(by_alias=True), encoding="utf-8"
+    )
     loaded = issue_listing.load_issues_from_directory(issues_dir)
     assert [issue.identifier for issue in loaded] == ["kanbus-a", "kanbus-b"]
 

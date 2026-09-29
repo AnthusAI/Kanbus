@@ -8,43 +8,24 @@ import pytest
 
 from kanbus import daemon_server
 from kanbus.daemon_protocol import ProtocolError, RequestEnvelope, ResponseEnvelope
-from kanbus.index import IssueIndex
-
 from test_helpers import build_issue
 
 
-def test_daemon_core_warm_start_uses_cache_or_builds_index(
+def test_daemon_core_warm_start_opens_resident_virtuus_table(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     core = daemon_server.DaemonCore(root=tmp_path)
     project_dir = tmp_path / "project"
     issues_dir = project_dir / "issues"
-    cache_path = tmp_path / ".cache" / "index.json"
     monkeypatch.setattr(daemon_server, "load_project_directory", lambda _r: project_dir)
-    monkeypatch.setattr(daemon_server, "get_index_cache_path", lambda _r: cache_path)
-
-    built_index = IssueIndex(by_id={"kanbus-1": build_issue("kanbus-1")})
-    monkeypatch.setattr(daemon_server, "load_cache_if_valid", lambda *_a: None)
-    monkeypatch.setattr(
-        daemon_server, "build_index_from_directory", lambda _d: built_index
-    )
-    monkeypatch.setattr(
-        daemon_server, "collect_issue_file_mtimes", lambda _d: {"x": 1.0}
-    )
-    called: dict[str, bool] = {}
-    monkeypatch.setattr(
-        daemon_server, "write_cache", lambda *_a: called.setdefault("write_cache", True)
+    issues_dir.mkdir(parents=True)
+    issue = build_issue("kanbus-1")
+    (issues_dir / "kanbus-1.json").write_text(
+        issue.model_dump_json(by_alias=True), encoding="utf-8"
     )
     core.warm_start()
-    assert core.state.index is built_index
-    assert called.get("write_cache") is True
-
-    cached_index = IssueIndex(by_id={"kanbus-cached": build_issue("kanbus-cached")})
-    monkeypatch.setattr(daemon_server, "load_cache_if_valid", lambda *_a: cached_index)
-    called.clear()
-    core.warm_start()
-    assert core.state.index is cached_index
-    assert called == {}
+    assert core.state.table_handle is not None
+    assert [issue.identifier for issue in core._load_index()] == ["kanbus-1"]
     assert issues_dir == project_dir / "issues"
 
 
@@ -112,33 +93,26 @@ def test_daemon_core_handle_request_variants(
         )
 
 
-def test_daemon_core_load_index_rebuild_and_cached(
+def test_daemon_core_load_index_reads_resident_table(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     core = daemon_server.DaemonCore(root=tmp_path)
     project_dir = tmp_path / "project"
-    cache_path = tmp_path / ".cache" / "index.json"
     monkeypatch.setattr(daemon_server, "load_project_directory", lambda _r: project_dir)
-    monkeypatch.setattr(daemon_server, "get_index_cache_path", lambda _r: cache_path)
-
-    built = IssueIndex(by_id={"kanbus-1": build_issue("kanbus-1")})
-    monkeypatch.setattr(daemon_server, "load_cache_if_valid", lambda *_a: None)
-    monkeypatch.setattr(daemon_server, "build_index_from_directory", lambda _d: built)
-    monkeypatch.setattr(
-        daemon_server, "collect_issue_file_mtimes", lambda _d: {"k": 1.0}
+    issues_dir = project_dir / "issues"
+    issues_dir.mkdir(parents=True)
+    issue = build_issue("kanbus-1")
+    (issues_dir / "kanbus-1.json").write_text(
+        issue.model_dump_json(by_alias=True), encoding="utf-8"
     )
-    monkeypatch.setattr(daemon_server, "write_cache", lambda *_a: None)
     assert [issue.identifier for issue in core._load_index()] == ["kanbus-1"]
-
-    cached = IssueIndex(by_id={"kanbus-cached": build_issue("kanbus-cached")})
-    monkeypatch.setattr(daemon_server, "load_cache_if_valid", lambda *_a: cached)
-    assert [issue.identifier for issue in core._load_index()] == ["kanbus-cached"]
 
 
 def test_raw_request_and_response_error_helpers(tmp_path: Path) -> None:
     core = daemon_server.DaemonCore(tmp_path)
-    response, action = daemon_server._handle_raw_request(core, b"{not-json")
+    response, action, generic = daemon_server._handle_raw_request(core, b"{not-json")
     assert action is None
+    assert generic is False
     assert response.status == "error"
     assert response.error is not None
     assert response.error.code == "internal_error"
@@ -323,7 +297,7 @@ def test_daemon_request_handler_handle_writes_response_and_shutdown(
     monkeypatch.setattr(
         daemon_server,
         "_handle_raw_request",
-        lambda _core, _raw: (response, "shutdown"),
+        lambda _core, _raw: (response, "shutdown", False),
     )
 
     class FakeThread:
@@ -363,8 +337,9 @@ def test_handle_raw_request_protocol_error_branch() -> None:
             "payload": {},
         }
     ).encode("utf-8")
-    response, action = daemon_server._handle_raw_request(ProtocolFailCore(), payload)
+    response, action, generic = daemon_server._handle_raw_request(ProtocolFailCore(), payload)
     assert action == "ping"
+    assert generic is False
     assert response.status == "error"
     assert response.error is not None
     assert response.error.code == "protocol_version_unsupported"
