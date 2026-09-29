@@ -11,7 +11,7 @@ use crate::event_history::{
     delete_events_for_issues, events_dir_for_issue_path, issue_deleted_payload, now_timestamp,
     write_events_batch, EventRecord, EventType,
 };
-use crate::issue_files::write_issue_to_file;
+use crate::issue_files::{delete_issue_file, write_issue_to_file};
 use crate::models::IssueData;
 use crate::overlay::replace_overlay_issue_if_present;
 use crate::right_now::{
@@ -90,7 +90,7 @@ pub fn persist_issue_mutation(
             if let Some(before_issue) = &request.before_issue {
                 write_issue_to_file(before_issue, &request.issue_path)?;
             } else if request.issue_path.exists() {
-                let _ = fs::remove_file(&request.issue_path);
+                let _ = delete_issue_file(&request.issue_path);
             }
             Err(error)
         }
@@ -127,7 +127,7 @@ pub fn persist_issue_deletion(
         occurred_at,
     );
     let events_dir = events_dir_for_issue_path(project_dir, issue_path)?;
-    fs::remove_file(issue_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    delete_issue_file(issue_path)?;
     let mut issue_ids = HashSet::new();
     issue_ids.insert(issue.identifier.clone());
     if let Err(error) = delete_events_for_issues(&events_dir, &issue_ids) {
