@@ -396,19 +396,7 @@ fn tag_issue_project(issue: &mut IssueData, root: &Path, project_dir: &Path) {
 }
 
 pub fn load_issues_from_directory(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
-    let mut issues = Vec::new();
-    for entry in
-        std::fs::read_dir(issues_dir).map_err(|error| KanbusError::Io(error.to_string()))?
-    {
-        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
-        let path = entry.path();
-        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-            continue;
-        }
-        issues.push(crate::issue_files::read_issue_from_file(&path)?);
-    }
-    issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
-    Ok(issues)
+    crate::issue_files::read_issues_from_directory(issues_dir)
 }
 
 #[allow(clippy::too_many_arguments)]
