@@ -11,17 +11,17 @@ use virtuus::Table;
 fn issue_table(issues_directory: &Path) -> Result<Table, KanbusError> {
     let mut table = Table::new(
         "issues",
-        Some("identifier"),
+        Some("id"),
         None,
         None,
         Some(issues_directory.to_path_buf()),
-        ValidationMode::Error,
+        ValidationMode::Warn,
     )
     .map_err(|error| KanbusError::Io(error.to_string()))?;
     table.set_storage_mode(StorageMode::Memory);
     table.set_pretty_json(true);
     table.add_gsi("by_status", "status", None);
-    table.add_gsi("by_type", "issue_type", None);
+    table.add_gsi("by_type", "type", None);
     table.add_gsi("by_parent", "parent", None);
     table.add_gsi("by_label", "labels[*]", None);
     table.add_gsi(
@@ -44,16 +44,17 @@ pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>
     if !issues_directory.is_dir() {
         return Ok(HashSet::new());
     }
-    Ok(issue_table(issues_directory)?
-        .scan()
-        .into_iter()
-        .filter_map(|record| {
-            record
-                .get("identifier")
-                .and_then(|value| value.as_str())
-                .map(str::to_string)
+    let identifiers = std::fs::read_dir(issues_directory)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = entry.path();
+            (path.extension().and_then(|value| value.to_str()) == Some("json"))
+                .then(|| path.file_stem()?.to_str().map(str::to_string))
+                .flatten()
         })
-        .collect())
+        .collect::<HashSet<_>>();
+    Ok(identifiers)
 }
 
 /// Read an issue from a JSON file.

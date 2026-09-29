@@ -43,14 +43,14 @@ class DaemonCore:
         issues_dir = project_dir / "issues"
         table = Table(
             "issues",
-            primary_key="identifier",
+            primary_key="id",
             directory=str(issues_dir),
-            validation="error",
+            validation="warn",
             storage="memory",
             pretty_json=True,
             check_interval=2,
         )
-        for name, field in (("by_status", "status"), ("by_type", "issue_type"), ("by_parent", "parent")):
+        for name, field in (("by_status", "status"), ("by_type", "type"), ("by_parent", "parent")):
             table.add_gsi(name, field)
         table.add_gsi("by_label", "labels[*]")
         table.add_gsi(

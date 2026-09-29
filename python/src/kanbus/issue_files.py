@@ -13,14 +13,14 @@ def _issue_table(issues_directory: Path) -> Table:
     """Open canonical issue files through Virtuus."""
     table = Table(
         "issues",
-        primary_key="identifier",
+        primary_key="id",
         directory=str(issues_directory),
-        validation="error",
+        validation="warn",
         storage="memory",
         pretty_json=True,
     )
     table.add_gsi("by_status", "status")
-    table.add_gsi("by_type", "issue_type")
+    table.add_gsi("by_type", "type")
     table.add_gsi("by_parent", "parent")
     table.add_gsi("by_label", "labels[*]")
     table.add_gsi(
@@ -40,11 +40,7 @@ def list_issue_identifiers(issues_directory: Path) -> Set[str]:
     """
     if not issues_directory.is_dir():
         return set()
-    return {
-        str(record["identifier"])
-        for record in _issue_table(issues_directory).scan()
-        if "identifier" in record
-    }
+    return {path.stem for path in issues_directory.glob("*.json")}
 
 
 def read_issue_from_file(issue_path: Path) -> IssueData:

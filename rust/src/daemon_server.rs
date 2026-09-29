@@ -243,18 +243,18 @@ fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let table = tables.entry(issues_dir.clone()).or_insert_with(|| {
         let mut table = Table::new(
             "issues",
-            Some("identifier"),
+            Some("id"),
             None,
             None,
             Some(issues_dir.clone()),
-            ValidationMode::Error,
+            ValidationMode::Warn,
         )
         .expect("valid Virtuus issue table");
         table.set_storage_mode(StorageMode::Memory);
         table.set_pretty_json(true);
         table.set_check_interval(2);
         table.add_gsi("by_status", "status", None);
-        table.add_gsi("by_type", "issue_type", None);
+        table.add_gsi("by_type", "type", None);
         table.add_gsi("by_parent", "parent", None);
         table.add_gsi("by_label", "labels[*]", None);
         table.add_gsi(
