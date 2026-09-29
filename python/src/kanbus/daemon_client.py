@@ -225,6 +225,51 @@ def request_shutdown(root: Path) -> dict[str, Any]:
     return response.result or {}
 
 
+def request_virtuus(root: Path, request: dict[str, Any]) -> Any:
+    """Send a generic Virtuus service request through Kanbus's resident daemon.
+
+    The daemon is started on demand and retried once after a connection failure.
+    Callers use direct table access only when ``KANBUS_NO_DAEMON`` disables it.
+    """
+    if not is_daemon_enabled():
+        raise DaemonClientError("daemon disabled")
+    socket_path = get_daemon_socket_path(root)
+    if not socket_path.exists():
+        spawn_daemon(root)
+    last_error: DaemonClientError | None = None
+    for attempt in range(11):
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+                connection.connect(str(socket_path))
+                connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
+                response = b""
+                while not response.endswith(b"\n"):
+                    chunk = connection.recv(65536)
+                    if not chunk:
+                        break
+                    response += chunk
+            if not response.strip():
+                raise DaemonClientError("empty daemon response")
+            decoded = json.loads(response)
+            if not decoded.get("ok"):
+                raise DaemonClientError(str(decoded.get("error", "daemon error")))
+            return decoded.get("result")
+        except (OSError, json.JSONDecodeError, DaemonClientError) as error:
+            last_error = (
+                error if isinstance(error, DaemonClientError) else DaemonClientError(str(error))
+            )
+            if attempt == 0:
+                if socket_path.exists():
+                    socket_path.unlink()
+                spawn_daemon(root)
+            if attempt < 10:
+                time.sleep(0.05)
+    raise DaemonClientError(
+        f"Virtuus daemon request failed: {last_error}. "
+        "Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+    )
+
+
 def _request_with_recovery(
     socket_path: Path, request: RequestEnvelope, root: Path
 ) -> ResponseEnvelope:

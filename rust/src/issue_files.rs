@@ -3,8 +3,10 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use crate::daemon_client::{is_daemon_enabled, request_virtuus};
 use crate::error::KanbusError;
 use crate::models::IssueData;
+use serde_json::{json, Value};
 use virtuus::table::{StorageMode, ValidationMode};
 use virtuus::Table;
 
@@ -31,6 +33,67 @@ fn issue_table(issues_directory: &Path) -> Result<Table, KanbusError> {
     );
     table.load_from_dir(None);
     Ok(table)
+}
+
+fn service_spec(issues_directory: &Path) -> Value {
+    json!({
+        "name": "issues",
+        "primary_key": "id",
+        "directory": issues_directory,
+        "validation": "warn",
+        "pretty_json": true,
+        "reconcile_seconds": 2,
+        "indexes": [
+            {"name": "by_status", "partition_key": "status"},
+            {"name": "by_type", "partition_key": "type"},
+            {"name": "by_parent", "partition_key": "parent"},
+            {"name": "by_label", "partition_key": "labels[*]"},
+            {"name": "blocked_by", "partition_key": "dependencies[dependency_type=blocked-by].target"}
+        ]
+    })
+}
+
+fn project_root(issues_directory: &Path) -> PathBuf {
+    for candidate in issues_directory.ancestors() {
+        if candidate.join(".kanbus.yml").is_file() {
+            return candidate.to_path_buf();
+        }
+    }
+    let parent = issues_directory.parent().unwrap_or(issues_directory);
+    if matches!(
+        parent.file_name().and_then(|name| name.to_str()),
+        Some("project") | Some("project-local")
+    ) {
+        return parent.parent().unwrap_or(parent).to_path_buf();
+    }
+    parent.to_path_buf()
+}
+
+fn use_service(issues_directory: &Path) -> bool {
+    let root = project_root(issues_directory);
+    is_daemon_enabled()
+        && (root.join(".kanbus.yml").is_file()
+            || matches!(
+                issues_directory
+                    .parent()
+                    .and_then(|path| path.file_name())
+                    .and_then(|name| name.to_str()),
+                Some("project") | Some("project-local")
+            ))
+}
+
+fn service_request(issues_directory: &Path, mut request: Value) -> Result<Value, KanbusError> {
+    let root = project_root(issues_directory);
+    let opened = request_virtuus(
+        &root,
+        &json!({"action": "open_table", "spec": service_spec(issues_directory)}),
+    )?;
+    let handle = opened
+        .get("handle")
+        .and_then(Value::as_str)
+        .ok_or_else(|| KanbusError::Io("Virtuus daemon returned no table handle".to_string()))?;
+    request["handle"] = Value::String(handle.to_string());
+    request_virtuus(&root, &request)
 }
 
 /// List issue identifiers based on JSON filenames.
@@ -69,20 +132,36 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
         .file_stem()
         .and_then(|value| value.to_str())
         .ok_or_else(|| KanbusError::Io(format!("invalid issue path: {}", issue_path.display())))?;
-    let record = issue_table(
-        issue_path
-            .parent()
-            .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?,
-    )?
-    .get(identifier, None)
-    .ok_or_else(|| KanbusError::Io(format!("issue not found: {}", issue_path.display())))?;
+    let parent = issue_path
+        .parent()
+        .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
+    let record = if use_service(parent) {
+        service_request(parent, json!({"action": "get", "pk": identifier}))?
+    } else {
+        issue_table(parent)?
+            .get(identifier, None)
+            .unwrap_or(Value::Null)
+    };
+    if record.is_null() {
+        return Err(KanbusError::Io(format!(
+            "issue not found: {}",
+            issue_path.display()
+        )));
+    }
     serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
 /// Load all canonical issue records from a directory through Virtuus.
 pub fn read_issues_from_directory(issues_directory: &Path) -> Result<Vec<IssueData>, KanbusError> {
-    let mut issues: Vec<IssueData> = issue_table(issues_directory)?
-        .scan()
+    let records = if use_service(issues_directory) {
+        service_request(issues_directory, json!({"action": "scan"}))?
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+    } else {
+        issue_table(issues_directory)?.scan()
+    };
+    let mut issues: Vec<IssueData> = records
         .into_iter()
         .map(|record| {
             serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
@@ -110,9 +189,15 @@ pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), K
     let parent = issue_path
         .parent()
         .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
-    std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     let record = serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
-    issue_table(parent)?.put(record);
+    if use_service(parent) {
+        service_request(parent, json!({"action": "put", "record": record}))?;
+    } else {
+        std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+        issue_table(parent)?
+            .try_put(record)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
     Ok(())
 }
 

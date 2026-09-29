@@ -44,9 +44,10 @@ pub fn run_daemon(root: &Path) -> Result<(), KanbusError> {
     let listener =
         UnixListener::bind(&socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     warm_cache(root)?;
+    let mut virtuus_service = virtuus::service::Service::new();
     for stream in listener.incoming() {
         let stream = stream.map_err(|error| KanbusError::Io(error.to_string()))?;
-        if handle_stream(root, stream)? {
+        if handle_stream(root, &mut virtuus_service, stream)? {
             break;
         }
     }
@@ -66,7 +67,11 @@ fn warm_cache(root: &Path) -> Result<(), KanbusError> {
 }
 
 #[cfg(unix)]
-fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, KanbusError> {
+fn handle_stream(
+    root: &Path,
+    virtuus_service: &mut virtuus::service::Service,
+    stream: UnixStream,
+) -> Result<bool, KanbusError> {
     let mut reader = BufReader::new(
         stream
             .try_clone()
@@ -81,6 +86,45 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, KanbusError> {
         return Ok(false);
     }
     let mut stream = stream;
+    let generic_request: Value = match serde_json::from_str(&line) {
+        Ok(request) => request,
+        Err(error) => {
+            let response = ResponseEnvelope {
+                protocol_version: PROTOCOL_VERSION.to_string(),
+                request_id: "unknown".to_string(),
+                status: "error".to_string(),
+                result: None,
+                error: Some(ErrorEnvelope {
+                    code: "internal_error".to_string(),
+                    message: error.to_string(),
+                    details: BTreeMap::new(),
+                }),
+            };
+            let payload = serde_json::to_string(&response)
+                .map_err(|serialization_error| KanbusError::Io(serialization_error.to_string()))?;
+            stream
+                .write_all(payload.as_bytes())
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            stream
+                .write_all(b"\n")
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Ok(false);
+        }
+    };
+    if generic_request.get("protocol_version").is_none() {
+        let should_shutdown =
+            generic_request.get("action").and_then(Value::as_str) == Some("shutdown");
+        let response = virtuus_service.dispatch(generic_request);
+        let payload =
+            serde_json::to_string(&response).map_err(|error| KanbusError::Io(error.to_string()))?;
+        stream
+            .write_all(payload.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        stream
+            .write_all(b"\n")
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        return Ok(should_shutdown);
+    }
     let (response, should_shutdown) = match serde_json::from_str::<RequestEnvelope>(&line) {
         Ok(request) => handle_request(root, request),
         Err(error) => (

@@ -7,7 +7,7 @@ import socketserver
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from kanbus.daemon_paths import get_daemon_socket_path
 from kanbus.daemon_protocol import (
@@ -20,7 +20,7 @@ from kanbus.daemon_protocol import (
 )
 from kanbus.models import IssueData
 from kanbus.project import load_project_directory
-from virtuus import Table
+from virtuus.service import Service
 
 
 @dataclass
@@ -28,7 +28,7 @@ class DaemonState:
     """Daemon state for a single project root."""
 
     root: Path
-    table: Optional[Table] = None
+    table_handle: Optional[str] = None
 
 
 class DaemonCore:
@@ -36,28 +36,32 @@ class DaemonCore:
 
     def __init__(self, root: Path) -> None:
         self.state = DaemonState(root=root)
+        self.service = Service()
 
     def warm_start(self) -> None:
         """Warm-start the resident Virtuus issue table on daemon startup."""
         project_dir = load_project_directory(self.state.root)
         issues_dir = project_dir / "issues"
-        table = Table(
-            "issues",
-            primary_key="id",
-            directory=str(issues_dir),
-            validation="warn",
-            storage="memory",
-            pretty_json=True,
-            check_interval=2,
+        self.state.table_handle = self.service.open_table(
+            {
+                "name": "issues",
+                "primary_key": "id",
+                "directory": str(issues_dir),
+                "validation": "warn",
+                "pretty_json": True,
+                "reconcile_seconds": 2,
+                "indexes": [
+                    {"name": "by_status", "partition_key": "status"},
+                    {"name": "by_type", "partition_key": "type"},
+                    {"name": "by_parent", "partition_key": "parent"},
+                    {"name": "by_label", "partition_key": "labels[*]"},
+                    {
+                        "name": "blocked_by",
+                        "partition_key": "dependencies[dependency_type=blocked-by].target",
+                    },
+                ],
+            }
         )
-        for name, field in (("by_status", "status"), ("by_type", "type"), ("by_parent", "parent")):
-            table.add_gsi(name, field)
-        table.add_gsi("by_label", "labels[*]")
-        table.add_gsi(
-            "blocked_by", "dependencies[dependency_type=blocked-by].target"
-        )
-        table.load_from_dir()
-        self.state.table = table
 
     def handle_request(self, request: RequestEnvelope) -> ResponseEnvelope:
         """Handle a validated daemon request."""
@@ -100,10 +104,15 @@ class DaemonCore:
         )
 
     def _load_index(self) -> list[IssueData]:
-        if self.state.table is None:
+        if self.state.table_handle is None:
             self.warm_start()
-        assert self.state.table is not None
-        return [IssueData.model_validate(record) for record in self.state.table.scan()]
+        assert self.state.table_handle is not None
+        response = self.service.dispatch(
+            {"action": "scan", "handle": self.state.table_handle}
+        )
+        if not response["ok"]:
+            raise RuntimeError(str(response["error"]))
+        return [IssueData.model_validate(record) for record in response["result"]]
 
 
 class DaemonRequestHandler(socketserver.StreamRequestHandler):
@@ -113,10 +122,9 @@ class DaemonRequestHandler(socketserver.StreamRequestHandler):
         raw = self.rfile.readline()
         if not raw:
             return
-        response, action = _handle_raw_request(self.server.core, raw)
-        self.wfile.write(
-            json.dumps(response.model_dump(mode="json")).encode("utf-8") + b"\n"
-        )
+        response, action, generic = _handle_raw_request(self.server.core, raw)
+        payload = response if generic else response.model_dump(mode="json")
+        self.wfile.write(json.dumps(payload).encode("utf-8") + b"\n")
         if action == "shutdown":
             threading.Thread(target=self.server.shutdown, daemon=True).start()
 
@@ -175,17 +183,20 @@ def handle_raw_payload_for_testing(root: Path, payload: bytes) -> ResponseEnvelo
     :rtype: ResponseEnvelope
     """
     core = DaemonCore(root)
-    response, _ = _handle_raw_request(core, payload)
+    response, _, _ = _handle_raw_request(core, payload)
     return response
 
 
 def _handle_raw_request(
     core: DaemonCore, raw: bytes
-) -> tuple[ResponseEnvelope, str | None]:
-    payload: Dict[str, object] = {}
+) -> tuple[ResponseEnvelope | dict[str, Any], str | None, bool]:
+    payload: dict[str, object] = {}
     action: str | None = None
     try:
         payload = json.loads(raw.decode("utf-8"))
+        action = str(payload.get("action", ""))
+        if "protocol_version" not in payload:
+            return core.service.dispatch(payload), action, True
         request = RequestEnvelope.model_validate(payload)
         action = request.action
         response = core.handle_request(request)
@@ -197,7 +208,7 @@ def _handle_raw_request(
         response = _build_internal_error_response(
             payload.get("request_id", "unknown"), error
         )
-    return response, action
+    return response, action, False
 
 
 def _build_protocol_error_response(
