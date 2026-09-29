@@ -2,11 +2,28 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Set
 
 from kanbus.models import IssueData
+from virtuus import Table
+
+
+def _issue_table(issues_directory: Path) -> Table:
+    """Open canonical issue files through Virtuus."""
+    table = Table(
+        "issues",
+        primary_key="identifier",
+        directory=str(issues_directory),
+        validation="error",
+        storage="memory",
+        pretty_json=True,
+    )
+    table.add_gsi("by_status", "status")
+    table.add_gsi("by_type", "issue_type")
+    table.add_gsi("by_parent", "parent")
+    table.load_from_dir()
+    return table
 
 
 def list_issue_identifiers(issues_directory: Path) -> Set[str]:
@@ -17,7 +34,13 @@ def list_issue_identifiers(issues_directory: Path) -> Set[str]:
     :return: Set of issue identifiers.
     :rtype: Set[str]
     """
-    return {path.stem for path in issues_directory.glob("*.json")}
+    if not issues_directory.is_dir():
+        return set()
+    return {
+        str(record["identifier"])
+        for record in _issue_table(issues_directory).scan()
+        if "identifier" in record
+    }
 
 
 def read_issue_from_file(issue_path: Path) -> IssueData:
@@ -28,8 +51,10 @@ def read_issue_from_file(issue_path: Path) -> IssueData:
     :return: Parsed issue data.
     :rtype: IssueData
     """
-    payload = json.loads(issue_path.read_bytes())
-    return IssueData.model_validate(payload)
+    record = _issue_table(issue_path.parent).get(issue_path.stem)
+    if record is None:
+        raise FileNotFoundError(issue_path)
+    return IssueData.model_validate(record)
 
 
 def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
@@ -40,8 +65,7 @@ def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
     :param issue_path: Path to the issue JSON file.
     :type issue_path: Path
     """
-    payload = issue.model_dump(by_alias=True, mode="json")
-    issue_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=False),
-        encoding="utf-8",
-    )
+    if issue_path.is_dir():
+        raise IsADirectoryError(issue_path)
+    issue_path.parent.mkdir(parents=True, exist_ok=True)
+    _issue_table(issue_path.parent).put(issue.model_dump(by_alias=True, mode="json"))

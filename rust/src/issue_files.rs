@@ -1,11 +1,31 @@
 //! Issue file input/output helpers.
 
 use std::collections::HashSet;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::KanbusError;
 use crate::models::IssueData;
+use virtuus::table::{StorageMode, ValidationMode};
+use virtuus::Table;
+
+fn issue_table(issues_directory: &Path) -> Result<Table, KanbusError> {
+    let mut table = Table::new(
+        "issues",
+        Some("identifier"),
+        None,
+        None,
+        Some(issues_directory.to_path_buf()),
+        ValidationMode::Error,
+    )
+    .map_err(|error| KanbusError::Io(error.to_string()))?;
+    table.set_storage_mode(StorageMode::Memory);
+    table.set_pretty_json(true);
+    table.add_gsi("by_status", "status", None);
+    table.add_gsi("by_type", "issue_type", None);
+    table.add_gsi("by_parent", "parent", None);
+    table.load_from_dir(None);
+    Ok(table)
+}
 
 /// List issue identifiers based on JSON filenames.
 ///
@@ -15,20 +35,19 @@ use crate::models::IssueData;
 /// # Errors
 /// Returns `KanbusError::Io` if directory entries cannot be read.
 pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>, KanbusError> {
-    let mut identifiers = HashSet::new();
-    for entry in
-        fs::read_dir(issues_directory).map_err(|error| KanbusError::Io(error.to_string()))?
-    {
-        let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
-        let path = entry.path();
-        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-            continue;
-        }
-        if let Some(stem) = path.file_stem().and_then(|name| name.to_str()) {
-            identifiers.insert(stem.to_string());
-        }
+    if !issues_directory.is_dir() {
+        return Ok(HashSet::new());
     }
-    Ok(identifiers)
+    Ok(issue_table(issues_directory)?
+        .scan()
+        .into_iter()
+        .filter_map(|record| {
+            record
+                .get("identifier")
+                .and_then(|value| value.as_str())
+                .map(str::to_string)
+        })
+        .collect())
 }
 
 /// Read an issue from a JSON file.
@@ -39,10 +58,18 @@ pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>
 /// # Errors
 /// Returns `KanbusError::Io` if reading or parsing fails.
 pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError> {
-    let contents = fs::read(issue_path).map_err(|error| KanbusError::Io(error.to_string()))?;
-    let issue: IssueData =
-        serde_json::from_slice(&contents).map_err(|error| KanbusError::Io(error.to_string()))?;
-    Ok(issue)
+    let identifier = issue_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| KanbusError::Io(format!("invalid issue path: {}", issue_path.display())))?;
+    let record = issue_table(
+        issue_path
+            .parent()
+            .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?,
+    )?
+    .get(identifier, None)
+    .ok_or_else(|| KanbusError::Io(format!("issue not found: {}", issue_path.display())))?;
+    serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
 /// Write an issue to a JSON file with pretty formatting.
@@ -54,9 +81,19 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
 /// # Errors
 /// Returns `KanbusError::Io` if writing fails.
 pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), KanbusError> {
-    let contents =
-        serde_json::to_string_pretty(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
-    fs::write(issue_path, contents).map_err(|error| KanbusError::Io(error.to_string()))
+    if issue_path.is_dir() {
+        return Err(KanbusError::Io(format!(
+            "issue path is a directory: {}",
+            issue_path.display()
+        )));
+    }
+    let parent = issue_path
+        .parent()
+        .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
+    std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let record = serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
+    issue_table(parent)?.put(record);
+    Ok(())
 }
 
 /// Resolve an issue file path by identifier.
