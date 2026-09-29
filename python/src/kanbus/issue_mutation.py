@@ -16,7 +16,7 @@ from kanbus.event_history import (
     now_timestamp,
     write_events_batch,
 )
-from kanbus.issue_files import write_issue_to_file
+from kanbus.issue_files import delete_issue_file, write_issue_to_file
 from kanbus.models import IssueData
 from kanbus.overlay import replace_overlay_issue_if_present
 from kanbus.right_now import (
@@ -114,7 +114,7 @@ def persist_issue_mutation(
         if request.before_issue is not None:
             write_issue_to_file(request.before_issue, request.issue_path)
         elif request.issue_path.exists():
-            request.issue_path.unlink()
+            delete_issue_file(request.issue_path)
         raise RuntimeError(str(error)) from error
     if request.regenerate_right_now:
         regenerate_right_now_for_issue_and_ancestors(
@@ -164,7 +164,7 @@ def persist_issue_deletion(
         occurred_at=occurred_at,
     )
     events_dir = events_dir_for_issue_path(project_dir, issue_path)
-    issue_path.unlink()
+    delete_issue_file(issue_path)
     try:
         delete_events_for_issues(events_dir, {issue.identifier})
         if retain_audit_event:

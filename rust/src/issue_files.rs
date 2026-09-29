@@ -70,16 +70,11 @@ fn project_root(issues_directory: &Path) -> PathBuf {
 }
 
 fn use_service(issues_directory: &Path) -> bool {
+    if cfg!(test) {
+        return false;
+    }
     let root = project_root(issues_directory);
-    is_daemon_enabled()
-        && (root.join(".kanbus.yml").is_file()
-            || matches!(
-                issues_directory
-                    .parent()
-                    .and_then(|path| path.file_name())
-                    .and_then(|name| name.to_str()),
-                Some("project") | Some("project-local")
-            ))
+    is_daemon_enabled() && root.join(".kanbus.yml").is_file()
 }
 
 fn service_request(issues_directory: &Path, mut request: Value) -> Result<Value, KanbusError> {
@@ -196,6 +191,25 @@ pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), K
         std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
         issue_table(parent)?
             .try_put(record)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    }
+    Ok(())
+}
+
+/// Delete an issue through the resident Virtuus table when available.
+pub fn delete_issue_file(issue_path: &Path) -> Result<(), KanbusError> {
+    let parent = issue_path
+        .parent()
+        .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
+    let identifier = issue_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| KanbusError::Io(format!("invalid issue path: {}", issue_path.display())))?;
+    if use_service(parent) {
+        service_request(parent, json!({"action": "delete", "pk": identifier}))?;
+    } else if issue_path.exists() {
+        issue_table(parent)?
+            .try_delete(identifier, None)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
     }
     Ok(())

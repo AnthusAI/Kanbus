@@ -66,10 +66,7 @@ def _project_root(issues_directory: Path) -> Path:
 def _use_service(issues_directory: Path) -> bool:
     """Return whether this directory belongs to a daemon-addressable project."""
     root = _project_root(issues_directory)
-    return is_daemon_enabled() and (
-        (root / ".kanbus.yml").is_file()
-        or issues_directory.parent.name in {"project", "project-local"}
-    )
+    return is_daemon_enabled() and (root / ".kanbus.yml").is_file()
 
 
 def _service_request(issues_directory: Path, request: dict[str, object]) -> object:
@@ -144,3 +141,11 @@ def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
     else:
         issue_path.parent.mkdir(parents=True, exist_ok=True)
         _issue_table(issue_path.parent).put(record)
+
+
+def delete_issue_file(issue_path: Path) -> None:
+    """Delete an issue through the resident Virtuus table when available."""
+    if _use_service(issue_path.parent):
+        _service_request(issue_path.parent, {"action": "delete", "pk": issue_path.stem})
+    elif issue_path.exists():
+        _issue_table(issue_path.parent).delete(issue_path.stem)
