@@ -256,6 +256,12 @@ fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
         table.add_gsi("by_status", "status", None);
         table.add_gsi("by_type", "issue_type", None);
         table.add_gsi("by_parent", "parent", None);
+        table.add_gsi("by_label", "labels[*]", None);
+        table.add_gsi(
+            "blocked_by",
+            "dependencies[dependency_type=blocked-by].target",
+            None,
+        );
         table.load_from_dir(None);
         table
     });

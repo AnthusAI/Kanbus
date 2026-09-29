@@ -52,6 +52,10 @@ class DaemonCore:
         )
         for name, field in (("by_status", "status"), ("by_type", "issue_type"), ("by_parent", "parent")):
             table.add_gsi(name, field)
+        table.add_gsi("by_label", "labels[*]")
+        table.add_gsi(
+            "blocked_by", "dependencies[dependency_type=blocked-by].target"
+        )
         table.load_from_dir()
         self.state.table = table
 
