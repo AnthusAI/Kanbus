@@ -18,8 +18,7 @@ from features.steps.shared import (
     load_project_directory,
     write_issue_file,
 )
-from kanbus.cache import collect_issue_file_mtimes, write_cache
-from kanbus.daemon_paths import get_daemon_socket_path, get_index_cache_path
+from kanbus.daemon_paths import get_daemon_socket_path
 from kanbus.daemon_protocol import (
     PROTOCOL_VERSION,
     ProtocolError,
@@ -34,7 +33,6 @@ from kanbus.daemon_server import (
     handle_raw_payload_for_testing,
     handle_request_for_testing,
 )
-from kanbus.index import build_index_from_directory
 from kanbus.project import ProjectMarkerError
 
 
@@ -336,12 +334,6 @@ def given_daemon_running_with_stale_index(context: object) -> None:
     project_dir = load_project_directory(context)
     issue = build_issue("kanbus-stale", "Title", "task", "open", None, [])
     write_issue_file(project_dir, issue)
-    issues_dir = project_dir / "issues"
-    cache_path = get_index_cache_path(project_dir.parent)
-    index = build_index_from_directory(issues_dir)
-    mtimes = collect_issue_file_mtimes(issues_dir)
-    write_cache(index, cache_path, mtimes)
-    context.cache_mtime = cache_path.stat().st_mtime
     _start_daemon_server(context)
     issue_path = project_dir / "issues" / "kanbus-stale.json"
     if issue_path.exists():
@@ -385,9 +377,14 @@ def then_command_without_daemon(context: object) -> None:
 
 @then("the daemon should rebuild the index")
 def then_daemon_rebuilt_index(context: object) -> None:
-    project_dir = load_project_directory(context)
-    cache_path = get_index_cache_path(project_dir.parent)
-    assert cache_path.stat().st_mtime > context.cache_mtime
+    core = _get_daemon_core(context)
+    assert core.state.table_handle is not None
+    refreshed = core.service.dispatch(
+        {"action": "refresh", "handle": core.state.table_handle}
+    )
+    assert refreshed["ok"]
+    issues = core._load_index()
+    assert any(issue.title == "Updated" for issue in issues)
 
 
 @when('I parse protocol versions "{first}" and "{second}"')
