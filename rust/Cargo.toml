@@ -58,7 +58,7 @@ regex = "1.10.4"
 rumqttc = "0.24"
 base64 = "0.22"
 rpassword = "7"
-virtuus = { git = "https://github.com/AnthusAI/Virtuus.git", rev = "403cef1" }
+virtuus = { git = "https://github.com/AnthusAI/Virtuus.git", rev = "35d7654701935fc3695aa14623171337ab9c1fc9" }
 
 [dev-dependencies]
 serial_test = "3"
