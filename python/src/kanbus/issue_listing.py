@@ -6,15 +6,13 @@ import os
 from pathlib import Path
 from typing import List
 
-from kanbus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.daemon_client import (
     is_daemon_config_schema_error,
     is_daemon_enabled,
     request_index_list,
 )
-from kanbus.index import build_index_from_directory
-from kanbus.issue_files import read_issue_from_file
+from kanbus.issue_files import read_issue_from_file, read_issues_from_directory
 from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
 from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
@@ -264,14 +262,7 @@ def _list_issues_for_project(project_dir: Path) -> List[IssueData]:
             f"issues directory not found: {issues_dir}. "
             "Run 'kanbus migrate' if you need to migrate from an older format."
         )
-    cache_path = project_dir / ".cache" / "index.json"
-    cached = load_cache_if_valid(cache_path, issues_dir)
-    if cached is not None:
-        return list(cached.by_id.values())
-    index = build_index_from_directory(issues_dir)
-    mtimes = collect_issue_file_mtimes(issues_dir)
-    write_cache(index, cache_path, mtimes)
-    return list(index.by_id.values())
+    return read_issues_from_directory(issues_dir)
 
 
 def _list_issues_with_local(
@@ -338,11 +329,7 @@ def _list_issues_across_projects(
 
 
 def _load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
-    issues = [
-        read_issue_from_file(path)
-        for path in sorted(issues_dir.glob("*.json"), key=lambda item: item.name)
-    ]
-    return issues
+    return read_issues_from_directory(issues_dir)
 
 
 def load_issues_from_directory(issues_dir: Path) -> List[IssueData]:

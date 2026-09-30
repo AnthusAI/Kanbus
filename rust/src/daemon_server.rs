@@ -9,18 +9,19 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::cache::{collect_issue_file_mtimes, load_cache_if_valid, write_cache};
 #[cfg(unix)]
 use crate::daemon_paths::get_daemon_socket_path;
-use crate::daemon_paths::get_index_cache_path;
 use crate::daemon_protocol::{
     validate_protocol_compatibility, ErrorEnvelope, RequestEnvelope, ResponseEnvelope,
     PROTOCOL_VERSION,
 };
 use crate::error::KanbusError;
 use crate::file_io::load_project_directory;
-use crate::index::build_index_from_directory;
 use crate::models::IssueData;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use virtuus::table::{StorageMode, ValidationMode};
+use virtuus::Table;
 
 /// Run the daemon server for a repository root.
 ///
@@ -43,9 +44,10 @@ pub fn run_daemon(root: &Path) -> Result<(), KanbusError> {
     let listener =
         UnixListener::bind(&socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
     warm_cache(root)?;
+    let mut virtuus_service = virtuus::service::Service::new();
     for stream in listener.incoming() {
         let stream = stream.map_err(|error| KanbusError::Io(error.to_string()))?;
-        if handle_stream(root, stream)? {
+        if handle_stream(root, &mut virtuus_service, stream)? {
             break;
         }
     }
@@ -65,7 +67,11 @@ fn warm_cache(root: &Path) -> Result<(), KanbusError> {
 }
 
 #[cfg(unix)]
-fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, KanbusError> {
+fn handle_stream(
+    root: &Path,
+    virtuus_service: &mut virtuus::service::Service,
+    stream: UnixStream,
+) -> Result<bool, KanbusError> {
     let mut reader = BufReader::new(
         stream
             .try_clone()
@@ -80,6 +86,45 @@ fn handle_stream(root: &Path, stream: UnixStream) -> Result<bool, KanbusError> {
         return Ok(false);
     }
     let mut stream = stream;
+    let generic_request: Value = match serde_json::from_str(&line) {
+        Ok(request) => request,
+        Err(error) => {
+            let response = ResponseEnvelope {
+                protocol_version: PROTOCOL_VERSION.to_string(),
+                request_id: "unknown".to_string(),
+                status: "error".to_string(),
+                result: None,
+                error: Some(ErrorEnvelope {
+                    code: "internal_error".to_string(),
+                    message: error.to_string(),
+                    details: BTreeMap::new(),
+                }),
+            };
+            let payload = serde_json::to_string(&response)
+                .map_err(|serialization_error| KanbusError::Io(serialization_error.to_string()))?;
+            stream
+                .write_all(payload.as_bytes())
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            stream
+                .write_all(b"\n")
+                .map_err(|io_error| KanbusError::Io(io_error.to_string()))?;
+            return Ok(false);
+        }
+    };
+    if generic_request.get("protocol_version").is_none() {
+        let should_shutdown =
+            generic_request.get("action").and_then(Value::as_str) == Some("shutdown");
+        let response = virtuus_service.dispatch(generic_request);
+        let payload =
+            serde_json::to_string(&response).map_err(|error| KanbusError::Io(error.to_string()))?;
+        stream
+            .write_all(payload.as_bytes())
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        stream
+            .write_all(b"\n")
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        return Ok(should_shutdown);
+    }
     let (response, should_shutdown) = match serde_json::from_str::<RequestEnvelope>(&line) {
         Ok(request) => handle_request(root, request),
         Err(error) => (
@@ -234,20 +279,41 @@ pub fn handle_request_for_testing(root: &Path, request: RequestEnvelope) -> Resp
 fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
-    let cache_path = get_index_cache_path(root)?;
-    if let Some(index) = load_cache_if_valid(&cache_path, &issues_dir)? {
-        return Ok(index
-            .by_id
-            .values()
-            .map(|issue| issue.as_ref().clone())
-            .collect());
-    }
-    let index = build_index_from_directory(&issues_dir)?;
-    let mtimes = collect_issue_file_mtimes(&issues_dir)?;
-    write_cache(&index, &cache_path, &mtimes)?;
-    Ok(index
-        .by_id
-        .values()
-        .map(|issue| issue.as_ref().clone())
-        .collect())
+    static TABLES: OnceLock<Mutex<HashMap<std::path::PathBuf, Table>>> = OnceLock::new();
+    let tables = TABLES.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut tables = tables
+        .lock()
+        .map_err(|_| KanbusError::Io("Virtuus table registry lock poisoned".to_string()))?;
+    let table = tables.entry(issues_dir.clone()).or_insert_with(|| {
+        let mut table = Table::new(
+            "issues",
+            Some("id"),
+            None,
+            None,
+            Some(issues_dir.clone()),
+            ValidationMode::Warn,
+        )
+        .expect("valid Virtuus issue table");
+        table.set_storage_mode(StorageMode::Memory);
+        table.set_pretty_json(true);
+        table.set_check_interval(2);
+        table.add_gsi("by_status", "status", None);
+        table.add_gsi("by_type", "type", None);
+        table.add_gsi("by_parent", "parent", None);
+        table.add_gsi("by_label", "labels[*]", None);
+        table.add_gsi(
+            "blocked_by",
+            "dependencies[dependency_type=blocked-by].target",
+            None,
+        );
+        table.load_from_dir(None);
+        table
+    });
+    table
+        .scan()
+        .into_iter()
+        .map(|record| {
+            serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
+        })
+        .collect()
 }
