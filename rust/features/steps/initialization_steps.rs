@@ -18,7 +18,6 @@ use chrono::{DateTime, Utc};
 use kanbus::cli::{run_from_args_with_output, CommandOutput};
 use kanbus::daemon_client;
 use kanbus::error::KanbusError;
-use kanbus::index::IssueIndex;
 use kanbus::models::ProjectConfiguration;
 use kanbus::right_now::RightNowContext;
 use serde_json::Value;
@@ -68,7 +67,6 @@ pub struct KanbusWorld {
     pub force_empty_projects: bool,
     pub migration_errors: Vec<String>,
     pub workflow_error: Option<String>,
-    pub index: Option<IssueIndex>,
     pub daemon_thread: Option<JoinHandle<()>>,
     pub daemon_fake_server: bool,
     pub daemon_mode_disabled: bool,

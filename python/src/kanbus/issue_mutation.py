@@ -16,7 +16,7 @@ from kanbus.event_history import (
     now_timestamp,
     write_events_batch,
 )
-from kanbus.issue_files import write_issue_to_file
+from kanbus.issue_files import delete_issue_file, write_issue_to_file
 from kanbus.models import IssueData
 from kanbus.overlay import replace_overlay_issue_if_present
 from kanbus.right_now import (
@@ -99,22 +99,23 @@ def persist_issue_mutation(
     """
     current_time = datetime.now(timezone.utc)
     persisted_issue = request.issue.model_copy(update={"updated_at": current_time})
-    write_issue_to_file(persisted_issue, request.issue_path)
+    target_path = request.relocate_to or request.issue_path
+    write_issue_to_file(persisted_issue, target_path)
     replace_overlay_issue_if_present(request.project_dir, persisted_issue)
-    final_issue_path = request.issue_path
+    final_issue_path = target_path
     if request.relocate_to is not None:
-        request.issue_path.replace(request.relocate_to)
-        final_issue_path = request.relocate_to
+        delete_issue_file(request.issue_path)
     events_dir = events_dir_for_issue_path(request.project_dir, final_issue_path)
     try:
         write_events_batch(events_dir, request.events)
     except Exception as error:  # noqa: BLE001
         if request.relocate_to is not None and final_issue_path.exists():
-            final_issue_path.replace(request.issue_path)
+            write_issue_to_file(persisted_issue, request.issue_path)
+            delete_issue_file(final_issue_path)
         if request.before_issue is not None:
             write_issue_to_file(request.before_issue, request.issue_path)
         elif request.issue_path.exists():
-            request.issue_path.unlink()
+            delete_issue_file(request.issue_path)
         raise RuntimeError(str(error)) from error
     if request.regenerate_right_now:
         regenerate_right_now_for_issue_and_ancestors(
@@ -164,7 +165,7 @@ def persist_issue_deletion(
         occurred_at=occurred_at,
     )
     events_dir = events_dir_for_issue_path(project_dir, issue_path)
-    issue_path.unlink()
+    delete_issue_file(issue_path)
     try:
         delete_events_for_issues(events_dir, {issue.identifier})
         if retain_audit_event:
