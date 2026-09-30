@@ -67,7 +67,10 @@ def generate_issues(identifiers: Iterable[str]) -> list[dict[str, object]]:
     :rtype: None
     """
     now = datetime.now(timezone.utc)
-    return [create_issue(identifier, now).model_dump(by_alias=True, mode="json") for identifier in identifiers]
+    return [
+        create_issue(identifier, now).model_dump(by_alias=True, mode="json")
+        for identifier in identifiers
+    ]
 
 
 def _run_serial_benchmark(records: list[dict[str, object]]) -> dict[str, float]:

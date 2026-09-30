@@ -25,9 +25,7 @@ def _issue_table(issues_directory: Path) -> Table:
     table.add_gsi("by_type", "type")
     table.add_gsi("by_parent", "parent")
     table.add_gsi("by_label", "labels[*]")
-    table.add_gsi(
-        "blocked_by", "dependencies[dependency_type=blocked-by].target"
-    )
+    table.add_gsi("blocked_by", "dependencies[dependency_type=blocked-by].target")
     table.load_from_dir()
     return table
 
@@ -75,7 +73,9 @@ def _use_service(issues_directory: Path) -> bool:
 def _service_request(issues_directory: Path, request: dict[str, object]) -> object:
     """Open the retained table and execute one service operation."""
     root = _project_root(issues_directory)
-    opened = request_virtuus(root, {"action": "open_table", "spec": _service_spec(issues_directory)})
+    opened = request_virtuus(
+        root, {"action": "open_table", "spec": _service_spec(issues_directory)}
+    )
     if not isinstance(opened, dict) or not isinstance(opened.get("handle"), str):
         raise RuntimeError("Virtuus daemon returned no table handle")
     request["handle"] = opened["handle"]
