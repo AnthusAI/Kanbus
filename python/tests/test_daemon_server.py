@@ -337,7 +337,9 @@ def test_handle_raw_request_protocol_error_branch() -> None:
             "payload": {},
         }
     ).encode("utf-8")
-    response, action, generic = daemon_server._handle_raw_request(ProtocolFailCore(), payload)
+    response, action, generic = daemon_server._handle_raw_request(
+        ProtocolFailCore(), payload
+    )
     assert action == "ping"
     assert generic is False
     assert response.status == "error"

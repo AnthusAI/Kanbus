@@ -256,7 +256,9 @@ def request_virtuus(root: Path, request: dict[str, Any]) -> Any:
             return decoded.get("result")
         except (OSError, json.JSONDecodeError, DaemonClientError) as error:
             last_error = (
-                error if isinstance(error, DaemonClientError) else DaemonClientError(str(error))
+                error
+                if isinstance(error, DaemonClientError)
+                else DaemonClientError(str(error))
             )
             if attempt == 0:
                 if socket_path.exists():
