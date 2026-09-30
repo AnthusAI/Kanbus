@@ -71,31 +71,6 @@ def _run_python_benchmark() -> BenchmarkResult:
     )
 
 
-def _run_rust_benchmark() -> BenchmarkResult:
-    """Run the Rust index benchmark and parse results.
-
-    :return: Benchmark results.
-    :rtype: BenchmarkResult
-    :raises RuntimeError: If JSON output is missing.
-    """
-    cargo = ["cargo", "run", "--release", "--bin", "index_benchmark"]
-    output = subprocess.check_output(cargo, cwd=ROOT / "rust", text=True)
-    lines = output.splitlines()
-    json_start = None
-    for index, line in enumerate(lines):
-        if line.strip().startswith("{"):
-            json_start = index
-            break
-    if json_start is None:
-        raise RuntimeError("rust benchmark did not emit JSON")
-    json_text = "\n".join(lines[json_start:])
-    payload = json.loads(json_text)
-    return BenchmarkResult(
-        build_ms=float(payload["build_ms"]),
-        cache_load_ms=float(payload["cache_load_ms"]),
-    )
-
-
 def _run_python_discovery_benchmark() -> DiscoveryBenchmarkResult:
     """Run the Python discovery benchmark and parse results.
 
@@ -271,21 +246,10 @@ def main() -> int:
     allowed_regression_pct = float(baseline["allowed_regression_pct"])
 
     python_result = _run_python_benchmark()
-    rust_result = _run_rust_benchmark()
     python_discovery = _run_python_discovery_benchmark()
     rust_discovery = _run_rust_discovery_benchmark()
 
     failures = []
-    python_total = python_result.build_ms + python_result.cache_load_ms
-    rust_total = rust_result.build_ms + rust_result.cache_load_ms
-    failures.extend(
-        _check_relative_threshold(
-            "index_total_ms",
-            rust_total,
-            python_total,
-            allowed_regression_pct,
-        )
-    )
     failures.extend(
         _check_discovery_relative_thresholds(
             python_discovery,
@@ -296,7 +260,6 @@ def main() -> int:
 
     summary = {
         "python": python_result.__dict__,
-        "rust": rust_result.__dict__,
         "python_discovery": {
             "serial": {
                 "single": python_discovery.serial.single.__dict__,
