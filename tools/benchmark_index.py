@@ -1,10 +1,9 @@
-"""Benchmark index build and cache load performance."""
+"""Benchmark Virtuus resident issue-table performance."""
 
 from __future__ import annotations
 
 import json
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
@@ -16,10 +15,8 @@ PYTHON_SRC = ROOT / "python" / "src"
 if str(PYTHON_SRC) not in sys.path:
     sys.path.insert(0, str(PYTHON_SRC))
 
-from kanbus.cache import collect_issue_file_mtimes, load_cache_if_valid, write_cache
-from kanbus.index import IssueIndex, build_index_from_directory
-from kanbus.issue_files import read_issue_from_file, write_issue_to_file
 from kanbus.models import DependencyLink, IssueData
+from virtuus import Table
 
 ISSUE_COUNT = 1000
 PYTHON_INDEX_BUILD_TARGET_MS = 50.0
@@ -59,7 +56,7 @@ def create_issue(identifier: str, now: datetime) -> IssueData:
     )
 
 
-def generate_issues(issues_directory: Path, identifiers: Iterable[str]) -> None:
+def generate_issues(identifiers: Iterable[str]) -> list[dict[str, object]]:
     """Generate issue JSON files for benchmarking.
 
     :param issues_directory: Directory to write issue files into.
@@ -70,66 +67,22 @@ def generate_issues(issues_directory: Path, identifiers: Iterable[str]) -> None:
     :rtype: None
     """
     now = datetime.now(timezone.utc)
-    issues_directory.mkdir(parents=True, exist_ok=True)
-    for identifier in identifiers:
-        issue = create_issue(identifier, now)
-        write_issue_to_file(issue, issues_directory / f"{identifier}.json")
-
-
-def _build_index_parallel(issues_directory: Path) -> IssueIndex:
-    issue_paths = [
-        path for path in issues_directory.glob("*.json") if path.is_file()
+    return [
+        create_issue(identifier, now).model_dump(by_alias=True, mode="json")
+        for identifier in identifiers
     ]
-    issue_paths.sort(key=lambda path: path.name)
-    max_workers = min(32, len(issue_paths)) or 1
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        issues = list(executor.map(read_issue_from_file, issue_paths))
-    index = IssueIndex()
-    for issue in issues:
-        index.by_id[issue.identifier] = issue
-        index.by_status.setdefault(issue.status, []).append(issue)
-        index.by_type.setdefault(issue.issue_type, []).append(issue)
-        if issue.parent is not None:
-            index.by_parent.setdefault(issue.parent, []).append(issue)
-        for label in issue.labels:
-            index.by_label.setdefault(label, []).append(issue)
-        for dependency in issue.dependencies:
-            if dependency.dependency_type == "blocked-by":
-                index.reverse_dependencies.setdefault(dependency.target, []).append(issue)
-    return index
 
 
-def _run_serial_benchmark(issues_directory: Path, cache_path: Path) -> dict[str, float]:
+def _run_serial_benchmark(records: list[dict[str, object]]) -> dict[str, float]:
     start = perf_counter()
-    index = build_index_from_directory(issues_directory)
+    table = Table("issues", primary_key="id", storage="memory")
+    table.add_gsi("by_status", "status")
+    table.bulk_load(records)
     build_seconds = perf_counter() - start
     build_ms = build_seconds * 1000.0
 
-    mtimes = collect_issue_file_mtimes(issues_directory)
-    write_cache(index, cache_path, mtimes)
-
     start = perf_counter()
-    cached = load_cache_if_valid(cache_path, issues_directory)
-    cache_seconds = perf_counter() - start
-    cache_ms = cache_seconds * 1000.0
-
-    if cached is None:
-        raise RuntimeError("cache did not load")
-
-    return {"build_ms": build_ms, "cache_load_ms": cache_ms}
-
-
-def _run_parallel_benchmark(issues_directory: Path, cache_path: Path) -> dict[str, float]:
-    start = perf_counter()
-    index = _build_index_parallel(issues_directory)
-    build_seconds = perf_counter() - start
-    build_ms = build_seconds * 1000.0
-
-    mtimes = collect_issue_file_mtimes(issues_directory)
-    write_cache(index, cache_path, mtimes)
-
-    start = perf_counter()
-    cached = load_cache_if_valid(cache_path, issues_directory)
+    cached = table.scan()
     cache_seconds = perf_counter() - start
     cache_ms = cache_seconds * 1000.0
 
@@ -145,24 +98,16 @@ def run_benchmark() -> None:
     :return: None.
     :rtype: None
     """
-    temp_root = Path(Path.cwd() / "tools" / "tmp" / f"index-benchmark-{uuid4().hex}")
-    issues_directory = temp_root / "project" / "issues"
-    cache_path = temp_root / "project" / ".cache" / "index.json"
-
     identifiers = [f"kanbus-{i:06d}" for i in range(ISSUE_COUNT)]
-    generate_issues(issues_directory, identifiers)
+    records = generate_issues(identifiers)
 
-    serial_results = _run_serial_benchmark(issues_directory, cache_path)
-    parallel_results = _run_parallel_benchmark(issues_directory, cache_path)
+    serial_results = _run_serial_benchmark(records)
 
     results = {
         "issue_count": ISSUE_COUNT,
         "build_ms": serial_results["build_ms"],
         "cache_load_ms": serial_results["cache_load_ms"],
-        "parallel": {
-            "build_ms": parallel_results["build_ms"],
-            "cache_load_ms": parallel_results["cache_load_ms"],
-        },
+        "parallel": serial_results,
         "build_target_ms": PYTHON_INDEX_BUILD_TARGET_MS,
         "cache_load_target_ms": PYTHON_CACHE_LOAD_TARGET_MS,
     }

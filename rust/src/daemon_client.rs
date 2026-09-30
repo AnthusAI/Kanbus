@@ -243,6 +243,78 @@ pub fn request_shutdown(root: &Path) -> Result<BTreeMap<String, Value>, KanbusEr
     Ok(response.result.unwrap_or_default())
 }
 
+/// Send a generic Virtuus service request through Kanbus's resident daemon.
+///
+/// The daemon is started on demand and retried once after a transport failure.
+/// Callers use direct table access only when `KANBUS_NO_DAEMON` disables it.
+pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusError> {
+    if !is_daemon_enabled() {
+        return Err(KanbusError::IssueOperation("daemon disabled".to_string()));
+    }
+    let socket_path = get_daemon_socket_path(root)?;
+    if !socket_path.exists() {
+        spawn_daemon(root)?;
+    }
+    let mut last_error = None;
+    for attempt in 0..11 {
+        match send_virtuus_request(&socket_path, request) {
+            Ok(response) => {
+                if response.get("ok").and_then(Value::as_bool) == Some(true) {
+                    return Ok(response.get("result").cloned().unwrap_or(Value::Null));
+                }
+                return Err(KanbusError::IssueOperation(
+                    response
+                        .get("error")
+                        .and_then(Value::as_str)
+                        .unwrap_or("Virtuus daemon error")
+                        .to_string(),
+                ));
+            }
+            Err(error) => {
+                last_error = Some(error);
+                if attempt == 0 {
+                    if socket_path.exists() {
+                        std::fs::remove_file(&socket_path)
+                            .map_err(|remove_error| KanbusError::Io(remove_error.to_string()))?;
+                    }
+                    spawn_daemon(root)?;
+                }
+                if attempt < 10 {
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+            }
+        }
+    }
+    Err(KanbusError::Io(format!(
+        "Virtuus daemon request failed: {}. Set KANBUS_NO_DAEMON=1 to bypass the daemon.",
+        last_error.unwrap_or_else(|| "unknown transport failure".to_string())
+    )))
+}
+
+#[cfg(unix)]
+fn send_virtuus_request(socket_path: &Path, request: &Value) -> Result<Value, String> {
+    let mut stream = UnixStream::connect(socket_path).map_err(|error| error.to_string())?;
+    let payload = serde_json::to_string(request).map_err(|error| error.to_string())?;
+    stream
+        .write_all(payload.as_bytes())
+        .map_err(|error| error.to_string())?;
+    stream.write_all(b"\n").map_err(|error| error.to_string())?;
+    let mut reader = BufReader::new(stream);
+    let mut line = String::new();
+    reader
+        .read_line(&mut line)
+        .map_err(|error| error.to_string())?;
+    if line.trim().is_empty() {
+        return Err("empty daemon response".to_string());
+    }
+    serde_json::from_str(&line).map_err(|error| error.to_string())
+}
+
+#[cfg(not(unix))]
+fn send_virtuus_request(_socket_path: &Path, _request: &Value) -> Result<Value, String> {
+    Err("daemon not supported on this platform".to_string())
+}
+
 fn request_with_recovery(
     socket_path: &Path,
     request: &RequestEnvelope,
