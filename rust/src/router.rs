@@ -2021,7 +2021,7 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         if adapter_kind.is_none() {
             errors.push(format!(
                 "router.providers.{profile}.adapter must be {}",
-                RouterAdapterKind::NAMES.join(" or ")
+                RouterAdapterKind::names_phrase()
             ));
         }
         if let Some(tier) = &provider.service_tier {
@@ -5602,7 +5602,7 @@ fn execute_router_adapter(
     Ok(result)
 }
 
-const OPENCODE_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Leave issue_updates empty: the router moves finished packages to review itself and rejects agent status changes such as closing an issue. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
+const RESULT_FORMAT_HINT: &str = " Reply with the JSON object as your final message and no other text. schema_version must be the JSON number 1 (not a string). Each issue_updates item is {\"issue_id\": \"<id>\", \"status\": \"<status>\"} and each issue_comments item is {\"issue_id\": \"<id>\", \"text\": \"<text>\"}; use empty lists when there is nothing to report. Leave issue_updates empty: the router moves finished packages to review itself and rejects agent status changes such as closing an issue. Example: {\"schema_version\": 1, \"outcome\": \"completed\", \"summary\": \"what you did\", \"issue_updates\": [], \"issue_comments\": [], \"checkpoint\": null, \"artifacts\": []}";
 
 fn router_worktree_head(worktree: &Path) -> Result<String, KanbusError> {
     let output = Command::new("git")
@@ -5719,8 +5719,8 @@ fn validate_router_worktree_changes(
 /// attempts so a saved session can be resumed with a human's reply. When the
 /// repository directory cannot be found it is a temporary directory instead.
 /// `auth.json` is copied in so non-AWS providers keep working.
-fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
-    let common_dir = Command::new("git")
+fn git_common_directory(root: &Path) -> Option<PathBuf> {
+    Command::new("git")
         .args(["rev-parse", "--git-common-dir"])
         .current_dir(root)
         .output()
@@ -5734,8 +5734,11 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
             } else {
                 root.join(path)
             }
-        });
-    let key: String = issue_id
+        })
+}
+
+fn adapter_package_key(issue_id: &str) -> String {
+    issue_id
         .chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
@@ -5744,7 +5747,29 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
                 '_'
             }
         })
-        .collect();
+        .collect()
+}
+
+/// Persistent per-package Pi session directory, shared with the Python runtime.
+/// Outside a git repository Pi keeps its default session storage.
+fn pi_session_directory(
+    root: &Path,
+    issue_id: &str,
+) -> Result<Option<AdapterDataHome>, KanbusError> {
+    let Some(common) = git_common_directory(root) else {
+        return Ok(None);
+    };
+    let path = common
+        .join("kanbus-router-adapters")
+        .join("pi")
+        .join(adapter_package_key(issue_id));
+    fs::create_dir_all(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    Ok(Some(AdapterDataHome::Persistent(path)))
+}
+
+fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
+    let common_dir = git_common_directory(root);
+    let key = adapter_package_key(issue_id);
     let home = match common_dir {
         Some(common) => {
             let path = common
@@ -5802,15 +5827,25 @@ fn opencode_config_content(
 enum RouterAdapterKind {
     Codex,
     OpenCode,
+    Pi,
 }
 
 impl RouterAdapterKind {
-    const NAMES: [&'static str; 2] = ["codex", "opencode"];
+    const NAMES: [&'static str; 3] = ["codex", "opencode", "pi"];
+
+    /// "codex, opencode or pi": comma-separated with a final "or", matching Python.
+    fn names_phrase() -> String {
+        let (last, leading) = Self::NAMES
+            .split_last()
+            .expect("at least one router adapter is supported");
+        format!("{} or {last}", leading.join(", "))
+    }
 
     fn from_name(name: &str) -> Option<Self> {
         match name {
             "codex" => Some(Self::Codex),
             "opencode" => Some(Self::OpenCode),
+            "pi" => Some(Self::Pi),
             _ => None,
         }
     }
@@ -5819,6 +5854,7 @@ impl RouterAdapterKind {
         match self {
             Self::Codex => "Codex",
             Self::OpenCode => "OpenCode",
+            Self::Pi => "Pi",
         }
     }
 
@@ -5841,10 +5877,12 @@ impl RouterAdapterKind {
         root: &Path,
         issue_id: &str,
     ) -> Result<Option<AdapterDataHome>, KanbusError> {
-        if self == Self::OpenCode && !profile.env.contains_key("XDG_DATA_HOME") {
-            opencode_data_home(root, issue_id).map(Some)
-        } else {
-            Ok(None)
+        match self {
+            Self::OpenCode if !profile.env.contains_key("XDG_DATA_HOME") => {
+                opencode_data_home(root, issue_id).map(Some)
+            }
+            Self::Pi => pi_session_directory(root, issue_id),
+            _ => Ok(None),
         }
     }
 
@@ -5896,7 +5934,7 @@ impl RouterAdapterKind {
                     command.arg("--session").arg(&plan.session_id);
                 }
                 command
-                    .arg(format!("{prompt}{OPENCODE_FORMAT_HINT}"))
+                    .arg(format!("{prompt}{RESULT_FORMAT_HINT}"))
                     .envs(&profile.env)
                     .env("PWD", worktree)
                     .envs(
@@ -5908,6 +5946,22 @@ impl RouterAdapterKind {
                 if let Some(data_home) = data_home {
                     command.env("XDG_DATA_HOME", data_home.path());
                 }
+            }
+            Self::Pi => {
+                command.arg("-p").arg("--mode").arg("json");
+                if let Some(model) = &profile.model {
+                    command.arg("--model").arg(model);
+                }
+                if let Some(data_home) = data_home {
+                    command.arg("--session-dir").arg(data_home.path());
+                }
+                if let Some(plan) = resume {
+                    command.arg("--session").arg(&plan.session_id);
+                }
+                command
+                    .arg(format!("{prompt}{RESULT_FORMAT_HINT}"))
+                    .envs(&profile.env)
+                    .stdin(Stdio::null());
             }
         }
     }
@@ -5923,6 +5977,17 @@ impl RouterAdapterKind {
                     .filter(|id| !id.is_empty())
                     .map(str::to_string)
             }),
+            Self::Pi => stdout.lines().find_map(|line| {
+                let event = serde_json::from_str::<Value>(line).ok()?;
+                if event.get("type")?.as_str()? != "session" {
+                    return None;
+                }
+                event
+                    .get("id")?
+                    .as_str()
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+            }),
         }
     }
 
@@ -5930,6 +5995,7 @@ impl RouterAdapterKind {
         match self {
             Self::Codex => parse_router_result(stdout),
             Self::OpenCode => parse_opencode_result(stdout),
+            Self::Pi => parse_pi_result(stdout),
         }
     }
 }
@@ -5944,9 +6010,47 @@ fn opencode_text(stdout: &str) -> String {
         .collect()
 }
 
-/// Find the last result object embedded anywhere in free-form model text.
+/// Text of the last assistant `message_end` event in Pi's JSON event stream.
+fn pi_final_assistant_text(stdout: &str) -> String {
+    let mut text = String::new();
+    for event in stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+    {
+        if event.get("type").and_then(Value::as_str) != Some("message_end") {
+            continue;
+        }
+        let Some(message) = event.get("message") else {
+            continue;
+        };
+        if message.get("role").and_then(Value::as_str) != Some("assistant") {
+            continue;
+        }
+        match message.get("content") {
+            Some(Value::String(content)) => text = content.clone(),
+            Some(Value::Array(parts)) => {
+                text = parts
+                    .iter()
+                    .filter(|part| part.get("type").and_then(Value::as_str) == Some("text"))
+                    .filter_map(|part| part.get("text").and_then(Value::as_str))
+                    .collect();
+            }
+            _ => {}
+        }
+    }
+    text
+}
+
 fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
-    let text = opencode_text(stdout);
+    parse_model_text_result(&opencode_text(stdout), "OpenCode")
+}
+
+fn parse_pi_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
+    parse_model_text_result(&pi_final_assistant_text(stdout), "Pi")
+}
+
+/// Find the last result object embedded anywhere in free-form model text.
+fn parse_model_text_result(text: &str, adapter: &str) -> Result<RouterAgentResult, KanbusError> {
     let mut found: Option<Value> = None;
     let mut offset = 0;
     while let Some(relative) = text[offset..].find('{') {
@@ -5964,14 +6068,14 @@ fn parse_opencode_result(stdout: &str) -> Result<RouterAgentResult, KanbusError>
     }
     found
         .ok_or_else(|| {
-            KanbusError::IssueOperation("OpenCode router adapter returned invalid JSON".to_string())
+            KanbusError::IssueOperation(format!("{adapter} router adapter returned invalid JSON"))
         })
         .and_then(|value| {
             serde_json::from_value(normalize_schema_version(normalize_router_artifacts(value)))
                 .map_err(|_| {
-                    KanbusError::IssueOperation(
-                        "OpenCode router adapter returned invalid result".to_string(),
-                    )
+                    KanbusError::IssueOperation(format!(
+                        "{adapter} router adapter returned invalid result"
+                    ))
                 })
         })
 }
@@ -10359,6 +10463,148 @@ mod tests {
         assert_eq!(first.path(), again.path());
         let other = opencode_data_home(repo, "kbs-10").expect("data home");
         assert_ne!(first.path(), other.path());
+    }
+
+    fn pi_stream(assistant_content: Value) -> String {
+        [
+            json!({"type":"session","version":3,"id":"pi-session-1","cwd":"/w"}),
+            json!({"type":"agent_start"}),
+            json!({"type":"message_end","message":{"role":"user","content":"the task"}}),
+            json!({"type":"message_end","message":{"role":"assistant","content":assistant_content}}),
+            json!({"type":"agent_end"}),
+        ]
+        .iter()
+        .map(Value::to_string)
+        .collect::<Vec<_>>()
+        .join("\n")
+    }
+
+    #[test]
+    fn pi_is_a_supported_adapter_and_phrases_the_supported_names() {
+        assert_eq!(
+            RouterAdapterKind::from_name("pi"),
+            Some(RouterAdapterKind::Pi)
+        );
+        assert_eq!(RouterAdapterKind::Pi.display_name(), "Pi");
+        assert_eq!(RouterAdapterKind::names_phrase(), "codex, opencode or pi");
+        assert!(!RouterAdapterKind::Pi.supports_service_tier());
+        assert!(!RouterAdapterKind::Pi.resume_requires_original_directory());
+    }
+
+    #[test]
+    fn pi_session_id_comes_from_the_session_header() {
+        let stdout = pi_stream(json!(format!(
+            "{}",
+            json!({"schema_version":1,"outcome":"completed","summary":"done"})
+        )));
+        assert_eq!(
+            RouterAdapterKind::Pi.session_id(&stdout).as_deref(),
+            Some("pi-session-1")
+        );
+        assert_eq!(
+            RouterAdapterKind::Pi.session_id("{\"type\":\"agent_start\"}"),
+            None
+        );
+    }
+
+    #[test]
+    fn pi_result_is_the_last_assistant_message() {
+        let payload = json!({"schema_version":1,"outcome":"completed","summary":"done"});
+        let wrapped = pi_stream(json!(format!("Done.\n```json\n{payload}\n```\n")));
+        assert_eq!(parse_pi_result(&wrapped).expect("result").summary, "done");
+        let parts = pi_stream(json!([
+            {"type":"text","text":"Result: "},
+            {"type":"tool_call","name":"bash"},
+            {"type":"text","text":payload.to_string()},
+        ]));
+        assert_eq!(
+            parse_pi_result(&parts).expect("result").outcome,
+            "completed"
+        );
+    }
+
+    #[test]
+    fn pi_rejects_missing_or_invalid_results() {
+        let none = pi_stream(json!("no json here"));
+        let error = parse_pi_result(&none).unwrap_err().to_string();
+        assert!(error.contains("Pi router adapter returned invalid JSON"));
+        let header_only = "{\"type\":\"session\",\"id\":\"s\"}";
+        assert!(parse_pi_result(header_only)
+            .unwrap_err()
+            .to_string()
+            .contains("Pi router adapter returned invalid JSON"));
+        let bad_version = pi_stream(json!(
+            "{\"schema_version\":\"2\",\"outcome\":\"completed\"}"
+        ));
+        assert!(parse_pi_result(&bad_version)
+            .unwrap_err()
+            .to_string()
+            .contains("Pi router adapter returned invalid result"));
+    }
+
+    #[test]
+    fn pi_session_directory_persists_per_package_inside_the_repository() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let repo = directory.path();
+        git_in(repo, &["init", "-q", "-b", "main"]);
+        let first = pi_session_directory(repo, "kbs-9")
+            .expect("session directory")
+            .expect("inside a repository");
+        assert!(first.path().ends_with("kanbus-router-adapters/pi/kbs-9"));
+        assert!(first.path().is_dir());
+        let other = pi_session_directory(repo, "kbs-10")
+            .expect("session directory")
+            .expect("inside a repository");
+        assert_ne!(first.path(), other.path());
+        let outside = tempfile::tempdir().expect("temp dir");
+        assert!(pi_session_directory(outside.path(), "kbs-9")
+            .expect("session directory")
+            .is_none());
+    }
+
+    #[test]
+    fn pi_command_shape_matches_python() {
+        let profile = crate::models::IssueRouterProviderConfiguration {
+            adapter: "pi".to_string(),
+            command: None,
+            args: vec!["--offline".to_string()],
+            model: Some("anthropic/claude-sonnet-5".to_string()),
+            env: Default::default(),
+            service_tier: None,
+        };
+        let session = AdapterDataHome::Persistent(PathBuf::from("/state/pi/kbs-1"));
+        let mut command = Command::new("pi");
+        command.args(&profile.args);
+        RouterAdapterKind::Pi.configure(
+            &mut command,
+            &profile,
+            "contract",
+            Path::new("/w"),
+            Some(&session),
+            ResumeMode::Fresh,
+        );
+        let arguments: Vec<String> = command
+            .get_args()
+            .map(|argument| argument.to_string_lossy().to_string())
+            .collect();
+        assert_eq!(
+            &arguments[..8],
+            [
+                "--offline",
+                "-p",
+                "--mode",
+                "json",
+                "--model",
+                "anthropic/claude-sonnet-5",
+                "--session-dir",
+                "/state/pi/kbs-1",
+            ]
+        );
+        assert!(!arguments.contains(&"--session".to_string()));
+        assert!(arguments
+            .last()
+            .expect("prompt")
+            .starts_with("contract Reply with the JSON object"));
     }
 
     #[test]
