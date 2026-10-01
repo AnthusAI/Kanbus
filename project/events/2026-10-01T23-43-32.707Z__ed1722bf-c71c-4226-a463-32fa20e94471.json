@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "ed1722bf-c71c-4226-a463-32fa20e94471",
+  "issue_id": "kbs-1fed59c8-a785-4eae-bfd2-60f4eb765090",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-01T23:43:32.707Z",
+  "actor_id": "example-user",
+  "payload": {
+    "title": "Add the Pi coding agent as an Issue Router adapter",
+    "description": "Support the Pi coding agent (pi, npm package @earendil-works/pi-coding-agent) as a third router adapter beside codex and opencode, in both Python and Rust runtimes, spec first. Antigravity is not a router adapter in this repo (provenance name only) and is out of scope; provenance recognition of Pi and the container harness are deferred.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d",
+    "labels": []
+  }
+}

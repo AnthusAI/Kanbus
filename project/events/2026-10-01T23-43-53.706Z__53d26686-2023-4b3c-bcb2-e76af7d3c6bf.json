@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "53d26686-2023-4b3c-bcb2-e76af7d3c6bf",
+  "issue_id": "kbs-e2bd3cbd-80ba-4726-a81d-8b2fd2db586c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-01T23:43:53.706Z",
+  "actor_id": "example-user",
+  "payload": {
+    "title": "Pi adapter: Rust runtime parity",
+    "description": "RouterAdapterKind::Pi in rust/src/router.rs with from_name, display_name, resume and data-home handling, configure, session_id and parse_pi_result, identical command shape and observable behavior to Python; unit tests and the shared Gherkin scenarios passing under cargo cucumber.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-1fed59c8-a785-4eae-bfd2-60f4eb765090",
+    "labels": []
+  }
+}

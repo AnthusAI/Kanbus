@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "905e1126-4bc7-4c56-b8a6-2ba09740eed8",
+  "issue_id": "kbs-2cb8aab8-ea6c-4a05-9531-b2c6af019a20",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-01T23:43:46.601Z",
+  "actor_id": "example-user",
+  "payload": {
+    "title": "Pi adapter: Gherkin specs and Python runtime",
+    "description": "Specs first in features/router/router_configuration.feature (update the accepted-adapters error text; add a Pi profile scenario), then PiRunAdapter in python/src/kanbus/router_adapters.py, registry entry, models.ROUTER_ADAPTERS and config_loader error text, unit tests, opt-in live test. Pi facts to confirm against a real install: session id from the type=session header line, final text from assistant message_end events, --session/--session-dir resume, stdin handling, concurrent session store.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-1fed59c8-a785-4eae-bfd2-60f4eb765090",
+    "labels": []
+  }
+}

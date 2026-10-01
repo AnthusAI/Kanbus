@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "10fc8713-c328-44ab-87a7-ee91018e24a2",
+  "issue_id": "kbs-f5997974-43d0-4700-a8d8-777b1bb27327",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-01T23:43:59.976Z",
+  "actor_id": "example-user",
+  "payload": {
+    "title": "Pi adapter: operator docs and site pages",
+    "description": "docs/ISSUE_ROUTER_OPERATOR_GUIDE.md Pi section and adapter lists, ISSUE_ROUTER_DESIGN.md stale text, CLI_REFERENCE.md and cli.rs help text, apps/kanb.us features.ts and issue-router.tsx.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 3,
+    "assignee": null,
+    "parent": "kbs-1fed59c8-a785-4eae-bfd2-60f4eb765090",
+    "labels": []
+  }
+}
