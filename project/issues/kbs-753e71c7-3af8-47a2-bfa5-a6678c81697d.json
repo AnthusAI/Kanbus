@@ -15,17 +15,25 @@
       "type": "relates-to"
     }
   ],
-  "comments": [],
+  "comments": [
+    {
+      "id": "15261de9-9de9-4f55-81bb-f9a2b736321b",
+      "author": "home",
+      "text": "Complete for the initiative's delivered scope: deterministic routing and scheduling, WIP limits, claims and leases (Git, MQTT, Mutex API), isolated worktrees and checkpoints, Codex and OpenCode adapters, session resume from human replies (kbs-c92ec1), malformed-result preservation in Review, Rust and Python parity (including forge-less runs, PR #356), and a containerized full-integration suite verified live (kbs-2730cc, kbs-63679c, kbs-d3973c). Scheduling fixes this session: WIP no longer counted for Blocked work (kbs-f954ad) and business priority ordering (kbs-68060c). Remaining work is tracked as follow-up issues: kbs-f7c9a9 (router event rescan cost), kbs-8d1cd7 (state-native lifecycle), and the Ready-column console epics.",
+      "created_at": "2026-09-23T21:20:59.827042Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-16T00:44:08.525781Z",
-  "updated_at": "2026-09-17T09:18:54.809350Z",
+  "updated_at": "2026-10-01T23:43:31.239076Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "gpt-5",
     "name": "Issue Router planning"
   },
-  "right_now_summary": "The router is being tested with isolated workers, and multi-router lease contention testing is next.",
-  "right_now_updated_at": "2026-09-18T14:02:38.160340Z",
+  "right_now_summary": "The router works, with follow-up work on event rescans, lifecycle handling, and Ready-column consoles.",
+  "right_now_updated_at": "2026-10-01T23:44:29.532973Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
