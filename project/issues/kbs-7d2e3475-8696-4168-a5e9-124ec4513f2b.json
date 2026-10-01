@@ -1,0 +1,28 @@
+{
+  "id": "kbs-7d2e3475-8696-4168-a5e9-124ec4513f2b",
+  "title": "Mutex API should accept long-lived revocable Kanbus tokens instead of Cognito ID tokens",
+  "description": "The Mutex API authorizes with a Cognito ID token, which expires after 60 minutes (the app client leaves IdTokenValidity unset). Agents and routers that use the Mutex client must therefore refresh tokens or fail with 401. MQTT already uses revocable, scoped, long-lived Kanbus API tokens minted by kbs cloud token create. Give the Mutex API the same token type: add an API Gateway authorizer or token check in front of the lease routes that validates Kanbus API tokens (scope, tenant, expiry, revocation), keep the Cognito path for the browser console, and let the dual-runtime client use KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN with a Kanbus token. Alternative considered: client-side refresh-token exchange in both runtimes, which keeps Cognito users in the loop. Spec first in features/coordination/mutex_api.feature; infra change in infra/cloud/kanbus_cloud/coordination_stack.py.",
+  "type": "story",
+  "status": "backlog",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b6c014d7-a06a-4c72-b677-ee68484b844e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9c61c013-fce7-4b63-a93c-d8b18ecdf992",
+      "author": "home",
+      "text": "Moved to Backlog by the owner: not being worked now.",
+      "created_at": "2026-10-01T23:47:03.459262Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-09-23T17:03:04.976130Z",
+  "updated_at": "2026-10-01T23:47:03.459303Z",
+  "closed_at": null,
+  "right_now_summary": "The Mutex API still relies on short-lived Cognito tokens, while Kanbus token support awaits future work.",
+  "right_now_updated_at": "2026-10-01T23:47:04.533186Z",
+  "custom": {}
+}
