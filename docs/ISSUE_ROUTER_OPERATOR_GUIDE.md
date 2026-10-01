@@ -1,6 +1,6 @@
 # Issue Router operator guide
 
-This guide covers the Issue Router, which dispatches to Codex or OpenCode. Router configuration is optional. A project without `router:` can use every existing Kanbus command; router commands report that the router is not configured.
+This guide covers the Issue Router, which dispatches to Codex, OpenCode or Pi. Router configuration is optional. A project without `router:` can use every existing Kanbus command; router commands report that the router is not configured.
 
 ## Configure a project
 
@@ -40,7 +40,7 @@ router:
     max_attempts: 3
 ```
 
-The router requires the workflow and limits blocks, one or more provider profiles (`adapter: codex` or `adapter: opencode`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
+The router requires the workflow and limits blocks, one or more provider profiles (`adapter: codex`, `adapter: opencode` or `adapter: pi`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
 
 The router publishes its event history and router-owned issue status records to the dedicated `refs/heads/kanbus/router-state` branch using an isolated hidden Git worktree. Without an `origin` remote, router state remains local to the repository. If a configured `origin` is unreachable, publication fails.
 
@@ -140,7 +140,7 @@ See [Issue Router design](ISSUE_ROUTER_DESIGN.md) for the JSON contract, exact p
 
 ## OpenCode adapter (GPT-OSS on AWS Bedrock)
 
-Provider profiles accept `adapter: codex` or `adapter: opencode`. Optional `model`
+Provider profiles accept `adapter: codex`, `adapter: opencode` or `adapter: pi`. Optional `model`
 is passed as `--model`; optional `env` is merged over the router's environment.
 `command` defaults to the adapter name.
 
@@ -185,6 +185,34 @@ entry. A `completed` result with none of these is treated as a retryable failure
 work they never did. Agents may not edit Kanbus project state (`project/`,
 committed or not, except the derived `project/.cache`); such a run is preserved
 for Review with the reason in a router comment.
+## Pi adapter
+
+The Pi coding agent (the `pi` CLI, npm package `@earendil-works/pi-coding-agent`)
+is selected with `adapter: pi`. `command` defaults to `pi`; `model` is optional
+and passed as `--model` (for example `anthropic/claude-sonnet-5`); `env` adds
+environment variables such as provider API keys. `service_tier` is not supported
+for Pi.
+
+```yaml
+router:
+  providers:
+    pi-default:
+      adapter: pi
+      model: anthropic/claude-sonnet-5
+      env:
+        ANTHROPIC_API_KEY: ...
+```
+
+Requirements: the `pi` CLI on `PATH` and credentials for the chosen model
+provider. The router runs `pi -p --mode json` with stdin closed in the run's
+worktree, takes the session id from the `session` header line of Pi's JSON event
+stream, and reads the result object from the final assistant message. A missing
+or malformed result is rejected as `Pi router adapter returned invalid JSON/result`,
+and a non-zero exit as `Pi router adapter failed`.
+
+Concurrency: each package gets a private Pi session directory, passed with
+`--session-dir`, so parallel runs never share a session store.
+
 ## Answering an agent's question (session resume)
 
 When an agent finishes a turn with outcome `blocked`, the router records its
@@ -195,12 +223,14 @@ starting over:
 
 - The resumed run reuses the branch and worktree the agent already worked in, so
   its unfinished work and its saved session context are intact.
-- Codex resumes with `codex exec resume`, OpenCode with `opencode run --session`.
+- Codex resumes with `codex exec resume`, OpenCode with `opencode run --session`,
+  Pi with `pi --session` (using the package's own `--session-dir`).
 - OpenCode can only resume a session from the directory the session started in
   (from anywhere else it silently hangs). If that worktree no longer exists, the
   router starts a fresh session instead and gives it your reply, and records why.
   OpenCode's session data is kept per package under
-  `<git-common-dir>/kanbus-router-adapters/opencode/<package>`.
+  `<git-common-dir>/kanbus-router-adapters/opencode/<package>`; Pi's is kept under
+  `<git-common-dir>/kanbus-router-adapters/pi/<package>`.
 - Moving an issue back to Ready **without** a newer human comment starts a fresh
   session, as before.
 - Comments written by the router itself never count as a reply.

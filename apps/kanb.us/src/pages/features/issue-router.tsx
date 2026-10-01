@@ -72,7 +72,7 @@ const IssueRouterPage = () => {
                 <h3 className="mt-2 text-xl font-bold text-foreground">Run with guardrails</h3>
               </CardHeader>
               <CardContent className="p-0 text-muted leading-relaxed">
-                The router respects policy, dependencies, configured capacity, routing order, and coordination before it gives one eligible package to your configured coding agent (Codex or OpenCode).
+                The router respects policy, dependencies, configured capacity, routing order, and coordination before it gives one eligible package to your configured coding agent (Codex, OpenCode or Pi).
               </CardContent>
             </Card>
             <Card className="p-7">
@@ -99,7 +99,7 @@ const IssueRouterPage = () => {
                   {[
                     ["Plan", "The router reads the configured pending state and produces a deterministic list of eligible and deferred packages."],
                     ["Claim", "It records a claim with a unique ID and revision, using the project’s configured coordination level."],
-                    ["Execute", "The agent (Codex or OpenCode) works in a run-specific Git worktree and returns one structured result rather than directly changing Kanbus issue data."],
+                    ["Execute", "The agent (Codex, OpenCode or Pi) works in a run-specific Git worktree and returns one structured result rather than directly changing Kanbus issue data."],
                     ["Validate", "Kanbus verifies package scope, workflow transitions, claim ownership, checkpoints, and result shape before accepting anything."],
                     ["Publish", "Accepted work updates the dedicated router-state Git branch, creates or updates the pull request, and moves the package to Review."],
                   ].map(([title, text], index) => (
@@ -221,7 +221,7 @@ export const Head = () => (
     <title>Issue Router — Kanbus</title>
     <meta
       name="description"
-      content="Dispatch explicitly labeled Kanbus issue packages through a coding agent (Codex or OpenCode) with Git-backed state, progressive coordination, and a pull-request review gate."
+      content="Dispatch explicitly labeled Kanbus issue packages through a coding agent (Codex, OpenCode or Pi) with Git-backed state, progressive coordination, and a pull-request review gate."
     />
   </>
 );
