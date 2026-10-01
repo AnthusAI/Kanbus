@@ -63,7 +63,7 @@ def test_profile_defaults_command_to_adapter():
 
 
 def test_profile_rejects_unknown_adapter():
-    with pytest.raises(ValueError, match="codex or opencode"):
+    with pytest.raises(ValueError, match="codex, opencode or pi"):
         RouterAgentProfile(adapter="claude")
 
 

@@ -277,7 +277,7 @@ class CodexExecAdapter(_SubprocessAdapter):
         ]
 
 
-_OPENCODE_FORMAT_HINT = (
+_RESULT_FORMAT_HINT = (
     " Reply with the JSON object as your final message and no other text. "
     "schema_version must be the JSON number 1 (not a string). Each issue_updates "
     'item is {"issue_id": "<id>", "status": "<status>"} and each issue_comments '
@@ -365,7 +365,7 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
                 if request.resume_session_id
                 else []
             ),
-            _agent_prompt(request) + _OPENCODE_FORMAT_HINT,
+            _agent_prompt(request) + _RESULT_FORMAT_HINT,
         ]
 
     def _session_id(self, stdout: str) -> str | None:
@@ -388,9 +388,70 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         return payload
 
 
+class PiRunAdapter(_SubprocessAdapter):
+    """Run the configured Pi coding agent CLI with JSON event output."""
+
+    display_name = "Pi"
+
+    def _popen_extras(self) -> dict[str, Any]:
+        return {"stdin": subprocess.DEVNULL}
+
+    def _session_directory(self, package_id: str) -> Path | None:
+        """Return the persistent, per-package Pi session directory.
+
+        Same key scheme as the OpenCode data home and the Rust runtime, so either
+        runtime can resume the other's saved session. Without a router state
+        directory Pi keeps its default session storage.
+        """
+        if self.state_dir is None:
+            return None
+        key = re.sub(r"[^A-Za-z0-9._-]", "_", package_id)
+        directory = self.state_dir / "pi" / key
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory
+
+    def _build_command(self, request: RouterExecutionRequest) -> list[str]:
+        model = ["--model", self.profile.model] if self.profile.model else []
+        session_directory = self._session_directory(request.package_id)
+        return [
+            str(self.profile.command),
+            *self.profile.args,
+            "-p",
+            "--mode",
+            "json",
+            *model,
+            *(["--session-dir", str(session_directory)] if session_directory else []),
+            *(
+                ["--session", request.resume_session_id]
+                if request.resume_session_id
+                else []
+            ),
+            _agent_prompt(request) + _RESULT_FORMAT_HINT,
+        ]
+
+    def _session_id(self, stdout: str) -> str | None:
+        for line in stdout.splitlines():
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(event, dict) and event.get("type") == "session":
+                value = event.get("id")
+                if isinstance(value, str) and value:
+                    return value
+        return None
+
+    def _result_payload(self, stdout: str) -> dict[str, Any]:
+        payload = _payload_from_model_text(_pi_final_assistant_text(stdout))
+        if payload is None:
+            raise IssueRouterError("Pi router adapter returned invalid JSON")
+        return payload
+
+
 ADAPTER_CLASSES: dict[str, type[_SubprocessAdapter]] = {
     "codex": CodexExecAdapter,
     "opencode": OpenCodeRunAdapter,
+    "pi": PiRunAdapter,
 }
 """Registry of router agent adapters keyed by ``adapter:`` name.
 
@@ -434,6 +495,33 @@ def _opencode_text_parts(stdout: str) -> list[str]:
         if isinstance(part, dict) and isinstance(part.get("text"), str):
             parts.append(part["text"])
     return parts
+
+
+def _pi_final_assistant_text(stdout: str) -> str:
+    """Return the text of the last assistant ``message_end`` event Pi emitted."""
+    text = ""
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict) or event.get("type") != "message_end":
+            continue
+        message = event.get("message")
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            text = "".join(
+                part["text"]
+                for part in content
+                if isinstance(part, dict)
+                and part.get("type") == "text"
+                and isinstance(part.get("text"), str)
+            )
+    return text
 
 
 def _payload_from_model_text(text: str) -> dict[str, Any] | None:
