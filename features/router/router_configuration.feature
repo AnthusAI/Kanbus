@@ -138,11 +138,11 @@ Feature: Optional Issue Router configuration
     Then the command should fail with exit code 1
     And stderr should equal "error: router.workflow.terminal must be a nonempty list\n"
 
-  Scenario: The router accepts only the Codex and OpenCode adapters
+  Scenario: The router accepts only the Codex, OpenCode and Pi adapters
     Given a valid router configuration with provider profile "claude-default" using adapter "claude"
     When the router configuration is loaded
     Then the command should fail with exit code 1
-    And stderr should equal "error: router.providers.claude-default.adapter must be codex or opencode\n"
+    And stderr should equal "error: router.providers.claude-default.adapter must be codex, opencode or pi\n"
 
   Scenario: An OpenCode profile selects a Bedrock model and environment
     Given a valid router configuration with provider profile "gpt-oss-bedrock" using adapter "opencode"
@@ -151,6 +151,14 @@ Feature: Optional Issue Router configuration
     Then the configuration should be valid
     And provider profile "gpt-oss-bedrock" should use command "opencode" and no arguments
     And provider profile "gpt-oss-bedrock" should use model "amazon-bedrock/openai.gpt-oss-20b-1:0"
+
+  Scenario: A Pi profile selects a provider model
+    Given a valid router configuration with provider profile "pi-default" using adapter "pi"
+    And provider profile "pi-default" has model "anthropic/claude-sonnet-5" and environment {"PI_OFFLINE": "1"}
+    When the router configuration is loaded
+    Then the configuration should be valid
+    And provider profile "pi-default" should use command "pi" and no arguments
+    And provider profile "pi-default" should use model "anthropic/claude-sonnet-5"
 
   Scenario: A class route must reference configured provider profiles
     Given a valid router configuration with class "implementation" using provider profiles "missing"
