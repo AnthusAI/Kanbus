@@ -34,8 +34,8 @@
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The production API and dual-runtime clients are deployed, with hard-lease integration validation underway.",
-  "right_now_updated_at": "2026-09-18T10:57:21.367362Z",
+  "right_now_summary": "The production Mutex API and dual-runtime clients are deployed; hard-lease integration validation continues.",
+  "right_now_updated_at": "2026-10-01T23:47:06.086964Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
