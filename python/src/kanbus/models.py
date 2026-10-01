@@ -519,7 +519,7 @@ class RouterLimits(BaseModel):
         return value
 
 
-ROUTER_ADAPTERS = ("codex", "opencode")
+ROUTER_ADAPTERS = ("codex", "opencode", "pi")
 ROUTER_SERVICE_TIERS = ("flex", "priority", "default")
 
 
@@ -541,7 +541,7 @@ class RouterAgentProfile(BaseModel):
         """Require an adapter supported by the router."""
         normalized = value.strip().lower()
         if normalized not in ROUTER_ADAPTERS:
-            raise ValueError("router provider adapter must be codex or opencode")
+            raise ValueError("router provider adapter must be codex, opencode or pi")
         return normalized
 
     @model_validator(mode="after")
