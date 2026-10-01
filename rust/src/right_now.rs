@@ -22,7 +22,7 @@ const LLM_USAGE_LOG: &str = "llm_usage.jsonl";
 const MOCK_PROMPT_TOKENS: u64 = 42;
 const MOCK_COMPLETION_TOKENS: u64 = 12;
 const MOCK_TOTAL_TOKENS: u64 = 54;
-const MOCK_COST: f64 = 0.0;
+const MOCK_COST: Option<f64> = Some(0.0);
 const MAX_RECENT_COMMENTS: usize = 5;
 const MAX_RECENT_ACTIVITY_CHARACTERS: usize = 2000;
 const STATUS_KEYWORDS: [&str; 5] = ["done", "in progress", "blocked", "closed", "open"];
@@ -38,8 +38,8 @@ struct RightNowLlmUsageRecord {
     completion_tokens: u64,
     /// Total token count.
     total_tokens: u64,
-    /// Estimated cost.
-    cost: f64,
+    /// Cost in USD, or `None` when the model has no known price.
+    cost: Option<f64>,
     /// Whether the usage came from mock mode.
     mock: bool,
 }
@@ -557,6 +557,25 @@ pub fn right_now_summary_needs_regeneration(issue: &IssueData) -> bool {
     }
 }
 
+/// Return whether a direct child changed after the issue summary was generated.
+///
+/// # Arguments
+///
+/// * `issue` - Parent issue to inspect.
+/// * `children` - Direct children of the issue.
+///
+/// # Returns
+///
+/// `true` when any child was updated after `right_now_updated_at`.
+pub fn right_now_summary_predates_child_changes(issue: &IssueData, children: &[IssueData]) -> bool {
+    match issue.right_now_updated_at {
+        None => false,
+        Some(summary_updated_at) => children
+            .iter()
+            .any(|child| child.updated_at > summary_updated_at),
+    }
+}
+
 /// Return the right-now summary for CLI display or an error when invalid.
 ///
 /// # Arguments
@@ -711,8 +730,9 @@ pub fn ensure_right_now_subtree(
             return Ok(false);
         }
     };
-    let should_generate =
-        descendant_generated || right_now_summary_needs_regeneration(&lookup.issue);
+    let should_generate = descendant_generated
+        || right_now_summary_needs_regeneration(&lookup.issue)
+        || right_now_summary_predates_child_changes(&lookup.issue, &children);
     let mut generated = false;
     if should_generate {
         let previous_summary = lookup.issue.right_now_summary.clone();
@@ -879,34 +899,6 @@ pub fn ensure_right_now_summary_subtrees(
     Ok(())
 }
 
-/// Regenerate right-now summaries for an issue and each ancestor.
-///
-/// # Arguments
-///
-/// * `root` - Repository root path.
-/// * `issue_identifier` - Starting issue identifier.
-pub fn regenerate_right_now_for_issue_and_ancestors(root: &Path, issue_identifier: &str) {
-    let mut current_identifier = Some(issue_identifier.to_string());
-    while let Some(identifier) = current_identifier {
-        let _ = regenerate_right_now_for_issue(root, &identifier, false);
-        current_identifier = load_issue_from_project(root, &identifier)
-            .ok()
-            .and_then(|lookup| lookup.issue.parent.clone());
-    }
-}
-
-/// Regenerate right-now summaries for ancestors after a child deletion.
-///
-/// # Arguments
-///
-/// * `root` - Repository root path.
-/// * `parent_identifier` - Parent issue identifier, if any.
-pub fn regenerate_right_now_ancestors(root: &Path, parent_identifier: Option<&str>) {
-    if let Some(parent_identifier) = parent_identifier {
-        regenerate_right_now_for_issue_and_ancestors(root, parent_identifier);
-    }
-}
-
 /// Return whether a summary contains a bare status keyword.
 ///
 /// # Arguments
@@ -1056,6 +1048,8 @@ fn build_right_now_prompt(context: &RightNowContext, max_length: usize) -> Strin
     format!(
         "Write exactly one short sentence describing what is happening with this \
 issue right now. Use plain, direct language in Hemingway style. \
+State only facts present in the text below. Do not describe work as \
+underway, running, or finished unless the text says so. \
 Do not mention issue status labels such as open, closed, blocked, done, \
 or in progress. Maximum {max_length} characters.\n\n\
 Title: {title}\n\
@@ -1248,7 +1242,6 @@ mod tests {
     fn regenerate_right_now_for_issue_returns_when_configuration_is_missing() {
         let temp = tempfile::tempdir().expect("tempdir");
         regenerate_right_now_for_issue(temp.path(), "kanbus-missing", false).expect("ok");
-        regenerate_right_now_for_issue_and_ancestors(temp.path(), "kanbus-missing");
     }
 
     #[test]
