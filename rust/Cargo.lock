@@ -2914,8 +2914,8 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "virtuus"
-version = "0.5.1"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=35d7654701935fc3695aa14623171337ab9c1fc9#35d7654701935fc3695aa14623171337ab9c1fc9"
+version = "0.5.2"
+source = "git+https://github.com/AnthusAI/Virtuus.git?rev=cb335cb42fffce0f54b88dca325bf2800081a1c1#cb335cb42fffce0f54b88dca325bf2800081a1c1"
 dependencies = [
  "clap",
  "libc",
