@@ -73,7 +73,6 @@ def promote_issue(root: Path, identifier: str) -> IssueData:
                 events=[event],
                 before_issue=issue,
                 relocate_to=target_path,
-                root=root,
             )
         )
     except Exception as error:  # noqa: BLE001
@@ -133,7 +132,6 @@ def localize_issue(root: Path, identifier: str) -> IssueData:
                 events=[event],
                 before_issue=issue,
                 relocate_to=target_path,
-                root=root,
             )
         )
     except Exception as error:  # noqa: BLE001

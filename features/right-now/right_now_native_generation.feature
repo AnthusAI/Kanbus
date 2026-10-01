@@ -18,6 +18,13 @@ Feature: Right now native in-runtime generation
     And stderr should not contain "now-generate-internal"
     And stderr should not contain "unrecognized subcommand"
 
+  Scenario: Unpriced native completions are logged with unknown cost
+    Given right now native litellm test completion is "Shipped via native runtime."
+    And an issue "kanbus-native3" exists with title "Unpriced issue"
+    When I run "kanbus now --status all --list"
+    Then the command should succeed
+    And the LLM usage log right_now_summary entries should have unknown cost
+
   Scenario: Persisted mock summaries regenerate through native LiteLLM
     Given right now native litellm test completion is "Regenerated via native runtime."
     And an issue "kanbus-native2" exists with title "Mock persisted native issue"

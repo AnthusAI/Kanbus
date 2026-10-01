@@ -23,8 +23,8 @@ pub struct LitellmUsageRecord {
     pub completion_tokens: u64,
     /// Total token count.
     pub total_tokens: u64,
-    /// Estimated cost in USD.
-    pub cost: f64,
+    /// Cost in USD, or `None` when the provider reports no price.
+    pub cost: Option<f64>,
 }
 
 /// Run a single-user chat completion through LiteLLM or the OpenAI-compatible API.
@@ -54,7 +54,7 @@ pub fn litellm_chat_completion(
                 prompt_tokens: 1,
                 completion_tokens: 2,
                 total_tokens: 3,
-                cost: 0.0,
+                cost: None,
             },
         ));
     }
@@ -114,7 +114,7 @@ pub fn litellm_chat_completion(
             prompt_tokens,
             completion_tokens,
             total_tokens,
-            cost: 0.0,
+            cost: None,
         },
     ))
 }
