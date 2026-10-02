@@ -268,12 +268,13 @@ pub fn collect_now_tree_issue_identifiers(
 
 /// Resolve issues by full or short identifier.
 ///
-/// Short identifiers are `{project_key}-{prefix}` where `prefix` is up to 6
-/// characters from the UUID segment after the dash.
+/// Short identifiers are matched hyphen-insensitively via the shared
+/// [`crate::ids::issue_identifier_matches`] rules (dynamic width, dotted
+/// sub-IDs supported).
 pub fn find_issue_matches<'a>(
     issues: &'a [IssueData],
     identifier: &str,
-    project_key: &str,
+    _project_key: &str,
 ) -> Vec<&'a IssueData> {
     let mut matches = Vec::new();
     for issue in issues {
@@ -281,33 +282,15 @@ pub fn find_issue_matches<'a>(
             matches.push(issue);
             continue;
         }
-        if short_id_matches(identifier, project_key, &issue.identifier) {
+        if short_id_matches(identifier, _project_key, &issue.identifier) {
             matches.push(issue);
         }
     }
     matches
 }
 
-fn short_id_matches(candidate: &str, project_key: &str, full_id: &str) -> bool {
-    if !candidate.starts_with(project_key) {
-        return false;
-    }
-    let mut parts = candidate.splitn(2, '-');
-    let prefix_key = parts.next().unwrap_or("");
-    let prefix = parts.next().unwrap_or("");
-    if prefix_key != project_key {
-        return false;
-    }
-    if prefix.is_empty() || prefix.len() > 6 {
-        return false;
-    }
-    let mut full_parts = full_id.splitn(2, '-');
-    let full_key = full_parts.next().unwrap_or("");
-    let full_suffix = full_parts.next().unwrap_or("");
-    if full_key != project_key {
-        return false;
-    }
-    full_suffix.starts_with(prefix)
+fn short_id_matches(candidate: &str, _project_key: &str, full_id: &str) -> bool {
+    crate::ids::issue_identifier_matches(candidate, full_id)
 }
 
 fn load_issues_from_dir(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
