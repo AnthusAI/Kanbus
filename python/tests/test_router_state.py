@@ -550,7 +550,7 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
     state_a = router_state_root(clone_a)
     context = load_router_context(state_a)
     short_coordination = context.configuration.coordination.model_copy(
-        update={"default_lease_ttl": "1s"}
+        update={"default_lease_ttl": "2s"}
     )
     short_configuration = context.configuration.model_copy(
         update={"coordination": short_coordination}
@@ -597,20 +597,25 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
             )
         ],
         "renew-claim",
+        initial_pass=True,
     )
-    sleep(2.0)
-    state_b = router_state_root(clone_b)
-    observed_context = load_router_context(state_b)
-    evaluation_time = claim_start + timedelta(seconds=1.8)
-    lease = inspect_lease(
-        observed_context.project_dir / "events",
-        "router:issue:kbs-renewal",
-        now=evaluation_time,
-    )
-    assert lease.active, "the peer must see a renewal after the original one-second TTL"
-    assert not build_router_plan(observed_context).eligible
-    stopped.set()
-    thread.join(timeout=2)
+    try:
+        sleep(3.0)
+        state_b = router_state_root(clone_b)
+        observed_context = load_router_context(state_b)
+        evaluation_time = claim_start + timedelta(seconds=2.8)
+        lease = inspect_lease(
+            observed_context.project_dir / "events",
+            "router:issue:kbs-renewal",
+            now=evaluation_time,
+        )
+        assert (
+            lease.active
+        ), "the peer must see a renewal after the original two-second TTL"
+        assert not build_router_plan(observed_context).eligible
+    finally:
+        stopped.set()
+        thread.join(timeout=2)
 
 
 def test_concurrent_shared_start_publication_accepts_only_selected_claim(
