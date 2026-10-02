@@ -14,12 +14,17 @@ fn run_cli(runner: impl FnOnce() -> Result<(), KanbusError>) -> i32 {
                 eprint!("{stderr}");
                 exit_code
             }
+            KanbusError::CommandFailure { exit_code, .. } => {
+                eprintln!("{error}");
+                exit_code
+            }
+            KanbusError::AmbiguousIdentifier { .. } => {
+                eprintln!("{error}");
+                3
+            }
             error => {
                 eprintln!("{error}");
-                match error {
-                    KanbusError::CommandFailure { exit_code, .. } => exit_code,
-                    _ => 1,
-                }
+                1
             }
         },
     }
@@ -28,7 +33,7 @@ fn run_cli(runner: impl FnOnce() -> Result<(), KanbusError>) -> i32 {
 fn main() {
     let code = run_cli(run_from_env);
     if code != 0 {
-        std::process::exit(1);
+        std::process::exit(code);
     }
 }
 

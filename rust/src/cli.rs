@@ -42,7 +42,9 @@ use crate::hooks::{
     list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
     HookExecutionOptions, HookPhase,
 };
-use crate::ids::format_issue_key;
+use crate::config::effective_short_id_length;
+use crate::ids::{format_issue_key_with, ShortIdWidths, DEFAULT_SHORT_ID_LENGTH};
+use crate::issue_files::project_identifier_universe;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
 use crate::issue_commit::commit_project_issues;
@@ -1389,6 +1391,19 @@ pub struct CommandOutput {
 /// # Errors
 ///
 /// Returns `KanbusError` if execution fails.
+
+/// Build short-ID widths for confirmation messages from the project universe.
+fn format_confirmed_identifier(root: &Path, identifier: &str) -> String {
+    let default_len = get_configuration_path(root)
+        .ok()
+        .and_then(|path| load_project_configuration(&path).ok())
+        .map(|configuration| effective_short_id_length(&configuration))
+        .unwrap_or(DEFAULT_SHORT_ID_LENGTH);
+    let universe = project_identifier_universe(root).unwrap_or_default();
+    let widths = ShortIdWidths::new(universe.iter().map(String::as_str), default_len);
+    format_issue_key_with(identifier, false, &widths)
+}
+
 pub fn run_from_args<I, T>(args: I, cwd: &Path) -> Result<(), KanbusError>
 where
     I: IntoIterator<Item = T>,
@@ -2479,7 +2494,7 @@ fn execute_command(
                     agent_metadata,
                 )?;
                 after_issue_for_hooks = Some(update_result.issue.clone());
-                let formatted_identifier = format_issue_key(&identifier, false);
+                let formatted_identifier = format_confirmed_identifier(root, &identifier);
                 if let Some(ref qr) = update_quality_result {
                     emit_signals(qr, "description", Some(&identifier), None, true);
                 }
@@ -2514,7 +2529,7 @@ fn execute_command(
                 };
                 return Ok(Some(message));
             }
-            let formatted_identifier = format_issue_key(&identifier, false);
+            let formatted_identifier = format_confirmed_identifier(root, &identifier);
             if let Some(ref qr) = update_quality_result {
                 emit_signals(qr, "description", Some(&identifier), None, true);
             }
@@ -2603,7 +2618,7 @@ fn execute_command(
                 std::slice::from_ref(&moved_issue),
                 hook_options,
             )?;
-            let formatted_identifier = format_issue_key(&identifier, false);
+            let formatted_identifier = format_confirmed_identifier(root, &identifier);
             Ok(Some(format!(
                 "Moved {} to type {}",
                 formatted_identifier, moved_issue.issue_type
@@ -2850,7 +2865,7 @@ fn execute_command(
                 let closed_issue = close_issue(root, &identifier)?;
                 Some(closed_issue)
             };
-            let formatted_identifier = format_issue_key(&identifier, false);
+            let formatted_identifier = format_confirmed_identifier(root, &identifier);
             let issues_for_policy = after_issue_for_hooks
                 .as_ref()
                 .map(|issue| vec![issue.clone()])
@@ -2949,7 +2964,7 @@ fn execute_command(
                     hook_options,
                 )?;
                 delete_beads_issue(&root_for_beads, &identifier, beads_recursive)?;
-                let formatted_identifier = format_issue_key(&identifier, false);
+                let formatted_identifier = format_confirmed_identifier(root, &identifier);
                 run_lifecycle_hooks_for_context(
                     root,
                     HookPhase::After,
@@ -3028,7 +3043,7 @@ fn execute_command(
             let mut deleted_lines = Vec::new();
             for issue_id in &descendants {
                 delete_issue(root, issue_id, retain_audit_event)?;
-                let formatted_identifier = format_issue_key(issue_id, false);
+                let formatted_identifier = format_confirmed_identifier(root, issue_id);
                 deleted_lines.push(format!("Deleted {}", formatted_identifier));
             }
             let issues_for_policy = issue_for_hooks
@@ -3448,10 +3463,22 @@ fn execute_command(
                     .iter()
                     .any(|issue| issue.custom.contains_key("project_path"))
             };
+            let short_id_default_len = if beads_mode {
+                6
+            } else {
+                configuration
+                    .as_ref()
+                    .map(effective_short_id_length)
+                    .unwrap_or(DEFAULT_SHORT_ID_LENGTH)
+            };
+            let short_id_widths = {
+                let universe = project_identifier_universe(root).unwrap_or_default();
+                ShortIdWidths::new(universe.iter().map(String::as_str), short_id_default_len)
+            };
             let widths = if porcelain {
                 None
             } else {
-                Some(compute_widths(&issues, project_context))
+                Some(compute_widths(&issues, project_context, &short_id_widths))
             };
             let lines = issues
                 .iter()
@@ -3463,6 +3490,7 @@ fn execute_command(
                         project_context,
                         configuration.as_ref(),
                         None,
+                        &short_id_widths,
                     )
                 })
                 .collect::<Vec<_>>();
@@ -4114,8 +4142,7 @@ fn execute_command(
         Commands::Policy { command } => match command {
             PolicyCommands::Check { identifier } => {
                 use crate::config_loader::load_project_configuration;
-                use crate::file_io::get_configuration_path;
-                use crate::issue_lookup::load_issue_from_project;
+                                use crate::issue_lookup::load_issue_from_project;
 
                 let lookup = load_issue_from_project(root, &identifier)?;
                 let config_path = get_configuration_path(&lookup.project_dir)?;
@@ -4615,7 +4642,62 @@ fn execute_command(
 /// Returns `KanbusError` if execution fails.
 pub fn run_from_env() -> Result<(), KanbusError> {
     let args = rewrite_alias_args(std::env::args_os());
-    run_from_args(args, Path::new("."))
+    let args: Vec<OsString> = args;
+    match run_from_args(args.iter().cloned(), Path::new(".")) {
+        Err(KanbusError::AmbiguousIdentifier { candidate, matches }) => {
+            handle_ambiguous_identifier(args, candidate, matches)
+        }
+        other => other,
+    }
+}
+
+fn ambiguity_prompt_enabled(args: &[OsString]) -> bool {
+    use std::io::IsTerminal;
+    if args.iter().any(|arg| arg == "--json") {
+        return false;
+    }
+    if std::env::var_os("KANBUS_NO_PROMPT").is_some_and(|value| !value.is_empty()) {
+        return false;
+    }
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
+fn handle_ambiguous_identifier(
+    args: Vec<OsString>,
+    candidate: String,
+    matches: Vec<crate::error::AmbiguousCandidate>,
+) -> Result<(), KanbusError> {
+    let args_have_json = args.iter().any(|arg| arg == "--json");
+    if !args_have_json && ambiguity_prompt_enabled(&args) {
+        if let Some(chosen) = crate::ids::prompt_ambiguous_choice(&candidate, &matches) {
+            let retried: Vec<OsString> = args
+                .iter()
+                .map(|arg| {
+                    if arg.to_str() == Some(candidate.as_str()) {
+                        OsString::from(chosen.as_str())
+                    } else {
+                        arg.clone()
+                    }
+                })
+                .collect();
+            return run_from_args(retried, Path::new("."));
+        }
+        return Err(KanbusError::CommandFailure {
+            exit_code: 3,
+            message: crate::ids::render_ambiguous_error(&candidate, &matches),
+        });
+    }
+    if args_have_json {
+        return Err(KanbusError::CommandFailureWithOutput {
+            exit_code: 3,
+            stdout: crate::ids::ambiguous_matches_json(&candidate, &matches),
+            stderr: String::new(),
+        });
+    }
+    Err(KanbusError::CommandFailure {
+        exit_code: 3,
+        message: crate::ids::render_ambiguous_error(&candidate, &matches),
+    })
 }
 
 fn rewrite_alias_args<I>(args: I) -> Vec<OsString>

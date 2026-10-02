@@ -10,6 +10,18 @@ use crate::models::{
     StandupConfiguration, StatusDefinition,
 };
 
+/// Return the effective short ID display length for a configuration.
+///
+/// Defaults to 4 characters, or 6 in Beads compatibility mode unless
+/// `short_id_length` is set explicitly.
+pub fn effective_short_id_length(configuration: &ProjectConfiguration) -> usize {
+    let fallback = if configuration.beads_compatibility { 6 } else { 4 };
+    configuration
+        .short_id_length
+        .unwrap_or(fallback)
+        .clamp(1, 32)
+}
+
 /// Return the default project configuration.
 pub fn default_project_configuration() -> ProjectConfiguration {
     let mut workflows = BTreeMap::new();
@@ -257,6 +269,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             ("event".to_string(), "bright_blue".to_string()),
         ]),
         beads_compatibility: false,
+        short_id_length: None,
         jira: None,
         snyk: None,
         wiki_directory: None,

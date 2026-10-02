@@ -125,6 +125,34 @@ pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>
     Ok(identifiers)
 }
 
+/// Collect every issue identifier in the repository for short-ID widths.
+///
+/// Unions the shared and local issue directories of every discovered project
+/// (filename listing only; issue JSON bodies are never parsed).
+///
+/// # Arguments
+/// * `root` - Repository root path.
+///
+/// # Errors
+/// Returns `KanbusError::Io` if directory entries cannot be read.
+pub fn project_identifier_universe(root: &Path) -> Result<HashSet<String>, KanbusError> {
+    let mut universe = HashSet::new();
+    let mut project_dirs = crate::project::discover_project_directories(root).unwrap_or_default();
+    if project_dirs.is_empty() {
+        project_dirs.push(root.to_path_buf());
+    }
+    for project_dir in &project_dirs {
+        let mut dirs = vec![project_dir.join("issues")];
+        if let Some(local_dir) = crate::file_io::find_project_local_directory(project_dir) {
+            dirs.push(local_dir.join("issues"));
+        }
+        for issues_dir in &dirs {
+            universe.extend(list_issue_identifiers(issues_dir)?);
+        }
+    }
+    Ok(universe)
+}
+
 /// Read an issue from a JSON file.
 ///
 /// # Arguments

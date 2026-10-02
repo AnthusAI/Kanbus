@@ -2,7 +2,7 @@
 
 use owo_colors::{AnsiColors, OwoColorize};
 
-use crate::ids::format_issue_key;
+use crate::ids::{format_issue_key_with, ShortIdWidths};
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::status_semantics::default_color_for_semantic_category;
 
@@ -17,7 +17,11 @@ pub struct Widths {
 }
 
 /// Compute printable column widths for aligned normal-mode output.
-pub fn compute_widths(issues: &[IssueData], project_context: bool) -> Widths {
+pub fn compute_widths(
+    issues: &[IssueData],
+    project_context: bool,
+    short_id_widths: &ShortIdWidths,
+) -> Widths {
     let mut widths = Widths {
         issue_type: 1,
         identifier: 0,
@@ -30,13 +34,14 @@ pub fn compute_widths(issues: &[IssueData], project_context: bool) -> Widths {
         widths.issue_type = widths.issue_type.max(1);
         widths.status = widths.status.max(issue.status.len());
         widths.priority = widths.priority.max(format!("P{}", issue.priority).len());
-        let formatted_identifier = format_issue_key(&issue.identifier, project_context);
+        let formatted_identifier =
+            format_issue_key_with(&issue.identifier, project_context, short_id_widths);
         widths.identifier = widths.identifier.max(formatted_identifier.len());
         let parent_value = issue.parent.as_deref().unwrap_or("-");
         let parent_display = if parent_value == "-" {
             parent_value.to_string()
         } else {
-            format_issue_key(parent_value, project_context)
+            format_issue_key_with(parent_value, project_context, short_id_widths)
         };
         widths.parent = widths.parent.max(parent_display.len());
     }
@@ -56,13 +61,15 @@ pub fn format_issue_line(
     project_context: bool,
     configuration: Option<&ProjectConfiguration>,
     use_color_override: Option<bool>,
+    short_id_widths: &ShortIdWidths,
 ) -> String {
     let parent_value = issue.parent.clone().unwrap_or_else(|| "-".to_string());
-    let formatted_identifier = format_issue_key(&issue.identifier, project_context);
+    let formatted_identifier =
+        format_issue_key_with(&issue.identifier, project_context, short_id_widths);
     let parent_display = if parent_value == "-" {
         parent_value.clone()
     } else {
-        format_issue_key(&parent_value, project_context)
+        format_issue_key_with(&parent_value, project_context, short_id_widths)
     };
     if porcelain {
         return format!(
@@ -83,7 +90,7 @@ pub fn format_issue_line(
 
     let computed_widths = widths
         .copied()
-        .unwrap_or_else(|| compute_widths(std::slice::from_ref(issue), project_context));
+        .unwrap_or_else(|| compute_widths(std::slice::from_ref(issue), project_context, short_id_widths));
     let use_color = use_color_override.unwrap_or_else(should_use_color);
     let prefix = issue
         .custom
@@ -319,6 +326,7 @@ mod tests {
             sort_order: BTreeMap::new(),
             type_colors: BTreeMap::from([("task".to_string(), "bright_magenta".to_string())]),
             beads_compatibility: false,
+            short_id_length: None,
             wiki_directory: None,
             ai: None,
             jira: None,
@@ -345,8 +353,19 @@ mod tests {
                 Some("kanbus-123456789abc"),
             ),
         ];
-        let widths = compute_widths(&issues, true);
-        assert!(widths.identifier >= 6);
+        let universe: Vec<&str> = issues
+            .iter()
+            .flat_map(|issue| {
+                let mut ids = vec![issue.identifier.as_str()];
+                if let Some(parent) = issue.parent.as_deref() {
+                    ids.push(parent);
+                }
+                ids
+            })
+            .collect();
+        let short_id_widths = ShortIdWidths::new(universe, crate::ids::DEFAULT_SHORT_ID_LENGTH);
+        let widths = compute_widths(&issues, true, &short_id_widths);
+        assert!(widths.identifier >= 4);
         assert!(widths.parent >= 1);
         assert!(widths.status >= "in_progress".len());
         assert!(widths.priority >= 2);
@@ -360,14 +379,34 @@ mod tests {
             "open",
             Some("kanbus-111111111111"),
         );
-        let widths = compute_widths(std::slice::from_ref(&issue), false);
+        let short_id_widths = ShortIdWidths::new(
+            ["kanbus-abcdef123456", "kanbus-111111111111"],
+            crate::ids::DEFAULT_SHORT_ID_LENGTH,
+        );
+        let widths = compute_widths(std::slice::from_ref(&issue), false, &short_id_widths);
 
-        let porcelain = format_issue_line(&issue, Some(&widths), true, false, None, Some(false));
+        let porcelain = format_issue_line(
+            &issue,
+            Some(&widths),
+            true,
+            false,
+            None,
+            Some(false),
+            &short_id_widths,
+        );
         assert!(porcelain.contains("T |"));
         assert!(porcelain.contains("P2"));
 
-        let plain = format_issue_line(&issue, Some(&widths), false, false, None, Some(false));
-        assert!(plain.contains("Title kanbus-abcdef123456"));
+        let plain = format_issue_line(
+            &issue,
+            Some(&widths),
+            false,
+            false,
+            None,
+            Some(false),
+            &short_id_widths,
+        );
+        assert!(plain.contains("Title kanbus-abcd"));
         assert!(plain.contains("open"));
         assert!(plain.contains("P2"));
     }
@@ -379,9 +418,19 @@ mod tests {
             "project_path".to_string(),
             serde_json::Value::String("apps/api".to_string()),
         );
-        let widths = compute_widths(std::slice::from_ref(&issue), false);
+        let short_id_widths =
+            ShortIdWidths::new(["kanbus-aaaaaa111111"], crate::ids::DEFAULT_SHORT_ID_LENGTH);
+        let widths = compute_widths(std::slice::from_ref(&issue), false, &short_id_widths);
 
-        let line = format_issue_line(&issue, Some(&widths), false, false, None, Some(false));
+        let line = format_issue_line(
+            &issue,
+            Some(&widths),
+            false,
+            false,
+            None,
+            Some(false),
+            &short_id_widths,
+        );
         assert!(line.starts_with("apps/api "));
         assert!(line.contains(" - "));
         assert!(line.contains("blocked"));
