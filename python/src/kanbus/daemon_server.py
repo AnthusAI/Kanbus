@@ -18,6 +18,7 @@ from kanbus.daemon_protocol import (
     ResponseEnvelope,
     validate_protocol_compatibility,
 )
+from kanbus.issue_files import ensure_all_issue_files_loaded
 from kanbus.models import IssueData
 from kanbus.project import load_project_directory
 from virtuus.service import Service
@@ -112,6 +113,8 @@ class DaemonCore:
         )
         if not response["ok"]:
             raise RuntimeError(str(response["error"]))
+        issues_directory = load_project_directory(self.state.root) / "issues"
+        ensure_all_issue_files_loaded(issues_directory, response["result"])
         return [IssueData.model_validate(record) for record in response["result"]]
 
 

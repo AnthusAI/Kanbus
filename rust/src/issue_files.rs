@@ -1,6 +1,7 @@
 //! Issue file input/output helpers.
 
 use std::collections::HashSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::daemon_client::{is_daemon_enabled, request_virtuus};
@@ -156,7 +157,55 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
     serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))
 }
 
+/// Fail when a table scan skipped an issue file.
+///
+/// Virtuus skips files it cannot parse, so a corrupt issue would silently
+/// disappear from the board. Every `*.json` file must appear in the scan.
+///
+/// # Arguments
+/// * `issues_directory` - Directory containing issue files.
+/// * `records` - Records returned by the table scan.
+///
+/// # Errors
+/// Returns `KanbusError::Io` naming the first issue file missing from the scan.
+pub fn ensure_all_issue_files_loaded(
+    issues_directory: &Path,
+    records: &[Value],
+) -> Result<(), KanbusError> {
+    if !issues_directory.is_dir() {
+        return Ok(());
+    }
+    let loaded_identifiers: HashSet<String> = records
+        .iter()
+        .filter_map(|record| record.get("id").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect();
+    let mut issue_paths: Vec<PathBuf> = fs::read_dir(issues_directory)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("json"))
+        .collect();
+    issue_paths.sort();
+    for issue_path in issue_paths {
+        let stem = issue_path
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
+        if !loaded_identifiers.contains(stem) {
+            let name = issue_path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or_default();
+            return Err(KanbusError::Io(format!("invalid issue file: {name}")));
+        }
+    }
+    Ok(())
+}
+
 /// Load all canonical issue records from a directory through Virtuus.
+///
+/// # Errors
+/// Returns `KanbusError::Io` when an issue file cannot be loaded.
 pub fn read_issues_from_directory(issues_directory: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let records = if use_service(issues_directory) {
         service_request(issues_directory, json!({"action": "scan"}))?
@@ -166,6 +215,7 @@ pub fn read_issues_from_directory(issues_directory: &Path) -> Result<Vec<IssueDa
     } else {
         issue_table(issues_directory)?.scan()
     };
+    ensure_all_issue_files_loaded(issues_directory, &records)?;
     let mut issues: Vec<IssueData> = records
         .into_iter()
         .map(|record| {

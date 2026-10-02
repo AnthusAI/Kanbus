@@ -120,8 +120,43 @@ def read_issue_from_file(issue_path: Path) -> IssueData:
     return IssueData.model_validate(record)
 
 
+class InvalidIssueFileError(RuntimeError):
+    """Raised when an issue file cannot be loaded as an issue record."""
+
+
+def ensure_all_issue_files_loaded(
+    issues_directory: Path, records: list[dict[str, object]]
+) -> None:
+    """Fail when a table scan skipped an issue file.
+
+    Virtuus skips files it cannot parse, so a corrupt issue would silently
+    disappear from the board. Every ``*.json`` file must appear in the scan.
+
+    :param issues_directory: Directory containing issue files.
+    :type issues_directory: Path
+    :param records: Records returned by the table scan.
+    :type records: list[dict[str, object]]
+    :raises InvalidIssueFileError: When an issue file is missing from the scan.
+    """
+    loaded_identifiers = {
+        str(record["id"])
+        for record in records
+        if isinstance(record, dict) and "id" in record
+    }
+    for issue_path in sorted(issues_directory.glob("*.json")):
+        if issue_path.stem not in loaded_identifiers:
+            raise InvalidIssueFileError(f"invalid issue file: {issue_path.name}")
+
+
 def read_issues_from_directory(issues_directory: Path) -> list[IssueData]:
-    """Load canonical issue files through one Virtuus table scan."""
+    """Load canonical issue files through one Virtuus table scan.
+
+    :param issues_directory: Directory containing issue files.
+    :type issues_directory: Path
+    :return: Issues sorted by identifier.
+    :rtype: list[IssueData]
+    :raises InvalidIssueFileError: When an issue file cannot be loaded.
+    """
     if not issues_directory.is_dir():
         return []
     records = (
@@ -129,6 +164,7 @@ def read_issues_from_directory(issues_directory: Path) -> list[IssueData]:
         if _use_service(issues_directory)
         else _issue_table(issues_directory).scan()
     )
+    ensure_all_issue_files_loaded(issues_directory, records)
     return sorted(
         (IssueData.model_validate(record) for record in records),
         key=lambda issue: issue.identifier,

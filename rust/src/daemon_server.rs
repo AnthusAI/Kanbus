@@ -17,6 +17,7 @@ use crate::daemon_protocol::{
 };
 use crate::error::KanbusError;
 use crate::file_io::load_project_directory;
+use crate::issue_files::ensure_all_issue_files_loaded;
 use crate::models::IssueData;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -309,8 +310,9 @@ fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
         table.load_from_dir(None);
         table
     });
-    table
-        .scan()
+    let records = table.scan();
+    ensure_all_issue_files_loaded(&issues_dir, &records)?;
+    records
         .into_iter()
         .map(|record| {
             serde_json::from_value(record).map_err(|error| KanbusError::Io(error.to_string()))

@@ -253,6 +253,7 @@ Feature: Query and list operations
     And daemon mode is disabled
     When I run "kanbus list"
     Then the command should fail with exit code 1
+    And stderr should contain "invalid issue file: invalid.json"
 
   Scenario: Shared-only listing ignores local issues
     Given a Kanbus project with default configuration
