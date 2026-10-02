@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 import click
 
-from kanbus.ids import format_issue_key
+from kanbus.ids import DEFAULT_SHORT_ID_LENGTH, ShortIdWidths, format_issue_key_with
 from kanbus.models import AgentMetadata, IssueData, ProjectConfiguration
 from kanbus.status_semantics import default_color_for_semantic_category
 from kanbus.comment_summary import get_comment_display_text
@@ -195,7 +195,17 @@ def format_issue_for_display(
 
     labels_text = ", ".join(issue.labels) if issue.labels else "-"
 
-    formatted_identifier = format_issue_key(issue.identifier, project_context)
+    universe = [issue.identifier]
+    if issue.parent and issue.parent != "-":
+        universe.append(issue.parent)
+    universe.extend(dependency.target for dependency in issue.dependencies)
+    if all_issues:
+        universe.extend(other.identifier for other in all_issues)
+    short_id_widths = ShortIdWidths.build(universe, DEFAULT_SHORT_ID_LENGTH)
+
+    formatted_identifier = format_issue_key_with(
+        issue.identifier, project_context, short_id_widths
+    )
 
     right_now_summary = issue.right_now_summary
     if right_now_summary is None or right_now_summary.strip() == "":
@@ -212,7 +222,14 @@ def format_issue_for_display(
         ("Status:", issue.status, status_colors.get(issue.status), False),
         ("Priority:", str(issue.priority), priority_colors.get(issue.priority), False),
         ("Assignee:", issue.assignee or "-", None, issue.assignee is None),
-        ("Parent:", issue.parent or "-", None, issue.parent is None),
+        (
+            "Parent:",
+            format_issue_key_with(issue.parent, project_context, short_id_widths)
+            if issue.parent and issue.parent != "-"
+            else issue.parent or "-",
+            None,
+            issue.parent is None,
+        ),
         ("Labels:", labels_text, None, not bool(issue.labels)),
         ("Right now:", right_now_text, None, right_now_missing),
     ]
@@ -251,13 +268,20 @@ def format_issue_for_display(
     if issue.dependencies:
         lines.append(f"{_dim('Dependencies:', color_output)}")
         for dependency in issue.dependencies:
-            lines.append(f"  {dependency.dependency_type}: {dependency.target}")
+            target_display = format_issue_key_with(
+                dependency.target, project_context, short_id_widths
+            )
+            lines.append(f"  {dependency.dependency_type}: {target_display}")
 
     if issue.comments:
         lines.append(f"{_dim('Comments:', color_output)}")
+        comment_widths = ShortIdWidths.build(
+            [comment.id for comment in issue.comments if comment.id],
+            DEFAULT_SHORT_ID_LENGTH,
+        )
         for idx, comment in enumerate(issue.comments):
             author = comment.author or "unknown"
-            prefix = (comment.id or "")[:6]
+            prefix = (comment.id or "")[: comment_widths.width_for(comment.id or "")]
             comment_agent = getattr(comment, "agent", None)
             text = (
                 comments_texts[idx]

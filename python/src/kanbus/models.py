@@ -769,6 +769,7 @@ class ProjectConfiguration(BaseModel):
     sort_order: Dict[str, Any] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
+    short_id_length: Optional[int] = None
     wiki_directory: Optional[str] = None
     ai: Optional[AiConfiguration] = None
     right_now: RightNowConfiguration = Field(default_factory=RightNowConfiguration)

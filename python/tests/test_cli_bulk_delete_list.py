@@ -263,7 +263,7 @@ def test_list_default_returns_all_issues(
     monkeypatch.setattr(
         cli,
         "format_issue_line",
-        lambda issue, porcelain, widths, project_context, configuration: issue.identifier,
+        lambda issue, porcelain, widths, project_context, configuration, short_id_widths=None: issue.identifier,
     )
     monkeypatch.setattr(cli, "compute_widths", lambda *_a, **_k: {"id": 8})
 
@@ -284,13 +284,13 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(
         cli,
         "compute_widths",
-        lambda issues, project_context: widths_calls.append(project_context)
+        lambda issues, project_context, short_id_widths=None: widths_calls.append(project_context)
         or {"id": 8},
     )
     monkeypatch.setattr(
         cli,
         "format_issue_line",
-        lambda issue, porcelain, widths, project_context, configuration: (
+        lambda issue, porcelain, widths, project_context, configuration, short_id_widths=None: (
             f"{issue.identifier}:{porcelain}:{project_context}:{configuration is not None}"
         ),
     )
@@ -366,7 +366,7 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(
         cli,
         "format_issue_line",
-        lambda issue, porcelain, widths, project_context, configuration: f"{issue.identifier}:{porcelain}:{project_context}:{configuration}",
+        lambda issue, porcelain, widths, project_context, configuration, short_id_widths=None: f"{issue.identifier}:{porcelain}:{project_context}:{configuration}",
     )
 
     result_beads = _run(["--beads", "list", "--porcelain", "--limit", "0"])
@@ -400,7 +400,7 @@ def test_list_all_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
     monkeypatch.setattr(
         cli,
         "format_issue_line",
-        lambda issue, porcelain, widths, project_context, configuration: issue.identifier,
+        lambda issue, porcelain, widths, project_context, configuration, short_id_widths=None: issue.identifier,
     )
     result_all = _run(["list", "--all"])
     assert result_all.exit_code == 0

@@ -10,7 +10,6 @@ from typing import Any, Dict, Optional
 import click
 from pydantic import BaseModel, ConfigDict
 
-from kanbus.ids import format_issue_key
 from kanbus.models import AgentMetadata
 
 PLATFORM_PATTERN = re.compile(r"^[a-z0-9_-]{1,64}$")
@@ -298,7 +297,8 @@ def format_agent_provenance_warning(
     """
     missing = missing_agent_provenance_fields(agent)
     missing_text = ", ".join(missing)
-    issue_key = format_issue_key(issue_identifier, False)
+    # Stored-text stability: the follow-up command embeds the full ID.
+    issue_key = issue_identifier
     if comment_id:
         command = f"kbs comment update {issue_key} {comment_id}"
     else:

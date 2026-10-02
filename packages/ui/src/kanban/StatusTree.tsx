@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { formatIssueId } from "./format-issue-id";
+import { formatIssueId } from "./short-id";
+import { useDisplayIdWidths } from "./display-id-context";
 import { getTypeIcon } from "./issue-icons";
 import {
   buildIssueColorStyle,
@@ -138,6 +139,7 @@ function StatusTreeRow({
   priorityLookup
 }: StatusTreeRowProps) {
   const { issue, children } = node;
+  const displayWidths = useDisplayIdWidths();
   const hasChildren = children.length > 0;
   const expanded = expandedOverrides[issue.id] ?? defaultExpanded;
   const summaryText = resolveRightNowSummary(issue);
@@ -157,7 +159,7 @@ function StatusTreeRow({
     : null;
   const statusColorName =
     config && statusKey ? resolveStatusBadgeColorName(config, statusKey) : null;
-  const formattedIssueId = formatIssueId(issue.id);
+  const formattedIssueId = formatIssueId(issue.id, displayWidths);
 
   const handleToggle = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {

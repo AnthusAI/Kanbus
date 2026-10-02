@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
 import { Board, TaskDetailPanel, AnimatedSelector, getStatusColumnsForTypeFilter, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
+import { DisplayIdWidthsContext, shortIdMatches as sharedShortIdMatches } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -40,6 +41,7 @@ import { installConsoleTelemetry } from "./utils/console-telemetry";
 import { matchesSearchQuery } from "./utils/issue-search";
 import type { Issue, IssuesSnapshot, ProjectConfig } from "./types/issues";
 import { useAppearance } from "./hooks/useAppearance";
+import { useDisplayIdWidths } from "./hooks/useDisplayIdWidths";
 
 type ViewMode = "initiatives" | "epics" | "issues";
 type PanelMode = "board" | "metrics" | "wiki" | "now";
@@ -426,18 +428,11 @@ function shortIdMatches(
   projectKey: string,
   fullId: string
 ): boolean {
-  if (!candidate.startsWith(`${projectKey}-`)) {
-    return false;
-  }
-  const prefix = candidate.slice(projectKey.length + 1);
-  if (prefix.length === 0 || prefix.length > 6) {
-    return false;
-  }
-  if (!fullId.startsWith(`${projectKey}-`)) {
-    return false;
-  }
-  const suffix = fullId.slice(projectKey.length + 1);
-  return suffix.startsWith(prefix);
+  // Key-scoped wrapper around the shared hyphen-insensitive matcher; the
+  // shared matcher already enforces project-key equality when both sides
+  // carry a key, so no explicit cap on candidate length is needed.
+  void projectKey;
+  return sharedShortIdMatches(candidate, fullId);
 }
 
 function resolveIssueByIdentifier(
@@ -2012,7 +2007,10 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [showLoadingIndicator]);
 
+  const displayIdWidths = useDisplayIdWidths(filteredIssues, config);
+
   return (
+    <DisplayIdWidthsContext.Provider value={displayIdWidths}>
     <AppShell>
       <div className="flex items-center gap-2">
         <div className="flex-none">
@@ -2384,5 +2382,6 @@ export default function App() {
         </div>
       </div>
     </AppShell>
+    </DisplayIdWidthsContext.Provider>
   );
 }

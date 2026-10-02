@@ -21,10 +21,26 @@ from kanbus.project import (
     get_configuration_path,
     resolve_labeled_projects,
 )
+from kanbus.ambiguity import render_ambiguous_error
 
 
 class IssueLookupError(RuntimeError):
     """Raised when an issue lookup fails."""
+
+    def __init__(self, message: str, *, candidate: str | None = None, matches: list[AmbiguousCandidate] | None = None) -> None:
+        super().__init__(message)
+        self.candidate = candidate
+        self.matches = matches or []
+
+
+@dataclass(frozen=True)
+class AmbiguousCandidate:
+    """One candidate issue in an ambiguous-identifier error."""
+
+    identifier: str
+    title: str
+    issue_type: str
+    status: str
 
 
 @dataclass(frozen=True)
@@ -132,8 +148,29 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
             issue=issue, issue_path=issue_path, project_dir=project_dir
         )
 
-    ids = ", ".join(full_id for full_id, _, _ in all_matches)
-    raise IssueLookupError(f"ambiguous identifier, matches: {ids}")
+    candidates: list[AmbiguousCandidate] = []
+    for full_id, issue_path, _ in all_matches:
+        try:
+            issue = read_issue_from_file(issue_path)
+            candidates.append(
+                AmbiguousCandidate(
+                    identifier=issue.identifier,
+                    title=issue.title,
+                    issue_type=issue.issue_type,
+                    status=issue.status,
+                )
+            )
+        except Exception:
+            candidates.append(
+                AmbiguousCandidate(
+                    identifier=full_id, title="", issue_type="", status=""
+                )
+            )
+    raise IssueLookupError(
+        render_ambiguous_error(identifier, candidates),
+        candidate=identifier,
+        matches=candidates,
+    )
 
 
 def _search_directories(project_dir: Path) -> list[Path]:
@@ -177,7 +214,27 @@ def resolve_issue_identifier(
         return matches[0]
     if not matches:
         raise IssueLookupError("not found")
-    raise IssueLookupError("ambiguous short id")
+    candidates: list[AmbiguousCandidate] = []
+    for full_id in matches:
+        try:
+            issue = read_issue_from_file(issues_dir / f"{full_id}.json")
+            candidates.append(
+                AmbiguousCandidate(
+                    identifier=issue.identifier,
+                    title=issue.title,
+                    issue_type=issue.issue_type,
+                    status=issue.status,
+                )
+            )
+        except Exception:
+            candidates.append(
+                AmbiguousCandidate(identifier=full_id, title="", issue_type="", status="")
+            )
+    raise IssueLookupError(
+        render_ambiguous_error(candidate, candidates),
+        candidate=candidate,
+        matches=candidates,
+    )
 
 
 def _find_matching_issues(issues_dir: Path, identifier: str) -> list[tuple[str, Path]]:
