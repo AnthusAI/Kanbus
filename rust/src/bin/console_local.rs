@@ -94,9 +94,18 @@ struct IssueEventsResponse {
     next_before: Option<String>,
 }
 
+/// Read and write issue files directly instead of through the resident daemon.
+///
+/// The daemon is started by re-running the current executable with a `daemon`
+/// subcommand, which only `kbs` provides, so the console server always
+/// bypasses it.
+fn disable_resident_daemon() {
+    std::env::set_var("KANBUS_NO_DAEMON", "1");
+}
+
 #[tokio::main]
 async fn main() {
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    disable_resident_daemon();
     let trace = |msg: &str| {
         let _ = std::io::stderr().flush();
         eprintln!("[kbsc] {}", msg);
@@ -111,9 +120,6 @@ async fn main() {
             });
     };
     trace("entry");
-    if std::env::var_os("KANBUS_NO_DAEMON").is_none() {
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
-    }
     let repo_root = resolve_repo_root();
     trace(&format!("repo_root: {}", repo_root.display()));
     let root_override = std::env::var("CONSOLE_ROOT").ok().map(PathBuf::from);
@@ -2213,6 +2219,7 @@ mod tests {
     }
 
     fn test_state(base_root: PathBuf, assets_root: PathBuf, multi_tenant: bool) -> AppState {
+        disable_resident_daemon();
         let (telemetry_tx, _) = broadcast::channel(8);
         let (notification_tx, _) = broadcast::channel(8);
         AppState {

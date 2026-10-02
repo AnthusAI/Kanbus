@@ -20,7 +20,17 @@ type ResponseType = Response<Body>;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    disable_resident_daemon();
     run(service_fn(handler)).await
+}
+
+/// Read and write issue files directly instead of through the resident daemon.
+///
+/// The daemon is started by re-running the current executable with a `daemon`
+/// subcommand, which only `kbs` provides. Console servers such as `kbsc` and
+/// this Lambda handler therefore always bypass it.
+fn disable_resident_daemon() {
+    std::env::set_var("KANBUS_NO_DAEMON", "1");
 }
 
 async fn handler(request: Request) -> Result<ResponseType, Error> {
@@ -516,6 +526,7 @@ mod tests {
     use std::sync::{Mutex, OnceLock};
 
     fn temp_store_with_issues(issue_ids: &[&str]) -> (tempfile::TempDir, FileStore) {
+        disable_resident_daemon();
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().to_path_buf();
         std::fs::write(
