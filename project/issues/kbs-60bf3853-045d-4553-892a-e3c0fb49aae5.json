@@ -36,10 +36,34 @@
         "model": "GLM 5.3 Flash",
         "name": "Cloud Agent"
       }
+    },
+    {
+      "id": "db4c0003-3282-4263-9fd1-57c1e25c27d1",
+      "author": "home",
+      "text": "Implementation complete on branch cursor/cli-empty-status-columns-4735, draft PR #387 into develop. Spec-first: 4 new Gherkin scenarios in features/queries/queries.feature, confirmed failing for the right reason, then implemented in both Python (workflows.py status_keys_for_type_filter, issue_line.py format_empty_status_lines, cli.py list_command) and Rust (workflows.rs, issue_line.rs with unit test, cli.rs List arm). Docs: docs/CLI_REFERENCE.md kanbus list section. Verified: behave (CI tags) and cargo cucumber pass all 4 new scenarios in both suites; black/ruff/cargo fmt/clippy/spec parity pass; BotSpy read-only check shows 'Backlog: (empty)' and 'Blocked: (empty)' after rows. Issue stays in_progress until merge. Blocker note: develop CI is red from pre-existing Virtuus-storage fallout (ruff unused import in issue_listing.py, fixed here; console_lambda bin tests routing writes through the Virtuus daemon in bin-test builds), so PR CI cannot be green until that is resolved; PR remains draft.",
+      "created_at": "2026-10-02T21:21:36.052187Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "GLM 5.3 Flash",
+        "name": "Cloud Agent"
+      }
+    },
+    {
+      "id": "a956a066-12ba-45eb-bff2-75bdc173ea78",
+      "author": "home",
+      "text": "Implementation complete; PR blocked by pre-existing develop CI fallout (not this change).\n\n**PR**: AnthusAI/Kanbus#387 (`cursor/cli-empty-status-columns-4735` → `develop`, draft). Branch is current with `origin/develop` (7e2ed087).\n\n**Delivered**: 4 Gherkin scenarios in `features/queries/queries.feature` (empty-status lines, type filter, porcelain omission, empty board), Python + Rust implementations with identical strings, `docs/CLI_REFERENCE.md` update. All 4 new scenarios pass in local behave AND in the PR's CI python job. Gates pass locally: black, ruff, cargo fmt/clippy, spec parity, pytest (one pre-existing flake proven env-drift), behave/cucumber new scenarios green.\n\n**Blocker — develop CI is red from #377 (Virtuus-backed storage), confirmed on a clean `origin/develop` worktree/venv**:\n\n1. `CI / rust`: 3 `console_lambda` bin tests panic `Virtuus daemon request failed: ENOENT` — `use_service` (`rust/src/issue_files.rs:72`) bypasses the daemon only under `cfg!(test)`, which doesn't apply to bin-test builds; `cargo test` aborts there.\n2. `CI / python`: 7 behave failures identical on clean develop — daemon connection refused/spawn ENOENT in `index/daemon_config_failover.feature`, `index/daemon_error_handling.feature`, mock-AI compaction scenarios, and `queries.feature` \"List fails when issue files are invalid\" (Virtuus scans use `validation=\"warn\"` and skip invalid JSON instead of raising).\n3. `CI / python-install (windows-latest)`: `AttributeError: socketserver.ThreadingUnixStreamServer` — the pinned `virtuus` dependency imports the Unix-only `UnixService` class unconditionally (`virtuus/__init__.py` → `virtuus/service.py:123`); since #377 Kanbus imports `virtuus` at CLI startup, so every `kanbus` invocation dies on Windows. Upstream packaging bug.\n4. `CI / python-console-parity`: same daemon fallout.\n\nPer the process additions (stop on unresolvable CI failure on develop): not merging, PR stays draft, this issue stays in_progress. The fallout belongs to the Virtuus-store feature (#377) — fixing it means reworking its daemon integration/test environment and risks colliding with that workstream. Recommended next step: a dedicated fallout-fix PR into develop (candidate fixes: set `KANBUS_NO_DAEMON=1` in `console_lambda` bin tests; lazy-import `virtuus` in `python/src/kanbus/issue_files.py`; decide intended behavior for invalid-JSON handling with `validation=\"warn\"`; start a daemon fixture or set the bypass in behave steps that expect daemon errors). Once develop is green, #387 needs only a rebase/re-run to merge, then the normal semantic-release flow on `main`.",
+      "created_at": "2026-10-02T21:47:28.145532Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "GLM 5.3 Flash",
+        "name": "Cloud Agent"
+      }
     }
   ],
   "created_at": "2026-10-02T19:47:31.285969Z",
-  "updated_at": "2026-10-02T20:16:55.090150Z",
+  "updated_at": "2026-10-02T21:47:37.087997Z",
   "closed_at": null,
   "agent": {
     "platform": "cursor",
