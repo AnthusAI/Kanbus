@@ -155,8 +155,7 @@ def _handle_request_via_handler(context: object, payload: bytes) -> bytes:
 
 
 def _set_daemon_env(context: object, value: str) -> None:
-    if not hasattr(context, "original_daemon_env"):
-        context.original_daemon_env = os.environ.get("KANBUS_NO_DAEMON")
+    context.daemon_env_changed = True
     os.environ["KANBUS_NO_DAEMON"] = value
 
 
