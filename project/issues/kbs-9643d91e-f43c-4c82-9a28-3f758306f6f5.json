@@ -1,0 +1,25 @@
+{
+  "id": "kbs-9643d91e-f43c-4c82-9a28-3f758306f6f5",
+  "title": "Specs: Gherkin + property tests + collision fixtures for dynamic IDs",
+  "description": "Gherkin scenarios are source of truth; both Rust and Python CLIs pass the same specs. Replace exact 6-char fixtures (features/issues/issue_key_representation.feature, test_ids_text_editor_templates.py, id_format_steps, issue_key_steps, compatibility_steps, discovery_steps). Property tests: injectivity, minimality, determinism. Fixtures: 4-char collision, local-vs-shared, dotted sub-ID, widened past 8 (hyphen case), beads IDs, numeric IDs, unicode custom IDs. Shared JSON fixtures for Rust/Py/TS.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-429fa3fd-cde5-44ee-811e-79f43b3730a4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-02T20:34:15.670372Z",
+  "updated_at": "2026-10-02T20:34:15.691633Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

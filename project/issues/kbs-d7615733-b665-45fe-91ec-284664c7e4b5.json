@@ -1,0 +1,25 @@
+{
+  "id": "kbs-d7615733-b665-45fe-91ec-284664c7e4b5",
+  "title": "CLI: route all formatter call sites through the list formatter",
+  "description": "Update every 6-char site: cli.rs/cli.py list+show+ambiguous errors, issue_line, issue_display (incl. comment IDs at issue_display.rs:249 / issue_display.py:260), issue_comment.rs:92 + issue_comment.py:89 + beads_write.rs:204 comment-prefix errors, jira_sync.py:128 and snyk_sync.py:228/576/612 hand slicing, agent_metadata.rs:260 + agent_metadata.py:301 provenance warning (full ID per stability policy). Update issue_creation.rs:246 doc comment.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-429fa3fd-cde5-44ee-811e-79f43b3730a4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-02T20:33:52.710766Z",
+  "updated_at": "2026-10-02T20:33:52.732512Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
