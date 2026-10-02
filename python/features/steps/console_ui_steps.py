@@ -584,6 +584,14 @@ def then_tab_selected(context: object, tab: str) -> None:
         raise AssertionError(f"expected tab {tab} but found {state.selected_tab}")
 
 
+@then("the console board should be visible")
+def then_console_board_visible(context: object) -> None:
+    """Verify the console rendered a board view after loading."""
+    state = _require_console_state(context)
+    if not state.selected_tab:
+        raise AssertionError("expected the console to render a board view")
+
+
 @then("no view tab should be selected")
 def then_no_tab_selected(context: object) -> None:
     """Verify no view tab is selected."""
