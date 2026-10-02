@@ -88,13 +88,11 @@ fn issue_files_roundtrip_and_listing() {
 }
 
 #[test]
-fn issue_files_errors_for_missing_or_bad_json() {
+fn issue_files_lists_nothing_for_missing_directory_and_errors_for_bad_json() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let missing = tmp.path().join("missing");
-    match list_issue_identifiers(&missing) {
-        Err(KanbusError::Io(_)) => {}
-        other => panic!("expected io error, got {other:?}"),
-    }
+    let identifiers = list_issue_identifiers(&missing).expect("missing directory lists");
+    assert!(identifiers.is_empty());
 
     let bad = tmp.path().join("bad.json");
     fs::write(&bad, "{not json").expect("write bad json");
