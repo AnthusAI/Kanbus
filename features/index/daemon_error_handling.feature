@@ -175,19 +175,19 @@ Feature: Daemon error handling
     When I request a daemon index list
     Then the daemon request should fail
 
-  Scenario: Daemon server returns internal error when issues directory is missing
+  Scenario: Daemon server returns an empty list when issues directory is missing
     Given a Kanbus project with default configuration
     And the issues directory is missing
     When a daemon index list request is handled directly
-    Then the daemon request should fail
+    Then the daemon index list should be empty
 
-  Scenario: Daemon list returns internal error when issues directory is missing
+  Scenario: Daemon list returns an empty list when issues directory is missing
     Given a Kanbus project with default configuration
     And daemon mode is enabled
     And the daemon is running with a socket
     And the issues directory is missing
     When I request a daemon index list
-    Then the daemon request should fail
+    Then the daemon index list should be empty
 
   Scenario: Daemon list returns empty when response omits issues
     Given a Kanbus project with default configuration
