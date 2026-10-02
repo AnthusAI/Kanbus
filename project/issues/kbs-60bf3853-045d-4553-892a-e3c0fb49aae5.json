@@ -1,0 +1,52 @@
+{
+  "id": "kbs-60bf3853-045d-4553-892a-e3c0fb49aae5",
+  "title": "CLI list hides empty status columns; should list all columns even when empty",
+  "description": "The kbs CLI list/board text output only shows statuses (columns) that currently have issues in them. Empty columns such as Backlog, In Progress, or Blocked are omitted entirely. Expected: list every configured column that applies at the current filter level, even when it is empty (with a zero count or an empty marker). Columns that don't apply to the current type filter can stay hidden, matching the web console.\n\nImpact: on 2026-10-02, a BotSpy board where every issue was either open or closed looked like it only had open and closed columns. That made the board configuration look broken, when .kanbus.yml correctly defined Backlog, Discovery, In Progress, Blocked and Done.\n\nScope: CLI list/text output only. Do not change the web console, which already shows empty columns.\n\nRepro: in a project whose issues are all open or closed (e.g. ~/Projects/BotSpy), run the kbs list/board view and note that only those columns appear.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "cli"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f6ee2451-c675-4689-9051-ee308f85baf2",
+      "author": "home",
+      "text": "Implementation plan: show all configured status columns in `kbs list` even when empty\n\nRoot cause (verified against kbs 0.32.0, this checkout, origin/main and origin/develop): no `kbs` command renders a status-column text board. `kbs list` is a flat table (type | id | parent | status | priority | title); only statuses present in the result set ever appear, and even the status column width is derived from present statuses (python/src/kanbus/issue_line.py compute_widths, rust/src/issue_line.rs). Nothing consults the configured statuses when rendering, so on a board like BotSpy where all issues are open/closed, the empty configured columns (Backlog, In Progress, Blocked) never appear. The web console already does the right thing (packages/ui/src/kanban/workflow-columns.ts getStatusColumnsForTypeFilter) and is out of scope.\n\nApproved design: append a trailing status-column summary line to `kbs list` human output, after the issue lines and before AFTER lifecycle hooks, no blank separator, identical string in both implementations:\n\n  Status columns: Backlog (0), Discovery (38), In Progress (1), Blocked (0), Done (74)\n\n- Display names from config, in config order.\n- Counts = issues in the displayed (post-filter, post-limit) result set per status key; zero counts are shown explicitly.\n- Column set: no `--type` filter -> all configured statuses (parity with console \"all\" filter); `--type T` -> statuses of T's workflow via get_workflow_for_issue_type (falls back to the default workflow, same as the TypeScript), intersected with configured statuses, in config order.\n- Omitted when: `--porcelain` (machine-parse stability) or beads mode / configuration is None.\n- Empty board still prints the summary with all columns at (0).\n- Aliases (kbs issues/epics/tasks/bugs/stories) route through the same list path automatically.\n\nSteps\n\n1. Branch: `cursor/cli-empty-status-columns-4735` off `origin/develop`, in the primary checkout. Do not touch the unrelated untracked files in project/issues/ or the modified project/events/llm_usage.jsonl.\n\n2. Spec first — features/queries/queries.feature, ~4 new scenarios using only existing step definitions:\n   a. Default config, 2 issues (1 open, 1 closed) -> stdout contains \"Status columns:\", \"Backlog (0)\", \"Discovery (1)\", \"In Progress (0)\", \"Blocked (0)\", \"Done (1)\".\n   b. `--type epic` (epic workflow = open/in_progress/closed) -> contains \"Discovery (\" and does not contain \"Backlog (0)\" or \"Blocked (0)\".\n   c. `--porcelain` -> does not contain \"Status columns:\".\n   d. Empty board -> still shows every column with (0).\n   Confirm the new scenarios fail for the right reason before implementing.\n\n3. Python implementation:\n   - python/src/kanbus/workflows.py: new `status_keys_for_type_filter(configuration, issue_type: Optional[str]) -> List[str]` reusing get_workflow_for_issue_type and collect_workflow_statuses.\n   - python/src/kanbus/issue_line.py: new `format_status_columns_summary(issues, configuration, issue_type) -> str` (Sphinx docstring).\n   - python/src/kanbus/cli.py list_command: echo the summary after the issue-line loop, before AFTER hooks; condition: not porcelain and configuration is not None.\n\n4. Rust implementation (both implementations must pass the same spec):\n   - rust/src/workflows.rs: new `status_keys_for_type_filter` with rustdoc; get_workflow_for_issue_type returns Result but config validation guarantees a default workflow (rust/src/config_loader.rs).\n   - rust/src/issue_line.rs: new `format_status_columns_summary`.\n   - rust/src/cli.rs Commands::List arm: push the summary line when !porcelain && configuration.is_some().\n\n5. Quality gates:\n   - cd python && behave\n   - cd rust && cargo test --test cucumber\n   - black --check python/, ruff check python/, cargo fmt --check, cargo clippy -- -D warnings\n   - python tools/check_spec_parity.py; coverage ratchet tools/coverage_ratchet.py if the gap matters.\n   - BotSpy read-only sanity: cargo build --manifest-path ~/Projects/Kanbus/rust/Cargo.toml, then run rust/target/debug/kbs list from ~/Projects/BotSpy; capture before/after output for the report.\n\n6. Board: commit project/issues/kbs-60bf3853-045d-4553-892a-e3c0fb49aae5.json with a targeted `git add` (never `kbs commit`, which would sweep unrelated untracked issue files). Close kbs-60bf38 with a milestone comment when the definition of done is met.\n\n7. PR: draft PR into `develop` via the ManagePullRequest tool (not the gh CLI). Final report must include root cause, files changed, before/after BotSpy CLI output, test results, and the PR link.\n\nOut of scope: web console (already correct), kbs ready/now/standup/stats outputs, any new issues or sub-issues (none will be created; the plan lives in this comment), BotSpy modifications, BotSpy's stale `--long` doc reference.\n",
+      "created_at": "2026-10-02T20:14:27.068689Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "GLM 5.3",
+        "name": "Cloud Agent"
+      }
+    },
+    {
+      "id": "17dede83-7694-43ad-9f77-ea107e0517d3",
+      "author": "home",
+      "text": "Design change (per Ryan), superseding the summary-line design in comment f6ee24: do NOT print a single 'Status columns: ...' summary line. Instead, kbs list human output prints one line per configured status that has zero issues in the result, formatted '<Display Name>: (empty)' (e.g. 'Backlog: (empty)', 'Blocked: (empty)'), placed after the populated rows in config order. Statuses that have rows get no extra line. Everything else from f6ee24 stands: workflow-aware column set when --type is used, omitted for --porcelain and beads mode (configuration None), identical output strings in the Rust and Python implementations, spec-first with the same Gherkin scenarios passing in both.",
+      "created_at": "2026-10-02T20:16:55.090119Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "cursor",
+        "model": "GLM 5.3 Flash",
+        "name": "Cloud Agent"
+      }
+    }
+  ],
+  "created_at": "2026-10-02T19:47:31.285969Z",
+  "updated_at": "2026-10-02T20:16:55.090150Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": "The CLI still hides configured columns that have no issues.",
+  "right_now_updated_at": "2026-10-02T19:47:32.527469Z",
+  "custom": {}
+}
