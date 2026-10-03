@@ -1,12 +1,37 @@
 from __future__ import annotations
 
+import socket as socket_module
+import threading
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
 from kanbus import daemon_client
 from kanbus.daemon_protocol import ErrorEnvelope, ResponseEnvelope
+
+
+def _start_one_shot_server(socket_path: Path, reply: bytes | None) -> None:
+    server = socket_module.socket(socket_module.AF_UNIX, socket_module.SOCK_STREAM)
+    socket_path.unlink(missing_ok=True)
+    server.bind(str(socket_path))
+    server.listen(1)
+
+    def serve() -> None:
+        try:
+            connection, _ = server.accept()
+            with connection:
+                connection.recv(65536)
+                if reply is not None:
+                    connection.sendall(reply)
+        except OSError:
+            pass
+        finally:
+            server.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
 
 
 def ok_response(request_id: str, result: dict | None = None) -> ResponseEnvelope:
@@ -356,3 +381,71 @@ def test_request_with_recovery_raises_non_connection_error_during_retry(
     monkeypatch.setattr(daemon_client.time, "sleep", lambda *_a: None)
     with pytest.raises(daemon_client.DaemonClientError, match="empty daemon response"):
         daemon_client._request_with_recovery(socket_path, request, tmp_path)
+
+
+def test_send_virtuus_request_empty_and_error_and_result_responses() -> None:
+    socket_path = Path("/tmp") / f"kb-virtuus-{uuid4().hex[:8]}.sock"
+    request = {"action": "ping"}
+
+    _start_one_shot_server(socket_path, None)
+    with pytest.raises(daemon_client.DaemonClientError, match="empty daemon response"):
+        daemon_client._send_virtuus_request(socket_path, request)
+
+    _start_one_shot_server(socket_path, b'{"ok": false, "error": "boom"}\n')
+    with pytest.raises(daemon_client.DaemonClientError, match="boom"):
+        daemon_client._send_virtuus_request(socket_path, request)
+
+    _start_one_shot_server(socket_path, b'{"ok": true, "result": {"handle": "h1"}}\n')
+    assert daemon_client._send_virtuus_request(socket_path, request) == {"handle": "h1"}
+    socket_path.unlink(missing_ok=True)
+
+
+def test_request_virtuus_disabled_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KANBUS_NO_DAEMON", "1")
+    with pytest.raises(daemon_client.DaemonClientError, match="daemon disabled"):
+        daemon_client.request_virtuus(Path("/tmp/kanbus-root"), {"action": "ping"})
+
+
+def test_ensure_daemon_socket_spawn_failure_marks_root_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    socket_path = root / "sock"
+    daemon_client.reset_daemon_unavailable_roots_for_testing()
+
+    def raising_popen(*_args: object, **_kwargs: object) -> None:
+        raise OSError("exec failed")
+
+    monkeypatch.setattr(daemon_client.subprocess, "Popen", raising_popen)
+    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    with pytest.raises(daemon_client.DaemonClientError, match="daemon spawn failed"):
+        daemon_client.ensure_daemon_socket_best_effort(root, socket_path)
+    assert daemon_client.is_daemon_unavailable(root) is True
+    daemon_client.reset_daemon_unavailable_roots_for_testing()
+
+
+def test_ensure_daemon_socket_probe_failure_then_deadline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path
+    socket_path = root / "late.sock"
+    daemon_client.reset_daemon_unavailable_roots_for_testing()
+
+    def fake_popen(*_args: object, **_kwargs: object) -> SimpleNamespace:
+        timer = threading.Timer(
+            0.02, lambda: socket_path.write_text("", encoding="utf-8")
+        )
+        timer.daemon = True
+        timer.start()
+        return SimpleNamespace(pid=1)
+
+    monkeypatch.setattr(daemon_client.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(daemon_client, "DAEMON_SOCKET_WAIT_SECONDS", 0.15)
+    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    with pytest.raises(
+        daemon_client.DaemonClientError, match="daemon socket did not become ready"
+    ):
+        daemon_client.ensure_daemon_socket_best_effort(root, socket_path)
+    assert daemon_client.is_daemon_unavailable(root) is True
+    socket_path.unlink(missing_ok=True)
+    daemon_client.reset_daemon_unavailable_roots_for_testing()
