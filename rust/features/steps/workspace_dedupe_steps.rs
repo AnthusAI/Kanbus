@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use chrono::{DateTime, TimeZone, Utc};
-use cucumber::given;
+use cucumber::{given, then};
 
 use kanbus::config::default_project_configuration;
 use kanbus::ids::format_issue_key;
@@ -13,7 +13,7 @@ use crate::step_definitions::initialization_steps::KanbusWorld;
 
 const DEDUP_IDENTIFIER: &str = "kanbus-dedup";
 const DEDUP_TITLE: &str = "Deduped work";
-const DEDUP_EDITED_TITLE: &str = "Deduped work (edited in worktree)";
+const DEDUP_EDITED_TITLE: &str = "Worktree edited copy";
 const TIE_IDENTIFIER: &str = "kanbus-tie";
 const TIE_ALPHA_TITLE: &str = "Tie copy alpha";
 const TIE_ZETA_TITLE: &str = "Tie copy zeta";
@@ -77,7 +77,13 @@ fn write_issue(project_dir: &Path, issue: &IssueData) {
 
 fn read_issue(project_dir: &Path, identifier: &str) -> IssueData {
     let issue_path = project_dir.join("issues").join(format!("{identifier}.json"));
-    let contents = fs::read_to_string(&issue_path).expect("read issue file");
+    let contents = fs::read_to_string(&issue_path).unwrap_or_else(|error| {
+        panic!(
+            "read issue file {}: {}",
+            issue_path.display(),
+            error
+        )
+    });
     serde_json::from_str(&contents).expect("parse issue file")
 }
 
@@ -143,6 +149,7 @@ fn given_workspace_repo_with_two_worktrees(world: &mut KanbusWorld) {
     add_worktree(&workspace, &repo, "repo-wt1");
     add_worktree(&workspace, &repo, "repo-wt2");
     world.working_directory = Some(workspace);
+    world.dedupe_issue_identifier = Some(DEDUP_IDENTIFIER.to_string());
 }
 
 fn create_repo(workspace: &Path, name: &str) -> PathBuf {
@@ -159,7 +166,7 @@ fn given_worktree_copy_changed_most_recently(world: &mut KanbusWorld) {
         .as_ref()
         .expect("tempdir")
         .path()
-        .to_path_buf();
+        .join("workspace");
     let worktree = workspace.join("repo-wt2");
     let issue = read_issue(&worktree.join("project"), DEDUP_IDENTIFIER);
     let edited = IssueData {
@@ -207,6 +214,7 @@ fn given_workspace_tied_copies(world: &mut KanbusWorld) {
     };
     write_issue(&worktree.join("project"), &tied);
     world.working_directory = Some(workspace);
+    world.dedupe_issue_identifier = Some(TIE_IDENTIFIER.to_string());
 }
 
 #[given("a single Kanbus project with one issue and no duplicate copies")]
@@ -222,12 +230,17 @@ fn given_single_project_no_duplicates(world: &mut KanbusWorld) {
     write_default_config(&repo);
     world.temp_dir = Some(temp_dir);
     world.working_directory = Some(repo);
+    world.dedupe_issue_identifier = Some(DEDUP_IDENTIFIER.to_string());
 }
 
 #[then("the issue appears exactly once")]
 fn then_issue_appears_exactly_once(world: &mut KanbusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
-    let key = format_issue_key(DEDUP_IDENTIFIER, false);
+    let identifier = world
+        .dedupe_issue_identifier
+        .as_deref()
+        .expect("dedupe issue identifier");
+    let key = format_issue_key(identifier, false);
     assert_eq!(
         stdout.matches(key.as_str()).count(),
         1,
@@ -285,11 +298,13 @@ fn then_single_project_listing_shows_issue_once(world: &mut KanbusWorld) {
 #[then("no issue identity appears more than once")]
 fn then_no_identity_appears_more_than_once(world: &mut KanbusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
-    for identifier in [DEDUP_IDENTIFIER] {
-        let key = format_issue_key(identifier, false);
-        assert!(
-            stdout.matches(key.as_str()).count() <= 1,
-            "identity {key} duplicated: {stdout}"
-        );
-    }
+    let identifier = world
+        .dedupe_issue_identifier
+        .as_deref()
+        .expect("dedupe issue identifier");
+    let key = format_issue_key(identifier, false);
+    assert!(
+        stdout.matches(key.as_str()).count() <= 1,
+        "identity {key} duplicated: {stdout}"
+    );
 }

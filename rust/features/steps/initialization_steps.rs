@@ -28,6 +28,7 @@ use crate::step_definitions::virtual_project_steps::VirtualProjectState;
 pub struct KanbusWorld {
     pub temp_dir: Option<TempDir>,
     pub working_directory: Option<PathBuf>,
+    pub dedupe_issue_identifier: Option<String>,
     pub exit_code: Option<i32>,
     pub stdout: Option<String>,
     pub stderr: Option<String>,
