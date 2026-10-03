@@ -1,0 +1,25 @@
+{
+  "id": "kbs-47e0e352-20ff-446f-bdbd-d8e39a5c424d",
+  "title": "Docs: dynamic short IDs in CLI_REFERENCE, CONFIGURATION, CONTRIBUTING_AGENT, WIKI_GUIDE",
+  "description": "Document short_id_length, dynamic display, ambiguity exit code 3 and agent retry contract in CONTRIBUTING_AGENT.md; fix issue.key doc (CONTRIBUTING_AGENT.md:392) to note story-directory paths use full IDs; update CLI_REFERENCE.md samples and CONFIGURATION.md.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-429fa3fd-cde5-44ee-811e-79f43b3730a4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-02T20:34:16.224143Z",
+  "updated_at": "2026-10-03T00:14:54.057873Z",
+  "closed_at": "2026-10-03T00:14:54.038006Z",
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

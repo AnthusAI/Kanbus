@@ -1,0 +1,25 @@
+{
+  "id": "kbs-c3899e30-ddbb-4ebc-a711-c46b22c40c35",
+  "title": "Salvage release fixes from stale PR #290 onto develop",
+  "description": "PR #290 (release: promote develop to main, 2026-09-17) was never merged; later promotions (#374, #379) bypassed it. Its six fixes never reached main: d05fa793 remove duplicate console board steps; f6713bc7 right-now test avoid writing credential literals; dabe88b3 restore console active tree helpers; 80bc3691 stabilize coordination and console parity tests; 00c45ef4 initialize MQTT scenario messages; 8dd5a9f3 coverage rebaseline. Port all six onto a branch off develop, update the two that no longer apply cleanly, get tests passing, PR into develop, then close #290 referencing the new PR.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": "claude",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-01T23:49:52.379613Z",
+  "updated_at": "2026-10-01T23:49:57.181502Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "Opus 5.5",
+    "name": "Claude Code"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

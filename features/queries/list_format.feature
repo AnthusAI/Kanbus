@@ -23,14 +23,15 @@ Feature: Issue list formatting
     Given a Kanbus project with default configuration
     And an issue "kanbus-0123456789ab" exists
     When I run "kanbus list --full-ids"
-    Then stdout should contain "kanbus-012345"
+    Then stdout should contain "kanbus-0123"
+    And stdout should not contain "kanbus-0123456789ab"
 
   Scenario: Default list output remains token-efficient
     Given a Kanbus project with default configuration
     And an issue "kanbus-0123456789ab" exists
     When I run "kanbus list"
-    Then stdout should contain "012345"
-    And stdout should not contain "kanbus-012345"
+    Then stdout should contain " 0123 "
+    And stdout should not contain "kanbus-0123456789ab"
 
   Scenario: List formatting applies default colors
     Given a Kanbus project with default configuration

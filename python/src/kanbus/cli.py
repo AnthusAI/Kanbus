@@ -52,8 +52,15 @@ from kanbus.beads_write import (
 from kanbus.issue_display import format_issue_for_display
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.coordination import LeaseState
-from kanbus.ids import format_issue_key
+from kanbus.ids import (
+    DEFAULT_SHORT_ID_LENGTH,
+    ShortIdWidths,
+    format_issue_key_with,
+)
+from kanbus.config import effective_short_id_length
 from kanbus.issue_line import compute_widths, format_issue_line
+
+
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_commit import IssueCommitError, commit_project_issues
@@ -177,6 +184,24 @@ from kanbus.standup_command import (
     run_standup_command,
 )
 from kanbus.router_cli import router_group
+
+
+def _format_confirmed_identifier(root: Path, identifier: str) -> str:
+    """Format an identifier for confirmation messages using project widths."""
+    from kanbus.config import effective_short_id_length
+    from kanbus.issue_files import project_identifier_universe
+
+    default_len = DEFAULT_SHORT_ID_LENGTH
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+        default_len = effective_short_id_length(configuration)
+    except Exception:
+        default_len = DEFAULT_SHORT_ID_LENGTH
+    universe = project_identifier_universe(root)
+    widths = ShortIdWidths.build(universe, default_len)
+    return format_issue_key_with(
+        identifier, project_context=False, short_id_widths=widths
+    )
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -923,7 +948,7 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
         try:
             lookup = load_issue_from_project(root, identifier)
         except IssueLookupError as error:
-            raise click.ClickException(str(error)) from error
+            _raise_lookup_error(error, as_json=as_json)
         issue = lookup.issue
         configuration = load_project_configuration(get_configuration_path(root))
 
@@ -1219,7 +1244,7 @@ def update(
         except BeadsWriteError as error:
             raise click.ClickException(str(error)) from error
         updated_issue = load_beads_issue(root, identifier)
-        formatted_identifier = format_issue_key(identifier, project_context=False)
+        formatted_identifier = _format_confirmed_identifier(root, identifier)
         click.echo(f"Updated {formatted_identifier}")
         if update_quality_result:
             emit_signals(
@@ -1291,7 +1316,7 @@ def update(
         raise click.ClickException(str(error)) from error
 
     updated_issue = update_result.issue
-    formatted_identifier = format_issue_key(identifier, project_context=False)
+    formatted_identifier = _format_confirmed_identifier(root, identifier)
     if update_result.changed:
         click.echo(f"Updated {formatted_identifier}")
     else:
@@ -1573,7 +1598,7 @@ def close(context: click.Context, identifier: str, comment_text: Optional[str]) 
             issue = close_issue(root, identifier)
     except (IssueCloseError, BeadsWriteError, MigrationError) as error:
         raise click.ClickException(str(error)) from error
-    formatted_identifier = format_issue_key(identifier, project_context=False)
+    formatted_identifier = _format_confirmed_identifier(root, identifier)
     click.echo(f"Closed {formatted_identifier}")
     _run_lifecycle_hooks_for_context(
         context,
@@ -1666,7 +1691,7 @@ def move(
         raise click.ClickException(str(error)) from error
 
     updated_issue = update_result.issue
-    formatted_identifier = format_issue_key(identifier, project_context=False)
+    formatted_identifier = _format_confirmed_identifier(root, identifier)
     click.echo(f"Moved {formatted_identifier} to type {updated_issue.issue_type}")
     _run_lifecycle_hooks_for_context(
         context,
@@ -1770,7 +1795,7 @@ def delete(
             delete_beads_issue(root, identifier, recursive=beads_recursive)
         except BeadsDeleteError as error:
             raise click.ClickException(str(error)) from error
-        formatted_identifier = format_issue_key(identifier, project_context=False)
+        formatted_identifier = _format_confirmed_identifier(root, identifier)
         click.echo(f"Deleted {formatted_identifier}")
         _run_lifecycle_hooks_for_context(
             context,
@@ -1800,7 +1825,7 @@ def delete(
     try:
         lookup = load_issue_from_project(root, identifier)
     except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_lookup_error(error)
 
     descendants: list[str] = []
     if recursive:
@@ -1837,7 +1862,7 @@ def delete(
             delete_issue(root, issue_id, retain_audit_event=retain_audit_event)
         except IssueDeleteError as error:
             raise click.ClickException(str(error)) from error
-        formatted_identifier = format_issue_key(issue_id, project_context=False)
+        formatted_identifier = _format_confirmed_identifier(root, issue_id)
         click.echo(f"Deleted {formatted_identifier}")
 
     _run_lifecycle_hooks_for_context(
@@ -2332,13 +2357,12 @@ def list_command(
         issues = issues[:limit]
 
     configuration = None
-    if not beads_mode:
-        try:
-            configuration = load_project_configuration(get_configuration_path(root))
-        except ProjectMarkerError:
-            configuration = None
-        except ConfigurationError as error:
-            raise click.ClickException(str(error)) from error
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except ProjectMarkerError:
+        configuration = None
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
 
     # In Beads mode, always show full IDs (project_context=False)
     # In regular mode, use project_context if all issues are from same project
@@ -2347,8 +2371,27 @@ def list_command(
         if beads_mode or full_ids
         else not any(issue.custom.get("project_path") for issue in issues)
     )
+    if beads_mode:
+        short_id_default_len = (
+            6 if configuration is None else effective_short_id_length(configuration)
+        )
+    else:
+        short_id_default_len = (
+            effective_short_id_length(configuration)
+            if configuration is not None
+            else DEFAULT_SHORT_ID_LENGTH
+        )
+    from kanbus.issue_files import project_identifier_universe
+
+    short_id_widths = ShortIdWidths.build(
+        project_identifier_universe(root), short_id_default_len
+    )
     widths = (
-        None if porcelain else compute_widths(issues, project_context=project_context)
+        None
+        if porcelain
+        else compute_widths(
+            issues, project_context=project_context, short_id_widths=short_id_widths
+        )
     )
     for issue in issues:
         line = format_issue_line(
@@ -2357,6 +2400,7 @@ def list_command(
             widths=widths,
             project_context=project_context,
             configuration=configuration,
+            short_id_widths=short_id_widths,
         )
         click.echo(line)
     _run_lifecycle_hooks_for_context(
@@ -2764,7 +2808,7 @@ def policy_check(identifier: str) -> None:
 
         click.echo(f"All policies passed for {identifier}")
     except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_lookup_error(error)
     except Exception as error:
         raise click.ClickException(str(error)) from error
 
@@ -2789,7 +2833,7 @@ def policy_guide(identifier: str) -> None:
             operation=PolicyOperation.VIEW,
         )
     except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_lookup_error(error)
     except Exception as error:
         raise click.ClickException(str(error)) from error
 
@@ -4211,7 +4255,7 @@ def right_now_generate_internal(issue_id: str) -> None:
     try:
         lookup = load_issue_from_project(root, issue_id)
     except IssueLookupError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_lookup_error(error)
     issue = lookup.issue
     context = build_leaf_right_now_context(issue)
     try:
@@ -4790,5 +4834,72 @@ def coordination_publish_result_command(
 cli.add_command(router_group)
 
 
+class AmbiguousIdentifierException(click.ClickException):
+    """Ambiguous short identifier; carries structured matches and exit code 3."""
+
+    exit_code = 3
+
+
+def _raise_lookup_error(error: IssueLookupError, as_json: bool = False) -> None:
+    from kanbus.ambiguity import ambiguous_matches_json
+
+    if getattr(error, "matches", None):
+        exception = AmbiguousIdentifierException(str(error))
+        if as_json:
+            click.echo(
+                ambiguous_matches_json(getattr(error, "candidate", ""), error.matches)
+            )
+            exception.json_emitted = True
+        raise exception from error
+    raise click.ClickException(str(error)) from error
+
+
+def main() -> None:
+    """Console-script entry point with ambiguity handling."""
+    args = sys.argv[1:]
+    try:
+        result = cli(args, standalone_mode=False, prog_name="kanbus")
+        sys.exit(result if isinstance(result, int) else 0)
+    except click.exceptions.ClickException as error:
+        if isinstance(error, AmbiguousIdentifierException):
+            from kanbus.ambiguity import ambiguous_matches_json, prompt_ambiguous_choice
+
+            lookup_error = (
+                error.__cause__
+                if isinstance(error.__cause__, IssueLookupError)
+                else None
+            )
+            matches = getattr(lookup_error, "matches", []) if lookup_error else []
+            candidate = getattr(lookup_error, "candidate", "") if lookup_error else ""
+            if "--json" in args:
+                if not getattr(error, "json_emitted", False):
+                    click.echo(ambiguous_matches_json(candidate, matches))
+                sys.exit(3)
+            if (
+                matches
+                and _terminal_is_interactive()
+                and not os.getenv("KANBUS_NO_PROMPT")
+            ):
+                chosen = prompt_ambiguous_choice(candidate, matches)
+                if chosen:
+                    replaced = [chosen if arg == candidate else arg for arg in args]
+                    try:
+                        retried = cli(
+                            replaced, standalone_mode=False, prog_name="kanbus"
+                        )
+                        sys.exit(retried if isinstance(retried, int) else 0)
+                    except click.exceptions.ClickException as retry_error:
+                        retry_error.show()
+                        sys.exit(retry_error.exit_code)
+                    except click.exceptions.Exit:
+                        return
+        error.show()
+        sys.exit(error.exit_code)
+    except click.exceptions.Exit as error:
+        sys.exit(error.exit_code)
+    except click.exceptions.Abort:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    cli()
+    main()

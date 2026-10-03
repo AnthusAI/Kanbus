@@ -169,6 +169,7 @@ mod tests {
             sort_order: BTreeMap::new(),
             type_colors: BTreeMap::new(),
             beads_compatibility: false,
+            short_id_length: None,
             wiki_directory: None,
             ai: None,
             jira: None,

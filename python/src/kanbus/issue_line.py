@@ -8,7 +8,7 @@ from typing import Callable, Dict, Iterable, Optional
 
 import click
 
-from kanbus.ids import format_issue_key
+from kanbus.ids import DEFAULT_SHORT_ID_LENGTH, ShortIdWidths, format_issue_key_with
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.status_semantics import default_color_for_semantic_category
 
@@ -136,6 +136,7 @@ def format_issue_line(
     project_context: bool = False,
     configuration: ProjectConfiguration | None = None,
     use_color: Optional[bool] = None,
+    short_id_widths: ShortIdWidths | None = None,
 ) -> str:
     """Render a single-line summary similar to Beads.
 
@@ -169,13 +170,24 @@ def format_issue_line(
     priority_color = _resolve_priority_color(issue.priority, configuration)
     status_color = _resolve_status_color(issue.status, configuration)
 
-    formatted_identifier = format_issue_key(
-        issue.identifier, project_context=project_context
+    resolved_widths = short_id_widths or ShortIdWidths.build(
+        [issue.identifier, *([issue.parent] if issue.parent else [])],
+        DEFAULT_SHORT_ID_LENGTH,
+    )
+
+    formatted_identifier = format_issue_key_with(
+        issue.identifier,
+        project_context=project_context,
+        short_id_widths=resolved_widths,
     )
 
     parent_value = issue.parent or "-"
     parent_display = (
-        format_issue_key(parent_value, project_context=project_context)
+        format_issue_key_with(
+            parent_value,
+            project_context=project_context,
+            short_id_widths=resolved_widths,
+        )
         if parent_value != "-"
         else parent_value
     )
@@ -193,14 +205,20 @@ def format_issue_line(
         ]
         return " | ".join(parts)
 
-    widths = widths or compute_widths([issue], project_context=project_context)
+    widths = widths or compute_widths(
+        [issue], project_context=project_context, short_id_widths=resolved_widths
+    )
 
     type_color = _resolve_type_color(issue.issue_type, configuration)
     type_part = _safe_color(color, type_display.ljust(widths["type"]), type_color)
 
     parent_value = issue.parent or "-"
     parent_display = (
-        format_issue_key(parent_value, project_context=project_context)
+        format_issue_key_with(
+            parent_value,
+            project_context=project_context,
+            short_id_widths=resolved_widths,
+        )
         if parent_value != "-"
         else parent_value
     )
@@ -230,9 +248,21 @@ def format_issue_line(
 
 
 def compute_widths(
-    issues: Iterable[IssueData], project_context: bool = False
+    issues: Iterable[IssueData],
+    project_context: bool = False,
+    short_id_widths: ShortIdWidths | None = None,
 ) -> Dict[str, int]:
     """Compute printable column widths for aligned normal-mode output."""
+    resolved_widths = short_id_widths or ShortIdWidths.build(
+        [
+            identifier
+            for issue in issues
+            for identifier in (
+                [issue.identifier, *([issue.parent] if issue.parent else [])]
+            )
+        ],
+        DEFAULT_SHORT_ID_LENGTH,
+    )
 
     status_w = 1
     priority_w = 0
@@ -244,13 +274,19 @@ def compute_widths(
         status_w = max(status_w, len(issue.status))
         priority_w = max(priority_w, len(f"P{issue.priority}"))
         type_w = max(type_w, len(issue.issue_type[:1].upper()))
-        formatted_identifier = format_issue_key(
-            issue.identifier, project_context=project_context
+        formatted_identifier = format_issue_key_with(
+            issue.identifier,
+            project_context=project_context,
+            short_id_widths=resolved_widths,
         )
         identifier_w = max(identifier_w, len(formatted_identifier))
         parent_value = issue.parent or "-"
         parent_display = (
-            format_issue_key(parent_value, project_context=project_context)
+            format_issue_key_with(
+                parent_value,
+                project_context=project_context,
+                short_id_widths=resolved_widths,
+            )
             if parent_value != "-"
             else parent_value
         )

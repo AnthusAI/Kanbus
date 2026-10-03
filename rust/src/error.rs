@@ -11,6 +11,19 @@ pub struct PolicyViolationDetails {
     pub guidance: Vec<String>,
 }
 
+/// One candidate issue in an ambiguous-identifier error.
+#[derive(Debug, Clone)]
+pub struct AmbiguousCandidate {
+    /// Full issue identifier.
+    pub identifier: String,
+    /// Issue title.
+    pub title: String,
+    /// Issue type.
+    pub issue_type: String,
+    /// Issue status.
+    pub status: String,
+}
+
 /// Errors returned by Kanbus operations.
 #[derive(Debug)]
 pub enum KanbusError {
@@ -28,6 +41,13 @@ pub enum KanbusError {
     InvalidHierarchy(String),
     /// Issue operation failed.
     IssueOperation(String),
+    /// A short identifier matched multiple issues; resolvable via the picker.
+    AmbiguousIdentifier {
+        /// The ambiguous candidate provided by the user.
+        candidate: String,
+        /// Matching issues (full IDs plus display metadata).
+        matches: Vec<AmbiguousCandidate>,
+    },
     /// Protocol validation failed.
     ProtocolError(String),
     /// A CLI operation failed with a specific process exit status.
@@ -65,6 +85,13 @@ impl Display for KanbusError {
             KanbusError::InvalidTransition(message) => write!(formatter, "{message}"),
             KanbusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
             KanbusError::IssueOperation(message) => write!(formatter, "{message}"),
+            KanbusError::AmbiguousIdentifier { candidate, matches } => {
+                write!(
+                    formatter,
+                    "{}",
+                    crate::ids::render_ambiguous_error(candidate, matches)
+                )
+            }
             KanbusError::ProtocolError(message) => write!(formatter, "{message}"),
             KanbusError::CommandFailure { message, .. } => write!(formatter, "{message}"),
             KanbusError::CommandFailureWithOutput { stderr, .. } => write!(formatter, "{stderr}"),

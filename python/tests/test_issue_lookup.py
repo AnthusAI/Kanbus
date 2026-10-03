@@ -71,7 +71,7 @@ def test_resolve_issue_identifier_exact_unique_missing_and_ambiguous(
         "list_issue_identifiers",
         lambda _d: ["kanbus-111aaa", "kanbus-111bbb"],
     )
-    with pytest.raises(issue_lookup.IssueLookupError, match="ambiguous short id"):
+    with pytest.raises(issue_lookup.IssueLookupError, match="ambiguous identifier"):
         issue_lookup.resolve_issue_identifier(issues_dir, "kanbus", "kanbus-111")
 
 

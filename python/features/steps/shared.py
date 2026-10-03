@@ -386,7 +386,7 @@ def capture_issue_identifier(context: object) -> str:
 
     abbreviated = re.search(r"(?i)\bID:\s*([A-Za-z0-9.-]+)", clean_stdout)
     if abbreviated is None:
-        abbreviated = re.search(r"\b([A-Za-z0-9]{6}(?:\.[0-9]+)?)\b", clean_stdout)
+        abbreviated = re.search(r"\b([A-Za-z0-9]{4,6}(?:\.[0-9]+)?)\b", clean_stdout)
     if abbreviated is None:
         raise AssertionError("no issue identifier found in stdout")
     abbr_value = abbreviated.group(1)

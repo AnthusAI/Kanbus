@@ -20,7 +20,16 @@ export type {
   WorkflowColumnConfig,
   WorkflowDefinition
 } from "./workflow-columns";
-export { formatIssueId } from "./format-issue-id";
+export { formatIssueId } from "./short-id";
+export {
+  buildShortIdWidths,
+  clampShortIdLength,
+  effectiveShortIdLength,
+  shortIdMatches,
+  DEFAULT_SHORT_ID_LENGTH
+} from "./short-id";
+export type { ShortIdLengthConfig } from "./short-id";
+export { DisplayIdWidthsContext, useDisplayIdWidths } from "./display-id-context";
 export { getTypeIcon } from "./issue-icons";
 export { getIssueMotionStyle, normalizeMotionConfig } from "./motion";
 export { useFlashEffect } from "./useFlashEffect";

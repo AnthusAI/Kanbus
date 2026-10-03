@@ -143,7 +143,9 @@ def test_format_issue_for_display_sections_and_context(
     ]
 
     monkeypatch.setattr(
-        issue_display, "format_issue_key", lambda identifier, _ctx: f"FMT:{identifier}"
+        issue_display,
+        "format_issue_key_with",
+        lambda identifier, _ctx, _widths: f"FMT:{identifier}",
     )
     monkeypatch.setattr(
         issue_display,
@@ -164,9 +166,9 @@ def test_format_issue_for_display_sections_and_context(
     assert "Description:" in rendered
     assert "rendered desc" in rendered
     assert "Dependencies:" in rendered
-    assert "blocked-by: kanbus-2" in rendered
+    assert "blocked-by: FMT:kanbus-2" in rendered
     assert "Comments:" in rendered
-    assert "[abcdef] dev: rc1" in rendered
+    assert "[abcd] dev: rc1" in rendered
     assert "unknown: rc2" in rendered
 
 
@@ -176,7 +178,9 @@ def test_format_issue_for_display_with_colorized_muted_fields(
     issue = build_issue("kanbus-9", parent=None, labels=[])
     issue.assignee = None
     monkeypatch.setattr(
-        issue_display, "format_issue_key", lambda identifier, _ctx: identifier
+        issue_display,
+        "format_issue_key_with",
+        lambda identifier, _ctx, _widths: identifier,
     )
     monkeypatch.setattr(
         issue_display.click, "style", lambda text, fg=None: f"[{fg}]{text}"
@@ -261,8 +265,8 @@ def test_issue_line_safe_color_and_widths(monkeypatch: pytest.MonkeyPatch) -> No
 
     monkeypatch.setattr(
         issue_line,
-        "format_issue_key",
-        lambda identifier, project_context=False: (
+        "format_issue_key_with",
+        lambda identifier, project_context=False, short_id_widths=None: (
             identifier.replace("kanbus-", "k-") if project_context else identifier
         ),
     )
@@ -298,8 +302,8 @@ def test_issue_line_format_non_porcelain_with_color_paths(
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setattr(
         issue_line,
-        "format_issue_key",
-        lambda identifier, project_context=False: identifier,
+        "format_issue_key_with",
+        lambda identifier, project_context=False, short_id_widths=None: identifier,
     )
 
     line = issue_line.format_issue_line(

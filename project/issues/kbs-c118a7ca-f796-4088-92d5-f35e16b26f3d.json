@@ -1,0 +1,30 @@
+{
+  "id": "kbs-c118a7ca-f796-4088-92d5-f35e16b26f3d",
+  "title": "Web console: ID list formatter for issue IDs (front-end)",
+  "description": "The web console (React app in apps/console) needs a front-end equivalent of the CLI's ID list formatter: a shared utility that takes a list of raw issue IDs and formats them safely for display.\n\nBehavior:\n- Trim each ID's hash to as few characters as possible (default 4).\n- Lowercase the displayed ID.\n- Within the visible set, iteratively widen only the colliding groups until every displayed ID in that list is unique. No upper cap.\n- Re-run whenever the visible set changes (filters, search, expanding or collapsing columns, trees, or children).\n- Full IDs are always kept underneath for links, lookups, and copy actions.\n\nIntegration:\n- Any component that shows more than one issue ID at once (board cards, lists, trees, dependency and child views, panels) must route through the ID list formatter.\n- Prefer a hook at the data layer (for example, a hook that derives display keys from the currently visible issues) so individual components don't have to remember to call it.\n- Replace the current fixed 6-character truncation (formatIssueId) for multi-ID views.\n\nScope: web front-end only. This is separate from the CLI-side dynamic short ID work in epic kbs-429fa3; use the same name and semantics (ID list formatter) so both sides stay consistent.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "console"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "139b8793-b2fb-4428-b6ec-37382ce4002f",
+      "author": "home",
+      "text": "Implemented by kbs-820345 on branch cursor/dynamic-short-ids-70c7: shared TS formatter in packages/ui (buildShortIdWidths/formatIssueId, default 4, lowercase, widened colliding groups), DisplayIdWidthsContext + data-layer hook re-running on visible-set changes, console matchers hyphen-insensitive via shortIdMatches. Console Playwright specs in features/console/short_id_display.feature (131 scenarios green).",
+      "created_at": "2026-10-03T00:16:18.986918Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-02T20:11:02.832668Z",
+  "updated_at": "2026-10-03T00:16:19.230118Z",
+  "closed_at": "2026-10-03T00:16:19.209126Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

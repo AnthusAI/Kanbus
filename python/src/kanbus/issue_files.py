@@ -11,6 +11,36 @@ from kanbus.daemon_client import is_daemon_enabled, request_virtuus
 from virtuus import Table
 
 
+def project_identifier_universe(root: Path) -> Set[str]:
+    """Collect every issue identifier in the repository for short-ID widths.
+
+    Unions the shared and local issue directories of every discovered project
+    (filename listing only; issue JSON bodies are never parsed).
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Set of issue identifiers.
+    :rtype: Set[str]
+    """
+    from kanbus.project import (
+        discover_project_directories,
+        find_project_local_directory,
+    )
+
+    universe: Set[str] = set()
+    project_dirs = list(discover_project_directories(root))
+    if not project_dirs:
+        project_dirs = [root]
+    for project_dir in project_dirs:
+        dirs = [project_dir / "issues"]
+        local_dir = find_project_local_directory(project_dir)
+        if local_dir is not None:
+            dirs.append(local_dir / "issues")
+        for issues_dir in dirs:
+            universe.update(list_issue_identifiers(issues_dir))
+    return universe
+
+
 def _issue_table(issues_directory: Path) -> Table:
     """Open canonical issue files through Virtuus."""
     table = Table(

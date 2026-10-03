@@ -257,7 +257,8 @@ pub fn format_agent_provenance_warning(
 ) -> String {
     let missing = missing_agent_provenance_fields(agent);
     let missing_text = missing.join(", ");
-    let issue_key = crate::ids::format_issue_key(issue_identifier, false);
+    // Stored-text stability: the follow-up command embeds the full ID.
+    let issue_key = issue_identifier;
     let mut command = if let Some(comment_identifier) = comment_id {
         format!("kbs comment update {issue_key} {comment_identifier}")
     } else {

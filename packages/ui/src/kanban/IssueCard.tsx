@@ -1,7 +1,8 @@
 import React, { useRef, useLayoutEffect } from "react";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { buildIssueColorStyle } from "./issue-colors";
-import { formatIssueId } from "./format-issue-id";
+import { formatIssueId } from "./short-id";
+import { useDisplayIdWidths } from "./display-id-context";
 import { getTypeIcon } from "./issue-icons";
 import {
   getIssueMotionStyle,
@@ -29,6 +30,7 @@ export function IssueCard({
   motionIndex = 0
 }: IssueCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const displayWidths = useDisplayIdWidths();
   const resolvedMotion = normalizeMotionConfig(motion);
 
   const handleClick = () => {
@@ -78,7 +80,7 @@ export function IssueCard({
         <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
           <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
             <IssueTypeIcon className="issue-accent-icon" />
-            <span className="issue-accent-id">{formatIssueId(issue.id)}</span>
+            <span className="issue-accent-id">{formatIssueId(issue.id, displayWidths)}</span>
           </div>
           <div className="issue-accent-priority">{priorityName}</div>
         </div>
