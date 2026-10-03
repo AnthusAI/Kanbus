@@ -21,6 +21,7 @@ use crate::beads_write::{
     delete_beads_issue, remove_beads_dependency, update_beads_comment, update_beads_issue,
 };
 use crate::cloud_tokens::{create_cloud_token, list_cloud_tokens, revoke_cloud_token};
+use crate::config::effective_short_id_length;
 use crate::config_loader::{load_project_configuration, load_repository_environment};
 use crate::console_screenshot::capture_console_screenshot;
 use crate::console_snapshot::build_console_snapshot;
@@ -42,15 +43,14 @@ use crate::hooks::{
     list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
     HookExecutionOptions, HookPhase,
 };
-use crate::config::effective_short_id_length;
 use crate::ids::{format_issue_key_with, ShortIdWidths, DEFAULT_SHORT_ID_LENGTH};
-use crate::issue_files::project_identifier_universe;
 use crate::issue_close::close_issue;
 use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
 use crate::issue_commit::commit_project_issues;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
+use crate::issue_files::project_identifier_universe;
 use crate::issue_line::{compute_widths, format_issue_line};
 use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
@@ -1381,17 +1381,6 @@ pub struct CommandOutput {
     pub stderr: String,
 }
 
-/// Run the CLI with explicit arguments.
-///
-/// # Arguments
-///
-/// * `args` - Command line arguments.
-/// * `cwd` - Working directory for the command.
-///
-/// # Errors
-///
-/// Returns `KanbusError` if execution fails.
-
 /// Build short-ID widths for confirmation messages from the project universe.
 fn format_confirmed_identifier(root: &Path, identifier: &str) -> String {
     let default_len = get_configuration_path(root)
@@ -1404,6 +1393,16 @@ fn format_confirmed_identifier(root: &Path, identifier: &str) -> String {
     format_issue_key_with(identifier, false, &widths)
 }
 
+/// Run the CLI with explicit arguments.
+///
+/// # Arguments
+///
+/// * `args` - Command line arguments.
+/// * `cwd` - Working directory for the command.
+///
+/// # Errors
+///
+/// Returns `KanbusError` if execution fails.
 pub fn run_from_args<I, T>(args: I, cwd: &Path) -> Result<(), KanbusError>
 where
     I: IntoIterator<Item = T>,
@@ -3463,14 +3462,14 @@ fn execute_command(
                     .iter()
                     .any(|issue| issue.custom.contains_key("project_path"))
             };
-            let short_id_default_len = if beads_mode {
-                6
-            } else {
-                configuration
-                    .as_ref()
-                    .map(effective_short_id_length)
-                    .unwrap_or(DEFAULT_SHORT_ID_LENGTH)
-            };
+            let short_id_default_len = configuration
+                .as_ref()
+                .map(effective_short_id_length)
+                .unwrap_or(if beads_mode {
+                    6
+                } else {
+                    DEFAULT_SHORT_ID_LENGTH
+                });
             let short_id_widths = {
                 let universe = project_identifier_universe(root).unwrap_or_default();
                 ShortIdWidths::new(universe.iter().map(String::as_str), short_id_default_len)
@@ -4142,7 +4141,7 @@ fn execute_command(
         Commands::Policy { command } => match command {
             PolicyCommands::Check { identifier } => {
                 use crate::config_loader::load_project_configuration;
-                                use crate::issue_lookup::load_issue_from_project;
+                use crate::issue_lookup::load_issue_from_project;
 
                 let lookup = load_issue_from_project(root, &identifier)?;
                 let config_path = get_configuration_path(&lookup.project_dir)?;

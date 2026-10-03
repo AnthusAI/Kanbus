@@ -157,7 +157,8 @@ pub fn format_issue_for_display(
     }
     let short_id_widths = ShortIdWidths::new(universe, DEFAULT_SHORT_ID_LENGTH);
 
-    let formatted_identifier = format_issue_key_with(&issue.identifier, project_context, &short_id_widths);
+    let formatted_identifier =
+        format_issue_key_with(&issue.identifier, project_context, &short_id_widths);
     let (right_now_text, right_now_missing) = match issue
         .right_now_summary
         .as_deref()

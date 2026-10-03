@@ -283,6 +283,26 @@ pub fn issue_identifier_matches(candidate: &str, full_id: &str) -> bool {
     let candidate_normalized: String = candidate_base.chars().filter(|ch| *ch != '-').collect();
     let full_normalized: String = full_base.chars().filter(|ch| *ch != '-').collect();
 
+    // Hyphen-insensitive: a dash-less candidate may glue the project key to
+    // the hash ("kanbusaaaabbbb" for "kanbus-aaaabbbb"); strip the glued key.
+    let candidate_normalized = match candidate_key {
+        None => match full_key {
+            Some(full_key_value) => {
+                let glued = full_key_value
+                    .chars()
+                    .filter(|ch| *ch != '-')
+                    .collect::<String>();
+                if !glued.is_empty() && candidate_normalized.starts_with(&glued) {
+                    candidate_normalized[glued.len()..].to_string()
+                } else {
+                    candidate_normalized
+                }
+            }
+            None => candidate_normalized,
+        },
+        Some(_) => candidate_normalized,
+    };
+
     if candidate_normalized.is_empty() {
         return false;
     }
@@ -366,16 +386,20 @@ pub fn generate_many_identifiers(
 }
 
 /// Render a human-readable ambiguity error listing formatted candidates.
-pub fn render_ambiguous_error(candidate: &str, matches: &[crate::error::AmbiguousCandidate]) -> String {
+pub fn render_ambiguous_error(
+    candidate: &str,
+    matches: &[crate::error::AmbiguousCandidate],
+) -> String {
+    let ordered = sorted_matches(matches);
     let widths = ShortIdWidths::new(
-        matches.iter().map(|issue| issue.identifier.as_str()),
+        ordered.iter().map(|issue| issue.identifier.as_str()),
         DEFAULT_SHORT_ID_LENGTH,
     );
     let mut text = format!(
         "ambiguous identifier \"{candidate}\"; {} issues match:",
-        matches.len()
+        ordered.len()
     );
-    for issue in matches {
+    for issue in &ordered {
         let key = format_issue_key_with(&issue.identifier, false, &widths);
         text.push_str(&format!(
             "\n  {key}  [{}, {}]  {}",
@@ -386,19 +410,28 @@ pub fn render_ambiguous_error(candidate: &str, matches: &[crate::error::Ambiguou
     text
 }
 
+fn sorted_matches(
+    matches: &[crate::error::AmbiguousCandidate],
+) -> Vec<crate::error::AmbiguousCandidate> {
+    let mut ordered = matches.to_vec();
+    ordered.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    ordered
+}
+
 /// Render the structured JSON ambiguity payload (full IDs included).
 pub fn ambiguous_matches_json(
     candidate: &str,
     matches: &[crate::error::AmbiguousCandidate],
 ) -> String {
+    let ordered = sorted_matches(matches);
     let widths = ShortIdWidths::new(
-        matches.iter().map(|issue| issue.identifier.as_str()),
+        ordered.iter().map(|issue| issue.identifier.as_str()),
         DEFAULT_SHORT_ID_LENGTH,
     );
     let payload = serde_json::json!({
         "error": "ambiguous_identifier",
         "candidate": candidate,
-        "matches": matches
+        "matches": ordered
             .iter()
             .map(|issue| {
                 serde_json::json!({
@@ -422,12 +455,16 @@ pub fn prompt_ambiguous_choice(
     matches: &[crate::error::AmbiguousCandidate],
 ) -> Option<String> {
     use std::io::BufRead;
+    let ordered = sorted_matches(matches);
     let widths = ShortIdWidths::new(
-        matches.iter().map(|issue| issue.identifier.as_str()),
+        ordered.iter().map(|issue| issue.identifier.as_str()),
         DEFAULT_SHORT_ID_LENGTH,
     );
-    println!("\"{candidate}\" is ambiguous; {} issues match:\n", matches.len());
-    for (index, issue) in matches.iter().enumerate() {
+    println!(
+        "\"{candidate}\" is ambiguous; {} issues match:\n",
+        ordered.len()
+    );
+    for (index, issue) in ordered.iter().enumerate() {
         let key = format_issue_key_with(&issue.identifier, false, &widths);
         println!(
             "  {}) {key}  [{}, {}]  {}",
@@ -444,7 +481,9 @@ pub fn prompt_ambiguous_choice(
         return None;
     }
     let choice: usize = line.trim().parse().ok()?;
-    matches.get(choice.checked_sub(1)?).map(|issue| issue.identifier.clone())
+    ordered
+        .get(choice.checked_sub(1)?)
+        .map(|issue| issue.identifier.clone())
 }
 
 #[cfg(test)]
@@ -453,7 +492,10 @@ mod tests {
 
     #[test]
     fn format_issue_key_defaults_to_four_characters() {
-        assert_eq!(format_issue_key("kanbus-0123456789ab", false), "kanbus-0123");
+        assert_eq!(
+            format_issue_key("kanbus-0123456789ab", false),
+            "kanbus-0123"
+        );
         assert_eq!(format_issue_key("kanbus-0123456789ab", true), "0123");
     }
 
@@ -490,8 +532,14 @@ mod tests {
         assert!(issue_identifier_matches("kanbus-123e4567e89b", full));
         assert!(issue_identifier_matches("kanbus-123e4567-e89b", full));
         assert!(issue_identifier_matches("kanbus-123e", full));
-        assert!(issue_identifier_matches("kanbus-123e4567e89b12d3a456426614174000", full));
-        assert!(!issue_identifier_matches("kanbus-123e4567e89b12d3a456426614174001", full));
+        assert!(issue_identifier_matches(
+            "kanbus-123e4567e89b12d3a456426614174000",
+            full
+        ));
+        assert!(!issue_identifier_matches(
+            "kanbus-123e4567e89b12d3a456426614174001",
+            full
+        ));
     }
 
     #[test]
@@ -520,7 +568,10 @@ mod tests {
     #[test]
     fn matcher_supports_beads_style_ids() {
         assert!(issue_identifier_matches("tskl-abcdef", "tskl-abcdef2"));
-        assert!(issue_identifier_matches("custom-uuid00", "custom-uuid-0000001"));
+        assert!(issue_identifier_matches(
+            "custom-uuid00",
+            "custom-uuid-0000001"
+        ));
     }
 
     #[test]

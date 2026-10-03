@@ -13,7 +13,10 @@ use kanbus::models::IssueData;
 use crate::step_definitions::initialization_steps::KanbusWorld;
 
 fn short_id_widths_for<'a>(issues: &'a [IssueData]) -> ShortIdWidths {
-    let universe: Vec<&str> = issues.iter().map(|issue| issue.identifier.as_str()).collect();
+    let universe: Vec<&str> = issues
+        .iter()
+        .map(|issue| issue.identifier.as_str())
+        .collect();
     ShortIdWidths::new(universe, DEFAULT_SHORT_ID_LENGTH)
 }
 
@@ -178,8 +181,7 @@ fn when_format_list_line_for_issue(world: &mut KanbusWorld, identifier: String) 
         .join(format!("{identifier}.json"));
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
-    let short_id_widths =
-        ShortIdWidths::new([issue.identifier.as_str()], DEFAULT_SHORT_ID_LENGTH);
+    let short_id_widths = ShortIdWidths::new([issue.identifier.as_str()], DEFAULT_SHORT_ID_LENGTH);
     let widths = compute_widths(std::slice::from_ref(&issue), false, &short_id_widths);
     let line = format_issue_line(
         &issue,
@@ -218,8 +220,7 @@ fn when_format_list_line_for_issue_no_color(world: &mut KanbusWorld, identifier:
         .join(format!("{identifier}.json"));
     let contents = fs::read_to_string(&issue_path).expect("read issue");
     let issue: IssueData = serde_json::from_str(&contents).expect("parse issue");
-    let short_id_widths =
-        ShortIdWidths::new([issue.identifier.as_str()], DEFAULT_SHORT_ID_LENGTH);
+    let short_id_widths = ShortIdWidths::new([issue.identifier.as_str()], DEFAULT_SHORT_ID_LENGTH);
     let widths = compute_widths(std::slice::from_ref(&issue), false, &short_id_widths);
     let line = format_issue_line(
         &issue,

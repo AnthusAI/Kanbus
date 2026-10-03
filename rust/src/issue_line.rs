@@ -88,9 +88,13 @@ pub fn format_issue_line(
         );
     }
 
-    let computed_widths = widths
-        .copied()
-        .unwrap_or_else(|| compute_widths(std::slice::from_ref(issue), project_context, short_id_widths));
+    let computed_widths = widths.copied().unwrap_or_else(|| {
+        compute_widths(
+            std::slice::from_ref(issue),
+            project_context,
+            short_id_widths,
+        )
+    });
     let use_color = use_color_override.unwrap_or_else(should_use_color);
     let prefix = issue
         .custom

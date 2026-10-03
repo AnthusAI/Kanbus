@@ -15,7 +15,11 @@ use crate::models::{
 /// Defaults to 4 characters, or 6 in Beads compatibility mode unless
 /// `short_id_length` is set explicitly.
 pub fn effective_short_id_length(configuration: &ProjectConfiguration) -> usize {
-    let fallback = if configuration.beads_compatibility { 6 } else { 4 };
+    let fallback = if configuration.beads_compatibility {
+        6
+    } else {
+        4
+    };
     configuration
         .short_id_length
         .unwrap_or(fallback)

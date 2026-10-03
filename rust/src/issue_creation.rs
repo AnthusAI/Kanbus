@@ -243,8 +243,8 @@ fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>
 
 /// Resolve an issue identifier from a user-provided value.
 ///
-/// Accepts a full id, a unique short id (`{project_key}-{prefix}` up to 6 chars),
-/// or a project-context short id (no project key).
+/// Accepts a full id, a unique short id (`{project_key}-{prefix}` with a
+/// dynamic width, default 4), or a project-context short id (no project key).
 pub fn resolve_issue_identifier(
     issues_dir: &Path,
     _project_key: &str,

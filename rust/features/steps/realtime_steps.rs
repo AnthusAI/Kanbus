@@ -408,7 +408,7 @@ fn when_publish_two_without_broker(world: &mut KanbusWorld) {
         sort_order: std::collections::BTreeMap::new(),
         type_colors: std::collections::BTreeMap::new(),
         beads_compatibility: false,
-            short_id_length: None,
+        short_id_length: None,
         wiki_directory: None,
         ai: None,
         right_now: kanbus::models::RightNowConfiguration::default(),

@@ -86,7 +86,11 @@ impl Display for KanbusError {
             KanbusError::InvalidHierarchy(message) => write!(formatter, "{message}"),
             KanbusError::IssueOperation(message) => write!(formatter, "{message}"),
             KanbusError::AmbiguousIdentifier { candidate, matches } => {
-                write!(formatter, "{}", crate::ids::render_ambiguous_error(candidate, matches))
+                write!(
+                    formatter,
+                    "{}",
+                    crate::ids::render_ambiguous_error(candidate, matches)
+                )
             }
             KanbusError::ProtocolError(message) => write!(formatter, "{message}"),
             KanbusError::CommandFailure { message, .. } => write!(formatter, "{message}"),
