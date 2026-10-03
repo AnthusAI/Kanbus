@@ -158,7 +158,7 @@ fn record_llm_usage(
         "issue_id": issue_identifier,
         "model": model,
         "operation": operation,
-        "tokens": total_tokens,
+        "total_tokens": total_tokens,
         "cost": total_cost,
     });
     let mut log_file = OpenOptions::new()
