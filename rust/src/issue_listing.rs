@@ -350,12 +350,9 @@ fn list_issues_across_projects(
 fn deduplicate_issues_by_identity(
     collected: Vec<(IssueData, std::path::PathBuf)>,
 ) -> Vec<(IssueData, std::path::PathBuf)> {
-    let mut chosen: HashMap<String, (usize, IssueData, std::path::PathBuf)> =
-        HashMap::new();
+    let mut chosen: HashMap<String, (usize, IssueData, std::path::PathBuf)> = HashMap::new();
     for (position, (issue, project_dir)) in collected.into_iter().enumerate() {
-        let Some((current_position, current_issue, _)) =
-            chosen.get(&issue.identifier)
-        else {
+        let Some((current_position, current_issue, _)) = chosen.get(&issue.identifier) else {
             chosen.insert(issue.identifier.clone(), (position, issue, project_dir));
             continue;
         };
@@ -366,8 +363,7 @@ fn deduplicate_issues_by_identity(
             }
         }
     }
-    let mut entries: Vec<(usize, IssueData, std::path::PathBuf)> =
-        chosen.into_values().collect();
+    let mut entries: Vec<(usize, IssueData, std::path::PathBuf)> = chosen.into_values().collect();
     entries.sort_by_key(|(position, _, _)| *position);
     entries
         .into_iter()
@@ -390,15 +386,12 @@ fn canonical_json(value: &serde_json::Value) -> String {
     use serde_json::Value;
     match value {
         Value::Object(map) => {
-            let keys: std::collections::BTreeMap<&str, &Value> = map
-                .iter()
-                .map(|(key, item)| (key.as_str(), item))
-                .collect();
+            let keys: std::collections::BTreeMap<&str, &Value> =
+                map.iter().map(|(key, item)| (key.as_str(), item)).collect();
             let rendered: Vec<String> = keys
                 .into_iter()
                 .map(|(key, item)| {
-                    let encoded_key =
-                        serde_json::to_string(key).expect("key serializes to JSON");
+                    let encoded_key = serde_json::to_string(key).expect("key serializes to JSON");
                     format!("{encoded_key}:{}", canonical_json(item))
                 })
                 .collect();
@@ -706,9 +699,7 @@ mod tests {
         assert_eq!(queried[0].identifier, "kanbus-2");
     }
 
-    fn collected(
-        entries: &[(IssueData, &str)],
-    ) -> Vec<(IssueData, std::path::PathBuf)> {
+    fn collected(entries: &[(IssueData, &str)]) -> Vec<(IssueData, std::path::PathBuf)> {
         entries
             .iter()
             .map(|(issue, project_dir)| (issue.clone(), std::path::PathBuf::from(project_dir)))
@@ -764,16 +755,11 @@ mod tests {
         let alpha = issue("kanbus-tie", "Tie copy alpha");
         let zeta = issue("kanbus-tie", "Tie copy zeta");
 
-        let forward = deduplicate_issues_by_identity(collected(&[
-            (alpha.clone(), "a"),
-            (zeta.clone(), "b"),
-        ]));
+        let forward =
+            deduplicate_issues_by_identity(collected(&[(alpha.clone(), "a"), (zeta.clone(), "b")]));
         assert_eq!(forward[0].0.title, "Tie copy zeta");
 
-        let reversed = deduplicate_issues_by_identity(collected(&[
-            (zeta, "b"),
-            (alpha, "a"),
-        ]));
+        let reversed = deduplicate_issues_by_identity(collected(&[(zeta, "b"), (alpha, "a")]));
         assert_eq!(reversed[0].0.title, "Tie copy zeta");
     }
 
@@ -786,8 +772,7 @@ mod tests {
             Utc.with_ymd_and_hms(2026, 3, 7, 0, 0, 0).unwrap(),
         );
 
-        let deduplicated =
-            deduplicate_issues_by_identity(collected(&[(one, "a"), (two, "b")]));
+        let deduplicated = deduplicate_issues_by_identity(collected(&[(one, "a"), (two, "b")]));
 
         assert_eq!(
             deduplicated
@@ -808,11 +793,8 @@ mod tests {
         );
         let tail = issue("kanbus-tail", "Tail");
 
-        let deduplicated = deduplicate_issues_by_identity(collected(&[
-            (first, "a"),
-            (second, "b"),
-            (tail, "c"),
-        ]));
+        let deduplicated =
+            deduplicate_issues_by_identity(collected(&[(first, "a"), (second, "b"), (tail, "c")]));
 
         assert_eq!(
             deduplicated

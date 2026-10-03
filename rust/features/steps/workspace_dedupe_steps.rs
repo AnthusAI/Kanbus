@@ -76,14 +76,11 @@ fn write_issue(project_dir: &Path, issue: &IssueData) {
 }
 
 fn read_issue(project_dir: &Path, identifier: &str) -> IssueData {
-    let issue_path = project_dir.join("issues").join(format!("{identifier}.json"));
-    let contents = fs::read_to_string(&issue_path).unwrap_or_else(|error| {
-        panic!(
-            "read issue file {}: {}",
-            issue_path.display(),
-            error
-        )
-    });
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path)
+        .unwrap_or_else(|error| panic!("read issue file {}: {}", issue_path.display(), error));
     serde_json::from_str(&contents).expect("parse issue file")
 }
 
@@ -277,7 +274,10 @@ fn then_each_distinct_issue_appears_once(world: &mut KanbusWorld) {
 #[then("the deterministic tie-break winner is listed")]
 fn then_tie_break_winner_listed(world: &mut KanbusWorld) {
     let stdout = world.stdout.as_ref().expect("stdout");
-    assert!(stdout.contains(TIE_ZETA_TITLE), "zeta copy missing: {stdout}");
+    assert!(
+        stdout.contains(TIE_ZETA_TITLE),
+        "zeta copy missing: {stdout}"
+    );
     assert!(
         !stdout.contains(TIE_ALPHA_TITLE),
         "alpha copy listed: {stdout}"
