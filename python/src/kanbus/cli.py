@@ -55,27 +55,12 @@ from kanbus.coordination import LeaseState
 from kanbus.ids import (
     DEFAULT_SHORT_ID_LENGTH,
     ShortIdWidths,
-    format_issue_key,
     format_issue_key_with,
 )
 from kanbus.config import effective_short_id_length
 from kanbus.issue_line import compute_widths, format_issue_line
 
 
-def _format_confirmed_identifier(root: Path, identifier: str) -> str:
-    """Format an identifier for confirmation messages using project widths."""
-    from kanbus.config import effective_short_id_length
-    from kanbus.issue_files import project_identifier_universe
-
-    default_len = DEFAULT_SHORT_ID_LENGTH
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-        default_len = effective_short_id_length(configuration)
-    except Exception:
-        default_len = DEFAULT_SHORT_ID_LENGTH
-    universe = project_identifier_universe(root)
-    widths = ShortIdWidths.build(universe, default_len)
-    return format_issue_key_with(identifier, project_context=False, short_id_widths=widths)
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_commit import IssueCommitError, commit_project_issues
@@ -199,6 +184,24 @@ from kanbus.standup_command import (
     run_standup_command,
 )
 from kanbus.router_cli import router_group
+
+
+def _format_confirmed_identifier(root: Path, identifier: str) -> str:
+    """Format an identifier for confirmation messages using project widths."""
+    from kanbus.config import effective_short_id_length
+    from kanbus.issue_files import project_identifier_universe
+
+    default_len = DEFAULT_SHORT_ID_LENGTH
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+        default_len = effective_short_id_length(configuration)
+    except Exception:
+        default_len = DEFAULT_SHORT_ID_LENGTH
+    universe = project_identifier_universe(root)
+    widths = ShortIdWidths.build(universe, default_len)
+    return format_issue_key_with(
+        identifier, project_context=False, short_id_widths=widths
+    )
 
 
 def _deprecated_console_control(command: str) -> click.ClickException:
@@ -945,7 +948,7 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
         try:
             lookup = load_issue_from_project(root, identifier)
         except IssueLookupError as error:
-            _raise_lookup_error(error)
+            _raise_lookup_error(error, as_json=as_json)
         issue = lookup.issue
         configuration = load_project_configuration(get_configuration_path(root))
 
@@ -2354,13 +2357,12 @@ def list_command(
         issues = issues[:limit]
 
     configuration = None
-    if not beads_mode:
-        try:
-            configuration = load_project_configuration(get_configuration_path(root))
-        except ProjectMarkerError:
-            configuration = None
-        except ConfigurationError as error:
-            raise click.ClickException(str(error)) from error
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except ProjectMarkerError:
+        configuration = None
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
 
     # In Beads mode, always show full IDs (project_context=False)
     # In regular mode, use project_context if all issues are from same project
@@ -2370,7 +2372,9 @@ def list_command(
         else not any(issue.custom.get("project_path") for issue in issues)
     )
     if beads_mode:
-        short_id_default_len = 6
+        short_id_default_len = (
+            6 if configuration is None else effective_short_id_length(configuration)
+        )
     else:
         short_id_default_len = (
             effective_short_id_length(configuration)
@@ -2385,7 +2389,9 @@ def list_command(
     widths = (
         None
         if porcelain
-        else compute_widths(issues, project_context=project_context, short_id_widths=short_id_widths)
+        else compute_widths(
+            issues, project_context=project_context, short_id_widths=short_id_widths
+        )
     )
     for issue in issues:
         line = format_issue_line(
@@ -4834,11 +4840,17 @@ class AmbiguousIdentifierException(click.ClickException):
     exit_code = 3
 
 
-def _raise_lookup_error(error: IssueLookupError) -> None:
+def _raise_lookup_error(error: IssueLookupError, as_json: bool = False) -> None:
     from kanbus.ambiguity import ambiguous_matches_json
 
     if getattr(error, "matches", None):
-        raise AmbiguousIdentifierException(str(error)) from error
+        exception = AmbiguousIdentifierException(str(error))
+        if as_json:
+            click.echo(
+                ambiguous_matches_json(getattr(error, "candidate", ""), error.matches)
+            )
+            exception.json_emitted = True
+        raise exception from error
     raise click.ClickException(str(error)) from error
 
 
@@ -4852,19 +4864,28 @@ def main() -> None:
         if isinstance(error, AmbiguousIdentifierException):
             from kanbus.ambiguity import ambiguous_matches_json, prompt_ambiguous_choice
 
-            lookup_error = error.__cause__ if isinstance(error.__cause__, IssueLookupError) else None
+            lookup_error = (
+                error.__cause__
+                if isinstance(error.__cause__, IssueLookupError)
+                else None
+            )
             matches = getattr(lookup_error, "matches", []) if lookup_error else []
             candidate = getattr(lookup_error, "candidate", "") if lookup_error else ""
             if "--json" in args:
-                click.echo(ambiguous_matches_json(candidate, matches))
+                if not getattr(error, "json_emitted", False):
+                    click.echo(ambiguous_matches_json(candidate, matches))
                 sys.exit(3)
-            if matches and _terminal_is_interactive() and not os.getenv("KANBUS_NO_PROMPT"):
+            if (
+                matches
+                and _terminal_is_interactive()
+                and not os.getenv("KANBUS_NO_PROMPT")
+            ):
                 chosen = prompt_ambiguous_choice(candidate, matches)
                 if chosen:
                     replaced = [chosen if arg == candidate else arg for arg in args]
                     try:
-                        cli(replaced, standalone_mode=False, prog_name="kanbus")
-                        return
+                        retried = cli(replaced, standalone_mode=False, prog_name="kanbus")
+                        sys.exit(retried if isinstance(retried, int) else 0)
                     except click.exceptions.ClickException as retry_error:
                         retry_error.show()
                         sys.exit(retry_error.exit_code)

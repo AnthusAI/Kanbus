@@ -224,9 +224,11 @@ def format_issue_for_display(
         ("Assignee:", issue.assignee or "-", None, issue.assignee is None),
         (
             "Parent:",
-            format_issue_key_with(issue.parent, project_context, short_id_widths)
-            if issue.parent and issue.parent != "-"
-            else issue.parent or "-",
+            (
+                format_issue_key_with(issue.parent, project_context, short_id_widths)
+                if issue.parent and issue.parent != "-"
+                else issue.parent or "-"
+            ),
             None,
             issue.parent is None,
         ),

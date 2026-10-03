@@ -89,9 +89,11 @@ def pull_from_jira(
     all_existing: Set[str] = set(existing_ids)
     short_id_widths = ShortIdWidths.build(
         all_existing,
-        configuration.short_id_length
-        if configuration.short_id_length is not None
-        else (6 if configuration.beads_compatibility else DEFAULT_SHORT_ID_LENGTH),
+        (
+            configuration.short_id_length
+            if configuration.short_id_length is not None
+            else (6 if configuration.beads_compatibility else DEFAULT_SHORT_ID_LENGTH)
+        ),
     )
 
     for jira_issue in jira_issues:

@@ -126,12 +126,14 @@ class ShortIdWidths:
                 if index > 0:
                     width = max(
                         width,
-                        _longest_common_prefix_length(normalized, entries[index - 1][1]) + 1,
+                        _longest_common_prefix_length(normalized, entries[index - 1][1])
+                        + 1,
                     )
                 if index + 1 < len(entries):
                     width = max(
                         width,
-                        _longest_common_prefix_length(normalized, entries[index + 1][1]) + 1,
+                        _longest_common_prefix_length(normalized, entries[index + 1][1])
+                        + 1,
                     )
                 width = min(_clamp_short_id_length(width), len(normalized))
                 widths[identifier] = width
@@ -158,7 +160,9 @@ def format_issue_key(identifier: str, project_context: bool) -> str:
     :return: Formatted key with optional project key and abbreviated hash.
     :rtype: str
     """
-    return format_issue_key_with(identifier, project_context, single_id_widths(identifier))
+    return format_issue_key_with(
+        identifier, project_context, single_id_widths(identifier)
+    )
 
 
 def format_issue_key_with(
@@ -231,7 +235,9 @@ def matches_issue_identifier(candidate: str, full_id: str) -> bool:
     candidate_key, candidate_base, candidate_tail = _split_identifier(candidate)
     full_key, full_base, full_tail = _split_identifier(full_id)
 
-    if candidate_tail != full_tail and not (candidate_tail is None and full_tail is None):
+    if candidate_tail != full_tail and not (
+        candidate_tail is None and full_tail is None
+    ):
         return False
 
     if candidate_key is not None and candidate_key != full_key:
@@ -239,6 +245,13 @@ def matches_issue_identifier(candidate: str, full_id: str) -> bool:
 
     candidate_normalized = candidate_base.replace("-", "")
     full_normalized = full_base.replace("-", "")
+
+    # Hyphen-insensitive: a dash-less candidate may glue the project key to
+    # the hash ("kanbusaaaabbbb" for "kanbus-aaaabbbb"); strip the glued key.
+    if candidate_key is None and full_key:
+        glued = full_key.replace("-", "")
+        if glued and candidate_normalized.startswith(glued):
+            candidate_normalized = candidate_normalized[len(glued) :]
 
     if not candidate_normalized:
         return False

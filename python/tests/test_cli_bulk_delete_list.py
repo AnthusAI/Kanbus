@@ -132,9 +132,7 @@ def test_delete_paths_regular_mode(
         lambda _p: (_ for _ in ()).throw(cli.ProjectMarkerError("pm")),
     )
     monkeypatch.setattr(
-        cli,
-        "format_issue_key",
-        lambda identifier, project_context=False: identifier,
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
 
     monkeypatch.setattr(cli, "_terminal_is_interactive", lambda: False)
@@ -201,7 +199,7 @@ def test_delete_paths_beads_mode(
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _cwd: tmp_path)
     monkeypatch.setattr(
-        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     monkeypatch.setattr(
         cli, "load_beads_issue", lambda *_a, **_k: build_issue("kanbus-1")
@@ -284,7 +282,9 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(
         cli,
         "compute_widths",
-        lambda issues, project_context, short_id_widths=None: widths_calls.append(project_context)
+        lambda issues, project_context, short_id_widths=None: widths_calls.append(
+            project_context
+        )
         or {"id": 8},
     )
     monkeypatch.setattr(
@@ -366,15 +366,15 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(
         cli,
         "format_issue_line",
-        lambda issue, porcelain, widths, project_context, configuration, short_id_widths=None: f"{issue.identifier}:{porcelain}:{project_context}:{configuration}",
+        lambda issue, porcelain, widths, project_context, configuration, short_id_widths=None: f"{issue.identifier}:{porcelain}:{project_context}:{configuration is None}",
     )
 
     result_beads = _run(["--beads", "list", "--porcelain", "--limit", "0"])
     assert result_beads.exit_code == 0
     lines = [line for line in result_beads.output.splitlines() if line.strip()]
     assert lines == [
-        "kanbus-2:True:False:None",
-        "kanbus-3:True:False:None",
+        "kanbus-2:True:False:False",
+        "kanbus-3:True:False:False",
     ]
 
 

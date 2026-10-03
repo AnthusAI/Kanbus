@@ -27,7 +27,13 @@ from kanbus.ambiguity import render_ambiguous_error
 class IssueLookupError(RuntimeError):
     """Raised when an issue lookup fails."""
 
-    def __init__(self, message: str, *, candidate: str | None = None, matches: list[AmbiguousCandidate] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        candidate: str | None = None,
+        matches: list[AmbiguousCandidate] | None = None,
+    ) -> None:
         super().__init__(message)
         self.candidate = candidate
         self.matches = matches or []
@@ -228,7 +234,9 @@ def resolve_issue_identifier(
             )
         except Exception:
             candidates.append(
-                AmbiguousCandidate(identifier=full_id, title="", issue_type="", status="")
+                AmbiguousCandidate(
+                    identifier=full_id, title="", issue_type="", status=""
+                )
             )
     raise IssueLookupError(
         render_ambiguous_error(candidate, candidates),

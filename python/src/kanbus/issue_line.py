@@ -171,18 +171,22 @@ def format_issue_line(
     status_color = _resolve_status_color(issue.status, configuration)
 
     resolved_widths = short_id_widths or ShortIdWidths.build(
-        [issue.identifier, *( [issue.parent] if issue.parent else [] )],
+        [issue.identifier, *([issue.parent] if issue.parent else [])],
         DEFAULT_SHORT_ID_LENGTH,
     )
 
     formatted_identifier = format_issue_key_with(
-        issue.identifier, project_context=project_context, short_id_widths=resolved_widths
+        issue.identifier,
+        project_context=project_context,
+        short_id_widths=resolved_widths,
     )
 
     parent_value = issue.parent or "-"
     parent_display = (
         format_issue_key_with(
-            parent_value, project_context=project_context, short_id_widths=resolved_widths
+            parent_value,
+            project_context=project_context,
+            short_id_widths=resolved_widths,
         )
         if parent_value != "-"
         else parent_value
@@ -211,7 +215,9 @@ def format_issue_line(
     parent_value = issue.parent or "-"
     parent_display = (
         format_issue_key_with(
-            parent_value, project_context=project_context, short_id_widths=resolved_widths
+            parent_value,
+            project_context=project_context,
+            short_id_widths=resolved_widths,
         )
         if parent_value != "-"
         else parent_value
@@ -252,7 +258,7 @@ def compute_widths(
             identifier
             for issue in issues
             for identifier in (
-                [issue.identifier, *( [issue.parent] if issue.parent else [] )]
+                [issue.identifier, *([issue.parent] if issue.parent else [])]
             )
         ],
         DEFAULT_SHORT_ID_LENGTH,
@@ -269,13 +275,17 @@ def compute_widths(
         priority_w = max(priority_w, len(f"P{issue.priority}"))
         type_w = max(type_w, len(issue.issue_type[:1].upper()))
         formatted_identifier = format_issue_key_with(
-            issue.identifier, project_context=project_context, short_id_widths=resolved_widths
+            issue.identifier,
+            project_context=project_context,
+            short_id_widths=resolved_widths,
         )
         identifier_w = max(identifier_w, len(formatted_identifier))
         parent_value = issue.parent or "-"
         parent_display = (
             format_issue_key_with(
-                parent_value, project_context=project_context, short_id_widths=resolved_widths
+                parent_value,
+                project_context=project_context,
+                short_id_widths=resolved_widths,
             )
             if parent_value != "-"
             else parent_value
