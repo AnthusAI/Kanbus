@@ -748,7 +748,7 @@ def _router_validation_error(error: ValidationError) -> str | None:
             and location[3] == "adapter"
         ):
             profile = location[2]
-            return f"router.providers.{profile}.adapter must be codex or opencode"
+            return f"router.providers.{profile}.adapter must be codex, opencode or pi"
         if (
             len(location) == 4
             and location[1] == "classes"
