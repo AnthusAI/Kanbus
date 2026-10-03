@@ -19,7 +19,7 @@ from kanbus.ids import format_issue_key
 
 DEDUP_IDENTIFIER = "kanbus-dedup"
 DEDUP_TITLE = "Deduped work"
-DEDUP_EDITED_TITLE = "Deduped work (edited in worktree)"
+DEDUP_EDITED_TITLE = "Worktree edited copy"
 TIE_IDENTIFIER = "kanbus-tie"
 TIE_ALPHA_TITLE = "Tie copy alpha"
 TIE_ZETA_TITLE = "Tie copy zeta"
@@ -142,7 +142,9 @@ def given_workspace_tied_copies(context: object) -> None:
     context.dedup_issue_key = format_issue_key(TIE_IDENTIFIER, project_context=False)
     context.tie_alpha_title = TIE_ALPHA_TITLE
     context.tie_zeta_title = TIE_ZETA_TITLE
-    context.workspace_issue_keys = [format_issue_key(TIE_IDENTIFIER, project_context=False)]
+    context.workspace_issue_keys = [
+        format_issue_key(TIE_IDENTIFIER, project_context=False)
+    ]
 
 
 @given("a single Kanbus project with one issue and no duplicate copies")
@@ -161,9 +163,9 @@ def given_single_project_no_duplicates(context: object) -> None:
 def then_issue_appears_exactly_once(context: object) -> None:
     stdout = context.result.stdout
     assert stdout is not None
-    assert stdout.count(context.dedup_issue_key) == 1, (
-        f"expected {context.dedup_issue_key} exactly once, got: {stdout}"
-    )
+    assert (
+        stdout.count(context.dedup_issue_key) == 1
+    ), f"expected {context.dedup_issue_key} exactly once, got: {stdout}"
 
 
 @then("the listed entry is the most recently changed version of the issue")
@@ -192,9 +194,9 @@ def then_single_project_listing_shows_issue_once(context: object) -> None:
     stdout = context.result.stdout
     short_key = format_issue_key(DEDUP_IDENTIFIER, project_context=True)
     assert stdout is not None
-    assert stdout.count(short_key) == 1, (
-        f"expected {short_key} exactly once, got: {stdout}"
-    )
+    assert (
+        stdout.count(short_key) == 1
+    ), f"expected {short_key} exactly once, got: {stdout}"
 
 
 @then("no issue identity appears more than once")
