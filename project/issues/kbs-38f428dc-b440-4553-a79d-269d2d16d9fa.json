@@ -1,9 +1,9 @@
 {
   "id": "kbs-38f428dc-b440-4553-a79d-269d2d16d9fa",
-  "title": "Configure Discovery as Kanbus router intake",
-  "description": "Migrate the Kanbus project status definitions to the state-native router contract. Mark Discovery as the canonical todo status; mark In Progress, Review, Blocked, and Done with semantic categories in_progress, in_review, blocked, and done respectively. Add the Discovery to In Progress workflow transition used when a worker claims an issue. Leave Ready and Backlog unmarked, and do not migrate existing router-labelled issues currently in Ready. Acceptance: project configuration validates, router planning selects an opted-in Discovery issue, and an otherwise eligible opted-in Ready issue remains ineligible.",
+  "title": "Withdrawn: not to be implemented (kbs-38f428)",
+  "description": "Withdrawn. This issue was created in error and is not wanted; do not implement it. Nothing depends on it.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -17,8 +17,8 @@
   ],
   "comments": [],
   "created_at": "2026-09-18T16:17:38.365755Z",
-  "updated_at": "2026-09-18T16:17:42.980154Z",
-  "closed_at": null,
+  "updated_at": "2026-09-25T00:17:10.085796Z",
+  "closed_at": "2026-09-25T00:17:10.043079Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

@@ -3,17 +3,25 @@
   "title": "Transparent delegation contract and integration coverage",
   "description": "Activate/update cross-runtime behavioral coverage for questions, malformed output, tap-outs, launch failures, recovery, fencing, cancellation, and scripted/real Codex integration.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-fec16102-d58e-43f3-a7e2-37cf66c7e970",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6a8c77fc-4872-4094-b6de-e44b3510349f",
+      "author": "home",
+      "text": "Complete. Cross-runtime coverage now exists for each listed behavior, all as shared Gherkin run by behave and cucumber with the spec-parity check in CI: questions and blocked outcomes and reply resume (router_agent_resume.feature, router_recovery_and_publication.feature); malformed and undefined-outcome results preserved for review (router_codex_adapter.feature); tap-outs and retryable failures with bounded backoff and Blocked after three (router_recovery_and_publication.feature); fencing, where an obsolete claim cannot publish a checkpoint, artifact or result (router_recovery_and_publication.feature, router_multi_router_coordination.feature); cancellation (router_execution_and_controls.feature); and launch failures, added in PR #365: an agent command that cannot be started leaves a Kanbus Issue Router comment and moves the package to blocked. Scripted integration is the containerized harness (kbs-2730cc) run live with a fake agent, and real Codex runs were exercised earlier on live board issues.",
+      "created_at": "2026-09-24T01:05:08.729821Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-18T21:54:00.214445Z",
-  "updated_at": "2026-09-18T21:54:00.303763Z",
-  "closed_at": null,
+  "updated_at": "2026-09-24T01:05:08.989760Z",
+  "closed_at": "2026-09-24T01:05:08.959083Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-5",
