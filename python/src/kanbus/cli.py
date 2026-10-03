@@ -4884,7 +4884,9 @@ def main() -> None:
                 if chosen:
                     replaced = [chosen if arg == candidate else arg for arg in args]
                     try:
-                        retried = cli(replaced, standalone_mode=False, prog_name="kanbus")
+                        retried = cli(
+                            replaced, standalone_mode=False, prog_name="kanbus"
+                        )
                         sys.exit(retried if isinstance(retried, int) else 0)
                     except click.exceptions.ClickException as retry_error:
                         retry_error.show()
