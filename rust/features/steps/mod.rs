@@ -63,3 +63,4 @@ pub mod virtual_project_steps;
 pub mod wiki_panel_steps;
 pub mod wiki_steps;
 pub mod workflow_steps;
+pub mod workspace_dedupe_steps;

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import List
@@ -306,7 +307,7 @@ def _list_issues_across_projects(
     overlay_configs: dict[Path, OverlayConfig],
     project_labels: dict[Path, str],
 ) -> List[IssueData]:
-    issues: List[IssueData] = []
+    collected: List[tuple[IssueData, Path]] = []
     for project_dir in sorted(project_dirs):
         local_dir = None
         if include_local or local_only:
@@ -321,11 +322,56 @@ def _list_issues_across_projects(
             overlay_configs.get(project_dir, OverlayConfig(enabled=False)),
             project_labels.get(project_dir),
         )
-        project_issues = [
-            _tag_issue_project(issue, root, project_dir) for issue in project_issues
-        ]
-        issues.extend(project_issues)
-    return issues
+        for issue in project_issues:
+            collected.append((issue, project_dir))
+    deduplicated = _deduplicate_issues_by_identity(collected)
+    return [
+        _tag_issue_project(issue, root, project_dir)
+        for issue, project_dir in deduplicated
+    ]
+
+
+def _deduplicate_issues_by_identity(
+    collected: List[tuple[IssueData, Path]],
+) -> List[tuple[IssueData, Path]]:
+    """Collapse copies of the same issue identity across discovered projects.
+
+    The copy with the greatest ``updated_at`` wins; equal timestamps break the
+    tie on the lexicographically greater canonical serialized record. The
+    winning copy keeps the position of the first occurrence of the identity.
+
+    :param collected: Issues paired with their originating project directory.
+    :type collected: List[tuple[IssueData, Path]]
+    :return: One winner per issue identity, in discovery order.
+    :rtype: List[tuple[IssueData, Path]]
+    """
+    chosen: dict[str, tuple[int, IssueData, Path]] = {}
+    for position, (issue, project_dir) in enumerate(collected):
+        current = chosen.get(issue.identifier)
+        if current is None:
+            chosen[issue.identifier] = (position, issue, project_dir)
+            continue
+        current_position, current_issue, current_project_dir = current
+        if _is_more_recent(issue, current_issue):
+            chosen[issue.identifier] = (current_position, issue, project_dir)
+    return [
+        (issue, project_dir)
+        for _, issue, project_dir in sorted(chosen.values(), key=lambda entry: entry[0])
+    ]
+
+
+def _is_more_recent(candidate: IssueData, current: IssueData) -> bool:
+    if candidate.updated_at != current.updated_at:
+        return candidate.updated_at > current.updated_at
+    return _canonical_issue_record(candidate) > _canonical_issue_record(current)
+
+
+def _canonical_issue_record(issue: IssueData) -> str:
+    return json.dumps(
+        issue.model_dump(by_alias=True, mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 def _load_issues_from_directory(issues_dir: Path) -> List[IssueData]:

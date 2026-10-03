@@ -305,7 +305,7 @@ fn list_issues_across_projects(
     overlay_configs: &HashMap<std::path::PathBuf, crate::models::OverlayConfig>,
     project_labels: &HashMap<std::path::PathBuf, String>,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    let mut issues = Vec::new();
+    let mut collected: Vec<(IssueData, std::path::PathBuf)> = Vec::new();
     for project_dir in projects {
         let issues_dir = project_dir.join("issues");
         if !issues_dir.is_dir() {
@@ -323,19 +323,86 @@ fn list_issues_across_projects(
             .get(project_dir)
             .cloned()
             .unwrap_or_else(disabled_overlay_config);
-        let mut project_issues = list_issues_with_local(
+        let project_issues = list_issues_with_local(
             project_dir,
             local_dir.as_deref(),
             local_only,
             &overlay_config,
             project_labels.get(project_dir).map(|value| value.as_str()),
         )?;
-        for issue in &mut project_issues {
-            tag_issue_project(issue, root, project_dir);
+        for issue in project_issues {
+            collected.push((issue, project_dir.clone()));
         }
-        issues.extend(project_issues);
+    }
+    let mut issues = Vec::new();
+    for (mut issue, project_dir) in deduplicate_issues_by_identity(collected) {
+        tag_issue_project(&mut issue, root, &project_dir);
+        issues.push(issue);
     }
     Ok(issues)
+}
+
+/// Collapse copies of the same issue identity across discovered projects.
+///
+/// The copy with the greatest `updated_at` wins; equal timestamps break the
+/// tie on the lexicographically greater canonical serialized record. The
+/// winning copy keeps the position of the first occurrence of the identity.
+fn deduplicate_issues_by_identity(
+    collected: Vec<(IssueData, std::path::PathBuf)>,
+) -> Vec<(IssueData, std::path::PathBuf)> {
+    let mut chosen: HashMap<String, (usize, IssueData, std::path::PathBuf)> = HashMap::new();
+    for (position, (issue, project_dir)) in collected.into_iter().enumerate() {
+        let Some((current_position, current_issue, _)) = chosen.get(&issue.identifier) else {
+            chosen.insert(issue.identifier.clone(), (position, issue, project_dir));
+            continue;
+        };
+        let current_position = *current_position;
+        if is_more_recent(&issue, current_issue) {
+            if let Some(entry) = chosen.get_mut(&issue.identifier) {
+                *entry = (current_position, issue, project_dir);
+            }
+        }
+    }
+    let mut entries: Vec<(usize, IssueData, std::path::PathBuf)> = chosen.into_values().collect();
+    entries.sort_by_key(|(position, _, _)| *position);
+    entries
+        .into_iter()
+        .map(|(_, issue, project_dir)| (issue, project_dir))
+        .collect()
+}
+
+fn is_more_recent(candidate: &IssueData, current: &IssueData) -> bool {
+    if candidate.updated_at != current.updated_at {
+        return candidate.updated_at > current.updated_at;
+    }
+    canonical_issue_record(candidate) > canonical_issue_record(current)
+}
+
+fn canonical_issue_record(issue: &IssueData) -> String {
+    canonical_json(&serde_json::to_value(issue).expect("issue serializes to JSON"))
+}
+
+fn canonical_json(value: &serde_json::Value) -> String {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => {
+            let keys: std::collections::BTreeMap<&str, &Value> =
+                map.iter().map(|(key, item)| (key.as_str(), item)).collect();
+            let rendered: Vec<String> = keys
+                .into_iter()
+                .map(|(key, item)| {
+                    let encoded_key = serde_json::to_string(key).expect("key serializes to JSON");
+                    format!("{encoded_key}:{}", canonical_json(item))
+                })
+                .collect();
+            format!("{{{}}}", rendered.join(","))
+        }
+        Value::Array(items) => {
+            let rendered: Vec<String> = items.iter().map(canonical_json).collect();
+            format!("[{}]", rendered.join(","))
+        }
+        other => other.to_string(),
+    }
 }
 
 fn load_root_configuration(root: &Path) -> Option<ProjectConfiguration> {
@@ -630,5 +697,112 @@ mod tests {
         .expect("apply query with search/sort");
         assert_eq!(queried.len(), 1);
         assert_eq!(queried[0].identifier, "kanbus-2");
+    }
+
+    fn collected(entries: &[(IssueData, &str)]) -> Vec<(IssueData, std::path::PathBuf)> {
+        entries
+            .iter()
+            .map(|(issue, project_dir)| (issue.clone(), std::path::PathBuf::from(project_dir)))
+            .collect()
+    }
+
+    fn issue_with_updated_at(
+        identifier: &str,
+        title: &str,
+        updated_at: chrono::DateTime<Utc>,
+    ) -> IssueData {
+        let mut data = issue(identifier, title);
+        data.updated_at = updated_at;
+        data
+    }
+
+    #[test]
+    fn deduplicate_issues_by_identity_keeps_most_recent_copy() {
+        let stale = issue("kanbus-dup", "Stale copy");
+        let fresh = issue_with_updated_at(
+            "kanbus-dup",
+            "Fresh copy",
+            Utc.with_ymd_and_hms(2026, 3, 7, 0, 0, 0).unwrap(),
+        );
+        let distinct = issue("kanbus-other", "Other issue");
+
+        let deduplicated = deduplicate_issues_by_identity(collected(&[
+            (stale, "repo/project"),
+            (fresh, "repo-wt/project"),
+            (distinct, "other/project"),
+        ]));
+
+        assert_eq!(
+            deduplicated
+                .iter()
+                .map(|(issue, _)| issue.identifier.clone())
+                .collect::<Vec<_>>(),
+            vec!["kanbus-dup".to_string(), "kanbus-other".to_string()]
+        );
+        assert_eq!(deduplicated[0].0.title, "Fresh copy");
+        assert_eq!(
+            deduplicated[0].0.updated_at,
+            Utc.with_ymd_and_hms(2026, 3, 7, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            deduplicated[0].1,
+            std::path::PathBuf::from("repo-wt/project")
+        );
+    }
+
+    #[test]
+    fn deduplicate_issues_by_identity_tie_breaks_on_canonical_record() {
+        let alpha = issue("kanbus-tie", "Tie copy alpha");
+        let zeta = issue("kanbus-tie", "Tie copy zeta");
+
+        let forward =
+            deduplicate_issues_by_identity(collected(&[(alpha.clone(), "a"), (zeta.clone(), "b")]));
+        assert_eq!(forward[0].0.title, "Tie copy zeta");
+
+        let reversed = deduplicate_issues_by_identity(collected(&[(zeta, "b"), (alpha, "a")]));
+        assert_eq!(reversed[0].0.title, "Tie copy zeta");
+    }
+
+    #[test]
+    fn deduplicate_issues_by_identity_keeps_distinct_issues() {
+        let one = issue("kanbus-one", "One");
+        let two = issue_with_updated_at(
+            "kanbus-two",
+            "Two",
+            Utc.with_ymd_and_hms(2026, 3, 7, 0, 0, 0).unwrap(),
+        );
+
+        let deduplicated = deduplicate_issues_by_identity(collected(&[(one, "a"), (two, "b")]));
+
+        assert_eq!(
+            deduplicated
+                .iter()
+                .map(|(issue, _)| issue.identifier.clone())
+                .collect::<Vec<_>>(),
+            vec!["kanbus-one".to_string(), "kanbus-two".to_string()]
+        );
+    }
+
+    #[test]
+    fn deduplicate_issues_by_identity_keeps_first_occurrence_position() {
+        let first = issue("kanbus-dup", "First");
+        let second = issue_with_updated_at(
+            "kanbus-dup",
+            "Second",
+            Utc.with_ymd_and_hms(2026, 3, 7, 0, 0, 0).unwrap(),
+        );
+        let tail = issue("kanbus-tail", "Tail");
+
+        let deduplicated =
+            deduplicate_issues_by_identity(collected(&[(first, "a"), (second, "b"), (tail, "c")]));
+
+        assert_eq!(
+            deduplicated
+                .iter()
+                .map(|(issue, _)| issue.title.clone())
+                .collect::<Vec<_>>(),
+            vec!["Second".to_string(), "Tail".to_string()]
+        );
+        assert_eq!(deduplicated[0].1, std::path::PathBuf::from("b"));
     }
 }
