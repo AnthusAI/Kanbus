@@ -7,13 +7,13 @@ Feature: Dynamic short IDs
     Given a Kanbus project with default configuration
 
   Scenario: Collision-free issues display at the default width
-    And an issue "kanbus-0123456789ab" exists
+    Given an issue "kanbus-0123456789ab" exists
     When I run "kanbus list"
     Then stdout should contain " 0123 "
     And stdout should not contain "012345"
 
   Scenario: Colliding short IDs are widened until unique
-    And a project issue "kanbus-aaaabbbb" exists with title "Alpha"
+    Given a project issue "kanbus-aaaabbbb" exists with title "Alpha"
     And a project issue "kanbus-aaaacccc" exists with title "Bravo"
     And a project issue "kanbus-9f8e7d6c" exists with title "Zulu"
     When I run "kanbus list"
@@ -22,13 +22,13 @@ Feature: Dynamic short IDs
     And the list should show short ID "9f8e" for issue "kanbus-9f8e7d6c"
 
   Scenario: Every displayed short ID in the list is unique
-    And project issues exist from the short ID uniqueness fixture
+    Given project issues exist from the short ID uniqueness fixture
     When I run "kanbus list"
     Then no two displayed list IDs should collide
     And no displayed short ID should be ambiguous in the visible set
 
   Scenario: Configured short_id_length overrides the default width
-    And the Kanbus configuration sets short_id_length to 6
+    Given the Kanbus configuration sets short_id_length to 6
     And an issue "kanbus-0123456789ab" exists
     When I run "kanbus list"
     Then stdout should contain "012345"
@@ -50,7 +50,7 @@ Feature: Dynamic short IDs
     And stdout should not contain "kanbus-012345"
 
   Scenario: Identifier resolution ignores hyphens
-    And a project issue "kanbus-aaaabbbb" exists with title "Alpha"
+    Given a project issue "kanbus-aaaabbbb" exists with title "Alpha"
     When I run "kanbus show kanbus-aaaabbbb"
     Then the command should succeed
     When I run "kanbus show kanbusaaaabbbb"
@@ -58,7 +58,7 @@ Feature: Dynamic short IDs
     And stdout should contain "Alpha"
 
   Scenario: Ambiguous short IDs fail with exit code 3
-    And a project issue "kanbus-aaaabbbb" exists with title "Alpha"
+    Given a project issue "kanbus-aaaabbbb" exists with title "Alpha"
     And a project issue "kanbus-aaaacccc" exists with title "Bravo"
     When I run "kanbus show kanbus-aaaa"
     Then the command exit code should be 3
@@ -67,7 +67,7 @@ Feature: Dynamic short IDs
     And stderr should contain "Bravo"
 
   Scenario: Ambiguous short IDs return structured matches with --json
-    And a project issue "kanbus-aaaabbbb" exists with title "Alpha"
+    Given a project issue "kanbus-aaaabbbb" exists with title "Alpha"
     And a project issue "kanbus-aaaacccc" exists with title "Bravo"
     When I run "kanbus show kanbus-aaaa --json"
     Then the command exit code should be 3
