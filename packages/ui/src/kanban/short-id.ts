@@ -184,8 +184,16 @@ export function shortIdMatches(
   if (candidateParts.suffix !== fullParts.suffix) {
     return false;
   }
-  const candidateNormalized = candidateParts.base.replace(/-/g, "").toLowerCase();
+  let candidateNormalized = candidateParts.base.replace(/-/g, "").toLowerCase();
   const fullNormalized = fullParts.base.replace(/-/g, "").toLowerCase();
+  // Hyphen-insensitive: a dash-less candidate may glue the project key to
+  // the hash ("kanbusaaaabbbb" for "kanbus-aaaabbbb"); strip the glued key.
+  if (!candidateParts.key && fullParts.key) {
+    const glued = fullParts.key.replace(/-/g, "").toLowerCase();
+    if (glued && candidateNormalized.startsWith(glued)) {
+      candidateNormalized = candidateNormalized.slice(glued.length);
+    }
+  }
   if (!candidateNormalized) {
     return false;
   }
