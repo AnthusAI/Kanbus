@@ -584,6 +584,14 @@ def then_tab_selected(context: object, tab: str) -> None:
         raise AssertionError(f"expected tab {tab} but found {state.selected_tab}")
 
 
+@then("the console board should be visible")
+def then_console_board_visible(context: object) -> None:
+    """Verify the console rendered a board view after loading."""
+    state = _require_console_state(context)
+    if not state.selected_tab:
+        raise AssertionError("expected the console to render a board view")
+
+
 @then("no view tab should be selected")
 def then_no_tab_selected(context: object) -> None:
     """Verify no view tab is selected."""
@@ -1365,18 +1373,6 @@ def then_board_view_active(context: object) -> None:
     state = _require_console_state(context)
     if state.panel_mode != "board":
         raise AssertionError(f"expected board view, got {state.panel_mode}")
-
-
-@then("the console board should be visible")
-def then_console_board_should_be_visible(context: object) -> None:
-    """Assert the console shell rendered after a route or reload.
-
-    :param context: Behave context holding console UI state.
-    :type context: object
-    :return: None
-    :rtype: None
-    """
-    _require_console_state(context)
 
 
 @then("the board view should be inactive")

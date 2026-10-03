@@ -155,8 +155,7 @@ def _handle_request_via_handler(context: object, payload: bytes) -> bytes:
 
 
 def _set_daemon_env(context: object, value: str) -> None:
-    if not hasattr(context, "original_daemon_env"):
-        context.original_daemon_env = os.environ.get("KANBUS_NO_DAEMON")
+    context.daemon_env_changed = True
     os.environ["KANBUS_NO_DAEMON"] = value
 
 
@@ -649,27 +648,6 @@ def then_daemon_should_have_been_restarted(context: object) -> None:
     assert daemon_client.was_daemon_restarted_for_testing() is True
 
 
-@given('the daemon index list responds with "{message}"')
-def given_daemon_index_list_responds_with(context: object, message: str) -> None:
-    from kanbus import daemon_client
-    from kanbus.daemon_protocol import ErrorEnvelope
-
-    _set_daemon_env(context, "0")
-    context.original_request_with_recovery = daemon_client._request_with_recovery
-
-    def fake_request(
-        socket_path: Path, request: RequestEnvelope, root: Path
-    ) -> ResponseEnvelope:
-        return ResponseEnvelope(
-            protocol_version=PROTOCOL_VERSION,
-            request_id=request.request_id,
-            status="error",
-            error=ErrorEnvelope(code="internal_error", message=message, details={}),
-        )
-
-    daemon_client._request_with_recovery = fake_request
-
-
 @given('the daemon index list fails once with "{message}" then succeeds')
 def given_daemon_index_list_fails_once_then_succeeds(
     context: object, message: str
@@ -1027,6 +1005,9 @@ def when_handle_daemon_index_list_directly(context: object) -> None:
         payload={},
     )
     response = handle_request_for_testing(project_dir.parent, request)
+    context.daemon_index_issues = (
+        response.result.get("issues") if response.result else None
+    )
     context.daemon_error = response.error.message if response.error else None
 
 

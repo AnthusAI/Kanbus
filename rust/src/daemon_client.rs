@@ -245,14 +245,16 @@ pub fn request_shutdown(root: &Path) -> Result<BTreeMap<String, Value>, KanbusEr
 
 /// Send a generic Virtuus service request through Kanbus's resident daemon.
 ///
-/// The daemon is started on demand and retried once after a transport failure.
-/// Callers use direct table access only when `KANBUS_NO_DAEMON` disables it.
+/// The daemon is started on demand. A stale socket is replaced by one fresh
+/// daemon; a daemon that was just started is given time to bind its socket
+/// instead of being started again. Callers use direct table access only when `KANBUS_NO_DAEMON` disables it.
 pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusError> {
     if !is_daemon_enabled() {
         return Err(KanbusError::IssueOperation("daemon disabled".to_string()));
     }
     let socket_path = get_daemon_socket_path(root)?;
-    if !socket_path.exists() {
+    let mut spawned = !socket_path.exists();
+    if spawned {
         spawn_daemon(root)?;
     }
     let mut last_error = None;
@@ -272,12 +274,13 @@ pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusErro
             }
             Err(error) => {
                 last_error = Some(error);
-                if attempt == 0 {
+                if !spawned {
                     if socket_path.exists() {
                         std::fs::remove_file(&socket_path)
                             .map_err(|remove_error| KanbusError::Io(remove_error.to_string()))?;
                     }
                     spawn_daemon(root)?;
+                    spawned = true;
                 }
                 if attempt < 10 {
                     std::thread::sleep(Duration::from_millis(50));

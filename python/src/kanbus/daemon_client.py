@@ -225,47 +225,66 @@ def request_shutdown(root: Path) -> dict[str, Any]:
     return response.result or {}
 
 
+def _send_virtuus_request(socket_path: Path, request: dict[str, Any]) -> dict:
+    """Send one JSON-lines request to the daemon socket and decode the reply.
+
+    :param socket_path: Daemon Unix socket path.
+    :type socket_path: Path
+    :param request: Virtuus service request.
+    :type request: dict[str, Any]
+    :return: Decoded response envelope.
+    :rtype: dict
+    :raises DaemonClientError: When the daemon returns an empty response.
+    """
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+        connection.connect(str(socket_path))
+        connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
+        response = b""
+        while not response.endswith(b"\n"):
+            chunk = connection.recv(65536)
+            if not chunk:
+                break
+            response += chunk
+    if not response.strip():
+        raise DaemonClientError("empty daemon response")
+    return json.loads(response)
+
+
 def request_virtuus(root: Path, request: dict[str, Any]) -> Any:
     """Send a generic Virtuus service request through Kanbus's resident daemon.
 
-    The daemon is started on demand and retried once after a connection failure.
-    Callers use direct table access only when ``KANBUS_NO_DAEMON`` disables it.
+    The daemon is started on demand. A stale socket is replaced by one fresh
+    daemon; a daemon that was just started is given time to bind its socket
+    instead of being started again. Callers use direct table access only when
+    ``KANBUS_NO_DAEMON`` disables it.
     """
     if not is_daemon_enabled():
         raise DaemonClientError("daemon disabled")
     socket_path = get_daemon_socket_path(root)
-    if not socket_path.exists():
+    spawned = not socket_path.exists()
+    if spawned:
         spawn_daemon(root)
     last_error: DaemonClientError | None = None
     for attempt in range(11):
         try:
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-                connection.connect(str(socket_path))
-                connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
-                response = b""
-                while not response.endswith(b"\n"):
-                    chunk = connection.recv(65536)
-                    if not chunk:
-                        break
-                    response += chunk
-            if not response.strip():
-                raise DaemonClientError("empty daemon response")
-            decoded = json.loads(response)
-            if not decoded.get("ok"):
-                raise DaemonClientError(str(decoded.get("error", "daemon error")))
-            return decoded.get("result")
+            response = _send_virtuus_request(socket_path, request)
         except (OSError, json.JSONDecodeError, DaemonClientError) as error:
             last_error = (
                 error
                 if isinstance(error, DaemonClientError)
                 else DaemonClientError(str(error))
             )
-            if attempt == 0:
+            if not spawned:
                 if socket_path.exists():
                     socket_path.unlink()
                 spawn_daemon(root)
+                spawned = True
             if attempt < 10:
                 time.sleep(0.05)
+            continue
+        if not response.get("ok"):
+            raise DaemonClientError(str(response.get("error", "Virtuus daemon error")))
+        return response.get("result")
     raise DaemonClientError(
         f"Virtuus daemon request failed: {last_error}. "
         "Set KANBUS_NO_DAEMON=1 to bypass the daemon."

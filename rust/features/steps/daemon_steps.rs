@@ -637,27 +637,6 @@ fn then_daemon_should_have_been_restarted(_world: &mut KanbusWorld) {
     assert!(daemon_client::was_daemon_restarted_for_testing());
 }
 
-#[given(expr = "the daemon index list responds with {string}")]
-fn given_daemon_index_list_responds_with(_world: &mut KanbusWorld, message: String) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
-    let response = ResponseEnvelope {
-        protocol_version: PROTOCOL_VERSION.to_string(),
-        request_id: "req-config-failover".to_string(),
-        status: "error".to_string(),
-        result: None,
-        error: Some(kanbus::daemon_protocol::ErrorEnvelope {
-            code: "internal_error".to_string(),
-            message,
-            details: BTreeMap::new(),
-        }),
-    };
-    set_test_daemon_responses(vec![
-        TestDaemonResponse::Envelope(response.clone()),
-        TestDaemonResponse::Envelope(response),
-    ]);
-    set_test_daemon_spawn_disabled(true);
-}
-
 #[given(expr = "the daemon index list fails once with {string} then succeeds")]
 fn given_daemon_index_list_fails_once_then_succeeds(_world: &mut KanbusWorld, message: String) {
     std::env::set_var("KANBUS_NO_DAEMON", "0");
@@ -819,8 +798,19 @@ fn when_handle_daemon_index_list_directly(world: &mut KanbusWorld) {
         payload: BTreeMap::new(),
     };
     let response = handle_request_for_testing(&daemon_root(world), request);
+    world.daemon_index_issues = response
+        .result
+        .as_ref()
+        .and_then(|result| result.get("issues"))
+        .and_then(|issues| issues.as_array())
+        .map(|issues| {
+            issues
+                .iter()
+                .filter_map(|issue| issue.get("id").and_then(|value| value.as_str()))
+                .map(str::to_string)
+                .collect()
+        });
     world.daemon_error_message = response.error.map(|error| error.message);
-    world.daemon_index_issues = None;
 }
 
 #[when(expr = "a daemon request with protocol version {string} is handled directly")]

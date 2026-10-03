@@ -156,6 +156,14 @@ async fn main() {
     cover_additional_paths();
     KanbusWorld::cucumber::<PathBuf>()
         .with_parser(RecursiveFeatureParser::default())
+        // Step code calls the library in-process from this test binary, which
+        // cannot host the resident daemon, so every scenario starts with the
+        // daemon bypassed; daemon scenarios enable it explicitly.
+        .before(|_feature, _rule, _scenario, _world| {
+            Box::pin(async {
+                std::env::set_var("KANBUS_NO_DAEMON", "1");
+            })
+        })
         .max_concurrent_scenarios(1)
         .filter_run_and_exit(features_dir, move |feature, _, scenario| {
             if !feature_filters.is_empty()

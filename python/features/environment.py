@@ -114,6 +114,10 @@ def before_all(context: object) -> None:
     os.environ["HOME"] = context.bdd_home_dir
 
     context._stripped_developer_env_vars = _strip_developer_environment_variables()
+    # Step code reads and writes issue files in-process while the CLI under
+    # test runs with KANBUS_NO_DAEMON; both must bypass the resident daemon,
+    # whose cached table would otherwise serve stale issues to the steps.
+    os.environ["KANBUS_NO_DAEMON"] = "1"
 
     if os.environ.get("KANBUS_ENABLE_COVERAGE_HELPER") != "1":
         return
@@ -132,6 +136,7 @@ def after_all(context: object) -> None:
     import os
     import shutil
 
+    os.environ.pop("KANBUS_NO_DAEMON", None)
     bdd_home_dir = getattr(context, "bdd_home_dir", None)
     original_home = getattr(context, "_original_home", None)
     if original_home is not None:
@@ -140,6 +145,30 @@ def after_all(context: object) -> None:
         os.environ.pop("HOME", None)
     if bdd_home_dir is not None:
         shutil.rmtree(bdd_home_dir, ignore_errors=True)
+
+
+def _shut_down_resident_daemons(temp_root: Path) -> None:
+    """Stop daemons that scenarios started inside a temporary project.
+
+    A resident daemon outlives the scenario that spawned it, so each socket
+    left under the scenario's temporary directory gets a shutdown request
+    before the directory is deleted.
+
+    :param temp_root: Scenario temporary directory.
+    :type temp_root: Path
+    """
+    import json
+    import socket
+
+    for socket_path in temp_root.glob("**/.cache/kanbus.sock"):
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+                connection.settimeout(2)
+                connection.connect(str(socket_path))
+                connection.sendall(json.dumps({"action": "shutdown"}).encode() + b"\n")
+                connection.recv(65536)
+        except OSError:
+            continue
 
 
 def after_scenario(context: object, scenario: object) -> None:
@@ -156,6 +185,7 @@ def after_scenario(context: object, scenario: object) -> None:
 
     temp_dir_object = getattr(context, "temp_dir_object", None)
     if temp_dir_object is not None:
+        _shut_down_resident_daemons(Path(temp_dir_object.name))
         temp_dir_object.cleanup()
         context.temp_dir_object = None
         context.temp_dir = None
@@ -297,15 +327,11 @@ def after_scenario(context: object, scenario: object) -> None:
         os.environ["PATH"] = original_path
         context.original_path_env = None
 
-    original_daemon_env = getattr(context, "original_daemon_env", None)
-    if "original_daemon_env" in context.__dict__:
+    if getattr(context, "daemon_env_changed", False):
         import os
 
-        if original_daemon_env is None or original_daemon_env == "":
-            os.environ.pop("KANBUS_NO_DAEMON", None)
-        else:
-            os.environ["KANBUS_NO_DAEMON"] = original_daemon_env
-        context.original_daemon_env = None
+        os.environ["KANBUS_NO_DAEMON"] = "1"
+        context.daemon_env_changed = False
 
     original_daemon_socket = getattr(context, "original_daemon_socket", None)
     if original_daemon_socket is not None:

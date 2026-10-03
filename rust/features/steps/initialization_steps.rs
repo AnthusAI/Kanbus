@@ -41,7 +41,6 @@ pub struct KanbusWorld {
     pub project_dirs: Option<Vec<PathBuf>>,
     pub project_error: Option<String>,
     pub cache_path: Option<PathBuf>,
-    pub cache_mtime: Option<SystemTime>,
     pub daemon_spawned: bool,
     pub daemon_connected: bool,
     pub stale_socket_removed: bool,
