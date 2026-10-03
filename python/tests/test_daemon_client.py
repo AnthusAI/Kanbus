@@ -72,20 +72,22 @@ def test_request_index_list_spawns_when_socket_missing(
     root = tmp_path
     socket_path = root / "missing.sock"
     spawned: dict[str, bool] = {}
+
+    class _FakeProcess:
+        pid = 1
+
+    def fake_popen(*args: object, **kwargs: object) -> _FakeProcess:
+        spawned.setdefault("spawned", True)
+        return _FakeProcess()
+
     monkeypatch.setattr(daemon_client, "get_daemon_socket_path", lambda _r: socket_path)
-    monkeypatch.setattr(
-        daemon_client,
-        "spawn_daemon",
-        lambda _r: spawned.setdefault("spawned", True),
-    )
-    monkeypatch.setattr(
-        daemon_client,
-        "_request_with_recovery",
-        lambda _s, request, _r: ok_response(request.request_id, {"issues": []}),
-    )
+    monkeypatch.setattr(daemon_client.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(daemon_client, "DAEMON_SOCKET_WAIT_SECONDS", 0.05)
     monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
-    daemon_client.request_index_list(root)
+    with pytest.raises(daemon_client.DaemonClientError):
+        daemon_client.request_index_list(root)
     assert spawned.get("spawned") is True
+    assert daemon_client.is_daemon_unavailable(root) is True
 
 
 def test_request_index_list_restarts_daemon_on_config_schema_error(
