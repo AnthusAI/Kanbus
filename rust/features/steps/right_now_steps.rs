@@ -310,7 +310,7 @@ fn given_right_now_max_length(world: &mut KanbusWorld, max_length: usize) {
     let contents = fs::read_to_string(&config_path).expect("read config");
     let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
     let mut right_now_block = mapping
-        .get(&Value::String("right_now".to_string()))
+        .get(Value::String("right_now".to_string()))
         .and_then(Value::as_mapping)
         .cloned()
         .unwrap_or_else(|| {
@@ -609,7 +609,7 @@ fn given_right_now_summary_generation_disabled(world: &mut KanbusWorld) {
     let contents = fs::read_to_string(&config_path).expect("read config");
     let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
     let mut right_now_block = mapping
-        .get(&Value::String("right_now".to_string()))
+        .get(Value::String("right_now".to_string()))
         .and_then(Value::as_mapping)
         .cloned()
         .unwrap_or_else(|| {

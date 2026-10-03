@@ -49,7 +49,7 @@ fn write_config_mapping(world: &KanbusWorld, mapping: Mapping) {
 fn upsert_standup_field(world: &KanbusWorld, key: &str, value: YamlValue) {
     let mut mapping = load_config_mapping(world);
     let mut standup_block = mapping
-        .get(&YamlValue::String("standup".to_string()))
+        .get(YamlValue::String("standup".to_string()))
         .and_then(YamlValue::as_mapping)
         .cloned()
         .unwrap_or_else(|| {
@@ -295,9 +295,9 @@ fn when_resolve_standup_window_settings(world: &mut KanbusWorld, profile: String
 fn when_resolve_standup_lookback_duration(world: &mut KanbusWorld) {
     let mapping = load_config_mapping(world);
     let lookback = mapping
-        .get(&YamlValue::String("standup".to_string()))
+        .get(YamlValue::String("standup".to_string()))
         .and_then(YamlValue::as_mapping)
-        .and_then(|standup| standup.get(&YamlValue::String("lookback".to_string())))
+        .and_then(|standup| standup.get(YamlValue::String("lookback".to_string())))
         .and_then(YamlValue::as_str)
         .unwrap_or("24h");
     world.resolved_standup_lookback_hours =

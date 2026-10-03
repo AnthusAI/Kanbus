@@ -222,6 +222,62 @@ pub fn map_jira_status_to_key(
     }
 }
 
+const DONE_WORDS: &[&str] = &[
+    "closed",
+    "done",
+    "complete",
+    "completed",
+    "resolved",
+    "published",
+    "shipped",
+    "released",
+    "archived",
+    "cancelled",
+    "canceled",
+    "rejected",
+    "accepted",
+    "wontfix",
+];
+const TODO_WORDS: &[&str] = &[
+    "open",
+    "backlog",
+    "todo",
+    "new",
+    "idea",
+    "ideas",
+    "proposed",
+    "planned",
+    "inbox",
+    "queued",
+    "queue",
+    "ready",
+    "discovery",
+    "triage",
+];
+
+/// Infer `todo`, `in_progress` or `done` for a status that declares no
+/// semantic category.
+///
+/// Older configurations predate `semantic_category`; rather than refuse to load
+/// them, infer a category from the status key and name. Any word that reads as a
+/// finished state gives `done`, then any that reads as not started gives `todo`;
+/// every other status (including `blocked`) is work in progress. An explicit
+/// value in the configuration always wins.
+pub fn derive_semantic_category(key: &str, name: &str) -> &'static str {
+    let lowered = format!("{key} {name}").to_lowercase();
+    let words: Vec<&str> = lowered
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .collect();
+    if words.iter().any(|word| DONE_WORDS.contains(word)) {
+        SEMANTIC_DONE
+    } else if words.iter().any(|word| TODO_WORDS.contains(word)) {
+        SEMANTIC_TODO
+    } else {
+        SEMANTIC_IN_PROGRESS
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -392,61 +448,5 @@ mod tests {
             assert_eq!(derive_semantic_category(key, name), expected, "{key}");
         }
         assert_eq!(derive_semantic_category("ready_and_shipped", ""), "done");
-    }
-}
-
-const DONE_WORDS: &[&str] = &[
-    "closed",
-    "done",
-    "complete",
-    "completed",
-    "resolved",
-    "published",
-    "shipped",
-    "released",
-    "archived",
-    "cancelled",
-    "canceled",
-    "rejected",
-    "accepted",
-    "wontfix",
-];
-const TODO_WORDS: &[&str] = &[
-    "open",
-    "backlog",
-    "todo",
-    "new",
-    "idea",
-    "ideas",
-    "proposed",
-    "planned",
-    "inbox",
-    "queued",
-    "queue",
-    "ready",
-    "discovery",
-    "triage",
-];
-
-/// Infer `todo`, `in_progress` or `done` for a status that declares no
-/// semantic category.
-///
-/// Older configurations predate `semantic_category`; rather than refuse to load
-/// them, infer a category from the status key and name. Any word that reads as a
-/// finished state gives `done`, then any that reads as not started gives `todo`;
-/// every other status (including `blocked`) is work in progress. An explicit
-/// value in the configuration always wins.
-pub fn derive_semantic_category(key: &str, name: &str) -> &'static str {
-    let lowered = format!("{key} {name}").to_lowercase();
-    let words: Vec<&str> = lowered
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|word| !word.is_empty())
-        .collect();
-    if words.iter().any(|word| DONE_WORDS.contains(word)) {
-        SEMANTIC_DONE
-    } else if words.iter().any(|word| TODO_WORDS.contains(word)) {
-        SEMANTIC_TODO
-    } else {
-        SEMANTIC_IN_PROGRESS
     }
 }

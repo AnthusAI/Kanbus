@@ -73,7 +73,7 @@ fn given_project_missing_workflow_binding(world: &mut KanbusWorld) {
     initialize_project(world);
     update_config_file(world, |mapping| {
         // Remove the default workflow to force validation to look for per-type binding.
-        mapping.remove(&Value::String("workflows".to_string()));
+        mapping.remove(Value::String("workflows".to_string()));
         mapping.insert(
             Value::String("workflows".to_string()),
             Value::Mapping(serde_yaml::Mapping::from_iter([(
@@ -216,7 +216,7 @@ fn given_repo_bright_white_status_color(world: &mut KanbusWorld) {
         if let Some(Value::Sequence(statuses)) = mapping.get_mut(&statuses_key) {
             for status in statuses {
                 if let Value::Mapping(status_map) = status {
-                    if status_map.get(&Value::String("name".to_string()))
+                    if status_map.get(Value::String("name".to_string()))
                         == Some(&Value::String("open".to_string()))
                     {
                         status_map.insert(
@@ -238,7 +238,7 @@ fn given_repo_invalid_status_color(world: &mut KanbusWorld) {
         if let Some(Value::Sequence(statuses)) = mapping.get_mut(&statuses_key) {
             for status in statuses {
                 if let Value::Mapping(status_map) = status {
-                    if status_map.get(&Value::String("name".to_string()))
+                    if status_map.get(Value::String("name".to_string()))
                         == Some(&Value::String("open".to_string()))
                     {
                         status_map.insert(
@@ -659,7 +659,7 @@ fn then_project_directory_should_match(world: &mut KanbusWorld, value: String) {
 #[then("beads compatibility should be false")]
 fn then_beads_compatibility_should_be_false(world: &mut KanbusWorld) {
     let configuration = world.configuration.as_ref().expect("configuration");
-    assert_eq!(configuration.beads_compatibility, false);
+    assert!(!configuration.beads_compatibility);
 }
 
 #[then(expr = "the default assignee should be {string}")]
@@ -733,7 +733,7 @@ fn then_sort_order_category_preset(world: &mut KanbusWorld, category: String, pr
         .and_then(Value::as_mapping)
         .expect("sort_order.categories mapping");
     let value = categories
-        .get(&Value::String(category))
+        .get(Value::String(category))
         .and_then(Value::as_str)
         .expect("category preset");
     assert_eq!(value, preset);

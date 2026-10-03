@@ -129,11 +129,7 @@ fn given_open_tasks_with_priorities(world: &mut KanbusWorld) {
 #[given(expr = "a wiki page {string} with content {string}")]
 fn given_wiki_page_with_content_string(world: &mut KanbusWorld, filename: String, content: String) {
     let project_dir = load_project_dir(world);
-    let wiki_subdir = world
-        .wiki_directory
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or("wiki");
+    let wiki_subdir = world.wiki_directory.as_deref().unwrap_or("wiki");
     let wiki_dir = if wiki_subdir.starts_with("../") {
         let cwd = world.working_directory.as_ref().expect("working dir");
         cwd.join(
@@ -156,11 +152,7 @@ fn given_wiki_page_with_content_string(world: &mut KanbusWorld, filename: String
 #[given(expr = "a wiki page {string} with content:")]
 fn given_wiki_page_with_content(world: &mut KanbusWorld, filename: String, step: &Step) {
     let project_dir = load_project_dir(world);
-    let wiki_subdir = world
-        .wiki_directory
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or("wiki");
+    let wiki_subdir = world.wiki_directory.as_deref().unwrap_or("wiki");
     let wiki_dir = if wiki_subdir.starts_with("../") {
         let cwd = world.working_directory.as_ref().expect("working dir");
         cwd.join(
@@ -387,7 +379,7 @@ fn then_cached_rendered_file_exists(world: &mut KanbusWorld) {
     let md_files: Vec<_> = fs::read_dir(&cache_dir)
         .unwrap_or_else(|_| panic!("read dir {}", cache_dir.display()))
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
         .collect();
     assert!(
         !md_files.is_empty(),
@@ -582,7 +574,7 @@ fn given_unreadable_story_reference(world: &mut KanbusWorld, story_id: String, f
         use std::os::unix::fs::PermissionsExt;
         let mut permissions = fs::metadata(&target).expect("metadata").permissions();
         let original = permissions.mode();
-        permissions.set_mode(0);
+        permissions.set_mode(0o0);
         fs::set_permissions(&target, permissions).expect("chmod reference file");
         world.unreadable_path = Some(target);
         world.unreadable_mode = Some(original);
