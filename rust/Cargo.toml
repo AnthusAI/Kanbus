@@ -61,7 +61,7 @@ rpassword = "7"
 virtuus = { git = "https://github.com/AnthusAI/Virtuus.git", rev = "35d7654701935fc3695aa14623171337ab9c1fc9" }
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = "4"
 cucumber = "0.21"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 regex = "1.10.4"
