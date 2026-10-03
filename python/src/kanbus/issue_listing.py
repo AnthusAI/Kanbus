@@ -12,7 +12,7 @@ from kanbus.daemon_client import (
     is_daemon_enabled,
     request_index_list,
 )
-from kanbus.issue_files import read_issue_from_file, read_issues_from_directory
+from kanbus.issue_files import read_issues_from_directory
 from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
 from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
