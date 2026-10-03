@@ -9,7 +9,7 @@ use kanbus::models::{DependencyLink, IssueData};
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 fn temp_store() -> (tempfile::TempDir, FileStore) {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -17,7 +17,7 @@ fn temp_store() -> (tempfile::TempDir, FileStore) {
     (dir, store)
 }
 
-fn write_config(dir: &PathBuf) {
+fn write_config(dir: &Path) {
     let contents = r#"
 project_directory: project
 project_key: kanbus
@@ -258,7 +258,7 @@ fn wiki_render_draft_success() {
     assert!(result.rendered_markdown.contains("Open: "));
 }
 
-fn write_config_beads(dir: &PathBuf) {
+fn write_config_beads(dir: &Path) {
     let config = r#"
 project_directory: project
 project_key: kanbus
