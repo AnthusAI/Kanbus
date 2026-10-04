@@ -1,0 +1,25 @@
+{
+  "id": "kbs-ebd0e491-4178-4057-980b-6ce15acaf944",
+  "title": "Run spec parity and quality gates for workspace dedupe",
+  "description": "## Goal\nProve the deduplication change meets the repository's quality gates before the PR merges.\n\n## Scope\n- `tools/check_spec_parity.py` passes with no step definitions in only one implementation.\n- `behave` and `cargo test` pass for the workspace-deduplication scenarios.\n- Format, lint, and doc gates pass: `black --check python/`, `ruff check python/`, `cargo fmt --check`, `cargo clippy -- -D warnings`.\n- Coverage ratchet (`tools/coverage_ratchet.py`) does not widen the gap beyond `config/coverage-baselines.json`.\n\n## Done when\n- All gates green on the feature branch and CI is green on the PR into develop.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c04e8142-01d8-4807-a949-e06e8d99643b",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:43.516875Z",
+  "updated_at": "2026-10-03T14:36:43.536783Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

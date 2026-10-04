@@ -1,0 +1,25 @@
+{
+  "id": "kbs-23d5f627-538f-4729-b47e-16acf81c92a1",
+  "title": "Implement workspace dedupe in Rust",
+  "description": "## Goal\nMake the same workspace-deduplication Gherkin scenarios pass in the Rust implementation (`rust/`), with observable behavior identical to the Python implementation.\n\n## Scope\n- Implement deduplication of discovered issues keyed by issue identity, keeping the most recently changed version per the semantics fixed by the spec task.\n- List output (formatting and order) must match Python for the same inputs.\n- Do not change Virtuus; this is Kanbus application logic only.\n\n## Done when\n- Rust cucumber scenarios for workspace deduplication pass.\n- CLI output parity with Python holds for the deduplicated list.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c04e8142-01d8-4807-a949-e06e8d99643b",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:42.757620Z",
+  "updated_at": "2026-10-03T14:36:42.778158Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

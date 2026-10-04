@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import List
@@ -10,6 +11,7 @@ from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.daemon_client import (
     is_daemon_config_schema_error,
     is_daemon_enabled,
+    is_daemon_transport_error,
     request_index_list,
 )
 from kanbus.issue_files import read_issues_from_directory
@@ -235,6 +237,10 @@ def _list_with_project_filter(
 def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
     """Load shared issues from the daemon, falling back to filesystem listing.
 
+    The daemon is a just-in-time accelerator and never required for
+    correctness: transport failures fall back to direct listing with only a
+    debug-level log.
+
     :param root: Repository root path.
     :type root: Path
     :return: Shared issues from the project index.
@@ -245,9 +251,13 @@ def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
         payloads = request_index_list(root)
         return [IssueData.model_validate(payload) for payload in payloads]
     except Exception as error:
-        if is_daemon_config_schema_error(str(error)):
+        message = str(error)
+        if is_daemon_config_schema_error(message) or is_daemon_transport_error(message):
+            logging.getLogger(__name__).debug(
+                "daemon unavailable (%s); falling back to direct listing", message
+            )
             return _list_issues_locally(root)
-        raise IssueListingError(str(error)) from error
+        raise IssueListingError(message) from error
 
 
 def _list_issues_locally(root: Path) -> List[IssueData]:

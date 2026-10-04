@@ -155,7 +155,7 @@ async fn main() {
     #[cfg(tarpaulin)]
     cover_additional_paths();
     KanbusWorld::cucumber::<PathBuf>()
-        .with_parser(RecursiveFeatureParser::default())
+        .with_parser(RecursiveFeatureParser)
         .max_concurrent_scenarios(1)
         .filter_run_and_exit(features_dir, move |feature, _, scenario| {
             if !feature_filters.is_empty()

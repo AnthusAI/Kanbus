@@ -177,7 +177,7 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
             let ui_dist = ui_dir.join("dist").join("index.js");
             if !ui_dist.exists() {
                 let ui_install = Command::new("npm")
-                    .args(&["install"])
+                    .args(["install"])
                     .current_dir(&ui_dir)
                     .output()
                     .expect("Failed to install UI dependencies");
@@ -188,7 +188,7 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
                     );
                 }
                 let ui_build = Command::new("npm")
-                    .args(&["run", "build"])
+                    .args(["run", "build"])
                     .current_dir(&ui_dir)
                     .output()
                     .expect("Failed to build UI package");
@@ -206,7 +206,7 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
             .join(if cfg!(windows) { "vite.cmd" } else { "vite" });
         if !vite_bin.exists() {
             let install = Command::new("npm")
-                .args(&["install"])
+                .args(["install"])
                 .current_dir(&console_dir)
                 .output()
                 .expect("Failed to install frontend dependencies");
@@ -218,7 +218,7 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
             }
         }
         let output = Command::new("npm")
-            .args(&["run", "build"])
+            .args(["run", "build"])
             .current_dir(&console_dir)
             .output()
             .expect("Failed to build frontend");
@@ -236,7 +236,7 @@ async fn given_kanbus_console_binary_with_embedded_assets(world: &mut KanbusWorl
 
     // Now build Rust binary with embed-assets feature
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "build",
             "--release",
             "--bin",
@@ -330,7 +330,7 @@ async fn given_build_without_embed_assets(world: &mut KanbusWorld) {
         .unwrap_or_else(|_| rust_dir.join("target").to_string_lossy().to_string());
 
     let output = Command::new("cargo")
-        .args(&["build", "--bin", "kbsc"])
+        .args(["build", "--bin", "kbsc"])
         .current_dir(&rust_dir)
         .env("CARGO_TARGET_DIR", &target_dir)
         .output()

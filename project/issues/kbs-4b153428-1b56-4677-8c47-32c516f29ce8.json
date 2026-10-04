@@ -1,0 +1,25 @@
+{
+  "id": "kbs-4b153428-1b56-4677-8c47-32c516f29ce8",
+  "title": "Restore green CI on develop: daemon fallback, Virtuus pin, lint and spec fixes",
+  "description": "As a Kanbus maintainer, I want develop CI green again, so that blocked PRs #388 and #387 can be reviewed and merged.\n\nRoot causes on the latest run over develop (PR #379 run, plus current tip):\n- rust: console_lambda tests panic with 'Virtuus daemon request failed: No such file or directory'. The daemon is just-in-time and optional; connect or request failure must fall back to synchronous in-process storage instead of failing. Direction from Ryan: never require the daemon for correctness.\n- python: ruff F401 unused import in issue_listing.py.\n- python and python-console-parity: issue_compaction.feature:45 archived-issue summarize scenario asserts a summary comment that was not written.\n- python-install (windows-latest): virtuus 0.5.1 references socketserver.ThreadingUnixStreamServer at import time, which does not exist on Windows; pin Virtuus v0.6.0 which adds virtuus.service Windows-safe import.\n- router-state timing test flakiness to be made deterministic if it reproduces.\n\nReconcile with PR #385 (claude/salvage-release-fixes): take its Virtuus pin and any still-valid fixes, but implement daemon fallback in product code rather than bypassing the daemon via KANBUS_NO_DAEMON=1 in tests, per Ryan's direction.\n\nSpecs first: (a) with no daemon available, commands succeed synchronously; (b) with the daemon available, it is used.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:07:16.083770Z",
+  "updated_at": "2026-10-03T14:07:49.566315Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

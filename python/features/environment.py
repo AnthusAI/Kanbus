@@ -203,6 +203,7 @@ def after_scenario(context: object, scenario: object) -> None:
     import kanbus.daemon_client as daemon_client
 
     daemon_client.reset_daemon_restart_recorded_for_testing()
+    daemon_client.reset_daemon_unavailable_roots_for_testing()
 
     original_litellm_module = getattr(context, "original_litellm_module", None)
     if hasattr(context, "original_litellm_module"):
