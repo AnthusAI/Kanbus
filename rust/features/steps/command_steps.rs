@@ -124,10 +124,7 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
                         (
                             3,
                             String::new(),
-                            Some(kanbus::ids::ambiguous_matches_json(
-                                &candidate,
-                                &matches,
-                            )),
+                            Some(kanbus::ids::ambiguous_matches_json(&candidate, &matches)),
                         )
                     } else {
                         (
