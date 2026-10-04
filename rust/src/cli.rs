@@ -3442,18 +3442,14 @@ fn execute_command(
             if effective_limit > 0 {
                 issues.truncate(effective_limit);
             }
-            let configuration = if beads_mode {
-                None
-            } else {
-                match get_configuration_path(root) {
-                    Ok(path) => Some(load_project_configuration(&path)?),
-                    Err(KanbusError::IssueOperation(message))
-                        if message == "project not initialized" =>
-                    {
-                        None
-                    }
-                    Err(error) => return Err(error),
+            let configuration = match get_configuration_path(root) {
+                Ok(path) => Some(load_project_configuration(&path)?),
+                Err(KanbusError::IssueOperation(message))
+                    if message == "project not initialized" =>
+                {
+                    None
                 }
+                Err(error) => return Err(error),
             };
             let project_context = if beads_mode || full_ids {
                 false
