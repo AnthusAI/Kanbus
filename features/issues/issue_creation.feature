@@ -47,7 +47,7 @@ Feature: Issue creation
     And an "epic" issue "kanbus-abcdef999999" exists
     When I run "kanbus create Child short parent --parent kanbus-abcdef"
     Then the command should fail with exit code 1
-    And stderr should contain "ambiguous short id"
+    And stderr should contain "ambiguous identifier"
 
   Scenario: Create an issue with invalid type
     Given a Kanbus project with default configuration

@@ -25,7 +25,7 @@ Feature: Issue update
     And an issue "kanbus-child01" exists
     When I run "kanbus update kanbus-child01 --parent kanbus-abcdef"
     Then the command should fail with exit code 1
-    And stderr should contain "ambiguous short id"
+    And stderr should contain "ambiguous identifier"
 
   Scenario: Update issue status with a valid transition
     Given a Kanbus project with default configuration

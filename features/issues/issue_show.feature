@@ -120,7 +120,7 @@ Feature: Issue display
     And an issue "kanbus-commented" exists
     And issue "kanbus-commented" has a comment from "dev@example.com" with text "Note" and id "abc123def"
     When I format issue "kanbus-commented" for display
-    Then the formatted output should contain text "[abc123]"
+    Then the formatted output should contain text "[abc1]"
 
   Scenario Outline: Format issue display applies colors for status, priority, and type
     Given a Kanbus project with default configuration

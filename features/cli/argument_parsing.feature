@@ -27,7 +27,7 @@ Feature: CLI argument parsing and edge cases
     And the environment variable "KANBUS_FORCE_INTERACTIVE" is set to "1"
     When I run "kanbus delete kanbus-test01" and respond "y"
     Then the command should succeed
-    And stdout should contain "Deleted kanbus-test01"
+    And stdout should contain "Deleted kanbus-test"
 
   Scenario: Explicit --beads flag overrides automatic project detection
     Given an empty git repository

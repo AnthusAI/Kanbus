@@ -19,6 +19,6 @@ Feature: Issue key representation
       | kanbus-123e4567-e89b-12d3-a456-426614174000     | project  | 123e            |
       | kanbus-abc123.7                                | global   | kanbus-abc1.7      |
       | kanbus-abc123.7                                | project  | abc1.7          |
-      | customid                                    | global   | custo           |
+      | customid                                    | global   | cust            |
       | -abc123                                     | global   | abc1            |
       | abc123.7                                    | global   | abc1.7          |

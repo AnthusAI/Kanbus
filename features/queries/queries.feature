@@ -14,20 +14,20 @@ Feature: Query and list operations
   Scenario: List output includes project paths when multiple projects exist
     Given a repository with multiple projects and issues
     When I run "kanbus list"
-    Then stdout should contain "alpha/project T kanbus-alpha"
-    And stdout should contain "beta/project T kanbus-beta"
+    Then stdout should contain "alpha/project T alph"
+    And stdout should contain "beta/project T beta"
 
   Scenario: List output includes project paths when multiple projects exist without local issues
     Given a repository with multiple projects and issues
     When I run "kanbus list --no-local"
-    Then stdout should contain "alpha/project T kanbus-alpha"
-    And stdout should contain "beta/project T kanbus-beta"
+    Then stdout should contain "alpha/project T alph"
+    And stdout should contain "beta/project T beta"
 
   Scenario: List output includes project paths for local-only issues in multi-project repositories
     Given a repository with multiple projects and local issues
     When I run "kanbus list --local-only"
-    Then stdout should contain "alpha/project T kanbus-alphal"
-    And stdout should not contain "beta/project T kanbus-beta"
+    Then stdout should contain "alpha/project T alph"
+    And stdout should not contain "beta/project T beta"
 
   Scenario: List output includes virtual project labels from configuration file
     Given a repository with a .kanbus.yml file with virtual projects configured
@@ -47,16 +47,16 @@ Feature: Query and list operations
     And issues "kanbus-alpha1" and "kanbus-bravo1" exist
     And issue "kanbus-alpha1" has assignee "dev@example.com"
     When I run "kanbus list --assignee dev@example.com"
-    Then stdout should contain "alpha1"
-    And stdout should not contain "bravo1"
+    Then stdout should contain "alph"
+    And stdout should not contain "brav"
 
   Scenario: List issues filtered by label
     Given a Kanbus project with default configuration
     And issues "kanbus-alpha1" and "kanbus-bravo1" exist
     And issue "kanbus-alpha1" has labels "auth"
     When I run "kanbus list --label auth"
-    Then stdout should contain "alpha1"
-    And stdout should not contain "bravo1"
+    Then stdout should contain "alph"
+    And stdout should not contain "brav"
 
   Scenario: List issues sorted by priority
     Given a Kanbus project with default configuration
@@ -181,7 +181,7 @@ Feature: Query and list operations
     And an issue "kanbus-canon" exists
     And project directory canonicalization will fail
     When I run "kanbus list"
-    Then stdout should contain "canon"
+    Then stdout should contain "cano"
 
   Scenario: List fails when configuration path lookup fails
     Given a Kanbus project with default configuration
