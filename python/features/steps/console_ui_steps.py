@@ -1802,7 +1802,9 @@ def _console_short_id_display(state: ConsoleState, issue: ConsoleIssue) -> str:
     ]
     if not issue.identifier:
         raise AssertionError(f"issue {issue.title!r} has no identifier")
-    widths = ShortIdWidths.build(identifiers or [issue.identifier], DEFAULT_SHORT_ID_LENGTH)
+    widths = ShortIdWidths.build(
+        identifiers or [issue.identifier], DEFAULT_SHORT_ID_LENGTH
+    )
     return format_issue_key_with(issue.identifier, False, widths)
 
 
@@ -1816,6 +1818,8 @@ def when_console_search(context: object, query: str) -> None:
 def then_issue_card_shows_short_id(context: object, title: str, short_id: str) -> None:
     state = _require_console_state(context)
     matches = [issue for issue in _visible_board_issues(state) if issue.title == title]
-    assert len(matches) == 1, f"expected one visible card titled {title!r}, found {len(matches)}"
+    assert (
+        len(matches) == 1
+    ), f"expected one visible card titled {title!r}, found {len(matches)}"
     display = _console_short_id_display(state, matches[0])
     assert display == short_id, f"expected short ID {short_id!r}, got {display!r}"

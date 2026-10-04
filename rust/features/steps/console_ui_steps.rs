@@ -1901,19 +1901,14 @@ fn console_short_id_display(state: &ConsoleState, issue: &ConsoleIssue) -> Strin
         .identifier
         .as_deref()
         .expect("issue identifier required for short ID display");
-    let universe: Vec<&str> = visible_board_issues(state)
+    let mut universe: Vec<&str> = visible_board_issues(state)
         .iter()
         .filter_map(|entry| entry.identifier.as_deref())
         .collect();
-    let fallback = [identifier.as_ref()];
-    let widths = ShortIdWidths::new(
-        if universe.is_empty() {
-            fallback.as_slice()
-        } else {
-            universe.as_slice()
-        },
-        DEFAULT_SHORT_ID_LENGTH,
-    );
+    if universe.is_empty() {
+        universe.push(identifier);
+    }
+    let widths = ShortIdWidths::new(universe, DEFAULT_SHORT_ID_LENGTH);
     format_issue_key_with(identifier, false, &widths)
 }
 
