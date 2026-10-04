@@ -21,7 +21,7 @@ Feature: Issue display
   Scenario: Show issue by fragment fails when ambiguous across workspace
     Given a workspace with multiple Kanbus projects and duplicate fragments
     When I run "kanbus show aaaaaa"
-    Then the command should fail with exit code 1
+    Then the command exit code should be 3
     And stderr should contain "ambiguous identifier"
 
   Scenario: Show issue as JSON

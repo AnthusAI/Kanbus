@@ -78,7 +78,10 @@ fn split_identifier(identifier: &str) -> (Option<&str>, &str, Option<&str>) {
 fn normalized_base(identifier: &str) -> String {
     let (key, base, _) = split_identifier(identifier);
     let _ = key;
-    base.chars().filter(|ch| *ch != '-').collect()
+    base.chars()
+        .filter(|ch| *ch != '-')
+        .collect::<String>()
+        .to_ascii_lowercase()
 }
 
 fn longest_common_prefix_length(left: &str, right: &str) -> usize {
