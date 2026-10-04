@@ -1509,7 +1509,7 @@ fn resolve_column_sort_fields(world: &KanbusWorld, status: &str) -> Vec<(String,
 }
 
 fn parse_iso8601(s: Option<&String>) -> Option<chrono::DateTime<chrono::Utc>> {
-    let s = s.as_deref()?;
+    let s = s?;
     chrono::DateTime::parse_from_rfc3339(s)
         .ok()
         .map(|dt| dt.with_timezone(&chrono::Utc))
@@ -1528,11 +1528,19 @@ fn compare_issue_field(
     match field {
         "priority" => {
             let c = left.priority.cmp(&right.priority);
-            return if direction == "desc" { c.reverse() } else { c };
+            if direction == "desc" {
+                c.reverse()
+            } else {
+                c
+            }
         }
         "id" => {
             let c = issue_sort_id(left).cmp(issue_sort_id(right));
-            return if direction == "desc" { c.reverse() } else { c };
+            if direction == "desc" {
+                c.reverse()
+            } else {
+                c
+            }
         }
         "created_at" | "updated_at" => {
             let l_t = parse_iso8601(if field == "created_at" {
@@ -1546,16 +1554,20 @@ fn compare_issue_field(
                 right.updated_at.as_ref()
             });
             match (l_t, r_t) {
-                (None, None) => return std::cmp::Ordering::Equal,
-                (None, _) => return std::cmp::Ordering::Greater,
-                (_, None) => return std::cmp::Ordering::Less,
+                (None, None) => std::cmp::Ordering::Equal,
+                (None, _) => std::cmp::Ordering::Greater,
+                (_, None) => std::cmp::Ordering::Less,
                 (Some(a), Some(b)) => {
                     let c = a.cmp(&b);
-                    return if direction == "desc" { c.reverse() } else { c };
+                    if direction == "desc" {
+                        c.reverse()
+                    } else {
+                        c
+                    }
                 }
             }
         }
-        _ => return std::cmp::Ordering::Equal,
+        _ => std::cmp::Ordering::Equal,
     }
 }
 
@@ -1625,22 +1637,13 @@ fn visible_issue_titles(state: &ConsoleState) -> Vec<String> {
 fn visible_issues_with_filters(state: &ConsoleState) -> Vec<&ConsoleIssue> {
     let mut issues: Vec<&ConsoleIssue> = state.issues.iter().collect();
     if let Some(ref filter) = state.selected_project_filter {
-        issues = issues
-            .into_iter()
-            .filter(|issue| &issue.project_label == filter)
-            .collect();
+        issues.retain(|issue| &issue.project_label == filter);
     }
     if let Some(ref local_filter) = state.selected_local_filter {
         if local_filter == "local" {
-            issues = issues
-                .into_iter()
-                .filter(|issue| issue.location == "local")
-                .collect();
+            issues.retain(|issue| issue.location == "local");
         } else if local_filter == "shared" {
-            issues = issues
-                .into_iter()
-                .filter(|issue| issue.location == "shared")
-                .collect();
+            issues.retain(|issue| issue.location == "shared");
         }
     }
     issues

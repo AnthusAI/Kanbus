@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
-from typing import Set
+from typing import Callable, Set, TypeVar
 
 from kanbus.models import IssueData
-from kanbus.daemon_client import is_daemon_enabled, request_virtuus
+from kanbus.daemon_client import (
+    DaemonClientError,
+    is_daemon_enabled,
+    request_virtuus,
+)
 from virtuus import Table
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 
 def project_identifier_universe(root: Path) -> Set[str]:
@@ -65,9 +74,9 @@ def _service_spec(issues_directory: Path) -> dict[str, object]:
         "name": "issues",
         "primary_key": "id",
         "directory": str(issues_directory),
-        "validation": "warn",
+        "validation": "error",
         "pretty_json": True,
-        "reconcile_seconds": 2,
+        "reconcile_seconds": 0,
         "indexes": [
             {"name": "by_status", "partition_key": "status"},
             {"name": "by_type", "partition_key": "type"},
@@ -112,6 +121,30 @@ def _service_request(issues_directory: Path, request: dict[str, object]) -> obje
     return request_virtuus(root, request)
 
 
+def _service_request_with_fallback(
+    issues_directory: Path,
+    request: dict[str, object],
+    fallback: Callable[[], T],
+    from_service: Callable[[object], T],
+) -> T:
+    """Run one issue operation through the daemon with synchronous fallback.
+
+    The daemon is a just-in-time accelerator and never required for
+    correctness: on any daemon failure, fall back to direct storage access
+    with only a debug-level log.
+    """
+    if not _use_service(issues_directory):
+        return fallback()
+    try:
+        return from_service(_service_request(issues_directory, request))
+    except (DaemonClientError, RuntimeError) as error:
+        logger.debug(
+            "Virtuus daemon request failed (%s); falling back to direct storage access",
+            error,
+        )
+        return fallback()
+
+
 def list_issue_identifiers(issues_directory: Path) -> Set[str]:
     """List issue identifiers based on JSON filenames.
 
@@ -122,14 +155,16 @@ def list_issue_identifiers(issues_directory: Path) -> Set[str]:
     """
     if not issues_directory.is_dir():
         return set()
-    if _use_service(issues_directory):
-        records = _service_request(issues_directory, {"action": "scan"})
-        return {
+    return _service_request_with_fallback(
+        issues_directory,
+        {"action": "scan"},
+        lambda: {path.stem for path in issues_directory.glob("*.json")},
+        lambda records: {
             str(record["id"])
             for record in records
             if isinstance(record, dict) and "id" in record
-        }
-    return {path.stem for path in issues_directory.glob("*.json")}
+        },
+    )
 
 
 def read_issue_from_file(issue_path: Path) -> IssueData:
@@ -140,10 +175,11 @@ def read_issue_from_file(issue_path: Path) -> IssueData:
     :return: Parsed issue data.
     :rtype: IssueData
     """
-    record = (
-        _service_request(issue_path.parent, {"action": "get", "pk": issue_path.stem})
-        if _use_service(issue_path.parent)
-        else _issue_table(issue_path.parent).get(issue_path.stem)
+    record = _service_request_with_fallback(
+        issue_path.parent,
+        {"action": "get", "pk": issue_path.stem},
+        lambda: _issue_table(issue_path.parent).get(issue_path.stem),
+        lambda response: response,
     )
     if record is None:
         raise FileNotFoundError(issue_path)
@@ -154,15 +190,36 @@ def read_issues_from_directory(issues_directory: Path) -> list[IssueData]:
     """Load canonical issue files through one Virtuus table scan."""
     if not issues_directory.is_dir():
         return []
-    records = (
-        _service_request(issues_directory, {"action": "scan"})
-        if _use_service(issues_directory)
-        else _issue_table(issues_directory).scan()
+    records = _service_request_with_fallback(
+        issues_directory,
+        {"action": "scan"},
+        lambda: _issue_table(issues_directory).scan(),
+        lambda response: response,
     )
+    _ensure_no_skipped_issue_files(issues_directory, records)
     return sorted(
         (IssueData.model_validate(record) for record in records),
         key=lambda issue: issue.identifier,
     )
+
+
+def _ensure_no_skipped_issue_files(issues_directory: Path, records: object) -> None:
+    """Raise when Virtuus skipped any issue file while loading the table.
+
+    Warn-mode validation silently skips files it cannot parse, which would
+    otherwise make listing succeed while ignoring corrupt issue files.
+    """
+    if not isinstance(records, list):
+        return
+    loaded = {
+        str(record["id"])
+        for record in records
+        if isinstance(record, dict) and "id" in record
+    }
+    filenames = {path.stem for path in issues_directory.glob("*.json")}
+    missing = sorted(filenames - loaded)
+    if missing:
+        raise ValueError(f"invalid issue files: {', '.join(missing)}")
 
 
 def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
@@ -176,16 +233,28 @@ def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
     if issue_path.is_dir():
         raise IsADirectoryError(issue_path)
     record = issue.model_dump(by_alias=True, mode="json")
-    if _use_service(issue_path.parent):
-        _service_request(issue_path.parent, {"action": "put", "record": record})
-    else:
+
+    def _write_directly() -> None:
         issue_path.parent.mkdir(parents=True, exist_ok=True)
         _issue_table(issue_path.parent).put(record)
+
+    _service_request_with_fallback(
+        issue_path.parent,
+        {"action": "put", "record": record},
+        _write_directly,
+        lambda response: None,
+    )
 
 
 def delete_issue_file(issue_path: Path) -> None:
     """Delete an issue through the resident Virtuus table when available."""
-    if _use_service(issue_path.parent):
-        _service_request(issue_path.parent, {"action": "delete", "pk": issue_path.stem})
-    elif issue_path.exists():
-        _issue_table(issue_path.parent).delete(issue_path.stem)
+    _service_request_with_fallback(
+        issue_path.parent,
+        {"action": "delete", "pk": issue_path.stem},
+        lambda: (
+            _issue_table(issue_path.parent).delete(issue_path.stem)
+            if issue_path.exists()
+            else None
+        ),
+        lambda response: None,
+    )

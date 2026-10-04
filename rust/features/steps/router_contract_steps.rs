@@ -1069,7 +1069,7 @@ fn seed_request_checkpoint(
     );
 }
 
-fn rows<'a>(step: &'a Step) -> (&'a [String], &'a [Vec<String>]) {
+fn rows(step: &Step) -> (&[String], &[Vec<String>]) {
     let table = step.table.as_ref().expect("step table");
     (&table.rows[0], &table.rows[1..])
 }

@@ -224,7 +224,7 @@ fn status_tree_visible_titles(state: &ConsoleState) -> Vec<String> {
     visible_titles
 }
 
-fn status_feed_issues<'a>(issues: Vec<&'a ConsoleIssue>) -> Vec<&'a ConsoleIssue> {
+fn status_feed_issues(issues: Vec<&ConsoleIssue>) -> Vec<&ConsoleIssue> {
     let mut sorted = issues;
     sorted.sort_by(|left, right| {
         let left_key = left.updated_at.as_deref().unwrap_or("");

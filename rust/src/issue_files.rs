@@ -31,7 +31,9 @@ fn issue_table(issues_directory: &Path) -> Result<Table, KanbusError> {
         "dependencies[dependency_type=blocked-by].target",
         None,
     );
-    table.load_from_dir(None);
+    table
+        .try_load_from_dir(None)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     Ok(table)
 }
 
@@ -40,9 +42,9 @@ fn service_spec(issues_directory: &Path) -> Value {
         "name": "issues",
         "primary_key": "id",
         "directory": issues_directory,
-        "validation": "warn",
+        "validation": "error",
         "pretty_json": true,
-        "reconcile_seconds": 2,
+        "reconcile_seconds": 0,
         "indexes": [
             {"name": "by_status", "partition_key": "status"},
             {"name": "by_type", "partition_key": "type"},
@@ -91,6 +93,32 @@ fn service_request(issues_directory: &Path, mut request: Value) -> Result<Value,
     request_virtuus(&root, &request)
 }
 
+/// Run one issue operation through the daemon, falling back to direct
+/// synchronous storage access when the daemon is unavailable or fails.
+///
+/// The daemon is a just-in-time accelerator and never required for
+/// correctness; fallback failures are logged at debug level only.
+fn service_request_with_fallback<T>(
+    issues_directory: &Path,
+    request: Value,
+    fallback: impl FnOnce() -> Result<T, KanbusError>,
+    from_service: impl FnOnce(Value) -> Result<T, KanbusError>,
+) -> Result<T, KanbusError> {
+    if !use_service(issues_directory) {
+        return fallback();
+    }
+    match service_request(issues_directory, request) {
+        Ok(response) => from_service(response),
+        Err(error) => {
+            log::debug!(
+                "Virtuus daemon request failed ({}); falling back to direct storage access",
+                error
+            );
+            fallback()
+        }
+    }
+}
+
 /// List issue identifiers based on JSON filenames.
 ///
 /// # Arguments
@@ -99,30 +127,31 @@ fn service_request(issues_directory: &Path, mut request: Value) -> Result<Value,
 /// # Errors
 /// Returns `KanbusError::Io` if directory entries cannot be read.
 pub fn list_issue_identifiers(issues_directory: &Path) -> Result<HashSet<String>, KanbusError> {
-    if !issues_directory.is_dir() {
-        return Ok(HashSet::new());
-    }
-    if use_service(issues_directory) {
-        return Ok(
-            service_request(issues_directory, json!({"action": "scan"}))?
+    service_request_with_fallback(
+        issues_directory,
+        json!({"action": "scan"}),
+        || {
+            let identifiers = std::fs::read_dir(issues_directory)
+                .map_err(|error| KanbusError::Io(error.to_string()))?
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| {
+                    let path = entry.path();
+                    (path.extension().and_then(|value| value.to_str()) == Some("json"))
+                        .then(|| path.file_stem()?.to_str().map(str::to_string))
+                        .flatten()
+                })
+                .collect::<HashSet<_>>();
+            Ok(identifiers)
+        },
+        |response| {
+            Ok(response
                 .as_array()
                 .into_iter()
                 .flatten()
                 .filter_map(|record| record.get("id").and_then(Value::as_str).map(str::to_string))
-                .collect(),
-        );
-    }
-    let identifiers = std::fs::read_dir(issues_directory)
-        .map_err(|error| KanbusError::Io(error.to_string()))?
-        .filter_map(|entry| entry.ok())
-        .filter_map(|entry| {
-            let path = entry.path();
-            (path.extension().and_then(|value| value.to_str()) == Some("json"))
-                .then(|| path.file_stem()?.to_str().map(str::to_string))
-                .flatten()
-        })
-        .collect::<HashSet<_>>();
-    Ok(identifiers)
+                .collect())
+        },
+    )
 }
 
 /// Collect every issue identifier in the repository for short-ID widths.
@@ -168,13 +197,22 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
     let parent = issue_path
         .parent()
         .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
-    let record = if use_service(parent) {
-        service_request(parent, json!({"action": "get", "pk": identifier}))?
-    } else {
-        issue_table(parent)?
-            .get(identifier, None)
-            .unwrap_or(Value::Null)
-    };
+    let record = service_request_with_fallback(
+        parent,
+        json!({"action": "get", "pk": identifier}),
+        || {
+            Ok(issue_table(parent)?
+                .get(identifier, None)
+                .unwrap_or(Value::Null))
+        },
+        |response| {
+            if response.is_null() {
+                Ok(Value::Null)
+            } else {
+                Ok(response)
+            }
+        },
+    )?;
     if record.is_null() {
         return Err(KanbusError::Io(format!(
             "issue not found: {}",
@@ -186,14 +224,17 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
 
 /// Load all canonical issue records from a directory through Virtuus.
 pub fn read_issues_from_directory(issues_directory: &Path) -> Result<Vec<IssueData>, KanbusError> {
-    let records = if use_service(issues_directory) {
-        service_request(issues_directory, json!({"action": "scan"}))?
-            .as_array()
-            .cloned()
-            .unwrap_or_default()
-    } else {
-        issue_table(issues_directory)?.scan()
-    };
+    let records = service_request_with_fallback(
+        issues_directory,
+        json!({"action": "scan"}),
+        || {
+            let mut table = issue_table(issues_directory)?;
+            let records = table.scan();
+            ensure_no_skipped_issue_files(issues_directory, &records)?;
+            Ok(records)
+        },
+        |response| Ok(response.as_array().cloned().unwrap_or_default()),
+    )?;
     let mut issues: Vec<IssueData> = records
         .into_iter()
         .map(|record| {
@@ -223,15 +264,18 @@ pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), K
         .parent()
         .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
     let record = serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
-    if use_service(parent) {
-        service_request(parent, json!({"action": "put", "record": record}))?;
-    } else {
-        std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
-        issue_table(parent)?
-            .try_put(record)
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
-    }
-    Ok(())
+    service_request_with_fallback(
+        parent,
+        json!({"action": "put", "record": record}),
+        || {
+            std::fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+            issue_table(parent)?
+                .try_put(record.clone())
+                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            Ok(())
+        },
+        |_response| Ok(()),
+    )
 }
 
 /// Delete an issue through the resident Virtuus table when available.
@@ -243,12 +287,49 @@ pub fn delete_issue_file(issue_path: &Path) -> Result<(), KanbusError> {
         .file_stem()
         .and_then(|value| value.to_str())
         .ok_or_else(|| KanbusError::Io(format!("invalid issue path: {}", issue_path.display())))?;
-    if use_service(parent) {
-        service_request(parent, json!({"action": "delete", "pk": identifier}))?;
-    } else if issue_path.exists() {
-        issue_table(parent)?
-            .try_delete(identifier, None)
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+    service_request_with_fallback(
+        parent,
+        json!({"action": "delete", "pk": identifier}),
+        || {
+            if issue_path.exists() {
+                issue_table(parent)?
+                    .try_delete(identifier, None)
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            }
+            Ok(())
+        },
+        |_response| Ok(()),
+    )
+}
+
+/// Raise when Virtuus skipped any issue file while loading the table.
+///
+/// Warn-mode validation silently skips files it cannot parse, which would
+/// otherwise make listing succeed while ignoring corrupt issue files.
+fn ensure_no_skipped_issue_files(
+    issues_directory: &Path,
+    records: &[Value],
+) -> Result<(), KanbusError> {
+    let loaded: HashSet<String> = records
+        .iter()
+        .filter_map(|record| record.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect();
+    let filenames: HashSet<String> = std::fs::read_dir(issues_directory)
+        .map_err(|error| KanbusError::Io(error.to_string()))?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = entry.path();
+            (path.extension().and_then(|value| value.to_str()) == Some("json"))
+                .then(|| path.file_stem()?.to_str().map(str::to_string))
+                .flatten()
+        })
+        .collect();
+    let missing: Vec<String> = filenames.difference(&loaded).cloned().collect();
+    if !missing.is_empty() {
+        return Err(KanbusError::IssueOperation(format!(
+            "invalid issue files: {}",
+            missing.join(", ")
+        )));
     }
     Ok(())
 }

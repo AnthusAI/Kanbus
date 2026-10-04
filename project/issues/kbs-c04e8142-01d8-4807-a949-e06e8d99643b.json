@@ -1,0 +1,25 @@
+{
+  "id": "kbs-c04e8142-01d8-4807-a949-e06e8d99643b",
+  "title": "Deduplicate discovered issues by identity",
+  "description": "## Goal\nSpecify and implement read-path deduplication of issues discovered across workspace projects and git worktrees, keyed by issue identity, keeping the most recently changed version of each duplicated item.\n\n## Behaviors targeted\n- The same issue in a main checkout plus two worktrees appears once in `kbs list`, showing the most recently modified version.\n- Distinct issues are never merged or dropped.\n- Works from a parent folder of many repos with mixed worktrees.\n\n## Open question carried from the initiative\nRecency determination (issue `updated_at` field vs issue file mtime) is decided in the spec task, not here.\n\n## Done when\n- Specs-first Gherkin scenarios in `features/` define identity key, deduplication, and recency semantics, and fail for the right reason before implementation.\n- Python and Rust pass the same scenarios with identical observable behavior (parity).\n- `kbs list` from a parent folder of many repos and worktrees shows each issue identity exactly once.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bb72876f-b745-4a94-87e2-95689ddd8f8a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:22.489519Z",
+  "updated_at": "2026-10-03T14:36:22.508897Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

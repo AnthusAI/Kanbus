@@ -1,12 +1,12 @@
 //! Daemon client utilities for index access.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 #[cfg(unix)]
 use std::io::{BufRead, BufReader, Write};
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use std::process::{Command, Stdio};
 use std::sync::{Mutex, OnceLock};
@@ -33,6 +33,34 @@ pub enum TestDaemonResponse {
 static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
 static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
 static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
+static DAEMON_UNAVAILABLE_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+
+/// Maximum time to wait for a just-started daemon socket to become connectable.
+const DAEMON_SOCKET_WAIT: Duration = Duration::from_millis(400);
+/// Delay between socket-connect attempts while waiting for a starting daemon.
+const DAEMON_SOCKET_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+fn mark_daemon_unavailable(root: &Path) {
+    let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
+    if let Ok(mut guard) = cell.lock() {
+        guard.insert(root.to_path_buf());
+    }
+}
+
+fn is_daemon_unavailable(root: &Path) -> bool {
+    let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
+    cell.lock()
+        .map(|guard| guard.contains(&root.to_path_buf()))
+        .unwrap_or(false)
+}
+
+/// Clear the per-root "daemon unavailable" sticky marks (test helper).
+pub fn reset_daemon_unavailable_roots_for_testing() {
+    let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
+    if let Ok(mut guard) = cell.lock() {
+        guard.clear();
+    }
+}
 
 /// Set the test response for the next daemon request.
 ///
@@ -159,9 +187,7 @@ pub fn request_index_list(root: &Path) -> Result<Vec<Value>, KanbusError> {
         action: "index.list".to_string(),
         payload: BTreeMap::new(),
     };
-    if !socket_path.exists() {
-        spawn_daemon(root)?;
-    }
+    ensure_daemon_socket_best_effort(root, &socket_path)?;
     let response = request_with_recovery(&socket_path, &request, root)?;
     if response.status != "ok" {
         let error = response.error.unwrap_or(ErrorEnvelope {
@@ -243,52 +269,122 @@ pub fn request_shutdown(root: &Path) -> Result<BTreeMap<String, Value>, KanbusEr
     Ok(response.result.unwrap_or_default())
 }
 
+/// Best-effort just-in-time daemon start: spawn once, wait briefly for the
+/// socket, and mark the root unavailable when the daemon cannot be reached.
+///
+/// The daemon is an accelerator only: callers fall back to direct storage
+/// access whenever this returns `Err`.
+fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(), KanbusError> {
+    if socket_path.exists() {
+        return Ok(());
+    }
+    if has_test_daemon_response() {
+        // Mocked daemon scenarios drive responses through send_request; skip
+        // spawning so the override is consumed as-is.
+        return Ok(());
+    }
+    if is_daemon_unavailable(root) {
+        log::debug!(
+            "daemon previously unavailable for {}; using direct storage access",
+            root.display()
+        );
+        return Err(KanbusError::Io(format!(
+            "daemon socket unavailable: {}",
+            socket_path.display()
+        )));
+    }
+    if let Err(error) = spawn_daemon(root) {
+        mark_daemon_unavailable(root);
+        log::debug!(
+            "daemon spawn failed for {}: {}; using direct storage access",
+            root.display(),
+            error
+        );
+        return Err(KanbusError::Io(format!("daemon spawn failed: {error}")));
+    }
+    let deadline = std::time::Instant::now() + DAEMON_SOCKET_WAIT;
+    loop {
+        if socket_path.exists() && is_socket_connectable(socket_path) {
+            return Ok(());
+        }
+        if std::time::Instant::now() >= deadline {
+            mark_daemon_unavailable(root);
+            log::debug!(
+                "daemon socket did not become ready at {}; using direct storage access",
+                socket_path.display()
+            );
+            return Err(KanbusError::Io(format!(
+                "daemon socket did not become ready: {}",
+                socket_path.display()
+            )));
+        }
+        std::thread::sleep(DAEMON_SOCKET_POLL_INTERVAL);
+    }
+}
+
+#[cfg(unix)]
+fn is_socket_connectable(socket_path: &Path) -> bool {
+    UnixStream::connect(socket_path).is_ok()
+}
+
+#[cfg(not(unix))]
+fn is_socket_connectable(_socket_path: &Path) -> bool {
+    false
+}
+
 /// Send a generic Virtuus service request through Kanbus's resident daemon.
 ///
-/// The daemon is started on demand and retried once after a transport failure.
-/// Callers use direct table access only when `KANBUS_NO_DAEMON` disables it.
+/// The daemon is a just-in-time accelerator: it is started best-effort and is
+/// never required for correctness. Callers fall back to direct synchronous
+/// storage access whenever this returns `Err`.
 pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusError> {
     if !is_daemon_enabled() {
         return Err(KanbusError::IssueOperation("daemon disabled".to_string()));
     }
     let socket_path = get_daemon_socket_path(root)?;
-    if !socket_path.exists() {
-        spawn_daemon(root)?;
+    if is_daemon_unavailable(root) {
+        log::debug!(
+            "daemon previously unavailable for {}; using direct storage access",
+            root.display()
+        );
+        return Err(KanbusError::Io(format!(
+            "daemon socket unavailable: {}",
+            socket_path.display()
+        )));
     }
-    let mut last_error = None;
-    for attempt in 0..11 {
-        match send_virtuus_request(&socket_path, request) {
-            Ok(response) => {
-                if response.get("ok").and_then(Value::as_bool) == Some(true) {
-                    return Ok(response.get("result").cloned().unwrap_or(Value::Null));
-                }
-                return Err(KanbusError::IssueOperation(
-                    response
-                        .get("error")
-                        .and_then(Value::as_str)
-                        .unwrap_or("Virtuus daemon error")
-                        .to_string(),
-                ));
+    if !socket_path.exists() {
+        ensure_daemon_socket_best_effort(root, &socket_path)?;
+    }
+    match send_virtuus_request(&socket_path, request) {
+        Ok(response) => {
+            if response.get("ok").and_then(Value::as_bool) == Some(true) {
+                return Ok(response.get("result").cloned().unwrap_or(Value::Null));
             }
-            Err(error) => {
-                last_error = Some(error);
-                if attempt == 0 {
-                    if socket_path.exists() {
-                        std::fs::remove_file(&socket_path)
-                            .map_err(|remove_error| KanbusError::Io(remove_error.to_string()))?;
-                    }
-                    spawn_daemon(root)?;
-                }
-                if attempt < 10 {
-                    std::thread::sleep(Duration::from_millis(50));
-                }
-            }
+            log::debug!(
+                "Virtuus daemon request failed: {}; falling back to direct storage access",
+                response
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Virtuus daemon error")
+            );
+            Err(KanbusError::IssueOperation(
+                response
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Virtuus daemon error")
+                    .to_string(),
+            ))
+        }
+        Err(error) => {
+            log::debug!(
+                "Virtuus daemon request failed: {}; falling back to direct storage access",
+                error
+            );
+            Err(KanbusError::Io(format!(
+                "Virtuus daemon request failed: {error}"
+            )))
         }
     }
-    Err(KanbusError::Io(format!(
-        "Virtuus daemon request failed: {}. Set KANBUS_NO_DAEMON=1 to bypass the daemon.",
-        last_error.unwrap_or_else(|| "unknown transport failure".to_string())
-    )))
 }
 
 #[cfg(unix)]

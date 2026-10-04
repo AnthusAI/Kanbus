@@ -246,6 +246,39 @@ fn given_daemon_stale_index(world: &mut KanbusWorld) {
     world.daemon_rebuilt_index = false;
 }
 
+#[given("the daemon cannot start")]
+fn given_daemon_cannot_start(world: &mut KanbusWorld) {
+    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    set_test_daemon_response(None);
+    set_test_daemon_spawn_disabled(true);
+    let socket_path = daemon_socket_path(world);
+    if socket_path.exists() {
+        let _ = std::fs::remove_file(&socket_path);
+    }
+    if let Some(cache_dir) = socket_path.parent() {
+        let _ = std::fs::remove_dir_all(cache_dir);
+        let _ = std::fs::write(cache_dir, b"not a directory");
+    }
+}
+
+#[given("a real daemon is running for the project")]
+fn given_real_daemon_running(world: &mut KanbusWorld) {
+    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    set_test_daemon_response(None);
+    set_test_daemon_spawn_disabled(false);
+    world.daemon_use_real = true;
+    world.daemon_mode_disabled = false;
+    start_real_daemon(world);
+}
+
+#[then("the daemon status should be ok")]
+fn then_daemon_status_ok(world: &mut KanbusWorld) {
+    let payload = daemon_client::request_status(&daemon_root(world))
+        .expect("daemon status request should succeed");
+    let status = payload.get("status").and_then(Value::as_str);
+    assert_eq!(status, Some("ok"));
+}
+
 #[then("a daemon should be started")]
 fn then_daemon_started(world: &mut KanbusWorld) {
     if !(world.daemon_spawned || world.daemon_connected) {

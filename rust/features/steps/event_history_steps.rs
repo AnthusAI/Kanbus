@@ -727,7 +727,7 @@ fn then_event_log_has_events(world: &mut KanbusWorld) {
     let identifier = last_issue_id(world);
     let events = load_issue_events(world, &identifier);
     assert!(
-        events.len() >= 1,
+        !events.is_empty(),
         "expected at least one event for the last issue"
     );
 }
