@@ -102,7 +102,7 @@ Each project checkout must have a unique `console_port` in `.kanbus.yml`. Do not
 
 | Project | `console_port` |
 | --- | --- |
-| Kanbus | 4242 (collides with Plexus 4242 — only one kbsc on 4242 at a time) |
+| Kanbus | 4242 (collides with Primus 4242 — only one kbsc on 4242 at a time) |
 | Tactus | 4244 |
 | Biblicus | 4245 |
 | Papyrus | 4246 |

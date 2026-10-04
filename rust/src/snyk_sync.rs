@@ -715,7 +715,7 @@ fn resolve_file_task(
 }
 
 /// Detect the GitHub repo slug from git remote origin URL.
-/// Returns e.g. "AnthusAI/Plexus" from "https://github.com/AnthusAI/Plexus.git".
+/// Returns e.g. "AnthusAI/Primus" from "https://github.com/AnthusAI/Primus.git".
 fn detect_repo_from_git(root: &Path) -> Option<String> {
     let output = std::process::Command::new("git")
         .args(["remote", "get-url", "origin"])
