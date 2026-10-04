@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "console-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "(cd packages/ui && npm ci && npm run build) && cd apps/console && npm ci && CONSOLE_PROJECT_ROOT=/Users/home/Projects/Kanbus/.git/kanbus-router-state-worktree/project KANBUS_PYTHON=python3 KANBUS_PYTHON_ARGS=-u VITE_PORT=${PORT:-5173} CONSOLE_PORT=$(( ${PORT:-5173} + 1 )) npm run dev"
+      ],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "kanbus-site",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd apps/kanb.us && npm ci && npm run develop -- --port ${PORT:-8000}"
+      ],
+      "port": 8000,
+      "autoPort": true
+    },
+    {
+      "name": "kbsc-live-board",
+      "url": "http://localhost:4290",
+      "port": 4290
+    }
+  ]
+}
