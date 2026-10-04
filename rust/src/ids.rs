@@ -217,27 +217,33 @@ pub fn format_issue_key_with(
     } else {
         (remainder, None)
     };
+    let _ = base;
 
-    let normalized: String = base.chars().filter(|ch| *ch != '-').collect();
+    let normalized = normalized_base(identifier);
     let width = widths.width_for(identifier);
     let truncated: String = normalized.chars().take(width).collect();
 
     if project_context {
         return match suffix {
-            Some(tail) => format!("{}.{}", truncated, tail),
+            Some(tail) => format!("{}.{}", truncated, tail.to_ascii_lowercase()),
             None => truncated,
         };
     }
 
     if let Some(key) = key_part {
         return match suffix {
-            Some(tail) => format!("{}-{}.{}", key, truncated, tail),
-            None => format!("{}-{}", key, truncated),
+            Some(tail) => format!(
+                "{}-{}.{}",
+                key.to_ascii_lowercase(),
+                truncated,
+                tail.to_ascii_lowercase()
+            ),
+            None => format!("{}-{}", key.to_ascii_lowercase(), truncated),
         };
     }
 
     match suffix {
-        Some(tail) => format!("{}.{}", truncated, tail),
+        Some(tail) => format!("{}.{}", truncated, tail.to_ascii_lowercase()),
         None => truncated,
     }
 }

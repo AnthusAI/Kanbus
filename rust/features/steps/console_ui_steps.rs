@@ -90,6 +90,7 @@ pub struct ConsoleState {
     pub default_tree_expanded: bool,
     pub status_filter: String,
     pub board_name: String,
+    pub search_query: String,
 }
 
 #[derive(Debug, Clone)]
@@ -1407,6 +1408,7 @@ fn open_console(world: &KanbusWorld) -> ConsoleState {
         default_tree_expanded: false,
         status_filter: "in_progress".to_string(),
         board_name: console_board_name(world),
+        search_query: String::new(),
     }
 }
 
@@ -1860,4 +1862,80 @@ fn format_timestamp(value: &str, time_zone: Option<&str>) -> String {
         period,
         tzname
     )
+}
+
+fn visible_board_issues(state: &ConsoleState) -> Vec<&ConsoleIssue> {
+    let mut issues: Vec<&ConsoleIssue> = if state.selected_tab == "Epics" {
+        state
+            .issues
+            .iter()
+            .filter(|issue| issue.issue_type == "epic")
+            .collect()
+    } else if state.selected_tab == "Initiatives" {
+        state
+            .issues
+            .iter()
+            .filter(|issue| issue.issue_type == "initiative")
+            .collect()
+    } else if state.selected_tab == "Tasks" {
+        state
+            .issues
+            .iter()
+            .filter(|issue| issue.issue_type == "task" && issue.parent_title.is_none())
+            .collect()
+    } else if state.selected_tab == "All" {
+        state.issues.iter().collect()
+    } else {
+        Vec::new()
+    };
+    let query = state.search_query.trim().to_lowercase();
+    if !query.is_empty() {
+        issues.retain(|issue| issue.title.to_lowercase().contains(&query));
+    }
+    issues
+}
+
+fn console_short_id_display(state: &ConsoleState, issue: &ConsoleIssue) -> String {
+    use kanbus::ids::{format_issue_key_with, ShortIdWidths, DEFAULT_SHORT_ID_LENGTH};
+    let identifier = issue
+        .identifier
+        .as_deref()
+        .expect("issue identifier required for short ID display");
+    let universe: Vec<&str> = visible_board_issues(state)
+        .iter()
+        .filter_map(|entry| entry.identifier.as_deref())
+        .collect();
+    let fallback = [identifier.as_ref()];
+    let widths = ShortIdWidths::new(
+        if universe.is_empty() {
+            fallback.as_slice()
+        } else {
+            universe.as_slice()
+        },
+        DEFAULT_SHORT_ID_LENGTH,
+    );
+    format_issue_key_with(identifier, false, &widths)
+}
+
+#[when(expr = "I search for {string}")]
+fn when_console_search(world: &mut KanbusWorld, query: String) {
+    let state = require_console_state(world);
+    state.search_query = query;
+}
+
+#[then(expr = r#"the issue card {string} shows the short ID {string}"#)]
+fn then_issue_card_shows_short_id(world: &mut KanbusWorld, title: String, short_id: String) {
+    let state = require_console_state(world).clone();
+    let matches: Vec<&ConsoleIssue> = visible_board_issues(&state)
+        .into_iter()
+        .filter(|issue| issue.title == title)
+        .collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "expected one visible card titled {title:?}, found {}",
+        matches.len()
+    );
+    let display = console_short_id_display(&state, matches[0]);
+    assert_eq!(display, short_id, "unexpected short ID for {title:?}");
 }

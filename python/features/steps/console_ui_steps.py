@@ -1769,3 +1769,53 @@ def _calculate_metrics_summary(context: object) -> dict:
             {"label": "Local", "count": local_count},
         ],
     }
+
+
+def _visible_board_issues(state: ConsoleState) -> list[ConsoleIssue]:
+    if state.selected_tab == "Epics":
+        issues = [issue for issue in state.issues if issue.issue_type == "epic"]
+    elif state.selected_tab == "Initiatives":
+        issues = [issue for issue in state.issues if issue.issue_type == "initiative"]
+    elif state.selected_tab == "Tasks":
+        issues = [
+            issue
+            for issue in state.issues
+            if issue.issue_type == "task" and issue.parent_title is None
+        ]
+    elif state.selected_tab == "All":
+        issues = list(state.issues)
+    else:
+        issues = []
+    query = state.search_query.strip().casefold()
+    if query:
+        issues = [issue for issue in issues if query in issue.title.casefold()]
+    return issues
+
+
+def _console_short_id_display(state: ConsoleState, issue: ConsoleIssue) -> str:
+    from kanbus.ids import DEFAULT_SHORT_ID_LENGTH, ShortIdWidths, format_issue_key_with
+
+    identifiers = [
+        value
+        for value in (entry.identifier for entry in _visible_board_issues(state))
+        if value
+    ]
+    if not issue.identifier:
+        raise AssertionError(f"issue {issue.title!r} has no identifier")
+    widths = ShortIdWidths.build(identifiers or [issue.identifier], DEFAULT_SHORT_ID_LENGTH)
+    return format_issue_key_with(issue.identifier, False, widths)
+
+
+@when('I search for "{query}"')
+def when_console_search(context: object, query: str) -> None:
+    state = _require_console_state(context)
+    state.search_query = query
+
+
+@then('the issue card "{title}" shows the short ID "{short_id}"')
+def then_issue_card_shows_short_id(context: object, title: str, short_id: str) -> None:
+    state = _require_console_state(context)
+    matches = [issue for issue in _visible_board_issues(state) if issue.title == title]
+    assert len(matches) == 1, f"expected one visible card titled {title!r}, found {len(matches)}"
+    display = _console_short_id_display(state, matches[0])
+    assert display == short_id, f"expected short ID {short_id!r}, got {display!r}"

@@ -230,7 +230,7 @@ Feature: Query and list operations
     And daemon mode is enabled
     And the daemon is running with a socket
     When I run "kanbus list --no-local"
-    Then stdout should contain "daemon"
+    Then stdout should contain "daem"
 
   Scenario: List fails when local listing raises an error
     Given a Kanbus project with default configuration

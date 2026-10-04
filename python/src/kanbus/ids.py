@@ -82,7 +82,7 @@ def _split_identifier(identifier: str) -> tuple[Optional[str], str, Optional[str
 
 def _normalized_base(identifier: str) -> str:
     _, base, _ = _split_identifier(identifier)
-    return base.replace("-", "")
+    return base.replace("-", "").lower()
 
 
 def _longest_common_prefix_length(left: str, right: str) -> int:
@@ -196,17 +196,18 @@ def format_issue_key_with(
         base, tail = remainder.split(".", 1)
         suffix = f".{tail}"
 
-    normalized = base.replace("-", "")
+    normalized = base.replace("-", "").lower()
     width = short_id_widths.width_for(identifier)
     truncated = normalized[:width] if normalized else normalized
+    suffix_lower = suffix.lower()
 
     if project_context:
-        return f"{truncated}{suffix}"
+        return f"{truncated}{suffix_lower}"
 
     if key_part:
-        return f"{key_part}-{truncated}{suffix}"
+        return f"{key_part.lower()}-{truncated}{suffix_lower}"
 
-    return f"{truncated}{suffix}"
+    return f"{truncated}{suffix_lower}"
 
 
 def matches_issue_identifier(candidate: str, full_id: str) -> bool:
