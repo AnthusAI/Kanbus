@@ -217,7 +217,7 @@ pub struct SnykConfiguration {
     /// Kanbus issue ID of the parent epic to attach imported bugs to.
     #[serde(default)]
     pub parent_epic: Option<String>,
-    /// GitHub repo slug to filter projects (e.g. "AnthusAI/Plexus").
+    /// GitHub repo slug to filter projects (e.g. "AnthusAI/Primus").
     /// If omitted, auto-detected from git remote origin.
     #[serde(default)]
     pub repo: Option<String>,
