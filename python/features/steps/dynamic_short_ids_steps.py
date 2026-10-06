@@ -123,11 +123,13 @@ def then_no_displayed_id_ambiguous(context: object) -> None:
 def _displayed_id_fields(ansi_free: str) -> list[str]:
     fields = []
     for line in ansi_free.splitlines():
+        if "(empty)" in line:
+            continue
         tokens = line.split()
         if len(tokens) < 2:
             continue
         id_field = tokens[1]
-        if not id_field or id_field == "-":
+        if not id_field or id_field == "-" or id_field == "(empty)":
             continue
         fields.append(id_field)
     return fields

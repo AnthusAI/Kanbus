@@ -114,8 +114,9 @@ fn strip_ansi(text: &str) -> String {
 fn displayed_id_fields(ansi_free: &str) -> Vec<String> {
     ansi_free
         .lines()
+        .filter(|line| !line.contains("(empty)"))
         .filter_map(|line| line.split_whitespace().nth(1))
-        .filter(|id_field| !id_field.is_empty() && *id_field != "-")
+        .filter(|id_field| !id_field.is_empty() && *id_field != "-" && *id_field != "(empty)")
         .map(str::to_string)
         .collect()
 }
