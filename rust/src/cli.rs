@@ -51,7 +51,7 @@ use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
 use crate::issue_files::project_identifier_universe;
-use crate::issue_line::{compute_widths, format_issue_line};
+use crate::issue_line::{compute_widths, format_empty_status_lines, format_issue_line};
 use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::issue_transfer::{localize_issue, promote_issue};
@@ -3475,7 +3475,7 @@ fn execute_command(
             } else {
                 Some(compute_widths(&issues, project_context, &short_id_widths))
             };
-            let lines = issues
+            let mut lines = issues
                 .iter()
                 .map(|issue| {
                     format_issue_line(
@@ -3489,6 +3489,15 @@ fn execute_command(
                     )
                 })
                 .collect::<Vec<_>>();
+            if !porcelain {
+                if let Some(configuration) = configuration.as_ref() {
+                    lines.extend(format_empty_status_lines(
+                        &issues,
+                        configuration,
+                        issue_type.as_deref(),
+                    ));
+                }
+            }
             run_lifecycle_hooks_for_context(
                 root,
                 HookPhase::After,

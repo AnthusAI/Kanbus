@@ -5,6 +5,8 @@ use owo_colors::{AnsiColors, OwoColorize};
 use crate::ids::{format_issue_key_with, ShortIdWidths};
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::status_semantics::default_color_for_semantic_category;
+use crate::workflows::status_keys_for_type_filter;
+use std::collections::BTreeSet;
 
 /// Column widths for list output.
 #[derive(Debug, Clone, Copy)]
@@ -156,6 +158,41 @@ fn should_use_color() -> bool {
     use std::io::IsTerminal;
     // Disable colors if NO_COLOR is set or if stdout is not a TTY
     std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal()
+}
+
+/// Return one line per configured status with no issues in the result.
+///
+/// The candidate statuses follow the type filter (see
+/// [`status_keys_for_type_filter`]); statuses with at least one issue in the
+/// displayed result are skipped so populated columns get no extra line.
+///
+/// # Arguments
+/// * `issues` - Issues in the displayed (post-filter, post-limit) result.
+/// * `configuration` - Project configuration with statuses and workflows.
+/// * `issue_type` - Optional issue type filter applied to the listing.
+///
+/// # Returns
+/// Empty-status lines in configuration order.
+pub fn format_empty_status_lines(
+    issues: &[IssueData],
+    configuration: &ProjectConfiguration,
+    issue_type: Option<&str>,
+) -> Vec<String> {
+    let present_statuses: BTreeSet<&str> =
+        issues.iter().map(|issue| issue.status.as_str()).collect();
+    status_keys_for_type_filter(configuration, issue_type)
+        .into_iter()
+        .filter(|key| !present_statuses.contains(key.as_str()))
+        .map(|key| {
+            let display_name = configuration
+                .statuses
+                .iter()
+                .find(|status| status.key == key)
+                .map(|status| status.name.clone())
+                .unwrap_or_else(|| key.clone());
+            format!("{display_name}: (empty)")
+        })
+        .collect()
 }
 
 fn paint(text: &str, color: Option<AnsiColors>, use_color: bool) -> String {
@@ -438,6 +475,20 @@ mod tests {
         assert!(line.starts_with("apps/api "));
         assert!(line.contains(" - "));
         assert!(line.contains("blocked"));
+    }
+
+    #[test]
+    fn format_empty_status_lines_follows_type_filter_and_display_names() {
+        let config = sample_configuration();
+        assert_eq!(
+            format_empty_status_lines(&[], &config, None),
+            vec!["Open: (empty)".to_string()]
+        );
+        let open_issue = sample_issue("kanbus-abcdef123456", "task", "open", None);
+        assert!(
+            format_empty_status_lines(std::slice::from_ref(&open_issue), &config, None).is_empty()
+        );
+        assert!(format_empty_status_lines(&[], &config, Some("task")).is_empty());
     }
 
     #[test]

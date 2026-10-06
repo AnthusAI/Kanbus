@@ -58,9 +58,11 @@ from kanbus.ids import (
     format_issue_key_with,
 )
 from kanbus.config import effective_short_id_length
-from kanbus.issue_line import compute_widths, format_issue_line
-
-
+from kanbus.issue_line import (
+    compute_widths,
+    format_empty_status_lines,
+    format_issue_line,
+)
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_commit import IssueCommitError, commit_project_issues
@@ -2403,6 +2405,9 @@ def list_command(
             short_id_widths=short_id_widths,
         )
         click.echo(line)
+    if not porcelain and configuration is not None:
+        for empty_line in format_empty_status_lines(issues, configuration, issue_type):
+            click.echo(empty_line)
     _run_lifecycle_hooks_for_context(
         context,
         phase=HookPhase.AFTER,

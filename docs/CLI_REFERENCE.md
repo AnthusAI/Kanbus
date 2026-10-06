@@ -293,6 +293,22 @@ kanbus list --parent kanbus-a1b2c3
 kanbus list --all
 ```
 
+In human-readable output, every configured status that has no issues in the
+result gets a marker line after the issue rows, in configuration order:
+
+```
+T open   - open   P2 Title
+T closed - closed P2 Title
+Backlog: (empty)
+In Progress: (empty)
+Blocked: (empty)
+```
+
+The marker lines follow the current filters: with `--type`, only statuses in
+that type's workflow appear, and columns that have at least one listed issue
+get no marker line. `--porcelain` (machine-readable output) and beads
+compatibility mode never print marker lines.
+
 ### `kanbus standup`
 
 Generate on-demand standup reports from right-now summaries (fail-closed; no placeholder text).
