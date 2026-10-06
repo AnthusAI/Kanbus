@@ -871,7 +871,7 @@ def create(
             agent=agent_metadata,
         )
     except IssueCreationError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_wrapped_domain_error(error)
 
     click.echo(
         format_issue_for_display(
@@ -1315,7 +1315,7 @@ def update(
             agent=agent_metadata,
         )
     except IssueUpdateError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_wrapped_domain_error(error)
 
     updated_issue = update_result.issue
     formatted_identifier = _format_confirmed_identifier(root, identifier)
@@ -1418,7 +1418,7 @@ def bulk_update(
                 parent=None,
             )
         except IssueUpdateError as error:
-            raise click.ClickException(str(error)) from error
+            _raise_wrapped_domain_error(error)
         issue = update_result.issue
         if update_result.changed and issue.identifier not in seen:
             seen.add(issue.identifier)
@@ -1453,7 +1453,7 @@ def bulk_update(
                     parent=None,
                 )
             except IssueUpdateError as error:
-                raise click.ClickException(str(error)) from error
+                _raise_wrapped_domain_error(error)
             updated_issue = update_result.issue
             if update_result.changed:
                 seen.add(updated_issue.identifier)
@@ -1690,7 +1690,7 @@ def move(
             issue_type=issue_type,
         )
     except IssueUpdateError as error:
-        raise click.ClickException(str(error)) from error
+        _raise_wrapped_domain_error(error)
 
     updated_issue = update_result.issue
     formatted_identifier = _format_confirmed_identifier(root, identifier)
@@ -4856,6 +4856,14 @@ def _raise_lookup_error(error: IssueLookupError, as_json: bool = False) -> None:
             )
             exception.json_emitted = True
         raise exception from error
+    raise click.ClickException(str(error)) from error
+
+
+def _raise_wrapped_domain_error(error: Exception) -> None:
+    """Map create/update errors to Click, preserving ambiguity exit code 3."""
+    cause = error.__cause__
+    if isinstance(cause, IssueLookupError) and cause.matches:
+        _raise_lookup_error(cause)
     raise click.ClickException(str(error)) from error
 
 
