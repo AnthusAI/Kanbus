@@ -1655,7 +1655,7 @@ def test_pull_from_snyk_groups_dedups_and_writes_issues(
     monkeypatch.setattr(
         snyk_sync,
         "_resolve_file_task",
-        lambda issues_dir, project_key, target_file, category, ctx, file_task_index, all_existing: f"kanbus-task-{category}",
+        lambda issues_dir, project_key, target_file, category, ctx, file_task_index, all_existing, short_id_widths=None: f"kanbus-task-{category}",
     )
     next_id = {"value": 0}
 

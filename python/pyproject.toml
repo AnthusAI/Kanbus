@@ -46,9 +46,9 @@ Repository = "https://github.com/AnthusAI/Kanbus"
 Issues = "https://github.com/AnthusAI/Kanbus/issues"
 
 [project.scripts]
-kanbus = "kanbus.cli:cli"
+kanbus = "kanbus.cli:main"
 # Keep a compatibility alias for users expecting the rust binary name
-kanbusr = "kanbus.cli:cli"
+kanbusr = "kanbus.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

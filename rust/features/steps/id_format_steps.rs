@@ -212,7 +212,7 @@ fn then_beads_jsonl_contains_pattern(world: &mut KanbusWorld, pattern: String) {
 #[then(expr = "the last Kanbus issue id should match {string}")]
 fn then_last_kanbus_id_matches(world: &mut KanbusWorld, pattern: String) {
     let regex = Regex::new(&pattern).expect("regex");
-    let short_regex = Regex::new(r"^kanbus-[0-9a-z]{6}$").expect("short id regex");
+    let short_regex = Regex::new(r"^kanbus-[0-9a-z]{4,}$").expect("short id regex");
 
     // Prefer the last recorded id (set by earlier steps) to avoid double-diffing.
     if let Some(identifier) = world.last_kanbus_issue_id.clone() {

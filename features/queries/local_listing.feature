@@ -8,31 +8,31 @@ Feature: Local issue listing
     And an issue "kanbus-shared01" exists
     And a local issue "kanbus-local01" exists
     When I run "kanbus list"
-    Then stdout should contain "shared"
-    And stdout should contain "local0"
+    Then stdout should contain "shar"
+    And stdout should contain "loca"
 
   Scenario: List excludes local issues with --no-local
     Given a Kanbus project with default configuration
     And an issue "kanbus-shared01" exists
     And a local issue "kanbus-local01" exists
     When I run "kanbus list --no-local"
-    Then stdout should contain "shared"
-    And stdout should not contain "local0"
+    Then stdout should contain "shar"
+    And stdout should not contain "loca"
 
   Scenario: List shows only local issues with --local-only
     Given a Kanbus project with default configuration
     And an issue "kanbus-shared01" exists
     And a local issue "kanbus-local01" exists
     When I run "kanbus list --local-only"
-    Then stdout should contain "local0"
-    And stdout should not contain "shared"
+    Then stdout should contain "loca"
+    And stdout should not contain "shar"
 
   Scenario: Local listing ignores non-issue files
     Given a Kanbus project with default configuration
     And a local issue "kanbus-local01" exists
     And a non-issue file exists in the local issues directory
     When I run "kanbus list --local-only"
-    Then stdout should contain "local0"
+    Then stdout should contain "loca"
 
   Scenario: List rejects local-only conflicts
     Given a Kanbus project with default configuration

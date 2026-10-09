@@ -7,7 +7,7 @@ Feature: Issue list formatting
     And an issue "kanbus-child" exists with status "open"
     And issue "kanbus-child" has parent "kanbus-parent"
     When I run "kanbus list --porcelain"
-    Then stdout should contain the line "T | child | parent | open | P2 | Title"
+    Then stdout should contain the line "T | chil | pare | open | P2 | Title"
 
   Scenario: List can filter by parent issue
     Given a Kanbus project with default configuration
@@ -16,21 +16,22 @@ Feature: Issue list formatting
     And issue "kanbus-child" has parent "kanbus-parent"
     And an issue "kanbus-other" exists
     When I run "kanbus list --parent kanbus-parent --porcelain"
-    Then stdout should contain the line "T | child | parent | open | P2 | Title"
+    Then stdout should contain the line "T | chil | pare | open | P2 | Title"
     And stdout should not contain "T | other |"
 
   Scenario: List can force full issue keys in single-project context
     Given a Kanbus project with default configuration
     And an issue "kanbus-0123456789ab" exists
     When I run "kanbus list --full-ids"
-    Then stdout should contain "kanbus-012345"
+    Then stdout should contain "kanbus-0123"
+    And stdout should not contain "kanbus-0123456789ab"
 
   Scenario: Default list output remains token-efficient
     Given a Kanbus project with default configuration
     And an issue "kanbus-0123456789ab" exists
     When I run "kanbus list"
-    Then stdout should contain "012345"
-    And stdout should not contain "kanbus-012345"
+    Then stdout should contain " 0123 "
+    And stdout should not contain "kanbus-0123456789ab"
 
   Scenario: List formatting applies default colors
     Given a Kanbus project with default configuration

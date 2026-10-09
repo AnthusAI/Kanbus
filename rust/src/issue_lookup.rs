@@ -158,11 +158,29 @@ pub fn load_issue_from_project(
             })
         }
         _ => {
-            let ids: Vec<String> = all_matches.into_iter().map(|(id, _, _)| id).collect();
-            Err(KanbusError::IssueOperation(format!(
-                "ambiguous identifier, matches: {}",
-                ids.join(", ")
-            )))
+            let matches = all_matches
+                .into_iter()
+                .map(|(full_id, issue_path, _)| {
+                    read_issue_from_file(&issue_path).map_or_else(
+                        |_| crate::error::AmbiguousCandidate {
+                            identifier: full_id.clone(),
+                            title: String::new(),
+                            issue_type: String::new(),
+                            status: String::new(),
+                        },
+                        |issue| crate::error::AmbiguousCandidate {
+                            identifier: issue.identifier,
+                            title: issue.title,
+                            issue_type: issue.issue_type,
+                            status: issue.status,
+                        },
+                    )
+                })
+                .collect::<Vec<_>>();
+            Err(KanbusError::AmbiguousIdentifier {
+                candidate: identifier.to_string(),
+                matches,
+            })
         }
     }
 }

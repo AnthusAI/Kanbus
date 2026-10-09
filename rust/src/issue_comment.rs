@@ -89,7 +89,7 @@ fn find_comment_by_prefix(issue: &IssueData, prefix: &str) -> Result<usize, Kanb
                 .iter()
                 .filter_map(|index| issue.comments.get(*index))
                 .filter_map(|comment| comment.id.as_deref())
-                .map(|id| id.chars().take(6).collect::<String>())
+                .map(|id| id.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
             Err(KanbusError::IssueOperation(format!(

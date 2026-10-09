@@ -1,0 +1,25 @@
+{
+  "id": "kbs-fcad326c-e19d-43ef-83a0-ee402799dade",
+  "title": "CLI: hyphen-insensitive matcher and dotted sub-ID resolution (Rust + Python)",
+  "description": "issue_identifier_matches (rust/src/ids.rs) and matches_issue_identifier (python/src/kanbus/ids.py) compare prefixes with hyphens stripped; remove reliance on the 6-char cap; dotted sub-IDs match base+suffix separately. Existing longer references (old 6-char) keep resolving.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-429fa3fd-cde5-44ee-811e-79f43b3730a4",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-02T20:34:15.011426Z",
+  "updated_at": "2026-10-03T00:16:13.907338Z",
+  "closed_at": "2026-10-03T00:16:13.884586Z",
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

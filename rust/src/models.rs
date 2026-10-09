@@ -639,6 +639,10 @@ pub struct ProjectConfiguration {
     pub type_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub beads_compatibility: bool,
+    /// Default short ID display length (hash characters). Defaults to 4, or 6
+    /// in Beads compatibility mode, unless explicitly configured.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_id_length: Option<usize>,
     #[serde(default)]
     pub wiki_directory: Option<String>,
     #[serde(default)]

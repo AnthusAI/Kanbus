@@ -452,7 +452,7 @@ where
                     eprintln!("warning: coordination MQTT subscribe enqueue failed (topic={topic}): {error}");
                     return Vec::new();
                 }
-                let setup_deadline = Instant::now() + Duration::from_secs(16);
+                let setup_deadline = Instant::now() + Duration::from_secs(24);
                 let mut contention_deadline = None;
                 let mut envelopes = Vec::new();
                 let mut publish_requested = false;
@@ -1495,7 +1495,7 @@ fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
     let Some(addr) = addr else {
         return false;
     };
-    TcpStream::connect_timeout(&addr, Duration::from_secs(1)).is_ok()
+    TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
 }
 
 fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, KanbusError> {
@@ -2478,7 +2478,7 @@ mod tests {
             subscriber
                 .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x00])
                 .expect("send SUBACK");
-            let publisher_deadline = Instant::now() + Duration::from_secs(3);
+            let publisher_deadline = Instant::now() + Duration::from_secs(10);
             let (mut publisher, first_header) = loop {
                 let timeout = publisher_deadline.saturating_duration_since(Instant::now());
                 let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
@@ -2519,6 +2519,9 @@ mod tests {
 
         let project_dir = root.join("project");
         let before_setup = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        // Re-assert broker env: parallel lib tests may call load_dotenv and overwrite
+        // KANBUS_REALTIME_BROKER while this #[serial] test is in its mock-broker phase.
+        _home_guard.force_realtime_broker(&format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (received, published) = collect_coordination_gossip_window_with(
             root,
             &project_dir,

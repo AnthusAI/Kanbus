@@ -241,8 +241,8 @@ fn find_duplicate_title(issues_dir: &Path, title: &str) -> Result<Option<String>
 
 /// Resolve an issue identifier from a user-provided value.
 ///
-/// Accepts a full id, a unique short id (`{project_key}-{prefix}` up to 6 chars),
-/// or a project-context short id (no project key).
+/// Accepts a full id, a unique short id (`{project_key}-{prefix}` with a
+/// dynamic width, default 4), or a project-context short id (no project key).
 pub fn resolve_issue_identifier(
     issues_dir: &Path,
     _project_key: &str,
@@ -264,9 +264,36 @@ pub fn resolve_issue_identifier(
     match matches.len() {
         1 => Ok(matches.pop().expect("single match")),
         0 => Err(KanbusError::IssueOperation("not found".to_string())),
-        _ => Err(KanbusError::IssueOperation(
-            "ambiguous short id".to_string(),
-        )),
+        _ => {
+            let mut candidate_details: Vec<(String, Option<IssueData>)> = matches
+                .into_iter()
+                .map(|full_id| {
+                    let path = issue_path_for_identifier(issues_dir, &full_id);
+                    let issue = read_issue_from_file(&path).ok();
+                    (full_id, issue)
+                })
+                .collect();
+            Err(KanbusError::AmbiguousIdentifier {
+                candidate: candidate.to_string(),
+                matches: candidate_details
+                    .drain(..)
+                    .map(|(full_id, issue)| match issue {
+                        Some(issue) => crate::error::AmbiguousCandidate {
+                            identifier: issue.identifier,
+                            title: issue.title,
+                            issue_type: issue.issue_type,
+                            status: issue.status,
+                        },
+                        None => crate::error::AmbiguousCandidate {
+                            identifier: full_id,
+                            title: String::new(),
+                            issue_type: String::new(),
+                            status: String::new(),
+                        },
+                    })
+                    .collect(),
+            })
+        }
     }
 }
 
@@ -396,7 +423,13 @@ mod tests {
         let ambiguous =
             resolve_issue_identifier(&issues_dir, "kanbus", "kanbus-abc").expect_err("ambiguous");
         match ambiguous {
-            KanbusError::IssueOperation(message) => assert_eq!(message, "ambiguous short id"),
+            KanbusError::AmbiguousIdentifier { candidate, matches } => {
+                assert_eq!(candidate, "kanbus-abc");
+                assert_eq!(matches.len(), 2);
+                assert!(matches
+                    .iter()
+                    .any(|issue| issue.identifier == "kanbus-abc12345" && issue.title == "A"));
+            }
             other => panic!("unexpected error: {other:?}"),
         }
 

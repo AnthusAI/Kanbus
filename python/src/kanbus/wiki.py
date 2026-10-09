@@ -15,7 +15,7 @@ from markusmd.errors import MarkusError
 
 from kanbus.ai_summarize import make_ai_summarize
 from kanbus.console_snapshot import ConsoleSnapshotError, get_issues_for_root
-from kanbus.ids import format_issue_key
+from kanbus.ids import DEFAULT_SHORT_ID_LENGTH, ShortIdWidths, format_issue_key_with
 from kanbus.models import IssueData
 from kanbus.queries import filter_issues
 
@@ -561,6 +561,7 @@ def render_wiki_page(
         if cached is not None:
             _wiki_render_log_cache_hit(wiki_render_cache_dir)
             return cached
+    _set_short_id_universe(list(issues))
     issues_by_id = {issue.identifier: _serialize_issue(issue) for issue in issues}
     ai_cache_dir = request.root / project_dir / ".cache" if project_dir else None
     ai_summarize_fn = make_ai_summarize(issues_by_id, ai_config, ai_cache_dir)
@@ -843,9 +844,23 @@ def _wiki_template_globals(context: WikiContext) -> Dict[str, object]:
     }
 
 
+_SHORT_ID_WIDTHS: ShortIdWidths | None = None
+
+
+def _set_short_id_universe(issues: list[IssueData]) -> None:
+    """Record the universe of issue identifiers for short-ID width derivation."""
+    global _SHORT_ID_WIDTHS
+    _SHORT_ID_WIDTHS = ShortIdWidths.build(
+        [issue.identifier for issue in issues], DEFAULT_SHORT_ID_LENGTH
+    )
+
+
 def _serialize_issue(issue: IssueData) -> Dict[str, object]:
     payload = issue.model_dump(by_alias=True, mode="json")
-    short_key = format_issue_key(issue.identifier, project_context=True)
+    short_id_widths = _SHORT_ID_WIDTHS or ShortIdWidths.build(
+        [issue.identifier], DEFAULT_SHORT_ID_LENGTH
+    )
+    short_key = format_issue_key_with(issue.identifier, True, short_id_widths)
     payload["key"] = short_key
     payload["short_id"] = short_key
     return payload
@@ -945,6 +960,7 @@ def render_template_string(text: str, issues: List[IssueData]) -> str:
     :rtype: str
     :raises WikiError: If template rendering fails.
     """
+    _set_short_id_universe(list(issues))
     context = WikiContext(issues=issues, root=Path.cwd())
     environment = Environment(
         autoescape=select_autoescape(
