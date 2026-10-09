@@ -105,7 +105,7 @@ def step_impl_check_log(context):
         lines = f.readlines()
         assert len(lines) > 0
         entry = json.loads(lines[-1])
-        assert "tokens" in entry
+        assert "total_tokens" in entry
         assert "cost" in entry
 
 

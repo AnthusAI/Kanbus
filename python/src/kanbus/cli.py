@@ -53,7 +53,11 @@ from kanbus.issue_display import format_issue_for_display
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.coordination import LeaseState
 from kanbus.ids import format_issue_key
-from kanbus.issue_line import compute_widths, format_issue_line
+from kanbus.issue_line import (
+    compute_widths,
+    format_empty_status_lines,
+    format_issue_line,
+)
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_commit import IssueCommitError, commit_project_issues
@@ -2359,6 +2363,9 @@ def list_command(
             configuration=configuration,
         )
         click.echo(line)
+    if not porcelain and configuration is not None:
+        for empty_line in format_empty_status_lines(issues, configuration, issue_type):
+            click.echo(empty_line)
     _run_lifecycle_hooks_for_context(
         context,
         phase=HookPhase.AFTER,
@@ -4248,40 +4255,9 @@ def summarize(context: click.Context, identifier: str, dry_run: bool) -> None:
 @click.pass_context
 def cost(context: click.Context, days: int | None) -> None:
     """Report LLM usage costs."""
-    from kanbus.config_loader import load_project_configuration
-    from kanbus.project import get_configuration_path
-    import json
-    from datetime import datetime, timezone, timedelta
-    from pathlib import Path
+    from kanbus.llm_cost import build_llm_cost_report
 
-    root = Path.cwd()
-    config_path = get_configuration_path(root)
-    config = load_project_configuration(config_path)
-    log_path = root / config.project_directory / "events" / "llm_usage.jsonl"
-
-    if not log_path.exists():
-        click.echo("No LLM usage logs found.")
-        return
-
-    total_tokens = 0
-    total_cost = 0.0
-    cutoff = None
-    if days is not None:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-
-    with open(log_path, "r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            data = json.loads(line)
-            ts = datetime.fromisoformat(data["timestamp"])
-            if cutoff and ts < cutoff:
-                continue
-            total_tokens += data.get("tokens", 0)
-            total_cost += data.get("cost", 0.0)
-
-    click.echo(f"Total Tokens: {total_tokens}")
-    click.echo(f"Total Cost:   ${total_cost:.4f}")
+    click.echo(build_llm_cost_report(Path.cwd(), days))
 
 
 @click.group()

@@ -80,7 +80,7 @@ fn given_repo_with_blank_lines(world: &mut KanbusWorld) {
     });
     let lines = format!(
         "{}\n\n{}\n",
-        record.to_string(),
+        record,
         serde_json::json!({
             "id": "kanbus-002",
             "title": "Title",
@@ -92,7 +92,6 @@ fn given_repo_with_blank_lines(world: &mut KanbusWorld) {
             "dependencies": [],
             "comments": []
         })
-        .to_string()
     );
     fs::write(beads_dir.join("issues.jsonl"), lines).expect("write issues");
     world.working_directory = Some(repo_path);
@@ -147,7 +146,7 @@ fn given_repo_with_metadata(world: &mut KanbusWorld) {
         "close_reason": "Done",
         "owner": "dev@example.com"
     });
-    let lines = format!("{}\n{}", parent.to_string(), child.to_string());
+    let lines = format!("{}\n{}", parent, child);
     fs::write(beads_dir.join("issues.jsonl"), lines).expect("write issues");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);
@@ -223,7 +222,7 @@ fn given_repo_with_epic_parent_child(world: &mut KanbusWorld) {
         ],
         "comments": []
     });
-    let lines = format!("{}\n{}", parent.to_string(), child.to_string());
+    let lines = format!("{}\n{}", parent, child);
     fs::write(beads_dir.join("issues.jsonl"), lines).expect("write issues");
     world.working_directory = Some(repo_path);
     world.temp_dir = Some(temp_dir);

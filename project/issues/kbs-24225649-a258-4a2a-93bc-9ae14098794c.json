@@ -1,0 +1,25 @@
+{
+  "id": "kbs-24225649-a258-4a2a-93bc-9ae14098794c",
+  "title": "Spec: workspace dedupe identity key and recency semantics in Gherkin",
+  "description": "## Goal\nWrite the executable specification first, per The Rite of Gherkin, before any production code.\n\n## Scope\n- Write or extend Gherkin scenarios in `features/` covering workspace-wide deduplication from the story kbs-ef4811: one identity appears once, most recently changed version wins, distinct issues are never merged, works from a parent folder of many repos.\n- Decide and document how \"most recently changed\" is determined: the issue's `updated_at` field versus the underlying issue file's mtime. Record the decision in the feature prose and this issue.\n- Confirm what constitutes issue identity for deduplication (the issue's own identity as Kanbus keys it, not title or path).\n- Fixtures include a repository plus linked git worktrees discovered under one workspace root.\n\n## Constraints\n- No production code in this task.\n- New scenarios must run and fail for the right reason before implementation starts (Python behave and Rust cucumber).\n- Prior art: tskl-2vo dedupes Beads records by identity keeping most recent `updated_at` (larger record tie-break); reuse or adapt the semantics where applicable, but the decision is not presumed.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c04e8142-01d8-4807-a949-e06e8d99643b",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:41.185618Z",
+  "updated_at": "2026-10-03T14:36:41.205103Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

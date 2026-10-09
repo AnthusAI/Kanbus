@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Callable, Dict, Iterable, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
 import click
 
 from kanbus.ids import format_issue_key
 from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.status_semantics import default_color_for_semantic_category
+from kanbus.workflows import status_keys_for_type_filter
 
 STATUS_COLORS = {
     "backlog": "grey",
@@ -263,3 +264,38 @@ def compute_widths(
         "identifier": identifier_w,
         "parent": parent_w,
     }
+
+
+def format_empty_status_lines(
+    issues: Iterable[IssueData],
+    configuration: ProjectConfiguration,
+    issue_type: Optional[str],
+) -> List[str]:
+    """Return one line per configured status with no issues in the result.
+
+    The candidate statuses follow the type filter (see
+    :func:`kanbus.workflows.status_keys_for_type_filter`); statuses with at
+    least one issue in the displayed result are skipped so populated columns
+    get no extra line.
+
+    :param issues: Issues in the displayed (post-filter, post-limit) result.
+    :type issues: Iterable[IssueData]
+    :param configuration: Project configuration with statuses and workflows.
+    :type configuration: ProjectConfiguration
+    :param issue_type: Optional issue type filter applied to the listing.
+    :type issue_type: Optional[str]
+    :return: Empty-status lines in configuration order.
+    :rtype: List[str]
+    """
+    present_statuses = {issue.status for issue in issues}
+    lines: List[str] = []
+    for status_key in status_keys_for_type_filter(configuration, issue_type):
+        if status_key in present_statuses:
+            continue
+        definition = next(
+            (status for status in configuration.statuses if status.key == status_key),
+            None,
+        )
+        display_name = definition.name if definition else status_key
+        lines.append(f"{display_name}: (empty)")
+    return lines

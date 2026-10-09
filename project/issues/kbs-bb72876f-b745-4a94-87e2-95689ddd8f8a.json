@@ -1,0 +1,25 @@
+{
+  "id": "kbs-bb72876f-b745-4a94-87e2-95689ddd8f8a",
+  "title": "Deduplicate issues across workspace discovery and worktrees",
+  "description": "## Purpose\nAs someone running `kbs list` (or similar read commands) from a parent folder containing many subprojects, I want Kanbus to deduplicate issues discovered across all found projects, including git worktrees of the same repository, so that I get a clean list where every issue identity appears exactly once with the most recently changed version.\n\n## Why this exists\nWorkspace discovery (tskl-p8w / tskl-p8w.1) already finds every nested `.kanbus.yml` project under a workspace root. That includes linked git worktrees of the same repository, and each worktree carries its own copy of the issue store. Today that yields the same issue listed multiple times, once per discovered copy. Someone working across a whole workspace of subprojects cannot get a clean list.\n\nThis is application-level logic in Kanbus itself, NOT Virtuus. Virtuus is only the data store and must not change.\n\n## Direction\n- Discover issues across all projects found under the workspace root, as today.\n- Deduplicate automatically on read, keyed by issue identity.\n- Keep the most recently changed version of each duplicated item, so an issue updated in a worktree automatically shows up and wins, with no duplicates and no extra steps.\n- Distinct issues are never merged; only copies of the same identity collapse.\n- Applies to read/listing paths (`kbs list` and similar read commands).\n\n```mermaid\nflowchart TD\n  A[Workspace root with many subprojects] --> B[Discover every project with .kanbus.yml]\n  B --> C[Include git worktrees of the same repository]\n  C --> D[Collect issues from all discovered projects]\n  D --> E[Deduplicate by issue identity]\n  E --> F[Keep most recently changed version per identity]\n  F --> G[Clean deduplicated list output]\n```\n\n## Related issues\n- tskl-p8w, tskl-p8w.1, tskl-p8w.2: workspace-root discovery and unique fragment resolution already exist; this initiative adds deduplication on top of discovery rather than duplicating it.\n- tskl-2vo: prior art for identity-keyed dedupe keeping the most recent record, but scoped to Beads compatibility mode; this extends that idea to workspace discovery in native mode.\n- kbs-cee95a: separate worktree-specific concern (credential loading in linked worktrees), not read-path deduplication.\n\n## Open question for the implementer\nHow \"most recently changed\" is determined is intentionally left open: the issue's `updated_at` field versus the underlying issue file's mtime. The spec task must pick and document one before implementation.\n\n## Out of scope\n- No changes to Virtuus.\n- No write-path or storage changes; deduplication is a read/discovery-layer behavior.\n- No manual merge tooling; deduplication is automatic.\n\n## Done when\n- Gherkin scenarios in `features/` describe the deduplication behaviors and pass in both runtimes.\n- Running `kbs list` from a parent folder of many subprojects and worktrees yields no duplicate identities, with the most recently changed version of each duplicated item shown.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:17.954042Z",
+  "updated_at": "2026-10-03T14:36:17.973759Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

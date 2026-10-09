@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 import socket
 import time
 from pathlib import Path
@@ -158,6 +159,14 @@ def _set_daemon_env(context: object, value: str) -> None:
     if not hasattr(context, "original_daemon_env"):
         context.original_daemon_env = os.environ.get("KANBUS_NO_DAEMON")
     os.environ["KANBUS_NO_DAEMON"] = value
+
+
+def _restore_daemon_env(context: object) -> None:
+    original = getattr(context, "original_daemon_env", None)
+    if original is None:
+        os.environ.pop("KANBUS_NO_DAEMON", None)
+    else:
+        os.environ["KANBUS_NO_DAEMON"] = original
 
 
 def _exercise_daemon_entry_point(context: object) -> None:
@@ -345,6 +354,98 @@ def given_daemon_running_with_stale_index(context: object) -> None:
 @then("a daemon should be started")
 def then_daemon_started(context: object) -> None:
     assert getattr(context, "daemon_spawned", False)
+
+
+@given("the daemon cannot start")
+def given_daemon_cannot_start(context: object) -> None:
+    from kanbus import daemon_client
+
+    if getattr(context, "daemon_patched", False):
+        daemon_client.spawn_daemon = context.daemon_original_spawn
+        daemon_client.send_request = context.daemon_original_send
+        context.daemon_patched = False
+        context.daemon_original_spawn = None
+        context.daemon_original_send = None
+
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_NO_DAEMON"] = "0"
+    context.environment_overrides = overrides
+
+    project_dir = load_project_directory(context)
+    socket_path = get_daemon_socket_path(project_dir.parent)
+    if socket_path.exists():
+        socket_path.unlink()
+    cache_dir = socket_path.parent
+    if cache_dir.is_dir():
+        shutil.rmtree(cache_dir)
+    if not cache_dir.exists():
+        cache_dir.write_text("not a directory", encoding="utf-8")
+
+
+@given("a real daemon is running for the project")
+def given_real_daemon_running(context: object) -> None:
+    import threading
+
+    from kanbus import daemon_client, daemon_server
+
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_NO_DAEMON"] = "0"
+    context.environment_overrides = overrides
+    _set_daemon_env(context, "0")
+
+    project_dir = load_project_directory(context)
+    root = project_dir.parent
+    socket_path = get_daemon_socket_path(root)
+    if socket_path.exists():
+        socket_path.unlink()
+
+    thread = threading.Thread(
+        target=daemon_server.run_daemon, args=(root,), daemon=True
+    )
+    thread.start()
+    context.real_daemon_running = True
+    for _ in range(80):
+        if socket_path.exists():
+            try:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+                    probe.settimeout(0.5)
+                    probe.connect(str(socket_path))
+                break
+            except OSError:
+                pass
+        time.sleep(0.025)
+    else:
+        raise AssertionError("real daemon socket did not become ready")
+
+    def shutdown_daemon() -> None:
+        try:
+            daemon_client.request_shutdown(root)
+        except Exception:
+            pass
+        thread.join(timeout=2.0)
+        context.real_daemon_running = False
+        _restore_daemon_env(context)
+
+    context.add_cleanup(shutdown_daemon)
+
+
+@then("the daemon status should be ok")
+def then_daemon_status_ok(context: object) -> None:
+    from kanbus import daemon_client
+
+    overrides = getattr(context, "environment_overrides", None) or {}
+    original = os.environ.get("KANBUS_NO_DAEMON")
+    if "KANBUS_NO_DAEMON" in overrides:
+        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    project_dir = load_project_directory(context)
+    try:
+        payload = daemon_client.request_status(project_dir.parent)
+    finally:
+        if original is None:
+            os.environ.pop("KANBUS_NO_DAEMON", None)
+        else:
+            os.environ["KANBUS_NO_DAEMON"] = original
+    assert payload.get("status") == "ok"
 
 
 @then("a new daemon should be started")

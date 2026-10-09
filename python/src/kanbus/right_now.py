@@ -458,6 +458,23 @@ def right_now_summary_needs_regeneration(issue: IssueData) -> bool:
     return right_now_summary_is_missing_or_stale(issue)
 
 
+def right_now_summary_predates_child_changes(
+    issue: IssueData, children: list[IssueData]
+) -> bool:
+    """Return whether a direct child changed after the issue summary was generated.
+
+    :param issue: Parent issue to inspect.
+    :type issue: IssueData
+    :param children: Direct children of the issue.
+    :type children: List[IssueData]
+    :return: True when any child was updated after ``right_now_updated_at``.
+    :rtype: bool
+    """
+    if issue.right_now_updated_at is None:
+        return False
+    return any(child.updated_at > issue.right_now_updated_at for child in children)
+
+
 def require_display_right_now_summary(issue: IssueData) -> str:
     """Return the right-now summary for CLI display or raise when invalid.
 
@@ -593,8 +610,10 @@ def ensure_right_now_subtree(
             raise RightNowError(str(error)) from error
         memo[issue_identifier] = False
         return False
-    should_generate = descendant_generated or right_now_summary_needs_regeneration(
-        lookup.issue
+    should_generate = (
+        descendant_generated
+        or right_now_summary_needs_regeneration(lookup.issue)
+        or right_now_summary_predates_child_changes(lookup.issue, children)
     )
     generated = False
     if should_generate:
@@ -738,43 +757,6 @@ def ensure_right_now_summary_subtrees(
         )
 
 
-def regenerate_right_now_for_issue_and_ancestors(
-    root: Path,
-    issue_identifier: str,
-) -> None:
-    """Regenerate right-now summaries for an issue and each ancestor.
-
-    :param root: Repository root path.
-    :type root: Path
-    :param issue_identifier: Starting issue identifier.
-    :type issue_identifier: str
-    """
-    current_identifier: str | None = issue_identifier
-    while current_identifier is not None:
-        regenerate_right_now_for_issue(root, current_identifier)
-        try:
-            lookup = load_issue_from_project(root, current_identifier)
-        except IssueLookupError:
-            return
-        current_identifier = lookup.issue.parent
-
-
-def regenerate_right_now_ancestors(
-    root: Path,
-    parent_identifier: str | None,
-) -> None:
-    """Regenerate right-now summaries for ancestors after a child deletion.
-
-    :param root: Repository root path.
-    :type root: Path
-    :param parent_identifier: Parent issue identifier, if any.
-    :type parent_identifier: Optional[str]
-    """
-    if parent_identifier is None:
-        return
-    regenerate_right_now_for_issue_and_ancestors(root, parent_identifier)
-
-
 def summary_contains_status_keyword(summary: str) -> bool:
     """Return whether a summary contains a bare status keyword.
 
@@ -847,6 +829,8 @@ def _build_right_now_prompt(context: RightNowContext, max_length: int) -> str:
     return (
         "Write exactly one short sentence describing what is happening with this "
         "issue right now. Use plain, direct language in Hemingway style. "
+        "State only facts present in the text below. Do not describe work as "
+        "underway, running, or finished unless the text says so. "
         f"Do not mention issue status labels such as open, closed, blocked, done, "
         f"or in progress. Maximum {max_length} characters.\n\n"
         f"Title: {context.title}\n"
@@ -874,7 +858,7 @@ def _curated_litellm_failure_message(error: Exception) -> str:
     return "right-now summary generation failed"
 
 
-def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
+def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int | None]]:
     test_completion = os.environ.get("KANBUS_TEST_LITELLM_COMPLETION")
     if test_completion is not None:
         os.environ["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = "1"
@@ -882,7 +866,7 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
             "prompt_tokens": 1,
             "completion_tokens": 2,
             "total_tokens": 3,
-            "cost": 0.0,
+            "cost": None,
         }
 
     if os.environ.get("KANBUS_TEST_SIMULATE_LITELLM_MISSING") == "1":
@@ -913,15 +897,30 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int]]:
     completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
     reported_total = getattr(usage, "total_tokens", None)
     total_tokens = int(reported_total or (prompt_tokens + completion_tokens))
-    cost = float(
-        getattr(response, "_hidden_params", {}).get("response_cost", 0.0) or 0.0
-    )
+    cost = _priced_response_cost(response)
     return message, {
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
         "total_tokens": total_tokens,
         "cost": cost,
     }
+
+
+def _priced_response_cost(response: object) -> float | None:
+    """Return the LiteLLM response cost, or None when the model has no known price.
+
+    LiteLLM reports a zero or missing cost for models absent from its price
+    table, so a non-positive value means the real spend is unknown.
+
+    :param response: LiteLLM completion response.
+    :type response: object
+    :return: Cost in USD, or None when unpriced.
+    :rtype: Optional[float]
+    """
+    reported_cost = getattr(response, "_hidden_params", {}).get("response_cost")
+    if reported_cost is None or float(reported_cost) <= 0.0:
+        return None
+    return float(reported_cost)
 
 
 def _record_llm_usage(
@@ -932,7 +931,7 @@ def _record_llm_usage(
     prompt_tokens: int,
     completion_tokens: int,
     total_tokens: int,
-    cost: float,
+    cost: float | None,
     mock: bool,
 ) -> None:
     events_dir = root.joinpath(configuration.project_directory, "events")

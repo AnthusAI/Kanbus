@@ -62,7 +62,7 @@ fn given_issues_directory_is_unreadable(world: &mut KanbusWorld) {
         let metadata = fs::metadata(&issues_dir).expect("issues dir metadata");
         let original_mode = metadata.permissions().mode();
         let mut permissions = metadata.permissions();
-        permissions.set_mode(0);
+        permissions.set_mode(0o0);
         fs::set_permissions(&issues_dir, permissions).expect("make issues dir unreadable");
         world.unreadable_path = Some(issues_dir);
         world.unreadable_mode = Some(original_mode);
