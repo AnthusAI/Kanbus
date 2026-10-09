@@ -86,7 +86,9 @@ def test_prompt_ambiguous_choice_handles_read_errors(
     assert ambiguity.prompt_ambiguous_choice("kanbus-aaaa", _candidates()) is None
 
 
-def test_raise_wrapped_domain_error_maps_ambiguous_lookup_to_exit_code_exception() -> None:
+def test_raise_wrapped_domain_error_maps_ambiguous_lookup_to_exit_code_exception() -> (
+    None
+):
     lookup_error = IssueLookupError(
         ambiguity.render_ambiguous_error("kanbus-aaaa", _candidates()),
         candidate="kanbus-aaaa",
