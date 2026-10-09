@@ -642,7 +642,6 @@ def _apply_forge_transition(
                 status=target_status,
                 assignee=None,
                 claim=False,
-                regenerate_right_now=False,
             )
         except IssueUpdateError as error:
             raise IssueRouterError(str(error)) from error

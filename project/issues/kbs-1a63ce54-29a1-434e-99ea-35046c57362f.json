@@ -3,7 +3,7 @@
   "title": "Right-now summaries silently make paid LLM calls on every create/update/comment (and for every ancestor), with cost logged as $0",
   "description": "## Summary\n\nWith `right_now` enabled (the documented default), **every `kbs create`, `update` and `comment` makes paid LLM calls** (LiteLLM -> OpenAI `gpt-5.6-luna`) for the issue **and for each of its ancestors**, using the `OPENAI_API_KEY` that Kanbus silently loads from the repository `.env`. The calls are not announced, are not opt-in per command, and are costed as $0 in both `llm_usage.jsonl` and `kbs cost`, so the spend is invisible. Some generated summaries were also unfaithful to the issue text.\n\n## Observed (two real repos, one agent session, 2026-10-01)\n\n- Decision-Flywheel-Evaluations: 268 `right_now_summary` calls (about 196k prompt + 19k completion tokens); Decision-Flywheel: 90 calls (about 295k tokens in all across the two repos). All from one coding-agent session that filed ~35 issues and ~40 comments/updates with `kbs`.\n- `project/events/llm_usage.jsonl` records every call, with `\"cost\": 0.0` for each (the response cost for the unknown model name `gpt-5.6-luna` is reported as 0.0), and `kbs cost` reports `$0.0000`. Real spend is unknowable from Kanbus.\n- The agent never read or exported the key. Kanbus loaded it itself (`load_repository_environment(root)` in `python/src/kanbus/right_now.py`).\n- One generated summary for a newly created planning initiative said \"The team is running live rounds...\" although nothing was running (a plan had only just been filed). Summaries were later wiped with `kbs now --purge`; the raw text is gone, so this is second-hand and not independently reproduced.\n\n## Why it multiplies\n\n```mermaid\nflowchart TB\n  A[\"kbs create / update / comment\"] --> B[\"regenerate_right_now = True (default)\"]\n  B --> C[\"regenerate_right_now_for_issue_and_ancestors\"]\n  C --> D[\"LLM call for the issue\"]\n  D --> E[\"LLM call for its parent\"]\n  E --> F[\"...one call per ancestor up to the initiative\"]\n```\n\n`issue_comment.py` and `issue_update.py` default `regenerate_right_now=True`; `regenerate_right_now_for_issue_and_ancestors` (right_now.py) loops up the parent chain, one LLM call per level. Deep trees and bulk agent edits therefore cost a multiple of the number of commands.\n\n## Steps to reproduce\n\n1. In a Kanbus repo whose `.kanbus.yml` has `ai.provider: litellm` and `right_now.enabled: true` (or no `enabled` key, which defaults to true per CONFIGURATION.md), with `OPENAI_API_KEY` in the repo's gitignored `.env`.\n2. Note the call count: `wc -l project/events/llm_usage.jsonl` (file may not exist yet).\n3. Create a 3-level hierarchy: `kbs create \"I\" --type initiative`, then `kbs create \"E\" --type epic --parent <I>`, then `kbs create \"T\" --type task --parent <E>`.\n4. Run `kbs comment <T> \"hello\"`.\n5. Re-run `wc -l project/events/llm_usage.jsonl` and inspect the new lines (`operation: right_now_summary`, `issue_id`). Expect several new entries, including for the epic and the initiative, from one comment.\n6. Run `kbs cost` and observe `$0.0000` while tokens were consumed.\n7. Set `right_now.enabled: false` and repeat steps 4 to 5: no new entries.\n\nNote: I did not re-run these steps to avoid more paid calls; they are derived from the observed behaviour above and from reading right_now.py, issue_comment.py and issue_update.py.\n\n## Expected behaviour\n\n- No network LLM calls from board-mutating commands unless the user explicitly opted in (default `right_now.enabled: false`, or a per-command flag).\n- A clear one-line notice when a command makes an LLM call, or a dry-run/confirm mode.\n- Cost reporting that never shows $0 for real calls: fall back to an estimate or show tokens prominently when the model's price is unknown.\n- Do not regenerate every ancestor on each write; debounce, batch, or regenerate lazily when a summary is displayed.\n- Do not load credentials from `.env` for a feature the user did not explicitly enable; document which key is used.\n- Summaries should be grounded in issue text only (consider a stricter prompt or a faithfulness check so planning-only issues are not described as active work).\n\n## Workaround\n\n`right_now:\n  enabled: false` in `.kanbus.yml`.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": "claude",
   "creator": null,
@@ -13,10 +13,18 @@
     "cost"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "b76786fd-77ee-4356-a660-b4345d5c8c50",
+      "author": "home",
+      "text": "Fixed in AnthusAI/Kanbus#381 (merged to develop): create/update/comment/dep/delete no longer make LLM calls; summaries are generated lazily by kbs now / console Now / standup, and a parent refreshes when a direct child changed after its summary. Unpriced calls log cost null and kbs cost reports Unpriced Calls. Promotion to main: AnthusAI/Kanbus#395.",
+      "created_at": "2026-10-09T13:59:23.793738Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-01T21:11:27.790371Z",
-  "updated_at": "2026-10-01T21:34:53.892879Z",
-  "closed_at": null,
+  "updated_at": "2026-10-09T13:59:24.400227Z",
+  "closed_at": "2026-10-09T13:59:24.223076Z",
   "agent": {
     "platform": "claude_code",
     "model": "Sonnet 5.5",
