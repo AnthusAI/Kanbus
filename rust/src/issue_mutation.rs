@@ -13,9 +13,6 @@ use crate::event_history::{
 use crate::issue_files::{delete_issue_file, write_issue_to_file};
 use crate::models::IssueData;
 use crate::overlay::replace_overlay_issue_if_present;
-use crate::right_now::{
-    regenerate_right_now_ancestors, regenerate_right_now_for_issue_and_ancestors,
-};
 
 /// Request to persist an issue mutation through the write gate.
 #[derive(Debug, Clone)]
@@ -25,10 +22,8 @@ pub struct PersistIssueMutationRequest {
     pub issue: IssueData,
     pub actor_id: String,
     pub events: Vec<EventRecord>,
-    pub root: PathBuf,
     pub before_issue: Option<IssueData>,
     pub relocate_to: Option<PathBuf>,
-    pub regenerate_right_now: bool,
 }
 
 /// Result of persisting an issue mutation.
@@ -69,18 +64,10 @@ pub fn persist_issue_mutation(
     }
     let events_dir = events_dir_for_issue_path(&request.project_dir, &final_issue_path)?;
     match write_events_batch(&events_dir, &request.events) {
-        Ok(_paths) => {
-            if request.regenerate_right_now {
-                regenerate_right_now_for_issue_and_ancestors(
-                    &request.root,
-                    &persisted_issue.identifier,
-                );
-            }
-            Ok(PersistIssueMutationResult {
-                issue: persisted_issue,
-                events: request.events.clone(),
-            })
-        }
+        Ok(_paths) => Ok(PersistIssueMutationResult {
+            issue: persisted_issue,
+            events: request.events.clone(),
+        }),
         Err(error) => {
             if request.relocate_to.is_some() && final_issue_path.exists() {
                 let _ = write_issue_to_file(&persisted_issue, &request.issue_path);
@@ -108,15 +95,12 @@ pub fn persist_issue_mutation(
 /// # Errors
 /// Returns `KanbusError` if deletion or event cleanup fails.
 pub fn persist_issue_deletion(
-    root: &Path,
     project_dir: &Path,
     issue_path: &Path,
     issue: &IssueData,
     actor_id: &str,
     retain_audit_event: bool,
-    regenerate_right_now: bool,
 ) -> Result<PersistIssueDeletionResult, KanbusError> {
-    let parent_identifier = issue.parent.clone();
     let occurred_at = now_timestamp();
     let deletion_event = EventRecord::new(
         issue.identifier.clone(),
@@ -135,23 +119,15 @@ pub fn persist_issue_deletion(
     }
     if retain_audit_event {
         match write_events_batch(&events_dir, std::slice::from_ref(&deletion_event)) {
-            Ok(_paths) => {
-                if regenerate_right_now {
-                    regenerate_right_now_ancestors(root, parent_identifier.as_deref());
-                }
-                Ok(PersistIssueDeletionResult {
-                    event: Some(deletion_event),
-                })
-            }
+            Ok(_paths) => Ok(PersistIssueDeletionResult {
+                event: Some(deletion_event),
+            }),
             Err(error) => {
                 write_issue_to_file(issue, issue_path)?;
                 Err(error)
             }
         }
     } else {
-        if regenerate_right_now {
-            regenerate_right_now_ancestors(root, parent_identifier.as_deref());
-        }
         Ok(PersistIssueDeletionResult { event: None })
     }
 }
@@ -214,10 +190,8 @@ mod tests {
             issue,
             actor_id: "dev".to_string(),
             events: vec![event("kanbus-1")],
-            root: temp.path().to_path_buf(),
             before_issue: None,
             relocate_to: None,
-            regenerate_right_now: false,
         };
         persist_issue_mutation(&request).expect("persist");
         let stored = read_issue_from_file(&issue_path).expect("read");
@@ -244,10 +218,8 @@ mod tests {
             issue,
             actor_id: "dev".to_string(),
             events: vec![event("kanbus-new")],
-            root: temp.path().to_path_buf(),
             before_issue: None,
             relocate_to: None,
-            regenerate_right_now: false,
         };
         persist_issue_mutation(&request).expect_err("event write should fail");
         assert!(!issue_path.exists());
@@ -269,10 +241,8 @@ mod tests {
             issue: after,
             actor_id: "dev".to_string(),
             events: vec![event("kanbus-1")],
-            root: temp.path().to_path_buf(),
             before_issue: Some(before),
             relocate_to: None,
-            regenerate_right_now: false,
         };
         persist_issue_mutation(&request).expect_err("event write should fail");
         let restored = read_issue_from_file(&issue_path).expect("read restored");
@@ -287,16 +257,7 @@ mod tests {
         fs::create_dir_all(issue_path.parent().expect("parent")).expect("mkdir");
         let issue = make_issue("kanbus-1", "Delete me");
         write_issue_to_file(&issue, &issue_path).expect("write issue");
-        persist_issue_deletion(
-            temp.path(),
-            &project_dir,
-            &issue_path,
-            &issue,
-            "dev",
-            true,
-            false,
-        )
-        .expect("delete");
+        persist_issue_deletion(&project_dir, &issue_path, &issue, "dev", true).expect("delete");
         assert!(!issue_path.exists());
         assert!(project_dir
             .join("events")
@@ -315,16 +276,8 @@ mod tests {
         let issue = make_issue("kanbus-1", "Keep me");
         write_issue_to_file(&issue, &issue_path).expect("write issue");
         fs::write(project_dir.join("events"), "not-a-directory").expect("block events");
-        persist_issue_deletion(
-            temp.path(),
-            &project_dir,
-            &issue_path,
-            &issue,
-            "dev",
-            true,
-            false,
-        )
-        .expect_err("audit write should fail");
+        persist_issue_deletion(&project_dir, &issue_path, &issue, "dev", true)
+            .expect_err("audit write should fail");
         let restored = read_issue_from_file(&issue_path).expect("restored");
         assert_eq!(restored.title, "Keep me");
     }

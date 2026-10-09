@@ -4591,29 +4591,7 @@ fn execute_command(
                 Ok(Some(stdout_str))
             }
         }
-        Commands::Cost { days } => {
-            let mut command = std::process::Command::new("kanbus");
-            command.arg("cost");
-            if let Some(d) = days {
-                command.arg("--days").arg(d.to_string());
-            }
-            command.current_dir(root);
-            let output = command.output().map_err(|error| {
-                KanbusError::Io(format!("Failed to execute 'kanbus cost': {error}"))
-            })?;
-            let stdout_str = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
-            if !stderr_str.is_empty() {
-                eprint!("{}", stderr_str);
-            }
-            if !output.status.success() {
-                return Err(KanbusError::Io(format!(
-                    "Command 'kanbus cost' failed with exit code {}",
-                    output.status.code().unwrap_or(1)
-                )));
-            }
-            Ok(Some(stdout_str))
-        }
+        Commands::Cost { days } => Ok(Some(crate::llm_cost::build_llm_cost_report(root, days)?)),
     }
 }
 

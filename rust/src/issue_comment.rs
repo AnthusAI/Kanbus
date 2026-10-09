@@ -106,7 +106,6 @@ fn persist_comment_mutation(
     before_issue: IssueData,
     event_type: EventType,
     payload: serde_json::Value,
-    regenerate_right_now: bool,
 ) -> Result<IssueData, KanbusError> {
     let actor_id = get_current_user();
     let event = EventRecord::new(
@@ -123,10 +122,8 @@ fn persist_comment_mutation(
         issue: updated_issue,
         actor_id,
         events: vec![event],
-        root: root.to_path_buf(),
         before_issue: Some(before_issue),
         relocate_to: None,
-        regenerate_right_now,
     })?;
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
         crate::gossip::publish_issue_mutation(
@@ -157,31 +154,6 @@ pub fn add_comment(
     text: &str,
     agent: Option<crate::models::AgentMetadata>,
 ) -> Result<IssueCommentResult, KanbusError> {
-    add_comment_with_options(root, identifier, author, text, agent, true)
-}
-
-/// Add a system comment without refreshing unrelated AI summaries.
-///
-/// Router comments are operational evidence. Their publication must remain
-/// deterministic and must not call a configured model as a side effect.
-pub fn add_comment_without_right_now(
-    root: &Path,
-    identifier: &str,
-    author: &str,
-    text: &str,
-    agent: Option<crate::models::AgentMetadata>,
-) -> Result<IssueCommentResult, KanbusError> {
-    add_comment_with_options(root, identifier, author, text, agent, false)
-}
-
-fn add_comment_with_options(
-    root: &Path,
-    identifier: &str,
-    author: &str,
-    text: &str,
-    agent: Option<crate::models::AgentMetadata>,
-    regenerate_right_now: bool,
-) -> Result<IssueCommentResult, KanbusError> {
     let lookup = load_issue_from_project(root, identifier)?;
     let timestamp = Utc::now();
     let comment = IssueComment {
@@ -211,7 +183,6 @@ fn add_comment_with_options(
         lookup.issue.clone(),
         EventType::CommentAdded,
         comment_payload(&comment_id, &comment.author, comment.agent.as_ref()),
-        regenerate_right_now,
     )?;
     Ok(IssueCommentResult {
         issue: persisted,
@@ -274,7 +245,6 @@ pub fn update_comment(
         lookup.issue.clone(),
         EventType::CommentUpdated,
         comment_updated_payload(&comment_id, &existing_comment.author),
-        true,
     )
 }
 
@@ -299,6 +269,5 @@ pub fn delete_comment(
         lookup.issue.clone(),
         EventType::CommentDeleted,
         comment_payload(&comment_id, &removed.author, removed.agent.as_ref()),
-        true,
     )
 }

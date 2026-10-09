@@ -33,7 +33,6 @@ def _request(
     *,
     before_issue: IssueData | None = None,
     relocate_to: Path | None = None,
-    regenerate_right_now: bool = False,
 ) -> PersistIssueMutationRequest:
     project_dir = tmp_path / "project"
     project_dir.mkdir(parents=True, exist_ok=True)
@@ -44,10 +43,8 @@ def _request(
         issue=issue,
         actor_id="dev",
         events=[_event(issue.identifier)],
-        root=tmp_path,
         before_issue=before_issue,
         relocate_to=relocate_to,
-        regenerate_right_now=regenerate_right_now,
     )
 
 
@@ -119,38 +116,6 @@ def test_persist_issue_mutation_relocates_then_rolls_back(
     assert not target.exists()
 
 
-def test_persist_issue_mutation_skips_regen_when_disabled(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls: list[str] = []
-    monkeypatch.setattr(
-        "kanbus.issue_mutation.regenerate_right_now_for_issue_and_ancestors",
-        lambda *_a: calls.append("regen"),
-    )
-    issue = build_issue("kanbus-1")
-    issue_path = tmp_path / "project" / "issues" / "kanbus-1.json"
-    persist_issue_mutation(
-        _request(tmp_path, issue, issue_path, regenerate_right_now=False)
-    )
-    assert calls == []
-
-
-def test_persist_issue_mutation_calls_regen_when_enabled(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls: list[str] = []
-    monkeypatch.setattr(
-        "kanbus.issue_mutation.regenerate_right_now_for_issue_and_ancestors",
-        lambda *_a: calls.append("regen"),
-    )
-    issue = build_issue("kanbus-1")
-    issue_path = tmp_path / "project" / "issues" / "kanbus-1.json"
-    persist_issue_mutation(
-        _request(tmp_path, issue, issue_path, regenerate_right_now=True)
-    )
-    assert calls == ["regen"]
-
-
 def test_persist_issue_deletion_removes_file_and_writes_audit(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     issues_dir = project_dir / "issues"
@@ -160,13 +125,11 @@ def test_persist_issue_deletion_removes_file_and_writes_audit(tmp_path: Path) ->
     write_issue_to_file(issue, issue_path)
 
     result = persist_issue_deletion(
-        tmp_path,
         project_dir,
         issue_path,
         issue,
         "dev",
         retain_audit_event=True,
-        regenerate_right_now=False,
     )
 
     assert not issue_path.exists()
@@ -188,27 +151,18 @@ def test_persist_issue_deletion_restores_file_when_events_fail(
 
     with pytest.raises(RuntimeError):
         persist_issue_deletion(
-            tmp_path,
             project_dir,
             issue_path,
             issue,
             "dev",
             retain_audit_event=True,
-            regenerate_right_now=False,
         )
 
     restored = read_issue_from_file(issue_path)
     assert restored.identifier == "kanbus-1"
 
 
-def test_persist_issue_deletion_skips_audit_and_regen(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls: list[str] = []
-    monkeypatch.setattr(
-        "kanbus.issue_mutation.regenerate_right_now_ancestors",
-        lambda *_a: calls.append("regen"),
-    )
+def test_persist_issue_deletion_skips_audit(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     issues_dir = project_dir / "issues"
     issues_dir.mkdir(parents=True)
@@ -217,14 +171,11 @@ def test_persist_issue_deletion_skips_audit_and_regen(
     write_issue_to_file(issue, issue_path)
 
     result = persist_issue_deletion(
-        tmp_path,
         project_dir,
         issue_path,
         issue,
         "dev",
         retain_audit_event=False,
-        regenerate_right_now=False,
     )
     assert result.event is None
-    assert calls == []
     assert not issue_path.exists()

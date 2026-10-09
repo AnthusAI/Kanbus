@@ -50,6 +50,7 @@ pub mod jira_sync;
 pub mod kanbus_version;
 pub mod lifecycle_compaction;
 pub mod litellm_completion;
+pub mod llm_cost;
 pub mod maintenance;
 pub mod migration;
 pub mod models;
