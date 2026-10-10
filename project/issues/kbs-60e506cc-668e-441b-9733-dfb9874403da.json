@@ -19,7 +19,7 @@
     "model": "GPT-5",
     "name": "Cyclotron DevOps"
   },
-  "right_now_summary": "The team is validating the new production setup and awaiting approval before a reversible DNS cutover.",
-  "right_now_updated_at": "2026-10-10T17:40:36.660550Z",
+  "right_now_summary": "Owner approval is pending while the team validates the parallel production setup.",
+  "right_now_updated_at": "2026-10-10T17:53:24.401840Z",
   "custom": {}
 }
