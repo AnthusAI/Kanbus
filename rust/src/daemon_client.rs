@@ -284,10 +284,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
         return Ok(());
     }
     if is_daemon_unavailable(root) {
-        log::debug!(
-            "daemon previously unavailable for {}; using direct storage access",
-            root.display()
-        );
+        log::debug!("daemon previously unavailable; using direct storage access");
         return Err(KanbusError::Io(format!(
             "daemon socket unavailable: {}",
             socket_path.display()
@@ -295,11 +292,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
     }
     if let Err(error) = spawn_daemon(root) {
         mark_daemon_unavailable(root);
-        log::debug!(
-            "daemon spawn failed for {}: {}; using direct storage access",
-            root.display(),
-            error
-        );
+        log::debug!("daemon spawn failed; using direct storage access");
         return Err(KanbusError::Io(format!("daemon spawn failed: {error}")));
     }
     let deadline = std::time::Instant::now() + DAEMON_SOCKET_WAIT;
@@ -309,10 +302,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
         }
         if std::time::Instant::now() >= deadline {
             mark_daemon_unavailable(root);
-            log::debug!(
-                "daemon socket did not become ready at {}; using direct storage access",
-                socket_path.display()
-            );
+            log::debug!("daemon socket did not become ready; using direct storage access");
             return Err(KanbusError::Io(format!(
                 "daemon socket did not become ready: {}",
                 socket_path.display()
@@ -343,10 +333,7 @@ pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusErro
     }
     let socket_path = get_daemon_socket_path(root)?;
     if is_daemon_unavailable(root) {
-        log::debug!(
-            "daemon previously unavailable for {}; using direct storage access",
-            root.display()
-        );
+        log::debug!("daemon previously unavailable; using direct storage access");
         return Err(KanbusError::Io(format!(
             "daemon socket unavailable: {}",
             socket_path.display()
