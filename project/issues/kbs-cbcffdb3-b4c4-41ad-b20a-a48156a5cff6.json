@@ -1,0 +1,25 @@
+{
+  "id": "kbs-cbcffdb3-b4c4-41ad-b20a-a48156a5cff6",
+  "title": "Refactor CDK for a DNS-optional parallel site",
+  "description": "Replace the hard-coded legacy hosted-zone assumption with explicit deployment configuration. The target production stack must create only the site bucket, CloudFront distribution, certificate request, exports, and pipeline prerequisites until DNS is intentionally enabled.\n\nTests:\n- synthesis with DNS disabled contains no Route 53 record resources;\n- synthesis rejects DNS-enabled deployment without an explicit hosted-zone configuration;\n- pipeline imports only the target site stack exports and remains restricted to its bucket and distribution.\n\nDo not deploy or change DNS in this task.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60e506cc-668e-441b-9733-dfb9874403da",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-10T17:39:20.703361Z",
+  "updated_at": "2026-10-10T17:39:20.723617Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-5",
+    "name": "Cyclotron DevOps"
+  },
+  "right_now_summary": "CDK is being refactored to support DNS-disabled deployments without changing DNS.",
+  "right_now_updated_at": "2026-10-10T17:39:21.734955Z",
+  "custom": {}
+}

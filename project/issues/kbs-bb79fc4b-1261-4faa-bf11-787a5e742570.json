@@ -1,0 +1,25 @@
+{
+  "id": "kbs-bb79fc4b-1261-4faa-bf11-787a5e742570",
+  "title": "Validate target and perform the reversible DNS cutover",
+  "description": "After target deployment is verified and only after a separate DNS approval, add ACM validation records in the existing anth.us hosted zone and change only the A and AAAA aliases for cyclotron.anth.us to the target distribution.\n\nTests and evidence:\n- public certificate validates for cyclotron.anth.us;\n- target distribution returns the expected Learn guide;\n- main revision source, build, and deploy are recorded;\n- DNS resolves to the new distribution;\n- rollback is the previous legacy alias target, preserved until the post-cutover observation window ends.\n\nDo not move the whole zone or delete legacy resources.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60e506cc-668e-441b-9733-dfb9874403da",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-10T17:40:33.229830Z",
+  "updated_at": "2026-10-10T17:40:33.268269Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-5",
+    "name": "Cyclotron DevOps"
+  },
+  "right_now_summary": "The target is being validated before an approved, reversible DNS cutover.",
+  "right_now_updated_at": "2026-10-10T17:40:35.009452Z",
+  "custom": {}
+}

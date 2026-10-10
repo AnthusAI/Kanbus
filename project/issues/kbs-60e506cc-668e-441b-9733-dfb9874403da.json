@@ -1,0 +1,25 @@
+{
+  "id": "kbs-60e506cc-668e-441b-9733-dfb9874403da",
+  "title": "Migrate Cyclotron marketing delivery to production account",
+  "description": "Move cyclotron.anth.us from the legacy AWS account to cyclotron-production through a parallel, verified static-site and AWS CodePipeline deployment. Keep the legacy site live until the target distribution, private-repository connection, source/build/deploy evidence, and rollback path are verified.\n\nDefinition of Done:\n- The target account owns the site bucket, CloudFront distribution, certificate, and least-privilege pipeline.\n- The GitHub connection is scoped only to AnthusAI/Cyclotron-web.\n- A main revision completes Source, Build, and Deploy in the target account.\n- DNS changes only cyclotron.anth.us after target verification; legacy remains rollback until an explicit cleanup decision.\n- No whole-zone migration, broad cross-account role, or legacy connection activation is introduced.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-10T17:38:49.103756Z",
+  "updated_at": "2026-10-10T17:38:49.129109Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-5",
+    "name": "Cyclotron DevOps"
+  },
+  "right_now_summary": "The team is validating the new production setup and awaiting approval before a reversible DNS cutover.",
+  "right_now_updated_at": "2026-10-10T17:40:36.660550Z",
+  "custom": {}
+}

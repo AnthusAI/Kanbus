@@ -1,0 +1,25 @@
+{
+  "id": "kbs-9ec99bac-a21e-42ba-b35d-40a23a2ae746",
+  "title": "Authorize and provision the scoped production foundation",
+  "description": "Blocked pending explicit owner approval for persistent AWS changes. In cyclotron-production only, bootstrap CDK with a reviewed deployment role, create the parallel site foundation and pipeline, and create a new GitHub connection restricted to AnthusAI/Cyclotron-web.\n\nRequired approval boundary:\n- CDK bootstrap resources in account 682849160744;\n- site bucket, CloudFront distribution, certificate, CodePipeline, CodeBuild projects, artifact/log resources, and least-privilege service roles;\n- one GitHub App connection scoped to the private Cyclotron-web repository;\n- no Route 53 cutover, no whole-zone migration, no legacy connection activation, and no deletion.\n\nVerification: record target account, connection status, source SHA, build/test result, deploy result, target distribution response, and cost estimate.",
+  "type": "task",
+  "status": "blocked",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-60e506cc-668e-441b-9733-dfb9874403da",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-10T17:39:36.245069Z",
+  "updated_at": "2026-10-10T17:40:17.315997Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-5",
+    "name": "Cyclotron DevOps"
+  },
+  "right_now_summary": "Owner approval is pending before the scoped AWS foundation and GitHub connection can be created.",
+  "right_now_updated_at": "2026-10-10T17:40:18.970157Z",
+  "custom": {}
+}
