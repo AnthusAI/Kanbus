@@ -1,0 +1,28 @@
+{
+  "id": "kbs-77503480-a090-4e35-bb38-948068d457ab",
+  "title": "Show age of right-now summary and avoid stale summaries",
+  "description": "Problem: the auto-generated right_now_summary can be stale and misleading. Example observed in Papyrus: an epic shown as \"awaits the M0 spike\" after that work had shipped. kbs show prints the summary near the top (verified: kbs show prints a \"Right now:\" line directly after Labels, before Description).\n\nAcceptance (any one, preferably the first two together):\n- Show the summary age (right_now_updated_at) next to it, with a stale marker when older than the issue's last status change or comment.\n- Regenerate the summary on status change.\n- Omit it from kbs show by default (available via a flag); kbs show --raw already bypasses interception, so define the relationship.\n- Gherkin scenario: close an issue and confirm show does not present a pre-close summary as current.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "usability",
+    "multi-agent"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T11:18:09.071668Z",
+  "updated_at": "2026-10-13T11:18:09.094383Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Kanbus ticket filing"
+  },
+  "right_now_summary": "The team is adding summary timestamps and stale markers to prevent misleading right-now summaries.",
+  "right_now_updated_at": "2026-10-13T11:18:11.227018Z",
+  "custom": {}
+}

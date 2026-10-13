@@ -1,0 +1,28 @@
+{
+  "id": "kbs-2d665373-c6aa-4bf7-b9e0-c7a4ffea72cf",
+  "title": "Add description-file and JSON import for bulk ticket creation",
+  "description": "Problem: bulk ticket creation is fragile. Creating tickets in a shell loop produced descriptions shifted by one against titles (reported 2026-10-12/13). kbs create takes --description as a multi-value argument (verified in kbs create --help: --description <DESCRIPTION>...), which makes quoting and argument splitting error-prone; there is no --description-file or stdin option (kbs comment has --body-file, kbs create does not).\n\nAcceptance:\n- kbs create --description-file <path> (and - for stdin).\n- A JSON input mode (kbs create --json <file>) or an import command that takes an array of issues (title, type, priority, labels, parent, description) and creates them atomically.\n- Output after creation echoes id, title and a description hash or first line, and a --verify option (or default) that re-reads each created issue and fails if title or description differ from the input.\n- Gherkin scenario creating several tickets in one call and verifying they match.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "usability",
+    "multi-agent"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T11:18:21.750529Z",
+  "updated_at": "2026-10-13T11:18:21.771641Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Kanbus ticket filing"
+  },
+  "right_now_summary": "The team is designing safer bulk ticket creation with file and JSON inputs plus verification.",
+  "right_now_updated_at": "2026-10-13T11:18:22.862377Z",
+  "custom": {}
+}
