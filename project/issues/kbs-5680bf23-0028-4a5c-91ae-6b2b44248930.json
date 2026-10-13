@@ -1,0 +1,25 @@
+{
+  "id": "kbs-5680bf23-0028-4a5c-91ae-6b2b44248930",
+  "title": "kbs dep tree <id> from the dep help examples returns 'not found' for an existing issue",
+  "description": "Reproduction (kbs 0.32.0): kbs dep --help lists the example 'kanbus dep tree kanbus-child'. In a project with an existing issue (kbs list shows it, kbs show <id> works), kbs dep tree <id> prints 'not found' and exits non-zero. Same result with the issue id copied from kbs show.\n\nExpected: print the dependency tree (or 'no dependencies') for the issue. Either implement the subcommand as documented or remove the example from the help.\nAcceptance: the documented command works on an issue with and without dependencies; Gherkin scenario.",
+  "type": "bug",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:08:40.029329Z",
+  "updated_at": "2026-10-13T23:08:40.051758Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "claude-main"
+  },
+  "right_now_summary": "`kbs dep tree` cannot find existing issues, so the documented dependency-tree command fails.",
+  "right_now_updated_at": "2026-10-13T23:08:41.451258Z",
+  "custom": {}
+}

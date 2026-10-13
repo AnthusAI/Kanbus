@@ -1,0 +1,25 @@
+{
+  "id": "kbs-a5f55710-b2cf-4d8d-9037-ba59888a54c3",
+  "title": "kbs has no search subcommand; agents keep trying it",
+  "description": "Reproduction: kbs search foo -> 'error: unrecognized subcommand search'. Several separate agents on 2026-10-13 tried kbs search first (the obvious name) and had to fall back to kbs list plus grep. Finding a ticket by words in its title, description or comments is the most common lookup before creating a duplicate, and AGENTS/CONTRIBUTING_AGENT tell agents to check for existing tickets first.\n\nProposal: kbs search <text> [--status ...] [--type ...] over title, description and comments, printing the same table as kbs list. At minimum register search as an alias that prints a pointer to the right command instead of the generic usage error.\nAcceptance: kbs search returns matching issues with ids; Gherkin scenario; CLI_REFERENCE.md updated.",
+  "type": "task",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:08:37.674177Z",
+  "updated_at": "2026-10-13T23:08:37.712010Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "claude-main"
+  },
+  "right_now_summary": "Agents keep trying `kbs search`, then use `kbs list` and grep because search is missing.",
+  "right_now_updated_at": "2026-10-13T23:08:39.964622Z",
+  "custom": {}
+}

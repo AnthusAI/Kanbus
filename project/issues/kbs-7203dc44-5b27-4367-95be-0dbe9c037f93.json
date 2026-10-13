@@ -1,0 +1,25 @@
+{
+  "id": "kbs-7203dc44-5b27-4367-95be-0dbe9c037f93",
+  "title": "kbs update fails with 'agent metadata is already set' when KANBUS_AGENT_* env vars are set, even for unrelated updates such as --status",
+  "description": "Reproduction (kbs 0.32.0, clean throwaway project):\n1. Export KANBUS_AGENT_PLATFORM, KANBUS_AGENT_MODEL, KANBUS_AGENT_NAME (as coding agents are told to do on every create and comment).\n2. kbs create \"x\" --type task --priority 2 --description d   (the issue is stamped with agent provenance).\n3. kbs update <id> --status in_progress   -> prints 'agent metadata is already set', exit 1, status unchanged.\n4. Unset the three variables and run the same command -> 'Updated', status changes.\n\nExpected: an update that does not touch provenance succeeds whatever the environment holds; at most the existing provenance is kept (or the environment is ignored unless it differs and the user asked to change it).\nActual: any update with the variables set fails once the issue carries provenance. Agents are required to keep the variables set for create and comment, so every agent that closes or advances its own tickets hits this.\n\nWhy it hurts: the failure is easy to miss. The error is a single line, and agents that pipe kbs output through tail or grep (as they routinely do) lose the exit code, so they believe the status changed. On 2026-10-13 two tickets stayed open after an agent reported them closed. The only workaround today is env -u KANBUS_AGENT_PLATFORM -u KANBUS_AGENT_MODEL -u KANBUS_AGENT_NAME kbs update ...\n\nAcceptance: a status/priority/description update succeeds with the variables set; a Gherkin scenario covers it; the message, if ever kept, names the field that conflicts. Related: with only some of the variables set, the error 'agent metadata requires both platform and model' appears on updates too; same rule applies.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:08:36.104585Z",
+  "updated_at": "2026-10-13T23:08:36.129328Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "claude-main"
+  },
+  "right_now_summary": "Updates fail when agent metadata environment variables are set, leaving ticket status unchanged.",
+  "right_now_updated_at": "2026-10-13T23:08:37.598752Z",
+  "custom": {}
+}
