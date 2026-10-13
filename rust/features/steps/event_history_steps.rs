@@ -63,7 +63,7 @@ fn parse_issue_identifier(world: &KanbusWorld) -> String {
         .and_then(|matches| matches.get(1))
         .map(|match_value| match_value.as_str().to_string())
         .unwrap_or_else(|| {
-            let fallback_regex = Regex::new(r"\b([A-Za-z0-9]{6}(?:\.[0-9]+)?)\b").expect("regex");
+            let fallback_regex = Regex::new(r"\b([A-Za-z0-9]{4,6}(?:\.[0-9]+)?)\b").expect("regex");
             fallback_regex
                 .captures(&clean_stdout)
                 .and_then(|matches| matches.get(1))

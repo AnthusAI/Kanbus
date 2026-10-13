@@ -16,7 +16,8 @@ import {
   buildIssueColorStyle,
   buildStatusBadgeStyle
 } from "./issue-colors";
-import { formatIssueId } from "./format-issue-id";
+import { formatIssueId } from "./short-id";
+import { useDisplayIdWidths } from "./display-id-context";
 import { getTypeIcon } from "./issue-icons";
 import type { KanbanConfig } from "./types";
 import { formatTimestamp } from "./format-timestamp";
@@ -424,6 +425,7 @@ const DescendantLink = React.memo(({
   config,
   onClick
 }: DescendantLinkProps) => {
+  const displayWidths = useDisplayIdWidths();
   const TypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const statusLabel =
@@ -452,7 +454,7 @@ const DescendantLink = React.memo(({
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
-      aria-label={`Navigate to ${formatIssueId(issue.id)}: ${issue.title}`}
+      aria-label={`Navigate to ${formatIssueId(issue.id, displayWidths)}: ${issue.title}`}
     >
       <div className="flex flex-wrap items-start gap-2 min-w-0">
         <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -464,7 +466,7 @@ const DescendantLink = React.memo(({
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="grid min-w-0 grid-cols-[auto,1fr] items-baseline gap-x-2 gap-y-1">
               <span className="issue-accent-id text-xs font-medium shrink-0">
-                {formatIssueId(issue.id)}
+                {formatIssueId(issue.id, displayWidths)}
               </span>
               <span className="text-sm text-foreground min-w-0 flex-1 break-words leading-snug">
                 {issue.title}
@@ -515,6 +517,7 @@ export function TaskDetailPanel({
   onChangeStatus,
   onChangeAssignment
 }: TaskDetailPanelProps) {
+  const displayWidths = useDisplayIdWidths();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [displayTask, setDisplayTask] = useState<TaskDetailIssue | null>(task);
@@ -1154,7 +1157,7 @@ skinparam SequenceDividerFontColor white`
             <div className="issue-accent-row gap-2 w-full flex items-center justify-between min-w-0">
               <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
                 <DetailTypeIcon className="issue-accent-icon" />
-                <span className="issue-accent-id">{formatIssueId(taskToRender.id)}</span>
+                <span className="issue-accent-id">{formatIssueId(taskToRender.id, displayWidths)}</span>
               </div>
               <div className="issue-accent-priority">{priorityName}</div>
             </div>

@@ -167,7 +167,7 @@ def test_show_update_and_comment_remaining_paths(
     emitted: list[str] = []
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: emitted.append("emit"))
     monkeypatch.setattr(
-        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     result_update_regular = _run(
         ["update", "kanbus-1", "--description", "desc", "--no-validate"]
@@ -239,7 +239,7 @@ def test_create_update_move_delete_list_and_dep_remaining_paths(
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "format_issue_for_display", lambda *_a, **_k: "formatted")
     monkeypatch.setattr(
-        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     monkeypatch.setattr(
         cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"

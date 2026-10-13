@@ -14,7 +14,7 @@ use serde_json::Value as JsonValue;
 use crate::console_backend::FileStore;
 use crate::console_wiki;
 use crate::error::KanbusError;
-use crate::ids::format_issue_key;
+use crate::ids::{format_issue_key_with, ShortIdWidths, DEFAULT_SHORT_ID_LENGTH};
 use crate::models::IssueData;
 
 const WIKI_STUB_INDEX: &str = "# Wiki\n\nEdit pages under project/wiki/.\n";
@@ -847,8 +847,15 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
 }
 
 fn serialize_issue_for_wiki(issue: &IssueData) -> BTreeMap<String, JsonValue> {
+    serialize_issue_for_wiki_with_widths(issue, &crate::ids::single_id_widths(&issue.identifier))
+}
+
+fn serialize_issue_for_wiki_with_widths(
+    issue: &IssueData,
+    short_id_widths: &ShortIdWidths,
+) -> BTreeMap<String, JsonValue> {
     let mut value = serde_json::to_value(issue).unwrap_or(JsonValue::Null);
-    let short_key = format_issue_key(&issue.identifier, true);
+    let short_key = format_issue_key_with(&issue.identifier, true, short_id_widths);
     if let JsonValue::Object(ref mut map) = value {
         map.insert("key".to_string(), JsonValue::String(short_key.clone()));
         map.insert("short_id".to_string(), JsonValue::String(short_key));
@@ -862,7 +869,15 @@ fn serialize_issue_for_wiki(issue: &IssueData) -> BTreeMap<String, JsonValue> {
 }
 
 fn serialize_issues_for_wiki(issues: &[IssueData]) -> Vec<BTreeMap<String, JsonValue>> {
-    issues.iter().map(serialize_issue_for_wiki).collect()
+    let identifiers: Vec<&str> = issues
+        .iter()
+        .map(|issue| issue.identifier.as_str())
+        .collect();
+    let short_id_widths = ShortIdWidths::new(identifiers, DEFAULT_SHORT_ID_LENGTH);
+    issues
+        .iter()
+        .map(|issue| serialize_issue_for_wiki_with_widths(issue, &short_id_widths))
+        .collect()
 }
 
 /// Register documented relationship helpers: children, blocked_by, and blocks.

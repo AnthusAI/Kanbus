@@ -21,7 +21,7 @@ Feature: Issue display
   Scenario: Show issue by fragment fails when ambiguous across workspace
     Given a workspace with multiple Kanbus projects and duplicate fragments
     When I run "kanbus show aaaaaa"
-    Then the command should fail with exit code 1
+    Then the command exit code should be 3
     And stderr should contain "ambiguous identifier"
 
   Scenario: Show issue as JSON
@@ -120,7 +120,7 @@ Feature: Issue display
     And an issue "kanbus-commented" exists
     And issue "kanbus-commented" has a comment from "dev@example.com" with text "Note" and id "abc123def"
     When I format issue "kanbus-commented" for display
-    Then the formatted output should contain text "[abc123]"
+    Then the formatted output should contain text "[abc1]"
 
   Scenario Outline: Format issue display applies colors for status, priority, and type
     Given a Kanbus project with default configuration

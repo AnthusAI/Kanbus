@@ -17,6 +17,7 @@ pub mod current_status_panel_steps;
 pub mod daemon_steps;
 pub mod dependency_steps;
 pub mod discovery_steps;
+pub mod dynamic_short_ids_steps;
 pub mod embedded_assets_steps;
 pub mod event_history_steps;
 pub mod examples_steps;

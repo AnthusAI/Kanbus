@@ -70,6 +70,7 @@ export interface ProjectConfig {
   sort_order?: SortOrder;
   type_colors: Record<string, string>;
   beads_compatibility: boolean;
+  short_id_length?: number | null;
   right_now?: RightNowConfiguration;
   router?: {
     classes?: Record<string, { providers?: string[] }>;

@@ -1,14 +1,17 @@
 """
-Issue identifier generation.
+Issue identifier generation and short-ID display formatting.
 """
 
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Optional, Set
 
 from pydantic import BaseModel, Field
+
+DEFAULT_SHORT_ID_LENGTH = 4
+MAX_SHORT_ID_LENGTH = 32
 
 
 class IssueIdentifierRequest(BaseModel):
@@ -56,6 +59,96 @@ def _next_uuid_value() -> str:
     return str(uuid.uuid4())
 
 
+def _split_identifier(identifier: str) -> tuple[Optional[str], str, Optional[str]]:
+    """Split an identifier into (project key, normalized hash base, dotted tail)."""
+    if identifier.isdigit():
+        return None, identifier, None
+    key: Optional[str] = None
+    remainder = identifier
+    if "-" in identifier:
+        parts = identifier.split("-", 1)
+        if len(parts) == 2 and parts[0] and parts[1]:
+            key, remainder = parts
+    base = remainder
+    tail: Optional[str] = None
+    if "." in remainder:
+        head, tail_candidate = remainder.split(".", 1)
+        if head:
+            base, tail = head, tail_candidate
+    elif remainder.endswith("."):
+        base = remainder[:-1]
+    return key, base, tail
+
+
+def _normalized_base(identifier: str) -> str:
+    _, base, _ = _split_identifier(identifier)
+    return base.replace("-", "").lower()
+
+
+def _longest_common_prefix_length(left: str, right: str) -> int:
+    total = 0
+    for left_ch, right_ch in zip(left, right):
+        if left_ch != right_ch:
+            break
+        total += 1
+    return total
+
+
+def _clamp_short_id_length(length: int) -> int:
+    return max(1, min(length, MAX_SHORT_ID_LENGTH))
+
+
+@dataclass
+class ShortIdWidths:
+    """Display widths for short IDs derived from a universe of full identifiers."""
+
+    default_len: int = DEFAULT_SHORT_ID_LENGTH
+    widths: dict[str, int] = field(default_factory=dict)
+
+    @classmethod
+    def build(cls, universe: Iterable[str], default_len: int) -> "ShortIdWidths":
+        """Build widths from full identifiers, widening only colliding groups."""
+        default_len = _clamp_short_id_length(default_len)
+        groups: dict[str, list[tuple[str, str]]] = {}
+        for identifier in universe:
+            if identifier.isdigit():
+                continue
+            key, _, _ = _split_identifier(identifier)
+            normalized = _normalized_base(identifier)
+            if not normalized:
+                continue
+            groups.setdefault(key or "", []).append((identifier, normalized))
+        widths: dict[str, int] = {}
+        for entries in groups.values():
+            entries.sort(key=lambda entry: entry[1])
+            for index, (identifier, normalized) in enumerate(entries):
+                width = default_len
+                if index > 0:
+                    width = max(
+                        width,
+                        _longest_common_prefix_length(normalized, entries[index - 1][1])
+                        + 1,
+                    )
+                if index + 1 < len(entries):
+                    width = max(
+                        width,
+                        _longest_common_prefix_length(normalized, entries[index + 1][1])
+                        + 1,
+                    )
+                width = min(_clamp_short_id_length(width), len(normalized))
+                widths[identifier] = width
+        return cls(default_len=default_len, widths=widths)
+
+    def width_for(self, identifier: str) -> int:
+        """Display width for one identifier; unknown identifiers use the default."""
+        return self.widths.get(identifier, self.default_len)
+
+
+def single_id_widths(identifier: str) -> ShortIdWidths:
+    """Build widths for one identifier alone (no widening, default length)."""
+    return ShortIdWidths.build([identifier], DEFAULT_SHORT_ID_LENGTH)
+
+
 def format_issue_key(identifier: str, project_context: bool) -> str:
     """
     Produce a display-friendly issue key.
@@ -64,6 +157,26 @@ def format_issue_key(identifier: str, project_context: bool) -> str:
     :type identifier: str
     :param project_context: Whether the display is within a project context.
     :type project_context: bool
+    :return: Formatted key with optional project key and abbreviated hash.
+    :rtype: str
+    """
+    return format_issue_key_with(
+        identifier, project_context, single_id_widths(identifier)
+    )
+
+
+def format_issue_key_with(
+    identifier: str, project_context: bool, short_id_widths: ShortIdWidths
+) -> str:
+    """
+    Produce a display-friendly issue key using universe-derived widths.
+
+    :param identifier: Full issue identifier (may include project key and UUID).
+    :type identifier: str
+    :param project_context: Whether the display is within a project context.
+    :type project_context: bool
+    :param short_id_widths: Widths derived from the project-wide identifier universe.
+    :type short_id_widths: ShortIdWidths
     :return: Formatted key with optional project key and abbreviated hash.
     :rtype: str
     """
@@ -80,26 +193,30 @@ def format_issue_key(identifier: str, project_context: bool) -> str:
     base = remainder
     suffix = ""
     if "." in remainder:
-        base, suffix = remainder.split(".", 1)
-        suffix = f".{suffix}"
+        base, tail = remainder.split(".", 1)
+        suffix = f".{tail}"
 
-    normalized = base.replace("-", "")
-    truncated = normalized[:6] if normalized else normalized
+    normalized = base.replace("-", "").lower()
+    width = short_id_widths.width_for(identifier)
+    truncated = normalized[:width] if normalized else normalized
+    suffix_lower = suffix.lower()
 
     if project_context:
-        return f"{truncated}{suffix}"
+        return f"{truncated}{suffix_lower}"
 
     if key_part:
-        return f"{key_part}-{truncated}{suffix}"
+        return f"{key_part.lower()}-{truncated}{suffix_lower}"
 
-    return f"{truncated}{suffix}"
+    return f"{truncated}{suffix_lower}"
 
 
 def matches_issue_identifier(candidate: str, full_id: str) -> bool:
     """
     Check if a candidate identifier matches a full issue identifier.
 
-    Accepts full identifiers, project-context short ids, and abbreviated prefixes.
+    Accepts full identifiers, project-context short ids, and abbreviated
+    prefixes. Comparison is hyphen-insensitive (display strips UUID hyphens)
+    and dotted sub-ID suffixes must match exactly.
 
     :param candidate: User-provided identifier value.
     :type candidate: str
@@ -110,17 +227,37 @@ def matches_issue_identifier(candidate: str, full_id: str) -> bool:
     """
     if candidate == full_id:
         return True
-
-    if candidate == format_issue_key(full_id, project_context=False):
-        return True
-
-    if candidate == format_issue_key(full_id, project_context=True):
-        return True
-
-    if len(candidate) >= len(full_id):
+    if not candidate or not full_id:
         return False
 
-    return full_id.startswith(candidate)
+    if candidate.isdigit():
+        return False
+
+    candidate_key, candidate_base, candidate_tail = _split_identifier(candidate)
+    full_key, full_base, full_tail = _split_identifier(full_id)
+
+    if candidate_tail != full_tail and not (
+        candidate_tail is None and full_tail is None
+    ):
+        return False
+
+    if candidate_key is not None and candidate_key != full_key:
+        return False
+
+    candidate_normalized = candidate_base.replace("-", "")
+    full_normalized = full_base.replace("-", "")
+
+    # Hyphen-insensitive: a dash-less candidate may glue the project key to
+    # the hash ("kanbusaaaabbbb" for "kanbus-aaaabbbb"); strip the glued key.
+    if candidate_key is None and full_key:
+        glued = full_key.replace("-", "")
+        if glued and candidate_normalized.startswith(glued):
+            candidate_normalized = candidate_normalized[len(glued) :]
+
+    if not candidate_normalized:
+        return False
+
+    return full_normalized.startswith(candidate_normalized)
 
 
 def generate_issue_identifier(request: IssueIdentifierRequest) -> IssueIdentifierResult:

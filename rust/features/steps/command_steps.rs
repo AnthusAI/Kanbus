@@ -110,24 +110,37 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
             }
         }
         Err(error) => {
-            let (exit_code, stderr) = match error {
+            let (exit_code, stderr, stdout) = match error {
                 kanbus::error::KanbusError::CommandFailure { exit_code, message } => {
-                    (exit_code, format!("{message}\n"))
+                    (exit_code, format!("{message}\n"), None)
                 }
                 kanbus::error::KanbusError::CommandFailureWithOutput {
                     exit_code,
                     stdout,
                     stderr,
-                } => {
-                    world.stdout = Some(stdout);
-                    (exit_code, format!("{stderr}\n"))
+                } => (exit_code, format!("{stderr}\n"), Some(stdout)),
+                kanbus::error::KanbusError::AmbiguousIdentifier { candidate, matches } => {
+                    if normalized.contains("--json") {
+                        (
+                            3,
+                            String::new(),
+                            Some(kanbus::ids::ambiguous_matches_json(&candidate, &matches)),
+                        )
+                    } else {
+                        (
+                            3,
+                            format!(
+                                "{}\n",
+                                kanbus::ids::render_ambiguous_error(&candidate, &matches)
+                            ),
+                            None,
+                        )
+                    }
                 }
-                error => (1, error.to_string()),
+                error => (1, error.to_string(), None),
             };
             world.exit_code = Some(exit_code);
-            if world.stdout.is_none() {
-                world.stdout = Some(String::new());
-            }
+            world.stdout = Some(stdout.unwrap_or_default());
             world.stderr = Some(stderr);
         }
     }

@@ -6,6 +6,24 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+
+def effective_short_id_length(configuration: Any) -> int:
+    """Return the effective short ID display length for a configuration.
+
+    Defaults to 4 characters, or 6 in Beads compatibility mode unless
+    short_id_length is set explicitly. Accepts a mapping or a
+    ProjectConfiguration model.
+    """
+    if hasattr(configuration, "get"):
+        beads = bool(configuration.get("beads_compatibility", False))
+        configured = configuration.get("short_id_length")
+    else:
+        beads = bool(getattr(configuration, "beads_compatibility", False))
+        configured = getattr(configuration, "short_id_length", None)
+    value = configured if configured is not None else (6 if beads else 4)
+    return max(1, min(int(value), 32))
+
+
 DEFAULT_HIERARCHY: List[str] = ["initiative", "epic", "task", "sub-task"]
 DEFAULT_TYPES: List[str] = ["bug", "story", "chore"]
 
@@ -150,6 +168,7 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "event": "bright_blue",
     },
     "beads_compatibility": False,
+    "short_id_length": None,
     "wiki_directory": None,
     "ai": {
         "provider": "litellm",

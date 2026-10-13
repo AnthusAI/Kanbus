@@ -134,7 +134,7 @@ Feature: Wiki research knowledge base
       """
     When I run "kanbus wiki render keys.md"
     Then the command should succeed
-    And stdout should contain "key=650fd9"
+    And stdout should contain "key=650f"
     And stdout should contain "id=WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9"
 
   Scenario: Wiki template lists accepted story references
@@ -623,7 +623,7 @@ Feature: Wiki research knowledge base
       """
     When I run "kanbus wiki render story-link.md"
     Then the command should succeed
-    And stdout should contain "Story path: stories/650fd9/references/"
+    And stdout should contain "Story path: stories/650f/references/"
     And stdout should contain "Full id: WIKI-650fd91d-7f3b-427e-aa7f-253b228b48d9"
     And stdout should not contain "stories/WIKI-650fd9/references/"
 

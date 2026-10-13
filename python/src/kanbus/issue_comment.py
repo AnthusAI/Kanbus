@@ -86,7 +86,7 @@ def _find_comment_index(issue: IssueData, prefix: str) -> int:
         raise IssueCommentError("comment not found")
     if len(matches) > 1:
         ids = ", ".join(
-            (issue.comments[index].id or "")[:6]
+            (issue.comments[index].id or "")
             for index in matches
             if issue.comments[index].id
         )

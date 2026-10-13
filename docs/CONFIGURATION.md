@@ -93,6 +93,20 @@ date_format: RFC3339             # optional; defaults to RFC3339
 - Status transitions must follow the bound workflow; any transition not listed is rejected.
 - Type-specific workflows override default by binding; absence of a binding is an error at load time.
 
+## Short ID display (`short_id_length`)
+
+- Issue identifiers are displayed as short lowercase keys: `project_key-<hash prefix>`.
+- The default hash width is **4** characters. Widths are derived from the visible
+  set (or the project-wide identifier universe for CLI output): only groups whose
+  4-character prefixes collide are widened until every displayed ID is unique.
+  There is no upper cap beyond the full hash length.
+- `short_id_length` (optional integer, 1–32) overrides the default width. When set
+  explicitly it wins even in Beads compatibility mode.
+- `beads_compatibility: true` implies a default width of 6 unless `short_id_length`
+  is set explicitly.
+- Entering fewer characters than unique is an error: ambiguous candidates fail
+  with exit code 3 listing the matching issues (see CLI_REFERENCE.md).
+
 ## Environment integration
 
 - Prefix for exported env vars is fixed to `KANBUS_`.

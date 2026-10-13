@@ -159,6 +159,35 @@ Show issue details, dependencies, and comments.
 kanbus show <id>
 ```
 
+## Short IDs and ambiguous identifiers
+
+Issue identifiers are displayed as short lowercase keys (`kanbus-a1b2`, 4 hash
+characters by default; 6 in Beads compatibility mode unless `short_id_length`
+is configured). Every displayed ID in a list is unique: colliding prefixes are
+widened automatically, and widths re-derive whenever the visible set changes.
+Hyphens are optional when typing an identifier (`kanbusa1b2` matches
+`kanbus-a1b2c3d4e5`), and dotted sub-IDs (`kanbus-a1b2.3`) are matched exactly.
+
+When a candidate identifier matches more than one issue, the command fails with
+**exit code 3** and lists every match with its type, status, and title:
+
+```
+Error: ambiguous identifier "kanbus-a1b2"; 2 issues match:
+  kanbus-a1b2  [task, open]  First issue
+  kanbus-a1b3  [bug, open]   Second issue
+Re-run with one of the full IDs above.
+```
+
+- With `--json`, the same failure writes a structured payload to stdout
+  (`{"error": "ambiguous_identifier", "candidate": ..., "matches": [...]}`) and
+  exits 3.
+- In an interactive terminal, Kanbus shows a numbered picker; choosing one entry
+  retries the original command with the selected full ID. Set
+  `KANBUS_NO_PROMPT=1` to disable the picker in automated environments.
+
+Agents should retry once with a full ID from the match list (or prefer `--json`
+and read `matches[].id` programmatically).
+
 ### `kanbus update`
 
 Update issue fields.

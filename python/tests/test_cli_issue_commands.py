@@ -28,7 +28,9 @@ def test_close_with_comment_persists_native_comment_before_closing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
+    )
     monkeypatch.setattr(
         cli,
         "apply_text_quality_signals",
@@ -104,7 +106,9 @@ def test_close_hook_rejection_keeps_persisted_comment_and_skips_close(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
+    )
     monkeypatch.setattr(
         cli,
         "apply_text_quality_signals",
@@ -161,7 +165,9 @@ def test_close_with_comment_supports_beads_projects(
 ) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda root: root)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
+    )
     monkeypatch.setattr(
         cli,
         "apply_text_quality_signals",
@@ -344,7 +350,7 @@ def test_update_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(
@@ -423,7 +429,7 @@ def test_close_move_promote_localize_comment_paths(
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     issue = build_issue("kanbus-1")
 
@@ -584,7 +590,9 @@ def test_close_with_comment_records_comment_before_closing(
 ) -> None:
     """The composite close path reuses normal comment persistence first."""
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
+    )
     monkeypatch.setattr(
         cli,
         "apply_text_quality_signals",
@@ -766,7 +774,9 @@ def test_close_with_comment_uses_beads_comment_path(
     monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
+    )
 
     issue = build_issue("kanbus-1", status="closed")
     comments: list[tuple[str, str]] = []
@@ -798,7 +808,9 @@ def test_close_with_comment_tolerates_beads_post_comment_reload_failure(
     monkeypatch.setattr(cli, "validate_code_blocks", lambda _text: None)
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: None)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
-    monkeypatch.setattr(cli, "format_issue_key", lambda identifier, **_k: identifier)
+    monkeypatch.setattr(
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
+    )
 
     issue = build_issue("kanbus-1")
     loads = {"count": 0}
@@ -876,7 +888,7 @@ def test_update_beads_policy_signal_and_delete_beads_compat_paths(
     monkeypatch.setattr(cli, "load_beads_issues", lambda _r: [before_issue])
     monkeypatch.setattr(cli, "update_beads_issue", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        cli, "format_issue_key", lambda identifier, project_context=False: identifier
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     emitted: list[str] = []
     monkeypatch.setattr(cli, "emit_signals", lambda *_a, **_k: emitted.append("emit"))
@@ -908,9 +920,7 @@ def test_update_beads_policy_signal_and_delete_beads_compat_paths(
     assert emitted
 
     monkeypatch.setattr(
-        cli,
-        "format_issue_key",
-        lambda identifier, project_context=False: identifier,
+        cli, "_format_confirmed_identifier", lambda _root, identifier: identifier
     )
     monkeypatch.setattr(
         cli,

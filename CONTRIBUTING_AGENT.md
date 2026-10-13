@@ -89,6 +89,25 @@ python -m kanbus.cli <command> [args...]
 
 NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
 
+## Issue identifiers and ambiguity retries
+
+`kbs list` shows dynamic short IDs (4 characters by default). Widths widen
+automatically per project so every displayed ID stays unique project-wide, and
+`short_id_length` in `.kanbus.yml` can pin a width.
+
+When you reference an issue by a short ID that matches more than one issue,
+`kbs` exits with code 3 and prints the candidate matches:
+
+- Machine use (agents, scripts): retry once with the full ID, or run the same
+  command with `--json` and parse the structured ambiguity payload (it lists
+  every match's id, title, and status) to pick the right issue.
+- Interactive use: `kbs` prompts to pick among the matches.
+
+Hyphens in identifiers are optional and case-insensitive: `KANBUS-0123`,
+`kanbus0123`, and `kanbus-0123` all resolve the same way. Candidates that are
+all digits (the `kbs-<number>` alias form) match exactly only, to avoid
+colliding with hash-prefix short IDs.
+
 ## Right-now WIP (`kbs now`)
 
 On demand, agents can read current WIP from the board without waiting for compaction hooks:

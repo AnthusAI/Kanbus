@@ -5,7 +5,7 @@ use owo_colors::{AnsiColors, OwoColorize};
 use crate::agent_metadata::{
     format_agent_display_line, format_agent_settings_display, format_comment_author_label,
 };
-use crate::ids::format_issue_key;
+use crate::ids::{format_issue_key_with, ShortIdWidths, DEFAULT_SHORT_ID_LENGTH};
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::status_semantics::default_color_for_semantic_category;
 use crate::summarize::get_comment_display_text;
@@ -142,7 +142,23 @@ pub fn format_issue_for_display(
     let assignee = issue.assignee.clone().unwrap_or_else(|| "-".to_string());
     let parent = issue.parent.clone().unwrap_or_else(|| "-".to_string());
 
-    let formatted_identifier = format_issue_key(&issue.identifier, project_context);
+    let mut universe: Vec<&str> = Vec::new();
+    universe.push(issue.identifier.as_str());
+    if let Some(parent_id) = issue.parent.as_deref() {
+        if parent_id != "-" {
+            universe.push(parent_id);
+        }
+    }
+    for dependency in &issue.dependencies {
+        universe.push(dependency.target.as_str());
+    }
+    if let Some(issues) = all_issues {
+        universe.extend(issues.iter().map(|issue| issue.identifier.as_str()));
+    }
+    let short_id_widths = ShortIdWidths::new(universe, DEFAULT_SHORT_ID_LENGTH);
+
+    let formatted_identifier =
+        format_issue_key_with(&issue.identifier, project_context, &short_id_widths);
     let (right_now_text, right_now_missing) = match issue
         .right_now_summary
         .as_deref()
@@ -175,7 +191,16 @@ pub fn format_issue_for_display(
             false,
         ),
         ("Assignee:", assignee, None, issue.assignee.is_none()),
-        ("Parent:", parent, None, issue.parent.is_none()),
+        (
+            "Parent:",
+            if parent == "-" {
+                parent
+            } else {
+                format_issue_key_with(&parent, project_context, &short_id_widths)
+            },
+            None,
+            issue.parent.is_none(),
+        ),
         ("Labels:", labels, None, issue.labels.is_empty()),
         ("Right now:", right_now_text, None, right_now_missing),
     ];
@@ -229,12 +254,20 @@ pub fn format_issue_for_display(
         for dependency in &issue.dependencies {
             lines.push(format!(
                 "  {}: {}",
-                dependency.dependency_type, dependency.target
+                dependency.dependency_type,
+                format_issue_key_with(&dependency.target, project_context, &short_id_widths)
             ));
         }
     }
     if !issue.comments.is_empty() {
         lines.push(dim("Comments:", use_color));
+        let comment_ids: Vec<&str> = issue
+            .comments
+            .iter()
+            .filter_map(|comment| comment.id.as_deref())
+            .filter(|id| !id.is_empty())
+            .collect();
+        let comment_widths = ShortIdWidths::new(comment_ids, DEFAULT_SHORT_ID_LENGTH);
         for (i, comment) in issue.comments.iter().enumerate() {
             let author = if comment.author.is_empty() {
                 "unknown"
@@ -246,7 +279,7 @@ pub fn format_issue_for_display(
                 .as_deref()
                 .unwrap_or("")
                 .chars()
-                .take(6)
+                .take(comment_widths.width_for(comment.id.as_deref().unwrap_or("")))
                 .collect::<String>();
             let fallback_text = get_comment_display_text(comment);
             let text = comments_texts

@@ -8,7 +8,7 @@ Feature: Issue move command
     And an issue "kanbus-test01" of type "task" with status "open"
     When I run "kanbus move kanbus-test01 bug"
     Then the command should succeed
-    And stdout should contain "Moved kanbus-test01 to type bug"
+    And stdout should contain "Moved kanbus-test to type bug"
     And issue "kanbus-test01" should have type "bug"
 
   Scenario: Move rejects unknown issue type

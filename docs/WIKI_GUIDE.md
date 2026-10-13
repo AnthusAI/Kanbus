@@ -83,6 +83,11 @@ The following functions are available in all wiki templates:
 - `blocked_by(id)` -> list of issues
 - `blocks(id)` -> list of issues
 
+Identifier widths:
+
+- Wiki templates receive full issue ids and are unaffected by short-ID display widths: `issue.id` is always the full `projectkey-xxxxxxxx` id, so rendered pages remain stable even as new issues change the dynamic short-ID widths shown by `kbs list` / `kbs show`.
+- `issue.key` (alias `issue.short_id`) carries the display-formatted short id at render time. Prefer `issue.id` for anything that must survive re-renders as the issue set grows.
+
 Common filters for `query` and `count`:
 
 - `type` (exact match)

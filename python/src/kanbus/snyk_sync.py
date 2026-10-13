@@ -25,7 +25,14 @@ from urllib.parse import urlparse
 import requests
 from requests.exceptions import RequestException
 
-from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
+from kanbus.config import effective_short_id_length
+from kanbus.ids import (
+    IssueIdentifierRequest,
+    ShortIdWidths,
+    generate_issue_identifier,
+    format_issue_key_with,
+)
+from kanbus.project import get_configuration_path
 from kanbus.issue_files import (
     list_issue_identifiers,
     read_issue_from_file,
@@ -107,6 +114,11 @@ def pull_from_snyk(
 
     # Resolve or auto-create the parent epic(s) after we know which categories exist.
     all_existing: Set[str] = set(list_issue_identifiers(issues_dir))
+    from kanbus.ids import ShortIdWidths
+
+    short_id_widths = ShortIdWidths.build(
+        all_existing, effective_short_id_length(_task_length_context())
+    )
 
     # Build indexes for idempotency
     snyk_key_index = _build_snyk_key_index(all_existing, issues_dir)
@@ -185,6 +197,7 @@ def pull_from_snyk(
             FileTaskContext(epic_id=epic_id, priority=file_priority, dry_run=dry_run),
             file_task_index,
             all_existing,
+            short_id_widths,
         )
 
         # Create/update sub-tasks for each vulnerability in this file
@@ -222,11 +235,7 @@ def pull_from_snyk(
                         f"to preserve created_at: {exc}"
                     )
 
-            short_key = (
-                kanbus_id[: kanbus_id.find("-") + 7]
-                if "-" in kanbus_id
-                else kanbus_id[:6]
-            )
+            short_key = format_issue_key_with(kanbus_id, False, short_id_widths)
             severity = vuln.get("attributes", {}).get("effective_severity_level", "?")
             print(f'{action}  [{severity:<8}]  {short_key:<14}  "{issue.title}"')
 
@@ -535,6 +544,19 @@ class FileTaskContext:
     dry_run: bool
 
 
+def _task_length_context() -> dict[str, Any]:
+    """Best-effort configuration context for short-ID length in task paths."""
+    try:
+        from kanbus.config_loader import load_project_configuration
+
+        root = Path.cwd()
+        from kanbus.project import get_configuration_path as _gcp
+
+        return load_project_configuration(_gcp(root))
+    except Exception:
+        return {"beads_compatibility": False, "short_id_length": None}
+
+
 def _resolve_file_task(
     issues_dir: Path,
     project_key: str,
@@ -543,8 +565,21 @@ def _resolve_file_task(
     ctx: FileTaskContext,
     file_task_index: Dict[tuple[str, str], str],
     all_existing: Set[str],
+    short_id_widths: Optional["ShortIdWidths"] = None,
 ) -> str:
     """Resolve or create a task for a manifest file under the epic."""
+    from kanbus.config_loader import load_project_configuration
+
+    if short_id_widths is None:
+        try:
+            configuration = load_project_configuration(
+                get_configuration_path(issues_dir.parent)
+            )
+        except Exception:
+            configuration = {"beads_compatibility": False, "short_id_length": None}
+        short_id_widths = ShortIdWidths.build(
+            all_existing, effective_short_id_length(configuration)
+        )
     key = (category, target_file)
     if key in file_task_index:
         task_id = file_task_index[key]
@@ -570,11 +605,7 @@ def _resolve_file_task(
                 if changed:
                     task.updated_at = datetime.now(timezone.utc)
                     write_issue_to_file(task, task_path)
-                    short_key = (
-                        task_id[: task_id.find("-") + 7]
-                        if "-" in task_id
-                        else task_id[:6]
-                    )
+                    short_key = format_issue_key_with(task_id, False, short_id_widths)
                     print(f'updated  [task    ]  {short_key:<14}  "{target_file}"')
         return task_id
 
@@ -609,7 +640,10 @@ def _resolve_file_task(
         }
     )
 
-    short_key = task_id[: task_id.find("-") + 7] if "-" in task_id else task_id[:6]
+    short_id_widths = ShortIdWidths.build(
+        all_existing, effective_short_id_length(_task_length_context())
+    )
+    short_key = format_issue_key_with(task_id, False, short_id_widths)
     print(f'created  [task    ]  {short_key:<14}  "{target_file}"')
 
     if not ctx.dry_run:

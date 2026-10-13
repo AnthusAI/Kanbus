@@ -22,14 +22,14 @@ def test_format_issue_key_variants() -> None:
     assert ids.format_issue_key("12345", project_context=False) == "12345"
     assert (
         ids.format_issue_key("kanbus-abcdef123456", project_context=False)
-        == "kanbus-abcdef"
+        == "kanbus-abcd"
     )
-    assert ids.format_issue_key("kanbus-abcdef123456", project_context=True) == "abcdef"
+    assert ids.format_issue_key("kanbus-abcdef123456", project_context=True) == "abcd"
     assert (
         ids.format_issue_key("kanbus-abcdef123456.2", project_context=False)
-        == "kanbus-abcdef.2"
+        == "kanbus-abcd.2"
     )
-    assert ids.format_issue_key("abcdef123456", project_context=False) == "abcdef"
+    assert ids.format_issue_key("abcdef123456", project_context=False) == "abcd"
 
 
 def test_matches_issue_identifier_paths() -> None:

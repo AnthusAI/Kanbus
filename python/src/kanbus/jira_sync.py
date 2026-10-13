@@ -15,7 +15,13 @@ from typing import Any, Dict, List, Optional, Set
 import requests
 
 from kanbus.config_loader import load_project_configuration
-from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
+from kanbus.ids import (
+    DEFAULT_SHORT_ID_LENGTH,
+    IssueIdentifierRequest,
+    ShortIdWidths,
+    generate_issue_identifier,
+    format_issue_key_with,
+)
 from kanbus.issue_files import (
     list_issue_identifiers,
     read_issue_from_file,
@@ -81,6 +87,14 @@ def pull_from_jira(
     jira_key_to_kanbus_id: Dict[str, str] = dict(jira_key_index)
     new_issue_ids: Dict[str, str] = {}
     all_existing: Set[str] = set(existing_ids)
+    short_id_widths = ShortIdWidths.build(
+        all_existing,
+        (
+            configuration.short_id_length
+            if configuration.short_id_length is not None
+            else (6 if configuration.beads_compatibility else DEFAULT_SHORT_ID_LENGTH)
+        ),
+    )
 
     for jira_issue in jira_issues:
         jira_key = _jira_issue_key(jira_issue)
@@ -124,9 +138,7 @@ def pull_from_jira(
             except Exception:
                 pass
 
-        short_key = (
-            kanbus_id[: kanbus_id.find("-") + 7] if "-" in kanbus_id else kanbus_id[:6]
-        )
+        short_key = format_issue_key_with(kanbus_id, False, short_id_widths)
         print(f'{action}  {jira_key:<12}  {short_key:<14}  "{kanbus_issue.title}"')
 
         if not dry_run:

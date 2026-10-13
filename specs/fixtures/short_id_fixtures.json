@@ -1,0 +1,22 @@
+{
+  "default_width": 4,
+  "beads_compatibility_width": 6,
+  "collision_issues": [
+    { "id": "kanbus-aaaabbbb", "title": "Alpha" },
+    { "id": "kanbus-aaaacccc", "title": "Bravo" },
+    { "id": "kanbus-9f8e7d6c", "title": "Zulu" }
+  ],
+  "collision_short_ids": {
+    "kanbus-aaaabbbb": "aaaab",
+    "kanbus-aaaacccc": "aaaac",
+    "kanbus-9f8e7d6c": "9f8e"
+  },
+  "uniqueness_universe": [
+    "kanbus-0001aaaa",
+    "kanbus-0001bbbb",
+    "kanbus-0001ccdd",
+    "kanbus-abcd1234",
+    "kanbus-ffffffff",
+    "kanbus-9f8e7d6c"
+  ]
+}
