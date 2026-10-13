@@ -1,0 +1,28 @@
+{
+  "id": "kbs-5929699d-fa1c-4dd0-a7f7-137789a4bf52",
+  "title": "Add a safe board sync command (kbs sync)",
+  "description": "Problem: the board lives in git and each checkout/worktree sees only its own copy. Comments added in another clone are invisible until pulled. Observed 2026-10-12/13 in the Papyrus repo: the primary checkout was 16 commits behind, and git pull --ff-only aborted because kbs had dirtied board files. Agents and sessions hand-merged the board from a clean clone three times using a three-way merge.\n\nEvidence not verified here: the Papyrus incidents (reported by Ryan). Verified: kbs 0.32.0 has no sync command (kbs --help lists none; kbs commit only stages project/issues/ per AGENTS.md).\n\nAcceptance:\n- One command (kbs sync or similar) that fetches the shared board branch, three-way merges board files (append-only event files unioned; issue JSON merged per field), commits and pushes.\n- Idempotent: running twice is a no-op the second time.\n- Safe: never touches non-board files; refuses with a clear message instead of overwriting uncommitted non-board changes; a dirty board working tree does not abort it.\n- Has a --dry-run that reports what would merge.\n- Gherkin scenario covering a comment added in a second clone appearing after sync.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "usability",
+    "multi-agent"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T11:17:52.881130Z",
+  "updated_at": "2026-10-13T11:17:57.326339Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Kanbus ticket filing"
+  },
+  "right_now_summary": "A safe `kbs sync` command is needed to merge and push board changes across clones without touching other files.",
+  "right_now_updated_at": "2026-10-13T11:17:58.978281Z",
+  "custom": {}
+}
