@@ -79,8 +79,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Local Prospectus and storage proofs pass, but hosted Google authentication and private CRM verification await owner",
-  "right_now_updated_at": "2026-10-14T12:49:43.591357Z",
+  "right_now_summary": "Local CRM and storage proofs pass; Google OAuth, hosted verification, and final publication still await setup.",
+  "right_now_updated_at": "2026-10-14T12:55:45.146600Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

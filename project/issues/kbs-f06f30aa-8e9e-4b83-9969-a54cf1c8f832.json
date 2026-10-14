@@ -40,10 +40,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "d233860f-df23-4139-9d63-2eef3b9a4789",
+      "author": "home",
+      "text": "Final exact-source CI runs 38565664865 and 38565658799 completed success for 9a7bc5a, including Linux packaging and real filesystem browser persistence. Hosted CRM create/move/note/reload remains not attempted: available IAB tab is signed out, and native browser discovery is blocked by the locked Mac. No credentials extracted or new login performed. Administrator grant and job 4 deployment are complete; no merge. Intake integration base 9a7bc5a, unchanged REST contract, local AUTH_INTEGRATION.md.",
+      "created_at": "2026-10-14T12:55:38.392995Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-14T12:42:34.147591Z",
-  "updated_at": "2026-10-14T12:49:37.718276Z",
+  "updated_at": "2026-10-14T12:55:38.393020Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -53,8 +68,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "Google sign-in now grants Ryan CRM access after token refresh; hosted member persistence still awaits an authenticated",
-  "right_now_updated_at": "2026-10-14T12:49:40.013389Z",
+  "right_now_summary": "The deployment grants admin access, but hosted CRM persistence awaits an authenticated browser session.",
+  "right_now_updated_at": "2026-10-14T12:55:41.084077Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
