@@ -58,18 +58,42 @@
         "model": "GPT-6",
         "name": "Prospectus Standard Amplify Deployment"
       }
+    },
+    {
+      "id": "a054ce3b-b20c-405b-9862-9826d37e2397",
+      "author": "home",
+      "text": "Ryan explicitly rejects piecemeal manual IAM configuration and requires a customer clone-and-deploy Amplify product. Pending self-PassRole is not approved and will not be applied. Authorized local preparation will remove customer-code account/app/branch locks and bespoke modifications to Amplify internal helpers, retain runtime storage/auth protections, and separate Cyclotron settings as configuration. Given two independent customer Amplify contexts, when the actual Gen2 backend is synthesized offline, then it uses the standard bootstrap and generated application resources without Cyclotron IDs or manual per-app deployment roles. Given the Cyclotron profile, when synthesized offline, then its existing Google redirect and domain settings are preserved. Account bootstrap correction is one reproducible IaC plan, not serial manual policy patches; no IAM change or deployment retry is authorized yet.",
+      "created_at": "2026-10-14T11:28:16.402695Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Portable Amplify Correction"
+      }
+    },
+    {
+      "id": "d2ff2ac4-1ad9-47c7-96b3-e071ea1f65a8",
+      "author": "home",
+      "text": "Ryan directly approved the concrete correction with Yes, do it, then Make this work. Applied unchanged-policy dedicated marketing execution role; both marketing stacks rebound using unchanged templates; CDKToolkit restored to standard AdministratorAccess. All operations complete. Recovered failed empty Prospectus root stack. Amplify job 3 RUNNING at exact reviewed source 861c0d7. Marketing source correction preserved in private draft PR AnthusAI/Cyclotron-web#124, unmerged. No hosted success yet. Applied evidence: task-2/account-correction/APPLIED.md.",
+      "created_at": "2026-10-14T12:16:56.908454Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus"
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:22.253800Z",
-  "updated_at": "2026-10-14T11:19:24.669083Z",
+  "updated_at": "2026-10-14T12:17:10.992812Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "The Prospectus deployment is still running, and no hosted success has been confirmed yet.",
+  "right_now_updated_at": "2026-10-14T12:17:13.946211Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
