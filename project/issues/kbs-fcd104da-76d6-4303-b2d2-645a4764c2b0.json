@@ -10,9 +10,21 @@
   "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "0209ec57-23c1-4b18-b0d2-f664943fd316",
+      "author": "home",
+      "text": "Access progress: Google OAuth is requested; Ryan will create the Google project/client tomorrow. Hosted authentication, anonymous-denial checks and authenticated CRM persistence proof remain pending. Public MIT repository: https://github.com/AnthusAI/Prospectus. Local sales to customer-success note/reload proof passed 11 unit and 2 real-browser tests; this does not claim hosted private access. Amplify development app dnfou6dg4d6x2 has automatic builds disabled and verified DNS hostname in account 682849160744. Legacy account 335163751677 was DNS-only; existing marketing preserved. Source remains subject to review gates and draft publication; issue stays open until changes land.",
+      "created_at": "2026-10-14T01:34:51.711205Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol"
+      }
+    }
+  ],
   "created_at": "2026-10-14T00:23:17.245666Z",
-  "updated_at": "2026-10-14T00:23:17.270962Z",
+  "updated_at": "2026-10-14T01:34:51.711239Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

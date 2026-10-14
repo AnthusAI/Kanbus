@@ -34,10 +34,21 @@
         "model": "GPT-6",
         "name": "Prospectus Foundation"
       }
+    },
+    {
+      "id": "c7361e59-a0ff-4993-a92a-17ba952afd62",
+      "author": "home",
+      "text": "Progress: public MIT Prospectus repository created at https://github.com/AnthusAI/Prospectus. Local CRM proof passed 11 unit tests and 2 real-browser tests, including sales to customer-success note and reload. Final Virtuus real AWS baseline and focused delta proofs passed, and real S3 API CRUD proof 01 passed. Hosted authentication and CRM proof remain pending: Google OAuth requested; Ryan will create the Google project/client tomorrow. Amplify development app dnfou6dg4d6x2 has automatic builds disabled and DNS hostname verified in account 682849160744; account 335163751677 was used only for DNS, preserving marketing. Product source remains behind review gates and draft publication is pending; no issues closed.",
+      "created_at": "2026-10-14T01:34:51.708918Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol"
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-14T00:27:50.607798Z",
+  "updated_at": "2026-10-14T01:34:51.708965Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
