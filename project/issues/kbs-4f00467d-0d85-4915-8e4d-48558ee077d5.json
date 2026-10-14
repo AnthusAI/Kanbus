@@ -10,9 +10,22 @@
   "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ec6563c3-ee63-4961-915d-ca1b9acc35cb",
+      "author": "home",
+      "text": "Local preparation authorized: remove the application-forced custom CDK bootstrap qualifier and separate deployment bootstrap template; use standard Amplify Gen2 service-role setup and the account bootstrap. Given the approved Prospectus app and standard account bootstrap, when the backend is synthesized locally, then it uses standard bootstrap asset/deployment references without requiring app-specific bootstrap roles. Given deployment authorization is pending and Google OAuth remains uncreated, when local checks run, then no AWS resources, policies or role assignments change. The existing marketing execution-policy restriction is configuration evidence; there has been no Prospectus deployment job or demonstrated deployment error. Changes and tracking remain local and unpushed.",
+      "created_at": "2026-10-14T10:43:20.726984Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Preparation"
+      }
+    }
+  ],
   "created_at": "2026-10-13T23:46:22.253800Z",
-  "updated_at": "2026-10-14T00:23:15.227028Z",
+  "updated_at": "2026-10-14T10:43:20.727003Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -21,5 +34,8 @@
   },
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
