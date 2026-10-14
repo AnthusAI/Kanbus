@@ -1,7 +1,7 @@
 {
   "id": "kbs-4f00467d-0d85-4915-8e4d-48558ee077d5",
-  "title": "Prepare separate-brand Amplify hosting with explicit setup gates",
-  "description": "As a brand operator I want Prospectus delivered separately from Papyrus so public sites integrate through links or an API.\n\nFeature: Separate Prospectus delivery\n  Scenario: Build the hosting artifact\n    Given the local Prospectus project and configured Kanbus package\n    When the Amplify frontend build runs\n    Then a deployable static app artifact is produced\n    And no production deployment or access grant is created\n  Scenario: Review production setup\n    Given a future cloud release\n    When operators review setup requirements\n    Then repository visibility, AWS account, API storage, authentication and inbound protection are explicit\n    And shared Cognito remains undecided",
+  "title": "Deliver Prospectus at its private Cyclotron domain through CI/CD",
+  "description": "As a brand operator, I want a separately delivered Prospectus app so public sites integrate through configured links or narrow intake without hosting CRM data.\n\nFeature: Separate Prospectus delivery\n  Scenario: Reproducible delivery\n    Given reviewed source, passing required CI checks and approved platform access\n    When the established Cyclotron delivery workflow runs for Prospectus\n    Then it builds and deploys the app and writable backend to the verified dedicated account\n    And https://prospectus.cyclotron.anth.us serves valid TLS and the expected build\n    And other Cyclotron sites remain unchanged\n  Scenario: Verify the deployed writable path\n    Given an authorized CRM user at the deployed domain\n    When they create and progress a prospect then reload in a fresh session\n    Then the same issue and updated stage are loaded from canonical storage\n    And the verification report distinguishes source checks from live evidence\n  Scenario: Block safely on unavailable platform access\n    Given expired credentials or an unapproved persistent access change\n    When delivery reaches that prerequisite\n    Then the exact prerequisite is reported without changing accounts or bypassing approval",
   "type": "story",
   "status": "open",
   "priority": 1,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-13T23:46:22.253800Z",
-  "updated_at": "2026-10-13T23:46:22.283392Z",
+  "updated_at": "2026-10-14T00:23:15.227028Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

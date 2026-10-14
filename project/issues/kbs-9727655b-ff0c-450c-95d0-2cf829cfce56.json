@@ -1,7 +1,7 @@
 {
   "id": "kbs-9727655b-ff0c-450c-95d0-2cf829cfce56",
-  "title": "Hand won prospects to customer success without losing sales history",
-  "description": "As a customer-success owner I want won prospects retained as customers so the same history supports ongoing follow-up.\n\nFeature: Customer success handoff\n  Scenario: Continue follow-up after a sale\n    Given a prospect in proposal with contact and sales history\n    When it becomes a customer and gets a customer-success owner and follow-up\n    Then the same Kanbus issue retains contact and sales metadata\n    And the customer-success view shows the next follow-up after reload",
+  "title": "Hand won prospects to customer success without losing issue history",
+  "description": "As a customer-success owner, I want won prospects retained with their sales history so follow-up continues after a sale.\n\nFeature: Customer-success handoff\n  Scenario: Continue follow-up after a sale\n    Given a prospect with contact, salesperson ownership, comments and sales history\n    When an authorized user performs the configured customer transition and assigns customer-success follow-up\n    Then the same full Kanbus issue ID and prior history are preserved\n    And the customer-success view uses ordinary configured filters\n    And ownership and next follow-up survive a backend reload",
   "type": "story",
   "status": "open",
   "priority": 1,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-13T23:46:22.015355Z",
-  "updated_at": "2026-10-13T23:46:22.043758Z",
+  "updated_at": "2026-10-14T00:23:14.999402Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

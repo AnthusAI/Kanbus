@@ -1,7 +1,7 @@
 {
   "id": "kbs-8e5309d6-0491-4ef4-b9ef-2e96d39d12d9",
-  "title": "Embed configured boards without taking over the host app",
-  "description": "As an app developer I want to embed the existing Kanbus board with my domain configuration so my application owns navigation and data access.\n\nFeature: Embedded Kanbus\n  Scenario: Render a domain board\n    Given a host provides prospect issues and sales-funnel statuses\n    When it renders the reusable Kanbus component\n    Then columns use the configured names and selecting a prospect calls the host callback\n    And the host controls data access, routing and authentication\n  Scenario: Preserve standalone usage\n    Given the existing standalone console configuration\n    When the console builds and renders its board\n    Then existing board behavior remains available",
+  "title": "Embed configured Kanbus boards without taking over the host app",
+  "description": "As an app developer, I want to embed a configured Kanbus board so my application owns navigation and data access.\n\nFeature: Embedded Kanbus board\n  Scenario: Render a configured domain board\n    Given a host provides normal Kanbus issues and configured issue types and stages\n    When it renders the reusable board\n    Then columns use the configured names and permitted transitions\n    And selection and mutation interactions call the host contract\n    And the host retains routing, authentication and data access\n  Scenario: Preserve standalone usage\n    Given the standalone console configuration and existing records\n    When the console renders and interacts with its board\n    Then the existing standalone behavior remains available",
   "type": "story",
   "status": "open",
   "priority": 1,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-13T23:46:21.470723Z",
-  "updated_at": "2026-10-13T23:46:21.497540Z",
+  "updated_at": "2026-10-14T00:23:14.224638Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

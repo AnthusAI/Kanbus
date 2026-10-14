@@ -1,9 +1,9 @@
 {
   "id": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
-  "title": "Milestone 3: prepare reviewed Prospectus Amplify delivery",
-  "description": "Prepare Amplify hosting configuration and explicit cloud setup requirements. Create an undeployed Amplify app only with a verified intended account. Remote visibility, authentication, inbound protection and cloud data deployment remain explicit setup decisions. No production deploy or persistent AWS access grants.",
+  "title": "Milestone 5: privately deploy Prospectus through Cyclotron CI/CD",
+  "description": "Set up and verify Prospectus at https://prospectus.cyclotron.anth.us in dedicated cyclotron-production account 682849160744/profile cyclotron-production. Inspect and follow current Cyclotron hosting and CI/CD conventions, including Amplify where appropriate; preserve other sites. Delivery must be reproducible from reviewed source and CI rather than depend on manual content uploads. Verify private CRM access and narrow public intake separately. New persistent access/security grants require specific platform approval; expired sessions must be reported without account/environment substitution. Done when custom-domain TLS, auth, write/readback/reload and automated delivery are verified live, with source tests distinguished from live evidence. Do not assume unrelated merges or a shared Cognito decision.",
   "type": "epic",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-13T23:46:21.209043Z",
-  "updated_at": "2026-10-13T23:46:21.244658Z",
+  "updated_at": "2026-10-14T00:23:18.394268Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

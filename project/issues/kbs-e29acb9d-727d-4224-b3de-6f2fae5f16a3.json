@@ -1,0 +1,25 @@
+{
+  "id": "kbs-e29acb9d-727d-4224-b3de-6f2fae5f16a3",
+  "title": "Scope generic queries and content access to the authorized tenant",
+  "description": "As a project member, I want generic issue queries to respect my authorized scope so another tenant cannot read or modify my records.\n\nFeature: Tenant-safe generic queries\n  Scenario: Reject cross-tenant record access\n    Given two tenants with records and object references\n    When a member of one tenant supplies another tenant's issue ID, object pointer or cursor\n    Then the request is rejected without exposing content or changing records\n  Scenario: Apply ordinary Kanbus filters\n    Given mixed issue types, statuses, assignees, parents and labels in the authorized project\n    When a client applies the supported generic predicates and configured scalar field comparisons\n    Then only matching scoped records are returned in the declared order\n    And pagination preserves that query's scope and semantics\n  Scenario: Observe a recently committed write\n    Given a successful canonical mutation whose query projection has not converged\n    When the writer reloads that issue directly\n    Then the committed revision is available\n    And query freshness is reported without promising immediate catalog convergence\n  Scenario: Continue a filtered page\n    Given a filtered query page with no matches and a continuation cursor\n    When the client requests remaining pages\n    Then later matching records are not silently omitted",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:16.580030Z",
+  "updated_at": "2026-10-14T00:23:16.609560Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

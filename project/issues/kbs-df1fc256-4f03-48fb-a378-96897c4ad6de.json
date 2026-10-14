@@ -1,7 +1,7 @@
 {
   "id": "kbs-df1fc256-4f03-48fb-a378-96897c4ad6de",
-  "title": "Persist prospect intake and sales follow-up as Kanbus issues",
-  "description": "As a salesperson I want contact and demo requests to become prospects so I can own their next follow-up.\n\nFeature: Prospect lifecycle\n  Scenario: Record marketing intake\n    Given a configured brand contact or demo link\n    When a valid request is submitted to Prospectus\n    Then a prospect issue is created using Kanbus and Virtuus\n    And source, contact, owner and follow-up are retained after reloading\n  Scenario: Progress a prospect\n    Given a qualified prospect with a salesperson\n    When the salesperson advances an allowed funnel stage\n    Then the persisted issue and embedded board show the new stage\n    And invalid transitions are rejected",
+  "title": "Persist prospect intake and sales follow-up through generic Kanbus operations",
+  "description": "As a salesperson, I want contact and demo requests to become prospects so I can own their next follow-up.\n\nFeature: Configured prospect lifecycle\n  Scenario: Record marketing intake\n    Given a brand-configured contact or demo submission link\n    When a valid request is submitted to the narrow intake endpoint\n    Then a normal Kanbus issue of configured type prospect is persisted through Virtuus\n    And source, contact, owner and next follow-up survive a backend reload\n    And the public response reveals no CRM record data\n  Scenario: Progress a prospect\n    Given an authenticated salesperson and a qualified prospect\n    When the salesperson advances an allowed configured funnel stage\n    Then the persisted issue and shared board show the new stage after reload\n    And disallowed transitions are rejected without changing the issue\n  Scenario: Find due follow-up\n    Given prospect and other issue types with owners and configured follow-up values\n    When the app submits ordinary type, assignee and custom-field predicates\n    Then it displays only the matching prospects in the shared filtered list",
   "type": "story",
   "status": "open",
   "priority": 1,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-13T23:46:21.779472Z",
-  "updated_at": "2026-10-13T23:46:21.811795Z",
+  "updated_at": "2026-10-14T00:23:14.621960Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

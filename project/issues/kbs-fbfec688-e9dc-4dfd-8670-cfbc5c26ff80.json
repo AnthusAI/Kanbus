@@ -1,9 +1,9 @@
 {
   "id": "kbs-fbfec688-e9dc-4dfd-8670-cfbc5c26ff80",
-  "title": "Milestone 1: reusable embedded Kanbus board contract",
-  "description": "Deliver an app-owned configuration and data boundary around existing @kanbus/ui components. Standalone console remains operational. Definition of done: embedded component behavior tests, package build, console typecheck/build and integration guidance.",
+  "title": "Milestone 1: shared typed Kanbus model and reusable app views",
+  "description": "Expose existing reusable Kanbus surfaces through stable host-owned configuration and interaction contracts. Reuse existing packages rather than duplicate extraction. Verticals configure issue types, stages, labels and behavior; Kanbus supplies boards, feeds, lists and filtered lists. The host owns routing, authentication and data access. Preserve standalone console behavior. Done when embedded views share the model and interactions, configuration is behavior-tested, package and standalone build/type checks pass, and integration guidance exists.",
   "type": "epic",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-13T23:46:20.799991Z",
-  "updated_at": "2026-10-13T23:46:20.835692Z",
+  "updated_at": "2026-10-14T00:23:17.592284Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

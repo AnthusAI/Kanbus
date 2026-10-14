@@ -1,0 +1,25 @@
+{
+  "id": "kbs-fcd104da-76d6-4303-b2d2-645a4764c2b0",
+  "title": "Keep public lead intake separate from private CRM access",
+  "description": "As a brand operator, I want public visitors to submit requests while only authorized users can access CRM records.\n\nFeature: Private Prospectus access\n  Scenario: Anonymous visitor cannot browse CRM\n    Given an unauthenticated visitor at the deployed domain or API\n    When they request a board, list, individual issue, history or content object\n    Then CRM record data is not disclosed\n  Scenario: Public intake has a narrow capability\n    Given a configured public contact or demo intake path\n    When a visitor submits a valid request\n    Then the system records it in the configured tenant and project\n    And the response provides no listing, arbitrary issue read or update capability\n  Scenario: Authorized CRM usage\n    Given a verified authorized CRM identity\n    When the user accesses the configured tenant\n    Then permitted issue reads and mutations succeed\n    And forged or cross-tenant credentials and object references are rejected",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:17.245666Z",
+  "updated_at": "2026-10-14T00:23:17.270962Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

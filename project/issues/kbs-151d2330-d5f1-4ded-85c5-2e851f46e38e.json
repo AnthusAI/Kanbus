@@ -1,0 +1,25 @@
+{
+  "id": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "title": "Milestone 2: interchangeable Virtuus filesystem and S3/DynamoDB storage",
+  "description": "Extend the existing Virtuus persistence seam rather than invent a parallel domain API. Provide explicit filesystem/EFS and cloud backends behind a general scoped record/query/mutation contract. Cloud canonical payloads always live in S3; DynamoDB is a rebuildable metadata/pointer catalog. Preserve ordinary Kanbus type/status/assignee/parent/label queries and add bounded generic configured field predicates where needed. Enforce revision conflicts, retry identity, tenant/project scope and publication integrity. Done when shared backend contract tests and independent failure/concurrency tests pass; no specialized prospect/account/follow-up tables or APIs are introduced.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:15.420675Z",
+  "updated_at": "2026-10-14T00:23:17.769201Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

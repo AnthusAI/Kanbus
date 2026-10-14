@@ -1,18 +1,31 @@
 {
   "id": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
-  "title": "Embed Kanbus in domain apps and launch Prospectus CRM",
-  "description": "As a brand operator, I want a dedicated Prospectus CRM and reusable Kanbus components so sales and customer-success work share real Kanbus issues and Virtuus storage. Preserve standalone Kanbus. Papyrus remains a separate app; marketing sites link or submit requests to Prospectus. No Papyrus schema plugin, production deployment, shared Cognito decision, public repository creation, or persistent AWS access grants. Milestones: reusable embedding foundation; local CRM workflow and storage proof; reviewed Amplify delivery setup.",
+  "title": "Make Kanbus pluggable and prove a private Prospectus CRM",
+  "description": "As an application builder, I want Kanbus to provide both a general typed issue/stage/workflow model and reusable boards, feeds, lists, filtered lists and interactions, so vertical applications supply domain types, stages, labels and behavior without duplicating Kanbus.\n\nDeliver five milestones: shared model and UI contracts; interchangeable Virtuus filesystem/EFS and cloud persistence; portable snapshots and catalog recovery; a separate writable Prospectus CRM; and verified private delivery at prospectus.cyclotron.anth.us.\n\nArchitecture decision from Ryan: all canonical issue, history and content payloads live in S3 for cloud storage. DynamoDB contains only query metadata, pointers, revision and hashes. Use convention over configuration, one representation for small and large content, and no DynamoDB inline payload or overflow threshold. Keep canonical raw bytes under the normal Kanbus relative paths: project/issues/<id>.json, project/events/<id>.json, .kanbus.yml and related normal files. Use S3 ETag conditions on those normal files and filesystem hash revisions; keep catalog projection repairable. No canonical envelopes, content-addressed replacement layout or giant revision chain. Any auxiliary recovery journal belongs outside the canonical prefix. Local filesystem/EFS and Git remain valid explicitly selected storage choices.\n\nProspectus configures the normal prospect issue type, funnel statuses, ownership and follow-up fields. Queries and indexes stay general Kanbus contracts. Public marketing sites submit through a configured link or narrow intake API without access to CRM records. Papyrus remains separate; no schema plugin or canceled plugin implementation is revived. Shared Cognito, subscriptions, credits and full Salesforce breadth are future decisions.\n\nAuthorized deployment target: dedicated cyclotron-production account 682849160744 and profile cyclotron-production, after verifying current state and established CI/CD. Preserve other sites. New persistent security/access changes require concrete platform approval. Expired authentication is a blocker, not permission to switch accounts. Default any new remote repository to private and report visibility before publishing. No unrelated merges.\n\nDefinition of done: behavior specifications and independent review; applicable builds/typechecks/tests; real persisted create/update/reload proof; tenant and private-access verification; reproducible CI delivery and verified custom domain; documented exact remaining setup blockers. Source checks and live verification must be reported separately.",
   "type": "initiative",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "32c71d45-a2a8-4cdc-b248-5485bdf05b64",
+      "author": "home",
+      "text": "Planning reconciliation: the eight original local draft IDs were retained, and their earlier local-only/no-deployment scope was replaced by Ryan's explicit implementation and Cyclotron deployment authorization. Subsequent storage decisions supersede overflow chunking, threshold-based attachments and canonical revision-head layouts: S3 always stores exact canonical bytes in the normal Kanbus folder layout, and DynamoDB is metadata/pointers only. S3 ETag CAS applies to normal issue files, with explicit recoverable multi-object partial outcomes. Export is a canonical-prefix copy; import copies normal files then rebuilds the catalog. Any recovery journal lives separately outside the canonical prefix. Virtuus implementation is tracked by virt-d1aa5a17-82df-417c-8353-2d8fcb02e4ef in the isolated Virtuus worktree. Related work is implemented in isolated Kanbus, Virtuus and Prospectus branches. Existing main-checkout Right Now summary changes and llm_usage are intentionally excluded from this board publication to preserve concurrent work; no kbs now command was run during reconciliation.",
+      "created_at": "2026-10-14T00:23:18.519247Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Foundation"
+      }
+    }
+  ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-13T23:45:48.674222Z",
+  "updated_at": "2026-10-14T00:23:18.519280Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
