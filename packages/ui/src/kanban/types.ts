@@ -66,6 +66,18 @@ export interface KanbanIssue {
   status: string;
   priority: number;
   assignee?: string;
+  description?: string;
+  parent?: string;
+  labels?: string[];
+  custom?: Record<string, unknown>;
+  comments?: {
+    id?: string;
+    author: string;
+    created_at: string;
+    text?: string;
+    comment_type?: string;
+    data?: Record<string, unknown>;
+  }[];
   created_at?: string;
   updated_at?: string;
   closed_at?: string;

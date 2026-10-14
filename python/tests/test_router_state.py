@@ -477,7 +477,9 @@ def test_second_clone_observes_claim_without_harness_push(
     ]
 
 
-def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) -> None:
+def test_second_clone_observes_lease_renewal_after_original_ttl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     bare = tmp_path / "renew-remote.git"
     source = tmp_path / "renew-seed"
     clone_a = tmp_path / "renew-worker-a"
@@ -612,6 +614,12 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(tmp_path: Path) 
         assert (
             lease.active
         ), "the peer must see a renewal after the original two-second TTL"
+        monkeypatch.setattr(
+            "kanbus.issue_router.inspect_lease",
+            lambda events_dir, resource: inspect_lease(
+                events_dir, resource, now=evaluation_time
+            ),
+        )
         assert not build_router_plan(observed_context).eligible
     finally:
         stopped.set()

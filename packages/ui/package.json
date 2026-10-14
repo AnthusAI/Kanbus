@@ -21,6 +21,7 @@
     "./dist/styles/**/*.css"
   ],
   "scripts": {
+    "test": "npm run build && tsc -p tests/tsconfig.json && cucumber-js --config tests/cucumber.cjs",
     "build": "tsc -p tsconfig.json && rm -rf dist/styles && cp -R src/styles dist/styles",
     "dev": "tsc -w -p tsconfig.json",
     "watch:styles": "nodemon --watch src/styles --ext css --exec 'cp -R src/styles dist/styles'",
@@ -44,6 +45,8 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "12.7.0",
+    "@playwright/test": "1.58.2",
     "@storybook/addon-essentials": "8.6.15",
     "@storybook/addon-interactions": "8.6.18",
     "@storybook/addon-links": "8.6.15",

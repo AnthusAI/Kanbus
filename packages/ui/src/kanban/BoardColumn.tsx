@@ -4,7 +4,7 @@ import type { KanbanConfig, KanbanIssue } from "./types";
 import { IssueCard } from "./IssueCard";
 import type { KanbanMotionConfig } from "./motion";
 
-interface BoardColumnProps {
+export interface BoardColumnProps {
   columnKey?: string;
   title: string;
   issues: KanbanIssue[];

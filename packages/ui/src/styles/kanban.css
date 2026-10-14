@@ -61,6 +61,22 @@
 @import "@radix-ui/colors/violet-dark.css";
 @import "@radix-ui/colors/yellow-dark.css";
 
+.kb-issue-collection {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.kb-issue-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
 .issue-card {
   --issue-accent-foreground: var(--text-foreground);
   --issue-accent-light: var(--slate-4);

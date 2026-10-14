@@ -20,7 +20,7 @@ import {
   type KanbanMotionConfig
 } from "./motion";
 
-interface BoardProps {
+export interface BoardProps {
   columns: string[];
   issues: KanbanIssue[];
   priorityLookup: Record<number, string>;

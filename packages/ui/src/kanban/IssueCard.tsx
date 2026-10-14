@@ -9,7 +9,7 @@ import {
   type KanbanMotionConfig
 } from "./motion";
 
-interface IssueCardProps {
+export interface IssueCardProps {
   issue: KanbanIssue;
   priorityName: string;
   config?: KanbanConfig;

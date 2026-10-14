@@ -381,7 +381,7 @@ marked.setOptions({
 
 // Mermaid will be re-initialized with the current theme when rendering
 
-interface TaskDetailPanelProps {
+export interface TaskDetailPanelProps {
   task: TaskDetailIssue | null;
   allIssues: TaskDetailIssue[];
   columns: string[];
