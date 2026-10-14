@@ -32,8 +32,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Prospectus is not live yet; deployment, private access, and hosted verification still await setup and approval.",
-  "right_now_updated_at": "2026-10-14T12:55:42.655963Z",
+  "right_now_summary": "Prospectus is not live yet; deployment setup and Google authentication remain pending.",
+  "right_now_updated_at": "2026-10-14T16:39:50.316020Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

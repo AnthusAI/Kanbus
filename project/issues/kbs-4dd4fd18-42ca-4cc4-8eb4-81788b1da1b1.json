@@ -10,9 +10,40 @@
   "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "72f7c166-851a-4c92-9cb2-b7acb48e281a",
+      "author": "home",
+      "text": "Amplify job5 succeeded at11:54:41 EDT for4cba179, pinned Kanbus25410911. Controlled read-only production Lambda regressions: space/comma/array members200, admin-only/lookalikes403; liveCRMlist200 zeroissues; anonymousgateway401. Both exact Prospectus CI runs38592459181/38592450308 succeeded. SharedKanbusCI stillfinishing; unchanged MQTT readiness failure on first PR attempt was retried once, independent Rustquality/coverage passed. No new permissions or nonmember bypass. Actual iPad acceptance and authenticated hostedCRUD remain pending; reload request not repeated.",
+      "created_at": "2026-10-14T16:15:24.271988Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "c918ceb5-5f53-49bc-b9e0-128dc668e431",
+      "author": "home",
+      "text": "Final CI monitoring complete: all four runs succeeded. Prospectus4cba179 PR38592459181 and proof38592450308; Kanbus25410911 independent38592304402 and PR38592316807. First PR attempt failed an unchanged MQTT500ms readiness test; single failed-job retry passed quality, coverage, smoke and interoperability without unrelated code changes or disabled checks. Deployment5 remains successful. Actual iPad acceptance and authenticated hostedCRUD remain pending; no repeated reload request, merge or new deployment.",
+      "created_at": "2026-10-14T16:39:45.252455Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-14T15:47:21.573998Z",
-  "updated_at": "2026-10-14T15:47:21.600857Z",
+  "updated_at": "2026-10-14T16:39:45.252484Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -22,7 +53,10 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "Production checks pass, while iPad acceptance and authenticated hosted CRUD await validation.",
+  "right_now_updated_at": "2026-10-14T16:39:48.040393Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
