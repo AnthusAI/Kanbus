@@ -32,8 +32,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Deployment work continues, but hosted success and private access are not yet verified.",
-  "right_now_updated_at": "2026-10-14T12:17:16.420333Z",
+  "right_now_summary": "Prospectus deployment and hosted access checks await completion; local tests pass, but no live private access is",
+  "right_now_updated_at": "2026-10-14T12:49:42.142898Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

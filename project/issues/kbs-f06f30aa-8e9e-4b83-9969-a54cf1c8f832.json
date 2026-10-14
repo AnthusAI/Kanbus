@@ -10,9 +10,40 @@
   "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "4484cc4c-72a0-42bf-a7ff-bb2cc4bd577a",
+      "author": "home",
+      "text": "Confirmed app administrator grant to the existing Google-linked ryan@anth.us identity: both admin and prospectus-members. No new user, password, invitation, email, pool deletion or AWS IAM admin. Live pre-sign-up trigger removed by job 4 source 9a7bc5a. Operational tracked .kanbus.yml conditionally initialized and verified identical bytes; no prospects seeded. Eight infrastructure and eleven app tests, both types/build and two real filesystem browser persistence tests passed. Amplify job 4 still completing; refresh sign-in for new claims. Hosted member persistence awaits an available authenticated browser session.",
+      "created_at": "2026-10-14T12:47:13.044442Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "9e1852c3-3e85-4f6e-840d-92edea436f40",
+      "author": "home",
+      "text": "Amplify job 4 SUCCEED at 08:48:05 EDT, all phases succeeded for source 9a7bc5a. Published Google-first frontend verified after reload. Ryan administrator grant reverified: admin and prospectus-members on the same Google-linked identity. Anonymous API remains 401. No running AWS operation. Exact-source GitHub CI runs 38565664865 and 38565658799 remain in progress; hosted member CRM persistence awaits an available authenticated session. Intake integration base is 9a7bc5a; API contract unchanged.",
+      "created_at": "2026-10-14T12:49:37.718244Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-14T12:42:34.147591Z",
-  "updated_at": "2026-10-14T12:42:34.170372Z",
+  "updated_at": "2026-10-14T12:49:37.718276Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -22,7 +53,10 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "Google sign-in now grants Ryan CRM access after token refresh; hosted member persistence still awaits an authenticated",
+  "right_now_updated_at": "2026-10-14T12:49:40.013389Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

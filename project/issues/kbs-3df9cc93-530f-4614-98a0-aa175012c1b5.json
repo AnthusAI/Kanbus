@@ -79,8 +79,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Hosted Google OAuth credentials and private CRM access still need verification before deployment is complete.",
-  "right_now_updated_at": "2026-10-14T12:17:17.640672Z",
+  "right_now_summary": "Local Prospectus and storage proofs pass, but hosted Google authentication and private CRM verification await owner",
+  "right_now_updated_at": "2026-10-14T12:49:43.591357Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
