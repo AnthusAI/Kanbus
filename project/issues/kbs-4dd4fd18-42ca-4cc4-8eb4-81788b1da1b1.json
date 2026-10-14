@@ -1,0 +1,28 @@
+{
+  "id": "kbs-4dd4fd18-42ca-4cc4-8eb4-81788b1da1b1",
+  "title": "Multiple gateway groups must not reject authorized Prospectus members",
+  "description": "Given a verified gateway identity containing admin and prospectus-members, when groups arrive in an array, JSON/comma list or space-separated list, then exact project membership authorizes access. Given admin-only or similarly named groups, then access remains denied. Given stale role claims, when config returns 403, then the UI offers a fresh Google access exchange and hides CRM controls. Production Lambda read-only fixture reproduced 403 for [admin prospectus-members] versus 200 for [admin,prospectus-members]. Actual iPad token representation remains unobserved. Fix published in Kanbus 25410911; Prospectus pin and access-pending UI validating before Amplify deploy. No new permissions or group expansion.",
+  "type": "bug",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T15:47:21.573998Z",
+  "updated_at": "2026-10-14T15:47:21.600857Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
