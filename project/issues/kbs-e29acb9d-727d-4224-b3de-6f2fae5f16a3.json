@@ -1,7 +1,7 @@
 {
   "id": "kbs-e29acb9d-727d-4224-b3de-6f2fae5f16a3",
-  "title": "Scope generic queries and content access to the authorized tenant",
-  "description": "As a project member, I want generic issue queries to respect my authorized scope so another tenant cannot read or modify my records.\n\nFeature: Tenant-safe generic queries\n  Scenario: Reject cross-tenant record access\n    Given two tenants with records and object references\n    When a member of one tenant supplies another tenant's issue ID, object pointer or cursor\n    Then the request is rejected without exposing content or changing records\n  Scenario: Apply ordinary Kanbus filters\n    Given mixed issue types, statuses, assignees, parents and labels in the authorized project\n    When a client applies the supported generic predicates and configured scalar field comparisons\n    Then only matching scoped records are returned in the declared order\n    And pagination preserves that query's scope and semantics\n  Scenario: Observe a recently committed write\n    Given a successful canonical mutation whose query projection has not converged\n    When the writer reloads that issue directly\n    Then the committed revision is available\n    And query freshness is reported without promising immediate catalog convergence\n  Scenario: Continue a filtered page\n    Given a filtered query page with no matches and a continuation cursor\n    When the client requests remaining pages\n    Then later matching records are not silently omitted",
+  "title": "Query authorized Kanbus boards by project, type and stage",
+  "description": "As a project member, I want generic issue queries to load the boards I am authorized to see so my selection never exposes another tenant or unauthorized project.\n\nFeature: Tenant-safe generic board queries\n  Scenario Outline: Load an authorized project scope\n    Given mixed issue types and stages across authorized and unauthorized projects\n    When a board query selects <project_scope> and <type_scope>\n    Then only matching issues in the authenticated tenant and authorized selected projects are returned\n    And existing stage filters, declared ordering and pagination are preserved\n    Examples:\n      | project_scope | type_scope |\n      | one project | all types |\n      | one project | selected types |\n      | selected projects | all types |\n      | selected projects | selected types |\n      | all authorized projects | all types |\n      | all authorized projects | selected types |\n  Scenario: Read an exact full ID directly\n    Given an authorized project and an exact full issue ID\n    When a client reads that issue\n    Then the canonical issue is fetched without enumerating board pages\n    And the same tenant and project authorization is enforced\n  Scenario: Reject cross-tenant or unauthorized project access\n    Given two tenants and projects with different member access\n    When a member supplies an unauthorized project, issue ID, object pointer or cursor\n    Then the request is rejected without exposing content or changing records\n  Scenario: Preserve filters across project fanout\n    Given issues with interleaved sort values across selected projects\n    When the client requests successive pages with selected types and stage filters\n    Then results obey the declared global ordering with a deterministic identity tie-break\n    And no matching issue is silently omitted or duplicated across the pages\n    And the cursor cannot be reused under a different scope or query\n  Scenario: Observe a recently committed write\n    Given a successful canonical mutation whose query projection has not converged\n    When the writer reloads that issue directly\n    Then the committed revision is available\n    And query freshness is reported without promising immediate catalog convergence\n  Scenario: Continue a filtered page\n    Given a filtered query page with no matches and a continuation cursor\n    When the client requests remaining pages\n    Then later matching records are not silently omitted\n  Scenario: Verify a realistic board load\n    Given realistic mixed projects, types, stages and large canonical records\n    When the supported board access patterns are exercised\n    Then validation records result correctness, pages, catalog requests and canonical content fetches\n    And selected-project and type queries avoid fetching unrelated canonical content\n    And the report identifies query fanout and observed limitations rather than extrapolating from an empty board\n\nThis is the generic storage/query contract and its test target. The current Prospectus UI proof is single-project. Multi-project navigation and selection UI are future backlog, not a current shipped claim. Indexes serve these access patterns; time analytics, S3 Tables and Athena are out of scope.",
   "type": "story",
   "status": "open",
   "priority": 1,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-14T00:23:16.580030Z",
-  "updated_at": "2026-10-14T00:23:16.609560Z",
+  "updated_at": "2026-10-14T00:27:49.012128Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -21,5 +21,8 @@
   },
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

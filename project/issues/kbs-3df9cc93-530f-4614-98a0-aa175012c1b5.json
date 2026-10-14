@@ -1,7 +1,7 @@
 {
   "id": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
   "title": "Make Kanbus pluggable and prove a private Prospectus CRM",
-  "description": "As an application builder, I want Kanbus to provide both a general typed issue/stage/workflow model and reusable boards, feeds, lists, filtered lists and interactions, so vertical applications supply domain types, stages, labels and behavior without duplicating Kanbus.\n\nDeliver five milestones: shared model and UI contracts; interchangeable Virtuus filesystem/EFS and cloud persistence; portable snapshots and catalog recovery; a separate writable Prospectus CRM; and verified private delivery at prospectus.cyclotron.anth.us.\n\nArchitecture decision from Ryan: all canonical issue, history and content payloads live in S3 for cloud storage. DynamoDB contains only query metadata, pointers, revision and hashes. Use convention over configuration, one representation for small and large content, and no DynamoDB inline payload or overflow threshold. Keep canonical raw bytes under the normal Kanbus relative paths: project/issues/<id>.json, project/events/<id>.json, .kanbus.yml and related normal files. Use S3 ETag conditions on those normal files and filesystem hash revisions; keep catalog projection repairable. No canonical envelopes, content-addressed replacement layout or giant revision chain. Any auxiliary recovery journal belongs outside the canonical prefix. Local filesystem/EFS and Git remain valid explicitly selected storage choices.\n\nProspectus configures the normal prospect issue type, funnel statuses, ownership and follow-up fields. Queries and indexes stay general Kanbus contracts. Public marketing sites submit through a configured link or narrow intake API without access to CRM records. Papyrus remains separate; no schema plugin or canceled plugin implementation is revived. Shared Cognito, subscriptions, credits and full Salesforce breadth are future decisions.\n\nAuthorized deployment target: dedicated cyclotron-production account 682849160744 and profile cyclotron-production, after verifying current state and established CI/CD. Preserve other sites. New persistent security/access changes require concrete platform approval. Expired authentication is a blocker, not permission to switch accounts. Default any new remote repository to private and report visibility before publishing. No unrelated merges.\n\nDefinition of done: behavior specifications and independent review; applicable builds/typechecks/tests; real persisted create/update/reload proof; tenant and private-access verification; reproducible CI delivery and verified custom domain; documented exact remaining setup blockers. Source checks and live verification must be reported separately.",
+  "description": "As an application builder, I want Kanbus to provide both a general typed issue/stage/workflow model and reusable boards, feeds, lists, filtered lists and interactions, so vertical applications supply domain types, stages, labels and behavior without duplicating Kanbus.\n\nDeliver five milestones: shared model and UI contracts; interchangeable Virtuus filesystem/EFS and cloud persistence; portable snapshots and catalog recovery; a separate writable Prospectus CRM; and verified private delivery at prospectus.cyclotron.anth.us.\n\nArchitecture decision from Ryan: all canonical issue, history and content payloads live in S3 for cloud storage. DynamoDB contains only query metadata, pointers, revision and hashes. Use convention over configuration, one representation for small and large content, and no DynamoDB inline payload or overflow threshold. Keep canonical raw bytes under the normal Kanbus relative paths: project/issues/<id>.json, project/events/<id>.json, .kanbus.yml and related normal files. Use S3 ETag conditions on those normal files and filesystem hash revisions; keep catalog projection repairable. No canonical envelopes, content-addressed replacement layout or giant revision chain. Any auxiliary recovery journal belongs outside the canonical prefix. Local filesystem/EFS and Git remain valid explicitly selected storage choices.\n\nProspectus configures the normal prospect issue type, funnel statuses, ownership and follow-up fields. Queries and indexes stay general Kanbus contracts. Public marketing sites submit through a configured link or narrow intake API without access to CRM records. Papyrus remains separate; no schema plugin or canceled plugin implementation is revived. Shared Cognito, subscriptions, credits and full Salesforce breadth are future decisions.\n\nAuthorized deployment target: dedicated cyclotron-production account 682849160744 and profile cyclotron-production, after verifying current state and established CI/CD. Preserve other sites. New persistent security/access changes require concrete platform approval. Expired authentication is a blocker, not permission to switch accounts. Default any new remote repository to private and report visibility before publishing. No unrelated merges.\n\nDefinition of done: behavior specifications and independent review; applicable builds/typechecks/tests; real persisted create/update/reload proof; tenant and private-access verification; reproducible CI delivery and verified custom domain; documented exact remaining setup blockers. Source checks and live verification must be reported separately.\n\nPrimary access patterns clarified by Ryan: load a board for one project, all authorized projects, or multiple selected authorized projects; include all issue types or selected types, together with existing stage filters, ordering and pagination. Direct full-ID lookup is a separate point-read path. Every operation is constrained to the authenticated tenant and authorized projects. Target generic Kanbus indexes at these real board access and fanout patterns, and validate them with a meaningful board-load test. Do not add speculative time analytics, S3 Tables or Athena. Multi-project UI is an important future capability; it is not claimed as delivered by the current Prospectus milestone. The S3 canonical raw-byte and exact normal-folder-layout decision remains unchanged.",
   "type": "initiative",
   "status": "in_progress",
   "priority": 1,
@@ -22,10 +22,22 @@
         "model": "GPT-6",
         "name": "Prospectus Foundation"
       }
+    },
+    {
+      "id": "68dbc179-2a47-4ee2-99a8-a13349924441",
+      "author": "home",
+      "text": "Right Now reconciliation: the original main Kanbus checkout still has 25 previously changed issue summaries plus llm_usage.jsonl. The prior run identified these as effects of kbs now, but the available baseline does not establish that no concurrent edits have since touched those files. A wholesale revert could discard legitimate work, and publishing them with this initiative would silently adopt unrelated summaries. Therefore they remain exactly where they were, excluded from the isolated tracking commits and draft PR. No kbs now ran during this reconciliation. Any later cleanup must compare the original pre-run baseline with current issue state and preserve independently authored changes; the present work does not claim they were reverted.",
+      "created_at": "2026-10-14T00:27:50.607764Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Foundation"
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-14T00:23:18.519280Z",
+  "updated_at": "2026-10-14T00:27:50.607798Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -34,5 +46,8 @@
   },
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
