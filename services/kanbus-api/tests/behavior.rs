@@ -19,6 +19,37 @@ fn cloud_requires_verified_gateway_group_membership() {
 }
 
 #[test]
+fn multiple_gateway_groups_preserve_exact_membership() {
+    let event = |groups| json!({"requestContext":{"authorizer":{"jwt":{"claims":{"sub":"member-1","cognito:groups":groups}}}}});
+    for groups in [
+        json!(["admin", "prospectus-members"]),
+        json!("[\"admin\",\"prospectus-members\"]"),
+        json!("[admin, prospectus-members]"),
+        json!("[admin prospectus-members]"),
+        json!("admin prospectus-members"),
+    ] {
+        assert_eq!(
+            authenticate_cloud(&event(groups), "prospectus-members").unwrap(),
+            "member-1"
+        );
+    }
+    for groups in [
+        json!(["admin"]),
+        json!("[admin other-prospectus-members prospectus-members-extra]"),
+        json!("[admin]"),
+        json!(null),
+        json!(42),
+    ] {
+        assert_eq!(
+            authenticate_cloud(&event(groups), "prospectus-members")
+                .unwrap_err()
+                .status,
+            403
+        );
+    }
+}
+
+#[test]
 fn local_requires_explicit_secret() {
     assert!(authenticate_local(None, "secret").is_err());
     assert!(authenticate_local(Some("Bearer wrong"), "secret").is_err());

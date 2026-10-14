@@ -39,7 +39,24 @@ async fn main() -> Result<(), Error> {
 async fn handle(api: &Api, group: &str, event: Value) -> Value {
     let actor = match authenticate_cloud(&event, group) {
         Ok(actor) => actor,
-        Err(error) => return response(error.status, error.body()),
+        Err(error) => {
+            if error.status == 403 {
+                let groups = event.pointer("/requestContext/authorizer/jwt/claims/cognito:groups");
+                let kind = match groups {
+                    Some(Value::String(_)) => "string",
+                    Some(Value::Array(_)) => "array",
+                    None => "missing",
+                    _ => "other",
+                };
+                let whitespace = groups.and_then(Value::as_str).is_some_and(|value| {
+                    value
+                        .chars()
+                        .any(|character| character.is_ascii_whitespace())
+                });
+                eprintln!("Kanbus membership denied: group_claim_kind={kind} group_claim_has_whitespace={whitespace}");
+            }
+            return response(error.status, error.body());
+        }
     };
     let Some(method) = event
         .pointer("/requestContext/http/method")

@@ -3,6 +3,12 @@ Feature: Authenticated applications share the Kanbus issue model
   I want to read and change configured Kanbus issues
   So that domain-specific applications share workflows and portable storage
 
+  Scenario: Multiple gateway groups preserve exact project membership
+    Given verified gateway claims with an administrator group and the required project group
+    When the gateway represents the groups as an array, JSON string, comma list or space-separated bracketed list
+    Then the authenticated actor retains project access
+    And an administrator group alone or a similar project-group name does not grant access
+
   Scenario: A configured vertical creates and advances an issue
     Given an isolated project with the prospect issue type
     When an authenticated member creates a prospect

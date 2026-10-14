@@ -196,7 +196,7 @@ pub fn authenticate_cloud(event: &Value, required_group: &str) -> Result<String,
             .any(|value| value.as_str() == Some(required_group)),
         Some(Value::String(value)) => value
             .trim_matches(['[', ']'])
-            .split(',')
+            .split(|character: char| character == ',' || character.is_ascii_whitespace())
             .map(|part| part.trim().trim_matches('"'))
             .any(|part| part == required_group),
         _ => false,
