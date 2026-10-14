@@ -45,10 +45,22 @@
         "platform": "codex",
         "model": "gpt-6.1-sol"
       }
+    },
+    {
+      "id": "33cb8733-67b1-4af2-a2cb-f7e02e6a7d14",
+      "author": "home",
+      "text": "Source drafts are published: Prospectus #1, Kanbus #399 and Virtuus #33. Public MIT and Google OAuth choices are implemented. Final local proof passed 11 unit and 2 browser tests against latest API and pinned revisions 34315a and 639f873. Kanbus embedded GitHub CI is green; pinned Linux Lambda build passed. The one-line browser CI proxy setup correction passed both tests locally; remote rerun is pending. Hosted Google owner credentials remain the blocker until tomorrow: secret prospectus/proof/oauth/google and callback are documented in Prospectus SETUP_STATUS. No IAM, backend or production deployment changes. Issues remain open pending landing and hosted proof.",
+      "created_at": "2026-10-14T02:32:01.222804Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "AWS proof tracking"
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-14T01:34:51.708965Z",
+  "updated_at": "2026-10-14T02:32:01.222842Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
