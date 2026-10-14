@@ -1,0 +1,25 @@
+{
+  "id": "kbs-df1fc256-4f03-48fb-a378-96897c4ad6de",
+  "title": "Persist prospect intake and sales follow-up as Kanbus issues",
+  "description": "As a salesperson I want contact and demo requests to become prospects so I can own their next follow-up.\n\nFeature: Prospect lifecycle\n  Scenario: Record marketing intake\n    Given a configured brand contact or demo link\n    When a valid request is submitted to Prospectus\n    Then a prospect issue is created using Kanbus and Virtuus\n    And source, contact, owner and follow-up are retained after reloading\n  Scenario: Progress a prospect\n    Given a qualified prospect with a salesperson\n    When the salesperson advances an allowed funnel stage\n    Then the persisted issue and embedded board show the new stage\n    And invalid transitions are rejected",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3e6ec337-13dd-4caa-971d-938db415c2c5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:46:21.779472Z",
+  "updated_at": "2026-10-13T23:46:21.811795Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

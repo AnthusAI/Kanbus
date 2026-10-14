@@ -1,0 +1,25 @@
+{
+  "id": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "title": "Milestone 3: prepare reviewed Prospectus Amplify delivery",
+  "description": "Prepare Amplify hosting configuration and explicit cloud setup requirements. Create an undeployed Amplify app only with a verified intended account. Remote visibility, authentication, inbound protection and cloud data deployment remain explicit setup decisions. No production deploy or persistent AWS access grants.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:46:21.209043Z",
+  "updated_at": "2026-10-13T23:46:21.244658Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

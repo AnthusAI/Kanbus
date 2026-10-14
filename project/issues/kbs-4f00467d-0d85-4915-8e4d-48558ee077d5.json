@@ -1,0 +1,25 @@
+{
+  "id": "kbs-4f00467d-0d85-4915-8e4d-48558ee077d5",
+  "title": "Prepare separate-brand Amplify hosting with explicit setup gates",
+  "description": "As a brand operator I want Prospectus delivered separately from Papyrus so public sites integrate through links or an API.\n\nFeature: Separate Prospectus delivery\n  Scenario: Build the hosting artifact\n    Given the local Prospectus project and configured Kanbus package\n    When the Amplify frontend build runs\n    Then a deployable static app artifact is produced\n    And no production deployment or access grant is created\n  Scenario: Review production setup\n    Given a future cloud release\n    When operators review setup requirements\n    Then repository visibility, AWS account, API storage, authentication and inbound protection are explicit\n    And shared Cognito remains undecided",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:46:22.253800Z",
+  "updated_at": "2026-10-13T23:46:22.283392Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

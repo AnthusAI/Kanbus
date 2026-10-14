@@ -1,0 +1,25 @@
+{
+  "id": "kbs-3e6ec337-13dd-4caa-971d-938db415c2c5",
+  "title": "Milestone 2: local Prospectus sales and customer-success proof",
+  "description": "Deliver a separate local Prospectus app consuming actual Kanbus issue operations and Virtuus persistence. Show marketing intake, salesperson follow-up, workflow progression and customer-success ownership. Keep product backlog separate from synthetic CRM records.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:46:21.007765Z",
+  "updated_at": "2026-10-13T23:46:21.038334Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
