@@ -22,10 +22,46 @@
         "model": "GPT-6",
         "name": "Prospectus Standard Amplify Preparation"
       }
+    },
+    {
+      "id": "fa142f3e-1ca6-46dd-a6c4-86c763996835",
+      "author": "home",
+      "text": "Owner explicitly authorized standard Amplify role setup and deployment. Account 682849160744 was verified; AmplifyProspectusBackendDeploy was created with AWS-managed AmplifyBackendDeployFullAccess and assigned only to app dnfou6dg4d6x2, with app/account-restricted Amplify trust. Existing marketing/CDK execution policy is unchanged. Google secret metadata now shows AWSCURRENT; no secret values were read. Source commit 861c0d7fa909772f8e234f221b8d426cfb587b07 removes the custom bootstrap requirement; local 18 infrastructure tests, actual offline standard Gen2 synthesis, 11 application tests and production build pass. The public source proof branch is connected. AWS required recreation of the verified empty manual proof branch before repository connection; same app/domain retained and auto-build remains disabled. Authorized Amplify job 1 has started, initially PENDING; this is not a successful hosted deployment claim.",
+      "created_at": "2026-10-14T11:02:39.640696Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Deployment"
+      }
+    },
+    {
+      "id": "e57348e5-abfb-48cd-b10c-172300165936",
+      "author": "home",
+      "text": "Actual deployment checkpoint: job 1 failed before build commands because Amplify could not assume the selected role. AWS documents a branch SourceArn; the role condition was corrected from bare app ARN to exact app/proof branch ARN, retaining the same principal, account and managed policy. Authorized retry job 2 is RUNNING and has passed role assumption, scope verification, shared UI build, typecheck and application tests; pinned Linux Rust packaging is underway. Both remote CI runs at commit 861c0d7fa909772f8e234f221b8d426cfb587b07 passed completely. The recreated branch hostname mapping has been restored; hosted TLS/Google/CRUD acceptance is not yet complete. No additional execution-policy grant or marketing change was made.",
+      "created_at": "2026-10-14T11:11:24.381012Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Deployment"
+      }
+    },
+    {
+      "id": "4e359d96-b65e-4590-83e7-0c035aabfe5b",
+      "author": "home",
+      "text": "Job 2 finished FAILED after successful source checks, pinned Linux Rust packaging and infrastructure checks. Actual CloudFormation denial: existing shared execution role cdk-hnb659fds-cfn-exec-role-682849160744-us-east-1 lacks iam:PassRole on its own exact ARN while creating nested Prospectus stack. Root amplify-dnfou6dg4d6x2-proof-branch-476c8c6dca is ROLLBACK_COMPLETE. This additional persistent execution-role permission has not been applied; existing marketing policy is unchanged. Role assignment/source connection and Google AWSCURRENT metadata are verified. No backend/frontend deployment or hosted Google/CRUD acceptance is claimed. Exact evidence is in Prospectus infra/DEPLOYMENT_EVIDENCE.md. Both source CI runs remain successful; task stays open pending authorization and recovery.",
+      "created_at": "2026-10-14T11:19:24.669056Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Deployment"
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:22.253800Z",
-  "updated_at": "2026-10-14T10:43:20.727003Z",
+  "updated_at": "2026-10-14T11:19:24.669083Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
