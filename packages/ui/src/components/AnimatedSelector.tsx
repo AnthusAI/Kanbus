@@ -22,6 +22,7 @@ export interface AnimatedSelectorProps {
 
 function motionMode(): string {
   if (typeof document === "undefined") return "off";
+  if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return "off";
   return document.documentElement.dataset.motion ?? "full";
 }
 
@@ -242,6 +243,7 @@ export function AnimatedSelector({
               buttonRefs.current[option.id] = node;
             }}
             role="tab"
+            aria-label={option.label}
             aria-selected={selected}
             data-selector={name}
             data-option={option.id}

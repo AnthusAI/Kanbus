@@ -14,13 +14,15 @@ import type {
   KanbanSortRule
 } from "./types";
 import { BoardColumn } from "./BoardColumn";
+import { useBoardColumnState } from "./useBoardColumnState";
 import { useBoardTransitions } from "./useBoardTransitions";
 import {
   normalizeMotionConfig,
+  useReducedMotion,
   type KanbanMotionConfig
 } from "./motion";
 
-interface BoardProps {
+export interface BoardProps {
   columns: string[];
   issues: KanbanIssue[];
   priorityLookup: Record<number, string>;
@@ -31,7 +33,10 @@ interface BoardProps {
   detailOpen?: boolean;
   collapsedColumns?: Set<string>;
   onToggleCollapse?: (column: string) => void;
+  /** Optional workspace/account-scoped persistence; default collapse works without a host callback. */
+  columnStateKey?: string;
   motion?: KanbanMotionConfig;
+  initialScroll?: "start" | "end" | "preserve";
 }
 
 type IssueComparator = (a: KanbanIssue, b: KanbanIssue) => number;
@@ -254,13 +259,19 @@ function BoardComponent({
   selectedIssueId,
   transitionKey,
   detailOpen,
-  collapsedColumns = new Set(),
+  collapsedColumns,
   onToggleCollapse,
-  motion
+  columnStateKey,
+  motion,
+  initialScroll = "end"
 }: BoardProps) {
+  const columnState = useBoardColumnState({ config, columns, storageKey: collapsedColumns === undefined ? columnStateKey : undefined });
+  const visibleCollapsedColumns = collapsedColumns ?? columnState.collapsedColumns;
+  const toggleColumn = onToggleCollapse ?? (collapsedColumns === undefined ? columnState.toggleColumn : undefined);
   const useIsomorphicLayoutEffect =
     typeof window === "undefined" ? useEffect : useLayoutEffect;
-  const resolvedMotion = normalizeMotionConfig(motion);
+  const reducedMotion = useReducedMotion();
+  const resolvedMotion = reducedMotion ? { mode: "static" as const } : normalizeMotionConfig(motion);
   const scope = useBoardTransitions(transitionKey ?? "", resolvedMotion.mode === "css");
   const boardRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
@@ -348,7 +359,7 @@ function BoardComponent({
   }, [renderedIssues]);
 
   useIsomorphicLayoutEffect(() => {
-    if (didInitialScroll.current) {
+    if (initialScroll === "preserve" || didInitialScroll.current) {
       return;
     }
     const node = boardRef.current;
@@ -359,9 +370,9 @@ function BoardComponent({
     if (maxScrollLeft <= 0) {
       return;
     }
-    node.scrollLeft = maxScrollLeft;
+    node.scrollLeft = initialScroll === "start" ? 0 : maxScrollLeft;
     didInitialScroll.current = true;
-  }, [columns.length]);
+  }, [columns.length, initialScroll]);
 
   useEffect(() => {
     if (!detailOpen) return;
@@ -369,11 +380,11 @@ function BoardComponent({
     if (!node) return;
     const maxScrollLeft = node.scrollWidth - node.clientWidth;
     if (maxScrollLeft <= 0) return;
-    node.scrollTo({ left: maxScrollLeft, behavior: "smooth" });
-  }, [detailOpen]);
+    node.scrollTo({ left: maxScrollLeft, behavior: reducedMotion ? "auto" : "smooth" });
+  }, [detailOpen, reducedMotion]);
 
   return (
-    <div ref={setBoardRef} className="kb-grid gap-2">
+    <div ref={setBoardRef} className="kb-grid gap-2" data-motion={resolvedMotion.mode}>
       {columns.map((column) => {
         const columnIssues = renderedIssues.filter((issue) => issue.status === column);
         const comparator = resolveColumnComparator(column, config);
@@ -390,8 +401,8 @@ function BoardComponent({
             config={config}
             onSelectIssue={onSelectIssue}
             selectedIssueId={selectedIssueId}
-            collapsed={collapsedColumns.has(column)}
-            onToggleCollapse={() => onToggleCollapse?.(column)}
+            collapsed={visibleCollapsedColumns.has(column)}
+            onToggleCollapse={toggleColumn ? () => toggleColumn(column) : undefined}
             motion={resolvedMotion}
           />
         );
