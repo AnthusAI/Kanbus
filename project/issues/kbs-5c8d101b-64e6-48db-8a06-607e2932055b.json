@@ -10,9 +10,25 @@
   "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a2b49733-f2e4-4472-bc2a-f6f1a83323d9",
+      "author": "home",
+      "text": "Approved Accounts activation is deployed. Full CI and the cloud build/deploy/verify pipeline passed. Live Google identity connection and persistence across reload passed, with the expected empty directory and no automatic account or membership grants. Deployed permission and unauthorized-request checks passed; detailed evidence remains private. Populated production account/member acceptance remains pending authorized test memberships; persisted fixture isolation passed in CI. Public intake remains separate and inactive.",
+      "created_at": "2026-10-15T18:56:14.965734Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-15T17:57:02.887785Z",
-  "updated_at": "2026-10-15T18:00:31.702302Z",
+  "updated_at": "2026-10-15T18:56:14.965983Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -22,8 +38,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "Packaging and IAM checks are being completed before the approved Accounts directory is integrated through main.",
-  "right_now_updated_at": "2026-10-15T18:00:34.670722Z",
+  "right_now_summary": "Activation is deployed and verified; populated account/member acceptance awaits authorized test memberships.",
+  "right_now_updated_at": "2026-10-15T18:56:17.447962Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
