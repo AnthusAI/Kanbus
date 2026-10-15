@@ -69,10 +69,25 @@
         "model": "GPT-6",
         "name": "Prospectus Standard Amplify Preparation"
       }
+    },
+    {
+      "id": "9bccbd69-15ad-4b74-8818-5bd0aa893c2c",
+      "author": "home",
+      "text": "MVP status reconciliation from original plan/thread and actual source: deployed main13155d7 contains foundation manual create/read/update, stage progression, owner/date, notes, search, board/list, customer view and Google staff access. Full hosted mutation acceptance remains distinct from passed local/CI proofs. The separate local inquiry MVP (initiativekanbus-090f3f, epickanbus-c25497, storieskanbus-27b52c/ead936/0808e0 in the other owner checkout) was implemented beginning5eebfb5, then hardened9ed6ef6 and36d148d; final intake branch004afc4 includes synthetic CTA form, canonical persistence, email dedupe, provenance, contact correction, dated next actions, due exclusion, same-ID customer handoff and recovery. It has not been published/merged/deployed; public-push approval was denied, and production intake activation/real-S3 fault acceptance remain uncompleted. Original suggested exception view, closure reason and metrics dashboard are not implemented. Demo appointment scheduling, invitations/onboarding, notifications and commercial metering belong later planned scope; central accounts/identity is local prototype work, not shipped CRM. No new MVP implementation or deployment undertaken for this status question.",
+      "created_at": "2026-10-15T15:36:01.178413Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-14T10:45:02.777882Z",
+  "updated_at": "2026-10-15T15:36:01.178447Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
