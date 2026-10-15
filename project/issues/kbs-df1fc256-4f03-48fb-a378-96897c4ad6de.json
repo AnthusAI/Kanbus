@@ -10,16 +10,50 @@
   "parent": "kbs-3e6ec337-13dd-4caa-971d-938db415c2c5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "84694c7b-03ad-4940-ae91-fc594ae2ea03",
+      "author": "home",
+      "text": "Ryan now explicitly authorized publishing, merging and deploying pending CRM MVP for evaluation. Reconciliation is isolated at prospectus-evaluation on main13155d7, excluding central-account prototype and internal tracking artifacts. Existing33 tests and5 new evaluation-boundary tests pass; frontend/typecheck pass using the prior organizer package locally while waiting for root/shared owner final export/pin. Preparing disabled additive synthetic-only intake IaC for exact new runtime/access approval; no IAM/OAuth/security grant has been made. Accounts API/UI remains separately owned and will be integrated only on handoff. Existing old Cyclotron routing retirement is separate from this CRM release.",
+      "created_at": "2026-10-15T15:54:28.899621Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "d69518b1-50cb-42dc-9863-2d522414a7d0",
+      "author": "home",
+      "text": "Clean public release PR3 https://github.com/AnthusAI/Prospectus/pull/3 is published under Ryan explicit authorization, head966e000cc5663422aeedff606238eab14ef90dc5. Reconciled existing MVP without accounts prototype/internal artifacts.38 app tests,11 infra checks,4 Virtuus binding/mock tests, exact API integration and6 browser acceptance tests PASS (3 separate LAN-only skipped). Shared column collapse/layout/reload proof passes. Runtime-only npm audit0 advisories. UI0.2.0 candidate454f165b is independently pinned from API25410911/Virtuus639f873 because UI PR402 excludes services/kanbus-api. Await shared owner release/merge handoff. Additive synthetic intake proposal remains disabled pending exact role/runtime approval; no IAM/OAuth/secret changes. Accounts visible increment separately owned and pending handoff. Latest CI38766291389 running; no CRM merge/deploy yet.",
+      "created_at": "2026-10-15T16:08:37.323757Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-13T23:46:21.779472Z",
-  "updated_at": "2026-10-14T00:23:14.621960Z",
+  "updated_at": "2026-10-15T16:08:37.324396Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "The CRM MVP passed tests and awaits shared-owner approval to merge and deploy.",
+  "right_now_updated_at": "2026-10-15T16:08:40.765317Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

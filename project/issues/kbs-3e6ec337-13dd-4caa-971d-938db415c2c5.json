@@ -19,7 +19,7 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "The CRM MVP passed tests and awaits shared-owner approval before merge and deployment.",
+  "right_now_updated_at": "2026-10-15T16:08:42.608736Z",
   "custom": {}
 }
