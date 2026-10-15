@@ -114,18 +114,33 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "689acd44-53d3-4d78-a1b6-7d77ec8eafc3",
+      "author": "home",
+      "text": "Both approved CRM and Accounts frontend releases are now merged and deployed on main a58aeb8. Both complete PR CI runs passed; cloud build/deploy/verify all succeeded. Normal hosted HTTPS serves the final Accounts and Next action assets with Anthus branding and the explicit unconfigured directory message. No account backend or public intake activation/grant. Browser provider and native capture failures prevent independent signed-in hosted UI verification; disposable real-API/browser checks passed. Retirement story is closed; detailed cleanup evidence remains private.",
+      "created_at": "2026-10-15T17:29:00.830449Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-15T17:21:06.096563Z",
+  "updated_at": "2026-10-15T17:29:00.830494Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "CRM release is deployed and verified, while signed-in browser proof and public intake activation remain pending.",
-  "right_now_updated_at": "2026-10-15T17:21:16.001266Z",
+  "right_now_summary": "The CRM and Accounts releases are deployed, but hosted sign-in proof is unavailable and Accounts backend activation",
+  "right_now_updated_at": "2026-10-15T17:29:04.262358Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
