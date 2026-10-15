@@ -68,8 +68,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "The replacement is deployed and the hostname verified, but Google login and data continuity still need testing.",
-  "right_now_updated_at": "2026-10-15T02:03:18.440148Z",
+  "right_now_summary": "The replacement is live and verified, while the old CRM and all data remain preserved.",
+  "right_now_updated_at": "2026-10-15T16:52:31.736661Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

@@ -1,19 +1,35 @@
 {
   "id": "kbs-9a383236-4394-4a44-bc86-39e46b45844b",
   "title": "Remove the obsolete dedicated Prospectus deployment after target confirmation",
-  "description": "Given the central application is healthy and the private ownership/data inventory receives action-time confirmation, when the obsolete deployment and its exclusive retained resources are removed, then no obsolete redirect or backend remains while central, marketing and shared resources are unchanged. Exact resource identifiers and credential-reference evidence remain private. No irreversible deletion has been attempted; the coordinator is obtaining confirmation.",
+  "description": "Given the central application is healthy and the private ownership/data inventory has explicit action-time confirmation, when the obsolete deployment and its exclusive retained resources are removed, then no obsolete redirect or backend remains while central, marketing and shared resources are preserved. Exact inventory and evidence remain private. Confirmed deletion is complete; the obsolete secret copy is in its approved recovery period.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "60283ca0-258d-4234-8556-c7f39f0b3091",
+      "author": "home",
+      "text": "Completed after explicit target confirmation. Readback confirms the obsolete app, API, functions, dedicated roles, pool, table and bucket are absent. The former default hostname no longer resolves, central HTTPS remains healthy, and marketing plus central credential metadata remain preserved. Recovery deletion is scheduled for the obsolete secret copy. Detailed evidence is retained privately.",
+      "created_at": "2026-10-15T16:52:20.796350Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-15T16:24:43.146367Z",
-  "updated_at": "2026-10-15T16:24:43.175660Z",
-  "closed_at": null,
+  "updated_at": "2026-10-15T16:52:27.210619Z",
+  "closed_at": "2026-10-15T16:52:27.173999Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",
@@ -22,7 +38,10 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "The obsolete deployment is removed, central services remain healthy, and the secret copy awaits scheduled deletion.",
+  "right_now_updated_at": "2026-10-15T16:52:30.541922Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

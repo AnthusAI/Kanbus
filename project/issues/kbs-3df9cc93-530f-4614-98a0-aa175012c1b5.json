@@ -94,8 +94,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Local preparation continues, but Google owner credentials still block hosted proof and deployment.",
-  "right_now_updated_at": "2026-10-15T16:08:44.722092Z",
+  "right_now_summary": "Local proofs pass, but remote rerun, Google credentials, review, merge, and deployment remain pending.",
+  "right_now_updated_at": "2026-10-15T16:52:34.930835Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
