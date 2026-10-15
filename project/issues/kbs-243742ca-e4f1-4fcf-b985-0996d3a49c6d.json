@@ -10,9 +10,25 @@
   "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "33648dc1-77b0-401a-8592-9085575aea90",
+      "author": "home",
+      "text": "PR #2 merged with specific approval to main 13155d7f2542f1bf2e3fc80cd1fb0a3398546c56 after full CI38668882232 passed. Amplify job4 exact commit BUILD/DEPLOY/VERIFY SUCCEED. Normal HTTPS and actual Chrome reload at prospectus.anth.us show Anthus and browser title Prospectus · Anthus; old visible branding absent from deployed bundle. Fresh inventories: zero prospect records in source and target, configuration bytes identical. Immutable Google identity continuity and existing admin/member roles verified; hosted authenticated board/CRUD acceptance still pending refreshed user session. No unrelated permission or customer data changes.",
+      "created_at": "2026-10-15T02:29:58.787129Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-15T00:20:13.504729Z",
-  "updated_at": "2026-10-15T00:20:13.532038Z",
+  "updated_at": "2026-10-15T02:29:58.787168Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -24,5 +40,8 @@
   },
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
