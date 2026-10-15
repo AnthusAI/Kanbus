@@ -40,10 +40,40 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "89c6499c-fcac-4e68-b2bf-413291cdd3dc",
+      "author": "home",
+      "text": "Ryan approved the exact previously proposed operator read mapping. Implementation will preserve issuer/subject matching using a one-way subject digest in public source, retain all write restrictions and deploy through main. Dedicated console client creation is staged ahead of any console principal policy activation to preserve safe ordering.",
+      "created_at": "2026-10-15T21:32:29.655175Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "471cf540-03e6-4614-a394-24019185c69c",
+      "author": "home",
+      "text": "Approved activation and dedicated client stage are preserved on existing PR7 at 9df79f4. Typecheck, operator policy tests, all13 infrastructure tests and actual Gen2 synthesis pass. Required hosted CI is running. No changes remain uncommitted; console pair stays inactive pending exact role/trust verification.",
+      "created_at": "2026-10-15T21:39:29.609937Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T19:23:25.386650Z",
-  "updated_at": "2026-10-15T19:52:44.972163Z",
+  "updated_at": "2026-10-15T21:39:29.609968Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -53,8 +83,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "The read-only operator directory is built, but activation awaits exact role and verified identity and trust checks.",
+  "right_now_updated_at": "2026-10-15T21:39:31.547725Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

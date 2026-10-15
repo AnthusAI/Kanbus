@@ -1,0 +1,31 @@
+{
+  "id": "kbs-d5ec480e-c50f-4bad-8d69-4592798de1d8",
+  "title": "Provision the approved dedicated console login before enabling its exact runtime pair",
+  "description": "Given the approved dedicated console callback and logout URLs in the existing central Google-only pool, when the normal main deployment runs, then one public code-flow console client with refresh and revocation is created without changing the CRM client or Google provider. Given the exact console BFF and worker roles do not yet exist, when the client is provisioned, then no console principal is added to the central registry or API policy. Given the console owner supplies existing exact role trust proof afterward, when the approved second stage is deployed, then only the approved role-pair paths and console read/write capabilities are enabled while directory and membership management remain denied.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-15T21:32:29.913979Z",
+  "updated_at": "2026-10-15T21:39:24.406266Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "The approved console login is awaiting its exact runtime role pair before access can be enabled.",
+  "right_now_updated_at": "2026-10-15T21:39:25.525942Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
