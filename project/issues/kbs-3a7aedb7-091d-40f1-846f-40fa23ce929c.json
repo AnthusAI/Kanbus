@@ -1,0 +1,28 @@
+{
+  "id": "kbs-3a7aedb7-091d-40f1-846f-40fa23ce929c",
+  "title": "Preserve Google identity and administrator continuity across the replacement",
+  "description": "Given the existing Google-linked administrator and canonical actor references, when the same verified Google issuer/subject signs into the tested replacement, then role continuity and any changed Cognito subject mapping are explicit and verified without pre-created password accounts or invitations. The original pool/profile remains untouched. New Google credential/redirect binding and app-scoped role resources require concrete review before mutation.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-15T00:20:13.314001Z",
+  "updated_at": "2026-10-15T00:20:13.340781Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

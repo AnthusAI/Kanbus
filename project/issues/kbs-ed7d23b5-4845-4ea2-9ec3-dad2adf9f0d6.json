@@ -1,0 +1,28 @@
+{
+  "id": "kbs-ed7d23b5-4845-4ea2-9ec3-dad2adf9f0d6",
+  "title": "Preserve canonical CRM files through a verified cross-account snapshot",
+  "description": "Given a complete source inventory and an agreed quiescent final snapshot, when a replacement Virtuus store is initialized in papyrus-production, then canonical paths/bytes/history/issueIDs are preserved, destination native revisions and supplemental catalog are validated, concurrent source writes are reconciled, and the source remains intact. Never blindly copy source-specific catalog pointers. Identity/S3 worker owns the storage contract; no competing schema or namespace redesign.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-15T00:20:13.108964Z",
+  "updated_at": "2026-10-15T00:20:13.133610Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

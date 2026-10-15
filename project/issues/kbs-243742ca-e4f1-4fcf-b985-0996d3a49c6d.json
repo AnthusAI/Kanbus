@@ -1,0 +1,28 @@
+{
+  "id": "kbs-243742ca-e4f1-4fcf-b985-0996d3a49c6d",
+  "title": "Cut over only after replacement authentication and CRM persistence pass",
+  "description": "Given the new app passes anonymous401, nonmember403, Google-admin access and real create/move/note/reload/conflict checks, when an explicitly approved DNS change uses the exact verified Amplify target for prospectus.anth.us, then clients reach the replacement with a documented rollback while the old instance and data remain available. No deletion or DNS cutover before acceptance; the separate marketing site is not migrated by this story.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-15T00:20:13.504729Z",
+  "updated_at": "2026-10-15T00:20:13.532038Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

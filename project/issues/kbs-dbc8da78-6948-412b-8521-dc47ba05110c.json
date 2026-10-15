@@ -1,0 +1,28 @@
+{
+  "id": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "title": "Migrate shared production Prospectus CRM to papyrus-production",
+  "description": "Ryan changed the authoritative CRM target to papyrus-production account712236451410 and prospectus.anth.us. Preserve the live Cyclotron instance and every identity/data record until a separately tested replacement and exact DNS target are verified. Use ordinary Amplify/standard existing bootstrap, no bespoke IAM. SourceSSO currently expired; targetAdminSSO and standard bootstrap verified. Coordinate identity/S3 contract with task01a13a6b; marketing site is separate and excluded. Obtain concrete approval before new persistent grants or credential bindings; no cutover/deletion now.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-15T00:20:12.926656Z",
+  "updated_at": "2026-10-15T00:20:12.961833Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
