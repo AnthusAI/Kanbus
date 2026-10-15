@@ -3,7 +3,7 @@
   "title": "Require execution delegation regression tests in Accounts CI",
   "description": "Given an enabled Accounts deployment with the native fixture built and verified, when required CI runs its persisted isolation step, then it also runs accounts/execution-delegation.test.ts and fails if that suite fails. Given no approved operator or execution-pair activation, when this CI correction is adopted, then runtime registries, grants, IAM and OAuth remain unchanged.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -25,11 +25,26 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "c6af468e-78c4-4402-b990-5a7d856c1976",
+      "author": "home",
+      "text": "Required delegation regression coverage is now in the main pipeline through PR7, merge f8463f3. Hosted CI38810953987 passed all29steps, including the explicit delegation/native isolation suite, and Amplifyjob9 succeeded. The prior CI wiring gap is resolved.\n",
+      "created_at": "2026-10-15T22:04:31.519902Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T20:26:08.253520Z",
-  "updated_at": "2026-10-15T20:27:55.990203Z",
-  "closed_at": null,
+  "updated_at": "2026-10-15T22:04:39.826443Z",
+  "closed_at": "2026-10-15T22:04:39.803728Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",
@@ -38,8 +53,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "Accounts CI now runs execution-delegation tests, while runtime activation and authorization remain unchanged.",
-  "right_now_updated_at": "2026-10-15T20:27:57.053037Z",
+  "right_now_summary": "The main pipeline now runs execution-delegation regression tests, and all required checks pass.",
+  "right_now_updated_at": "2026-10-15T22:04:41.091438Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
