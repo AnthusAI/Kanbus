@@ -10,9 +10,17 @@
   "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "0f671e31-9b05-4ab8-8f13-7fcd8e0e07f2",
+      "author": "home",
+      "text": "Replacement deployed from main f2950638f87caf88149991bd83525f7d7f96d278 in papyrus-production. Amplify app d15sc1sptohtqb job 3 BUILD/DEPLOY/VERIFY SUCCEED; main CI 38665501280 SUCCESS including backend packaging and browser persistence. Standard existing service role/bootstrap worked; console image and legacy CLI override were corrected in source settings, with no policy/trust expansion. New frontend HTTP200, anonymous API401, controlled read-only member-context config/list200 and admin-only403. Tracked operational config initialized create-only with verified checksum, no prospects seeded. Old CRM HTTP200 and data preserved. Custom hostname/DNS cutover, actual Google sign-in and user/membership continuity remain pending; initiative not complete.",
+      "created_at": "2026-10-15T01:39:17.349849Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-15T00:20:12.926656Z",
-  "updated_at": "2026-10-15T00:20:12.961833Z",
+  "updated_at": "2026-10-15T01:39:17.349877Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -22,7 +30,10 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "The replacement is deployed and verified, but authentication, data migration, and DNS cutover still await approval and",
+  "right_now_updated_at": "2026-10-15T01:39:19.802227Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
