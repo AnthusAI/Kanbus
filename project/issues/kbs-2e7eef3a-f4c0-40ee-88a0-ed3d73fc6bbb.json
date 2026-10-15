@@ -1,0 +1,47 @@
+{
+  "id": "kbs-2e7eef3a-f4c0-40ee-88a0-ed3d73fc6bbb",
+  "title": "Clarify Accounts sign-in and restore actionable controls",
+  "description": "Given a signed-in user reaches Accounts before the current login has canonical identity confirmation, when the view is displayed, then it explains the required Google confirmation without implying a service failure. Controls must be visibly interactive, prevent duplicate connection submissions, expose progress and errors, and ordinary explanatory text must remain selectable. Preserve issuer/subject/nonce verification and create no memberships or administrative grants. Reproduce the session behavior and document the administrative-directory scope mismatch before redesign.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fd98c711-9016-44b2-b9d4-bc0ff81cd365",
+      "author": "home",
+      "text": "Implemented scoped confirmation copy, selectable explanatory text, styled controls and duplicate-submission protection. Production build and synthetic browser regression pass. Existing session-confirmation behavior reproduced live. Broader directory scope mismatch is documented privately for product coordination; this change does not expand access.",
+      "created_at": "2026-10-15T19:20:50.349608Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T19:12:51.864663Z",
+  "updated_at": "2026-10-15T19:20:50.349632Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
