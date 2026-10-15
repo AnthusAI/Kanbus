@@ -40,17 +40,35 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "eb1d98c2-94cf-4d4d-8c6f-f8f2e174b7f8",
+      "author": "home",
+      "text": "Prospectus consumer now deployed from reviewed Kanbus UI0.2.0 merged19ac921 via IssueCollection -> shared exported Board, using shared collapse persistence, detail sizing and organizer theme. Final consumer CI and hosted deployment passed; standalone/shared owner release passed all gates. Published release tarball checksum independently matches the owner handoff. No duplicate Board implementation introduced. Broader cross-app production acceptance remains owned by the shared UI/Papyrus work.",
+      "created_at": "2026-10-15T17:21:09.556175Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:21.470723Z",
-  "updated_at": "2026-10-15T15:36:00.973816Z",
+  "updated_at": "2026-10-15T17:21:09.556217Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "Prospectus now uses the shared Kanbus board, while standalone behavior and host-controlled navigation remain intact.",
+  "right_now_updated_at": "2026-10-15T17:21:11.028526Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }

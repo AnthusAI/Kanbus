@@ -99,18 +99,33 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "acefb9c7-2af2-4619-8ac2-b04c40100190",
+      "author": "home",
+      "text": "CRM release PR3 merged to main at 9c31a5b after final CI38773225377 SUCCESS. Hosted deployment completed all build/deploy/verify steps. Normal HTTPS serves the new frontend with Next action and Anthus branding, no visible Cyclotron label. Same released shared UI0.2.0 source is pinned to merged Kanbus19ac921; API/Virtuus pins unchanged. Public synthetic intake remains disabled. Accounts UI-only PR4 is also merged after final CI38773266387 SUCCESS and is rolling out separately; its backend remains unconfigured and no grants were activated. Current browser-provider failure prevents an independent signed-in hosted mutation proof; disposable real-API/browser proof passed in CI.",
+      "created_at": "2026-10-15T17:21:06.096504Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-15T16:53:57.381856Z",
+  "updated_at": "2026-10-15T17:21:06.096563Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "The CRM MVP passes tests, while owner approval, deployment, and Google authentication remain unresolved.",
-  "right_now_updated_at": "2026-10-15T16:53:59.952758Z",
+  "right_now_summary": "CRM release is deployed and verified, while signed-in browser proof and public intake activation remain pending.",
+  "right_now_updated_at": "2026-10-15T17:21:16.001266Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

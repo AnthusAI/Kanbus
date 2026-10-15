@@ -19,8 +19,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "Shared Kanbus views now power the single-project Prospectus board; multi-project selection remains future work.",
+  "right_now_updated_at": "2026-10-15T17:21:13.522316Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
