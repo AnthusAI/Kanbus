@@ -154,8 +154,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "CRM and Accounts are deployed; backend activation and independent signed-in hosted proof still await approval and",
-  "right_now_updated_at": "2026-10-15T21:39:36.684827Z",
+  "right_now_summary": "The shared Kanbus UI is deployed; Prospectus still lacks backend activation and independent private signed-in",
+  "right_now_updated_at": "2026-10-15T21:46:20.279828Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

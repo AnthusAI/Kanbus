@@ -68,8 +68,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "The replacement is live at prospectus.anth.us, while old services and data stay preserved and hosted CRM testing awaits.",
-  "right_now_updated_at": "2026-10-15T21:39:34.416884Z",
+  "right_now_summary": "Authenticated access works on the new Prospectus site, while the old instance and data remain preserved.",
+  "right_now_updated_at": "2026-10-15T21:46:17.932948Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
