@@ -3,7 +3,7 @@
   "title": "Clarify Accounts sign-in and restore actionable controls",
   "description": "Given a signed-in user reaches Accounts before the current login has canonical identity confirmation, when the view is displayed, then it explains the required Google confirmation without implying a service failure. Controls must be visibly interactive, prevent duplicate connection submissions, expose progress and errors, and ordinary explanatory text must remain selectable. Preserve issuer/subject/nonce verification and create no memberships or administrative grants. Reproduce the session behavior and document the administrative-directory scope mismatch before redesign.",
   "type": "bug",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -28,7 +28,7 @@
     }
   ],
   "created_at": "2026-10-15T19:12:51.864663Z",
-  "updated_at": "2026-10-15T19:20:50.349632Z",
+  "updated_at": "2026-10-15T19:33:31.601770Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

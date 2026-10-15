@@ -3,7 +3,7 @@
   "title": "Browse the central account directory as an explicitly authorized operator",
   "description": "Given an explicitly approved central Accounts read permission bound to a verified issuer and subject, when the operator opens Account administration, then all canonical organizations and their entitlements and memberships are available read-only. Given a generic CRM admin or personal account member without that permission, when requesting the operator directory or another organization, then access is denied and personal membership isolation remains intact. Given no approved operator grants, when deploying the code, then the operator permission remains inactive. Given unconfirmed or mismatched identity evidence, when requesting operator records, then access is denied without email matching or automatic grants.",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -28,7 +28,7 @@
     }
   ],
   "created_at": "2026-10-15T19:23:25.386650Z",
-  "updated_at": "2026-10-15T19:29:24.270636Z",
+  "updated_at": "2026-10-15T19:33:31.458365Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
