@@ -84,18 +84,33 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "f78160d9-bda3-4fd0-9958-580d7a34ffa5",
+      "author": "home",
+      "text": "Safe CRM release PR3 passes its application, infrastructure, Linux API and browser checks. Shared UI dependency release is pending its final owner gate, so production remains on the accepted earlier release. Separate Accounts frontend PR4 includes actual service DTOs and explicit unconfigured/loading/empty/error states, no fabricated directory or backend activation; TypeScript and three client checks pass, remote complete-flow CI running. Accounts behavior specifications are in features/accounts-directory.feature. Legacy dedicated deployment removal is verified and tracked in the closed retirement story; private inventory is not published.",
+      "created_at": "2026-10-15T16:53:57.381812Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-15T15:36:01.178447Z",
+  "updated_at": "2026-10-15T16:53:57.381856Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Local proofs pass, but remote rerun, Google credentials, review, merge, and deployment remain pending.",
-  "right_now_updated_at": "2026-10-15T16:52:34.930835Z",
+  "right_now_summary": "The CRM MVP passes tests, while owner approval, deployment, and Google authentication remain unresolved.",
+  "right_now_updated_at": "2026-10-15T16:53:59.952758Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
