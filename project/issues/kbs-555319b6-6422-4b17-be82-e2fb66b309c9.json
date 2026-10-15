@@ -25,10 +25,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "2e62424a-97d9-419f-a08f-96c7cbc86d87",
+      "author": "home",
+      "text": "Separate PR7 (604c479) now passes the complete hosted CI suite, including Linux Node24 packaging, persisted identity/account isolation, synthetic browser regressions and actual browser-BFF-Virtuus proof. Production operator grants remain empty. Exact identity/scope proposal is prepared privately; no generic CRM administrator inheritance or membership grants were added.",
+      "created_at": "2026-10-15T19:52:44.971827Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T19:23:25.386650Z",
-  "updated_at": "2026-10-15T19:33:31.458365Z",
+  "updated_at": "2026-10-15T19:52:44.972163Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
