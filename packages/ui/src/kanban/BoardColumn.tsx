@@ -4,7 +4,7 @@ import type { KanbanConfig, KanbanIssue } from "./types";
 import { IssueCard } from "./IssueCard";
 import type { KanbanMotionConfig } from "./motion";
 
-interface BoardColumnProps {
+export interface BoardColumnProps {
   columnKey?: string;
   title: string;
   issues: KanbanIssue[];
@@ -17,78 +17,26 @@ interface BoardColumnProps {
   motion?: KanbanMotionConfig;
 }
 
-export function BoardColumn({
-  columnKey,
-  title,
-  issues,
-  priorityLookup,
-  config,
-  onSelectIssue,
-  selectedIssueId,
-  collapsed = false,
-  onToggleCollapse,
-  motion
-}: BoardColumnProps) {
-  if (collapsed) {
-    return (
-      <div
-        className="kb-column flex flex-col items-center h-full min-h-0 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
-        style={{ minWidth: "48px", maxWidth: "48px" }}
-        data-column-key={columnKey}
-        onClick={onToggleCollapse}
-        title={`${title.replace(/_/g, " ")} (${issues.length}) - Click to expand`}
-      >
-        <div className="h-7 flex items-center justify-center px-2 w-full">
-          <span className="text-xs font-semibold">{issues.length}</span>
-        </div>
-        <div className="flex flex-col items-center px-2">
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{
-              writingMode: "vertical-rl",
-              transform: "rotate(180deg)",
-              whiteSpace: "nowrap"
-            }}
-          >
-            {title.replace(/_/g, " ")}
-          </span>
-        </div>
-        <div className="h-7 flex items-center justify-center px-2 w-full">
-          <ChevronRight className="w-4 h-4 text-muted" aria-hidden="true" />
-        </div>
-      </div>
-    );
-  }
-
+export function BoardColumn({ columnKey, title, issues, priorityLookup, config, onSelectIssue,
+  selectedIssueId, collapsed = false, onToggleCollapse, motion }: BoardColumnProps) {
+  const displayTitle = title.replace(/_/g, " ");
   return (
-    <div className="kb-column flex flex-col h-full min-h-0" data-column-key={columnKey}>
-      <div
-        className="kb-column-header h-7 items-center flex justify-between px-3 cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={onToggleCollapse}
-        title="Click to collapse"
-      >
-        <span className="column-animate-in inline-flex items-center gap-0 min-w-0">
-          <span className="min-w-0 truncate">{title.replace(/_/g, " ")}</span>
-          <ChevronLeft className="w-4 h-4 text-muted shrink-0" aria-hidden="true" />
+    <div className={`kb-column flex flex-col h-full min-h-0${collapsed ? " kb-column-collapsed" : ""}`} data-column-key={columnKey}>
+      <button type="button" className="kb-column-header" onClick={onToggleCollapse}
+        disabled={!onToggleCollapse} aria-label={`${collapsed ? "Expand" : "Collapse"} ${displayTitle}`}
+        aria-expanded={!collapsed}>
+        <span className="column-animate-in kb-column-title">{displayTitle}
+          {onToggleCollapse && (collapsed ? <ChevronRight className="kb-collapse-icon" aria-hidden="true" /> : <ChevronLeft className="kb-collapse-icon" aria-hidden="true" />)}
         </span>
-        <span className="column-animate-in pr-1">{issues.length}</span>
-      </div>
-      <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
-        <div className="grid gap-2 min-h-[50px]" key={`${title}-issues`}>
-          {issues.map((issue, index) => (
-            <IssueCard
-              key={issue.id}
-              issue={issue}
-              priorityName={priorityLookup[issue.priority] ?? "medium"}
-              config={config}
-              onSelect={onSelectIssue}
-              isSelected={selectedIssueId === issue.id}
-              motion={motion}
-              motionIndex={index}
-            />
-          ))}
+        <span className="column-animate-in">{issues.length}</span>
+      </button>
+      {!collapsed && <div className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
+        <div className="grid gap-2 min-h-[50px]">
+          {issues.map((issue, index) => <IssueCard key={issue.id} issue={issue}
+            priorityName={priorityLookup[issue.priority] ?? "medium"} config={config}
+            onSelect={onSelectIssue} isSelected={selectedIssueId === issue.id} motion={motion} motionIndex={index} />)}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { KanbanStatusDefinition } from "./types";
+import type { KanbanConfig, KanbanStatusDefinition } from "./types";
 
 export type WorkflowDefinition = Record<string, string[]>;
 
@@ -75,4 +75,20 @@ export function getStatusColumnsForTypeFilter(
   return config.statuses
     .map((status) => status.key)
     .filter((key) => statusKeys.has(key));
+}
+
+/** Select ordered workflow columns for any host-defined issue types. */
+export function getStatusColumnsForIssueTypes(
+  config: Pick<KanbanConfig, "statuses" | "workflows">,
+  issueTypes: readonly string[]
+): string[] {
+  if (issueTypes.length === 0 || !config.workflows) {
+    return config.statuses.map((status) => status.key);
+  }
+  const statusKeys = new Set<string>();
+  for (const issueType of issueTypes) {
+    const workflow = getWorkflowForIssueType(config.workflows, issueType);
+    for (const status of collectWorkflowStatuses(workflow)) statusKeys.add(status);
+  }
+  return config.statuses.map((status) => status.key).filter((status) => statusKeys.has(status));
 }
