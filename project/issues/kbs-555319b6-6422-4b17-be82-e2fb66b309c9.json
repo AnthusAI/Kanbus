@@ -1,0 +1,47 @@
+{
+  "id": "kbs-555319b6-6422-4b17-be82-e2fb66b309c9",
+  "title": "Browse the central account directory as an explicitly authorized operator",
+  "description": "Given an explicitly approved central Accounts read permission bound to a verified issuer and subject, when the operator opens Account administration, then all canonical organizations and their entitlements and memberships are available read-only. Given a generic CRM admin or personal account member without that permission, when requesting the operator directory or another organization, then access is denied and personal membership isolation remains intact. Given no approved operator grants, when deploying the code, then the operator permission remains inactive. Given unconfirmed or mismatched identity evidence, when requesting operator records, then access is denied without email matching or automatic grants.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6d42a8a8-deba-4851-a4f2-f923292af46e",
+      "author": "home",
+      "text": "Implemented separate read-only operator API and administration UI, preserving personal membership isolation. Explicit deployment-owned permission defaults to no grants. Build, standard tests, 50 actual-Virtuus persisted tests, synthetic UI tests and browser-to-BFF-to-Virtuus proof pass locally. Activation remains pending review of the intended verified identity and explicit read scope.",
+      "created_at": "2026-10-15T19:29:24.270594Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T19:23:25.386650Z",
+  "updated_at": "2026-10-15T19:29:24.270636Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
