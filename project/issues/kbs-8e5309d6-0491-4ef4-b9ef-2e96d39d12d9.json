@@ -3,16 +3,32 @@
   "title": "Embed configured Kanbus boards without taking over the host app",
   "description": "As an app developer, I want to embed a configured Kanbus board so my application owns navigation and data access.\n\nFeature: Embedded Kanbus board\n  Scenario: Render a configured domain board\n    Given a host provides normal Kanbus issues and configured issue types and stages\n    When it renders the reusable board\n    Then columns use the configured names and permitted transitions\n    And selection and mutation interactions call the host contract\n    And the host retains routing, authentication and data access\n  Scenario: Preserve standalone usage\n    Given the standalone console configuration and existing records\n    When the console renders and interacts with its board\n    Then the existing standalone behavior remains available",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-fbfec688-e9dc-4dfd-8670-cfbc5c26ff80",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a6c6f3e2-db09-409a-ab9c-a4210ca6d814",
+      "author": "home",
+      "text": "Shared-board audit of Prospectus main 13155d7 (production verified earlier at the same commit): App.tsx imports IssueCollection from @kanbus/ui. package.json/package-lock.json resolve file:.build/kanbus/packages/ui version0.1.0. source-lock.json pins Kanbus2541091158c6a8fd7eac50153524948a5d603c62 and Virtuus639f873a73ebf1f68add2ae4b93f5fd117a539dc; checkout-kanbus.mjs verifies a clean exact checkout and verifies its API Virtuus pin. @kanbus/ui root exports ./kanban; IssueCollection imports the same ./Board exported as Board. The pinned standalone console App imports Board directly from @kanbus/ui. No copied Prospectus board/card/column implementation found.\n\nConsumer parity gaps: Prospectus passes neither collapsedColumns nor onToggleCollapse, so existing shared collapse controls invoke no state change. Console owns a Set, initializes it once from statuses[].collapsed, and supplies a toggle callback. Prospectus explicitly forces motion static; console uses css and the shared default is css. Board supports detailOpen auto-scroll when a detail panel opens, but IssueCollection does not expose/forward detailOpen. Shared KanbanStatusDefinition omits collapsed although normal API config serializes Rust StatusDefinition.collapsed. These last two are shared-contract handoff items for the active Kanbus/Papyrus owner, not independent extraction work.\n\nTheme: shared styles/index.css and styles/kanban.css are already imported. Prospectus does not override shared --background/--card/--column/--text token values; it inherits gray defaults. Its stylesheet adds host layout, fixed sidebar width, typography, unscoped element selectors, green eyebrow/muted colors, and hand-styled host controls. Tailwind scans the shared dist path. Workflow/status/type colors are domain configuration. There is no second board CSS implementation. A duplicate empty-state message appears because IssueCollection supplies its own and Prospectus adds another.\n\nMinimal consumer patch after agreed package handoff: keep the agreed shared export; wire controlled collapse using the shared API (or its owner-supplied state contract), honor config defaults through the shared status type, stop forcing static motion, pass detailOpen once supported, use one shared emptyMessage, and scope Prospectus branding/host styles without overriding shared board/card/column selectors. Keep CRM query/write/auth/storage logic intact. Add behavior checks for header collapse/re-expand, selection and layout switching, configured defaults, and per-column scrolling. Do not reimplement board/sorting/columns or copy console layout logic.\n\nPackage handoff dependency: root must provide the reviewed Kanbus commit/export/type contract from the active Papyrus/shared owner; no direct coordination or Kanbus edits by this worker. Updating source-lock.json changes both UI and API source, so confirm the new API Virtuus revision remains the separately reviewed pin before changing lockfiles. Local migration checkout currently shares node_modules with the older Prospectus checkout and has no own .build/kanbus; do not reuse or mutate that shared install for a new pin. Prepare an isolated dependency checkout/install when the handoff arrives.\n\nGiven the console, Papyrus, and Prospectus consume the agreed shared board export, when a user collapses and re-expands a configured column or changes selection/view, then behavior is shared and only Prospectus host/domain styling differs; existing Google auth, API storage, revision conflicts, and standalone behavior remain intact. No consumer/product source edits, pushes, merges, deployments, cloud changes, or credentials were made in this audit.",
+      "created_at": "2026-10-15T15:32:05.343464Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-13T23:46:21.470723Z",
-  "updated_at": "2026-10-14T00:23:14.224638Z",
+  "updated_at": "2026-10-15T15:32:05.492449Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
