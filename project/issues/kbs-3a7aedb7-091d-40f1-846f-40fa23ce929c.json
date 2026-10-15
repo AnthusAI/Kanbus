@@ -10,9 +10,25 @@
   "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "59488e2e-1fac-4dc1-bacb-6275c3fb299f",
+      "author": "home",
+      "text": "Ryan confirmed Google sign-in at prospectus.anth.us. Target Google provider identity matches the previously approved source administrator by immutable subject hash, not email. Restored existing app-scoped admin and prospectus-members roles and verified readback; user instructed to Refresh access. No user/invite/password/linking trigger created. Authenticated hosted CRM acceptance remains pending. Visible Cyclotron labels corrected to Anthus in PR https://github.com/AnthusAI/Prospectus/pull/2; local build and 11 tests pass.",
+      "created_at": "2026-10-15T02:03:14.099910Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-15T00:20:13.314001Z",
-  "updated_at": "2026-10-15T00:20:13.340781Z",
+  "updated_at": "2026-10-15T02:03:14.099946Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -22,7 +38,10 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
-  "custom": {}
+  "right_now_summary": "Google identity and admin roles are verified on the replacement; hosted CRM acceptance is still pending.",
+  "right_now_updated_at": "2026-10-15T02:03:16.188121Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
