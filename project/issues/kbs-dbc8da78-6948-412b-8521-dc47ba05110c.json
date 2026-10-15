@@ -25,10 +25,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "6fc06a77-5b7d-463c-bea5-4ed0fbe7f821",
+      "author": "home",
+      "text": "Custom hostname https://prospectus.anth.us is now AVAILABLE and verified in Amplify, mapped only to main. Fresh parent-delegation check confirmed papyrus-production is now authoritative; no delegation change by this task. Amplify automatically added hostname and TLS validation CNAMEs; old CRM CNAME preserved. Valid hostname/TLS HTTP200 and identical deployed main HTML/JS verified; public resolvers return correct CNAME. Ryan asked for real Google login using old CRM Google account. Read-only source administrator provider-identity comparison proof prepared; actual target login/membership continuity still pending. No email-based identity merge, unknown-user promotion or old data deletion.",
+      "created_at": "2026-10-15T01:48:47.721764Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T00:20:12.926656Z",
-  "updated_at": "2026-10-15T01:40:12.005255Z",
+  "updated_at": "2026-10-15T01:48:47.721798Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -38,8 +53,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "A replacement is deployed and verified, while the old CRM stays intact pending authentication, data checks, and DNS",
-  "right_now_updated_at": "2026-10-15T01:40:14.908009Z",
+  "right_now_summary": "The replacement is deployed and verified, but Google login, data continuity, and DNS cutover still need testing.",
+  "right_now_updated_at": "2026-10-15T01:48:49.398160Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
