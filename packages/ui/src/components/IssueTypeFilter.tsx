@@ -33,7 +33,7 @@ export interface IssueTypeFilterProps {
 const NO_VIEW_OPTIONS: SelectorOption[] = [];
 
 /** The console's animated selector, shared with transport-free embedded hosts.
- * Selecting the active choice again clears to All. Labels remain readable;
+ * Selecting an active exact type again clears to All. Host-owned hierarchy views retain their route semantics. Labels remain readable;
  * a constrained host scrolls the choices rather than hiding configured types.
  */
 export function IssueTypeFilter({ config, value, onChange, viewOptions = NO_VIEW_OPTIONS,
@@ -45,9 +45,9 @@ export function IssueTypeFilter({ config, value, onChange, viewOptions = NO_VIEW
   ], [config, viewOptions]);
   return (
     <div className={`kb-type-filter-scroll ${className}`}>
-      <AnimatedSelector name={name} options={options} value={value ?? "all"}
+      <AnimatedSelector name={name} options={options} value={value}
         className="kb-type-filter"
-        onChange={(next) => onChange(next === value ? "all" : next)} />
+        onChange={(next) => onChange(next === value && next.startsWith("type:") ? "all" : next)} />
     </div>
   );
 }

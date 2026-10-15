@@ -47,6 +47,13 @@ let server;
 let browser;
 let origin;
 
+When("the host renders a contextual type selector", async function () {
+  await this.page.evaluate(() => window.renderUnselectedTypeFilter());
+});
+Then("no shared type choice is selected", async function () {
+  await expect(this.page.getByRole("tablist", { name: "Issue type" }).locator('[aria-selected="true"]')).toHaveCount(0);
+});
+
 Given("the shared board consumer {string} at width {int}", async function (consumer, width) {
   this.consumer = consumer;
   this.storageKey = `test.${consumer}.board.v1`;

@@ -17,6 +17,7 @@ declare global {
     updateIssue: (identifier: string, status: string) => void;
     renderStandalone: () => void;
     renderTypeFilter: (mode: "light" | "dark") => void;
+    renderUnselectedTypeFilter: () => void;
     renderBoardConsumer: (kind: "console" | "embedded", key: string) => void;
     selectedIssue?: HostIssue;
     selectedOriginal?: boolean;
@@ -61,6 +62,7 @@ let organizerScroll: "start" | "end" | "preserve" = "start";
 let currentView: "board" | "list" = "board";
 
 Object.assign(window, {
+  renderUnselectedTypeFilter() { root.render(<TypeFilterHost mode="light" initialValue={null} />); },
   renderBoardConsumer(kind: "console" | "embedded", key: string) {
     root.render(<BoardConsumer key={`${kind}-${key}`} kind={kind} storageKey={key} />);
   },
@@ -122,8 +124,8 @@ function BoardConsumer({ kind, storageKey }: { kind: "console" | "embedded"; sto
   </div>;
 }
 
-function TypeFilterHost({ mode }: { mode: "light" | "dark" }) {
-  const [value, setValue] = useState("all");
+function TypeFilterHost({ mode, initialValue = "all" }: { mode: "light" | "dark"; initialValue?: string | null }) {
+  const [value, setValue] = useState<string | null>(initialValue);
   const config = { ...configuration, hierarchy: ["initiative", "epic", "task", "sub-task"], types: ["story", "article", "reference", "task"] };
   const records = [
     ...issues,

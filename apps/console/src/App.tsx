@@ -673,6 +673,7 @@ export default function App() {
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
   const viewModeAutoCorrected = React.useRef(false);
+  const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
   const lastSnapshotSuccessAtRef = React.useRef<number>(Date.now());
   const snapshotFallbackTimerRef = React.useRef<number | null>(null);
@@ -1457,12 +1458,17 @@ export default function App() {
     }
     const exactType = issueTypeFromFilter(value);
     if (exactType && config && getConfiguredIssueTypes(config).includes(exactType)) {
+      lastTypeSelectionRef.current = null;
       navigate(buildUrl(`${route.basePath}/${resolvedViewMode ?? "issues"}/`, {
-        search: searchQuery || null,
-        typeFilter: value
+        search: searchQuery || null, typeFilter: value
       }), setRoute, navActionRef);
       return;
     }
+    const currentRoute = parseRoute(window.location.pathname, window.location.search);
+    const currentShowAll = currentRoute.typeFilter === "all";
+    const currentViewMode = currentRoute.parentId
+      ? null
+      : currentRoute.viewMode ?? viewMode ?? loadStoredViewMode();
     if (value === "all") {
       const url = buildUrl(window.location.pathname, {
         search: searchQuery || null,
@@ -1470,11 +1476,32 @@ export default function App() {
         comment: focusedCommentId,
         typeFilter: "all"
       });
-      navigate(url, setRoute, navActionRef);
+      const parsed = new URL(url, window.location.href);
+      window.history.replaceState({}, "", parsed.pathname + parsed.search);
+      setRoute(parseRoute(parsed.pathname, parsed.search));
+      lastTypeSelectionRef.current = "all";
       return;
     }
-    if (!["initiatives", "epics", "issues"].includes(value)) return;
     const nextMode = value as ViewMode;
+    const repeatClick = lastTypeSelectionRef.current === nextMode;
+    if (!currentShowAll && currentViewMode === nextMode) {
+      if (repeatClick) {
+        const url = buildUrl(window.location.pathname, {
+          search: searchQuery || null,
+          focused: focusedIssueId,
+          comment: focusedCommentId,
+          typeFilter: "all"
+        });
+        const parsed = new URL(url, window.location.href);
+        window.history.replaceState({}, "", parsed.pathname + parsed.search);
+        setRoute(parseRoute(parsed.pathname, parsed.search));
+        lastTypeSelectionRef.current = "all";
+        return;
+      }
+      lastTypeSelectionRef.current = nextMode;
+      return;
+    }
+    lastTypeSelectionRef.current = nextMode;
     const nextUrl = buildUrl(`${route.basePath}/${nextMode}/`, {
       typeFilter: null
     });

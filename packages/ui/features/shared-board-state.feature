@@ -1,6 +1,11 @@
 Feature: Shared board interaction state
   Every consumer receives the same complete board behavior without implementing toggles.
 
+  Scenario: A contextual route can leave every type choice unselected
+    Given a host application with article and task issues
+    When the host renders a contextual type selector
+    Then no shared type choice is selected
+
   Scenario: An embedded collection owns column collapse without host callbacks
     Given a host application with article and task issues
     When the host renders an article board

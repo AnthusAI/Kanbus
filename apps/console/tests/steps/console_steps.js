@@ -854,9 +854,10 @@ Then(
     const column = this.page.locator(`.kb-column[data-column-key="${columnKey}"]`).first();
     await expect(column).toBeVisible();
 
-    if (await column.locator(".kb-column-header").count() === 0) {
-      await column.click();
-      await expect(column.locator(".kb-column-header")).toHaveCount(1);
+    const columnHeader = column.getByRole("button").first();
+    if (await columnHeader.getAttribute("aria-expanded") === "false") {
+      await columnHeader.click();
+      await expect(columnHeader).toHaveAttribute("aria-expanded", "true");
     }
 
     const titleLocator = column.locator(".issue-card h3");
