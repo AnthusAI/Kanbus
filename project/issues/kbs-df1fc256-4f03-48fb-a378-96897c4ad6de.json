@@ -40,10 +40,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "cc0f93d3-dae2-483e-81e3-c37dc56ef8d4",
+      "author": "home",
+      "text": "The failed release check was an optional runtime packaging install-path typo after successful Linux compilation. The source path is corrected, and disabled optional packaging is now separate from the independently useful CRM release. Updated PR3 is published and CI is running. Accounts handoff and optional intake activation are not blanket CRM deployment gates. Detailed obsolete-resource cleanup inventory is retained privately pending exact confirmation; no irreversible deletion or new access grant occurred.",
+      "created_at": "2026-10-15T16:24:43.316114Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:21.779472Z",
-  "updated_at": "2026-10-15T16:08:37.324396Z",
+  "updated_at": "2026-10-15T16:24:43.316429Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

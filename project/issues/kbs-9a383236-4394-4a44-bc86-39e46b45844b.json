@@ -1,0 +1,28 @@
+{
+  "id": "kbs-9a383236-4394-4a44-bc86-39e46b45844b",
+  "title": "Remove the obsolete dedicated Prospectus deployment after target confirmation",
+  "description": "Given the central application is healthy and the private ownership/data inventory receives action-time confirmation, when the obsolete deployment and its exclusive retained resources are removed, then no obsolete redirect or backend remains while central, marketing and shared resources are unchanged. Exact resource identifiers and credential-reference evidence remain private. No irreversible deletion has been attempted; the coordinator is obtaining confirmation.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-15T16:24:43.146367Z",
+  "updated_at": "2026-10-15T16:24:43.175660Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
