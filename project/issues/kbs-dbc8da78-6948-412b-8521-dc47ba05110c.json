@@ -68,8 +68,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "The central Prospectus site is live and verified; old resources remain preserved, and hosted CRM testing continues.",
-  "right_now_updated_at": "2026-10-15T19:56:06.803752Z",
+  "right_now_summary": "The central CRM is live and verified; the old system is preserved, with hosted CRUD testing still to come.",
+  "right_now_updated_at": "2026-10-15T20:27:59.521702Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

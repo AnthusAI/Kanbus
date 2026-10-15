@@ -1,0 +1,47 @@
+{
+  "id": "kbs-90e40dae-2cff-42ca-9131-802bfd93ac3a",
+  "title": "Require execution delegation regression tests in Accounts CI",
+  "description": "Given an enabled Accounts deployment with the native fixture built and verified, when required CI runs its persisted isolation step, then it also runs accounts/execution-delegation.test.ts and fails if that suite fails. Given no approved operator or execution-pair activation, when this CI correction is adopted, then runtime registries, grants, IAM and OAuth remain unchanged.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "90ef5810-2ed4-4484-98bc-e293bb48b51b",
+      "author": "home",
+      "text": "Implemented workflow-only correction c582908 on the isolated execution-delegation review branch. The required enabled-Accounts native step now includes execution-delegation.test.ts. YAML/gate validation passes, and the exact combined command passes all108 native checks. Original owner source and auth implementation remain untouched; runtime activation remains disabled. Integration commit is separate from imported owner code for coordination.",
+      "created_at": "2026-10-15T20:27:55.990175Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T20:26:08.253520Z",
+  "updated_at": "2026-10-15T20:27:55.990203Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "Accounts CI now runs execution-delegation tests, while runtime activation and authorization remain unchanged.",
+  "right_now_updated_at": "2026-10-15T20:27:57.053037Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

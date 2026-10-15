@@ -154,8 +154,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "Prospectus CRM is deployed and verified, but its backend and public intake remain unconfigured.",
-  "right_now_updated_at": "2026-10-15T19:56:09.044801Z",
+  "right_now_summary": "The CRM and Accounts frontends are deployed and verified, while backend activation and signed-in hosted proof await",
+  "right_now_updated_at": "2026-10-15T20:28:03.100415Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
