@@ -68,8 +68,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "Prospectus runs on papyrus-production with verified access; the old hosting remains preserved.",
-  "right_now_updated_at": "2026-10-15T22:04:42.105197Z",
+  "right_now_summary": "The replacement is live and verified; old data remains preserved, and a separate hosted CRM test is still needed.",
+  "right_now_updated_at": "2026-10-15T22:18:04.335584Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

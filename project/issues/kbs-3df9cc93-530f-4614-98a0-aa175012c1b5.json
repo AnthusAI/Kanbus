@@ -154,8 +154,8 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "CRM and Accounts releases are deployed, while backend activation and signed-in hosted proof await approval and access.",
-  "right_now_updated_at": "2026-10-15T22:04:44.537271Z",
+  "right_now_summary": "The CRM and Accounts releases are deployed, but the backend and public intake remain unconfigured.",
+  "right_now_updated_at": "2026-10-15T22:18:06.862294Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

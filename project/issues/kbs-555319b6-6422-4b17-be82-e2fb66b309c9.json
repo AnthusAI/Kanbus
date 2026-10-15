@@ -70,10 +70,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "65bddb3d-fcdc-414a-83c3-d90aa69e8f51",
+      "author": "home",
+      "text": "Approved read-only operator mapping and administration UI are deployed through PR7/main f8463f3 and successful Amplifyjob9. Live Google confirmation and denial for the current separate browser profile passed. Positive verification requires the specifically approved profile to sign in normally; no profile substitution or broader grant was applied. Story remains open for that acceptance check.",
+      "created_at": "2026-10-15T22:17:59.900956Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T19:23:25.386650Z",
-  "updated_at": "2026-10-15T21:39:29.609968Z",
+  "updated_at": "2026-10-15T22:17:59.900990Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -83,8 +98,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "The read-only operator directory is built, but activation awaits exact role and verified identity and trust checks.",
-  "right_now_updated_at": "2026-10-15T21:39:31.547725Z",
+  "right_now_summary": "The read-only directory is deployed, but the approved profile still needs to complete the final sign-in check.",
+  "right_now_updated_at": "2026-10-15T22:18:01.847325Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

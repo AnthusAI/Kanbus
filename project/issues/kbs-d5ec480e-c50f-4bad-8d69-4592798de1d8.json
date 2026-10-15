@@ -3,7 +3,7 @@
   "title": "Provision the approved dedicated console login before enabling its exact runtime pair",
   "description": "Given the approved dedicated console callback and logout URLs in the existing central Google-only pool, when the normal main deployment runs, then one public code-flow console client with refresh and revocation is created without changing the CRM client or Google provider. Given the exact console BFF and worker roles do not yet exist, when the client is provisioned, then no console principal is added to the central registry or API policy. Given the console owner supplies existing exact role trust proof afterward, when the approved second stage is deployed, then only the approved role-pair paths and console read/write capabilities are enabled while directory and membership management remain denied.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -25,11 +25,26 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "960e0414-6785-4520-b9bb-99e01875de32",
+      "author": "home",
+      "text": "Completed the staged central rollout through normal main deployment. PR7 merged f8463f3 with CI38810953987 passing all29steps; Amplifyjob9 succeeded and the dedicated public Google-only client was verified. PR8 merged6b13794 with CI38812302504 passing all29steps; Amplifyjob10 succeeded. Live verification confirmed the exact console registration and route scopes, a newly published existing API stage, unchanged directory registration/runtime policies, and preserved anonymous denials. The console owner has received the verified client outputs. Positive console runtime integration remains with its separate deployment/quota work.\n",
+      "created_at": "2026-10-15T22:17:45.112903Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T21:32:29.913979Z",
-  "updated_at": "2026-10-15T21:46:15.401082Z",
-  "closed_at": null,
+  "updated_at": "2026-10-15T22:17:52.480641Z",
+  "closed_at": "2026-10-15T22:17:52.456491Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",
@@ -38,8 +53,8 @@
       "reasoning_effort": "medium"
     }
   },
-  "right_now_summary": "The sign-in client and role registration await merge and deployment, while console runtime approval remains pending.",
-  "right_now_updated_at": "2026-10-15T21:46:16.826547Z",
+  "right_now_summary": "The dedicated client is deployed, but the console runtime still awaits separate deployment and quota approval.",
+  "right_now_updated_at": "2026-10-15T22:17:55.256709Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
