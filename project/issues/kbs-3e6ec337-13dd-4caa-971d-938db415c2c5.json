@@ -19,7 +19,7 @@
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "The CRM MVP passed tests and awaits shared-owner approval before merge and deployment.",
-  "right_now_updated_at": "2026-10-15T16:08:42.608736Z",
+  "right_now_summary": "CRM release PR3 is published and CI is running; it has not merged or deployed, and public intake is inactive.",
+  "right_now_updated_at": "2026-10-15T18:11:59.441550Z",
   "custom": {}
 }

@@ -55,18 +55,33 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "220f7bea-a75a-4b8d-b2f7-9ab63ac1e694",
+      "author": "home",
+      "text": "Intake inventory completed privately. Public capture remains inactive; the existing synthetic proof passes, while real-contact readiness and separate activation approval remain outstanding. Independent next steps are queued for offline review and acceptance planning. This does not delay Accounts activation or add any access scope. Demo requests are follow-up inquiries, not appointment booking.",
+      "created_at": "2026-10-15T18:11:54.269772Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:21.779472Z",
-  "updated_at": "2026-10-15T16:24:43.316429Z",
+  "updated_at": "2026-10-15T18:11:54.270062Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "The CRM MVP passed tests and awaits shared-owner approval to merge and deploy.",
-  "right_now_updated_at": "2026-10-15T16:08:40.765317Z",
+  "right_now_summary": "CRM release PR3 is published and CI is running; no merge or deployment has happened, and public intake remains inactive.",
+  "right_now_updated_at": "2026-10-15T18:11:57.082516Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
