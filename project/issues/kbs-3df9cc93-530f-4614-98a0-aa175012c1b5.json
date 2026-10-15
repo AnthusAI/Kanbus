@@ -129,18 +129,33 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "86ad43cf-5eea-40db-bcf3-6c84b25cc04e",
+      "author": "home",
+      "text": "Final post-merge verification completed: Accounts main CI38776506329 SUCCESS with no failed steps. Both release PR CI runs and both main post-merge runs passed; both hosted deployments already succeeded. Coordinator independently verified final hosted assets and the honest unconfigured Accounts state. Backend activation remains pending separate exact approval; no new scope or permissions were added.",
+      "created_at": "2026-10-15T17:31:31.927915Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:45:48.640812Z",
-  "updated_at": "2026-10-15T17:29:00.830494Z",
+  "updated_at": "2026-10-15T17:31:31.927954Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
     "name": "Prospectus Foundation"
   },
-  "right_now_summary": "The CRM and Accounts releases are deployed, but hosted sign-in proof is unavailable and Accounts backend activation",
-  "right_now_updated_at": "2026-10-15T17:29:04.262358Z",
+  "right_now_summary": "Both frontends are deployed; the CRM works, while Accounts lacks a backend and hosted sign-in proof.",
+  "right_now_updated_at": "2026-10-15T17:31:35.494351Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
