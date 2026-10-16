@@ -19,7 +19,7 @@ dependencies = [
     "requests",
     "litellm",
     "paho-mqtt",
-    "virtuus @ git+https://github.com/AnthusAI/Virtuus.git@94365c00a1e81c0682d31d9de73d0e7f758d0bb8#subdirectory=python",
+    "virtuus==0.6.1",
     "behave",
     "pytest",
     "gherkin-official",
