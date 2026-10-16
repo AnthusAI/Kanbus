@@ -4,7 +4,10 @@ Welcome to the Kanbus documentation site. Kanbus is a git-backed project managem
 
 ## Guides
 
-- [Getting Started](GETTING_STARTED.md)
+- [Getting Started](GETTING_STARTED.md): choose a setup
+  - [Local files](getting-started/local-files.md)
+  - [Files in the cloud](getting-started/cloud-files.md)
+  - [S3 and DynamoDB in the cloud](getting-started/cloud-database.md)
 - [CLI Reference](CLI_REFERENCE.md)
 - [Agent Provenance](AGENT_PROVENANCE.md)
 - [Issue Router Operator Guide](ISSUE_ROUTER_OPERATOR_GUIDE.md)
