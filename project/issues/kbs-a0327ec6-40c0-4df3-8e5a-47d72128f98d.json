@@ -1,0 +1,27 @@
+{
+  "id": "kbs-a0327ec6-40c0-4df3-8e5a-47d72128f98d",
+  "title": "Getting-started guides for each way of running Kanbus",
+  "description": "Rework the getting-started documentation around three ways of running Kanbus: local files in git, files in the cloud (git-synced cloud console with MQTT realtime), and the S3 plus DynamoDB writable API. Each guide gives tested step-by-step setup. Fix inaccuracies found while testing (missing search command, config.yaml location) and address recurring setup confusion: gitignore, committing board state, project keys, console ports.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": "claude",
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:14:01.899333Z",
+  "updated_at": "2026-10-16T14:14:12.276115Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {},
+  "agent": {
+    "platform": "claude_code",
+    "model": "Claude",
+    "name": "Docs thread",
+    "settings": {}
+  },
+  "agent_assignment": null
+}

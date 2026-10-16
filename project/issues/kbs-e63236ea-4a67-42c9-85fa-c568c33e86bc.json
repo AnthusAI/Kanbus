@@ -1,0 +1,27 @@
+{
+  "id": "kbs-e63236ea-4a67-42c9-85fa-c568c33e86bc",
+  "title": "README and AGENTS.md document kbs console screenshot, which kbs 0.34.0 does not have",
+  "description": "kbs console --help in 0.34.0 lists snapshot, log, focus and other live-control commands but no screenshot. Either ship the command or remove the documentation.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:23:35.409935436Z",
+  "updated_at": "2026-10-16T14:23:35.463282130Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

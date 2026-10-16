@@ -1,0 +1,27 @@
+{
+  "id": "kbs-af1fd4bf-c391-4dcb-ad69-219c9107654e",
+  "title": "kbs init should set a unique project key and a complete gitignore",
+  "description": "Every new board gets project_key kanbus and init has no option to choose one; about six of Ryan's repositories still use kanbus as their key. Realtime topics are keyed by project key, so boards sharing a key cross-talk on a shared MQTT broker. init also ignores only project/.overlay/, leaving project/.cache/ (written by kbsc) unignored and no decision recorded for project/events/. Proposal: init --key (defaulting to the directory name), console_port chosen automatically, and a gitignore block covering .cache and .overlay.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:23:12.863457208Z",
+  "updated_at": "2026-10-16T14:23:12.913944097Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
