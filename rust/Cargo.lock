@@ -2915,8 +2915,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "virtuus"
-version = "0.6.0"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=94365c00a1e81c0682d31d9de73d0e7f758d0bb8#94365c00a1e81c0682d31d9de73d0e7f758d0bb8"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efbd7d45434085d7c99b822d652dab875ef61cb005d7edafb1a66c6688032dd5"
 dependencies = [
  "clap",
  "libc",

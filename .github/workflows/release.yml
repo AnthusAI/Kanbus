@@ -131,8 +131,13 @@ jobs:
             echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "push" ]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
-            echo "tag=" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="$(python -c 'import tomllib; print(tomllib.load(open("python/pyproject.toml", "rb"))["project"]["version"])')"
+            if [ "$GITHUB_REF_NAME" != "kanbus-py-$version" ]; then
+              echo "Requested tag does not match the packaged Python version" >&2
+              exit 1
+            fi
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
