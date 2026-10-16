@@ -5,7 +5,7 @@
   "type": "initiative",
   "status": "in_progress",
   "priority": 1,
-  "assignee": "claude",
+  "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
@@ -17,23 +17,28 @@
   ],
   "comments": [
     {
-      "id": "55609b83-20de-44a6-8594-f34f8abc8acd",
-      "author": "claude",
-      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
-      "created_at": "2026-10-16T16:34:06.457611202Z",
-      "comment_type": "default"
+      "id": "63b4ea7c-7aef-472c-b199-0672fbce4382",
+      "author": "home",
+      "text": "WIP cleanup 2026-10-16: no child is active (kbs-d3973c closed; kbs-8d1cd7 and kbs-f954ad open). Per Ryan's rule, parents are In Progress only while a child is active. Moving to open; it returns to In Progress when router work starts.",
+      "created_at": "2026-10-16T16:42:07.330219Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-16T00:44:08.525781Z",
-  "updated_at": "2026-10-16T16:44:54.978569595Z",
+  "updated_at": "2026-10-16T16:47:10.999806Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
     "model": "gpt-5",
     "name": "Issue Router planning"
   },
-  "right_now_summary": "The router is being tested with isolated workers, and multi-router lease contention testing is next.",
-  "right_now_updated_at": "2026-09-18T14:02:38.160340Z",
+  "right_now_summary": "The team is aligning Python and Rust lifecycle handling while awaiting one smoke-test report.",
+  "right_now_updated_at": "2026-10-16T16:47:12.578383Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

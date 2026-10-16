@@ -17,25 +17,23 @@
   ],
   "comments": [
     {
-      "id": "c24b921e-0190-4f83-a91e-729cae13775d",
-      "author": "claude",
-      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
-      "created_at": "2026-10-16T16:34:05.307462182Z",
-      "comment_type": "default"
-    },
-    {
-      "id": "f3d9898c-8bbf-47b7-b6ef-a02bd0000b98",
-      "author": "claude",
-      "text": "All child work closed (see kbs-993f2c and kbs-c77a6b); closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:34:24.623269066Z",
-      "comment_type": "default"
+      "id": "43ba2aff-ebf0-472c-b6d0-fcc61acae3bd",
+      "author": "home",
+      "text": "All children closed; the suite shipped in PRs #355-#362. Closing.",
+      "created_at": "2026-10-16T16:37:44.008295Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-18T11:30:16.239605Z",
-  "updated_at": "2026-10-16T16:34:24.703199566Z",
-  "closed_at": "2026-10-16T16:34:24.652524656Z",
-  "right_now_summary": "The reusable containerized integration runner is being designed with safe live testing and cleanup.",
-  "right_now_updated_at": "2026-09-18T11:31:04.533704Z",
+  "updated_at": "2026-10-16T16:37:47.541418Z",
+  "closed_at": "2026-10-16T16:37:47.510052Z",
+  "right_now_summary": "The suite shipped in PRs #355–#362, and its containerized race and expiry tests pass.",
+  "right_now_updated_at": "2026-10-16T16:37:49.306915Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

@@ -12,22 +12,27 @@
   "dependencies": [],
   "comments": [
     {
-      "id": "77c5bc1f-a39a-4729-8935-35519f09b478",
-      "author": "claude",
-      "text": "Done: develop CI is green. Every check passes on PR #404, which is develop plus docs only, and develop was promoted to main and released as 0.34.0 on 2026-10-16. PR #387 merged; PR #388 remains an open draft on its own merits. Closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:33:19.957611890Z",
-      "comment_type": "default"
+      "id": "b1d2a87c-5235-466e-884e-279f53b78f18",
+      "author": "home",
+      "text": "Done: PR #390 (fix(storage): make the Virtuus daemon optional and restore green develop CI) merged to develop on 2026-10-03, and develop CI was green afterwards (last green run 2026-10-15). The new red run on 2026-10-16 is a separate regression, filed separately. Closing.",
+      "created_at": "2026-10-16T16:37:08.012411Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-10-03T14:07:16.083770Z",
-  "updated_at": "2026-10-16T16:33:20.151495472Z",
-  "closed_at": "2026-10-16T16:33:20.093796684Z",
+  "updated_at": "2026-10-16T16:37:09.340656Z",
+  "closed_at": "2026-10-16T16:37:09.311168Z",
   "agent": {
     "platform": "cursor",
     "model": "GLM 5.3 Flash",
     "name": "Cloud Agent"
   },
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "right_now_summary": "Develop CI was restored, then a separate regression caused a new failure and was filed separately.",
+  "right_now_updated_at": "2026-10-16T16:37:10.715195Z",
   "custom": {}
 }

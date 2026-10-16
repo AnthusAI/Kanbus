@@ -14,17 +14,22 @@
   "dependencies": [],
   "comments": [
     {
-      "id": "79569c56-7845-43b6-a4e4-7dba12e0b97a",
-      "author": "claude",
-      "text": "Disposable router integration fixture from 2026-09-23; closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:34:04.238877848Z",
-      "comment_type": "default"
+      "id": "83eb6fe6-bbe8-406a-96ff-5842cad87fe7",
+      "author": "home",
+      "text": "Disposable harness fixture from the September router container runs. Validation is complete (PR #362), so this fixture is no longer needed for inspection. Closing in WIP cleanup.",
+      "created_at": "2026-10-16T16:40:55.812554Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-23T19:53:37.285905Z",
-  "updated_at": "2026-10-16T16:34:04.336830329Z",
-  "closed_at": "2026-10-16T16:34:04.275359796Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "updated_at": "2026-10-16T16:41:00.941756Z",
+  "closed_at": "2026-10-16T16:41:00.912984Z",
+  "right_now_summary": "The fixture is no longer needed and is being removed after validation.",
+  "right_now_updated_at": "2026-10-16T16:41:02.368716Z",
   "custom": {}
 }

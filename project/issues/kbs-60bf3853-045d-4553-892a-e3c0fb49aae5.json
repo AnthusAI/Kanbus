@@ -62,22 +62,27 @@
       }
     },
     {
-      "id": "762da5f6-450f-4f9c-9684-df84eb8185ea",
-      "author": "claude",
-      "text": "Done: PR #387 (cursor/cli-empty-status-columns-4735) merged into develop on 2026-10-06 and shipped in 0.34.0. Closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:33:19.517654373Z",
-      "comment_type": "default"
+      "id": "2065475a-6042-4377-83af-f3a9da635b15",
+      "author": "home",
+      "text": "Done: PR #387 (fix(cli): show configured statuses with no issues in list output) merged to develop on 2026-10-06. Closing in WIP cleanup.",
+      "created_at": "2026-10-16T16:37:02.414466Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-10-02T19:47:31.285969Z",
-  "updated_at": "2026-10-16T16:33:19.722238933Z",
-  "closed_at": "2026-10-16T16:33:19.662135234Z",
+  "updated_at": "2026-10-16T16:37:05.420387Z",
+  "closed_at": "2026-10-16T16:37:05.392132Z",
   "agent": {
     "platform": "cursor",
     "model": "GLM 5.3",
     "name": "Cloud Agent"
   },
-  "right_now_summary": "The CLI still hides configured columns that have no issues.",
-  "right_now_updated_at": "2026-10-02T19:47:32.527469Z",
+  "right_now_summary": "PR #387 merged the CLI fix, and cleanup is underway.",
+  "right_now_updated_at": "2026-10-16T16:37:07.960330Z",
   "custom": {}
 }

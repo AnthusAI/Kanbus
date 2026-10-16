@@ -12,17 +12,22 @@
   "dependencies": [],
   "comments": [
     {
-      "id": "ba8d901b-6265-4d87-bf57-849221cb9b9f",
-      "author": "claude",
-      "text": "Superseded: main CI is green after the 0.34.0 release (PR #395 and #403 merged 2026-10-16). Closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:33:20.386021344Z",
-      "comment_type": "default"
+      "id": "be709e9c-0937-46a6-a75f-67fc4d266dd7",
+      "author": "home",
+      "text": "Done: PR #208 (fix(ci): restore issue_update test and dedupe behave mock AI step) merged on 2026-09-02; .kanbus.yml on develop has a single ai key. Closing.",
+      "created_at": "2026-10-16T16:37:14.279846Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-02T19:58:14.947935199Z",
-  "updated_at": "2026-10-16T16:33:20.617317354Z",
-  "closed_at": "2026-10-16T16:33:20.548024297Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "updated_at": "2026-10-16T16:37:16.554325Z",
+  "closed_at": "2026-10-16T16:37:16.506998Z",
+  "right_now_summary": "PR #208 merged the CI fixes: YAML is deduplicated, issue_update is restored, and slow tests are excluded.",
+  "right_now_updated_at": "2026-10-16T16:37:18.987178Z",
   "custom": {}
 }

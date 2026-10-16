@@ -28,18 +28,23 @@
       "comment_type": "default"
     },
     {
-      "id": "a53477bd-ee72-456f-9698-9c49a08bdb1e",
-      "author": "claude",
-      "text": "Disposable router integration fixture from 2026-09-23; closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:34:04.609009928Z",
-      "comment_type": "default"
+      "id": "a377f61e-a432-4203-a235-30f9bc6e6211",
+      "author": "home",
+      "text": "Disposable harness fixture from the September router container runs. Validation is complete (PR #362), so this fixture is no longer needed for inspection. Closing in WIP cleanup.",
+      "created_at": "2026-10-16T16:41:17.782696Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-23T20:00:48.595387Z",
-  "updated_at": "2026-10-16T16:34:04.698432724Z",
-  "closed_at": "2026-10-16T16:34:04.644131116Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "updated_at": "2026-10-16T16:41:24.006937Z",
+  "closed_at": "2026-10-16T16:41:23.976512Z",
+  "right_now_summary": "The router posted the required three-paragraph test comment, and validation is complete.",
+  "right_now_updated_at": "2026-10-16T16:41:25.688530Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

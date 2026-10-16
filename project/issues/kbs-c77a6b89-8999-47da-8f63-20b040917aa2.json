@@ -26,25 +26,23 @@
       "comment_type": "default"
     },
     {
-      "id": "0038d6f5-203f-4f94-9405-61dd29c87622",
-      "author": "claude",
-      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
-      "created_at": "2026-10-16T16:34:05.132480953Z",
-      "comment_type": "default"
-    },
-    {
-      "id": "e8e38b39-95d2-4eda-aeae-56d67578d47f",
-      "author": "claude",
-      "text": "Done: 558fe3f (PR #362, 2026-09-23) records the hard-race, soft-duplicate and expiry-takeover scenarios passing live against the production Mutex API, with the loser getting the documented contention response. Verified during WIP cleanup.",
-      "created_at": "2026-10-16T16:34:24.456546293Z",
-      "comment_type": "default"
+      "id": "e538114c-ef44-44e8-af9f-ad7f1609d6cf",
+      "author": "home",
+      "text": "Done: PR #362 (2026-09-23) records the two-worker live run: exactly one hard start, the loser got the documented 'package already claimed' contention response with no transition, expiry permitted takeover, and soft-duplicate behavior with Mutex disabled matched the documented behavior. Closing.",
+      "created_at": "2026-10-16T16:37:31.087203Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-17T00:55:24.620070Z",
-  "updated_at": "2026-10-16T16:34:24.535972710Z",
-  "closed_at": "2026-10-16T16:34:24.484899857Z",
-  "right_now_summary": "The isolated two-worker hard-lease test is starting with disposable tasks and captured contention logs.",
-  "right_now_updated_at": "2026-09-18T10:57:51.422491Z",
+  "updated_at": "2026-10-16T16:37:37.376626Z",
+  "closed_at": "2026-10-16T16:37:37.346032Z",
+  "right_now_summary": "PR #362 records one winner, no loser transition, expiry takeover, and documented soft duplicate work.",
+  "right_now_updated_at": "2026-10-16T16:37:40.480618Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

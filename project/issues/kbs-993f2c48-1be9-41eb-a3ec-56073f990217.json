@@ -12,25 +12,23 @@
   "dependencies": [],
   "comments": [
     {
-      "id": "06692ca8-eb41-40fe-9512-1cb9528ef375",
-      "author": "claude",
-      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
-      "created_at": "2026-10-16T16:34:04.944521526Z",
-      "comment_type": "default"
-    },
-    {
-      "id": "982604cb-f5e4-489b-b9c1-a59db4d2a2d2",
-      "author": "claude",
-      "text": "Done: the reusable container harness landed on develop (0850726 test(router): add board-backed container harness, e1dd280 fake-agent mode, 9bbcebe scenarios, PRs #354 #355 #357 #362). Verified during WIP cleanup.",
-      "created_at": "2026-10-16T16:34:24.293116655Z",
-      "comment_type": "default"
+      "id": "90ee8151-472f-4950-bb8d-c3f4eadc99f4",
+      "author": "home",
+      "text": "Done: the containerized harness (tools/issue_router_container_integration_harness.py, docs/ISSUE_ROUTER_INTEGRATION_HARNESS.md) landed through PRs #355, #357, #358 and #362 (2026-09-23). PR #362 records hard-race, soft-duplicate and expiry-takeover all passing live with Docker workers against the production Mutex API and MQTT broker. Closing.",
+      "created_at": "2026-10-16T16:37:19.042923Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-18T11:30:32.569018Z",
-  "updated_at": "2026-10-16T16:34:24.373642607Z",
-  "closed_at": "2026-10-16T16:34:24.322124891Z",
-  "right_now_summary": "The reusable containerized integration runner is being designed with safe live testing and cleanup.",
-  "right_now_updated_at": "2026-09-18T11:31:03.372055Z",
+  "updated_at": "2026-10-16T16:37:24.882918Z",
+  "closed_at": "2026-10-16T16:37:24.854528Z",
+  "right_now_summary": "The containerized harness runs live Docker tests for races and expiry takeover, with all checks passing.",
+  "right_now_updated_at": "2026-10-16T16:37:27.128971Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

@@ -12,17 +12,22 @@
   "dependencies": [],
   "comments": [
     {
-      "id": "ee11dffb-6304-474f-ab54-d1b6f493a4d8",
-      "author": "claude",
-      "text": "Superseded: the coverage-ratchet job passes against the current baseline on develop (green on PR #404, 2026-10-16). Closed during WIP cleanup.",
-      "created_at": "2026-10-16T16:33:20.853362655Z",
-      "comment_type": "default"
+      "id": "37f0d7a0-dd61-4af2-abf8-1e9094d5a31a",
+      "author": "home",
+      "text": "Done: coverage baselines were rebaselined to measured CI values (7a71f25c, bc784562) and the ratchet has held since (bbcb638c on 2026-10-03). Closing.",
+      "created_at": "2026-10-16T16:37:10.774601Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-02T20:32:03.200771245Z",
-  "updated_at": "2026-10-16T16:33:21.063176231Z",
-  "closed_at": "2026-10-16T16:33:20.992612501Z",
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "updated_at": "2026-10-16T16:37:12.799986Z",
+  "closed_at": "2026-10-16T16:37:12.771775Z",
+  "right_now_summary": "Coverage baselines match measured CI values, and the ratchet has held since October 3.",
+  "right_now_updated_at": "2026-10-16T16:37:14.223987Z",
   "custom": {}
 }
