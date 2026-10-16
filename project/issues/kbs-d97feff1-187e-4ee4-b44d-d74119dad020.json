@@ -3,17 +3,25 @@
   "title": "Fix main CI after develop merge",
   "description": "Duplicate ai key in .kanbus.yml breaks Rust YAML parsing. Remove duplicate mock AI step, fix issue_update test, exclude @slow from default Rust cucumber.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ba8d901b-6265-4d87-bf57-849221cb9b9f",
+      "author": "claude",
+      "text": "Superseded: main CI is green after the 0.34.0 release (PR #395 and #403 merged 2026-10-16). Closed during WIP cleanup.",
+      "created_at": "2026-10-16T16:33:20.386021344Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-02T19:58:14.947935199Z",
-  "updated_at": "2026-09-02T19:58:36.474138881Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:33:20.617317354Z",
+  "closed_at": "2026-10-16T16:33:20.548024297Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

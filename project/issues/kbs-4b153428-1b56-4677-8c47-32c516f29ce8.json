@@ -3,17 +3,25 @@
   "title": "Restore green CI on develop: daemon fallback, Virtuus pin, lint and spec fixes",
   "description": "As a Kanbus maintainer, I want develop CI green again, so that blocked PRs #388 and #387 can be reviewed and merged.\n\nRoot causes on the latest run over develop (PR #379 run, plus current tip):\n- rust: console_lambda tests panic with 'Virtuus daemon request failed: No such file or directory'. The daemon is just-in-time and optional; connect or request failure must fall back to synchronous in-process storage instead of failing. Direction from Ryan: never require the daemon for correctness.\n- python: ruff F401 unused import in issue_listing.py.\n- python and python-console-parity: issue_compaction.feature:45 archived-issue summarize scenario asserts a summary comment that was not written.\n- python-install (windows-latest): virtuus 0.5.1 references socketserver.ThreadingUnixStreamServer at import time, which does not exist on Windows; pin Virtuus v0.6.0 which adds virtuus.service Windows-safe import.\n- router-state timing test flakiness to be made deterministic if it reproduces.\n\nReconcile with PR #385 (claude/salvage-release-fixes): take its Virtuus pin and any still-valid fixes, but implement daemon fallback in product code rather than bypassing the daemon via KANBUS_NO_DAEMON=1 in tests, per Ryan's direction.\n\nSpecs first: (a) with no daemon available, commands succeed synchronously; (b) with the daemon available, it is used.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "77c5bc1f-a39a-4729-8935-35519f09b478",
+      "author": "claude",
+      "text": "Done: develop CI is green. Every check passes on PR #404, which is develop plus docs only, and develop was promoted to main and released as 0.34.0 on 2026-10-16. PR #387 merged; PR #388 remains an open draft on its own merits. Closed during WIP cleanup.",
+      "created_at": "2026-10-16T16:33:19.957611890Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-03T14:07:16.083770Z",
-  "updated_at": "2026-10-03T14:07:49.566315Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:33:20.151495472Z",
+  "closed_at": "2026-10-16T16:33:20.093796684Z",
   "agent": {
     "platform": "cursor",
     "model": "GLM 5.3 Flash",

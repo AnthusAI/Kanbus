@@ -3,7 +3,7 @@
   "title": "CLI list hides empty status columns; should list all columns even when empty",
   "description": "The kbs CLI list/board text output only shows statuses (columns) that currently have issues in them. Empty columns such as Backlog, In Progress, or Blocked are omitted entirely. Expected: list every configured column that applies at the current filter level, even when it is empty (with a zero count or an empty marker). Columns that don't apply to the current type filter can stay hidden, matching the web console.\n\nImpact: on 2026-10-02, a BotSpy board where every issue was either open or closed looked like it only had open and closed columns. That made the board configuration look broken, when .kanbus.yml correctly defined Backlog, Discovery, In Progress, Blocked and Done.\n\nScope: CLI list/text output only. Do not change the web console, which already shows empty columns.\n\nRepro: in a project whose issues are all open or closed (e.g. ~/Projects/BotSpy), run the kbs list/board view and note that only those columns appear.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -60,11 +60,18 @@
         "model": "GLM 5.3 Flash",
         "name": "Cloud Agent"
       }
+    },
+    {
+      "id": "762da5f6-450f-4f9c-9684-df84eb8185ea",
+      "author": "claude",
+      "text": "Done: PR #387 (cursor/cli-empty-status-columns-4735) merged into develop on 2026-10-06 and shipped in 0.34.0. Closed during WIP cleanup.",
+      "created_at": "2026-10-16T16:33:19.517654373Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-02T19:47:31.285969Z",
-  "updated_at": "2026-10-02T21:47:37.087997Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:33:19.722238933Z",
+  "closed_at": "2026-10-16T16:33:19.662135234Z",
   "agent": {
     "platform": "cursor",
     "model": "GLM 5.3",

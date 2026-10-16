@@ -3,17 +3,25 @@
   "title": "Update coverage baseline after develop merge",
   "description": "CI coverage-ratchet failed: python 98.52% vs baseline 98.59% after consolidating duplicate behave steps. Rust improved to 88.60%. Update baselines to measured CI values.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "agent",
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ee11dffb-6304-474f-ab54-d1b6f493a4d8",
+      "author": "claude",
+      "text": "Superseded: the coverage-ratchet job passes against the current baseline on develop (green on PR #404, 2026-10-16). Closed during WIP cleanup.",
+      "created_at": "2026-10-16T16:33:20.853362655Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-02T20:32:03.200771245Z",
-  "updated_at": "2026-09-02T20:32:07.527634415Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:33:21.063176231Z",
+  "closed_at": "2026-10-16T16:33:20.992612501Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
