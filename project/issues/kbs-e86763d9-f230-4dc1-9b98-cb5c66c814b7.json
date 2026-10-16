@@ -3,7 +3,7 @@
   "title": "Keep account switching responsive with repeated canonical sessions",
   "description": "Given a Person has several committed Google sessions, when central identity and account requests resolve current authorization, then immutable canonical records are read once per lookup with bounded concurrency, current session and membership checks remain enforced, and subsequent requests reread authority. Given the live account-switch incident, when latency is measured, then central request timing and exact unwanted-record provenance are recorded without deletion, email-based linking, tokens or nonce output.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -85,11 +85,26 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "924a595c-963a-4fd0-bb9e-a59fcbfdd939",
+      "author": "home",
+      "text": "Final live validation after PR11/job13: real existing Google flow listing1758/1886ms, selection2358/2646ms, selected reload1973/1990ms, workspace3746–4430ms successful HTTP200/no GraphQL errors, logout1584ms and anonymous workspace denied. Lab UIjob9/e1812e2 no create controls, visible first-login list, immediate named loading,1280/390/320px verified,62UI tests; no physical-iPad/cold-start claim.144 central native/app-scope regressions plus75application tests/3optional skips passed before deployment; current-request authority retained and next requests read fresh.650 observed scrubbed native events across18requests have zero failed ops, one initialization per namespace/request. Exact unwanted account and3productobjects preserved; design-only close proposal and affected-record inventory saved. Incident acceptance complete; several-second workspace UX remains a measured future optimization, not hidden as instant.",
+      "created_at": "2026-10-16T13:13:42.489011Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T11:19:14.819835Z",
-  "updated_at": "2026-10-16T13:09:31.574363Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T13:13:59.945502Z",
+  "closed_at": "2026-10-16T13:13:59.924067Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",
