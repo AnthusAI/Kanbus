@@ -26,7 +26,7 @@ class ConsoleWorld {
 setWorldConstructor(ConsoleWorld);
 
 BeforeAll(async () => {
-  browser = await chromium.launch();
+  browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
 });
 
 AfterAll(async () => {

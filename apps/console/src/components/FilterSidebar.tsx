@@ -1,6 +1,6 @@
 import React from "react";
 import { Check, Filter, Focus } from "lucide-react";
-import { AnimatedSelector, type SelectorOption } from "@kanbus/ui";
+import { IssueTypeFilter, type IssueTypeConfiguration, type SelectorOption } from "@kanbus/ui";
 import { RightSidebar } from "./RightSidebar";
 
 interface FilterSidebarProps {
@@ -20,6 +20,7 @@ interface FilterSidebarProps {
   onToggleLocal: () => void;
   onToggleShared: () => void;
   typeOptions: SelectorOption[];
+  typeConfig: IssueTypeConfiguration;
   typeValue: string | null;
   onTypeChange: (value: string) => void;
   onTransitionEnd?: (event: React.TransitionEvent<HTMLDivElement>) => void;
@@ -81,6 +82,7 @@ function FocusPill({
 }
 
 export function FilterSidebar({
+  typeConfig,
   isOpen,
   isVisible = false,
   animate = false,
@@ -144,12 +146,13 @@ export function FilterSidebar({
         <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted px-3">
           Type
         </div>
-        <AnimatedSelector
+        <IssueTypeFilter
+          config={typeConfig}
           name="type-filter"
           value={typeValue}
           onChange={onTypeChange}
           className="w-full"
-          options={typeOptions}
+          viewOptions={typeOptions}
         />
       </div>
 

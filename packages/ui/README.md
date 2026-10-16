@@ -3,6 +3,8 @@
 `@kanbus/ui` supplies the same board, cards, and issue detail components used by
 the standalone Kanbus console. Applications supply ordinary Kanbus issue types,
 statuses, workflows, and colors. Domain types do not require a fork of the UI.
+Column collapse, defaults and optional persistence are shared behavior;
+see [the full board contract](SHARED_BOARD.md).
 
 ## Controlled collections
 
@@ -127,3 +129,19 @@ Kanbus project. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` explicitly selects an
 existing Chromium executable when supplied. The suite imports the built package
 through its public exports and typechecks the host fixture before opening the
 browser.
+## Shared issue type control
+
+`IssueTypeFilter` wraps the same `AnimatedSelector` used by the console toolbar
+and filter sidebar. Supply the project's `hierarchy` and `types` configuration,
+the controlled value (`all` or `type:<configured-key>`), and `onChange`.
+`issueTypeFromFilter(value)` returns the exact type for `IssueCollection.query`.
+Selecting All or repeating the active choice clears the type restriction.
+Configured independent types precede hierarchy levels, each in configuration
+order with duplicate keys removed. Labels remain readable
+in a horizontally scrolling control on narrow screens. Import `kanban.css` for
+standalone layout and styles. System reduced motion disables selector animation.
+
+Console hosts may additionally supply `viewOptions` for their hierarchy navigation
+groups. Exact configured types use a separate namespace and do not replace those
+views. The selector owns no transport, authentication, history, or filtering:
+hosts persist the selected key and compose it with the shared exact-type query.

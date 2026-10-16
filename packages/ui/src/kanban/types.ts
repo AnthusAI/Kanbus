@@ -3,6 +3,7 @@ export interface KanbanStatusDefinition {
   name: string;
   category: string;
   color?: string | null;
+  collapsed?: boolean;
 }
 
 export interface KanbanCategoryDefinition {
@@ -44,6 +45,8 @@ export interface KanbanSortOrder {
 }
 
 export interface KanbanConfig {
+  hierarchy?: string[];
+  types?: string[];
   statuses: KanbanStatusDefinition[];
   categories: KanbanCategoryDefinition[];
   priorities: Record<number, KanbanPriorityDefinition>;

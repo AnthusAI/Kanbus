@@ -1,0 +1,62 @@
+/* Optional scoped theme. Hosts provide font assets; no page reset or external requests. */
+.kb-theme-organizer {
+  --organizer-paper: #fffdf7;
+  --organizer-background: #f5f0e6;
+  --organizer-ink: #101622;
+  --organizer-muted: #454b55;
+  --organizer-line: #b7b4ad;
+  --organizer-accent: #1744d7;
+  --organizer-accent-text: #fffdf7;
+  --organizer-shadow: #101622;
+  --background: var(--organizer-background);
+  --card: var(--organizer-paper);
+  --card-muted: var(--organizer-background);
+  --frame: var(--organizer-paper);
+  --column: var(--organizer-background);
+  --border: var(--organizer-line);
+  --text-foreground: var(--organizer-ink);
+  --text-muted: var(--organizer-muted);
+  --text-selected: var(--organizer-accent);
+  --font-body: "Geist", system-ui, sans-serif;
+  --kb-label-font: "Jersey 10", monospace;
+  --kb-display-font: "Jersey 25", monospace;
+  --kb-card-radius: 0px;
+  --kb-column-radius: 0px;
+  --kb-card-border: 2px solid var(--organizer-ink);
+  --kb-card-shadow: 4px 4px 0 var(--organizer-shadow);
+  --kb-card-selected-shadow: 4px 4px 0 var(--organizer-shadow);
+  --kb-board-gap: 16px;
+  --kb-column-width: 260px;
+  --kb-card-gap: 16px;
+  color: var(--text-foreground);
+  font-family: var(--font-body);
+  min-width: 0;
+}
+.kb-theme-organizer[data-color-mode="dark"], .dark .kb-theme-organizer:not([data-color-mode="light"]) {
+  --organizer-paper: #192335; --organizer-background: #101622; --organizer-ink: #f5f0e6;
+  --organizer-muted: #c4cddd; --organizer-line: #53617a; --organizer-accent: #95b6ff;
+  --organizer-accent-text: #101622; --organizer-shadow: #000;
+}
+@media (prefers-color-scheme: dark) {
+  .kb-theme-organizer:not([data-color-mode="light"]) {
+    --organizer-paper: #192335; --organizer-background: #101622; --organizer-ink: #f5f0e6;
+    --organizer-muted: #c4cddd; --organizer-line: #53617a; --organizer-accent: #95b6ff;
+    --organizer-accent-text: #101622; --organizer-shadow: #000;
+  }
+}
+.kb-theme-organizer .kb-grid { padding: 12px 8px 12px 0; min-height: 280px; scrollbar-width: thin; scrollbar-color: var(--organizer-line) var(--organizer-background); }
+.kb-theme-organizer .kb-grid::-webkit-scrollbar { display: block; height: 8px; }
+.kb-theme-organizer .kb-column { border: 1px solid var(--organizer-ink); background: var(--column); min-width: 0; height: auto; min-height: 280px; }
+.kb-theme-organizer .kb-column-header { height: auto; min-height: 44px; padding: 8px 12px; background: var(--organizer-ink); color: var(--organizer-paper); font: 20px/1.1 var(--kb-label-font); letter-spacing: .02em; text-transform: uppercase; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
+.kb-theme-organizer .kb-column-header:focus-visible { outline-offset: -4px; }
+.kb-theme-organizer .kb-column-title { white-space: normal; overflow: visible; }
+.kb-theme-organizer .kb-column-scroll { border-top: 4px solid var(--organizer-accent); margin-top: 8px; padding: 16px 12px; }
+.kb-theme-organizer .kb-column-collapsed { min-width: 48px; }
+.kb-theme-organizer .issue-card { border-radius: var(--kb-card-radius); border: var(--kb-card-border); --issue-accent: var(--organizer-accent); --issue-accent-muted: var(--organizer-background); --issue-accent-foreground: var(--organizer-accent-text); --issue-priority-bg: var(--organizer-paper); }
+.kb-theme-organizer .issue-accent-id { font: 18px/1 var(--kb-label-font); letter-spacing: .04em; }
+.kb-theme-organizer .issue-accent-priority { border-radius: 0; font: 14px/1 var(--kb-label-font); color: var(--organizer-ink); }
+.kb-theme-organizer .issue-card[data-selected="true"] { background: var(--organizer-accent); box-shadow: 4px 4px 0 var(--organizer-shadow); }
+.kb-theme-organizer .issue-card[data-selected="true"] h3, .kb-theme-organizer .issue-card[data-selected="true"] .text-muted { color: var(--organizer-accent-text); }
+.kb-theme-organizer .kb-detail-heading h2 { font: 32px/1.1 var(--kb-display-font); }
+.kb-theme-organizer .kb-detail-id, .kb-theme-organizer .kb-detail-close, .kb-theme-organizer .kb-detail-fields dt { font-family: var(--kb-label-font); font-size: 18px; }
+.kb-theme-organizer .kb-detail-close { border: 2px solid var(--organizer-ink); border-radius: 0; box-shadow: 2px 2px 0 var(--organizer-shadow); }

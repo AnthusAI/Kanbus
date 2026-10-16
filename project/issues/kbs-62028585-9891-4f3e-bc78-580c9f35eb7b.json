@@ -1,0 +1,50 @@
+{
+  "id": "kbs-62028585-9891-4f3e-bc78-580c9f35eb7b",
+  "title": "Share full board behavior across console and embedded consumers",
+  "description": "Ryan requires strict DRY for canonical Kanbus console, Papyrus CMS and Prospectus CRM (Cyclotron consumers also adopt). Export a reusable full board module owning collapse/default/persistence and existing board behavior; preserve theme/config/transport boundaries, filter/hierarchy/selection/mobile behavior. Both canonical console and Papyrus adopt same export; local regression proof, immutable pin, no publish/deploy. Given any consumer of the shared board, when a column is collapsed or expanded with pointer/keyboard, then identical shared behavior applies and configured/default/persisted state is respected.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "02d56bcf-cefa-4b37-bb79-c2971866ee9a",
+      "author": "home",
+      "text": "Shared Board owns collapse/default/config/persistence automatically; exported useBoardColumnState is the single controller used by canonical console external UI commands. IssueCollection composes same Board, now forwards detailOpen and columnStateKey. Removed dead copied console BoardColumn markup in favor of shared re-export. Config status collapsed typed; React18/19 peers supported. New specs first reproduced disabled headers, then 32 scenarios/183 steps pass. Real console 1440/390 collapse/reload/default/width/keyboard/detail/type/hierarchy passes; typechecks/build pass. Papyrus running8899 now uses exact packed d618b714 export: collapse reclaims197px at1440/390/844, list/type/reload persistence and selection/Escape pass; fullheight and approved sidebar/account/tab regressions pass. No drag/drop exists in baseline; not fabricated. Preparing isolated shared-UI-only release branch excluding unrelated API/backend pending work.",
+      "created_at": "2026-10-15T15:46:40.103801Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1-Sol",
+        "name": "SharedBoard"
+      }
+    },
+    {
+      "id": "5bfff680-f7f8-4282-88d4-d978f419d8b0",
+      "author": "home",
+      "text": "User subsequently authorized tested merge/release. PR402 all remote gates passed (wiki retry included; same-head push passed; Beads interoperability passed), merged19ac9211b46f6a92d11d9cbc6afa44792adb455e. ui-v0.2.0 dedicated UI-only release pipeline38773158550 SUCCEEDED. Public immutable artifact https://github.com/AnthusAI/Kanbus/releases/download/ui-v0.2.0/kanbus-ui-0.2.0.tgz SHA256 e174dbbb7864c76eb02bb840b7e6f28ea653491593ec7539bfb061d7b2c82acf (download locally verified). Final source includes contextual/hierarchy filter regression fixes;33 scenarios186 steps. No CLI release or deployment by UI tag. Papyrus production port pinning release; Prospectus should consume same asset. Earlier temporary candidates superseded.",
+      "created_at": "2026-10-15T16:59:46.481195Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1-Sol",
+        "name": "SharedBoard"
+      }
+    }
+  ],
+  "created_at": "2026-10-15T15:31:31.960320Z",
+  "updated_at": "2026-10-15T16:59:49.649661Z",
+  "closed_at": "2026-10-15T16:59:49.587354Z",
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6.1-Sol",
+    "name": "SharedBoard"
+  },
+  "right_now_summary": "The shared board UI is released immutably; Papyrus is pinning it, and Prospectus will consume the same asset.",
+  "right_now_updated_at": "2026-10-15T16:59:51.392436Z",
+  "custom": {}
+}

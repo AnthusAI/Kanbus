@@ -1,5 +1,7 @@
 export { Board } from "./Board";
 export type { BoardProps } from "./Board";
+export { useBoardColumnState } from "./useBoardColumnState";
+export type { BoardColumnStateOptions } from "./useBoardColumnState";
 export { BoardColumn } from "./BoardColumn";
 export type { BoardColumnProps } from "./BoardColumn";
 export { StatusTree } from "./StatusTree";
@@ -50,3 +52,5 @@ export type { TaskDetailIssue, IssueEvent, IssueEventsResponse } from "./TaskDet
 export type { AgentMetadata, AgentSettings } from "./agent-metadata";
 export { AgentMetadataBlock } from "./AgentMetadataBlock";
 export type { KanbanMotionConfig, KanbanMotionMode } from "./motion";
+export { IssueDetailPanel } from "./IssueDetailPanel";
+export type { IssueDetailPanelProps, IssueDetailField } from "./IssueDetailPanel";

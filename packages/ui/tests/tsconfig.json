@@ -1,6 +1,8 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "baseUrl": "..",
+    "paths": { "@kanbus/ui": ["dist"] },
     "rootDir": "..",
     "moduleResolution": "Bundler",
     "noEmit": true

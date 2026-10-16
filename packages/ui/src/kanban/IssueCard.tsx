@@ -1,4 +1,4 @@
-import React, { useRef, useLayoutEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { buildIssueColorStyle } from "./issue-colors";
 import { formatIssueId } from "./format-issue-id";
@@ -6,6 +6,7 @@ import { getTypeIcon } from "./issue-icons";
 import {
   getIssueMotionStyle,
   normalizeMotionConfig,
+  useReducedMotion,
   type KanbanMotionConfig
 } from "./motion";
 
@@ -29,7 +30,8 @@ export function IssueCard({
   motionIndex = 0
 }: IssueCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
-  const resolvedMotion = normalizeMotionConfig(motion);
+  const reducedMotion = useReducedMotion();
+  const resolvedMotion = reducedMotion ? { mode: "static" as const } : normalizeMotionConfig(motion);
 
   const handleClick = () => {
     if (onSelect) {
@@ -37,7 +39,7 @@ export function IssueCard({
     }
   };
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     // When the card mounts or updates, if it has inline transforms (from a previous FLIP), clear them.
     // This fixes the issue where a flipped card permanently holds a translated transform that messes up future state changes.
     if (cardRef.current) {
@@ -49,7 +51,7 @@ export function IssueCard({
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const motionStyle = getIssueMotionStyle(resolvedMotion, motionIndex);
   const selectionStyle = isSelected
-    ? { boxShadow: "inset 0 0 0 6px var(--text-muted)" }
+    ? { boxShadow: "var(--kb-card-selected-shadow, inset 0 0 0 6px var(--text-muted))" }
     : undefined;
   const combinedStyle = { ...issueStyle, ...motionStyle, ...selectionStyle };
 
@@ -65,8 +67,8 @@ export function IssueCard({
       data-flip-id={issue.id}
       data-selected={isSelected ? "true" : undefined}
       onClick={handleClick}
-      role="button"
-      tabIndex={0}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -83,11 +85,11 @@ export function IssueCard({
           <div className="issue-accent-priority">{priorityName}</div>
         </div>
       </div>
-      <div className="grid gap-1 pt-2">
+      <div className="issue-card-content grid gap-1 pt-2">
         <h3 className={`text-base font-medium ${isSelected ? "text-selected" : "text-foreground"}`}>
           {issue.title}
         </h3>
-        <div className="flex items-center justify-end text-xs text-muted">
+        <div className="issue-card-owner flex items-center justify-end text-xs text-muted">
           {issue.assignee ? <span>{issue.assignee}</span> : null}
         </div>
       </div>

@@ -1,5 +1,8 @@
 # Kanbus writable application API
 
+For a domain application hosted on Amplify, follow the [shared service composition
+and deployment guide](AMPLIFY.md). It reuses the app's existing Amplify backend.
+
 Tracking: kbs-972765; the shared storage initiative records the wider milestone.
 
 The service reuses Kanbus models, configuration and workflow validation. The initial service fails closed for projects with `.policy` files or configured hooks, whose execution is not yet integrated. It never returns runtime credentials or hook commands in browser configuration. Domain apps configure types, statuses and custom values; the API has no CRM-specific routes. The service-specific behavior specification is `features/writable_api.feature`, exercised by Rust integration tests. This milestone rejects parent-link creation/changes, dependency-link writes, changes involving hierarchical issue types, and hierarchical deletion with `unsupported_relation_mutation`. Per-object revisions cannot protect cross-record invariants; a future related-record concurrency mechanism is required. Imported relations remain readable and survive status/comment edits. Imports must run while API writers are quiesced. Parentless nonhierarchical CRUD and workflow changes remain available. Existing CLI implementations are unchanged.

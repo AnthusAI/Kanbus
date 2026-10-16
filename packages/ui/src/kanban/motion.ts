@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 export type KanbanMotionMode = "css" | "frame" | "static";
 
@@ -51,4 +51,16 @@ export function getIssueMotionStyle(
     opacity: eased,
     transform: `translateY(${translateY}px) scale(${scale})`
   };
+}
+
+/** Observe the host device preference without owning a playback clock. */
+export function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(preference.matches);
+    update(); preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
+  }, []);
+  return reduced;
 }

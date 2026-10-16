@@ -14,12 +14,15 @@ export interface IssueCollectionProps<Issue extends KanbanIssue = KanbanIssue> {
   view?: "board" | "list";
   onSelectIssue?: (issue: Issue) => void;
   selectedIssueId?: string | null;
+  detailOpen?: boolean;
   collapsedColumns?: Set<string>;
   onToggleCollapse?: (column: string) => void;
+  columnStateKey?: string;
   motion?: KanbanMotionConfig;
   emptyMessage?: ReactNode;
   ariaLabel?: string;
   className?: string;
+  initialScroll?: "start" | "end" | "preserve";
 }
 
 const EMPTY_QUERY: IssueQuery = {};
@@ -32,12 +35,15 @@ export function IssueCollection<Issue extends KanbanIssue>({
   view = "board",
   onSelectIssue,
   selectedIssueId,
+  detailOpen,
   collapsedColumns,
   onToggleCollapse,
+  columnStateKey,
   motion,
   emptyMessage = "No matching issues",
   ariaLabel = "Issues",
-  className
+  className,
+  initialScroll
 }: IssueCollectionProps<Issue>) {
   const visibleIssues = useMemo(() => filterIssues(issues, query), [issues, query]);
   const columns = useMemo(() => getStatusColumnsForIssueTypes(config, query.type === undefined ? [] : [query.type])
@@ -60,12 +66,15 @@ export function IssueCollection<Issue extends KanbanIssue>({
           issues={visibleIssues}
           priorityLookup={priorityLookup}
           config={config}
-          onSelectIssue={selectIssue}
+          onSelectIssue={onSelectIssue ? selectIssue : undefined}
           selectedIssueId={selectedIssueId}
+          detailOpen={detailOpen}
           collapsedColumns={collapsedColumns}
           onToggleCollapse={onToggleCollapse}
+          columnStateKey={columnStateKey}
           transitionKey={JSON.stringify(query)}
           motion={motion}
+          initialScroll={initialScroll}
         />
       ) : (
         <ul className="kb-issue-list">
@@ -75,7 +84,7 @@ export function IssueCollection<Issue extends KanbanIssue>({
                 issue={issue}
                 priorityName={priorityLookup[issue.priority] ?? String(issue.priority)}
                 config={config}
-                onSelect={selectIssue}
+                onSelect={onSelectIssue ? selectIssue : undefined}
                 isSelected={issue.id === selectedIssueId}
                 motion={motion}
                 motionIndex={index}
