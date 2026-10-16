@@ -70,10 +70,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "e9a525e8-4e2c-439e-b337-ec2c0701dc21",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Source main contains synthetic intake/contact/next-action work; hosted synthetic runtime is disabled and real-contact acquisition needs policy/operating/failure acceptance. Demo inquiry is not booking. Repo-local Prospectus kanbus-67ae2d79-ea39-4402-83b7-5be6c595ae4c tracks readiness; no outbound messages or account grants implied.",
+      "created_at": "2026-10-16T20:46:56.462594Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:21.779472Z",
-  "updated_at": "2026-10-15T18:11:54.270062Z",
+  "updated_at": "2026-10-16T20:46:56.462643Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

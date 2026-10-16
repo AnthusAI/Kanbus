@@ -3,7 +3,7 @@
   "title": "Google sign-in precedes Prospectus application role assignment",
   "description": "Given a Google user without a pre-enrolled Prospectus profile, when they sign in, then Cognito creates the federated identity without an invitation and CRM access remains denied until workspace membership is assigned. Given an existing Google identity, when the operator assigns app admin and workspace membership, then refreshed tokens enable the full CRM without a new user, password, invitation or AWS administrator grant. Preserve existing pool and linked identities. Ryan explicitly approved Papyrus-style alignment and admin access for ryan@anth.us. Source 9a7bc5a is deploying in Amplify job 4; tests verify no admission trigger or user-management runtime privileges.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -55,11 +55,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "244a0559-2d40-4bb8-8546-70581e220b4c",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Google-first sign-in source9a7bc5a and hosted job4 succeeded; current Prospectus main94f6d4a preserves central auth and later account integrations. Central access was accepted. Close this sign-in deliverable; later hosted mutation acceptance remains a distinct open story.",
+      "created_at": "2026-10-16T20:47:46.789551Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-14T12:42:34.147591Z",
-  "updated_at": "2026-10-14T12:55:38.393020Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T20:47:46.789593Z",
+  "closed_at": "2026-10-16T20:47:46.613782Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",

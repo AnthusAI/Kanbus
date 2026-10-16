@@ -25,10 +25,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "ed5b280a-de30-43a4-ad6c-06e8ab65756a",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Shared backend handoff proof complete; application owner still owes hosted/UI acceptance. Prospectus kanbus-6cf11d42-3f7d-432c-9368-f8b0e5bd3ab7 tracks that acceptance. Keep open, preserving original issue and history.",
+      "created_at": "2026-10-16T20:46:56.626951Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:22.015355Z",
-  "updated_at": "2026-10-16T09:29:06.965519Z",
+  "updated_at": "2026-10-16T20:46:56.626981Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

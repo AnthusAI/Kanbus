@@ -3,7 +3,7 @@
   "title": "Migrate shared production Prospectus CRM to papyrus-production",
   "description": "Ryan changed the authoritative CRM target to papyrus-production account712236451410 and prospectus.anth.us. Preserve the live Cyclotron instance and every identity/data record until a separately tested replacement and exact DNS target are verified. Use ordinary Amplify/standard existing bootstrap, no bespoke IAM. SourceSSO currently expired; targetAdminSSO and standard bootstrap verified. Coordinate identity/S3 contract with task01a13a6b; marketing site is separate and excluded. Obtain concrete approval before new persistent grants or credential bindings; no cutover/deletion now.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -55,11 +55,26 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "76d00529-7071-4e69-b23e-142587d95af3",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Central prospectus.anth.us in papyrus-production was accepted; obsolete dedicated deployment cleanup is already complete (kbs-9a3832). Main94f6d4a includes later Accounts source. Close migration deliverable; hosted CRUD/conflict follow-up stays under Prospectus kanbus-6cf11d42-3f7d-432c-9368-f8b0e5bd3ab7. Preserve central data.",
+      "created_at": "2026-10-16T20:46:55.589718Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-15T00:20:12.926656Z",
-  "updated_at": "2026-10-15T02:35:11.680410Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T20:46:55.589755Z",
+  "closed_at": "2026-10-16T20:46:55.458735Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",

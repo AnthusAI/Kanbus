@@ -3,7 +3,7 @@
   "title": "Deliver Prospectus at its private Cyclotron domain through CI/CD",
   "description": "As a brand operator, I want a separately delivered Prospectus app so public sites integrate through configured links or narrow intake without hosting CRM data.\n\nFeature: Separate Prospectus delivery\n  Scenario: Reproducible delivery\n    Given reviewed source, passing required CI checks and approved platform access\n    When the established Cyclotron delivery workflow runs for Prospectus\n    Then it builds and deploys the app and writable backend to the verified dedicated account\n    And https://prospectus.cyclotron.anth.us serves valid TLS and the expected build\n    And other Cyclotron sites remain unchanged\n  Scenario: Verify the deployed writable path\n    Given an authorized CRM user at the deployed domain\n    When they create and progress a prospect then reload in a fresh session\n    Then the same issue and updated stage are loaded from canonical storage\n    And the verification report distinguishes source checks from live evidence\n  Scenario: Block safely on unavailable platform access\n    Given expired credentials or an unapproved persistent access change\n    When delivery reaches that prerequisite\n    Then the exact prerequisite is reported without changing accounts or bypassing approval",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -82,11 +82,26 @@
         "model": "GPT-6",
         "name": "Prospectus"
       }
+    },
+    {
+      "id": "3c2dac3a-49ba-4cfe-ba5a-9f9c3264f846",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Historical dedicated Cyclotron deployment succeeded, then central prospectus.anth.us in papyrus-production became authoritative and obsolete deployment was retired under existing closed cleanup issues. This destination-specific deliverable is superseded/complete, not a current deployment blocker. No new deployment is required.",
+      "created_at": "2026-10-16T20:46:56.188839Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:22.253800Z",
-  "updated_at": "2026-10-14T12:17:10.992812Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T20:46:56.188888Z",
+  "closed_at": "2026-10-16T20:46:56.022375Z",
   "agent": {
     "platform": "codex",
     "model": "GPT-6",

@@ -3,7 +3,7 @@
   "title": "Milestone 5: privately deploy Prospectus through Cyclotron CI/CD",
   "description": "Set up and verify Prospectus at https://prospectus.cyclotron.anth.us in dedicated cyclotron-production account 682849160744/profile cyclotron-production. Inspect and follow current Cyclotron hosting and CI/CD conventions, including Amplify where appropriate; preserve other sites. Delivery must be reproducible from reviewed source and CI rather than depend on manual content uploads. Verify private CRM access and narrow public intake separately. New persistent access/security grants require specific platform approval; expired sessions must be reported without account/environment substitution. Done when custom-domain TLS, auth, write/readback/reload and automated delivery are verified live, with source tests distinguished from live evidence. Do not assume unrelated merges or a shared Cognito decision.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -22,11 +22,26 @@
         "model": "GPT-6",
         "name": "Prospectus Standard Amplify Preparation"
       }
+    },
+    {
+      "id": "ef167e28-3d3c-432f-b92d-c61ac3c1550b",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Historical dedicated Cyclotron deployment succeeded, then central prospectus.anth.us in papyrus-production became authoritative and obsolete deployment was retired under existing closed cleanup issues. This destination-specific deliverable is superseded/complete, not a current deployment blocker. No new deployment is required.",
+      "created_at": "2026-10-16T20:46:55.881628Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:21.209043Z",
-  "updated_at": "2026-10-14T10:45:02.523902Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T20:46:55.881658Z",
+  "closed_at": "2026-10-16T20:46:55.746214Z",
   "agent": {
     "platform": "codex",
     "model": "GPT-6",
