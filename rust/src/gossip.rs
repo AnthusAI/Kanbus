@@ -2478,35 +2478,46 @@ mod tests {
             subscriber
                 .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x00])
                 .expect("send SUBACK");
+            // KANBUS_REALTIME_BROKER is process-wide, so unrelated tests that
+            // publish concurrently (the router tests) also reach this broker.
+            // Serve every connection and keep only the claim this test
+            // publishes; anything else is acknowledged and discarded.
             let publisher_deadline = Instant::now() + Duration::from_secs(3);
-            let (mut publisher, first_header) = loop {
+            let (topic, payload) = loop {
                 let timeout = publisher_deadline.saturating_duration_since(Instant::now());
                 let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
                     .expect("accept publisher connection within overall deadline");
                 stream
-                    .set_read_timeout(Some(Duration::from_secs(3)))
+                    .set_read_timeout(Some(Duration::from_secs(1)))
                     .expect("set publisher read timeout");
                 stream
-                    .set_write_timeout(Some(Duration::from_secs(3)))
+                    .set_write_timeout(Some(Duration::from_secs(1)))
                     .expect("set publisher write timeout");
                 let mut header = [0_u8; 1];
-                match stream.read(&mut header) {
-                    Ok(0) => continue, // TCP-only reachability probe
-                    Ok(1) if header[0] >> 4 == 1 => break (stream, header[0]),
-                    other => panic!("unexpected publisher connection: {other:?}"),
+                if !matches!(stream.read(&mut header), Ok(1)) || header[0] >> 4 != 1 {
+                    continue;
                 }
+                read_packet_after_header(&mut stream, header[0]);
+                if stream.write_all(&[0x20, 0x02, 0x00, 0x00]).is_err() {
+                    continue;
+                }
+                let mut header = [0_u8; 1];
+                if !matches!(stream.read(&mut header), Ok(1)) || header[0] >> 4 != 3 {
+                    continue;
+                }
+                let (_, body) = read_packet_after_header(&mut stream, header[0]);
+                let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+                let topic_end = 2 + topic_length;
+                let payload = body[topic_end..].to_vec();
+                let Ok(envelope) = serde_json::from_slice::<serde_json::Value>(&payload) else {
+                    continue;
+                };
+                if envelope["resource"] != "router:issue:kbs-peer" {
+                    continue;
+                }
+                let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
+                break (topic, payload);
             };
-            let (connect, _) = read_packet_after_header(&mut publisher, first_header);
-            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
-            publisher
-                .write_all(&[0x20, 0x02, 0x00, 0x00])
-                .expect("send publisher CONNACK");
-            let (publish, body) = read_packet(&mut publisher);
-            assert_eq!(publish >> 4, 3, "expected MQTT PUBLISH");
-            let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
-            let topic_end = 2 + topic_length;
-            let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
-            let payload = body[topic_end..].to_vec();
             published_tx
                 .send(
                     serde_json::from_slice::<serde_json::Value>(&payload).expect("claim envelope"),
@@ -2522,7 +2533,7 @@ mod tests {
         let (received, published) = collect_coordination_gossip_window_with(
             root,
             &project_dir,
-            Duration::from_millis(500),
+            Duration::from_millis(1500),
             300,
             || {
                 let claim_event = crate::coordination::append_soft_claim_event(
