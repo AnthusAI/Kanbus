@@ -1,0 +1,22 @@
+{
+  "id": "kbs-7e5c4ff7-a637-4cb9-9e93-a1623b3619e9",
+  "title": "The no-guidance flag does not suppress comment Markdown and diagram suggestions",
+  "description": "kbs --no-guidance comment <id> 'text' still prints the SUGGESTION block about Markdown and diagrams in both CLIs.",
+  "type": "bug",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:38:52.035083234Z",
+  "updated_at": "2026-10-16T14:38:52.093854314Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

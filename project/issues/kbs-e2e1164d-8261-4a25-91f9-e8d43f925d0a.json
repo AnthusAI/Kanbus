@@ -1,0 +1,22 @@
+{
+  "id": "kbs-e2e1164d-8261-4a25-91f9-e8d43f925d0a",
+  "title": "Console at phone width shows an empty column and hides the populated one",
+  "description": "At 390x844 with type=all, the board shows only In Progress (0) plus collapsed Blocked/Done; the Discovery column holding all cards is off-screen with no affordance to reach it.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:39:30.115402540Z",
+  "updated_at": "2026-10-16T14:39:30.179554033Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

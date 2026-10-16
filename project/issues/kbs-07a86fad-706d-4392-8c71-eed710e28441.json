@@ -1,0 +1,22 @@
+{
+  "id": "kbs-07a86fad-706d-4392-8c71-eed710e28441",
+  "title": "Quiet human-friendly CLI output when not run by an agent",
+  "description": "Every create and comment prints a five-line provenance warning suggesting Cursor/Composer flags, and comment prints Markdown suggestions. Comment authors are always 'unknown'. Detect an interactive human (TTY, no agent env) and drop agent nags; use git user.name as author. Also unify id display (short ids everywhere, consistent case in console) and make errors list valid choices.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:40:07.398631395Z",
+  "updated_at": "2026-10-16T14:40:07.457195751Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

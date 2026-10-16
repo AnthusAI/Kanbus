@@ -1,0 +1,22 @@
+{
+  "id": "kbs-3c962303-b53f-49c1-83d4-31d4d897c9ed",
+  "title": "Commit all board state, not only issues, and offer automatic commits",
+  "description": "kbs commit stages only project/issues, so .kanbus.yml, wiki and every event file stay untracked (303 untracked event files after 300 creates). Survey of the maintainer's repos found uncommitted board state in Papyrus, Pudicus and others. Stage events and config too, and add an opt-in auto-commit or pre-push hook.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:42:03.997934273Z",
+  "updated_at": "2026-10-16T14:42:04.056457307Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

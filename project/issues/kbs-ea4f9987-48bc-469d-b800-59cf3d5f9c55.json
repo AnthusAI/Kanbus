@@ -1,0 +1,22 @@
+{
+  "id": "kbs-ea4f9987-48bc-469d-b800-59cf3d5f9c55",
+  "title": "Unknown status values are silently accepted and help text advertises a done status",
+  "description": "kbs list --status todo (the README quick start) and --status bogus print empty columns and exit 0. Both CLIs' --help list 'done' as a status, but update --status done fails with 'unknown status' without naming valid statuses. Reject unknown statuses with the list of configured ones, and generate help from the configuration.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:37:36.707250529Z",
+  "updated_at": "2026-10-16T14:37:36.759171528Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

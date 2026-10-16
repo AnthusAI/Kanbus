@@ -1,0 +1,22 @@
+{
+  "id": "kbs-89b6461c-b323-409b-bf0c-49c60fa461ce",
+  "title": "Console realtime overlay shows issues from unrelated repos that share a project key",
+  "description": "Repro: kbs init in two repos (both get the default key kanbus). Start kbsc in repo B. In repo A run kbs create. The issue appears on B's console board and in B's kbs list (Rust and Python), and is written to B/project/.overlay/issues/ for the overlay TTL (24h). One run put 329 foreign issues into a 6-issue board. Cause: realtime topic projects/{project_key}/events on the machine-wide broker socket, and the overlay accepts any message on that topic. Six of the maintainer's repos use the key kanbus. Expected: overlay only accepts events from the same repository identity, independent of project key.",
+  "type": "bug",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:35:07.514579352Z",
+  "updated_at": "2026-10-16T14:35:07.572543614Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

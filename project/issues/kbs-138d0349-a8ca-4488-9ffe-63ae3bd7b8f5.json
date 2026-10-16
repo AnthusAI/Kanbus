@@ -1,0 +1,22 @@
+{
+  "id": "kbs-138d0349-a8ca-4488-9ffe-63ae3bd7b8f5",
+  "title": "Close or migrate stale GitHub issues from the pre-rename tsk era",
+  "description": "81 open GitHub issues from February 2026 reference the old tsk command and epics that the Kanbus board now tracks. They make the project look abandoned to visitors.",
+  "type": "chore",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:42:44.278169752Z",
+  "updated_at": "2026-10-16T14:42:44.334825913Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

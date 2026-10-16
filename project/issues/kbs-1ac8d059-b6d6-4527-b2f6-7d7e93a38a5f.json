@@ -1,0 +1,22 @@
+{
+  "id": "kbs-1ac8d059-b6d6-4527-b2f6-7d7e93a38a5f",
+  "title": "Create and edit issues from the console",
+  "description": "The console has no new-issue control, and status and comment controls are not visible in the detail panel, although kbsc already serves POST comment and status routes. Add create, status change, comment and drag between columns. Default view should be All rather than Epics so a new board shows its cards.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:40:47.006578017Z",
+  "updated_at": "2026-10-16T14:40:47.073669971Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

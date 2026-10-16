@@ -1,0 +1,22 @@
+{
+  "id": "kbs-35dc5e0f-302e-479a-a423-3bb86fc791a4",
+  "title": "Daemon fails on long checkout paths and every command pays a retry delay",
+  "description": "In a deeply nested checkout the daemon exits with 'path must be shorter than SUN_LEN' for project/.cache/kanbus.sock. Each command then retries for about 0.6 s before falling back, and leaves zombie kbs processes. Worktrees make deep paths common. Use a short socket path (hashed under the runtime dir) and fail fast.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:36:58.916616376Z",
+  "updated_at": "2026-10-16T14:36:58.978521791Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

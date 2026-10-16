@@ -1,0 +1,22 @@
+{
+  "id": "kbs-f8e08cd6-e0e1-40f1-83b0-633d348af026",
+  "title": "README console quick start downloads a release asset that returns 404",
+  "description": "README links releases/latest/download/kanbus-console-x86_64-unknown-linux-gnu.tar.gz, which is 404. The asset is now kbsc-x86_64-unknown-linux-gnu.tar.gz. Also the release tag is named kanbus-py-0.34.0 although it carries the Rust binaries.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:38:13.967358200Z",
+  "updated_at": "2026-10-16T14:38:14.023002094Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

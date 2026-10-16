@@ -1,0 +1,22 @@
+{
+  "id": "kbs-98e5d05b-6db9-48d1-93ab-c9e884e3cddb",
+  "title": "kbs create is quadratic in board size because of the duplicate-title check",
+  "description": "find_duplicate_title (rust/src/issue_creation.rs:224) and _find_duplicate_title (python/src/kanbus/issue_creation.py:253) call read_issue_from_file per issue, and read_issue_from_file rebuilds a whole Virtuus table from the directory each call. At 320 issues one create opens issue files about 101,000 times: 1.8-2.5 s Rust, 9-12 s Python, versus 20 ms with --no-validate. Fix: read the directory once and compare titles in memory; make single-issue reads read one file. Keep unparseable-file behavior identical across implementations.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:35:45.266282089Z",
+  "updated_at": "2026-10-16T14:35:45.330841914Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,22 @@
+{
+  "id": "kbs-ddc1e302-1ce6-4e43-8608-7c60d506eaf2",
+  "title": "Cloud console edits are overwritten by the next git sync and git deletes never reach EFS",
+  "description": "kbsc in multi-tenant mode writes status changes and comments to the tenant EFS working copy. Nothing commits or pushes them. infra/cloud/lambda/sync_efs_writer.py extract_tarball_to_tenant_root writes tarball members over the tenant root without removing files, so the next push overwrites console edits and issues deleted in git stay visible forever. Either make the cloud console read-only or push its writes back to git, and mirror deletes during sync.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:36:22.754371972Z",
+  "updated_at": "2026-10-16T14:36:22.832876864Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

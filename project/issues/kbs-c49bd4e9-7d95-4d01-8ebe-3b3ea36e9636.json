@@ -1,0 +1,22 @@
+{
+  "id": "kbs-c49bd4e9-7d95-4d01-8ebe-3b3ea36e9636",
+  "title": "One storage setting for CLI, console and agents including S3 and DynamoDB",
+  "description": "S3/DynamoDB is reachable only through services/kanbus-api embedded in an app; the CLI and kbsc read files only, with no init, import or export for the cloud store. Add a storage setting in .kanbus.yml (file or s3 bucket/prefix plus catalog table) used by every client, plus kbs export and kbs import between folder and cloud. Align the API's write rules (parents, dependencies, hooks, policies) with the CLI so boards do not drift.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:41:27.147357351Z",
+  "updated_at": "2026-10-16T14:41:27.211540209Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
