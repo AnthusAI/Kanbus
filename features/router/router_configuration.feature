@@ -10,16 +10,11 @@ Feature: Optional Issue Router configuration
     And stderr should equal "error: issue router is not configured\n"
     And running "kanbus list" in the same project should succeed
 
-  Scenario: The Codex-first router configuration is accepted
+  @wip
+  Scenario: The Codex-first router configuration is accepted with one marked status per semantic category
     Given a Kanbus project with router configuration:
       """
       router:
-        workflow:
-          pending: open
-          active: in_progress
-          review: review
-          blocked: blocked
-          terminal: [closed]
         limits:
           project_wip: 2
           review_wip: 1
@@ -32,8 +27,14 @@ Feature: Optional Issue Router configuration
           implementation:
             providers: [codex-default]
       """
+    And the project has the canonical router statuses
     When the router configuration is loaded
     Then the configuration should be valid
+    And the router status for semantic category "todo" should be "Discovery"
+    And the router status for semantic category "in_progress" should be "in_progress"
+    And the router status for semantic category "in_review" should be "review"
+    And the router status for semantic category "blocked" should be "blocked"
+    And the router status for semantic category "done" should be "closed"
     And the default provider profile should be "codex-default"
     And provider profile "codex-default" should use command "codex" and no arguments
     And the maximum retry attempts should be 3
@@ -94,19 +95,107 @@ Feature: Optional Issue Router configuration
       | poll_seconds|
       | fallback    |
 
-  Scenario Outline: Workflow roles must name configured statuses
-    Given a valid router configuration with workflow role "<role>" set to "<status>"
+  @wip
+  Scenario: The router configuration rejects the removed workflow status map
+    Given a Kanbus project with router configuration:
+      """
+      router:
+        workflow:
+          pending: open
+          active: in_progress
+          review: review
+          blocked: blocked
+          terminal: [closed]
+      """
+    And the project has the canonical router statuses
     When the router configuration is loaded
     Then the command should fail with exit code 1
-    And stderr should equal "error: router.workflow.<role> references undefined status \"<status>\"\n"
+    And stderr should equal "error: router.workflow is an unknown field\n"
+
+  @wip
+  Scenario: Statuses are not router-marked by default
+    Given a Kanbus project with default configuration
+    When I run "kanbus list"
+    Then the command should succeed
+    And no configured status should be router-marked
+
+  @wip
+  Scenario: A project may mark statuses without enabling the router
+    Given a Kanbus project without a router configuration
+    And the project has the canonical router statuses
+    When I run "kanbus list"
+    Then the command should succeed
+    And the configured status "Discovery" should be router-marked
+
+  @wip
+  Scenario Outline: An enabled router requires a marked status for every canonical category
+    Given a Kanbus project with valid Codex-first router configuration
+    And the project has the canonical router statuses
+    And the status "<status>" is not router-marked
+    When the router configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should equal "error: router requires exactly one router-marked status for semantic category \"<category>\"\n"
 
     Examples:
-      | role     | status       |
-      | pending  | unknown      |
-      | active   | unknown      |
-      | review   | unknown      |
-      | blocked  | unknown      |
-      | terminal | ["unknown"]  |
+      | category    | status      |
+      | todo        | Discovery   |
+      | in_progress | in_progress |
+      | in_review   | review      |
+      | blocked     | blocked     |
+      | done        | closed      |
+
+  @wip
+  Scenario: Two statuses cannot both be router-marked for one semantic category
+    Given a Kanbus project with valid Codex-first router configuration
+    And the project has the canonical router statuses
+    And the status "open" is also router-marked
+    When the router configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should equal "error: statuses \"Discovery\" and \"open\" are both router-marked for semantic category \"todo\"\n"
+
+  @wip
+  Scenario: Router marker uniqueness is enforced even when the router is not configured
+    Given a Kanbus project without a router configuration
+    And the project has the canonical router statuses
+    And the status "open" is also router-marked
+    When I run "kanbus list"
+    Then the command should fail with exit code 1
+    And stderr should equal "error: statuses \"Discovery\" and \"open\" are both router-marked for semantic category \"todo\"\n"
+
+  @wip
+  Scenario: A router marker must be a boolean
+    Given a Kanbus project with default configuration
+    And the project has the canonical router statuses
+    And the status "Discovery" has router marker "yes please"
+    When I run "kanbus list"
+    Then the command should fail with exit code 1
+    And stderr should equal "error: statuses.Discovery.router must be a boolean\n"
+
+  @wip
+  Scenario: The router lifecycle requires workflow transitions between its marked statuses
+    Given a Kanbus project with valid Codex-first router configuration
+    And the project has the canonical router statuses
+    And the default workflow does not allow "Discovery" to "in_progress"
+    When the router configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should equal "error: router lifecycle requires a workflow transition from \"Discovery\" to \"in_progress\"\n"
+
+  @wip
+  Scenario Outline: Every marked lifecycle transition must be allowed by the default workflow
+    Given a Kanbus project with valid Codex-first router configuration
+    And the project has the canonical router statuses
+    And the default workflow does not allow "<from>" to "<to>"
+    When the router configuration is loaded
+    Then the command should fail with exit code 1
+    And stderr should equal "error: router lifecycle requires a workflow transition from \"<from>\" to \"<to>\"\n"
+
+    Examples:
+      | from        | to          |
+      | Discovery   | in_progress |
+      | in_progress | review      |
+      | in_progress | blocked     |
+      | review      | in_progress |
+      | review      | closed      |
 
   Scenario Outline: Router WIP limits must be positive integers
     Given a valid router configuration with "<field>" set to "<value>"
@@ -125,18 +214,6 @@ Feature: Optional Issue Router configuration
     When the router configuration is loaded
     Then the command should fail with exit code 1
     And stderr should equal "error: router.limits.review_wip must not exceed project_wip\n"
-
-  Scenario: Router workflow roles use distinct statuses
-    Given a valid router configuration with active status "in_progress" and review status "in_progress"
-    When the router configuration is loaded
-    Then the command should fail with exit code 1
-    And stderr should equal "error: router.workflow roles must use distinct statuses\n"
-
-  Scenario: Terminal status list must not be empty
-    Given a valid router configuration with terminal statuses "[]"
-    When the router configuration is loaded
-    Then the command should fail with exit code 1
-    And stderr should equal "error: router.workflow.terminal must be a nonempty list\n"
 
   Scenario: The router accepts only the Codex and OpenCode adapters
     Given a valid router configuration with provider profile "claude-default" using adapter "claude"
