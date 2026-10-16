@@ -70,10 +70,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "a61ae731-7e4c-460d-944e-9854fada0722",
+      "author": "home",
+      "text": "PR11 merged 94f6d4ad57904797fe6beb7a3d4bad0a6a537684 and Amplify job13 SUCCEED at 2026-10-16T13:08:17Z. Actual Lambda ZIP verified against AWS CodeSha256 kfT2l1caJo74G4eHNXWIiA1ISEanMzYE+SjJXxueR1k=; update Active/Successful at13:05:29Z; native stream/timing markers present. First actual Lab post-update samples: selected reload3224ms, successful workspace3746/3944ms.18 observed central requests: one identity storage initialization each,650 sanitized native events,zero failed operations. Still several-second UX, repeated measurements pending. Exact unwanted account preserved; recoverable-close design prepared only, no data/IAM change.",
+      "created_at": "2026-10-16T13:09:31.573930Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T11:19:14.819835Z",
-  "updated_at": "2026-10-16T12:52:22.592249Z",
+  "updated_at": "2026-10-16T13:09:31.574363Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

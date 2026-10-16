@@ -25,10 +25,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "7f6fd792-acf9-4a3a-8942-dc69b6f7fe92",
+      "author": "home",
+      "text": "PR403 exact head a1af348 promotes develop with published Virtuus0.6.1/store0.1.0, version-lock sync and manual release asset tag correction. Embedded UI/API, Python and parity/install/performance gates pass; Rust MQTT unit failure reproduced as all553 local unit tests PASS, failed hosted jobs rerunning. New release security check reports4 high cleartext logging findings in rust/src/daemon_client.rs lines288/299/313/347, where dynamic project/socket paths enter debug logs. Reviewing/removing diagnostic path/error values before merge; no assertion or security gate suppression. Actual registry API proof and clean consumer artifacts saved locally.",
+      "created_at": "2026-10-16T13:09:31.782891Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T10:38:49.060782Z",
-  "updated_at": "2026-10-16T12:47:54.312685Z",
+  "updated_at": "2026-10-16T13:09:31.782914Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
