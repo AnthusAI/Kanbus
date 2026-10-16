@@ -3,7 +3,7 @@
   "title": "Release embedded Kanbus foundation from main",
   "description": "Given released Virtuus storage and the embedded Kanbus foundation pass required gates, when stable develop is promoted to main and normal release workflows publish, then consumers can install the shared UI artifact and build the writable API against a valid released storage dependency while the standalone CLI remains available. Verify versions, tags, downloadable artifacts and consumer build.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -70,11 +70,26 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "89234943-ddec-48e8-81f6-f82a862bb853",
+      "author": "home",
+      "text": "Actual release acceptance COMPLETE: Kanbus0.34.0 Python/Rust tags f81b91857a54f8f51e57a1e52a1100288a4781c2; both registries downloaded/checksumverified; crate92production/manifestfiles match tag; isolated registrycratebuild+CLI and Pythonwheelconsumer PASS; all8nativeCLI/consoleassets downloaded/digestsverified and ARMCLI/embeddedconsole consumer PASS. ActualtagAPIbuild+29tests and syntheticProspectusfunnel/handoff/conflict/replay/restart/historyproof PASS. Released-source mainCI38911688383 including coverage/ratchet/smoke/Beads and CodeQL38911688710 ALLPASS. PR403 mainmerge1635f9d. ExistingoptionalVSCodeMarketplace skip becauseVSCE_PATunset, no newcredentials. Broaderstorage/multi-project work unchanged; no IAM/account/data/clouddeployment changes.",
+      "created_at": "2026-10-16T14:27:21.266118Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T10:38:49.060782Z",
-  "updated_at": "2026-10-16T14:09:57.437955Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T14:27:21.556750Z",
+  "closed_at": "2026-10-16T14:27:21.529376Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",
