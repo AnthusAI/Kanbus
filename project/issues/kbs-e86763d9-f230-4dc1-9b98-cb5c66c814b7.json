@@ -40,10 +40,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "2aea9929-63e0-4898-b4ff-f3eb366ac8dd",
+      "author": "home",
+      "text": "Postdeploy real lab proof: listing7134ms (central6890), selected reload7089/7304ms, selection8011ms, workspace reads20692/20636ms successful. PR10 is live but latency NOT resolved. Verified exact Person has4session pointers; code still makes12identity helper invocations plus4account reads/list=16helpers per listing, EACHnativeS3init/HeadBucket. No global authority cache added. Remaining transport boundary should reuse native client within an invocation while retaining fresh reads. Separate read-only account-lifecycle inspection found no supported archive/close/delete API, no account lifecycle field, sole-owner revocation rejected, disabled entitlement enforced but no mutation command. Raw storage removal is not an archive contract and leaves4journal controls+3product objects. No account/Person/data mutations.",
+      "created_at": "2026-10-16T12:18:27.152670Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T11:19:14.819835Z",
-  "updated_at": "2026-10-16T11:59:04.775521Z",
+  "updated_at": "2026-10-16T12:18:27.152707Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
