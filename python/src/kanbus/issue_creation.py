@@ -235,7 +235,6 @@ def create_issue(
                 issue=issue,
                 actor_id=actor_id,
                 events=[event],
-                root=root,
             )
         )
     except Exception as error:  # noqa: BLE001

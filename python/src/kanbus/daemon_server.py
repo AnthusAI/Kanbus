@@ -47,9 +47,9 @@ class DaemonCore:
                 "name": "issues",
                 "primary_key": "id",
                 "directory": str(issues_dir),
-                "validation": "warn",
+                "validation": "error",
                 "pretty_json": True,
-                "reconcile_seconds": 2,
+                "reconcile_seconds": 0,
                 "indexes": [
                     {"name": "by_status", "partition_key": "status"},
                     {"name": "by_type", "partition_key": "type"},
@@ -104,6 +104,10 @@ class DaemonCore:
         )
 
     def _load_index(self) -> list[IssueData]:
+        project_dir = load_project_directory(self.state.root)
+        issues_dir = project_dir / "issues"
+        if not issues_dir.is_dir():
+            raise RuntimeError(f"issues directory missing: {issues_dir}")
         if self.state.table_handle is None:
             self.warm_start()
         assert self.state.table_handle is not None

@@ -240,6 +240,13 @@ fn load_shared_issues_via_daemon_or_filesystem(
         Err(KanbusError::IssueOperation(message)) if is_daemon_config_schema_error(&message) => {
             list_issues_for_project(project_dir)
         }
+        Err(error @ KanbusError::Io(_)) => {
+            log::debug!(
+                "daemon unavailable ({}); falling back to direct listing",
+                error
+            );
+            list_issues_for_project(project_dir)
+        }
         Err(error) => Err(error),
     }
 }

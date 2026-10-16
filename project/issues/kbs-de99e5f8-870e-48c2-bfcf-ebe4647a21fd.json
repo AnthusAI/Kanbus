@@ -1,0 +1,28 @@
+{
+  "id": "kbs-de99e5f8-870e-48c2-bfcf-ebe4647a21fd",
+  "title": "Stop kbs dirtying tracked files on ordinary use",
+  "description": "Problem: ordinary kbs use dirties the working tree. It regenerates right_now_summary / right_now_updated_at on issue files and appends to project/events/llm_usage.jsonl (1,400+ lines appended locally in the Papyrus checkout). This causes aborted git pulls and 11 merge conflicts on summary / updated_at / closed_at fields.\n\nEvidence: reported 2026-10-12/13 in Papyrus. Source confirms the writers exist: rust/src/right_now.rs, rust/src/summarize.rs and rust/src/lifecycle_compaction.rs reference right_now_summary; llm_usage is referenced in rust/src/summarize.rs. Not reproduced: whether a pure read command (list/show) writes files; needs a test.\n\nAcceptance:\n- Read commands (list, show, now, ready, validate) never modify tracked files (checked by git status clean after each in a Gherkin scenario).\n- Generated or derived data (right-now summaries, LLM usage log) lives outside tracked files (for example the overlay cache or an untracked/ignored path) or is in a merge-friendly form (per-writer append-only files, no shared mutable fields).\n- Existing boards migrate without conflicts.\n\nReproduced 2026-10-13 with kbs 0.32.0 in a clean clone: a single kbs create modified the tracked file project/events/llm_usage.jsonl (appended a line) and was the only tracked change beyond the new issue file. Plain kbs list and kbs validate left git status clean, so the read-only claim is narrower than reported (the right-now summary generation on show/create is the remaining suspect).",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "usability",
+    "multi-agent"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T11:18:04.505913Z",
+  "updated_at": "2026-10-13T11:18:04.526423Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Kanbus ticket filing"
+  },
+  "right_now_summary": "A clean-clone test confirmed `kbs create` changes tracked files, while `list` and `validate` leave them clean.",
+  "right_now_updated_at": "2026-10-13T11:18:06.067770Z",
+  "custom": {}
+}

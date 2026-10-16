@@ -12,7 +12,7 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board, TaskDetailPanel, AnimatedSelector, getStatusColumnsForTypeFilter, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
+import { Board, useBoardColumnState, TaskDetailPanel, AnimatedSelector, IssueTypeFilter, getConfiguredIssueTypes, issueTypeFromFilter, getStatusColumnsForTypeFilter, getStatusColumnsForIssueTypes, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -162,7 +162,7 @@ function parseQueryParams(search: string): {
     search: searchParam && searchParam.length > 0 ? searchParam : null,
     focused: focusedParam && focusedParam.length > 0 ? focusedParam : null,
     comment: commentParam && commentParam.length > 0 ? commentParam : null,
-    typeFilter: typeParam === "all" ? "all" : null,
+    typeFilter: typeParam === "all" || typeParam?.startsWith("type:") ? typeParam : null,
   };
 }
 
@@ -533,8 +533,8 @@ function buildUrl(
   if (params.comment) {
     qp.set("comment", params.comment);
   }
-  if (params.typeFilter === "all") {
-    qp.set("type", "all");
+  if (params.typeFilter) {
+    qp.set("type", params.typeFilter);
   }
   const qs = qp.toString();
   return qs ? `${path}?${qs}` : path;
@@ -571,12 +571,6 @@ function resolveBoardTypeFilter(
     return "all";
   }
   return viewMode ?? "issues";
-}
-
-function getInitialCollapsedColumns(config: ProjectConfig): Set<string> {
-  return new Set(
-    config.statuses.filter((s) => s.collapsed).map((s) => s.key)
-  );
 }
 
 const VIEW_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -646,7 +640,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<"filter" | "settings" | null>(null);
-  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [detailWidth, setDetailWidth] = useState(() => loadStoredDetailWidth());
   const [detailMaximized, setDetailMaximized] = useState(false);
@@ -679,7 +672,6 @@ export default function App() {
   const layoutFrameRef = React.useRef<HTMLDivElement | null>(null);
   const navActionRef = React.useRef<NavAction>("none");
   const wasDetailOpenRef = React.useRef(false);
-  const collapsedColumnsInitialized = React.useRef(false);
   const viewModeAutoCorrected = React.useRef(false);
   const lastTypeSelectionRef = React.useRef<string | null>(null);
   const snapshotRef = React.useRef<IssuesSnapshot | null>(null);
@@ -688,6 +680,9 @@ export default function App() {
   const snapshotFallbackRequestRef = React.useRef<Promise<void> | null>(null);
   useAppearance();
   const config = snapshot?.config;
+  const { collapsedColumns, setCollapsedColumns, toggleColumn } = useBoardColumnState({
+    config, storageKey: config ? `kanbus.console.columns.v1.${config.project_key}` : undefined,
+  });
   const issues = useMemo(() => {
     const list = snapshot?.issues ?? [];
     if (!list.length) return [];
@@ -759,6 +754,9 @@ export default function App() {
     };
   }, [refreshSnapshot]);
   const showAllTypes = route.typeFilter === "all";
+  const configuredType = issueTypeFromFilter(route.typeFilter);
+  const exactIssueType = config && configuredType && getConfiguredIssueTypes(config).includes(configuredType)
+    ? configuredType : undefined;
 
   useEffect(() => {
     if (panelMode !== "now" || !apiBase) {
@@ -778,14 +776,6 @@ export default function App() {
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
-
-  // Initialize collapsed columns from config (only once)
-  useEffect(() => {
-    if (config && !collapsedColumnsInitialized.current) {
-      setCollapsedColumns(getInitialCollapsedColumns(config));
-      collapsedColumnsInitialized.current = true;
-    }
-  }, [config]);
 
   useEffect(() => {
     const handlePop = () => {
@@ -1052,7 +1042,7 @@ export default function App() {
     if (route.viewMode) {
       return;
     }
-    if (showAllTypes) {
+    if (showAllTypes || exactIssueType) {
       return;
     }
     if (route.parentId || focusedIssueId || searchQuery.trim()) {
@@ -1073,7 +1063,7 @@ export default function App() {
     } else {
       viewModeAutoCorrected.current = true;
     }
-  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, searchQuery, viewMode, showAllTypes]);
+  }, [snapshot, focusedIssueId, route.basePath, route.parentId, route.viewMode, searchQuery, viewMode, showAllTypes, exactIssueType]);
 
   useEffect(() => {
     if (route.viewMode) {
@@ -1356,14 +1346,16 @@ export default function App() {
   const resolvedViewMode = route.parentId
     ? null
     : routeContext.viewMode ?? route.viewMode ?? viewMode ?? fallbackViewMode;
-  const typeFilterValue = showAllTypes ? "all" : resolvedViewMode;
+  const typeFilterValue = exactIssueType ? `type:${exactIssueType}` : showAllTypes ? "all" : resolvedViewMode;
   const boardTypeFilter = resolveBoardTypeFilter(showAllTypes, resolvedViewMode);
   const columns = useMemo(() => {
     if (!config) {
       return [];
     }
-    return getStatusColumnsForTypeFilter(config, boardTypeFilter);
-  }, [config, boardTypeFilter]);
+    return exactIssueType
+      ? getStatusColumnsForIssueTypes(config, [exactIssueType])
+      : getStatusColumnsForTypeFilter(config, boardTypeFilter);
+  }, [config, boardTypeFilter, exactIssueType]);
   const columnError =
     config && columns.length === 0
       ? "default workflow is required to render columns"
@@ -1376,7 +1368,7 @@ export default function App() {
     if (!snapshot || route.basePath == null) {
       return;
     }
-    if (showAllTypes) {
+    if (showAllTypes || exactIssueType) {
       return;
     }
     if (route.parentId || focusedIssueId || searchQuery.trim()) {
@@ -1396,7 +1388,8 @@ export default function App() {
     focusedIssueId,
     searchQuery,
     resolvedViewMode,
-    showAllTypes
+    showAllTypes,
+    exactIssueType
   ]);
 
   useEffect(() => {
@@ -1461,6 +1454,14 @@ export default function App() {
 
   const handleTypeFilterChange = (value: string) => {
     if (route.basePath == null) {
+      return;
+    }
+    const exactType = issueTypeFromFilter(value);
+    if (exactType && config && getConfiguredIssueTypes(config).includes(exactType)) {
+      lastTypeSelectionRef.current = null;
+      navigate(buildUrl(`${route.basePath}/${resolvedViewMode ?? "issues"}/`, {
+        search: searchQuery || null, typeFilter: value
+      }), setRoute, navActionRef);
       return;
     }
     const currentRoute = parseRoute(window.location.pathname, window.location.search);
@@ -1817,7 +1818,7 @@ export default function App() {
       // Global search: search across ALL issues regardless of view mode
       // This implements the Gherkin spec in tskl-dvi.1
       result = sourceIssues;
-    } else if (showAllTypes) {
+    } else if (showAllTypes || exactIssueType) {
       result = sourceIssues;
     } else if (resolvedViewMode === "initiatives") {
       result = sourceIssues.filter((issue) => issue.type === "initiative");
@@ -1831,6 +1832,9 @@ export default function App() {
           issue.type !== "sub-task"
       );
     }
+
+    // Exact configured types compose with search and focused hierarchy context.
+    if (exactIssueType) result = result.filter((issue) => issue.type === exactIssueType);
 
     // Apply search filter
     if (hasSearchQuery) {
@@ -1854,7 +1858,7 @@ export default function App() {
     }
 
     return result;
-  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, enabledProjects, projectLabels.length, showLocal, showShared, showAllTypes, config]);
+  }, [issues, deferredIssues, resolvedViewMode, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, enabledProjects, projectLabels.length, showLocal, showShared, showAllTypes, exactIssueType, config]);
 
   const metricsIssues = useMemo(() => {
     if (!config) {
@@ -2053,11 +2057,12 @@ export default function App() {
             placeholder="Search issues..."
           />
           {showTypeFilterToolbar && panelMode !== "now" ? (
-            <AnimatedSelector
+            <IssueTypeFilter
+              config={config ?? {}}
               name="view"
               value={typeFilterValue}
               onChange={handleTypeFilterChange}
-              options={typeFilterOptions}
+              viewOptions={typeFilterOptions}
             />
           ) : null}
         </div>
@@ -2168,17 +2173,7 @@ export default function App() {
                   detailOpen={isDetailOpen}
                   collapsedColumns={collapsedColumns}
                   motion={{ mode: "css" }}
-                  onToggleCollapse={(column) => {
-                    setCollapsedColumns((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(column)) {
-                        next.delete(column);
-                      } else {
-                        next.add(column);
-                      }
-                      return next;
-                    });
-                  }}
+                  onToggleCollapse={toggleColumn}
                 />
               ) : null}
             </div>
@@ -2364,6 +2359,7 @@ export default function App() {
           onToggleLocal={() => setShowLocal((prev) => !prev)}
           onToggleShared={() => setShowShared((prev) => !prev)}
             typeOptions={typeFilterOptions}
+            typeConfig={config ?? {}}
             typeValue={typeFilterValue}
             onTypeChange={handleTypeFilterChange}
           />

@@ -1933,7 +1933,7 @@ fn given_router_forge_repository(world: &mut KanbusWorld, repository: String) {
 )]
 fn given_router_forge_token_name(world: &mut KanbusWorld, name: String) {
     ensure_default_project(world);
-    if !read_yaml(world).1.get("router").is_some() {
+    if read_yaml(world).1.get("router").is_none() {
         set_router_yaml(world, VALID_ROUTER);
     }
     set_router_path(world, &["forge", "token_env"], Yaml::String(name.clone()));
@@ -2656,7 +2656,7 @@ fn seed_router_package_with_pull_request(
     put_issue(
         world,
         &build_issue(
-            &issue_id,
+            issue_id,
             status,
             vec!["agent-class:implementation".to_string()],
             None,

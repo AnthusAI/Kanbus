@@ -310,7 +310,7 @@ def _record_llm_usage(
     model: str,
     operation: str,
     total_tokens: int,
-    total_cost: float,
+    total_cost: float | None,
 ) -> None:
     events_dir = root / project_directory / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
@@ -320,7 +320,7 @@ def _record_llm_usage(
         "issue_id": issue_identifier,
         "model": model,
         "operation": operation,
-        "tokens": total_tokens,
+        "total_tokens": total_tokens,
         "cost": total_cost,
     }
     with open(log_path, "a", encoding="utf-8") as log_file:
@@ -371,13 +371,13 @@ def _completion(
         raise
     text = response.choices[0].message.content or ""
     total_tokens = 0
-    total_cost = 0.0
+    total_cost: float | None = None
     if hasattr(response, "usage") and response.usage:
         total_tokens += getattr(response.usage, "total_tokens", 0)
     try:
         cost = litellm.completion_cost(completion_response=response)
-        if cost:
-            total_cost += cost
+        if cost and cost > 0:
+            total_cost = float(cost)
     except Exception:
         pass
 

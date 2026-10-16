@@ -66,6 +66,36 @@ def validate_status_transition(
         )
 
 
+def status_keys_for_type_filter(
+    configuration: ProjectConfiguration,
+    issue_type: Optional[str],
+) -> List[str]:
+    """Return configured status keys that apply to the current type filter.
+
+    Without a type filter every configured status applies. With a type
+    filter, the statuses of the type's workflow (falling back to the
+    default workflow) are intersected with the configured statuses,
+    preserving configuration order. When no default workflow is defined,
+    every configured status applies so listing never fails.
+
+    :param configuration: Project configuration with statuses and workflows.
+    :type configuration: ProjectConfiguration
+    :param issue_type: Optional issue type filter.
+    :type issue_type: Optional[str]
+    :return: Applicable status keys in configuration order.
+    :rtype: List[str]
+    """
+    configured_keys = [status.key for status in configuration.statuses]
+    if issue_type is None:
+        return configured_keys
+    try:
+        workflow = get_workflow_for_issue_type(configuration, issue_type)
+    except ValueError:
+        return configured_keys
+    workflow_statuses = collect_workflow_statuses(workflow)
+    return [key for key in configured_keys if key in workflow_statuses]
+
+
 def collect_workflow_statuses(workflow: Dict[str, List[str]]) -> Set[str]:
     """Return every status key reachable in a workflow definition.
 

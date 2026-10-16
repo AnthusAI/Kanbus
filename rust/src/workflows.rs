@@ -39,6 +39,35 @@ pub fn collect_workflow_statuses(workflow: &BTreeMap<String, Vec<String>>) -> BT
     statuses
 }
 
+/// Return configured status keys that apply to the current type filter.
+///
+/// Without a type filter every configured status applies. With a type
+/// filter, the statuses of the type's workflow (falling back to the
+/// default workflow) are intersected with the configured statuses,
+/// preserving configuration order. When no default workflow is defined,
+/// every configured status applies so listing never fails.
+pub fn status_keys_for_type_filter(
+    configuration: &ProjectConfiguration,
+    issue_type: Option<&str>,
+) -> Vec<String> {
+    let configured_keys: Vec<String> = configuration
+        .statuses
+        .iter()
+        .map(|status| status.key.clone())
+        .collect();
+    let Some(issue_type) = issue_type else {
+        return configured_keys;
+    };
+    let Ok(workflow) = get_workflow_for_issue_type(configuration, issue_type) else {
+        return configured_keys;
+    };
+    let workflow_statuses = collect_workflow_statuses(workflow);
+    configured_keys
+        .into_iter()
+        .filter(|key| workflow_statuses.contains(key))
+        .collect()
+}
+
 fn preferred_alternative_issue_type(
     configuration: &ProjectConfiguration,
     status: &str,

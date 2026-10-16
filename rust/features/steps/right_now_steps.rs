@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use cucumber::gherkin::Step;
 use cucumber::{given, then, when};
 use serde_yaml::{Mapping, Value};
 
@@ -310,7 +311,7 @@ fn given_right_now_max_length(world: &mut KanbusWorld, max_length: usize) {
     let contents = fs::read_to_string(&config_path).expect("read config");
     let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
     let mut right_now_block = mapping
-        .get(&Value::String("right_now".to_string()))
+        .get(Value::String("right_now".to_string()))
         .and_then(Value::as_mapping)
         .cloned()
         .unwrap_or_else(|| {
@@ -400,6 +401,75 @@ fn then_llm_usage_log_contains_right_now_summary(world: &mut KanbusWorld) {
         !entries.is_empty(),
         "expected right_now_summary entry in llm usage log"
     );
+}
+
+#[then("the LLM usage log should not contain a right_now_summary entry")]
+fn then_llm_usage_log_has_no_right_now_summary(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let events_dir = project_events_directory(root).expect("events dir");
+    let entries = read_right_now_llm_usage_entries(&events_dir).expect("read llm usage");
+    assert!(
+        entries.is_empty(),
+        "unexpected right_now_summary entries: {entries:?}"
+    );
+}
+
+#[then("the LLM usage log right_now_summary entries should have unknown cost")]
+fn then_llm_usage_right_now_entries_have_unknown_cost(world: &mut KanbusWorld) {
+    let root = world.working_directory.as_ref().expect("cwd");
+    let events_dir = project_events_directory(root).expect("events dir");
+    let entries = read_right_now_llm_usage_entries(&events_dir).expect("read llm usage");
+    assert!(
+        !entries.is_empty(),
+        "expected right_now_summary entry in llm usage log"
+    );
+    for entry in &entries {
+        let cost = entry.get("cost").expect("cost missing from entry");
+        assert!(cost.is_null(), "expected unknown cost in {entry}");
+    }
+}
+
+#[given("the LLM usage log contains entries:")]
+fn given_llm_usage_log_contains_entries(world: &mut KanbusWorld, step: &Step) {
+    let table = step.table.as_ref().expect("expected usage table");
+    let headers: Vec<&str> = table.rows[0].iter().map(String::as_str).collect();
+    let column = |row: &[String], name: &str| -> String {
+        let index = headers
+            .iter()
+            .position(|header| *header == name)
+            .unwrap_or_else(|| panic!("missing column {name}"));
+        row[index].clone()
+    };
+    let events_dir = load_project_dir(world).join("events");
+    fs::create_dir_all(&events_dir).expect("create events dir");
+    let now = Utc::now();
+    let lines: Vec<String> = table.rows[1..]
+        .iter()
+        .map(|row| {
+            let raw_cost = column(row, "cost");
+            let cost = if raw_cost == "none" {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!(raw_cost.parse::<f64>().expect("cost"))
+            };
+            let age_days: i64 = column(row, "age_days").parse().expect("age_days");
+            let timestamp = now - Duration::days(age_days);
+            serde_json::json!({
+                "cost": cost,
+                "issue_id": "kanbus-cost",
+                "model": "gpt-4o-mini",
+                "operation": column(row, "operation"),
+                "timestamp": timestamp.to_rfc3339(),
+                "total_tokens": column(row, "total_tokens").parse::<u64>().expect("total_tokens"),
+            })
+            .to_string()
+        })
+        .collect();
+    fs::write(
+        events_dir.join("llm_usage.jsonl"),
+        format!("{}\n", lines.join("\n")),
+    )
+    .expect("write llm usage log");
 }
 
 #[then("the LiteLLM API should not be called")]
@@ -602,33 +672,6 @@ fn then_right_now_context_missing_child_summary(world: &mut KanbusWorld, identif
     assert!(!identifiers.contains(&identifier.as_str()));
 }
 
-#[given("right now summary generation is disabled")]
-fn given_right_now_summary_generation_disabled(world: &mut KanbusWorld) {
-    let root = world.working_directory.as_ref().expect("cwd");
-    let config_path = root.join(".kanbus.yml");
-    let contents = fs::read_to_string(&config_path).expect("read config");
-    let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
-    let mut right_now_block = mapping
-        .get(&Value::String("right_now".to_string()))
-        .and_then(Value::as_mapping)
-        .cloned()
-        .unwrap_or_else(|| {
-            let defaults = default_project_configuration();
-            serde_yaml::to_value(defaults.right_now)
-                .expect("serialize defaults")
-                .as_mapping()
-                .cloned()
-                .expect("right_now mapping")
-        });
-    right_now_block.insert(Value::String("enabled".to_string()), Value::Bool(false));
-    mapping.insert(
-        Value::String("right_now".to_string()),
-        Value::Mapping(right_now_block),
-    );
-    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
-    fs::write(config_path, yaml).expect("write config");
-}
-
 #[given(expr = "issue {string} right now state is recorded")]
 fn given_issue_right_now_state_recorded(world: &mut KanbusWorld, identifier: String) {
     let project_dir = load_project_dir(world);
@@ -660,13 +703,13 @@ fn then_issue_right_now_summary_refreshed(world: &mut KanbusWorld, identifier: S
     }
 }
 
-#[then("the created issue should have a mock right now summary")]
-fn then_created_issue_has_mock_right_now_summary(world: &mut KanbusWorld) {
+#[then("the created issue should have no right now summary")]
+fn then_created_issue_has_no_right_now_summary(world: &mut KanbusWorld) {
     let identifier = world
         .last_kanbus_issue_id
         .clone()
         .expect("last issue id not set");
-    then_issue_has_mock_right_now_summary(world, identifier);
+    then_issue_has_no_right_now_summary(world, identifier);
 }
 
 #[given(expr = "a newer overlay snapshot for {string} has no right now summary")]

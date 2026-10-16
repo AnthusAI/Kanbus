@@ -156,6 +156,8 @@ right_now:
 
 `right_now.model` pins the summarization model independently of `ai.model` so right-now summaries stay on Luna even if full-summary tasks use a different model.
 
+Right-now summaries are generated only when they are displayed: `kbs now` and the console Now panel generate a summary that is missing or older than the issue or one of its direct children. Board-mutating commands (`create`, `update`, `comment`, `dep`, `delete`) never call an LLM. Each generation is logged to `project/events/llm_usage.jsonl`; a call whose model has no known price is logged with `"cost": null`, and `kbs cost` reports it under `Unpriced Calls` instead of counting it as $0.
+
 ### `realtime` (map, optional)
 
 Realtime gossip configuration.

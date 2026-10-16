@@ -1,0 +1,28 @@
+{
+  "id": "kbs-a11be788-86cf-42c4-b33a-cc0ee266e6be",
+  "title": "Fix comment provenance hint and document comment edit/delete",
+  "description": "Problem: comment ergonomics and provenance, as reported 2026-10-12/13: comments could not be edited or deleted; provenance was sometimes wrong (a comment labelled with the wrong agent, \"Cursor / Composer 2.5\"); kbs comment printed a provenance tagging hint instead of a plain confirmation; a stray duplicate comment could not be removed.\n\nVerification note: installed kbs 0.32.0 already has kbs comment update and kbs comment delete (by comment id prefix) and kbs comment ensure-ids, so the edit/delete part may be fixed in 0.32.0 or unknown to the reporting sessions; the reporter may have used an older binary. Please confirm and close that part. Could not verify the wrong-agent label or the hint output without writing a comment.\n\nAcceptance:\n- Edit and delete are documented in CLI_REFERENCE.md and discoverable from kbs comment --help (flags or subcommands, whichever is chosen).\n- Provenance comes from the actual caller (environment or an explicit --agent-* flag); never guessed. Missing provenance is a warning only on stderr.\n- kbs comment prints a clear one-line confirmation including the issue id and comment id; hints go to stderr.\n- Gherkin scenario covering add, edit, delete.\n\nReproduced 2026-10-13 with kbs 0.32.0: kbs create without agent flags printed \"To add it in one step: kbs update <id> --agent-platform \"Cursor\" --agent-model \"Composer 2.5\" --agent-name \"Cloud Agent\"\" even though the caller was Claude Code. The suggested hint hardcodes a wrong platform and model, which is the likely source of the mislabelled comment.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "usability",
+    "multi-agent"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T11:18:16.337145Z",
+  "updated_at": "2026-10-13T11:18:16.360718Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Kanbus ticket filing"
+  },
+  "right_now_summary": "The team is verifying provenance fixes and documenting comment editing, deletion, and confirmation output.",
+  "right_now_updated_at": "2026-10-13T11:18:19.253206Z",
+  "custom": {}
+}

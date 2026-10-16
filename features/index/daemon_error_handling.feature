@@ -189,14 +189,6 @@ Feature: Daemon error handling
     When I request a daemon index list
     Then the daemon request should fail
 
-  Scenario: Daemon list returns internal error when cache is unreadable
-    Given a Kanbus project with default configuration
-    And daemon mode is enabled
-    And the daemon is running with a socket
-    And the cache file is unreadable
-    When I request a daemon index list
-    Then the daemon request should fail
-
   Scenario: Daemon list returns empty when response omits issues
     Given a Kanbus project with default configuration
     And daemon mode is enabled

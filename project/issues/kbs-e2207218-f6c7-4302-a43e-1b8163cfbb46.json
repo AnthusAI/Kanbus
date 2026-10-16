@@ -1,0 +1,25 @@
+{
+  "id": "kbs-e2207218-f6c7-4302-a43e-1b8163cfbb46",
+  "title": "Implement workspace dedupe in Python",
+  "description": "## Goal\nMake the new workspace-deduplication Gherkin scenarios pass in the Python implementation (`python/`), on the read/listing path used by `kbs list` and similar read commands.\n\n## Scope\n- Implement deduplication of discovered issues keyed by issue identity, keeping the most recently changed version per the semantics fixed by the spec task.\n- No fallback logic and no backward-compatibility paths (project policy): one correct approach.\n- Do not change Virtuus; this is Kanbus application logic only.\n\n## Done when\n- behave scenarios for workspace deduplication pass.\n- Distinct issues are never merged or dropped.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c04e8142-01d8-4807-a949-e06e8d99643b",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:41.991425Z",
+  "updated_at": "2026-10-03T14:36:42.010733Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

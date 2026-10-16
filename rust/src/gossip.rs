@@ -2479,42 +2479,53 @@ mod tests {
                 .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x00])
                 .expect("send SUBACK");
             let publisher_deadline = Instant::now() + Duration::from_secs(3);
-            let (mut publisher, first_header) = loop {
-                let timeout = publisher_deadline.saturating_duration_since(Instant::now());
-                let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
-                    .expect("accept publisher connection within overall deadline");
-                stream
-                    .set_read_timeout(Some(Duration::from_secs(3)))
-                    .expect("set publisher read timeout");
-                stream
-                    .set_write_timeout(Some(Duration::from_secs(3)))
-                    .expect("set publisher write timeout");
-                let mut header = [0_u8; 1];
-                match stream.read(&mut header) {
-                    Ok(0) => continue, // TCP-only reachability probe
-                    Ok(1) if header[0] >> 4 == 1 => break (stream, header[0]),
-                    other => panic!("unexpected publisher connection: {other:?}"),
+            let mut unrelated_publishers = Vec::new();
+            loop {
+                let (mut publisher, first_header) = loop {
+                    let timeout = publisher_deadline.saturating_duration_since(Instant::now());
+                    let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
+                        .expect("accept publisher connection within overall deadline");
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(3)))
+                        .expect("set publisher read timeout");
+                    stream
+                        .set_write_timeout(Some(Duration::from_secs(3)))
+                        .expect("set publisher write timeout");
+                    let mut header = [0_u8; 1];
+                    match stream.read(&mut header) {
+                        Ok(0) => continue,
+                        Ok(1) if header[0] >> 4 == 1 => break (stream, header[0]),
+                        other => panic!("unexpected publisher connection: {other:?}"),
+                    }
+                };
+                let (connect, _) = read_packet_after_header(&mut publisher, first_header);
+                assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
+                publisher
+                    .write_all(&[0x20, 0x02, 0x00, 0x00])
+                    .expect("send publisher CONNACK");
+                let (publish, body) = read_packet(&mut publisher);
+                assert_eq!(publish >> 4, 3, "expected MQTT PUBLISH");
+                let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+                let topic_end = 2 + topic_length;
+                let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
+                let payload = body[topic_end..].to_vec();
+                let envelope: serde_json::Value =
+                    serde_json::from_slice(&payload).expect("published envelope");
+                if envelope["type"] != "coordination.claim"
+                    || envelope["resource"] != "router:issue:kbs-peer"
+                    || envelope["claim_id"] != "peer-claim"
+                {
+                    unrelated_publishers.push(publisher);
+                    continue;
                 }
-            };
-            let (connect, _) = read_packet_after_header(&mut publisher, first_header);
-            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
-            publisher
-                .write_all(&[0x20, 0x02, 0x00, 0x00])
-                .expect("send publisher CONNACK");
-            let (publish, body) = read_packet(&mut publisher);
-            assert_eq!(publish >> 4, 3, "expected MQTT PUBLISH");
-            let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
-            let topic_end = 2 + topic_length;
-            let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
-            let payload = body[topic_end..].to_vec();
-            published_tx
-                .send(
-                    serde_json::from_slice::<serde_json::Value>(&payload).expect("claim envelope"),
-                )
-                .expect("send captured claim envelope");
-            subscriber
-                .write_all(&publish_packet(&topic, &payload))
-                .expect("relay peer claim to subscribed router");
+                published_tx
+                    .send(envelope)
+                    .expect("send captured claim envelope");
+                subscriber
+                    .write_all(&publish_packet(&topic, &payload))
+                    .expect("relay peer claim to subscribed router");
+                break;
+            }
         });
 
         let project_dir = root.join("project");
@@ -2525,6 +2536,18 @@ mod tests {
             Duration::from_millis(500),
             300,
             || {
+                let endpoint = BrokerEndpoint {
+                    scheme: "mqtt".to_string(),
+                    host: "127.0.0.1".to_string(),
+                    port,
+                };
+                publish_mqtt(
+                    &endpoint,
+                    "projects/unrelated/events",
+                    &sample_envelope(),
+                    &sample_realtime(None),
+                )
+                .expect("unrelated publication must not consume the claim subscriber fixture");
                 let claim_event = crate::coordination::append_soft_claim_event(
                     &project_dir,
                     "router:issue:kbs-peer",

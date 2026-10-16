@@ -128,10 +128,7 @@ fn given_record_existing_ids(world: &mut KanbusWorld) {
 }
 
 fn record_new_kanbus_id(world: &mut KanbusWorld) {
-    let before = world
-        .existing_kanbus_ids
-        .clone()
-        .unwrap_or_else(HashSet::new);
+    let before = world.existing_kanbus_ids.clone().unwrap_or_default();
     let current = current_issue_ids(world);
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
     let picked = if new_ids.is_empty() {
@@ -229,10 +226,7 @@ fn then_last_kanbus_id_matches(world: &mut KanbusWorld, pattern: String) {
     }
 
     // Fallback: infer from filesystem diff if no recorded id exists.
-    let before = world
-        .existing_kanbus_ids
-        .clone()
-        .unwrap_or_else(HashSet::new);
+    let before = world.existing_kanbus_ids.clone().unwrap_or_default();
     let current = current_issue_ids(world);
     let new_ids: HashSet<String> = current.difference(&before).cloned().collect();
     assert!(!new_ids.is_empty(), "no new issue created");

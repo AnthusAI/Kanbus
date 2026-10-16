@@ -184,7 +184,10 @@ fn then_system_records_log_entry(world: &mut KanbusWorld) {
     assert!(!lines.is_empty(), "Log file is empty");
 
     let last_entry: serde_json::Value = serde_json::from_str(lines.last().unwrap()).unwrap();
-    assert!(last_entry.get("tokens").is_some(), "tokens missing");
+    assert!(
+        last_entry.get("total_tokens").is_some(),
+        "total_tokens missing"
+    );
     assert!(last_entry.get("cost").is_some(), "cost missing");
 }
 

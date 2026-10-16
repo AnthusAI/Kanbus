@@ -82,7 +82,7 @@ fn capture_last_beads_issue_id(world: &mut KanbusWorld) -> Option<String> {
     }
     let path = beads_issues_path(world);
     if let Ok(records) = std::fs::read_to_string(&path) {
-        if let Some(last_line) = records.lines().filter(|l| !l.trim().is_empty()).last() {
+        if let Some(last_line) = records.lines().filter(|l| !l.trim().is_empty()).next_back() {
             if let Ok(value) = serde_json::from_str::<Value>(last_line) {
                 if let Some(id) = value.get("id").and_then(Value::as_str) {
                     let owned = id.to_string();

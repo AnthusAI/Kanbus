@@ -1,0 +1,25 @@
+{
+  "id": "kbs-ef481181-a3dc-4941-ae75-ed368759dc6c",
+  "title": "Read commands deduplicate issues by identity across discovered projects",
+  "description": "## Intent\nAs a Kanbus user with a workspace of subprojects and git worktrees, I want `kbs list` and similar read commands to deduplicate discovered issues by identity, keeping the most recently changed version, so that I get a clean list with no duplicates and worktree updates win.\n\n## Behavior (acceptance criteria)\n```gherkin\nFeature: Workspace-wide issue deduplication\n\n  Scenario: Same issue in a main checkout plus two worktrees appears once\n    Given a workspace root containing a repository with a .kanbus.yml\n    And the same repository has two linked git worktrees, each with its own copy of the same issue\n    And the copy in one worktree was changed most recently\n    When I run \"kbs list\" from the workspace root\n    Then the issue appears exactly once\n    And the listed entry is the most recently changed version of the issue\n\n  Scenario: Distinct issues are never merged\n    Given a workspace where discovered projects contain issues with distinct identities\n    When I run \"kbs list\" from the workspace root\n    Then each distinct issue appears exactly once\n    And no distinct issue is dropped, merged, or substituted\n\n  Scenario: Parent folder of many repos yields a clean list\n    Given a parent folder containing many subprojects with a .kanbus.yml\n    And some of those subprojects are git worktrees of the same repository\n    When I run \"kbs list\" from the parent folder\n    Then no issue identity appears more than once\n```\n\n## Notes for the implementer\n- \"Most recently changed\" is an open question: the issue's `updated_at` field versus the underlying issue file's mtime. The spec task decides and documents it; this story does not pre-decide.\n- Identity means the issue's own identity as Kanbus already keys it, not the title or file path.",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c04e8142-01d8-4807-a949-e06e8d99643b",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-03T14:36:31.864462Z",
+  "updated_at": "2026-10-03T14:36:31.882948Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "cursor",
+    "model": "GLM 5.3 Flash",
+    "name": "Cloud Agent"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

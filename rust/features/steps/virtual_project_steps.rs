@@ -476,7 +476,7 @@ pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: 
         let local_only = args.iter().any(|arg| arg == "--local-only");
         let no_local = args.iter().any(|arg| arg == "--no-local");
         let mut iter = args.iter().enumerate();
-        while let Some((idx, value)) = iter.next() {
+        for (idx, value) in iter {
             if value == "--project" {
                 if let Some(next) = args.get(idx + 1) {
                     project_filters.push(next.clone());

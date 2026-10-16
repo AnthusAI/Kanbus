@@ -178,7 +178,7 @@ fn then_stdout_lists_issue(world: &mut KanbusWorld, identifier: String) {
     let formatted = format_issue_key(&identifier, true);
     // Check for identifier as a word boundary to avoid matching within issue type or title
     // Look for patterns like: "identifier " or " | identifier | " (porcelain)
-    let patterns = vec![
+    let patterns = [
         format!("{} ", identifier),
         format!(" {} ", identifier),
         format!(" | {} | ", identifier),
@@ -201,7 +201,7 @@ fn then_stdout_not_lists_issue(world: &mut KanbusWorld, identifier: String) {
     // Format the identifier for beads mode (strips project key)
     let formatted = format_issue_key(&identifier, true);
     // Check for identifier as a word boundary
-    let patterns = vec![
+    let patterns = [
         format!("{} ", identifier),
         format!(" {} ", identifier),
         format!(" | {} | ", identifier),
@@ -244,6 +244,6 @@ fn given_beads_issue_exists(world: &mut KanbusWorld, identifier: String) {
     if !contents.ends_with('\n') && !contents.is_empty() {
         contents.push('\n');
     }
-    contents.push_str(&format!("{}\n", record.to_string()));
+    contents.push_str(&format!("{}\n", record));
     fs::write(&path, contents).expect("write issues.jsonl");
 }

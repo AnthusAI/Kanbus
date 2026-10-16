@@ -71,7 +71,6 @@ def update_issue(
     parent: Optional[str] = None,
     issue_type: Optional[str] = None,
     agent: Optional[AgentMetadata] = None,
-    regenerate_right_now: bool = True,
 ) -> IssueUpdateResult:
     """Update an issue and persist it to disk.
 
@@ -101,8 +100,6 @@ def update_issue(
     :type parent: Optional[str]
     :param agent: Agent provenance to set when the issue has none or is incomplete.
     :type agent: Optional[AgentMetadata]
-    :param regenerate_right_now: Whether to regenerate AI summaries after persisting.
-    :type regenerate_right_now: bool
     :return: Updated issue data and whether disk state changed.
     :rtype: IssueUpdateResult
     :raises IssueUpdateError: If the update fails.
@@ -362,8 +359,6 @@ def update_issue(
                 actor_id=actor_id,
                 events=events,
                 before_issue=before_issue,
-                root=root,
-                regenerate_right_now=regenerate_right_now,
             )
         )
     except Exception as error:  # noqa: BLE001

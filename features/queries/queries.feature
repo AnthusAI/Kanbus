@@ -11,6 +11,45 @@ Feature: Query and list operations
     Then stdout should contain "open"
     And stdout should not contain "closed"
 
+  Scenario: List shows empty configured statuses after populated rows
+    Given a Kanbus project with default configuration
+    And issues "kanbus-open" and "kanbus-closed" exist
+    And issue "kanbus-closed" has status "closed"
+    When I run "kanbus list"
+    Then stdout should contain "Backlog: (empty)"
+    And stdout should contain "In Progress: (empty)"
+    And stdout should contain "Blocked: (empty)"
+    And stdout should not contain "Discovery: (empty)"
+    And stdout should not contain "Done: (empty)"
+    And stdout should list "closed" before "Backlog: (empty)"
+
+  Scenario: List type filter limits empty status lines to the type workflow
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-task1" exists
+    And issue "kanbus-epic1" has type "epic"
+    When I run "kanbus list --type epic"
+    Then stdout should contain "In Progress: (empty)"
+    And stdout should contain "Done: (empty)"
+    And stdout should not contain "Discovery: (empty)"
+    And stdout should not contain "Backlog: (empty)"
+    And stdout should not contain "Blocked: (empty)"
+
+  Scenario: List porcelain omits empty status lines
+    Given a Kanbus project with default configuration
+    And an issue "kanbus-porc" exists
+    When I run "kanbus list --porcelain"
+    Then stdout should contain the line "T | porc | - | open | P2 | Title"
+    And stdout should not contain "(empty)"
+
+  Scenario: List on an empty board still lists every configured status as empty
+    Given a Kanbus project with default configuration
+    When I run "kanbus list"
+    Then stdout should contain "Backlog: (empty)"
+    And stdout should contain "Discovery: (empty)"
+    And stdout should contain "In Progress: (empty)"
+    And stdout should contain "Blocked: (empty)"
+    And stdout should contain "Done: (empty)"
+
   Scenario: List output includes project paths when multiple projects exist
     Given a repository with multiple projects and issues
     When I run "kanbus list"

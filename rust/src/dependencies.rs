@@ -83,10 +83,8 @@ pub fn add_dependency(
         issue: updated_issue.clone(),
         actor_id,
         events: vec![event],
-        root: root.to_path_buf(),
         before_issue: Some(source_lookup.issue),
         relocate_to: None,
-        regenerate_right_now: true,
     })?;
     let updated_issue = result.issue;
 
@@ -159,10 +157,8 @@ pub fn remove_dependency(
         issue: updated_issue.clone(),
         actor_id,
         events: vec![event],
-        root: root.to_path_buf(),
         before_issue: Some(issue),
         relocate_to: None,
-        regenerate_right_now: true,
     })?;
     let updated_issue = result.issue;
 

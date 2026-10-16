@@ -279,24 +279,30 @@ pub fn handle_request_for_testing(root: &Path, request: RequestEnvelope) -> Resp
 fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let issues_dir = project_dir.join("issues");
+    if !issues_dir.is_dir() {
+        return Err(KanbusError::Io(format!(
+            "issues directory missing: {}",
+            issues_dir.display()
+        )));
+    }
     static TABLES: OnceLock<Mutex<HashMap<std::path::PathBuf, Table>>> = OnceLock::new();
     let tables = TABLES.get_or_init(|| Mutex::new(HashMap::new()));
     let mut tables = tables
         .lock()
         .map_err(|_| KanbusError::Io("Virtuus table registry lock poisoned".to_string()))?;
-    let table = tables.entry(issues_dir.clone()).or_insert_with(|| {
+    if !tables.contains_key(&issues_dir) {
         let mut table = Table::new(
             "issues",
             Some("id"),
             None,
             None,
             Some(issues_dir.clone()),
-            ValidationMode::Warn,
+            ValidationMode::Error,
         )
-        .expect("valid Virtuus issue table");
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
         table.set_storage_mode(StorageMode::Memory);
         table.set_pretty_json(true);
-        table.set_check_interval(2);
+        table.set_check_interval(0);
         table.add_gsi("by_status", "status", None);
         table.add_gsi("by_type", "type", None);
         table.add_gsi("by_parent", "parent", None);
@@ -306,9 +312,14 @@ fn load_index(root: &Path) -> Result<Vec<IssueData>, KanbusError> {
             "dependencies[dependency_type=blocked-by].target",
             None,
         );
-        table.load_from_dir(None);
         table
-    });
+            .try_load_from_dir(None)
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        tables.insert(issues_dir.clone(), table);
+    }
+    let table = tables
+        .get_mut(&issues_dir)
+        .ok_or_else(|| KanbusError::Io("Virtuus issue table missing".to_string()))?;
     table
         .scan()
         .into_iter()

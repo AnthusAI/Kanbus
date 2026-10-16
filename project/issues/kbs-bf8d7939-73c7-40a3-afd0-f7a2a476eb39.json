@@ -1,0 +1,25 @@
+{
+  "id": "kbs-bf8d7939-73c7-40a3-afd0-f7a2a476eb39",
+  "title": "kbs prints a SUGGESTION footer after every create and comment; add a way to silence it for agents",
+  "description": "Every kbs create, comment and update prints a trailing SUGGESTION block (for example 'SUGGESTION: Markdown formatting is supported...' and the diagram hint with a kbs update example). Agents run kbs hundreds of times per day and these lines are added to their context each time, and they also make output parsing noisier.\n\nProposal: honour an environment variable (for example KANBUS_QUIET=1) and a --quiet flag that suppress the suggestions, keeping the one-line result. Acceptance: with the flag set the output of create, comment and update is only the result lines; Gherkin scenario; documented in CONFIGURATION.md.",
+  "type": "task",
+  "status": "open",
+  "priority": 4,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T23:08:41.518132Z",
+  "updated_at": "2026-10-13T23:08:41.542647Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "claude-main"
+  },
+  "right_now_summary": "The issue proposes a quiet flag and environment variable to suppress suggestion footers from kbs output.",
+  "right_now_updated_at": "2026-10-13T23:08:43.630557Z",
+  "custom": {}
+}

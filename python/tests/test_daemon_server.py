@@ -108,6 +108,21 @@ def test_daemon_core_load_index_reads_resident_table(
     assert [issue.identifier for issue in core._load_index()] == ["kanbus-1"]
 
 
+def test_daemon_core_load_index_raises_on_service_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    core = daemon_server.DaemonCore(root=tmp_path)
+    project_dir = tmp_path / "project"
+    monkeypatch.setattr(daemon_server, "load_project_directory", lambda _r: project_dir)
+    (project_dir / "issues").mkdir(parents=True)
+    core.state.table_handle = "handle-1"
+    monkeypatch.setattr(
+        core.service, "dispatch", lambda _request: {"ok": False, "error": "boom"}
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        core._load_index()
+
+
 def test_raw_request_and_response_error_helpers(tmp_path: Path) -> None:
     core = daemon_server.DaemonCore(tmp_path)
     response, action, generic = daemon_server._handle_raw_request(core, b"{not-json")

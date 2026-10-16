@@ -72,7 +72,8 @@ def run_lifecycle_compaction(
                 if line.strip():
                     try:
                         data = json.loads(line)
-                        total_cost += float(data.get("cost", 0.0))
+                        if data.get("cost") is not None:
+                            total_cost += float(data["cost"])
                     except Exception:
                         pass
 

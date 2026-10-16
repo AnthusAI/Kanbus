@@ -37,7 +37,6 @@ from kanbus.right_now import (
     mock_right_now_summary_text,
     persist_right_now_summary,
     purge_right_now_summaries,
-    regenerate_right_now_ancestors,
     regenerate_right_now_for_issue,
     require_display_right_now_summary,
     resolve_child_summary,
@@ -294,7 +293,6 @@ def test_regenerate_right_now_skips_when_disabled_or_missing(
         lambda _root: (_ for _ in ()).throw(RightNowError("no config")),
     )
     regenerate_right_now_for_issue(tmp_path, "kanbus-missing")
-    regenerate_right_now_ancestors(tmp_path, None)
 
 
 def test_load_configuration_wraps_missing_project_marker(
@@ -366,7 +364,6 @@ def test_regenerate_skips_missing_issue_and_generation_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from kanbus.issue_lookup import IssueLookupError
-    from kanbus.right_now import regenerate_right_now_for_issue_and_ancestors
 
     enabled = build_project_configuration()
     monkeypatch.setattr("kanbus.right_now._load_configuration", lambda _root: enabled)
@@ -375,7 +372,6 @@ def test_regenerate_skips_missing_issue_and_generation_errors(
         lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
     )
     regenerate_right_now_for_issue(tmp_path, "kanbus-missing")
-    regenerate_right_now_for_issue_and_ancestors(tmp_path, "kanbus-missing")
 
     lookup = SimpleNamespace(
         issue=build_issue("kanbus-offline"),

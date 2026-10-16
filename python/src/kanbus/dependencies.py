@@ -99,7 +99,6 @@ def add_dependency(
                 actor_id=actor_id,
                 events=[event],
                 before_issue=source_lookup.issue,
-                root=root,
             )
         )
     except Exception as error:
@@ -170,7 +169,6 @@ def remove_dependency(
                 actor_id=actor_id,
                 events=[event],
                 before_issue=source_lookup.issue,
-                root=root,
             )
         )
     except Exception as error:

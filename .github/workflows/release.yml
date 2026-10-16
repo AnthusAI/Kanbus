@@ -5,6 +5,7 @@ on:
     tags:
       - "kanbus-py-*"
       - "kanbus-rust-*"
+      - "ui-v*"
   workflow_dispatch:
     inputs:
       pypi_only:
@@ -22,6 +23,32 @@ permissions:
   contents: write
 
 jobs:
+  ui-package:
+    name: Shared UI package
+    if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'ui-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: Verify tag and shared behavior
+        working-directory: packages/ui
+        run: |
+          test "ui-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+          npm ci
+          npx playwright install --with-deps chromium
+          npm test
+          npm pack --pack-destination "$RUNNER_TEMP"
+      - name: Publish immutable UI artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#ui-v}"
+          artifact="$RUNNER_TEMP/kanbus-ui-${version}.tgz"
+          sha256sum "$artifact"
+          gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/ui ${version}" --notes "Shared Kanbus board, configured type filter, organizer theme and accessible detail components. Built and behavior-tested from this tag. Consumers own data, authentication and routing." --latest=false
+
   pypi-release:
     name: PyPI Release
     # Run for python release tags, or manual dispatch when rust_only is not set.
@@ -104,8 +131,13 @@ jobs:
             echo "tag=${{ github.event.inputs.rust_only }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "push" ]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ]; then
-            echo "tag=" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.release_ready.outputs.release_ready }}" = "true" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="$(python -c 'import tomllib; print(tomllib.load(open("python/pyproject.toml", "rb"))["project"]["version"])')"
+            if [ "$GITHUB_REF_NAME" != "kanbus-py-$version" ]; then
+              echo "Requested tag does not match the packaged Python version" >&2
+              exit 1
+            fi
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi

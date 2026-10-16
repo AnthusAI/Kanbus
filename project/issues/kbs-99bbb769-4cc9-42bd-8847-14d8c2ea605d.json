@@ -1,0 +1,28 @@
+{
+  "id": "kbs-99bbb769-4cc9-42bd-8847-14d8c2ea605d",
+  "title": "Resolve short ids consistently in all references; validate clean",
+  "description": "Problem: id inconsistency. Parents appear as full ids with a UUID (verified in this repo: kbs show 993960 prints \"Parent: kbs-472c8199-14a0-44e6-8105-b5f0370f6d63\" while tickets list as short ids like 472c81). In Papyrus kbs validate reported 16 \"dependency target does not exist\" errors for dependency targets written with short ids (not reproduced here; in this repo validate currently reports other errors: invalid dependency type 'blocks' and invalid parent-child relationship, which are a separate matter).\n\nAcceptance:\n- Short ids and unique prefixes resolve consistently in every reference: parent, dependencies, comments, CLI arguments, validate.\n- kbs show displays parent and dependency ids in one consistent form (short id plus title).\n- kbs validate on a board with short-id dependency targets reports no \"dependency target does not exist\" errors.\n- Gherkin scenario for a dependency written as a short id.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "usability",
+    "multi-agent"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-13T11:18:13.982774Z",
+  "updated_at": "2026-10-13T11:18:14.003916Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Kanbus ticket filing"
+  },
+  "right_now_summary": "The fix is specified, but no implementation work or recent activity is recorded.",
+  "right_now_updated_at": "2026-10-13T11:18:16.111201Z",
+  "custom": {}
+}

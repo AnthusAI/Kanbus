@@ -266,7 +266,7 @@ fn given_standup_lookback_hours(world: &mut KanbusWorld, hours: u32) {
     let contents = fs::read_to_string(&config_path).expect("read config");
     let mut mapping: Mapping = serde_yaml::from_str(&contents).expect("parse config");
     let mut standup_block = mapping
-        .get(&YamlValue::String("standup".to_string()))
+        .get(YamlValue::String("standup".to_string()))
         .and_then(YamlValue::as_mapping)
         .cloned()
         .unwrap_or_else(|| {

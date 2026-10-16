@@ -180,21 +180,6 @@ def test_recovering_preserved_turn_publishes_one_visible_issue_summary(
     assert "`session-recovered`" in comments[0][2]
 
 
-def test_router_comment_does_not_trigger_unrelated_ai_summary_work(monkeypatch) -> None:
-    calls: list[dict] = []
-    monkeypatch.setattr(
-        router_execution,
-        "_add_issue_comment",
-        lambda *_args, **kwargs: calls.append(kwargs),
-    )
-
-    router_execution.add_issue_comment(
-        Path("/repo"), "kbs-router", "Kanbus Issue Router", "evidence"
-    )
-
-    assert calls == [{"regenerate_right_now": False}]
-
-
 def _git_repo_with_worktree(tmp_path):
     import subprocess
 

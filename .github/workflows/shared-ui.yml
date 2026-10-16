@@ -1,0 +1,35 @@
+name: Shared UI parity
+
+on:
+  pull_request:
+    paths: ["packages/ui/**", "apps/console/**", ".github/workflows/shared-ui.yml"]
+  push:
+    branches: [develop, main]
+    paths: ["packages/ui/**", "apps/console/**", ".github/workflows/shared-ui.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  shared-board:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: Shared component specifications
+        working-directory: packages/ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm test
+      - name: Canonical console parity
+        working-directory: apps/console
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run typecheck
+          node scripts/verify-configured-type-filter.mjs
+          npm run build

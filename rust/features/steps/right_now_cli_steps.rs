@@ -136,7 +136,7 @@ fn then_right_now_yaml_item_excludes_field(
     assert!(!item
         .as_mapping()
         .expect("yaml mapping")
-        .contains_key(&YamlValue::String(field_name)));
+        .contains_key(YamlValue::String(field_name)));
 }
 
 #[then(expr = "the right now YAML tree should have root {string} with child {string}")]
@@ -222,7 +222,7 @@ fn then_right_now_json_tree_item_includes_fields(
         .map(str::trim)
         .map(str::to_string)
         .collect();
-    let actual_fields = extract_json_key_order(&stdout, &identifier);
+    let actual_fields = extract_json_key_order(stdout, &identifier);
     assert_eq!(actual_fields, expected_fields);
 }
 
@@ -372,12 +372,12 @@ fn search_tree_yaml_item<'a>(payload: &'a YamlValue, identifier: &str) -> Option
         return None;
     }
     if let Some(mapping) = payload.as_mapping() {
-        if mapping.get(&YamlValue::String("id".to_string()))
+        if mapping.get(YamlValue::String("id".to_string()))
             == Some(&YamlValue::String(identifier.to_string()))
         {
             return Some(payload);
         }
-        if let Some(children) = mapping.get(&YamlValue::String("children".to_string())) {
+        if let Some(children) = mapping.get(YamlValue::String("children".to_string())) {
             if let Some(sequence) = children.as_sequence() {
                 for child in sequence {
                     if let Some(found) = search_tree_yaml_item(child, identifier) {

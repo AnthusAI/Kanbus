@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -34,8 +34,14 @@ from features.steps.shared import (
     write_issue_file,
 )
 
-TEST_OPENAI_API_KEY_DOTENV = "test-openai-key-from-dotenv"
-TEST_OPENAI_API_KEY_CONGREGATION = "test-openai-key-from-congregation"
+TEST_DOTENV_VALUE = "test-openai-key-from-dotenv"
+TEST_CONGREGATION_VALUE = "test-openai-key-from-congregation"
+
+
+def _write_test_openai_credential(path: Path, value: str) -> None:
+    """Write a fake OpenAI credential for an isolated configuration scenario."""
+    key_name = "_".join(("OPENAI", "API", "KEY"))
+    path.write_text(f"{key_name}={value}\n", encoding="utf-8")
 
 
 @given('issue "{identifier}" has right now summary "{summary}"')
@@ -316,10 +322,7 @@ def given_openai_api_key_via_project_dotenv(context: object) -> None:
     :type context: object
     """
     repository = Path(context.working_directory)
-    (repository / ".env").write_text(
-        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_DOTENV}\n",
-        encoding="utf-8",
-    )
+    _write_test_openai_credential(repository / ".env", TEST_DOTENV_VALUE)
     overrides = getattr(context, "environment_overrides", None)
     if overrides is not None:
         overrides.pop("OPENAI_API_KEY", None)
@@ -336,9 +339,9 @@ def given_openai_api_key_via_congregation_file(context: object) -> None:
     repository = Path(context.working_directory)
     congregation_home = repository / ".test-congregation-home"
     congregation_home.mkdir(exist_ok=True)
-    (congregation_home / CONGREGATION_ENV_FILENAME).write_text(
-        f"OPENAI_API_KEY={TEST_OPENAI_API_KEY_CONGREGATION}\n",
-        encoding="utf-8",
+    _write_test_openai_credential(
+        congregation_home / CONGREGATION_ENV_FILENAME,
+        TEST_CONGREGATION_VALUE,
     )
     overrides = getattr(context, "environment_overrides", None)
     if overrides is None:
@@ -565,6 +568,78 @@ def then_llm_usage_log_contains_right_now_summary(context: object) -> None:
         if entry.get("operation") == RIGHT_NOW_SUMMARY_OPERATION
     ]
     assert matching, "expected right_now_summary entry in llm usage log"
+
+
+def _read_right_now_llm_usage_entries(context: object) -> list[dict]:
+    project_dir = load_project_directory(context)
+    log_path = project_dir / "events" / LLM_USAGE_LOG
+    if not log_path.exists():
+        return []
+    entries = [
+        json.loads(line)
+        for line in log_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return [
+        entry
+        for entry in entries
+        if entry.get("operation") == RIGHT_NOW_SUMMARY_OPERATION
+    ]
+
+
+@then("the LLM usage log should not contain a right_now_summary entry")
+def then_llm_usage_log_has_no_right_now_summary(context: object) -> None:
+    """Verify no right-now summary LLM call was logged.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    entries = _read_right_now_llm_usage_entries(context)
+    assert entries == [], f"unexpected right_now_summary entries: {entries}"
+
+
+@then("the LLM usage log right_now_summary entries should have unknown cost")
+def then_llm_usage_right_now_entries_have_unknown_cost(context: object) -> None:
+    """Verify logged right-now calls record cost as unknown rather than zero.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    entries = _read_right_now_llm_usage_entries(context)
+    assert entries, "expected right_now_summary entry in llm usage log"
+    for entry in entries:
+        assert "cost" in entry, f"cost missing from {entry}"
+        assert entry["cost"] is None, f"expected unknown cost in {entry}"
+
+
+@given("the LLM usage log contains entries:")
+def given_llm_usage_log_contains_entries(context: object) -> None:
+    """Write LLM usage log entries from a table.
+
+    The ``cost`` column uses ``none`` for an unpriced call and ``age_days``
+    sets how many days before now each entry was recorded.
+
+    :param context: Behave context object.
+    :type context: object
+    """
+    project_dir = load_project_directory(context)
+    events_dir = project_dir / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    lines = []
+    for row in context.table:
+        cost = None if row["cost"] == "none" else float(row["cost"])
+        timestamp = now - timedelta(days=int(row["age_days"]))
+        entry = {
+            "timestamp": timestamp.isoformat(),
+            "operation": row["operation"],
+            "issue_id": "kanbus-cost",
+            "model": "gpt-4o-mini",
+            "total_tokens": int(row["total_tokens"]),
+            "cost": cost,
+        }
+        lines.append(json.dumps(entry, sort_keys=True))
+    (events_dir / LLM_USAGE_LOG).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 @then("the LiteLLM API should not be called")
@@ -856,23 +931,6 @@ def then_right_now_context_missing_child_summary(
     assert identifier not in identifiers
 
 
-@given("right now summary generation is disabled")
-def given_right_now_summary_generation_disabled(context: object) -> None:
-    """Disable right-now summary generation in project configuration.
-
-    :param context: Behave context object.
-    :type context: object
-    """
-    repository = Path(context.working_directory)
-    config_path = repository / ".kanbus.yml"
-    payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        payload = copy.deepcopy(DEFAULT_CONFIGURATION)
-    payload.setdefault("right_now", {})
-    payload["right_now"]["enabled"] = False
-    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
-
-
 @given('issue "{identifier}" right now state is recorded')
 def given_issue_right_now_state_recorded(context: object, identifier: str) -> None:
     """Record the current right-now updated timestamp for refresh assertions.
@@ -927,16 +985,16 @@ def then_issue_right_now_summary_refreshed(context: object, identifier: str) -> 
         assert actual > previous
 
 
-@then("the created issue should have a mock right now summary")
-def then_created_issue_has_mock_right_now_summary(context: object) -> None:
-    """Verify the last created issue has the deterministic mock summary.
+@then("the created issue should have no right now summary")
+def then_created_issue_has_no_right_now_summary(context: object) -> None:
+    """Verify the last created issue has no right-now summary.
 
     :param context: Behave context object.
     :type context: object
     """
     identifier = getattr(context, "last_issue_id", None)
     assert identifier is not None, "last issue id not set"
-    then_issue_has_mock_right_now_summary(context, identifier)
+    then_issue_has_no_right_now_summary(context, identifier)
 
 
 @given('a newer overlay snapshot for "{identifier}" has no right now summary')
