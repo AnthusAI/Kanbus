@@ -1841,6 +1841,74 @@ mod tests {
         }
     }
 
+    fn try_read_mock_mqtt_packet(stream: &mut std::net::TcpStream) -> Option<(u8, Vec<u8>)> {
+        use std::io::Read;
+
+        let mut header = [0_u8; 1];
+        stream.read_exact(&mut header).ok()?;
+        let mut multiplier = 1_usize;
+        let mut remaining = 0_usize;
+        loop {
+            let mut byte = [0_u8; 1];
+            stream.read_exact(&mut byte).ok()?;
+            remaining += usize::from(byte[0] & 0x7f) * multiplier;
+            if byte[0] & 0x80 == 0 {
+                break;
+            }
+            multiplier *= 128;
+            if multiplier > 128_usize.pow(3) {
+                return None;
+            }
+        }
+        let mut body = vec![0_u8; remaining];
+        stream.read_exact(&mut body).ok()?;
+        Some((header[0], body))
+    }
+
+    /// Accepts the connection that completes MQTT CONNECT and SUBSCRIBE.
+    ///
+    /// The broker address reaches the client through process-wide environment
+    /// state, so reachability probes and unrelated concurrent tests can connect
+    /// first. Those connections are skipped; only the overall deadline panics.
+    /// Returns the subscriber stream and the SUBSCRIBE packet identifier.
+    fn accept_mock_mqtt_subscriber(
+        listener: &std::net::TcpListener,
+        timeout: Duration,
+        connack_delay: Duration,
+    ) -> (std::net::TcpStream, [u8; 2]) {
+        use std::io::Write;
+
+        let deadline = Instant::now() + timeout;
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let (mut stream, _) = accept_mock_connection_with_deadline(listener, remaining)
+                .expect("accept subscriber within deadline");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("bound subscriber reads");
+            stream
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .expect("bound subscriber writes");
+            let Some((connect, _)) = try_read_mock_mqtt_packet(&mut stream) else {
+                continue;
+            };
+            if connect >> 4 != 1 {
+                continue;
+            }
+            thread::sleep(connack_delay);
+            if stream.write_all(&[0x20, 0x02, 0x00, 0x00]).is_err() {
+                continue;
+            }
+            let Some((subscribe, body)) = try_read_mock_mqtt_packet(&mut stream) else {
+                continue;
+            };
+            if subscribe >> 4 != 8 || body.len() < 2 {
+                continue;
+            }
+            return (stream, [body[0], body[1]]);
+        }
+    }
+
     fn accept_mock_connection_with_deadline(
         listener: &std::net::TcpListener,
         timeout: Duration,
@@ -2452,25 +2520,12 @@ mod tests {
         write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (published_tx, published_rx) = mpsc::channel();
         let broker = thread::spawn(move || {
-            let (mut subscriber, _) =
-                accept_mock_connection_with_deadline(&listener, Duration::from_secs(3))
-                    .expect("accept subscriber within deadline");
-            subscriber
-                .set_read_timeout(Some(Duration::from_secs(3)))
-                .expect("bound subscriber reads");
-            subscriber
-                .set_write_timeout(Some(Duration::from_secs(3)))
-                .expect("bound subscriber writes");
-            let (connect, _) = read_packet(&mut subscriber);
-            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
             // Simulate slow TLS/custom-authorizer CONNACK and SUBACK phases.
-            thread::sleep(Duration::from_millis(600));
-            subscriber
-                .write_all(&[0x20, 0x02, 0x00, 0x00])
-                .expect("send CONNACK");
-            let (subscribe, body) = read_packet(&mut subscriber);
-            assert_eq!(subscribe >> 4, 8, "expected MQTT SUBSCRIBE");
-            let packet_id = [body[0], body[1]];
+            let (mut subscriber, packet_id) = accept_mock_mqtt_subscriber(
+                &listener,
+                Duration::from_secs(6),
+                Duration::from_millis(600),
+            );
             // The contention window starts after successful MQTT setup and
             // local publication, not while waiting on a slow custom-authorizer
             // handshake or the broker's SUBACK.
@@ -2648,24 +2703,10 @@ mod tests {
         write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (broker_finished_tx, broker_finished_rx) = mpsc::channel();
         let broker = thread::spawn(move || {
-            let (mut subscriber, _) =
-                accept_mock_connection_with_deadline(&listener, Duration::from_secs(3))
-                    .expect("accept subscriber within deadline");
+            let (mut subscriber, packet_id) =
+                accept_mock_mqtt_subscriber(&listener, Duration::from_secs(6), Duration::ZERO);
             subscriber
-                .set_read_timeout(Some(Duration::from_secs(3)))
-                .expect("bound denied-subscriber reads");
-            subscriber
-                .set_write_timeout(Some(Duration::from_secs(3)))
-                .expect("bound denied-subscriber writes");
-            let (connect, _) = read_packet(&mut subscriber);
-            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
-            subscriber
-                .write_all(&[0x20, 0x02, 0x00, 0x00])
-                .expect("send CONNACK");
-            let (subscribe, body) = read_packet(&mut subscriber);
-            assert_eq!(subscribe >> 4, 8, "expected MQTT SUBSCRIBE");
-            subscriber
-                .write_all(&[0x90, 0x03, body[0], body[1], 0x80])
+                .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x80])
                 .expect("deny MQTT subscription");
             broker_finished_tx
                 .send(())
