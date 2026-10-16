@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from router_markers import mark_router_statuses
 from click.testing import CliRunner
 
 import kanbus.cli as project_cli
@@ -73,13 +74,6 @@ def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
     transition_labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
     data["router"] = {
         "enabled": enabled,
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 4, "review_wip": 2},
         "providers": {
             "codex": {"adapter": "codex"},
@@ -87,6 +81,7 @@ def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
         },
         "classes": {"backend": {"providers": ["codex", "backup"]}},
     }
+    mark_router_statuses(data)
     return ProjectConfiguration.model_validate(data)
 
 
@@ -178,7 +173,7 @@ def test_newer_conversation_review_overrides_an_older_router_start(
                 "payload": {"action": "agent_turn", "lifecycle": "review"},
             },
         ],
-        context.router,
+        context.statuses,
     )
 
     assert issues[0].status == "review"
@@ -188,7 +183,7 @@ def test_newer_conversation_review_overrides_an_older_router_start(
     _apply_router_status_overlay(
         issues,
         [_router_event("router_claimed", {"action": "started"})],
-        context.router,
+        context.statuses,
     )
 
     assert issues[0].status == "review"
@@ -577,15 +572,15 @@ def test_blocked_by_dependency_defers_for_missing_or_nonterminal_target(
         dependencies=[{"target": active_target.identifier, "type": "blocked-by"}]
     )
 
-    assert _has_blocking_dependency(missing, {}, context.router)
+    assert _has_blocking_dependency(missing, {}, context.statuses)
     assert _has_blocking_dependency(
-        waiting, {active_target.identifier: active_target}, context.router
+        waiting, {active_target.identifier: active_target}, context.statuses
     )
     nonblocking = _issue(
         dependencies=[{"target": active_target.identifier, "type": "relates-to"}]
     )
     assert not _has_blocking_dependency(
-        nonblocking, {active_target.identifier: active_target}, context.router
+        nonblocking, {active_target.identifier: active_target}, context.statuses
     )
 
 

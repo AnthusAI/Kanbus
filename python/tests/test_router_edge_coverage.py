@@ -719,15 +719,15 @@ def test_forge_helpers_return_valid_data_and_fail_closed_on_bad_project_state(
     (root / ".kanbus.yml").write_text("configuration: {}\n", encoding="utf-8")
     project_dir = root / "project"
     project_dir.mkdir()
-    workflow = SimpleNamespace(
-        review="review", active="active", blocked="blocked", terminal=["closed"]
+    statuses = SimpleNamespace(
+        in_review="review", in_progress="active", blocked="blocked", done="closed"
     )
     issue = SimpleNamespace(identifier="kbs-7", status="active")
     monkeypatch.setattr(
         router_forge,
         "load_router_context",
         lambda _root: SimpleNamespace(
-            router=SimpleNamespace(workflow=workflow), issues=[]
+            router=SimpleNamespace(), statuses=statuses, issues=[]
         ),
     )
     with pytest.raises(IssueRouterError, match="unknown router package"):
@@ -742,7 +742,7 @@ def test_forge_helpers_return_valid_data_and_fail_closed_on_bad_project_state(
         router_forge,
         "load_router_context",
         lambda _root: SimpleNamespace(
-            router=SimpleNamespace(workflow=workflow), issues=[issue]
+            router=SimpleNamespace(), statuses=statuses, issues=[issue]
         ),
     )
     monkeypatch.setattr(

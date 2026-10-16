@@ -64,8 +64,8 @@ def context(tmp_path, providers=None, forge=None):
         default_lease_ttl="30s",
         contention_window="1s",
     )
-    workflow = SimpleNamespace(
-        active="active", blocked="blocked", review="review", terminal=["closed"]
+    statuses = SimpleNamespace(
+        in_progress="active", blocked="blocked", in_review="review", done="closed"
     )
     router = SimpleNamespace(
         providers={
@@ -79,7 +79,6 @@ def context(tmp_path, providers=None, forge=None):
             )
         },
         classes={"review": SimpleNamespace(providers=["codex"])},
-        workflow=workflow,
         forge=forge,
         limits=SimpleNamespace(project_wip=1, provider_wip={}, class_wip={}),
         retries=SimpleNamespace(max_attempts=3),
@@ -103,6 +102,7 @@ def context(tmp_path, providers=None, forge=None):
             overlay=SimpleNamespace(ttl_s=30),
         ),
         router=router,
+        statuses=statuses,
         issues=[issue],
         control=SimpleNamespace(),
     )

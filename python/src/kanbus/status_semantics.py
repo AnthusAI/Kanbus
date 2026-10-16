@@ -2,15 +2,27 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from kanbus.models import ProjectConfiguration
+from kanbus.status_semantic_defaults import CANONICAL_SEMANTIC_CATEGORIES
 
 SEMANTIC_TODO = "todo"
 SEMANTIC_IN_PROGRESS = "in_progress"
+SEMANTIC_IN_REVIEW = "in_review"
+SEMANTIC_BLOCKED = "blocked"
 SEMANTIC_DONE = "done"
 
-VALID_SEMANTIC_CATEGORIES = {SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE}
+VALID_SEMANTIC_CATEGORIES = set(CANONICAL_SEMANTIC_CATEGORIES)
+
+ROUTER_LIFECYCLE_TRANSITIONS = (
+    (SEMANTIC_TODO, SEMANTIC_IN_PROGRESS),
+    (SEMANTIC_IN_PROGRESS, SEMANTIC_IN_REVIEW),
+    (SEMANTIC_IN_PROGRESS, SEMANTIC_BLOCKED),
+    (SEMANTIC_IN_REVIEW, SEMANTIC_IN_PROGRESS),
+    (SEMANTIC_IN_REVIEW, SEMANTIC_DONE),
+)
 
 
 class SemanticCategoryError(ValueError):
@@ -28,7 +40,7 @@ def validate_semantic_category(semantic_category: str) -> None:
     if semantic_category not in VALID_SEMANTIC_CATEGORIES:
         raise SemanticCategoryError(
             f"invalid semantic_category '{semantic_category}': "
-            "must be one of todo, in_progress, done"
+            "must be one of todo, in_progress, in_review, blocked, done"
         )
 
 
@@ -110,8 +122,10 @@ def default_color_for_semantic_category(semantic_category: str) -> str:
     """
     if semantic_category == SEMANTIC_TODO:
         return "cyan"
-    if semantic_category == SEMANTIC_IN_PROGRESS:
+    if semantic_category in {SEMANTIC_IN_PROGRESS, SEMANTIC_IN_REVIEW}:
         return "blue"
+    if semantic_category == SEMANTIC_BLOCKED:
+        return "red"
     if semantic_category == SEMANTIC_DONE:
         return "green"
     return "white"
@@ -206,6 +220,12 @@ def map_jira_status_to_key(
         return resolve_preferred_status_key_for_semantic_category(
             configuration, SEMANTIC_TODO, ["backlog", "open"]
         )
+    if normalized == "in review" and status_keys_for_semantic_category(
+        configuration, SEMANTIC_IN_REVIEW
+    ):
+        return resolve_primary_status_key_for_semantic_category(
+            configuration, SEMANTIC_IN_REVIEW
+        )
     if normalized in {"in progress", "in review", "in development"}:
         return resolve_primary_status_key_for_semantic_category(
             configuration, SEMANTIC_IN_PROGRESS
@@ -215,9 +235,88 @@ def map_jira_status_to_key(
             configuration, SEMANTIC_DONE, ["closed"]
         )
     if normalized in {"blocked", "impediment"}:
+        if status_keys_for_semantic_category(configuration, SEMANTIC_BLOCKED):
+            return resolve_preferred_status_key_for_semantic_category(
+                configuration, SEMANTIC_BLOCKED, ["blocked"]
+            )
         return resolve_preferred_status_key_for_semantic_category(
             configuration, SEMANTIC_IN_PROGRESS, ["blocked"]
         )
     return resolve_preferred_status_key_for_semantic_category(
         configuration, SEMANTIC_TODO, ["open"]
     )
+
+
+@dataclass(frozen=True)
+class RouterStatuses:
+    """The router-marked status key for each canonical semantic category.
+
+    :param todo: Marked intake status where work waits for a router worker.
+    :param in_progress: Marked status for work owned by a router worker.
+    :param in_review: Marked status for work awaiting human review.
+    :param blocked: Marked status for work that cannot proceed.
+    :param done: Marked status for approved, completed work.
+    """
+
+    todo: str
+    in_progress: str
+    in_review: str
+    blocked: str
+    done: str
+
+    def for_category(self, semantic_category: str) -> str:
+        """
+        Return the marked status key for a semantic category.
+
+        :param semantic_category: One of the canonical semantic categories.
+        :type semantic_category: str
+        :return: The marked status key.
+        :rtype: str
+        :raises SemanticCategoryError: When the category is not canonical.
+        """
+        validate_semantic_category(semantic_category)
+        return getattr(self, semantic_category)
+
+
+def router_marked_status_keys(
+    configuration: ProjectConfiguration,
+) -> Dict[str, List[str]]:
+    """
+    Group the router-marked status keys by semantic category.
+
+    :param configuration: Project configuration.
+    :type configuration: ProjectConfiguration
+    :return: Marked status keys per category, in configuration order.
+    :rtype: Dict[str, List[str]]
+    """
+    marked: Dict[str, List[str]] = {}
+    for status in configuration.statuses:
+        if status.router:
+            marked.setdefault(status.semantic_category, []).append(status.key)
+    return marked
+
+
+def resolve_router_statuses(configuration: ProjectConfiguration) -> RouterStatuses:
+    """
+    Resolve the router-marked status for every canonical semantic category.
+
+    This is the single place the router learns which configured statuses play
+    each lifecycle role. A loaded, valid router configuration always resolves.
+
+    :param configuration: Project configuration.
+    :type configuration: ProjectConfiguration
+    :return: The marked status key for each canonical category.
+    :rtype: RouterStatuses
+    :raises SemanticCategoryError: When a category lacks exactly one marked status.
+    """
+    marked = router_marked_status_keys(configuration)
+    resolved: Dict[str, str] = {}
+    for category in CANONICAL_SEMANTIC_CATEGORIES:
+        keys = marked.get(category, [])
+        if len(keys) != 1:
+            raise SemanticCategoryError(
+                "router requires exactly one router-marked status for "
+                f'semantic category "{category}"'
+            )
+        resolved[category] = keys[0]
+    return RouterStatuses(**resolved)

@@ -399,7 +399,11 @@ def given_primary_in_progress_status_key(context: object, new_key: str) -> None:
 
 
 def _write_status_configuration(
-    context: object, key: str, semantic_category: str | None, strip_all: bool
+    context: object,
+    key: str,
+    semantic_category: str | None,
+    strip_all: bool,
+    name: str | None = None,
 ) -> None:
     config_path = Path(context.working_directory) / ".kanbus.yml"
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -409,15 +413,30 @@ def _write_status_configuration(
             status.pop("semantic_category", None)
     entry = {
         "key": key,
-        "name": key.replace("_", " ").title(),
+        "name": name if name is not None else key.replace("_", " ").title(),
         "category": "In progress",
         "color": None,
         "collapsed": False,
     }
     if semantic_category is not None:
         entry["semantic_category"] = semantic_category
+    statuses[:] = [status for status in statuses if status["key"] != key]
     statuses.append(entry)
     config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+@given(
+    'the configuration omits every semantic category and adds the status "{key}" named "{name}"'
+)
+def given_configuration_omits_semantic_categories_named(
+    context: object, key: str, name: str
+) -> None:
+    _write_status_configuration(context, key, None, strip_all=True, name=name)
+
+
+@given('the configuration also adds the status "{key}" without a semantic category')
+def given_configuration_also_adds_status(context: object, key: str) -> None:
+    _write_status_configuration(context, key, None, strip_all=False)
 
 
 @given('the configuration omits every semantic category and adds the status "{key}"')

@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 from behave import given, then, when
 
+from features.steps.shared import mark_router_statuses
 from features.steps.issue_write_controls_steps import (
     _ensure_real_console_server,
     _issue_write_request,
@@ -27,6 +28,7 @@ def _with_review_status(config: dict) -> None:
             "semantic_category": "in_progress",
         }
     )
+    mark_router_statuses(config)
     workflow = config["workflows"]["default"]
     workflow["in_progress"].append("review")
     workflow["review"] = ["in_progress", "blocked", "closed"]
@@ -50,13 +52,6 @@ def given_router_with_class_and_provider(
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     _with_review_status(config)
     config["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 3, "review_wip": 2},
         "providers": {provider: {"adapter": "codex"}},
         "classes": {class_name: {"providers": [provider]}},

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import re
 
+CANONICAL_SEMANTIC_CATEGORIES = ("todo", "in_progress", "in_review", "blocked", "done")
+
 _DONE_WORDS = frozenset(
     {
         "closed",
@@ -27,6 +29,8 @@ _DONE_WORDS = frozenset(
         "wontfix",
     }
 )
+_BLOCKED_WORDS = frozenset({"blocked"})
+_REVIEW_WORDS = frozenset({"review"})
 _TODO_WORDS = frozenset(
     {
         "open",
@@ -48,15 +52,20 @@ _TODO_WORDS = frozenset(
 
 
 def derive_semantic_category(key: str, name: str = "") -> str:
-    """Infer ``todo``, ``in_progress`` or ``done`` from a status key and name.
+    """Infer a canonical semantic category from a status key and name.
 
-    Any word of the key or name that reads as a finished state gives ``done``,
-    then any that reads as not started gives ``todo``; every other status
-    (including ``blocked``) is treated as work in progress.
+    Words of the key and name are checked in a fixed order: a finished word
+    gives ``done``, then ``blocked`` gives ``blocked``, then ``review`` gives
+    ``in_review``, then a not-started word gives ``todo``. Every other status is
+    treated as work in progress.
     """
     words = {word for word in re.split(r"[^a-z0-9]+", f"{key} {name}".lower()) if word}
     if words & _DONE_WORDS:
         return "done"
+    if words & _BLOCKED_WORDS:
+        return "blocked"
+    if words & _REVIEW_WORDS:
+        return "in_review"
     if words & _TODO_WORDS:
         return "todo"
     return "in_progress"

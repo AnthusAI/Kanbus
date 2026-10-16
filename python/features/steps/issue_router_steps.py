@@ -19,6 +19,7 @@ from features.steps.shared import (
     build_issue,
     initialize_default_project,
     load_project_directory,
+    mark_router_statuses,
     read_issue_file,
     run_cli,
     write_issue_file,
@@ -26,6 +27,7 @@ from features.steps.shared import (
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.router_adapters import _parse_result as parse_adapter_result
 from kanbus.coordination import inspect_lease
+from kanbus.status_semantics import resolve_router_statuses
 from kanbus.event_history import create_event, write_events_batch
 from kanbus.issue_router import (
     IssueRouterError,
@@ -56,13 +58,6 @@ from kanbus.router_forge import (
 from kanbus.router_state import publish_router_state, router_state_root
 
 _ROUTER = {
-    "workflow": {
-        "pending": "open",
-        "active": "in_progress",
-        "review": "review",
-        "blocked": "blocked",
-        "terminal": ["closed"],
-    },
     "limits": {"project_wip": 3, "review_wip": 2},
     "providers": {"codex-default": {"adapter": "codex"}},
     "classes": {"implementation": {"providers": ["codex-default"]}},
@@ -95,10 +90,11 @@ def _add_review_status(config: dict) -> None:
                 "key": "review",
                 "name": "Review",
                 "category": "In progress",
-                "semantic_category": "in_progress",
+                "semantic_category": "in_review",
                 "collapsed": False,
             }
         )
+    mark_router_statuses(config)
     workflow = config.setdefault("workflows", {}).setdefault("default", {})
     workflow["open"] = list(
         dict.fromkeys([*workflow.get("open", []), "in_progress", "closed"])
@@ -329,34 +325,6 @@ def given_router_profile_adapter(context: object, profile: str, adapter: str) ->
     _install_router(context, router)
 
 
-@given('a valid router configuration with workflow role "{role}" set to "{status}"')
-def given_router_workflow_override(context: object, role: str, status: str) -> None:
-    _install_router(context, json.loads(json.dumps(_ROUTER)))
-    config = _config(context)
-    config["router"]["workflow"][role] = (
-        [status] if role == "terminal" else yaml.safe_load(status)
-    )
-    _save_config(context, config)
-
-
-@given(
-    'a valid router configuration with active status "{active}" and review status "{review}"'
-)
-def given_router_duplicate_status(context: object, active: str, review: str) -> None:
-    _install_router(context, json.loads(json.dumps(_ROUTER)))
-    config = _config(context)
-    config["router"]["workflow"].update(active=active, review=review)
-    _save_config(context, config)
-
-
-@given('a valid router configuration with terminal statuses "{statuses}"')
-def given_router_terminal_statuses(context: object, statuses: str) -> None:
-    _install_router(context, json.loads(json.dumps(_ROUTER)))
-    config = _config(context)
-    config["router"]["workflow"]["terminal"] = yaml.safe_load(statuses)
-    _save_config(context, config)
-
-
 @given('a valid router configuration with "{field}" set to "{value}"')
 def given_router_limit_value(context: object, field: str, value: str) -> None:
     _install_router(context, json.loads(json.dumps(_ROUTER)))
@@ -437,6 +405,108 @@ def given_forge_token_environment(context: object, name: str) -> None:
 def given_default_github_token(context: object, value: str) -> None:
     os.environ["GITHUB_TOKEN"] = value
     context.add_cleanup(lambda: os.environ.pop("GITHUB_TOKEN", None))
+
+
+_CANONICAL_ROUTER_STATUSES = {
+    "Discovery": ("todo", "Discovery"),
+    "in_progress": ("in_progress", "In Progress"),
+    "review": ("in_review", "Review"),
+    "blocked": ("blocked", "Blocked"),
+    "closed": ("done", "Done"),
+}
+
+
+def _status_definition(config: dict, key: str) -> dict:
+    return next(status for status in config["statuses"] if status["key"] == key)
+
+
+@given("the project has the canonical router statuses")
+def given_canonical_router_statuses(context: object) -> None:
+    config = _config(context)
+    _add_review_status(config)
+    statuses = config["statuses"]
+    for status in statuses:
+        status.pop("router", None)
+    if not any(status["key"] == "Discovery" for status in statuses):
+        open_index = next(
+            index for index, status in enumerate(statuses) if status["key"] == "open"
+        )
+        statuses.insert(
+            open_index,
+            {
+                "key": "Discovery",
+                "name": "Discovery Intake",
+                "category": "To do",
+                "semantic_category": "todo",
+                "collapsed": False,
+            },
+        )
+    for key, (category, _name) in _CANONICAL_ROUTER_STATUSES.items():
+        status = _status_definition(config, key)
+        status["semantic_category"] = category
+        status["router"] = True
+    workflow = config["workflows"]["default"]
+    workflow["Discovery"] = ["in_progress", "closed", "backlog"]
+    labels = config["transition_labels"]["default"]
+    labels["Discovery"] = {
+        "in_progress": "Start work",
+        "closed": "Drop",
+        "backlog": "Back to backlog",
+    }
+    workflow["backlog"] = list(dict.fromkeys([*workflow["backlog"], "Discovery"]))
+    labels["backlog"]["Discovery"] = "Start discovery"
+    _save_config(context, config)
+
+
+@given('the status "{status}" is not router-marked')
+def given_status_not_router_marked(context: object, status: str) -> None:
+    config = _config(context)
+    _status_definition(config, status).pop("router", None)
+    _save_config(context, config)
+
+
+@given('the status "{status}" is also router-marked')
+def given_status_also_router_marked(context: object, status: str) -> None:
+    config = _config(context)
+    _status_definition(config, status)["router"] = True
+    _save_config(context, config)
+
+
+@given('the status "{status}" has router marker "{marker}"')
+def given_status_router_marker_value(context: object, status: str, marker: str) -> None:
+    config = _config(context)
+    _status_definition(config, status)["router"] = marker
+    _save_config(context, config)
+
+
+@given('the default workflow does not allow "{source}" to "{target}"')
+def given_default_workflow_disallows_transition(
+    context: object, source: str, target: str
+) -> None:
+    config = _config(context)
+    config["workflows"]["default"][source].remove(target)
+    config["transition_labels"]["default"][source].pop(target)
+    _save_config(context, config)
+
+
+@then("no configured status should be router-marked")
+def then_no_status_router_marked(context: object) -> None:
+    configuration = load_project_configuration(get_configuration_path(_root(context)))
+    marked = [status.key for status in configuration.statuses if status.router]
+    assert not marked, marked
+
+
+@then('the configured status "{key}" should be router-marked')
+def then_status_router_marked(context: object, key: str) -> None:
+    configuration = load_project_configuration(get_configuration_path(_root(context)))
+    status = next(item for item in configuration.statuses if item.key == key)
+    assert status.router is True
+
+
+@then('the router status for semantic category "{category}" should be "{key}"')
+def then_router_status_for_category(context: object, category: str, key: str) -> None:
+    configuration = load_project_configuration(get_configuration_path(_root(context)))
+    assert resolve_router_statuses(configuration).for_category(category) == key
 
 
 @when("the router configuration is loaded")
@@ -1715,7 +1785,7 @@ def when_publish_completed_forge_result(context: object) -> None:
     _transition_package(
         load_router_context(router_state_root(shared_root)),
         package_id,
-        router_context.router.workflow.review,
+        router_context.statuses.in_review,
         claim_id=claim_id,
         revision=revision,
     )

@@ -11,6 +11,8 @@ from pydantic import ValidationError
 
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.models import ProjectConfiguration
+from kanbus.status_semantic_defaults import CANONICAL_SEMANTIC_CATEGORIES
+from kanbus.status_semantics import ROUTER_LIFECYCLE_TRANSITIONS
 
 CONGREGATION_ENV_FILENAME = ".kanbus.env"
 
@@ -67,6 +69,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
         raise ConfigurationError("router must be a mapping")
     _reject_legacy_fields(merged)
     _reject_standup_lookback_hours(merged)
+    _validate_status_definition_fields(merged)
     _normalize_virtual_projects(merged)
     _apply_environment_overrides(merged)
 
@@ -113,7 +116,12 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     errors = validate_project_configuration(configuration)
     if errors:
         router_error = next(
-            (message for message in errors if message.startswith("router.")), None
+            (
+                message
+                for message in errors
+                if message.startswith(("router.", "router "))
+            ),
+            None,
         )
         if router_error is not None:
             raise ConfigurationError(router_error)
@@ -454,18 +462,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> list[
     # Build set of valid status keys
     valid_statuses = {s.key for s in configuration.statuses}
 
-    if router is not None and router.enabled and router.workflow is not None:
-        for role in ("pending", "active", "review", "blocked"):
-            status = getattr(router.workflow, role)
-            if status not in valid_statuses:
-                errors.append(
-                    f'router.workflow.{role} references undefined status "{status}"'
-                )
-        for status in router.workflow.terminal:
-            if status not in valid_statuses:
-                errors.append(
-                    f'router.workflow.terminal references undefined status "{status}"'
-                )
+    errors.extend(_router_marker_errors(configuration))
 
     # Validate that initial_status exists in statuses
     if configuration.initial_status not in valid_statuses:
@@ -527,6 +524,53 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> list[
     _validate_right_now(configuration, errors)
 
     return errors
+
+
+def _router_marker_errors(configuration: ProjectConfiguration) -> list[str]:
+    """Validate router markers, returning at most the first error found.
+
+    Marker uniqueness per semantic category is enforced on every load. When a
+    router is enabled, every canonical category must also have its marked status
+    and the default workflow must allow the transitions the router performs
+    between those statuses.
+
+    :param configuration: Loaded configuration.
+    :type configuration: ProjectConfiguration
+    :return: Empty list or a single validation error.
+    :rtype: list[str]
+    """
+    first_marked: dict[str, str] = {}
+    for status in configuration.statuses:
+        if not status.router:
+            continue
+        category = status.semantic_category
+        if category in first_marked:
+            return [
+                f'statuses "{first_marked[category]}" and "{status.key}" are both '
+                f'router-marked for semantic category "{category}"'
+            ]
+        first_marked[category] = status.key
+    router = configuration.router
+    if router is None or not router.enabled:
+        return []
+    for category in CANONICAL_SEMANTIC_CATEGORIES:
+        if category not in first_marked:
+            return [
+                "router requires exactly one router-marked status for semantic "
+                f'category "{category}"'
+            ]
+    default_workflow = configuration.workflows.get("default")
+    if default_workflow is None:
+        return []
+    for from_category, to_category in ROUTER_LIFECYCLE_TRANSITIONS:
+        from_status = first_marked[from_category]
+        to_status = first_marked[to_category]
+        if to_status not in default_workflow.get(from_status, []):
+            return [
+                "router lifecycle requires a workflow transition from "
+                f'"{from_status}" to "{to_status}"'
+            ]
+    return []
 
 
 def _validate_hooks(configuration: ProjectConfiguration, errors: list[str]) -> None:
@@ -682,12 +726,44 @@ def _has_standup_lookback_hours(error: ValidationError) -> bool:
     return False
 
 
+def _validate_status_definition_fields(data: dict) -> None:
+    """Reject malformed router markers and unsupported semantic categories."""
+    statuses = data.get("statuses")
+    if not isinstance(statuses, list):
+        return
+    for status in statuses:
+        if not isinstance(status, dict):
+            continue
+        key = status.get("key")
+        if "router" in status and not isinstance(status["router"], bool):
+            raise ConfigurationError(f"statuses.{key}.router must be a boolean")
+        category = status.get("semantic_category")
+        if (
+            isinstance(category, str)
+            and category.strip()
+            and category not in CANONICAL_SEMANTIC_CATEGORIES
+        ):
+            raise ConfigurationError(
+                f'statuses.{key}.semantic_category "{category}" is unsupported; '
+                "expected one of " + ", ".join(CANONICAL_SEMANTIC_CATEGORIES)
+            )
+
+
 def _has_unknown_fields(error: ValidationError) -> bool:
     return any(item.get("type") == "extra_forbidden" for item in error.errors())
 
 
 def _router_validation_error(error: ValidationError) -> str | None:
     """Translate router model errors to stable user-facing validation text."""
+    for item in error.errors():
+        location = item.get("loc") or ()
+        if (
+            location
+            and location[0] == "router"
+            and item.get("type") == "extra_forbidden"
+        ):
+            field_path = ".".join(str(part) for part in location)
+            return f"{field_path} is an unknown field"
     for item in error.errors():
         location = item.get("loc") or ()
         if not location or location[0] != "router":
@@ -699,16 +775,8 @@ def _router_validation_error(error: ValidationError) -> str | None:
         if len(location) == 1 and error_type == "model_type":
             return "router must be a mapping"
         if len(location) == 1 and error_type == "value_error":
-            if "workflow, limits, and providers are required" in str(
-                item.get("msg", "")
-            ):
-                return (
-                    "router.workflow, router.limits, and router.providers are required"
-                )
-        if location == ("router", "workflow") and error_type == "value_error":
-            return "router.workflow roles must use distinct statuses"
-        if location == ("router", "workflow", "terminal") and error_type == "too_short":
-            return "router.workflow.terminal must be a nonempty list"
+            if "limits and providers are required" in str(item.get("msg", "")):
+                return "router.limits and router.providers are required"
         if location == ("router", "providers") and error_type == "too_short":
             return "router.providers must be a nonempty mapping"
         if len(location) == 2 and location[1] == "watch_interval":

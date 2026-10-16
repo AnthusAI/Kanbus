@@ -26,6 +26,27 @@ from kanbus.cli import cli
 from kanbus.models import IssueData
 from kanbus.project import load_project_directory as resolve_project_directory
 
+ROUTER_MARKED_STATUS_CATEGORIES = {
+    "open": "todo",
+    "in_progress": "in_progress",
+    "review": "in_review",
+    "blocked": "blocked",
+    "closed": "done",
+}
+
+
+def mark_router_statuses(config: dict) -> None:
+    """Mark the default intake, working, review, blocked and done statuses.
+
+    The existing router scenarios keep ``open`` as their router intake; each
+    marked status also receives the canonical semantic category the router needs.
+    """
+    for status in config["statuses"]:
+        category = ROUTER_MARKED_STATUS_CATEGORIES.get(status["key"])
+        if category is not None:
+            status["semantic_category"] = category
+            status["router"] = True
+
 
 def write_default_kanbus_config(
     root: Path,

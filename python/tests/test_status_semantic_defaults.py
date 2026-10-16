@@ -22,10 +22,13 @@ from kanbus.status_semantic_defaults import derive_semantic_category
         ("accepted", "Accepted", "done"),
         ("rejected", "Rejected", "done"),
         ("in_progress", "In Progress", "in_progress"),
-        ("blocked", "Blocked", "in_progress"),
+        ("blocked", "Blocked", "blocked"),
+        ("waiting", "Blocked on legal", "blocked"),
         ("assignment", "Assignment", "in_progress"),
         ("editor_select", "Editor select", "in_progress"),
-        ("awaiting-review", "Awaiting review", "in_progress"),
+        ("awaiting-review", "Awaiting review", "in_review"),
+        ("Peer_Review", "Peer", "in_review"),
+        ("ready_for_review", "Ready for review", "in_review"),
         ("gold-authored", "Gold authored", "in_progress"),
     ],
 )
@@ -57,3 +60,17 @@ def test_an_explicit_semantic_category_is_never_overridden():
         semantic_category="todo",
     )
     assert status.semantic_category == "todo"
+
+
+def test_a_router_marker_defaults_to_false_and_must_be_a_boolean():
+    status = StatusDefinition(key="open", name="Open", category="To do")
+    assert status.router is False
+    with pytest.raises(ValueError):
+        StatusDefinition(key="open", name="Open", category="To do", router="yes")
+
+
+def test_an_unsupported_semantic_category_is_rejected():
+    with pytest.raises(ValueError, match="is unsupported"):
+        StatusDefinition(
+            key="archived", name="Archived", category="Done", semantic_category="x"
+        )

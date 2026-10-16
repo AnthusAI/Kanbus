@@ -11,12 +11,16 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     field_validator,
     model_serializer,
     model_validator,
 )
 
-from kanbus.status_semantic_defaults import derive_semantic_category
+from kanbus.status_semantic_defaults import (
+    CANONICAL_SEMANTIC_CATEGORIES,
+    derive_semantic_category,
+)
 
 
 def _is_loopback_http_url(value: str) -> bool:
@@ -231,7 +235,11 @@ class IssueData(BaseModel):
 
 
 class StatusDefinition(BaseModel):
-    """Status definition with display metadata."""
+    """Status definition with display metadata.
+
+    ``router`` marks the one status that plays the router lifecycle role for its
+    ``semantic_category``; it never affects projects that do not enable a router.
+    """
 
     key: str = Field(min_length=1)
     name: str = Field(min_length=1)
@@ -239,6 +247,7 @@ class StatusDefinition(BaseModel):
     # Older configurations omit this; a missing value is derived from the key and
     # name (see status_semantic_defaults) instead of failing to load.
     semantic_category: str = ""
+    router: StrictBool = False
     color: Optional[str] = None
     collapsed: bool = False
 
@@ -246,7 +255,20 @@ class StatusDefinition(BaseModel):
     def _derive_missing_semantic_category(self) -> "StatusDefinition":
         if not self.semantic_category.strip():
             self.semantic_category = derive_semantic_category(self.key, self.name)
+        elif self.semantic_category not in CANONICAL_SEMANTIC_CATEGORIES:
+            raise ValueError(
+                f'statuses.{self.key}.semantic_category "{self.semantic_category}" '
+                "is unsupported; expected one of "
+                + ", ".join(CANONICAL_SEMANTIC_CATEGORIES)
+            )
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_default_router_marker(self, handler: Any) -> Dict[str, Any]:
+        data = handler(self)
+        if data.get("router") is False:
+            data.pop("router")
+        return data
 
 
 class PriorityDefinition(BaseModel):
@@ -474,26 +496,6 @@ class CoordinationConfiguration(BaseModel):
         return value
 
 
-class RouterWorkflowRoles(BaseModel):
-    """Explicit workflow statuses used by the deterministic issue router."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    pending: str = Field(min_length=1)
-    active: str = Field(min_length=1)
-    review: str = Field(min_length=1)
-    blocked: str = Field(min_length=1)
-    terminal: List[str] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def validate_distinct_roles(self) -> "RouterWorkflowRoles":
-        """Reject ambiguous role assignments."""
-        roles = [self.pending, self.active, self.review, self.blocked, *self.terminal]
-        if len(roles) != len(set(roles)):
-            raise ValueError("router workflow roles must use distinct statuses")
-        return self
-
-
 class RouterLimits(BaseModel):
     """Router-owned WIP and retry limits."""
 
@@ -619,7 +621,6 @@ class IssueRouterConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
-    workflow: RouterWorkflowRoles | None = None
     limits: RouterLimits | None = None
     providers: Dict[str, RouterAgentProfile] = Field(default_factory=dict)
     classes: Dict[str, RouterAgentClass] = Field(default_factory=dict)
@@ -631,21 +632,21 @@ class IssueRouterConfiguration(BaseModel):
     @classmethod
     def require_enabled_fields(cls, value: Any) -> Any:
         """Allow an explicit disabled marker without requiring execution settings."""
-        if isinstance(value, dict) and value.get("enabled", True) is not False:
-            missing = [
-                key for key in ("workflow", "limits", "providers") if key not in value
-            ]
+        if (
+            isinstance(value, dict)
+            and value.get("enabled", True) is not False
+            and set(value) <= set(cls.model_fields)
+        ):
+            missing = [key for key in ("limits", "providers") if key not in value]
             if missing:
-                raise ValueError("router workflow, limits, and providers are required")
+                raise ValueError("router limits and providers are required")
         return value
 
     @model_validator(mode="after")
     def validate_enabled_configuration(self) -> "IssueRouterConfiguration":
         """Require usable routes on enabled router configurations."""
-        if self.enabled and (
-            self.workflow is None or self.limits is None or not self.providers
-        ):
-            raise ValueError("router workflow, limits, and providers are required")
+        if self.enabled and (self.limits is None or not self.providers):
+            raise ValueError("router limits and providers are required")
         return self
 
     @field_validator("watch_interval")
