@@ -247,8 +247,10 @@ function AgentAssignmentEditor({
   const [draft, setDraft] = useState(currentValue);
   const [state, setState] = useState<"idle" | "pending" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const activeStatus = router?.workflow?.active;
-  const running = Boolean(activeStatus) && issue.status === activeStatus;
+  const routerInProgressStatus = config?.statuses.find(
+    (status) => status.router === true && status.semantic_category === "in_progress"
+  )?.key;
+  const running = Boolean(routerInProgressStatus) && issue.status === routerInProgressStatus;
 
   useEffect(() => {
     setDraft(currentValue);

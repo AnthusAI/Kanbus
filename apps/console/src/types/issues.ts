@@ -7,6 +7,8 @@ export interface StatusDefinition {
   category: string;
   color?: string | null;
   collapsed?: boolean;
+  semantic_category?: string;
+  router?: boolean;
 }
 
 export interface CategoryDefinition {
@@ -74,7 +76,6 @@ export interface ProjectConfig {
   router?: {
     classes?: Record<string, { providers?: string[] }>;
     providers?: Record<string, { adapter?: string; model?: string; service_tier?: string }>;
-    workflow?: { active?: string };
   };
 }
 

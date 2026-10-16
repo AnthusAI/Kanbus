@@ -22,19 +22,51 @@ async function assignmentRequest(issueId, body) {
   });
 }
 
+const routerStatusSemanticCategories = {
+  open: "todo",
+  in_progress: "in_progress",
+  copy_writing: "in_review",
+  blocked: "blocked",
+  closed: "done"
+};
+
+const routerLifecycleTransitions = [
+  ["open", "in_progress"],
+  ["in_progress", "copy_writing"],
+  ["in_progress", "blocked"],
+  ["copy_writing", "in_progress"],
+  ["copy_writing", "closed"]
+];
+
+function markRouterLifecycleStatuses(config) {
+  for (const status of config.statuses ?? []) {
+    const semanticCategory = routerStatusSemanticCategories[status.key];
+    if (semanticCategory) {
+      status.semantic_category = semanticCategory;
+      status.router = true;
+    } else {
+      delete status.router;
+    }
+  }
+  config.workflows ??= {};
+  config.workflows.default ??= {};
+  config.transition_labels ??= {};
+  config.transition_labels.default ??= {};
+  for (const [fromStatus, toStatus] of routerLifecycleTransitions) {
+    const targets = (config.workflows.default[fromStatus] ??= []);
+    if (!targets.includes(toStatus)) targets.push(toStatus);
+    const labels = (config.transition_labels.default[fromStatus] ??= {});
+    labels[toStatus] ??= toStatus;
+  }
+}
+
 Given(
   "the Kanbus configuration has a router with class {string} using provider {string}",
   async (className, providerName) => {
     const configPath = path.join(requireProjectRoot(), "..", ".kanbus.yml");
     const config = yaml.load(await readFile(configPath, "utf-8")) ?? {};
+    markRouterLifecycleStatuses(config);
     config.router = {
-      workflow: {
-        pending: "open",
-        active: "in_progress",
-        review: "copy_writing",
-        blocked: "blocked",
-        terminal: ["closed"]
-      },
       limits: { project_wip: 3, review_wip: 2 },
       providers: { [providerName]: { adapter: "codex" } },
       classes: { [className]: { providers: [providerName] } }
