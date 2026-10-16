@@ -30,7 +30,7 @@ git remote add origin git@github.com:acme/website.git
 git push -u origin main
 ```
 
-Before you push, check that the project key in `.kanbus.yml` is unique to this repository. Live updates are routed by project key, so two repositories that share a key will see each other's changes on a shared broker.
+Before you push, check that the project key in `.kanbus.yml` is unique to this repository. Live updates are routed by project key, so two repositories that share a key will see each other's changes on a shared broker, and their issues can mix in the hosted console.
 
 ## 2. Join from another clone
 
@@ -110,7 +110,7 @@ To use AWS IoT Core as the broker, with per-project API tokens instead of an ope
 
 ## 5. Optional: a hosted console
 
-`kbsc` on a laptop serves that laptop's clone. To give the team a console in the browser that always shows the repository's pushed board, Kanbus includes an AWS CDK stack in `infra/cloud`. It runs the console as a Lambda function behind API Gateway with Cognito sign-in, keeps a copy of each repository on EFS, refreshes it from a GitHub push webhook, and pushes live updates to browsers over AWS IoT.
+`kbsc` on a laptop serves that laptop's clone. To give the team a browser view of the repository's pushed board, Kanbus includes an AWS CDK stack in `infra/cloud`. It runs the console as a Lambda function behind API Gateway with Cognito sign-in, keeps a copy of each repository on EFS, refreshes it from a GitHub push webhook, and pushes live updates to browsers over AWS IoT.
 
 This is an operator task that needs an AWS account and CDK. The outline is:
 
@@ -120,7 +120,13 @@ This is an operator task that needs an AWS account and CDK. The outline is:
 4. Give each user the Cognito attributes `custom:account=acme` and `custom:project=website`.
 5. Push to the repository, then open `{ApiBaseUrl}acme/website/`.
 
-The hosted console currently maps one user to one board. Details and limits are in the [cloud console runbook](../CLOUD_CONSOLE_RUNTIME.md).
+Known limits of the hosted console today:
+
+- **Treat it as read-only.** The console's copy on EFS is refreshed from git, but edits made in the hosted console are written only to that copy and are never pushed back to the repository. The next sync can overwrite them, and nobody with a clone ever sees them. Make changes with `kbs` in a clone and push.
+- **Use a unique project key per repository.** Repositories that share a project key can show each other's issues in the hosted console, as well as each other's live updates.
+- One user maps to one board.
+
+Details are in the [cloud console runbook](../CLOUD_CONSOLE_RUNTIME.md).
 
 ## Next
 
