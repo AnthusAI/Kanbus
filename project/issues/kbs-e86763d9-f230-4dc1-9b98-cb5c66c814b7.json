@@ -1,0 +1,47 @@
+{
+  "id": "kbs-e86763d9-f230-4dc1-9b98-cb5c66c814b7",
+  "title": "Keep account switching responsive with repeated canonical sessions",
+  "description": "Given a Person has several committed Google sessions, when central identity and account requests resolve current authorization, then immutable canonical records are read once per lookup with bounded concurrency, current session and membership checks remain enforced, and subsequent requests reread authority. Given the live account-switch incident, when latency is measured, then central request timing and exact unwanted-record provenance are recorded without deletion, email-based linking, tokens or nonce output.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f3204051-f3af-46fc-ae97-b303167d3e99",
+      "author": "home",
+      "text": "Central fix b82aa7878d8146a7e59a937d8cbc451d3e0b16ee is draft PR10 https://github.com/AnthusAI/Prospectus/pull/10; required CI38893988589 running, not live. Reproduced old duplicate/serialized reads with failing regressions; 138 canonical tests and75 app tests now PASS plus typecheck and bundle. Request-local immutable reads only; batches4; next request reads fresh authority. Lab warm reload8.535sec and switch8.921sec remain unresolved pending central rollout. Exact Capacity account562ac931-c797-49fb-9831-c035234151bc has three versioned product objects; no deletions or email inference.",
+      "created_at": "2026-10-16T11:37:22.334905Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-16T11:19:14.819835Z",
+  "updated_at": "2026-10-16T11:37:22.335132Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Kanbus cloud owner",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
