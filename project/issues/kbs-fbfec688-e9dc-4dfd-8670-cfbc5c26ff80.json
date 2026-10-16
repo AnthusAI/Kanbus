@@ -3,16 +3,24 @@
   "title": "Milestone 1: shared typed Kanbus model and reusable app views",
   "description": "Expose existing reusable Kanbus surfaces through stable host-owned configuration and interaction contracts. Reuse existing packages rather than duplicate extraction. Verticals configure issue types, stages, labels and behavior; Kanbus supplies boards, feeds, lists and filtered lists. The host owns routing, authentication and data access. Preserve standalone console behavior. Done when embedded views share the model and interactions, configuration is behavior-tested, package and standalone build/type checks pass, and integration guidance exists.\n\nScope boundary: current Prospectus proof embeds one configured project. Cross-project board navigation and selection are valuable future UI work, explicitly tracked as backlog, and must not be reported as shipped in this milestone. Shared component contracts should not assume that an issue type uniquely identifies an application.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "3f77e066-7110-4294-9e66-8fb3cadca3b5",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-16: no child is in progress, so per the board convention this parent returns to open until one of its children becomes active.",
+      "created_at": "2026-10-16T23:49:14.057068733Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-13T23:46:20.799991Z",
-  "updated_at": "2026-10-14T00:27:48.313315Z",
+  "updated_at": "2026-10-16T23:49:14.057107057Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
