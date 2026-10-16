@@ -14,7 +14,7 @@
   "created_at": "2026-09-18T16:16:52.568718Z",
   "updated_at": "2026-10-16T16:47:07.260816Z",
   "closed_at": null,
-  "right_now_summary": "Python and Rust router lifecycle rules, shared tests, and live dispatch checks are being finalized.",
-  "right_now_updated_at": "2026-10-16T18:02:46.092270Z",
+  "right_now_summary": "Python and Rust router behavior are being aligned, with lifecycle rules and live dispatch checks being finalized.",
+  "right_now_updated_at": "2026-10-16T18:05:02.867350Z",
   "custom": {}
 }
