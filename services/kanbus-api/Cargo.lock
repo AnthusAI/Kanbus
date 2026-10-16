@@ -3440,7 +3440,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "virtuus"
 version = "0.5.1"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=639f873a73ebf1f68add2ae4b93f5fd117a539dc#639f873a73ebf1f68add2ae4b93f5fd117a539dc"
+source = "git+https://github.com/AnthusAI/Virtuus.git?rev=6c9bcf03d999e7fb344d7b777e50b71f1750224f#6c9bcf03d999e7fb344d7b777e50b71f1750224f"
 dependencies = [
  "libc",
  "serde",
@@ -3464,7 +3464,7 @@ dependencies = [
 [[package]]
 name = "virtuus-store"
 version = "0.1.0"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=639f873a73ebf1f68add2ae4b93f5fd117a539dc#639f873a73ebf1f68add2ae4b93f5fd117a539dc"
+source = "git+https://github.com/AnthusAI/Virtuus.git?rev=6c9bcf03d999e7fb344d7b777e50b71f1750224f#6c9bcf03d999e7fb344d7b777e50b71f1750224f"
 dependencies = [
  "async-trait",
  "aws-sdk-dynamodb",
