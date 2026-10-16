@@ -1,0 +1,28 @@
+{
+  "id": "kbs-56b11840-27e7-421a-9957-a56e8f539da1",
+  "title": "Emit integer expiry timestamps from production Google login challenges",
+  "description": "Given the production fractional Unix-second clock and an authorized Google challenge, when the central service returns issuedAt and expiresAt, then both public timestamps are integers separated by 300 seconds and the strict console login parser accepts them. Given cryptographic token freshness is checked, when the clock contains a fraction, then existing subsecond security comparisons remain unchanged. Owner fix330713f is integrated as a2d99ba; TypeScript and86 regressions pass; required CI and normal deployment remain gates.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T07:07:32.920614Z",
+  "updated_at": "2026-10-16T07:07:59.219397Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
