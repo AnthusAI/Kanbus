@@ -37,8 +37,8 @@
     "model": "gpt-5",
     "name": "Issue Router planning"
   },
-  "right_now_summary": "The team is aligning Python and Rust lifecycle handling while awaiting one smoke-test report.",
-  "right_now_updated_at": "2026-10-16T16:47:12.578383Z",
+  "right_now_summary": "Router lifecycle work is being finalized while tests pass and earlier routing features have shipped.",
+  "right_now_updated_at": "2026-10-16T18:02:47.833076Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

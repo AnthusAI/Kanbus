@@ -14,7 +14,7 @@
   "created_at": "2026-09-18T16:16:52.568718Z",
   "updated_at": "2026-10-16T16:47:07.260816Z",
   "closed_at": null,
-  "right_now_summary": "The team is aligning Python and Rust routers with marked Kanbus statuses and testing the full lifecycle.",
-  "right_now_updated_at": "2026-10-16T16:47:09.450106Z",
+  "right_now_summary": "Python and Rust router lifecycle rules, shared tests, and live dispatch checks are being finalized.",
+  "right_now_updated_at": "2026-10-16T18:02:46.092270Z",
   "custom": {}
 }

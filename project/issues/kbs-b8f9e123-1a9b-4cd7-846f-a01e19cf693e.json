@@ -10,11 +10,24 @@
   "parent": "kbs-8d1cd759-8137-49e5-a3f4-cb9eb60b0c5c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "91ea413b-e697-4cbf-a49c-7bb57db304ca",
+      "author": "home",
+      "text": "Spec draft on branch spec/state-native-router-statuses (8c494e1a). Ryan's decisions 2026-10-16:\n1. Unmarked todo issues (Ready, Backlog, others) appear in router plan output as deferred with reason status_not_router_intake, not omitted.\n2. Statuses named review / blocked derive semantic categories in_review / blocked by default when no explicit category is set.\n3. The load-time transition check covers the default workflow only (todo->in_progress, in_progress->in_review, in_progress->blocked, in_review->in_progress, in_review->done); per-type workflows are not checked and blocked->in_progress is not required.\n4. Existing router features keep open as their marked intake in test fixtures; the Discovery board is exercised by the new lifecycle feature.\nThe spec branch merges together with kbs-64d9b4 so CI coverage never drops.",
+      "created_at": "2026-10-16T18:02:41.459180Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Issue Router"
+      }
+    }
+  ],
   "created_at": "2026-09-18T16:17:35.120738Z",
-  "updated_at": "2026-10-16T16:47:01.622969Z",
+  "updated_at": "2026-10-16T18:02:41.459213Z",
   "closed_at": null,
-  "right_now_summary": "The team is defining and testing router-aware semantic status rules in shared Gherkin.",
-  "right_now_updated_at": "2026-10-16T16:47:03.178460Z",
+  "right_now_summary": "The router-aware status spec is on a branch with lifecycle rules and cross-runner tests being finalized.",
+  "right_now_updated_at": "2026-10-16T18:02:44.047250Z",
   "custom": {}
 }
