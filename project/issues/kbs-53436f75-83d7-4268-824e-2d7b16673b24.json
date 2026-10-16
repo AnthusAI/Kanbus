@@ -3,7 +3,7 @@
   "title": "Flaky Rust test: bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay fails intermittently in CI",
   "description": "rust/src/gossip.rs test gossip::tests::bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay intermittently panics at src/gossip.rs:2560 with 'local claim publishes only after subscription' (published == false). Observed on the develop->main promotion PR run at 57b5e770 (2026-10-16 09:30 UTC) and on PR #404 at 32094d35 (2026-10-16 16:37 UTC, docs-only change), while the same code passed at f9d047ac (15:49 UTC). Likely cause: collect_coordination_gossip_window_with uses a 500 ms window, and on a loaded CI runner the SUBACK-gated publish (dedicated publish thread, see 231e9a75) can land after the window closes. Fix so the test is deterministic (synchronize on the publish rather than a wall-clock window, or make the window bounded by an event plus a generous ceiling) without weakening the 'publish only after subscription' assertion. Every PR's rust job can go red on this, so it blocks merges.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "review",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,16 +12,29 @@
     "ci"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a7a3e755-1414-4d53-a1f2-e2a1efe15c5e",
+      "author": "home",
+      "text": "PR #405. Root cause was a test-isolation race, not the window: KANBUS_REALTIME_BROKER is process-wide, so concurrent router tests connected to this test's mock broker, which took the first CONNECT as its publisher, relayed the foreign claim and exited; the real publish then found no listener and returned false. Fix (test-only): after SUBACK the mock serves every connection and keeps only the router:issue:kbs-peer claim; window ceiling 500 ms -> 1500 ms. Repro with router tests: 6/6 failed before, 0/20 after; full gossip set under 8-way load 0/100. Gates: fmt, clippy, cargo test --lib (553) green locally.",
+      "created_at": "2026-10-16T18:20:11.975569Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Issue Router"
+      }
+    }
+  ],
   "created_at": "2026-10-16T16:46:28.617213Z",
-  "updated_at": "2026-10-16T16:46:56.386948Z",
+  "updated_at": "2026-10-16T18:20:14.193672Z",
   "closed_at": null,
   "agent": {
     "platform": "claude_code",
     "model": "Claude Opus 5.5",
     "name": "WIP cleanup"
   },
-  "right_now_summary": "CI intermittently misses the MQTT publish before the 500 ms test window closes.",
-  "right_now_updated_at": "2026-10-16T16:47:01.550477Z",
+  "right_now_summary": "The test-isolation race was fixed, and repeated local runs now pass reliably.",
+  "right_now_updated_at": "2026-10-16T18:20:15.809491Z",
   "custom": {}
 }
