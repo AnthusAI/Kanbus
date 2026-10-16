@@ -4,16 +4,41 @@ This guide covers the Issue Router, which dispatches to Codex or OpenCode. Route
 
 ## Configure a project
 
-Add a `review` status to the project workflow before enabling the router. Map all router roles to statuses that already exist in that workflow. Start with one Codex profile and a small WIP limit:
+Add a `review` status to the project workflow before enabling the router. The router does not carry its own status map. Instead, mark exactly one status per canonical semantic category (`todo`, `in_progress`, `in_review`, `blocked`, `done`) with `router: true`. The marked statuses are where the router picks up work, runs it, hands it to review, blocks it, and finishes it:
+
+```yaml
+statuses:
+  - key: open
+    name: Ready
+    category: To do
+    semantic_category: todo
+    router: true
+  - key: in_progress
+    name: In Progress
+    category: In progress
+    semantic_category: in_progress
+    router: true
+  - key: review
+    name: Review
+    category: In progress
+    semantic_category: in_review
+    router: true
+  - key: blocked
+    name: Blocked
+    category: In progress
+    semantic_category: blocked
+    router: true
+  - key: closed
+    name: Done
+    category: Done
+    semantic_category: done
+    router: true
+```
+
+Marker uniqueness per category is checked on every configuration load. When `router:` is configured, every canonical category must have exactly one marked status, and the default workflow must allow the transitions the router performs: todo to in_progress, in_progress to in_review, in_progress to blocked, in_review to in_progress, and in_review to done. `router.workflow` is no longer supported and is rejected as an unknown field. Start with one Codex profile and a small WIP limit:
 
 ```yaml
 router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 2
     review_wip: 1
@@ -40,7 +65,7 @@ router:
     max_attempts: 3
 ```
 
-The router requires the workflow and limits blocks, one or more provider profiles (`adapter: codex` or `adapter: opencode`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
+The router requires the limits block, one or more provider profiles (`adapter: codex` or `adapter: opencode`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
 
 The router publishes its event history and router-owned issue status records to the dedicated `refs/heads/kanbus/router-state` branch using an isolated hidden Git worktree. Without an `origin` remote, router state remains local to the repository. If a configured `origin` is unreachable, publication fails.
 

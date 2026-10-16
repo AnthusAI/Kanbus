@@ -12,12 +12,6 @@ The initial configuration is:
 
 ```yaml
 router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 2
     review_wip: 1
@@ -44,7 +38,7 @@ router:
     max_attempts: 3
 ```
 
-`workflow` requires all five roles. `terminal` is a nonempty list of configured statuses. Workflow role names must map to distinct statuses, and every configured status must exist in the project workflow. `limits.project_wip` and `limits.review_wip` are required positive integers; review WIP cannot exceed project WIP. `class_wip` and `provider_wip` are optional maps of configured class/profile names to positive integers. Missing entries have no route-specific cap. `retries.max_attempts` defaults to 3. `watch_interval` defaults to `30s` and accepts a positive duration in seconds, minutes, or hours.
+The router has no status map of its own. Lifecycle statuses are the statuses marked `router: true`, one per canonical semantic category (`todo`, `in_progress`, `in_review`, `blocked`, `done`), and `router.workflow` is rejected as an unknown field. The default workflow must allow the transitions between the marked statuses. `limits.project_wip` and `limits.review_wip` are required positive integers; review WIP cannot exceed project WIP. `class_wip` and `provider_wip` are optional maps of configured class/profile names to positive integers. Missing entries have no route-specific cap. `retries.max_attempts` defaults to 3. `watch_interval` defaults to `30s` and accepts a positive duration in seconds, minutes, or hours.
 
 The only initial adapter is `codex`. Each provider profile requires `adapter: codex`. `command` defaults to `codex`; `args` defaults to an empty list and replaces the executable's default prefix for controlled environments such as the fake adapter used by specs. Class provider lists are ordered and nonempty. An exact provider route is pinned to that profile; a class route tries the configured profiles in order when a new claim or takeover begins.
 

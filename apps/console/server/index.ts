@@ -445,7 +445,6 @@ apiRouter.post("/issues/:id/status", requireLoopback, express.json({ limit: "16k
 const ROUTE_LABEL_PREFIXES = ["agent-class:", "agent-provider:"];
 
 type RouterAssignmentConfig = {
-  workflow?: { active?: string };
   classes?: Record<string, unknown>;
   providers?: Record<string, unknown>;
 };
@@ -489,7 +488,12 @@ apiRouter.post("/issues/:id/assignment", requireLoopback, express.json({ limit: 
       }
       desired = `agent-${kind}:${name}`;
     }
-    if (issue.status === router.workflow?.active) {
+    const routerActiveStatus = (
+      (before.config as unknown as {
+        statuses?: { key: string; router?: boolean; semantic_category?: string }[];
+      }).statuses ?? []
+    ).find((status) => status.router === true && status.semantic_category === "in_progress")?.key;
+    if (routerActiveStatus !== undefined && issue.status === routerActiveStatus) {
       res.status(400).json({
         error: "the router is running this issue; change its assignment after the run ends"
       });

@@ -46,24 +46,29 @@ statuses:
     name: Ready
     category: To do
     semantic_category: todo
+    router: true
   - key: in_progress
     name: In Progress
     category: In progress
     semantic_category: in_progress
+    router: true
   - key: review
     name: Review
     category: In progress
-    semantic_category: in_progress
+    semantic_category: in_review
+    router: true
     collapsed: true
   - key: blocked
     name: Blocked
     category: In progress
-    semantic_category: in_progress
+    semantic_category: blocked
+    router: true
     collapsed: true
   - key: closed
     name: Done
     category: Done
     semantic_category: done
+    router: true
     collapsed: true
 
 categories:
@@ -178,12 +183,6 @@ realtime:
 # Single-worker production smoke test. Flex is requested explicitly in the
 # Codex profile and must be validated against the installed Codex runtime.
 router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 10
     review_wip: 2

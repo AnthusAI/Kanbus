@@ -2,6 +2,8 @@ export interface KanbanStatusDefinition {
   key: string;
   name: string;
   category: string;
+  semantic_category?: string;
+  router?: boolean;
   color?: string | null;
   collapsed?: boolean;
 }
@@ -59,7 +61,6 @@ export interface KanbanConfig {
 export interface KanbanRouterConfig {
   classes?: Record<string, { providers?: string[] }>;
   providers?: Record<string, { adapter?: string; model?: string; service_tier?: string }>;
-  workflow?: { active?: string };
 }
 
 export interface KanbanIssue {

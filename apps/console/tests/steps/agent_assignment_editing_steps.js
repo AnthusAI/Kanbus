@@ -27,14 +27,21 @@ Given(
   async (className, providerName) => {
     const configPath = path.join(requireProjectRoot(), "..", ".kanbus.yml");
     const config = yaml.load(await readFile(configPath, "utf-8")) ?? {};
+    const routerStatusCategories = {
+      open: "todo",
+      in_progress: "in_progress",
+      copy_writing: "in_review",
+      blocked: "blocked",
+      closed: "done"
+    };
+    for (const status of config.statuses ?? []) {
+      const category = routerStatusCategories[status.key];
+      if (category) {
+        status.semantic_category = category;
+        status.router = true;
+      }
+    }
     config.router = {
-      workflow: {
-        pending: "open",
-        active: "in_progress",
-        review: "copy_writing",
-        blocked: "blocked",
-        terminal: ["closed"]
-      },
       limits: { project_wip: 3, review_wip: 2 },
       providers: { [providerName]: { adapter: "codex" } },
       classes: { [className]: { providers: [providerName] } }
