@@ -55,10 +55,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "87e1d4e0-6caf-4284-aefa-6a5871441f3e",
+      "author": "home",
+      "text": "Next measured-path fix is draftProspectusPR11 https://github.com/AnthusAI/Prospectus/pull/11 commit2acb42d2f4da8116accb27ecd4f4c6433abf89b7, fullCI38901593381 running. Nativeget/list uses directcanonical/prefixS3reads; MemoryCatalog is NOT hydrated by scanningS3. Keepone native/S3clientpernamespaceperinvocation, closeonfinish/deadline; noauthoritycache/schema/IAM/registrychange. Scrubbedfixedoperation count/timing records distinguish nativeinitialization, S3operations andbridgecost; nopaths/accounts/identities/tokens/proofs.144 testsPASS,75appPASS3existingoptionalSKIP,typecheck+nativeClippy+Node24bundlePASS. Newactualnative regressions prove oneinit, freshcrossrequestrevocationread, staleCASdenial, close/EOF/oversize/malformedfailclosed. Not deployedyet; liveperformanceproofpending.",
+      "created_at": "2026-10-16T12:52:22.592217Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T11:19:14.819835Z",
-  "updated_at": "2026-10-16T12:18:27.152707Z",
+  "updated_at": "2026-10-16T12:52:22.592249Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
