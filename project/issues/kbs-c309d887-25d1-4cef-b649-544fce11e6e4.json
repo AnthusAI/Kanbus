@@ -40,10 +40,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "1f929b80-3827-4fb1-84e1-030b222bfaba",
+      "author": "home",
+      "text": "Release candidate now27f73a512104880f44b1dd1b5364823bb3d78760. CodeQL4high path diagnostics redacted inbb34eed5. Repeated hostedMQTTfailure investigated, not retried: deterministic unrelated-publication injection reproduces samepublishedfalse1.26sec beforefixturefix. Mockbroker now waits matchingclaim and preserves unrelatedpublisher lifetime; allpublication/overlayassertionsretained. All553Rustunits/fmt/strictClippyPASS. PythonGitpin also replaced with actualpublishedvirtuus==0.6.1; builtwheelmetadataassertsnoGitrequirements. NewfullCI38907176905,CodeQL38907176918,sharedUI38907176889 active;supersededrunsstoppedtosavecost. No productionMQTTbehaviorchange. Mainmerge/actualKanbuspublicationstillpendingexactheadgates.",
+      "created_at": "2026-10-16T13:22:02.322820Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T10:38:49.060782Z",
-  "updated_at": "2026-10-16T13:09:31.782914Z",
+  "updated_at": "2026-10-16T13:22:02.322889Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
