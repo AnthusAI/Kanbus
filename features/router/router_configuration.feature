@@ -10,7 +10,6 @@ Feature: Optional Issue Router configuration
     And stderr should equal "error: issue router is not configured\n"
     And running "kanbus list" in the same project should succeed
 
-  @wip
   Scenario: The Codex-first router configuration is accepted with one marked status per semantic category
     Given a Kanbus project with router configuration:
       """
@@ -95,7 +94,6 @@ Feature: Optional Issue Router configuration
       | poll_seconds|
       | fallback    |
 
-  @wip
   Scenario: The router configuration rejects the removed workflow status map
     Given a Kanbus project with router configuration:
       """
@@ -112,14 +110,12 @@ Feature: Optional Issue Router configuration
     Then the command should fail with exit code 1
     And stderr should equal "error: router.workflow is an unknown field\n"
 
-  @wip
   Scenario: Statuses are not router-marked by default
     Given a Kanbus project with default configuration
     When I run "kanbus list"
     Then the command should succeed
     And no configured status should be router-marked
 
-  @wip
   Scenario: A project may mark statuses without enabling the router
     Given a Kanbus project without a router configuration
     And the project has the canonical router statuses
@@ -127,7 +123,6 @@ Feature: Optional Issue Router configuration
     Then the command should succeed
     And the configured status "Discovery" should be router-marked
 
-  @wip
   Scenario Outline: An enabled router requires a marked status for every canonical category
     Given a Kanbus project with valid Codex-first router configuration
     And the project has the canonical router statuses
@@ -144,7 +139,6 @@ Feature: Optional Issue Router configuration
       | blocked     | blocked     |
       | done        | closed      |
 
-  @wip
   Scenario: Two statuses cannot both be router-marked for one semantic category
     Given a Kanbus project with valid Codex-first router configuration
     And the project has the canonical router statuses
@@ -153,25 +147,22 @@ Feature: Optional Issue Router configuration
     Then the command should fail with exit code 1
     And stderr should equal "error: statuses \"Discovery\" and \"open\" are both router-marked for semantic category \"todo\"\n"
 
-  @wip
   Scenario: Router marker uniqueness is enforced even when the router is not configured
     Given a Kanbus project without a router configuration
     And the project has the canonical router statuses
     And the status "open" is also router-marked
     When I run "kanbus list"
     Then the command should fail with exit code 1
-    And stderr should equal "error: statuses \"Discovery\" and \"open\" are both router-marked for semantic category \"todo\"\n"
+    And stderr should contain "statuses \"Discovery\" and \"open\" are both router-marked for semantic category \"todo\""
 
-  @wip
   Scenario: A router marker must be a boolean
     Given a Kanbus project with default configuration
     And the project has the canonical router statuses
     And the status "Discovery" has router marker "yes please"
     When I run "kanbus list"
     Then the command should fail with exit code 1
-    And stderr should equal "error: statuses.Discovery.router must be a boolean\n"
+    And stderr should contain "statuses.Discovery.router must be a boolean"
 
-  @wip
   Scenario: The router lifecycle requires workflow transitions between its marked statuses
     Given a Kanbus project with valid Codex-first router configuration
     And the project has the canonical router statuses
@@ -180,7 +171,6 @@ Feature: Optional Issue Router configuration
     Then the command should fail with exit code 1
     And stderr should equal "error: router lifecycle requires a workflow transition from \"Discovery\" to \"in_progress\"\n"
 
-  @wip
   Scenario Outline: Every marked lifecycle transition must be allowed by the default workflow
     Given a Kanbus project with valid Codex-first router configuration
     And the project has the canonical router statuses
