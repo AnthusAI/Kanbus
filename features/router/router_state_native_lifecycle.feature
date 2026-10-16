@@ -53,11 +53,11 @@ Feature: State-native Issue Router lifecycle
     Then package "kbs-406" should transition to status "in_progress"
 
   @wip
-  Scenario Outline: An unmarked todo status is never a dispatch candidate
+  Scenario Outline: An unmarked todo status is deferred as not router intake
     Given an issue "kbs-410" of type "task" with status "<status>" and label "agent-class:implementation"
     When I run "kanbus router plan --json"
     Then issue "kbs-410" should not appear in the eligible packages
-    And issue "kbs-410" should not appear in the deferred packages
+    And issue "kbs-410" should be deferred with reason "status_not_router_intake"
 
     Examples:
       | status  |
@@ -65,12 +65,12 @@ Feature: State-native Issue Router lifecycle
       | backlog |
 
   @wip
-  Scenario: An unmarked todo status added by the project is not a dispatch candidate
+  Scenario: A todo status added by the project is deferred as not router intake unless it is marked
     Given the configuration adds the status "triage" with semantic category "todo"
     And an issue "kbs-411" of type "task" with status "triage" and label "agent-class:implementation"
     When I run "kanbus router plan --json"
     Then issue "kbs-411" should not appear in the eligible packages
-    And issue "kbs-411" should not appear in the deferred packages
+    And issue "kbs-411" should be deferred with reason "status_not_router_intake"
 
   @wip
   Scenario: A one-shot run leaves an eligible-looking Ready issue untouched
@@ -111,8 +111,9 @@ Feature: State-native Issue Router lifecycle
     And no issue status should change
 
   @wip
-  Scenario: Existing issues in an unmarked status are not migrated
+  Scenario: Existing issues in an unmarked status are deferred and not migrated
     Given an issue "kbs-421" of type "task" with status "open" and label "agent-class:implementation"
     When I run "kanbus router plan --json"
     Then issue "kbs-421" should not appear in the eligible packages
+    And issue "kbs-421" should be deferred with reason "status_not_router_intake"
     And issue "kbs-421" should remain in status "open"

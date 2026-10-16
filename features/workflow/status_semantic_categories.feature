@@ -34,6 +34,40 @@ Feature: Status semantic categories
     And the configured status "published" should have semantic category "todo"
 
   @wip
+  Scenario Outline: A status without a semantic category derives in_review or blocked from any word of its key or name
+    Given a Kanbus project with default configuration
+    And the configuration omits every semantic category and adds the status "<key>" named "<name>"
+    When I run "kanbus list"
+    Then the command should succeed
+    And the configured status "<key>" should have semantic category "<category>"
+
+    Examples:
+      | key              | name             | category  |
+      | review           | Review           | in_review |
+      | awaiting-review  | Awaiting sign-off| in_review |
+      | qa               | In Review        | in_review |
+      | blocked          | Blocked          | blocked   |
+      | waiting          | Blocked on legal | blocked   |
+      | Peer_Review      | Peer             | in_review |
+
+  @wip
+  Scenario: Derivation checks done, then blocked, then review, then todo words
+    Given a Kanbus project with default configuration
+    And the configuration omits every semantic category and adds the status "ready_for_review" named "Ready for review"
+    When I run "kanbus list"
+    Then the command should succeed
+    And the configured status "ready_for_review" should have semantic category "in_review"
+
+  @wip
+  Scenario: A configuration that predates semantic categories derives review and blocked as their own categories
+    Given a Kanbus project with default configuration
+    And the configuration omits every semantic category and adds the status "published"
+    When I run "kanbus list"
+    Then the command should succeed
+    And the configured status "review" should have semantic category "in_review"
+    And the configured status "blocked" should have semantic category "blocked"
+
+  @wip
   Scenario Outline: The canonical semantic categories include review and blocked
     Given a Kanbus project with default configuration
     And the configuration adds the status "<key>" with semantic category "<category>"
