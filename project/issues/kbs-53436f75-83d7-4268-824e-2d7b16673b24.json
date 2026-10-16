@@ -1,0 +1,27 @@
+{
+  "id": "kbs-53436f75-83d7-4268-824e-2d7b16673b24",
+  "title": "Flaky Rust test: bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay fails intermittently in CI",
+  "description": "rust/src/gossip.rs test gossip::tests::bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay intermittently panics at src/gossip.rs:2560 with 'local claim publishes only after subscription' (published == false). Observed on the develop->main promotion PR run at 57b5e770 (2026-10-16 09:30 UTC) and on PR #404 at 32094d35 (2026-10-16 16:37 UTC, docs-only change), while the same code passed at f9d047ac (15:49 UTC). Likely cause: collect_coordination_gossip_window_with uses a 500 ms window, and on a loaded CI runner the SUBACK-gated publish (dedicated publish thread, see 231e9a75) can land after the window closes. Fix so the test is deterministic (synchronize on the publish rather than a wall-clock window, or make the window bounded by an event plus a generous ceiling) without weakening the 'publish only after subscription' assertion. Every PR's rust job can go red on this, so it blocks merges.",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "ci"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T16:46:28.617213Z",
+  "updated_at": "2026-10-16T16:46:28.637365Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "Claude Opus 5.5",
+    "name": "WIP cleanup"
+  },
+  "right_now_summary": "A flaky Rust test intermittently misses its MQTT publish window in CI and needs deterministic synchronization.",
+  "right_now_updated_at": "2026-10-16T16:46:30.419254Z",
+  "custom": {}
+}
