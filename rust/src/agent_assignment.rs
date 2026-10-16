@@ -234,10 +234,7 @@ pub fn change_issue_assignment(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{
-        IssueRouterClassConfiguration, IssueRouterLimitsConfiguration,
-        IssueRouterWorkflowConfiguration,
-    };
+    use crate::models::{IssueRouterClassConfiguration, IssueRouterLimitsConfiguration};
     use std::collections::BTreeMap;
 
     fn profile(
@@ -258,13 +255,6 @@ mod tests {
     fn router() -> IssueRouterConfiguration {
         IssueRouterConfiguration {
             enabled: true,
-            workflow: IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
-                blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
-            },
             limits: IssueRouterLimitsConfiguration {
                 project_wip: 2,
                 review_wip: 1,
@@ -417,6 +407,7 @@ mod tests {
                     name: "Review".to_string(),
                     category: "In progress".to_string(),
                     semantic_category: "in_progress".to_string(),
+                    router: false,
                     color: None,
                     collapsed: false,
                 });
@@ -452,6 +443,7 @@ mod tests {
                     ("closed".to_string(), "Complete".to_string()),
                 ]),
             );
+            crate::status_semantics::mark_conventional_router_statuses(&mut configuration);
             configuration.router = Some(router());
         }
         std::fs::write(

@@ -24,12 +24,6 @@ use kanbus::file_io::{get_configuration_path, load_project_directory};
 use kanbus::models::{IssueData, ProjectConfiguration};
 
 const VALID_ROUTER: &str = r#"router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 4
     review_wip: 2
@@ -101,14 +95,8 @@ fn set_router_yaml(world: &KanbusWorld, source: &str) {
     let mut root_value = read_yaml(world).1;
     let router_doc: Yaml = serde_yaml::from_str(source).expect("router fixture yaml");
     let router = router_doc.get("router").cloned().expect("router key");
-    if router
-        .get("workflow")
-        .and_then(|workflow| workflow.get("review"))
-        .and_then(Yaml::as_str)
-        == Some("review")
-    {
-        add_review_status_and_workflow(&mut root_value);
-    }
+    add_review_status_and_workflow(&mut root_value);
+    mark_conventional_router_statuses(&mut root_value);
     mapping(&mut root_value).insert(Yaml::String("router".to_string()), router);
     write_yaml(world, &root_value);
 }
@@ -139,7 +127,7 @@ fn add_review_status_and_workflow(root_value: &mut Yaml) {
         );
         review_status.insert(
             Yaml::String("semantic_category".to_string()),
-            Yaml::String("in_progress".to_string()),
+            Yaml::String("in_review".to_string()),
         );
         review_status.insert(Yaml::String("collapsed".to_string()), Yaml::Bool(false));
         let root = mapping(root_value);
@@ -217,6 +205,29 @@ fn add_review_status_and_workflow(root_value: &mut Yaml) {
                 Yaml::String("Request review".to_string()),
             );
         }
+    }
+}
+
+fn mark_conventional_router_statuses(root_value: &mut Yaml) {
+    let statuses = mapping(root_value)
+        .get_mut(Yaml::String("statuses".to_string()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("status list");
+    for status in statuses {
+        let category = match status.get("key").and_then(Yaml::as_str) {
+            Some("open") => "todo",
+            Some("in_progress") => "in_progress",
+            Some("review") => "in_review",
+            Some("blocked") => "blocked",
+            Some("closed") => "done",
+            _ => continue,
+        };
+        let status = mapping(status);
+        status.insert(
+            Yaml::String("semantic_category".to_string()),
+            Yaml::String(category.to_string()),
+        );
+        status.insert(Yaml::String("router".to_string()), Yaml::Bool(true));
     }
 }
 
@@ -1856,6 +1867,220 @@ fn then_soft_duplicate_work(world: &mut KanbusWorld) {
     );
 }
 
+fn yaml_string_list(values: &[&str]) -> Yaml {
+    Yaml::Sequence(
+        values
+            .iter()
+            .map(|value| Yaml::String((*value).to_string()))
+            .collect(),
+    )
+}
+
+fn status_mapping_mut<'a>(root_value: &'a mut Yaml, key: &str) -> &'a mut Mapping {
+    mapping(root_value)
+        .get_mut(Yaml::String("statuses".to_string()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("status list")
+        .iter_mut()
+        .find(|status| status.get("key").and_then(Yaml::as_str) == Some(key))
+        .and_then(Yaml::as_mapping_mut)
+        .unwrap_or_else(|| panic!("status {key} is configured"))
+}
+
+#[given("the project has the canonical router statuses")]
+fn given_canonical_router_statuses(world: &mut KanbusWorld) {
+    let mut root_value = read_yaml(world).1;
+    add_review_status_and_workflow(&mut root_value);
+    let statuses = mapping(&mut root_value)
+        .get_mut(Yaml::String("statuses".to_string()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("status list");
+    for status in statuses.iter_mut() {
+        mapping(status).remove(Yaml::String("router".to_string()));
+    }
+    if !statuses
+        .iter()
+        .any(|status| status.get("key").and_then(Yaml::as_str) == Some("Discovery"))
+    {
+        let open_index = statuses
+            .iter()
+            .position(|status| status.get("key").and_then(Yaml::as_str) == Some("open"))
+            .expect("open status");
+        let mut discovery = Mapping::new();
+        for (field, value) in [
+            ("key", "Discovery"),
+            ("name", "Discovery Intake"),
+            ("category", "To do"),
+            ("semantic_category", "todo"),
+        ] {
+            discovery.insert(
+                Yaml::String(field.to_string()),
+                Yaml::String(value.to_string()),
+            );
+        }
+        discovery.insert(Yaml::String("collapsed".to_string()), Yaml::Bool(false));
+        statuses.insert(open_index, Yaml::Mapping(discovery));
+    }
+    for (key, category) in [
+        ("Discovery", "todo"),
+        ("in_progress", "in_progress"),
+        ("review", "in_review"),
+        ("blocked", "blocked"),
+        ("closed", "done"),
+    ] {
+        let status = status_mapping_mut(&mut root_value, key);
+        status.insert(
+            Yaml::String("semantic_category".to_string()),
+            Yaml::String(category.to_string()),
+        );
+        status.insert(Yaml::String("router".to_string()), Yaml::Bool(true));
+    }
+    let default_workflow = mapping(&mut root_value)
+        .get_mut(Yaml::String("workflows".to_string()))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|workflows| workflows.get_mut(Yaml::String("default".to_string())))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("default workflow");
+    default_workflow.insert(
+        Yaml::String("Discovery".to_string()),
+        yaml_string_list(&["in_progress", "closed", "backlog"]),
+    );
+    if let Some(backlog) = default_workflow
+        .get_mut(Yaml::String("backlog".to_string()))
+        .and_then(Yaml::as_sequence_mut)
+    {
+        backlog.push(Yaml::String("Discovery".to_string()));
+    }
+    let default_labels = mapping(&mut root_value)
+        .get_mut(Yaml::String("transition_labels".to_string()))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|labels| labels.get_mut(Yaml::String("default".to_string())))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("default transition labels");
+    let mut discovery_labels = Mapping::new();
+    for (target, label) in [
+        ("in_progress", "Start work"),
+        ("closed", "Drop"),
+        ("backlog", "Back to backlog"),
+    ] {
+        discovery_labels.insert(
+            Yaml::String(target.to_string()),
+            Yaml::String(label.to_string()),
+        );
+    }
+    default_labels.insert(
+        Yaml::String("Discovery".to_string()),
+        Yaml::Mapping(discovery_labels),
+    );
+    if let Some(backlog_labels) = default_labels
+        .get_mut(Yaml::String("backlog".to_string()))
+        .and_then(Yaml::as_mapping_mut)
+    {
+        backlog_labels.insert(
+            Yaml::String("Discovery".to_string()),
+            Yaml::String("Start discovery".to_string()),
+        );
+    }
+    write_yaml(world, &root_value);
+}
+
+#[given(expr = "the status {string} is not router-marked")]
+fn given_status_not_router_marked(world: &mut KanbusWorld, status: String) {
+    let mut root_value = read_yaml(world).1;
+    status_mapping_mut(&mut root_value, &status).remove(Yaml::String("router".to_string()));
+    write_yaml(world, &root_value);
+}
+
+#[given(expr = "the status {string} is also router-marked")]
+fn given_status_also_router_marked(world: &mut KanbusWorld, status: String) {
+    let mut root_value = read_yaml(world).1;
+    status_mapping_mut(&mut root_value, &status)
+        .insert(Yaml::String("router".to_string()), Yaml::Bool(true));
+    write_yaml(world, &root_value);
+}
+
+#[given(expr = "the status {string} has router marker {string}")]
+fn given_status_router_marker_value(world: &mut KanbusWorld, status: String, marker: String) {
+    let mut root_value = read_yaml(world).1;
+    status_mapping_mut(&mut root_value, &status)
+        .insert(Yaml::String("router".to_string()), Yaml::String(marker));
+    write_yaml(world, &root_value);
+}
+
+#[given(expr = "the default workflow does not allow {string} to {string}")]
+fn given_default_workflow_disallows_transition(
+    world: &mut KanbusWorld,
+    source: String,
+    target: String,
+) {
+    let mut root_value = read_yaml(world).1;
+    let default_workflow = mapping(&mut root_value)
+        .get_mut(Yaml::String("workflows".to_string()))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|workflows| workflows.get_mut(Yaml::String("default".to_string())))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("default workflow");
+    default_workflow
+        .get_mut(Yaml::String(source.clone()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("source transitions")
+        .retain(|entry| entry.as_str() != Some(target.as_str()));
+    let default_labels = mapping(&mut root_value)
+        .get_mut(Yaml::String("transition_labels".to_string()))
+        .and_then(Yaml::as_mapping_mut)
+        .and_then(|labels| labels.get_mut(Yaml::String("default".to_string())))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("default transition labels");
+    default_labels
+        .get_mut(Yaml::String(source))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("source labels")
+        .remove(Yaml::String(target));
+    write_yaml(world, &root_value);
+}
+
+fn load_configuration_for_assertion(world: &KanbusWorld) -> ProjectConfiguration {
+    kanbus::config_loader::load_project_configuration(
+        &get_configuration_path(root(world)).expect("configuration path"),
+    )
+    .expect("load configuration")
+}
+
+#[then("no configured status should be router-marked")]
+fn then_no_status_router_marked(world: &mut KanbusWorld) {
+    let marked = load_configuration_for_assertion(world)
+        .statuses
+        .iter()
+        .filter(|status| status.router)
+        .map(|status| status.key.clone())
+        .collect::<Vec<_>>();
+    assert!(marked.is_empty(), "{marked:?}");
+}
+
+#[then(expr = "the configured status {string} should be router-marked")]
+fn then_status_router_marked(world: &mut KanbusWorld, key: String) {
+    let configuration = load_configuration_for_assertion(world);
+    let status = configuration
+        .statuses
+        .iter()
+        .find(|status| status.key == key)
+        .expect("configured status");
+    assert!(status.router, "{key} is not router-marked");
+}
+
+#[then(expr = "the router status for semantic category {string} should be {string}")]
+fn then_router_status_for_category(world: &mut KanbusWorld, category: String, key: String) {
+    let configuration = load_configuration_for_assertion(world);
+    let statuses =
+        kanbus::status_semantics::resolve_router_statuses(&configuration).expect("router statuses");
+    assert_eq!(
+        statuses
+            .for_category(&category)
+            .expect("canonical category"),
+        key
+    );
+}
+
 #[given("a Kanbus project without a router configuration")]
 fn given_project_without_router(world: &mut KanbusWorld) {
     ensure_default_project(world);
@@ -1984,20 +2209,6 @@ fn given_router_watch_interval(world: &mut KanbusWorld, interval: String) {
 }
 
 #[given(
-    regex = r#"^a valid router configuration with workflow role "(?P<role>[^"]+)" set to "(?P<status>.*)"$"#
-)]
-fn given_router_workflow_role(world: &mut KanbusWorld, role: String, status: String) {
-    ensure_default_project(world);
-    set_router_yaml(world, VALID_ROUTER);
-    let value: Yaml = if role == "terminal" {
-        Yaml::Sequence(vec![Yaml::String(status)])
-    } else {
-        serde_yaml::from_str(&status).unwrap_or(Yaml::String(status))
-    };
-    set_router_path(world, &["workflow", &role], value);
-}
-
-#[given(
     regex = r#"^a valid router configuration with "(?P<field>[^"]+)" set to "(?P<value>[^"]+)"$"#
 )]
 fn given_router_limit(world: &mut KanbusWorld, field: String, value: String) {
@@ -2021,24 +2232,6 @@ fn given_router_wip_values(world: &mut KanbusWorld, project: i32, review: i32) {
         &["limits", "review_wip"],
         Yaml::Number(review.into()),
     );
-}
-
-#[given(
-    expr = "a valid router configuration with active status {string} and review status {string}"
-)]
-fn given_duplicate_router_roles(world: &mut KanbusWorld, active: String, review: String) {
-    ensure_default_project(world);
-    set_router_yaml(world, VALID_ROUTER);
-    set_router_path(world, &["workflow", "active"], Yaml::String(active));
-    set_router_path(world, &["workflow", "review"], Yaml::String(review));
-}
-
-#[given(expr = "a valid router configuration with terminal statuses {string}")]
-fn given_terminal_statuses(world: &mut KanbusWorld, statuses: String) {
-    ensure_default_project(world);
-    set_router_yaml(world, VALID_ROUTER);
-    let value = serde_yaml::from_str(&statuses).expect("terminal YAML list");
-    set_router_path(world, &["workflow", "terminal"], value);
 }
 
 #[given(
@@ -2596,16 +2789,6 @@ fn then_stderr_equals(world: &mut KanbusWorld, expected: String) {
     );
 }
 
-#[then(
-    regex = r#"^stderr should equal "error: router\.workflow\.terminal references undefined status .*"$"#
-)]
-fn then_terminal_role_stderr(world: &mut KanbusWorld) {
-    assert_eq!(
-        world.stderr.as_deref().unwrap_or(""),
-        "error: router.workflow.terminal references undefined status \"[\"unknown\"]\"\n"
-    );
-}
-
 #[then(expr = "issue {string} should not appear in the eligible packages")]
 fn then_issue_not_eligible(world: &mut KanbusWorld, identifier: String) {
     let output = world.stdout.as_deref().unwrap_or("");
@@ -2793,16 +2976,17 @@ fn when_github_sends_router_check_run(
 )]
 fn then_router_check_run_lifecycle(world: &mut KanbusWorld, issue_id: String, expected: String) {
     assert_eq!(world.exit_code, Some(0));
-    let router = kanbus::config_loader::load_project_configuration(
-        &get_configuration_path(root(world)).expect("configuration path"),
+    let statuses = kanbus::status_semantics::resolve_router_statuses(
+        &kanbus::config_loader::load_project_configuration(
+            &get_configuration_path(root(world)).expect("configuration path"),
+        )
+        .expect("load router configuration"),
     )
-    .expect("load router configuration")
-    .router
-    .expect("router configuration");
+    .expect("router statuses");
     let expected_status = if expected == "remain in review" {
-        router.workflow.review
+        statuses.in_review
     } else {
-        router.workflow.active
+        statuses.in_progress
     };
     assert_eq!(
         kanbus::router::effective_issue_router_status(root(world), &issue_id)

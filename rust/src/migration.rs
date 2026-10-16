@@ -860,6 +860,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
             name: key.clone(),
             category: "To do".to_string(),
             semantic_category: semantic_category_for_beads_status_key(key).to_string(),
+            router: false,
             color: None,
             collapsed: false,
         })

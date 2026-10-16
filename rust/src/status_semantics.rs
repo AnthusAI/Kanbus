@@ -1,5 +1,7 @@
 //! Semantic status categories for workflow business logic.
 
+use std::collections::BTreeMap;
+
 use crate::error::KanbusError;
 use crate::models::ProjectConfiguration;
 
@@ -7,10 +9,32 @@ use crate::models::ProjectConfiguration;
 pub const SEMANTIC_TODO: &str = "todo";
 /// Semantic category for statuses representing active work.
 pub const SEMANTIC_IN_PROGRESS: &str = "in_progress";
+/// Semantic category for statuses awaiting human review.
+pub const SEMANTIC_IN_REVIEW: &str = "in_review";
+/// Semantic category for statuses whose work cannot proceed.
+pub const SEMANTIC_BLOCKED: &str = "blocked";
 /// Semantic category for completed statuses.
 pub const SEMANTIC_DONE: &str = "done";
 
-const VALID_SEMANTIC_CATEGORIES: &[&str] = &[SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE];
+/// Canonical semantic categories in lifecycle order.
+pub const CANONICAL_SEMANTIC_CATEGORIES: &[&str] = &[
+    SEMANTIC_TODO,
+    SEMANTIC_IN_PROGRESS,
+    SEMANTIC_IN_REVIEW,
+    SEMANTIC_BLOCKED,
+    SEMANTIC_DONE,
+];
+
+/// Semantic category pairs the router transitions between, as `(from, to)`.
+pub const ROUTER_LIFECYCLE_TRANSITIONS: &[(&str, &str)] = &[
+    (SEMANTIC_TODO, SEMANTIC_IN_PROGRESS),
+    (SEMANTIC_IN_PROGRESS, SEMANTIC_IN_REVIEW),
+    (SEMANTIC_IN_PROGRESS, SEMANTIC_BLOCKED),
+    (SEMANTIC_IN_REVIEW, SEMANTIC_IN_PROGRESS),
+    (SEMANTIC_IN_REVIEW, SEMANTIC_DONE),
+];
+
+const VALID_SEMANTIC_CATEGORIES: &[&str] = CANONICAL_SEMANTIC_CATEGORIES;
 
 /// Validate a semantic category value.
 ///
@@ -24,7 +48,7 @@ pub fn validate_semantic_category(semantic_category: &str) -> Result<(), KanbusE
         Ok(())
     } else {
         Err(KanbusError::Configuration(format!(
-            "invalid semantic_category '{}': must be one of todo, in_progress, done",
+            "invalid semantic_category '{}': must be one of todo, in_progress, in_review, blocked, done",
             semantic_category
         )))
     }
@@ -124,6 +148,98 @@ pub fn semantic_category_for_status_key(
         .map(|status| status.semantic_category.clone())
 }
 
+/// The router-marked status key for each canonical semantic category.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RouterStatuses {
+    /// Marked intake status where work waits for a router worker.
+    pub todo: String,
+    /// Marked status for work owned by a router worker.
+    pub in_progress: String,
+    /// Marked status for work awaiting human review.
+    pub in_review: String,
+    /// Marked status for work that cannot proceed.
+    pub blocked: String,
+    /// Marked status for approved, completed work.
+    pub done: String,
+}
+
+impl RouterStatuses {
+    /// Return the marked status key for a canonical semantic category.
+    ///
+    /// # Arguments
+    /// * `semantic_category` - One of the canonical semantic categories.
+    ///
+    /// # Errors
+    /// Returns `KanbusError::Configuration` when the category is not canonical.
+    pub fn for_category(&self, semantic_category: &str) -> Result<&str, KanbusError> {
+        validate_semantic_category(semantic_category)?;
+        Ok(match semantic_category {
+            SEMANTIC_TODO => &self.todo,
+            SEMANTIC_IN_PROGRESS => &self.in_progress,
+            SEMANTIC_IN_REVIEW => &self.in_review,
+            SEMANTIC_BLOCKED => &self.blocked,
+            _ => &self.done,
+        })
+    }
+}
+
+/// Group the router-marked status keys by semantic category.
+///
+/// # Arguments
+/// * `configuration` - Project configuration.
+///
+/// # Returns
+/// Marked status keys per category, in configuration order.
+pub fn router_marked_status_keys(
+    configuration: &ProjectConfiguration,
+) -> BTreeMap<String, Vec<String>> {
+    let mut marked = BTreeMap::<String, Vec<String>>::new();
+    for status in configuration.statuses.iter().filter(|status| status.router) {
+        marked
+            .entry(status.semantic_category.clone())
+            .or_default()
+            .push(status.key.clone());
+    }
+    marked
+}
+
+/// Resolve the router-marked status for every canonical semantic category.
+///
+/// This is the single place the router learns which configured statuses play
+/// each lifecycle role. A loaded, valid router configuration always resolves.
+///
+/// # Arguments
+/// * `configuration` - Project configuration.
+///
+/// # Errors
+/// Returns `KanbusError::Configuration` when a category lacks exactly one
+/// marked status.
+pub fn resolve_router_statuses(
+    configuration: &ProjectConfiguration,
+) -> Result<RouterStatuses, KanbusError> {
+    let marked = router_marked_status_keys(configuration);
+    let mut resolved = Vec::with_capacity(CANONICAL_SEMANTIC_CATEGORIES.len());
+    for category in CANONICAL_SEMANTIC_CATEGORIES {
+        match marked.get(*category).map(Vec::as_slice) {
+            Some([key]) => resolved.push(key.clone()),
+            _ => {
+                return Err(KanbusError::Configuration(format!(
+                    "router requires exactly one router-marked status for semantic category \"{category}\""
+                )))
+            }
+        }
+    }
+    let mut resolved = resolved.into_iter();
+    let mut next = || resolved.next().unwrap_or_default();
+    Ok(RouterStatuses {
+        todo: next(),
+        in_progress: next(),
+        in_review: next(),
+        blocked: next(),
+        done: next(),
+    })
+}
+
 /// Default terminal color name for a semantic category.
 ///
 /// # Arguments
@@ -134,7 +250,8 @@ pub fn semantic_category_for_status_key(
 pub fn default_color_for_semantic_category(semantic_category: &str) -> &'static str {
     match semantic_category {
         SEMANTIC_TODO => "cyan",
-        SEMANTIC_IN_PROGRESS => "blue",
+        SEMANTIC_IN_PROGRESS | SEMANTIC_IN_REVIEW => "blue",
+        SEMANTIC_BLOCKED => "red",
         SEMANTIC_DONE => "green",
         _ => "white",
     }
@@ -153,6 +270,13 @@ pub fn semantic_category_for_beads_status_key(status_key: &str) -> &'static str 
         "closed" | "done" => SEMANTIC_DONE,
         _ => SEMANTIC_TODO,
     }
+}
+
+fn has_semantic_category(configuration: &ProjectConfiguration, semantic_category: &str) -> bool {
+    configuration
+        .statuses
+        .iter()
+        .any(|status| status.semantic_category == semantic_category)
 }
 
 /// Map a Beads status value to a Kanbus status key using semantic categories.
@@ -199,6 +323,9 @@ pub fn map_jira_status_to_key(
             SEMANTIC_TODO,
             &["backlog", "open"],
         ),
+        "in review" if has_semantic_category(configuration, SEMANTIC_IN_REVIEW) => {
+            resolve_primary_status_key_for_semantic_category(configuration, SEMANTIC_IN_REVIEW)
+        }
         "in progress" | "in review" | "in development" => {
             resolve_primary_status_key_for_semantic_category(configuration, SEMANTIC_IN_PROGRESS)
         }
@@ -207,6 +334,13 @@ pub fn map_jira_status_to_key(
                 configuration,
                 SEMANTIC_DONE,
                 &["closed"],
+            )
+        }
+        "blocked" | "impediment" if has_semantic_category(configuration, SEMANTIC_BLOCKED) => {
+            resolve_preferred_status_key_for_semantic_category(
+                configuration,
+                SEMANTIC_BLOCKED,
+                &["blocked"],
             )
         }
         "blocked" | "impediment" => resolve_preferred_status_key_for_semantic_category(
@@ -238,6 +372,8 @@ const DONE_WORDS: &[&str] = &[
     "accepted",
     "wontfix",
 ];
+const BLOCKED_WORDS: &[&str] = &["blocked"];
+const REVIEW_WORDS: &[&str] = &["review"];
 const TODO_WORDS: &[&str] = &[
     "open",
     "backlog",
@@ -255,14 +391,14 @@ const TODO_WORDS: &[&str] = &[
     "triage",
 ];
 
-/// Infer `todo`, `in_progress` or `done` for a status that declares no
-/// semantic category.
+/// Infer a canonical semantic category for a status that declares none.
 ///
 /// Older configurations predate `semantic_category`; rather than refuse to load
-/// them, infer a category from the status key and name. Any word that reads as a
-/// finished state gives `done`, then any that reads as not started gives `todo`;
-/// every other status (including `blocked`) is work in progress. An explicit
-/// value in the configuration always wins.
+/// them, infer a category from the status key and name. Words are checked in a
+/// fixed order: a finished word gives `done`, then `blocked` gives `blocked`,
+/// then `review` gives `in_review`, then a not-started word gives `todo`. Every
+/// other status is work in progress. An explicit value in the configuration
+/// always wins.
 pub fn derive_semantic_category(key: &str, name: &str) -> &'static str {
     let lowered = format!("{key} {name}").to_lowercase();
     let words: Vec<&str> = lowered
@@ -271,10 +407,99 @@ pub fn derive_semantic_category(key: &str, name: &str) -> &'static str {
         .collect();
     if words.iter().any(|word| DONE_WORDS.contains(word)) {
         SEMANTIC_DONE
+    } else if words.iter().any(|word| BLOCKED_WORDS.contains(word)) {
+        SEMANTIC_BLOCKED
+    } else if words.iter().any(|word| REVIEW_WORDS.contains(word)) {
+        SEMANTIC_IN_REVIEW
     } else if words.iter().any(|word| TODO_WORDS.contains(word)) {
         SEMANTIC_TODO
     } else {
         SEMANTIC_IN_PROGRESS
+    }
+}
+
+/// Add the Review status and the lifecycle transitions the router performs.
+///
+/// Test fixtures keep `open` as their router intake. The default workflow gains
+/// the in-progress and review transitions, then every conventional status is
+/// marked with the canonical semantic category the router needs.
+#[cfg(test)]
+pub(crate) fn install_conventional_router_statuses(configuration: &mut ProjectConfiguration) {
+    if !configuration
+        .statuses
+        .iter()
+        .any(|status| status.key == "review")
+    {
+        configuration
+            .statuses
+            .push(crate::models::StatusDefinition {
+                key: "review".to_string(),
+                name: "Review".to_string(),
+                category: "In progress".to_string(),
+                semantic_category: SEMANTIC_IN_REVIEW.to_string(),
+                router: false,
+                color: None,
+                collapsed: false,
+            });
+    }
+    let transitions: &[(&str, &str, &str)] = &[
+        ("open", "in_progress", "Start work"),
+        ("in_progress", "review", "Ready for review"),
+        ("in_progress", "blocked", "Block"),
+        ("review", "in_progress", "Request changes"),
+        ("review", "blocked", "Close without merge"),
+        ("review", "closed", "Merge"),
+    ];
+    for (from, to, label) in transitions {
+        let targets = configuration
+            .workflows
+            .entry("default".to_string())
+            .or_default()
+            .entry(from.to_string())
+            .or_default();
+        if !targets.iter().any(|target| target == to) {
+            targets.push(to.to_string());
+        }
+        configuration
+            .transition_labels
+            .entry("default".to_string())
+            .or_default()
+            .entry(from.to_string())
+            .or_default()
+            .insert(to.to_string(), label.to_string());
+    }
+    mark_conventional_router_statuses(configuration);
+}
+
+/// The router statuses that `install_conventional_router_statuses` marks.
+#[cfg(test)]
+pub(crate) fn conventional_router_statuses() -> RouterStatuses {
+    RouterStatuses {
+        todo: "open".to_string(),
+        in_progress: "in_progress".to_string(),
+        in_review: "review".to_string(),
+        blocked: "blocked".to_string(),
+        done: "closed".to_string(),
+    }
+}
+
+/// Mark the conventional intake, working, review, blocked and done statuses.
+///
+/// Test fixtures keep `open` as their router intake; every marked status also
+/// receives the canonical semantic category the router needs.
+#[cfg(test)]
+pub(crate) fn mark_conventional_router_statuses(configuration: &mut ProjectConfiguration) {
+    for status in configuration.statuses.iter_mut() {
+        let category = match status.key.as_str() {
+            "open" => SEMANTIC_TODO,
+            "in_progress" => SEMANTIC_IN_PROGRESS,
+            "review" => SEMANTIC_IN_REVIEW,
+            "blocked" => SEMANTIC_BLOCKED,
+            "closed" => SEMANTIC_DONE,
+            _ => continue,
+        };
+        status.semantic_category = category.to_string();
+        status.router = true;
     }
 }
 
@@ -285,14 +510,14 @@ mod tests {
 
     #[test]
     fn semantic_categories_validate_known_values_and_reject_unknown_values() {
-        for category in [SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE] {
+        for category in CANONICAL_SEMANTIC_CATEGORIES {
             validate_semantic_category(category).expect("known semantic category");
         }
         assert_eq!(
             validate_semantic_category("paused")
                 .unwrap_err()
                 .to_string(),
-            "invalid semantic_category 'paused': must be one of todo, in_progress, done"
+            "invalid semantic_category 'paused': must be one of todo, in_progress, in_review, blocked, done"
         );
     }
 
@@ -441,9 +666,12 @@ mod tests {
             ("published", "Published", "done"),
             ("accepted", "Accepted", "done"),
             ("in_progress", "In Progress", "in_progress"),
-            ("blocked", "Blocked", "in_progress"),
+            ("blocked", "Blocked", "blocked"),
+            ("waiting", "Blocked on legal", "blocked"),
             ("assignment", "Assignment", "in_progress"),
-            ("awaiting-review", "Awaiting review", "in_progress"),
+            ("awaiting-review", "Awaiting review", "in_review"),
+            ("Peer_Review", "Peer", "in_review"),
+            ("ready_for_review", "Ready for review", "in_review"),
         ] {
             assert_eq!(derive_semantic_category(key, name), expected, "{key}");
         }

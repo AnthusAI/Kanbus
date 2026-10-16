@@ -346,6 +346,7 @@ mod tests {
                 name: "Open".to_string(),
                 category: "todo".to_string(),
                 semantic_category: "todo".to_string(),
+                router: false,
                 color: Some("bright_green".to_string()),
                 collapsed: false,
             }],

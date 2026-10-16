@@ -162,6 +162,7 @@ mod tests {
                 name: "Open".to_string(),
                 category: "todo".to_string(),
                 semantic_category: "todo".to_string(),
+                router: false,
                 color: None,
                 collapsed: false,
             }],

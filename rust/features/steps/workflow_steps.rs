@@ -141,6 +141,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "Backlog".to_string(),
             category: "To do".to_string(),
             semantic_category: "todo".to_string(),
+            router: false,
             collapsed: true,
             color: None,
         },
@@ -149,6 +150,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "Ready".to_string(),
             category: "To do".to_string(),
             semantic_category: "todo".to_string(),
+            router: false,
             collapsed: false,
             color: None,
         },
@@ -157,6 +159,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "Discovery".to_string(),
             category: "To do".to_string(),
             semantic_category: "todo".to_string(),
+            router: false,
             collapsed: false,
             color: None,
         },
@@ -165,6 +168,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "Copy Writing".to_string(),
             category: "In progress".to_string(),
             semantic_category: "in_progress".to_string(),
+            router: false,
             collapsed: false,
             color: None,
         },
@@ -173,6 +177,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "In Progress".to_string(),
             category: "In progress".to_string(),
             semantic_category: "in_progress".to_string(),
+            router: false,
             collapsed: false,
             color: None,
         },
@@ -181,6 +186,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "Blocked".to_string(),
             category: "In progress".to_string(),
             semantic_category: "in_progress".to_string(),
+            router: false,
             collapsed: true,
             color: None,
         },
@@ -189,6 +195,7 @@ fn apply_editorial_story_workflow(configuration: &mut ProjectConfiguration) {
             name: "Done".to_string(),
             category: "Done".to_string(),
             semantic_category: "done".to_string(),
+            router: false,
             collapsed: true,
             color: None,
         },
@@ -651,6 +658,7 @@ fn given_epic_workflow_allows_transition(
                 .join(" "),
             category: "To do".to_string(),
             semantic_category: "todo".to_string(),
+            router: false,
             color: None,
             collapsed: false,
         });
@@ -749,6 +757,7 @@ fn write_status_configuration(
     key: &str,
     semantic_category: Option<&str>,
     strip_all: bool,
+    name: Option<&str>,
 ) {
     let cwd = world.working_directory.as_ref().expect("cwd");
     let config_path = cwd.join(".kanbus.yml");
@@ -767,13 +776,17 @@ fn write_status_configuration(
     }
     let mut entry = serde_yaml::Mapping::new();
     entry.insert("key".into(), key.into());
-    entry.insert("name".into(), key.replace('_', " ").into());
+    let display_name = name
+        .map(str::to_string)
+        .unwrap_or_else(|| key.replace('_', " "));
+    entry.insert("name".into(), display_name.into());
     entry.insert("category".into(), "In progress".into());
     entry.insert("color".into(), serde_yaml::Value::Null);
     entry.insert("collapsed".into(), false.into());
     if let Some(category) = semantic_category {
         entry.insert("semantic_category".into(), category.into());
     }
+    statuses.retain(|status| status.get("key").and_then(serde_yaml::Value::as_str) != Some(key));
     statuses.push(serde_yaml::Value::Mapping(entry));
     fs::write(
         config_path,
@@ -784,7 +797,23 @@ fn write_status_configuration(
 
 #[given(expr = "the configuration omits every semantic category and adds the status {string}")]
 fn given_configuration_omits_semantic_categories(world: &mut KanbusWorld, key: String) {
-    write_status_configuration(world, &key, None, true);
+    write_status_configuration(world, &key, None, true, None);
+}
+
+#[given(
+    expr = "the configuration omits every semantic category and adds the status {string} named {string}"
+)]
+fn given_configuration_omits_semantic_categories_named(
+    world: &mut KanbusWorld,
+    key: String,
+    name: String,
+) {
+    write_status_configuration(world, &key, None, true, Some(&name));
+}
+
+#[given(expr = "the configuration also adds the status {string} without a semantic category")]
+fn given_configuration_also_adds_status(world: &mut KanbusWorld, key: String) {
+    write_status_configuration(world, &key, None, false, None);
 }
 
 #[given(expr = "the configuration adds the status {string} with semantic category {string}")]
@@ -793,7 +822,7 @@ fn given_configuration_adds_status_with_category(
     key: String,
     category: String,
 ) {
-    write_status_configuration(world, &key, Some(&category), false);
+    write_status_configuration(world, &key, Some(&category), false, None);
 }
 
 #[then(expr = "the configured status {string} should have semantic category {string}")]

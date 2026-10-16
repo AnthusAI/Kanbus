@@ -9,6 +9,7 @@ use serde_yaml::{Mapping, Value};
 use crate::config::default_project_configuration;
 use crate::error::KanbusError;
 use crate::models::{validate_http_endpoint, HttpEndpointError, ProjectConfiguration};
+use crate::status_semantics::{CANONICAL_SEMANTIC_CATEGORIES, ROUTER_LIFECYCLE_TRANSITIONS};
 
 /// Filename for the user congregation env file in the home directory.
 pub const CONGREGATION_ENV_FILENAME: &str = ".kanbus.env";
@@ -64,6 +65,7 @@ pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, K
     reject_standup_lookback_hours(&merged_value)?;
     normalize_virtual_projects(&mut merged_value);
     apply_environment_overrides(&mut merged_value);
+    validate_status_definition_fields(&merged_value)?;
     validate_router_yaml(&merged_value)?;
     let configuration: ProjectConfiguration = serde_yaml::from_value(Value::Mapping(merged_value))
         .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
@@ -127,7 +129,6 @@ fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
         "router",
         &[
             "enabled",
-            "workflow",
             "limits",
             "providers",
             "classes",
@@ -136,15 +137,6 @@ fn validate_router_yaml(configuration: &Mapping) -> Result<(), KanbusError> {
             "forge",
         ],
     )?;
-    if let Some(workflow) = router_mapping.get(Value::String("workflow".to_string())) {
-        if let Some(mapping) = workflow.as_mapping() {
-            validate_yaml_fields(
-                mapping,
-                "router.workflow",
-                &["pending", "active", "review", "blocked", "terminal"],
-            )?;
-        }
-    }
     if let Some(limits) = router_mapping.get(Value::String("limits".to_string())) {
         if let Some(mapping) = limits.as_mapping() {
             validate_yaml_fields(
@@ -443,6 +435,8 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     let valid_statuses: std::collections::HashSet<&String> =
         configuration.statuses.iter().map(|s| &s.key).collect();
 
+    errors.extend(router_marker_errors(configuration));
+
     // Validate that initial_status exists in statuses
     if !valid_statuses.contains(&configuration.initial_status) {
         errors.push(format!(
@@ -541,6 +535,91 @@ pub fn validate_project_configuration(configuration: &ProjectConfiguration) -> V
     ));
 
     errors
+}
+
+/// Validate router markers, returning at most the first error found.
+///
+/// Marker uniqueness per semantic category is enforced on every load. When a
+/// router is enabled, every canonical category must also have its marked status
+/// and the default workflow must allow the transitions the router performs
+/// between those statuses.
+fn router_marker_errors(configuration: &ProjectConfiguration) -> Vec<String> {
+    let mut first_marked = std::collections::BTreeMap::<&str, &str>::new();
+    for status in configuration.statuses.iter().filter(|status| status.router) {
+        let category = status.semantic_category.as_str();
+        if let Some(existing) = first_marked.get(category) {
+            return vec![format!(
+                "statuses \"{existing}\" and \"{}\" are both router-marked for semantic category \"{category}\"",
+                status.key
+            )];
+        }
+        first_marked.insert(category, status.key.as_str());
+    }
+    if !configuration
+        .router
+        .as_ref()
+        .is_some_and(|router| router.enabled)
+    {
+        return Vec::new();
+    }
+    for category in CANONICAL_SEMANTIC_CATEGORIES {
+        if !first_marked.contains_key(category) {
+            return vec![format!(
+                "router requires exactly one router-marked status for semantic category \"{category}\""
+            )];
+        }
+    }
+    let Some(default_workflow) = configuration.workflows.get("default") else {
+        return Vec::new();
+    };
+    for (from_category, to_category) in ROUTER_LIFECYCLE_TRANSITIONS {
+        let from_status = first_marked[from_category];
+        let to_status = first_marked[to_category];
+        let allowed = default_workflow
+            .get(from_status)
+            .is_some_and(|targets| targets.iter().any(|target| target == to_status));
+        if !allowed {
+            return vec![format!(
+                "router lifecycle requires a workflow transition from \"{from_status}\" to \"{to_status}\""
+            )];
+        }
+    }
+    Vec::new()
+}
+
+/// Reject malformed router markers and unsupported semantic categories.
+fn validate_status_definition_fields(configuration: &Mapping) -> Result<(), KanbusError> {
+    let Some(Value::Sequence(statuses)) = configuration.get(Value::String("statuses".to_string()))
+    else {
+        return Ok(());
+    };
+    for status in statuses {
+        let Some(status) = status.as_mapping() else {
+            continue;
+        };
+        let key = status
+            .get(Value::String("key".to_string()))
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if let Some(marker) = status.get(Value::String("router".to_string())) {
+            if !marker.is_bool() {
+                return Err(KanbusError::Configuration(format!(
+                    "statuses.{key}.router must be a boolean"
+                )));
+            }
+        }
+        let category = status
+            .get(Value::String("semantic_category".to_string()))
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !category.trim().is_empty() && !CANONICAL_SEMANTIC_CATEGORIES.contains(&category) {
+            return Err(KanbusError::Configuration(format!(
+                "statuses.{key}.semantic_category \"{category}\" is unsupported; expected one of {}",
+                CANONICAL_SEMANTIC_CATEGORIES.join(", ")
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_right_now(configuration: &ProjectConfiguration, errors: &mut Vec<String>) {
@@ -947,7 +1026,7 @@ mod tests {
     use super::*;
     use crate::models::{
         IssueRouterConfiguration, IssueRouterForgeConfiguration, IssueRouterLimitsConfiguration,
-        IssueRouterProviderConfiguration, IssueRouterWorkflowConfiguration,
+        IssueRouterProviderConfiguration,
     };
     use std::collections::BTreeMap;
     use std::fs;
@@ -1032,15 +1111,9 @@ mod tests {
 
     fn project_configuration_with_forge_url(api_url: &str) -> ProjectConfiguration {
         let mut configuration = default_project_configuration();
+        crate::status_semantics::install_conventional_router_statuses(&mut configuration);
         configuration.router = Some(IssueRouterConfiguration {
             enabled: true,
-            workflow: IssueRouterWorkflowConfiguration {
-                pending: "backlog".to_string(),
-                active: "in_progress".to_string(),
-                review: "open".to_string(),
-                blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
-            },
             limits: IssueRouterLimitsConfiguration {
                 project_wip: 3,
                 review_wip: 2,

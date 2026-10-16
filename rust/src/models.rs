@@ -406,22 +406,6 @@ pub struct MutexApiConfiguration {
     pub bearer_token: Option<String>,
 }
 
-/// Issue Router lifecycle status roles.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct IssueRouterWorkflowConfiguration {
-    /// Status assigned while a package awaits a router worker.
-    pub pending: String,
-    /// Status assigned while a router worker owns a package.
-    pub active: String,
-    /// Status assigned after a change is published for review.
-    pub review: String,
-    /// Status assigned when a package cannot proceed.
-    pub blocked: String,
-    /// Statuses that indicate a completed package.
-    pub terminal: Vec<String>,
-}
-
 /// Project, review, class, and provider work-in-progress limits.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -512,8 +496,6 @@ pub struct IssueRouterConfiguration {
     /// Whether the configured router is enabled.
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Workflow statuses assigned to router lifecycle roles.
-    pub workflow: IssueRouterWorkflowConfiguration,
     /// WIP limits that gate package scheduling.
     pub limits: IssueRouterLimitsConfiguration,
     /// Named provider profiles.
@@ -730,6 +712,9 @@ pub struct StatusDefinition {
     pub name: String,
     pub category: String,
     pub semantic_category: String,
+    /// Marks this status as the router status for its semantic category.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub router: bool,
     #[serde(default)]
     pub color: Option<String>,
     #[serde(default)]
