@@ -3,7 +3,7 @@
   "title": "Run hard-lease integration with isolated router workers and test tasks",
   "description": "Provision an isolated Kanbus test project and one routed test task. Run two independent router-worker processes against the same MQTT broker and Mutex API. Assert one hard acquire/transition succeeds, the competitor receives the documented contention response and performs no task transition, expiry permits takeover, and disabling Mutex permits documented soft duplicate work. Capture logs and clean only generated fixture data.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -24,11 +24,25 @@
       "text": "Activated after the successful single-worker router test. Begin isolated-worker hard-lease integration using disposable test tasks; capture acquire contention, expiry/takeover, and soft-provider behavior without changing real board tasks.",
       "created_at": "2026-09-18T10:57:48.800630Z",
       "comment_type": "default"
+    },
+    {
+      "id": "0038d6f5-203f-4f94-9405-61dd29c87622",
+      "author": "claude",
+      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
+      "created_at": "2026-10-16T16:34:05.132480953Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "e8e38b39-95d2-4eda-aeae-56d67578d47f",
+      "author": "claude",
+      "text": "Done: 558fe3f (PR #362, 2026-09-23) records the hard-race, soft-duplicate and expiry-takeover scenarios passing live against the production Mutex API, with the loser getting the documented contention response. Verified during WIP cleanup.",
+      "created_at": "2026-10-16T16:34:24.456546293Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-09-17T00:55:24.620070Z",
-  "updated_at": "2026-09-18T10:57:48.800682Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:34:24.535972710Z",
+  "closed_at": "2026-10-16T16:34:24.484899857Z",
   "right_now_summary": "The isolated two-worker hard-lease test is starting with disposable tasks and captured contention logs.",
   "right_now_updated_at": "2026-09-18T10:57:51.422491Z",
   "custom": {

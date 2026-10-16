@@ -3,16 +3,24 @@
   "title": "Transparent issue-agent delegation",
   "description": "Make delegated coding-agent work visible, resumable, and reviewable from its Kanbus issue. The router must preserve every agent turn, question, test result, branch, and failure rather than treating a malformed final response as grounds to discard work.\n\nDefinition of done:\n- Codex sessions are attached to issues and can be resumed from human replies.\n- Questions become visible issue comments and move the issue to Blocked.\n- Every completed, uncertain, or tapped-out run moves to Review with preserved branch, draft PR, transcript, and evidence.\n- The board exposes the conversation and supports human replies.\n- Python and Rust behavior remain identical.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1336a3a0-0e71-4a27-b9dd-953957e47d33",
+      "author": "claude",
+      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
+      "created_at": "2026-10-16T16:34:06.081754985Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-18T21:50:38.862048Z",
-  "updated_at": "2026-09-18T21:54:09.545267Z",
+  "updated_at": "2026-10-16T16:34:06.081795068Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

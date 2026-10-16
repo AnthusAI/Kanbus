@@ -3,17 +3,32 @@
   "title": "Implement reusable containerized integration runner for real board dispatch",
   "description": "Implement a repeatable opt-in suite that targets the fixed Issue Router Testing epic kbs-d3973c07-13a1-4598-8f32-85e010278121. If the epic is absent, create it just-in-time with that exact ID and identity; if the ID exists but is not the expected epic, fail before mutation. Create unique disposable routed issues beneath it, run separate router containers with independent checkouts and no shared UDS, and assert actual board status/comment effects, hard-lease winner/loser behavior, expiry/takeover, evidence capture, and safe preservation of test issues. Successful tasks must remain visible in the configured Review stage; failed issues and diagnostics must remain available for inspection rather than being closed. Require an explicit live flag and validate service inputs before creating issues or starting workers. Keep CI-safe offline coverage independent of live cloud credentials. Never mount broad host credential directories into workers; document narrowly scoped credential injection. Use bounded timeouts and redact secrets from logs.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-2730ccba-8e44-4449-8496-c490fc5926c5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "06692ca8-eb41-40fe-9512-1cb9528ef375",
+      "author": "claude",
+      "text": "Paused during WIP cleanup on 2026-10-16: no progress since 2026-09-18 and the remaining live runs need Mutex API and MQTT credentials. Resume by moving back to in_progress.",
+      "created_at": "2026-10-16T16:34:04.944521526Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "982604cb-f5e4-489b-b9c1-a59db4d2a2d2",
+      "author": "claude",
+      "text": "Done: the reusable container harness landed on develop (0850726 test(router): add board-backed container harness, e1dd280 fake-agent mode, 9bbcebe scenarios, PRs #354 #355 #357 #362). Verified during WIP cleanup.",
+      "created_at": "2026-10-16T16:34:24.293116655Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-18T11:30:32.569018Z",
-  "updated_at": "2026-09-18T14:06:52.682466Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:34:24.373642607Z",
+  "closed_at": "2026-10-16T16:34:24.322124891Z",
   "right_now_summary": "The reusable containerized integration runner is being designed with safe live testing and cleanup.",
   "right_now_updated_at": "2026-09-18T11:31:03.372055Z",
   "custom": {

@@ -3,7 +3,7 @@
   "title": "Router container smoke test 5d6d4af74457",
   "description": "Disposable live integration task. Generate exactly three short paragraphs of Lorem ipsum placeholder text. Post them as one issue comment beginning with KANBUS-ROUTER-TEST:5d6d4af74457 using the router result issue_comments field. Do not change source files or any other issue. Do not claim the integration suite passed; this task only proves that a real board issue was dispatched and its comment was published.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "agent-class:router-container-it-5d6d4af74457"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "70925afc-41ab-436b-92cc-831ea266b34b",
+      "author": "claude",
+      "text": "Disposable router integration fixture from 2026-09-23; closed during WIP cleanup.",
+      "created_at": "2026-10-16T16:34:03.279565117Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-09-23T17:47:37.443264Z",
-  "updated_at": "2026-09-23T17:47:37.467542Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T16:34:03.364186677Z",
+  "closed_at": "2026-10-16T16:34:03.314116746Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
