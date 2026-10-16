@@ -55,10 +55,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "bcc6a6e7-96e1-48a5-b5a2-6988ea0a8011",
+      "author": "home",
+      "text": "PR403 merged main1635f9d0820dfee28d99d7c3acff5a6e5ba3d324 after ALL functional,coverage,ratchet,binary-smoke,Beads,CodeQL/Snyk gates PASS. Actualmain tree matches testedPRmerge tree. SupportedSemanticRelease38911587999 SUCCESS produced Python/Rust0.34.0 tags atf81b91857a54f8f51e57a1e52a1100288a4781c2. ActualPyPI0.34 wheel+sdist downloaded/checksumverified;cleanPython3.14consumer usespublishedvirtuus0.6.1 andinit/create/list/showPASS. Existingbinarymatrix38912024949 SUCCESS;all8CLI/consoleassetsactualdownloaded,digests/sizesverified;ARMnativeCLI+embeddedconsoleHTML/JS/issue/config APIsPASS. ActualreleaseAPIlocksync/build+29testsPASS;syntheticProspectusfullfunnel/handoff/preservation/conflict/replay/restart/historyproofPASS. Rustcrate38911964615 stilltestactive,registrypublicationNOTclaimedyet;actualreleasefullmainCI38911688383+CodeQL38911688710 ongoing. ExistingVSCodeMarketplace step skipped dueunsetVSCE_PAT;no newcredential/grantcreated. Retainin_progress until actualcrate/source-main gates verified.",
+      "created_at": "2026-10-16T14:09:57.437651Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-16T10:38:49.060782Z",
-  "updated_at": "2026-10-16T13:22:02.322889Z",
+  "updated_at": "2026-10-16T14:09:57.437955Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
