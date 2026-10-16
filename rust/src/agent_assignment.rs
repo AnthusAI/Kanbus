@@ -451,6 +451,7 @@ mod tests {
                 ]),
             );
             configuration.router = Some(router());
+            crate::status_semantics::mark_router_lifecycle_statuses_for_tests(&mut configuration);
         }
         std::fs::write(
             root.join(".kanbus.yml"),

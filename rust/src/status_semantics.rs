@@ -339,6 +339,77 @@ pub fn derive_semantic_category(key: &str, name: &str) -> &'static str {
     }
 }
 
+/// Mark the conventional router lifecycle statuses on a configuration used by unit tests.
+///
+/// Adds a review status and the lifecycle workflow transitions when missing, marks
+/// open, in_progress, review, blocked, and closed as router statuses, and binds the
+/// resolved lifecycle statuses onto the router configuration when one is present.
+#[cfg(test)]
+pub(crate) fn mark_router_lifecycle_statuses_for_tests(configuration: &mut ProjectConfiguration) {
+    const ROUTER_STATUS_SEMANTIC_CATEGORIES: [(&str, &str); 5] = [
+        ("open", SEMANTIC_TODO),
+        ("in_progress", SEMANTIC_IN_PROGRESS),
+        ("review", SEMANTIC_IN_REVIEW),
+        ("blocked", SEMANTIC_BLOCKED),
+        ("closed", SEMANTIC_DONE),
+    ];
+    const ROUTER_LIFECYCLE_TRANSITIONS: [(&str, &str); 5] = [
+        ("open", "in_progress"),
+        ("in_progress", "review"),
+        ("in_progress", "blocked"),
+        ("review", "in_progress"),
+        ("review", "closed"),
+    ];
+    if !configuration
+        .statuses
+        .iter()
+        .any(|status| status.key == "review")
+    {
+        configuration.statuses.push(StatusDefinition {
+            key: "review".to_string(),
+            name: "Review".to_string(),
+            category: "In progress".to_string(),
+            semantic_category: SEMANTIC_IN_REVIEW.to_string(),
+            color: None,
+            collapsed: false,
+            router: false,
+        });
+    }
+    for status in &mut configuration.statuses {
+        if let Some((_, semantic_category)) = ROUTER_STATUS_SEMANTIC_CATEGORIES
+            .iter()
+            .find(|(status_key, _)| *status_key == status.key)
+        {
+            status.semantic_category = semantic_category.to_string();
+            status.router = true;
+        }
+    }
+    for (from_status, to_status) in ROUTER_LIFECYCLE_TRANSITIONS {
+        let workflow_targets = configuration
+            .workflows
+            .entry("default".to_string())
+            .or_default()
+            .entry(from_status.to_string())
+            .or_default();
+        if !workflow_targets.iter().any(|target| target == to_status) {
+            workflow_targets.push(to_status.to_string());
+        }
+        configuration
+            .transition_labels
+            .entry("default".to_string())
+            .or_default()
+            .entry(from_status.to_string())
+            .or_default()
+            .entry(to_status.to_string())
+            .or_insert_with(|| to_status.to_string());
+    }
+    let lifecycle_statuses = resolve_router_lifecycle_statuses(&configuration.statuses)
+        .expect("router lifecycle statuses");
+    if let Some(router) = configuration.router.as_mut() {
+        router.lifecycle_statuses = lifecycle_statuses;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

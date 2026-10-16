@@ -1183,6 +1183,7 @@ mod tests {
                 token_env: "GITHUB_TOKEN".to_string(),
             }),
         });
+        crate::status_semantics::mark_router_lifecycle_statuses_for_tests(&mut configuration);
         configuration
     }
 

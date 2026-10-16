@@ -8243,6 +8243,7 @@ mod tests {
             .get_mut("in_progress")
             .expect("in-progress transition labels")
             .insert("review".to_string(), "Request review".to_string());
+        crate::status_semantics::mark_router_lifecycle_statuses_for_tests(&mut configuration);
         fs::write(
             get_configuration_path(&root).expect("configuration path"),
             serde_yaml::to_string(&configuration).expect("serialize configuration"),
@@ -9166,6 +9167,7 @@ mod tests {
                 collapsed: false,
                 router: false,
             });
+        crate::status_semantics::mark_router_lifecycle_statuses_for_tests(&mut configuration);
         std::fs::write(
             get_configuration_path(&root).expect("configuration path"),
             serde_yaml::to_string(&configuration).expect("serialize configuration"),
