@@ -3,7 +3,7 @@
   "title": "Choose one storage backend while preserving Kanbus behavior",
   "description": "As a Kanbus operator, I want to select filesystem/EFS or cloud storage so deployment choice does not change issue behavior.\n\nFeature: Interchangeable Kanbus persistence\n  Scenario Outline: Persist through the selected backend\n    Given a project explicitly configured for <backend>\n    When an authorized user creates, updates and reloads a typed issue\n    Then its full identity, raw fields and configured workflow are preserved\n    And only the selected backend is authoritative\n    Examples:\n      | backend |\n      | local filesystem |\n      | EFS filesystem |\n      | S3 canonical content with DynamoDB catalog |\n  Scenario: Keep Git a supported choice\n    Given a filesystem project managed with Git\n    When an operator commits and reviews its issue changes\n    Then its existing local issue-file workflow remains available\n    And no implicit cloud dual-write occurs",
   "type": "story",
-  "status": "open",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-14T00:23:16.066399Z",
-  "updated_at": "2026-10-14T00:23:16.101019Z",
+  "updated_at": "2026-10-16T06:58:53.763444Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
