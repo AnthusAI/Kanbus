@@ -1,16 +1,75 @@
 //! Semantic status categories for workflow business logic.
 
+use std::collections::BTreeMap;
+
 use crate::error::KanbusError;
-use crate::models::ProjectConfiguration;
+use crate::models::{IssueRouterLifecycleStatuses, ProjectConfiguration, StatusDefinition};
 
 /// Semantic category for statuses that are not yet started.
 pub const SEMANTIC_TODO: &str = "todo";
 /// Semantic category for statuses representing active work.
 pub const SEMANTIC_IN_PROGRESS: &str = "in_progress";
+/// Semantic category for completed work awaiting review.
+pub const SEMANTIC_IN_REVIEW: &str = "in_review";
+/// Semantic category for work that cannot proceed.
+pub const SEMANTIC_BLOCKED: &str = "blocked";
 /// Semantic category for completed statuses.
 pub const SEMANTIC_DONE: &str = "done";
 
-const VALID_SEMANTIC_CATEGORIES: &[&str] = &[SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE];
+/// Semantic categories that each need one router-marked status when a router is enabled.
+pub const ROUTER_SEMANTIC_CATEGORIES: &[&str] = &[
+    SEMANTIC_TODO,
+    SEMANTIC_IN_PROGRESS,
+    SEMANTIC_IN_REVIEW,
+    SEMANTIC_BLOCKED,
+    SEMANTIC_DONE,
+];
+
+const VALID_SEMANTIC_CATEGORIES: &[&str] = ROUTER_SEMANTIC_CATEGORIES;
+
+/// Return the router-marked status keys grouped by semantic category.
+///
+/// # Arguments
+/// * `statuses` - Status definitions from the project configuration.
+///
+/// # Returns
+/// Marked status keys for each semantic category, in configuration order.
+pub fn router_status_keys_by_semantic_category(
+    statuses: &[StatusDefinition],
+) -> BTreeMap<String, Vec<String>> {
+    let mut router_status_keys: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for status in statuses.iter().filter(|status| status.router) {
+        router_status_keys
+            .entry(status.semantic_category.clone())
+            .or_default()
+            .push(status.key.clone());
+    }
+    router_status_keys
+}
+
+/// Resolve the router lifecycle statuses when each category has exactly one marked status.
+///
+/// # Arguments
+/// * `statuses` - Status definitions from the project configuration.
+///
+/// # Returns
+/// The router-marked statuses, or `None` when any category lacks a unique marker.
+pub fn resolve_router_lifecycle_statuses(
+    statuses: &[StatusDefinition],
+) -> Option<IssueRouterLifecycleStatuses> {
+    let router_status_keys = router_status_keys_by_semantic_category(statuses);
+    let unique_status = |semantic_category: &str| match router_status_keys.get(semantic_category) {
+        Some(keys) if keys.len() == 1 => Some(keys[0].clone()),
+        _ => None,
+    };
+    Some(IssueRouterLifecycleStatuses {
+        todo: unique_status(SEMANTIC_TODO)?,
+        in_progress: unique_status(SEMANTIC_IN_PROGRESS)?,
+        in_review: unique_status(SEMANTIC_IN_REVIEW)?,
+        blocked: unique_status(SEMANTIC_BLOCKED)?,
+        done: unique_status(SEMANTIC_DONE)?,
+    })
+}
 
 /// Validate a semantic category value.
 ///
@@ -135,6 +194,8 @@ pub fn default_color_for_semantic_category(semantic_category: &str) -> &'static 
     match semantic_category {
         SEMANTIC_TODO => "cyan",
         SEMANTIC_IN_PROGRESS => "blue",
+        SEMANTIC_IN_REVIEW => "magenta",
+        SEMANTIC_BLOCKED => "red",
         SEMANTIC_DONE => "green",
         _ => "white",
     }

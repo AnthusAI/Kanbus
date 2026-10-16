@@ -27,6 +27,13 @@ from uuid import uuid4
 
 import tomllib
 
+ROUTER_STATUS_SEMANTIC_CATEGORIES = {
+    "open": "todo",
+    "in_progress": "in_progress",
+    "review": "in_review",
+    "blocked": "blocked",
+    "closed": "done",
+}
 ENABLE_LIVE_ENV = "KANBUS_RUN_LIVE_ROUTER_HARNESS"
 PYTHON_WORKER_ENV = "KANBUS_HARNESS_PYTHON_WORKER"
 RUST_WORKER_ENV = "KANBUS_HARNESS_RUST_WORKER"
@@ -1174,10 +1181,15 @@ def _configure(
                 "key": "review",
                 "name": "Review",
                 "category": "In progress",
-                "semantic_category": "in_progress",
+                "semantic_category": "in_review",
                 "collapsed": False,
             }
         )
+    for status in statuses:
+        semantic_category = ROUTER_STATUS_SEMANTIC_CATEGORIES.get(status["key"])
+        if semantic_category is not None:
+            status["semantic_category"] = semantic_category
+            status["router"] = True
     workflows = configuration.setdefault("workflows", {})
     default_workflow = workflows.setdefault("default", {})
     default_workflow["open"] = list(
@@ -1208,13 +1220,6 @@ def _configure(
     }
     configuration["router"] = {
         "enabled": True,
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 20, "review_wip": 10},
         "providers": {
             "codex-default": {

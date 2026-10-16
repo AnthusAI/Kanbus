@@ -12,7 +12,6 @@ from kanbus.models import (
     RouterAgentClass,
     RouterAgentProfile,
     RouterLimits,
-    RouterWorkflowRoles,
 )
 
 
@@ -26,13 +25,6 @@ def make_router(
         classes = {}
 
     return IssueRouterConfiguration(
-        workflow=RouterWorkflowRoles(
-            pending="backlog",
-            active="in_progress",
-            review="review",
-            blocked="blocked",
-            terminal=["closed"],
-        ),
         limits=RouterLimits(
             project_wip=10,
             review_wip=5,

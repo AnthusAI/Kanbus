@@ -23,6 +23,7 @@ from kanbus.models import (
     ProjectConfiguration,
 )
 from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.status_semantics import SEMANTIC_TODO
 
 
 class IssueRouterError(RuntimeError):
@@ -184,7 +185,7 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
     # Human-managed board work must not consume the router's worker capacity.
     current_wip = sum(active_counts.values())
     current_review = sum(
-        issue.status == planning_context.router.workflow.review
+        issue.status == planning_context.router.lifecycle_statuses.in_review
         and _route_error(planning_context.router, issue) is None
         and _has_preserved_review_conversation(events, issue.identifier)
         for issue in issues
@@ -192,7 +193,7 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
     # Human-managed board work must not consume the router's worker capacity.
     current_wip = sum(active_counts.values())
     current_review = sum(
-        issue.status == context.router.workflow.review
+        issue.status == context.router.lifecycle_statuses.in_review
         and _route_error(context.router, issue) is None
         and _has_preserved_review_conversation(events, issue.identifier)
         for issue in context.issues
@@ -252,11 +253,41 @@ def build_router_plan(context: RouterContext) -> RouterPlan:
                 attempt=candidate.attempt,
             )
         )
+    deferred.extend(
+        RouterPlanDeferredPackage(
+            issue_id=issue.identifier, reason="status_not_router_intake"
+        )
+        for issue in _routed_issues_outside_router_intake(
+            planning_context, issues_by_id
+        )
+    )
     return RouterPlan(
         enabled=True,
         paused=context.control.paused,
         eligible=eligible,
         deferred=deferred,
+    )
+
+
+def _routed_issues_outside_router_intake(
+    context: RouterContext, issues_by_id: dict[str, IssueData]
+) -> list[IssueData]:
+    """Return routed packages waiting in a todo status the router does not take."""
+    unmarked_todo_statuses = {
+        status.key
+        for status in context.configuration.statuses
+        if status.semantic_category == SEMANTIC_TODO
+        and status.key != context.router.lifecycle_statuses.todo
+    }
+    return sorted(
+        (
+            issue
+            for issue in issues_by_id.values()
+            if issue.status in unmarked_todo_statuses
+            and _is_routable_package_issue(issue)
+            and _has_route_label(issue)
+        ),
+        key=lambda issue: issue.identifier,
     )
 
 
@@ -310,7 +341,7 @@ def _apply_router_status_overlay(
         and event.get("payload", {}).get("head_sha")
     }
     for issue in issues:
-        if issue.status in router.workflow.terminal:
+        if issue.status == router.lifecycle_statuses.done:
             continue
         routed = [
             event
@@ -361,45 +392,43 @@ def _apply_router_status_overlay(
         event_type = event.get("event_type")
         status: str | None = None
         if event_type == "router_claimed":
-            status = router.workflow.active
+            status = router.lifecycle_statuses.in_progress
         elif event_type == "router_completed":
-            status = router.workflow.review
+            status = router.lifecycle_statuses.in_review
         elif event_type == "router_blocked":
-            status = router.workflow.blocked
+            status = router.lifecycle_statuses.blocked
         elif event_type in {"router.conversation", "router_conversation"}:
             status = {
-                "in_progress": router.workflow.active,
-                "blocked": router.workflow.blocked,
-                "review": router.workflow.review,
+                "in_progress": router.lifecycle_statuses.in_progress,
+                "blocked": router.lifecycle_statuses.blocked,
+                "review": router.lifecycle_statuses.in_review,
             }.get(payload.get("lifecycle"))
         elif event_type == "router_forge_event" and payload.get("action") in {
             "requested_changes",
             "check_run_failure",
             "checks_failed",
         }:
-            status = router.workflow.active
+            status = router.lifecycle_statuses.in_progress
         elif event_type == "router_check_run_event" and payload.get("action") in {
             "check_run_failure",
             "checks_failed",
         }:
-            status = router.workflow.active
+            status = router.lifecycle_statuses.in_progress
         elif event_type in {
             "router_pull_request_opened",
             "router_pull_request_approved",
             "router_check_run_event",
         }:
-            status = router.workflow.review
+            status = router.lifecycle_statuses.in_review
         elif event_type == "router_pull_request_closed":
             if not payload.get("merged"):
-                status = router.workflow.blocked
+                status = router.lifecycle_statuses.blocked
             elif payload.get("approved") or approvals.get(issue.identifier) == str(
                 payload.get("head_sha", "")
             ):
-                status = (
-                    router.workflow.terminal[0] if router.workflow.terminal else None
-                )
+                status = router.lifecycle_statuses.done
             else:
-                status = router.workflow.review
+                status = router.lifecycle_statuses.in_review
         if status is not None:
             issue.status = status
             # The board orders cards by the issue's effective `updated_at`.
@@ -628,11 +657,17 @@ def _collect_candidates(
         retry_event = _latest_router_event(
             events, issue.identifier, "router_retry_scheduled"
         )
-        if issue.status == context.router.workflow.pending:
+        if issue.status == context.router.lifecycle_statuses.todo:
             rank = 2
-        elif issue.status == context.router.workflow.active and requested_changes:
+        elif (
+            issue.status == context.router.lifecycle_statuses.in_progress
+            and requested_changes
+        ):
             rank = 1
-        elif issue.status == context.router.workflow.active and retry_event is not None:
+        elif (
+            issue.status == context.router.lifecycle_statuses.in_progress
+            and retry_event is not None
+        ):
             retry_at = retry_event.get("payload", {}).get("retry_at")
             try:
                 if parse_timestamp(str(retry_at)) > current_time:
@@ -640,7 +675,7 @@ def _collect_candidates(
             except (TypeError, ValueError):
                 continue
             rank = 0
-        elif issue.status == context.router.workflow.active:
+        elif issue.status == context.router.lifecycle_statuses.in_progress:
             rank = 0
         else:
             continue
@@ -657,7 +692,7 @@ def _collect_candidates(
                     pending_since=_pending_since(
                         context.project_dir / "events",
                         issue,
-                        context.router.workflow.pending,
+                        context.router.lifecycle_statuses.todo,
                     ),
                     attempt=_next_attempt(events, issue.identifier),
                     scheduling_rank=rank,
@@ -674,7 +709,7 @@ def _collect_candidates(
                 pending_since=_pending_since(
                     context.project_dir / "events",
                     issue,
-                    context.router.workflow.pending,
+                    context.router.lifecycle_statuses.todo,
                 ),
                 attempt=_next_attempt(events, issue.identifier),
                 scheduling_rank=rank,
@@ -779,7 +814,7 @@ def _defer_reason(
     # These are admission caps for new starts. Recoverable active packages
     # already consume their WIP slot, so deferring them here can strand work
     # indefinitely when any configured capacity is full.
-    if candidate.issue.status == context.router.workflow.pending:
+    if candidate.issue.status == context.router.lifecycle_statuses.todo:
         if current_wip >= context.router.limits.project_wip:
             return "project_wip_limit"
         if current_review >= context.router.limits.review_wip:
@@ -918,9 +953,9 @@ def _current_route_counts(
     class_counts: Counter[str] = Counter()
     provider_counts: Counter[str] = Counter()
     wip_statuses = {
-        context.router.workflow.active,
-        context.router.workflow.review,
-        context.router.workflow.blocked,
+        context.router.lifecycle_statuses.in_progress,
+        context.router.lifecycle_statuses.in_review,
+        context.router.lifecycle_statuses.blocked,
     }
     for issue in issues_by_id.values():
         if issue.status not in wip_statuses or not _is_routable_package_issue(issue):
@@ -955,7 +990,7 @@ def _has_blocking_dependency(
         if dependency.dependency_type != "blocked-by":
             continue
         target = issues_by_id.get(dependency.target)
-        if target is None or target.status not in router.workflow.terminal:
+        if target is None or target.status != router.lifecycle_statuses.done:
             return True
     return False
 
@@ -981,7 +1016,9 @@ def _policy_rejects(
         documents = load_policies(policies_dir)
         if not documents:
             return False
-        proposed = issue.model_copy(update={"status": context.router.workflow.active})
+        proposed = issue.model_copy(
+            update={"status": context.router.lifecycle_statuses.in_progress}
+        )
         evaluate_policies(
             PolicyContext(
                 current_issue=issue,

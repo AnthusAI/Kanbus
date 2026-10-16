@@ -45,6 +45,8 @@ from kanbus.models import IssueData, ProjectConfiguration
 from kanbus.project import ProjectMarkerError
 from kanbus.router_cli import _load_context, router_group
 
+from test_helpers import mark_router_lifecycle_statuses
+
 
 def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
     data = copy.deepcopy(DEFAULT_CONFIGURATION)
@@ -71,15 +73,9 @@ def _router_configuration(*, enabled: bool = True) -> ProjectConfiguration:
         "review": "Ready for review",
     }
     transition_labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
+    mark_router_lifecycle_statuses(data)
     data["router"] = {
         "enabled": enabled,
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 4, "review_wip": 2},
         "providers": {
             "codex": {"adapter": "codex"},

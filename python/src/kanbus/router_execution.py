@@ -299,7 +299,7 @@ def run_router_once(
         _transition_package(
             context,
             candidate.issue_id,
-            context.router.workflow.active,
+            context.router.lifecycle_statuses.in_progress,
             claim_id=claim_id,
             revision=revision,
         )
@@ -343,7 +343,7 @@ def run_router_once(
                 _transition_package(
                     context,
                     candidate.issue_id,
-                    context.router.workflow.blocked,
+                    context.router.lifecycle_statuses.blocked,
                     claim_id=claim_id,
                     revision=revision,
                 )
@@ -396,7 +396,7 @@ def run_router_once(
             _transition_package(
                 context,
                 candidate.issue_id,
-                context.router.workflow.blocked,
+                context.router.lifecycle_statuses.blocked,
                 claim_id=claim_id,
                 revision=revision,
             )
@@ -430,7 +430,7 @@ def run_router_once(
         _transition_package(
             context,
             candidate.issue_id,
-            context.router.workflow.review,
+            context.router.lifecycle_statuses.in_review,
             claim_id=claim_id,
             revision=revision,
         )
@@ -724,7 +724,7 @@ def cancel_router_package(context: RouterContext, issue_id: str) -> str | None:
     _transition_package(
         context,
         package_id,
-        context.router.workflow.blocked,
+        context.router.lifecycle_statuses.blocked,
         claim_id=claim_id,
         revision=revision,
         allow_cancel=True,
@@ -792,8 +792,8 @@ def recover_router_package(context: RouterContext, issue_id: str) -> dict[str, s
         worktree=result["worktree"],
     )
     target_status = {
-        "review": context.router.workflow.review,
-        "blocked": context.router.workflow.blocked,
+        "review": context.router.lifecycle_statuses.in_review,
+        "blocked": context.router.lifecycle_statuses.blocked,
     }.get(result["lifecycle"])
     if target_status is not None:
         _transition_package(
@@ -1445,8 +1445,8 @@ def _apply_issue_updates(
             )
 
             if (
-                update.status in context.router.workflow.terminal
-                or update.status == context.router.workflow.review
+                update.status == context.router.lifecycle_statuses.done
+                or update.status == context.router.lifecycle_statuses.in_review
             ):
                 raise ValueError("router-owned status transition")
             configuration = context.configuration
@@ -1569,7 +1569,7 @@ def _preserve_completed_turn_after_publication_failure(
     _transition_package(
         context,
         candidate.issue_id,
-        context.router.workflow.review,
+        context.router.lifecycle_statuses.in_review,
         claim_id=claim_id,
         revision=revision,
     )
@@ -1649,8 +1649,8 @@ def _validate_result_scope(
             )
 
             if (
-                update.status in context.router.workflow.terminal
-                or update.status == context.router.workflow.review
+                update.status == context.router.lifecycle_statuses.done
+                or update.status == context.router.lifecycle_statuses.in_review
             ):
                 raise ValueError("router-owned status transition")
             validate_status_value(
@@ -1768,7 +1768,7 @@ def _schedule_retry(
         _transition_package(
             current,
             package_id,
-            context.router.workflow.blocked,
+            context.router.lifecycle_statuses.blocked,
             claim_id=claim_id,
             revision=revision,
         )

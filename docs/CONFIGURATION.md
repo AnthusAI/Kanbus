@@ -93,6 +93,12 @@ date_format: RFC3339             # optional; defaults to RFC3339
 - Status transitions must follow the bound workflow; any transition not listed is rejected.
 - Type-specific workflows override default by binding; absence of a binding is an error at load time.
 
+## Status semantic categories and router markers
+
+Each status has a `semantic_category`: `todo`, `in_progress`, `in_review`, `blocked`, or `done`. Any other value fails loading with `statuses.<key>.semantic_category "<value>" is unsupported; expected one of todo, in_progress, in_review, blocked, done`. A status that omits the field gets `todo`, `in_progress`, or `done` derived from its key and name.
+
+A status may set `router: true`. At most one status per semantic category may carry the marker. When an Issue Router is configured, each of the five categories needs one marked status, and those statuses are the router's intake, active, review, blocked, and done statuses. See the [Issue Router operator guide](ISSUE_ROUTER_OPERATOR_GUIDE.md).
+
 ## Environment integration
 
 - Prefix for exported env vars is fixed to `KANBUS_`.

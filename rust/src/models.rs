@@ -406,20 +406,19 @@ pub struct MutexApiConfiguration {
     pub bearer_token: Option<String>,
 }
 
-/// Issue Router lifecycle status roles.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct IssueRouterWorkflowConfiguration {
-    /// Status assigned while a package awaits a router worker.
-    pub pending: String,
-    /// Status assigned while a router worker owns a package.
-    pub active: String,
-    /// Status assigned after a change is published for review.
-    pub review: String,
-    /// Status assigned when a package cannot proceed.
+/// Statuses marked `router: true`, one per canonical semantic category.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IssueRouterLifecycleStatuses {
+    /// Status the router dispatches work from.
+    pub todo: String,
+    /// Status of a package a router worker owns.
+    pub in_progress: String,
+    /// Status of completed agent work awaiting human review.
+    pub in_review: String,
+    /// Status of a package that cannot proceed.
     pub blocked: String,
-    /// Statuses that indicate a completed package.
-    pub terminal: Vec<String>,
+    /// Status of approved, completed work.
+    pub done: String,
 }
 
 /// Project, review, class, and provider work-in-progress limits.
@@ -512,8 +511,9 @@ pub struct IssueRouterConfiguration {
     /// Whether the configured router is enabled.
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Workflow statuses assigned to router lifecycle roles.
-    pub workflow: IssueRouterWorkflowConfiguration,
+    /// Router-marked statuses resolved from the project status definitions.
+    #[serde(skip)]
+    pub lifecycle_statuses: IssueRouterLifecycleStatuses,
     /// WIP limits that gate package scheduling.
     pub limits: IssueRouterLimitsConfiguration,
     /// Named provider profiles.
@@ -734,6 +734,9 @@ pub struct StatusDefinition {
     pub color: Option<String>,
     #[serde(default)]
     pub collapsed: bool,
+    /// Whether this status is the router status for its semantic category.
+    #[serde(default)]
+    pub router: bool,
 }
 
 /// Priority definition containing label and optional color.

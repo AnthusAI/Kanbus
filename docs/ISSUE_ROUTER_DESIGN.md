@@ -12,12 +12,6 @@ The initial configuration is:
 
 ```yaml
 router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 2
     review_wip: 1
@@ -44,7 +38,7 @@ router:
     max_attempts: 3
 ```
 
-`workflow` requires all five roles. `terminal` is a nonempty list of configured statuses. Workflow role names must map to distinct statuses, and every configured status must exist in the project workflow. `limits.project_wip` and `limits.review_wip` are required positive integers; review WIP cannot exceed project WIP. `class_wip` and `provider_wip` are optional maps of configured class/profile names to positive integers. Missing entries have no route-specific cap. `retries.max_attempts` defaults to 3. `watch_interval` defaults to `30s` and accepts a positive duration in seconds, minutes, or hours.
+The router's lifecycle statuses come from the status definitions, not from the router block. Each status may set `router: true`, and at most one status per semantic category may do so, whether or not a router is configured. An enabled router requires one marked status for each of `todo`, `in_progress`, `in_review`, `blocked`, and `done`, and the default workflow must allow the marked todo status to move to the marked in_progress status. `router.workflow` is rejected as an unknown field. Statuses that share a category without the marker are never router intake or router destinations. `limits.project_wip` and `limits.review_wip` are required positive integers; review WIP cannot exceed project WIP. `class_wip` and `provider_wip` are optional maps of configured class/profile names to positive integers. Missing entries have no route-specific cap. `retries.max_attempts` defaults to 3. `watch_interval` defaults to `30s` and accepts a positive duration in seconds, minutes, or hours.
 
 The only initial adapter is `codex`. Each provider profile requires `adapter: codex`. `command` defaults to `codex`; `args` defaults to an empty list and replaces the executable's default prefix for controlled environments such as the fake adapter used by specs. Class provider lists are ordered and nonempty. An exact provider route is pinned to that profile; a class route tries the configured profiles in order when a new claim or takeover begins.
 
@@ -73,9 +67,9 @@ A tagged issue is one routed package. Untagged descendants belong to the nearest
 
 ## Definition of Ready and plan order
 
-A candidate can start only when it is in the configured pending status, has a valid route, has no unresolved blocking dependency, is within its package boundary, and passes project policy. Recoverable active work and packages with requested changes are planned before new pending work.
+A candidate can start only when it is in the router-marked todo status, has a valid route, has no unresolved blocking dependency, is within its package boundary, and passes project policy. Recoverable active work and packages with requested changes are planned before new pending work.
 
-Pending work sorts by the latest time the issue entered the configured pending status, oldest first. Ties sort by `created_at` ascending and then issue ID ascending. `updated_at` is not a scheduling key. For a class route, the selected profile is the first configured profile below its capacity limit. A provider route never moves to another profile.
+Pending work sorts by the latest time the issue entered the router-marked todo status, oldest first. Ties sort by `created_at` ascending and then issue ID ascending. `updated_at` is not a scheduling key. For a class route, the selected profile is the first configured profile below its capacity limit. A provider route never moves to another profile.
 
 Deferred candidates use these reasons, in precedence order:
 
@@ -90,7 +84,7 @@ Deferred candidates use these reasons, in precedence order:
 9. `class_wip_limit`
 10. `provider_wip_limit`
 
-Issues outside the configured pending state and without recoverable active work are omitted from the plan. Project WIP counts every issue in configured active, review, or blocked statuses, including human-owned work. Review WIP counts every issue in review. Class and provider caps count router packages with those routes in active, review, or blocked status. Blocked and review packages consume WIP. These limits stop router starts; manual Kanbus transitions can exceed them.
+Issues outside the router-marked todo status and without recoverable active work are omitted from the plan. Project WIP counts every issue in router-marked in_progress, in_review, or blocked statuses, including human-owned work. Review WIP counts every issue in review. Class and provider caps count router packages with those routes in active, review, or blocked status. Blocked and review packages consume WIP. These limits stop router starts; manual Kanbus transitions can exceed them.
 
 `kanbus router plan` prints eligible rows and deferred rows in deterministic order. `kanbus router plan --json` prints a two-space indented JSON object with this fixed key order and shape:
 
@@ -191,7 +185,7 @@ For a completed result, the router creates or updates a pull request titled `[<p
 
 The router polls GitHub during each watch reconciliation and consumes normalized events with schema version 1: `event_id`, `kind`, `action`, `repository`, `number`, `head_sha`, and `merged`; check-run events also include `conclusion`. Pull-request actions are `opened`, `synchronize`, `requested_changes`, `approved`, and `closed`. Check-run events use `kind: check_run`, `action: completed`, and a `conclusion` of `success` or `failure`. Event IDs are idempotent. Events for an unowned pull request or a repository mismatch are rejected.
 
-Requested changes or a failed required check move the package from review to active, ahead of pending work; the next run updates the same pull request. A successful check leaves it in review. Approval alone leaves the package in review and is tied to that head SHA; a synchronize event invalidates approval for an older head. A merged event moves the package to a configured terminal status only when an approval for the current head was recorded. A closed, unmerged pull request moves the package to blocked. The router never merges a pull request.
+Requested changes or a failed required check move the package from review to active, ahead of pending work; the next run updates the same pull request. A successful check leaves it in review. Approval alone leaves the package in review and is tied to that head SHA; a synchronize event invalidates approval for an older head. A merged event moves the package to the router-marked done status only when an approval for the current head was recorded. A closed, unmerged pull request moves the package to blocked. The router never merges a pull request.
 
 ## Multi-router guarantees
 

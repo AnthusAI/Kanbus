@@ -56,13 +56,6 @@ from kanbus.router_forge import (
 from kanbus.router_state import publish_router_state, router_state_root
 
 _ROUTER = {
-    "workflow": {
-        "pending": "open",
-        "active": "in_progress",
-        "review": "review",
-        "blocked": "blocked",
-        "terminal": ["closed"],
-    },
     "limits": {"project_wip": 3, "review_wip": 2},
     "providers": {"codex-default": {"adapter": "codex"}},
     "classes": {"implementation": {"providers": ["codex-default"]}},
@@ -87,7 +80,16 @@ def _save_config(context: object, payload: dict) -> None:
     )
 
 
-def _add_review_status(config: dict) -> None:
+_ROUTER_STATUS_SEMANTIC_CATEGORIES = {
+    "open": "todo",
+    "in_progress": "in_progress",
+    "review": "in_review",
+    "blocked": "blocked",
+    "closed": "done",
+}
+
+
+def _add_router_lifecycle_statuses(config: dict) -> None:
     statuses = config.setdefault("statuses", [])
     if not any(status.get("key") == "review" for status in statuses):
         statuses.append(
@@ -95,10 +97,23 @@ def _add_review_status(config: dict) -> None:
                 "key": "review",
                 "name": "Review",
                 "category": "In progress",
-                "semantic_category": "in_progress",
+                "semantic_category": "in_review",
                 "collapsed": False,
             }
         )
+    already_router_marked_categories = {
+        status.get("semantic_category")
+        for status in statuses
+        if status.get("router") is True
+    }
+    for status in statuses:
+        semantic_category = _ROUTER_STATUS_SEMANTIC_CATEGORIES.get(status["key"])
+        if (
+            semantic_category is not None
+            and semantic_category not in already_router_marked_categories
+        ):
+            status["semantic_category"] = semantic_category
+            status["router"] = True
     workflow = config.setdefault("workflows", {}).setdefault("default", {})
     workflow["open"] = list(
         dict.fromkeys([*workflow.get("open", []), "in_progress", "closed"])
@@ -130,7 +145,7 @@ def _install_router(context: object, router: dict | None = None) -> None:
     if context.working_directory is None:
         initialize_default_project(context)
     config = _config(context)
-    _add_review_status(config)
+    _add_router_lifecycle_statuses(config)
     if router is not None:
         config["router"] = router
     _save_config(context, config)
@@ -329,32 +344,181 @@ def given_router_profile_adapter(context: object, profile: str, adapter: str) ->
     _install_router(context, router)
 
 
-@given('a valid router configuration with workflow role "{role}" set to "{status}"')
-def given_router_workflow_override(context: object, role: str, status: str) -> None:
-    _install_router(context, json.loads(json.dumps(_ROUTER)))
-    config = _config(context)
-    config["router"]["workflow"][role] = (
-        [status] if role == "terminal" else yaml.safe_load(status)
+def _status_definition(config: dict, status_key: str) -> dict:
+    return next(status for status in config["statuses"] if status["key"] == status_key)
+
+
+def _router_todo_status(context: object) -> str:
+    return next(
+        status["key"]
+        for status in _config(context)["statuses"]
+        if status.get("router") is True and status["semantic_category"] == "todo"
     )
+
+
+def _loaded_project_configuration(context: object):
+    return load_project_configuration(get_configuration_path(_root(context)))
+
+
+@given("the project has the canonical router statuses")
+def given_canonical_router_statuses(context: object) -> None:
+    config = _config(context)
+    statuses = config["statuses"]
+    for status in statuses:
+        if status["key"] == "open":
+            status["name"] = "Ready"
+            status.pop("router", None)
+    if not any(status["key"] == "Discovery" for status in statuses):
+        statuses.append(
+            {
+                "key": "Discovery",
+                "name": "Discovery",
+                "category": "To do",
+                "semantic_category": "todo",
+                "router": True,
+                "collapsed": False,
+            }
+        )
+    config["workflows"]["default"]["Discovery"] = ["in_progress", "open", "backlog"]
+    config["transition_labels"]["default"]["Discovery"] = {
+        "in_progress": "Start agent work",
+        "open": "Start work",
+        "backlog": "Back to backlog",
+    }
     _save_config(context, config)
+
+
+@given('the status "{status_key}" is not router-marked')
+def given_status_not_router_marked(context: object, status_key: str) -> None:
+    config = _config(context)
+    _status_definition(config, status_key).pop("router", None)
+    _save_config(context, config)
+
+
+@given('the status "{status_key}" is also router-marked')
+def given_status_also_router_marked(context: object, status_key: str) -> None:
+    config = _config(context)
+    _status_definition(config, status_key)["router"] = True
+    _save_config(context, config)
+
+
+@given('the status "{status_key}" has router marker "{marker}"')
+def given_status_router_marker_value(
+    context: object, status_key: str, marker: str
+) -> None:
+    config = _config(context)
+    _status_definition(config, status_key)["router"] = marker
+    _save_config(context, config)
+
+
+@given('the default workflow does not allow "{from_status}" to "{to_status}"')
+def given_default_workflow_without_transition(
+    context: object, from_status: str, to_status: str
+) -> None:
+    config = _config(context)
+    config["workflows"]["default"][from_status].remove(to_status)
+    config["transition_labels"]["default"][from_status].pop(to_status)
+    _save_config(context, config)
+
+
+@then("no configured status should be router-marked")
+def then_no_status_router_marked(context: object) -> None:
+    configuration = _loaded_project_configuration(context)
+    assert not [status.key for status in configuration.statuses if status.router]
+
+
+@then('the configured status "{status_key}" should be router-marked')
+def then_status_router_marked(context: object, status_key: str) -> None:
+    configuration = _loaded_project_configuration(context)
+    assert next(
+        status for status in configuration.statuses if status.key == status_key
+    ).router
+
+
+@then(
+    'the router status for semantic category "{semantic_category}" should be "{status}"'
+)
+def then_router_status_for_semantic_category(
+    context: object, semantic_category: str, status: str
+) -> None:
+    lifecycle_statuses = context.router_configuration.lifecycle_statuses
+    assert getattr(lifecycle_statuses, semantic_category) == status, lifecycle_statuses
+
+
+use_step_matcher("re")
 
 
 @given(
-    'a valid router configuration with active status "{active}" and review status "{review}"'
+    r'an issue "(?P<issue_id>[^"]+)" of type "(?P<issue_type>[^"]+)" with status "(?P<status>[^"]+)" and label "(?P<label>[^"]+)"'
 )
-def given_router_duplicate_status(context: object, active: str, review: str) -> None:
-    _install_router(context, json.loads(json.dumps(_ROUTER)))
-    config = _config(context)
-    config["router"]["workflow"].update(active=active, review=review)
-    _save_config(context, config)
+def given_issue_with_status_and_label(
+    context: object, issue_id: str, issue_type: str, status: str, label: str
+) -> None:
+    _write_issue(
+        context, issue_id, status=status, labels=[label], issue_type=issue_type
+    )
+    _seed_status_event(context, issue_id, status, "2026-09-17T10:00:00Z")
 
 
-@given('a valid router configuration with terminal statuses "{statuses}"')
-def given_router_terminal_statuses(context: object, statuses: str) -> None:
-    _install_router(context, json.loads(json.dumps(_ROUTER)))
-    config = _config(context)
-    config["router"]["workflow"]["terminal"] = yaml.safe_load(statuses)
-    _save_config(context, config)
+use_step_matcher("parse")
+
+
+@then('issue "{issue_id}" should appear in the eligible packages')
+def then_issue_eligible(context: object, issue_id: str) -> None:
+    assert context.result.exit_code == 0, context.result.stderr
+    payload = json.loads(context.result.stdout)
+    assert issue_id in [item["issue_id"] for item in payload["eligible"]], payload
+
+
+@then('issue "{issue_id}" should remain in status "{status}"')
+def then_issue_remains_in_status(context: object, issue_id: str, status: str) -> None:
+    project_dir = load_project_directory(context)
+    assert read_issue_file(project_dir, issue_id).status == status
+
+
+@then(
+    'package "{issue_id}" should have transitioned from status "{from_status}" to status "{to_status}" when it was claimed'
+)
+def then_package_claim_transition(
+    context: object, issue_id: str, from_status: str, to_status: str
+) -> None:
+    transitions = [
+        (event["payload"].get("from_status"), event["payload"].get("to_status"))
+        for event in _read_events(_shared_project_dir(context) / "events")
+        if event.get("issue_id") == issue_id
+        and event.get("event_type") == "state_transition"
+    ]
+    assert (from_status, to_status) in transitions, transitions
+
+
+@then(
+    'package "{issue_id}" should not be in a status with semantic category "{semantic_category}"'
+)
+def then_package_not_in_semantic_category(
+    context: object, issue_id: str, semantic_category: str
+) -> None:
+    status = read_issue_file(_shared_project_dir(context), issue_id).status
+    categories = {
+        definition.key: definition.semantic_category
+        for definition in _loaded_project_configuration(context).statuses
+    }
+    assert categories[status] != semantic_category, status
+
+
+@then('the router should not close package "{issue_id}"')
+def then_router_does_not_close_package(context: object, issue_id: str) -> None:
+    status = read_issue_file(_shared_project_dir(context), issue_id).status
+    lifecycle_statuses = _loaded_project_configuration(
+        context
+    ).router.lifecycle_statuses
+    assert status != lifecycle_statuses.done, status
+
+
+@then('package "{issue_id}" should not transition to status "{status}"')
+def then_package_not_transition_to_status(
+    context: object, issue_id: str, status: str
+) -> None:
+    assert read_issue_file(_shared_project_dir(context), issue_id).status != status
 
 
 @given('a valid router configuration with "{field}" set to "{value}"')
@@ -618,10 +782,18 @@ def given_pending_human_issue(context: object, issue_id: str, assignee: str) -> 
 def given_pending_order(context: object, issue_ids: str) -> None:
     ids = [value.strip().strip('"') for value in issue_ids.split(",")]
     context.router_order = ids
+    router_todo_status = _router_todo_status(context)
     for ordinal, issue_id in enumerate(ids):
-        _write_issue(context, issue_id, labels=["agent-provider:codex-default"])
+        _write_issue(
+            context,
+            issue_id,
+            status=router_todo_status,
+            labels=["agent-provider:codex-default"],
+        )
         minute = 10 + ordinal
-        _seed_status_event(context, issue_id, "open", f"2026-09-17T{minute:02d}:00:00Z")
+        _seed_status_event(
+            context, issue_id, router_todo_status, f"2026-09-17T{minute:02d}:00:00Z"
+        )
 
 
 def given_fake_adapter_outcome(context: object, profile: str, outcome: str) -> None:
@@ -1715,7 +1887,7 @@ def when_publish_completed_forge_result(context: object) -> None:
     _transition_package(
         load_router_context(router_state_root(shared_root)),
         package_id,
-        router_context.router.workflow.review,
+        router_context.router.lifecycle_statuses.in_review,
         claim_id=claim_id,
         revision=revision,
     )

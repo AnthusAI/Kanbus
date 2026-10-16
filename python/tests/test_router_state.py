@@ -35,6 +35,8 @@ from kanbus.router_state import (
     router_state_root,
 )
 
+from test_helpers import mark_router_lifecycle_statuses
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -220,14 +222,8 @@ def test_second_clone_observes_claim_without_harness_push(
         "review": "Ready for review",
     }
     labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
+    mark_router_lifecycle_statuses(config)
     config["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 3, "review_wip": 2},
         "providers": {"codex-default": {"adapter": "codex"}},
         "classes": {},
@@ -492,14 +488,8 @@ def test_second_clone_observes_lease_renewal_after_original_ttl(
     config = yaml.safe_load(
         (REPOSITORY_ROOT / ".kanbus.yml").read_text(encoding="utf-8")
     )
+    mark_router_lifecycle_statuses(config)
     config["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 3, "review_wip": 2},
         "providers": {"codex-default": {"adapter": "codex"}},
         "classes": {},

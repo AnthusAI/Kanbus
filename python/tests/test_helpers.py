@@ -143,3 +143,24 @@ def stub_persist_issue_mutation(
         return PersistIssueMutationResult(issue=request.issue, events=request.events)
 
     return persist
+
+
+ROUTER_LIFECYCLE_SEMANTIC_CATEGORIES_BY_STATUS = {
+    "open": "todo",
+    "in_progress": "in_progress",
+    "review": "in_review",
+    "blocked": "blocked",
+    "closed": "done",
+}
+
+
+def mark_router_lifecycle_statuses(configuration_data: dict) -> None:
+    for status in configuration_data["statuses"]:
+        semantic_category = ROUTER_LIFECYCLE_SEMANTIC_CATEGORIES_BY_STATUS.get(
+            status["key"]
+        )
+        if semantic_category is None:
+            status.pop("router", None)
+            continue
+        status["semantic_category"] = semantic_category
+        status["router"] = True

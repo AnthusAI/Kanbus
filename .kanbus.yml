@@ -24,7 +24,7 @@ workflows:
     review: [in_progress, closed]
     blocked: [in_progress, closed, backlog]
     closed: [open, backlog]
-    Discovery: [open, backlog]
+    Discovery: [open, in_progress, backlog]
   epic:
     open: [in_progress, closed]
     in_progress: [open, review, closed]
@@ -41,6 +41,7 @@ statuses:
     name: Discovery
     category: To do
     semantic_category: todo
+    router: true
     collapsed: false
   - key: open
     name: Ready
@@ -50,20 +51,24 @@ statuses:
     name: In Progress
     category: In progress
     semantic_category: in_progress
+    router: true
   - key: review
     name: Review
     category: In progress
-    semantic_category: in_progress
+    semantic_category: in_review
+    router: true
     collapsed: true
   - key: blocked
     name: Blocked
     category: In progress
-    semantic_category: in_progress
+    semantic_category: blocked
+    router: true
     collapsed: true
   - key: closed
     name: Done
     category: Done
     semantic_category: done
+    router: true
     collapsed: true
 
 categories:
@@ -101,6 +106,7 @@ transition_labels:
       backlog: Back to backlog
     Discovery:
       open: Start work
+      in_progress: Start agent work
       backlog: Back to backlog
   epic:
     open:
@@ -178,12 +184,6 @@ realtime:
 # Single-worker production smoke test. Flex is requested explicitly in the
 # Codex profile and must be validated against the installed Codex runtime.
 router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 10
     review_wip: 2

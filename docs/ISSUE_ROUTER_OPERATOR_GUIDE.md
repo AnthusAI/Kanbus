@@ -4,16 +4,50 @@ This guide covers the Issue Router, which dispatches to Codex or OpenCode. Route
 
 ## Configure a project
 
-Add a `review` status to the project workflow before enabling the router. Map all router roles to statuses that already exist in that workflow. Start with one Codex profile and a small WIP limit:
+The router moves work through the board's own statuses. Mark one status in each of the five semantic categories with `router: true`: `todo` (where the router picks up work), `in_progress`, `in_review`, `blocked`, and `done`. Other statuses can share those categories, but the router never picks up work from them or moves work into them. The default workflow must allow the marked todo status to move to the marked in_progress status, because that is the transition a claim makes. In this example, Discovery is the router's intake and Ready stays for people:
+
+```yaml
+statuses:
+  - key: Discovery
+    name: Discovery
+    category: To do
+    semantic_category: todo
+    router: true
+  - key: open
+    name: Ready
+    category: To do
+    semantic_category: todo
+  - key: in_progress
+    name: In Progress
+    category: In progress
+    semantic_category: in_progress
+    router: true
+  - key: review
+    name: Review
+    category: In progress
+    semantic_category: in_review
+    router: true
+  - key: blocked
+    name: Blocked
+    category: In progress
+    semantic_category: blocked
+    router: true
+  - key: closed
+    name: Done
+    category: Done
+    semantic_category: done
+    router: true
+
+workflows:
+  default:
+    Discovery: [open, in_progress, backlog]
+    # ...the rest of the default workflow
+```
+
+Then add the router block. Start with one Codex profile and a small WIP limit:
 
 ```yaml
 router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 2
     review_wip: 1
@@ -40,7 +74,7 @@ router:
     max_attempts: 3
 ```
 
-The router requires the workflow and limits blocks, one or more provider profiles (`adapter: codex` or `adapter: opencode`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
+The router requires the limits block, the router-marked statuses, one or more provider profiles (`adapter: codex` or `adapter: opencode`), and a GitHub repository. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. Class routes use the configured provider order. The optional `command` and `args` values can point to a controlled fake adapter during tests. Put the GitHub token in the named environment variable, not in `.kanbus.yml`; the router does not read a fallback token.
 
 The router publishes its event history and router-owned issue status records to the dedicated `refs/heads/kanbus/router-state` branch using an isolated hidden Git worktree. Without an `origin` remote, router state remains local to the repository. If a configured `origin` is unreachable, publication fails.
 
@@ -126,7 +160,7 @@ Pause, resume, hold, unhold, and stop actions are written to router history for 
 
 The router opens a pull request after a completed adapter outcome and moves the package into the configured review status. The adapter completing work does not close the Kanbus issue. Opening or synchronizing a PR leaves the package in review. A failed required check returns the package to active for repair; a successful check leaves it in review.
 
-GitHub requested changes move the package back to active and ahead of pending work. The next run continues the same pull request. Approval alone keeps the package in review, and a new commit invalidates approval for the old head. The router moves the package to a configured terminal status only after GitHub reports the current approved PR head as merged. Closing without merge moves the package to blocked. The router does not merge PRs.
+GitHub requested changes move the package back to active and ahead of pending work. The next run continues the same pull request. Approval alone keeps the package in review, and a new commit invalidates approval for the old head. The router moves the package to the router-marked done status only after GitHub reports the current approved PR head as merged. Closing without merge moves the package to blocked. The router does not merge PRs.
 
 ## Failure recovery
 

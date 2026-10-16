@@ -614,17 +614,17 @@ def _apply_forge_transition(
         raise IssueRouterError("router project configuration could not be located")
     context = load_router_context(root)
     if action in {"opened", "synchronize", "approved"}:
-        target_status = context.router.workflow.review
+        target_status = context.router.lifecycle_statuses.in_review
     elif action == "requested_changes":
-        target_status = context.router.workflow.active
+        target_status = context.router.lifecycle_statuses.in_progress
     elif not event.merged:
-        target_status = context.router.workflow.blocked
+        target_status = context.router.lifecycle_statuses.blocked
     else:
         approved_head = _approved_head(project_dir, package_id, event.head_sha)
         target_status = (
-            context.router.workflow.terminal[0]
+            context.router.lifecycle_statuses.done
             if approved_head
-            else context.router.workflow.review
+            else context.router.lifecycle_statuses.in_review
         )
     issue = next(
         (item for item in context.issues if item.identifier == package_id), None

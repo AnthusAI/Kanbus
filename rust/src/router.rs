@@ -1134,30 +1134,30 @@ fn apply_shared_router_event_status(
     let mut transitions = Vec::<(String, String)>::new();
     let status = match &event.event_type {
         EventType::RouterAttempt if payload_text(event, "action") == Some("started") => {
-            Some(&router.workflow.active)
+            Some(&router.lifecycle_statuses.in_progress)
         }
         EventType::RouterResult => match payload_text(event, "outcome") {
-            Some("completed") => Some(&router.workflow.review),
-            Some("blocked") | Some("cancelled") => Some(&router.workflow.blocked),
+            Some("completed") => Some(&router.lifecycle_statuses.in_review),
+            Some("blocked") | Some("cancelled") => Some(&router.lifecycle_statuses.blocked),
             _ => None,
         },
         EventType::RouterForge => match payload_text(event, "action") {
             Some("requested_changes" | "check_run_failure" | "checks_failed") => {
-                Some(&router.workflow.active)
+                Some(&router.lifecycle_statuses.in_progress)
             }
             Some("opened" | "synchronize" | "approved" | "check_run_success" | "checks_passed") => {
-                Some(&router.workflow.review)
+                Some(&router.lifecycle_statuses.in_review)
             }
             Some("closed")
                 if event.payload.get("merged").and_then(Value::as_bool) == Some(false) =>
             {
-                Some(&router.workflow.blocked)
+                Some(&router.lifecycle_statuses.blocked)
             }
             Some("closed")
                 if event.payload.get("merged").and_then(Value::as_bool) == Some(true)
                     && event.payload.get("approved").and_then(Value::as_bool) == Some(true) =>
             {
-                router.workflow.terminal.first()
+                Some(&router.lifecycle_statuses.done)
             }
             _ => None,
         },
@@ -1434,7 +1434,7 @@ fn apply_router_status_overlay(
         };
         // A human terminal decision in the canonical issue record is final.
         // Router projections are advisory and must never resurrect closed work.
-        if router.workflow.terminal.contains(&issue.status) {
+        if issue.status == router.lifecycle_statuses.done {
             continue;
         }
         // The card itself is canonical.  An event can remain in the shared
@@ -1468,22 +1468,24 @@ fn apply_router_status_overlay(
             {
                 // A retry is not a terminal agent decision: the package stays
                 // active while the backoff clock prevents another start.
-                Some(router.workflow.active.as_str())
+                Some(router.lifecycle_statuses.in_progress.as_str())
             }
             EventType::RouterResult => match payload_text(event, "outcome") {
-                Some("completed") => Some(router.workflow.review.as_str()),
-                Some("blocked") | Some("cancelled") => Some(router.workflow.blocked.as_str()),
+                Some("completed") => Some(router.lifecycle_statuses.in_review.as_str()),
+                Some("blocked") | Some("cancelled") => {
+                    Some(router.lifecycle_statuses.blocked.as_str())
+                }
                 _ => None,
             },
             EventType::RouterForge => match payload_text(event, "action") {
                 Some("requested_changes" | "check_run_failure" | "checks_failed") => {
-                    Some(router.workflow.active.as_str())
+                    Some(router.lifecycle_statuses.in_progress.as_str())
                 }
                 Some("opened")
                 | Some("synchronize")
                 | Some("approved")
                 | Some("check_run_success")
-                | Some("checks_passed") => Some(router.workflow.review.as_str()),
+                | Some("checks_passed") => Some(router.lifecycle_statuses.in_review.as_str()),
                 Some("closed") => {
                     let merged = event
                         .payload
@@ -1491,7 +1493,7 @@ fn apply_router_status_overlay(
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
                     if !merged {
-                        Some(router.workflow.blocked.as_str())
+                        Some(router.lifecycle_statuses.blocked.as_str())
                     } else {
                         let head = payload_text(event, "head_sha").unwrap_or_default();
                         let event_approved = event
@@ -1504,9 +1506,9 @@ fn apply_router_status_overlay(
                                 .get(&issue.identifier)
                                 .is_some_and(|approved| approved == head)
                         {
-                            router.workflow.terminal.first().map(String::as_str)
+                            Some(router.lifecycle_statuses.done.as_str())
                         } else {
-                            Some(router.workflow.review.as_str())
+                            Some(router.lifecycle_statuses.in_review.as_str())
                         }
                     }
                 }
@@ -1517,9 +1519,9 @@ fn apply_router_status_overlay(
             // a prior `router.attempt started` can incorrectly overwrite a
             // newer agent turn that has already been handed to Review.
             EventType::RouterConversation => match payload_text(event, "lifecycle") {
-                Some("in_progress") => Some(router.workflow.active.as_str()),
-                Some("blocked") => Some(router.workflow.blocked.as_str()),
-                Some("review") => Some(router.workflow.review.as_str()),
+                Some("in_progress") => Some(router.lifecycle_statuses.in_progress.as_str()),
+                Some("blocked") => Some(router.lifecycle_statuses.blocked.as_str()),
+                Some("review") => Some(router.lifecycle_statuses.in_review.as_str()),
                 _ => None,
             },
             _ => None,
@@ -1553,7 +1555,7 @@ fn apply_router_status_overlay(
             let Some(issue) = issues.iter_mut().find(|issue| issue.identifier == issue_id) else {
                 continue;
             };
-            if router.workflow.terminal.contains(&issue.status) {
+            if issue.status == router.lifecycle_statuses.done {
                 continue;
             }
             let later_board_transition = issue_events
@@ -1597,7 +1599,7 @@ pub fn issue_is_running_in_router(root: &Path, issue_id: &str) -> Result<bool, K
     if has_live_router_claim(&events, issue_id, Utc::now()) {
         return Ok(true);
     }
-    Ok(effective_issue_router_status(root, issue_id)? == router.workflow.active)
+    Ok(effective_issue_router_status(root, issue_id)? == router.lifecycle_statuses.in_progress)
 }
 
 /// Return the effective issue status after reducing router events and shared
@@ -1738,21 +1740,21 @@ fn select_class_profile(
 }
 
 fn is_pending_status(issue: &IssueData, configuration: &IssueRouterConfiguration) -> bool {
-    issue.status == configuration.workflow.pending
+    issue.status == configuration.lifecycle_statuses.todo
 }
 
 fn is_active_status(issue: &IssueData, configuration: &IssueRouterConfiguration) -> bool {
-    issue.status == configuration.workflow.active
+    issue.status == configuration.lifecycle_statuses.in_progress
 }
 
 fn is_wip_status(issue: &IssueData, configuration: &IssueRouterConfiguration) -> bool {
-    issue.status == configuration.workflow.active
-        || issue.status == configuration.workflow.review
-        || issue.status == configuration.workflow.blocked
+    issue.status == configuration.lifecycle_statuses.in_progress
+        || issue.status == configuration.lifecycle_statuses.in_review
+        || issue.status == configuration.lifecycle_statuses.blocked
 }
 
 fn is_terminal_status(issue: &IssueData, configuration: &IssueRouterConfiguration) -> bool {
-    configuration.workflow.terminal.contains(&issue.status)
+    issue.status == configuration.lifecycle_statuses.done
 }
 
 fn package_issue_ids(root: &IssueData, issues: &[IssueData]) -> Vec<String> {
@@ -1935,51 +1937,6 @@ pub fn validate_issue_router_configuration(configuration: &ProjectConfiguration)
         return Vec::new();
     };
     let mut errors = Vec::new();
-    for (role, status) in [
-        ("pending", router.workflow.pending.as_str()),
-        ("active", router.workflow.active.as_str()),
-        ("review", router.workflow.review.as_str()),
-        ("blocked", router.workflow.blocked.as_str()),
-    ] {
-        if !configuration
-            .statuses
-            .iter()
-            .any(|entry| entry.key == status)
-        {
-            errors.push(format!(
-                "router.workflow.{role} references undefined status \"{status}\""
-            ));
-        }
-    }
-    for status in &router.workflow.terminal {
-        if !configuration
-            .statuses
-            .iter()
-            .any(|entry| entry.key == *status)
-        {
-            errors.push(format!(
-                "router.workflow.terminal references undefined status \"{status}\""
-            ));
-        }
-    }
-    let mut role_names = BTreeSet::new();
-    for status in [
-        &router.workflow.pending,
-        &router.workflow.active,
-        &router.workflow.review,
-        &router.workflow.blocked,
-    ]
-    .into_iter()
-    .chain(router.workflow.terminal.iter())
-    {
-        if !role_names.insert(status) {
-            errors.push("router.workflow roles must use distinct statuses".to_string());
-            break;
-        }
-    }
-    if router.workflow.terminal.is_empty() {
-        errors.push("router.workflow.terminal must be a nonempty list".to_string());
-    }
     if router.limits.project_wip == 0 {
         errors.push("router.limits.project_wip must be a positive integer".to_string());
     }
@@ -2386,7 +2343,7 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
             issues
                 .iter()
                 .find(|issue| issue.identifier == *issue_id)
-                .is_some_and(|issue| issue.status == router.workflow.review)
+                .is_some_and(|issue| issue.status == router.lifecycle_statuses.in_review)
                 && has_preserved_review_conversation(&router_events, issue_id)
         })
         .count();
@@ -2435,7 +2392,7 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
             continue;
         }
         let package_ids = package_issue_ids(issue, &issues);
-        let pending_since = pending_since(issue, &events, &router.workflow.pending);
+        let pending_since = pending_since(issue, &events, &router.lifecycle_statuses.todo);
         let attempt = state.attempts.get(&issue.identifier).copied().unwrap_or(1);
         candidates.push(Candidate {
             issue: issue.clone(),
@@ -2558,6 +2515,14 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
             attempt: candidate.attempt,
         });
     }
+    deferred.extend(
+        routed_issues_outside_router_intake(&issues, &project_configuration, router).map(|issue| {
+            IssueRouterDeferredPackage {
+                issue_id: issue.identifier.clone(),
+                reason: "status_not_router_intake".to_string(),
+            }
+        }),
+    );
     Ok(IssueRouterPlan {
         version: 1,
         enabled: router.enabled,
@@ -2565,6 +2530,32 @@ pub fn build_issue_router_plan(root: &Path) -> Result<IssueRouterPlan, KanbusErr
         eligible,
         deferred,
     })
+}
+
+fn routed_issues_outside_router_intake<'a>(
+    issues: &'a [IssueData],
+    project_configuration: &ProjectConfiguration,
+    router: &IssueRouterConfiguration,
+) -> impl Iterator<Item = &'a IssueData> {
+    let unmarked_todo_statuses = project_configuration
+        .statuses
+        .iter()
+        .filter(|status| {
+            status.semantic_category == crate::status_semantics::SEMANTIC_TODO
+                && status.key != router.lifecycle_statuses.todo
+        })
+        .map(|status| status.key.clone())
+        .collect::<BTreeSet<_>>();
+    let mut waiting_issues = issues
+        .iter()
+        .filter(|issue| {
+            unmarked_todo_statuses.contains(&issue.status)
+                && is_routable_package_issue(issue)
+                && has_route_marker(issue)
+        })
+        .collect::<Vec<_>>();
+    waiting_issues.sort_by(|left, right| left.identifier.cmp(&right.identifier));
+    waiting_issues.into_iter()
 }
 
 /// Serialize a plan as deterministic JSON or human-readable text.
@@ -2939,16 +2930,16 @@ fn validate_router_issue_updates(
             )));
         }
         if ![
-            router.workflow.pending.as_str(),
-            router.workflow.active.as_str(),
-            router.workflow.review.as_str(),
-            router.workflow.blocked.as_str(),
+            router.lifecycle_statuses.todo.as_str(),
+            router.lifecycle_statuses.in_progress.as_str(),
+            router.lifecycle_statuses.in_review.as_str(),
+            router.lifecycle_statuses.blocked.as_str(),
         ]
         .contains(&status.as_str())
         {
             return Err(KanbusError::IssueOperation(format!(
                 "router result cannot transition package {updated_issue_id} from {} to {status}",
-                router.workflow.active
+                router.lifecycle_statuses.in_progress
             )));
         }
     }
@@ -3032,7 +3023,7 @@ fn block_after_launch_failure(
             root,
             configuration,
             &claim.issue_id,
-            &router.workflow.blocked,
+            &router.lifecycle_statuses.blocked,
         )?;
     }
     Ok(())
@@ -3084,7 +3075,7 @@ fn preserve_completed_turn_after_publication_failure(
             root,
             configuration,
             &claim.issue_id,
-            &router.workflow.review,
+            &router.lifecycle_statuses.in_review,
         )?;
     }
     assert_current_router_claim(project_dir, configuration, claim)?;
@@ -3619,8 +3610,8 @@ fn recover_router_package(
         }),
     )?;
     let target_status = match lifecycle {
-        "review" => Some(router.workflow.review.as_str()),
-        "blocked" => Some(router.workflow.blocked.as_str()),
+        "review" => Some(router.lifecycle_statuses.in_review.as_str()),
+        "blocked" => Some(router.lifecycle_statuses.blocked.as_str()),
         _ => None,
     };
     if let Some(status) = target_status {
@@ -3969,7 +3960,7 @@ fn run_issue_router_once(
                     root,
                     &configuration,
                     &package.issue_id,
-                    &router.workflow.review,
+                    &router.lifecycle_statuses.in_review,
                 )?;
                 append_router_event(
                     project_dir,
@@ -4018,7 +4009,7 @@ fn run_issue_router_once(
                     root,
                     &configuration,
                     &package.issue_id,
-                    &router.workflow.blocked,
+                    &router.lifecycle_statuses.blocked,
                 )?;
                 append_router_event(
                     project_dir,
@@ -7927,12 +7918,12 @@ mod tests {
         };
         let router = IssueRouterConfiguration {
             enabled: true,
-            workflow: crate::models::IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: crate::models::IssueRouterLimitsConfiguration {
                 project_wip: 1,
@@ -8072,12 +8063,12 @@ mod tests {
         }];
         let router = IssueRouterConfiguration {
             enabled: true,
-            workflow: crate::models::IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: crate::models::IssueRouterLimitsConfiguration {
                 project_wip: 1,
@@ -8182,12 +8173,12 @@ mod tests {
         configuration.project_directory = "project".to_string();
         configuration.router = Some(IssueRouterConfiguration {
             enabled: true,
-            workflow: crate::models::IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: crate::models::IssueRouterLimitsConfiguration {
                 project_wip: 1,
@@ -8230,6 +8221,7 @@ mod tests {
                 semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: false,
+                router: false,
             });
         configuration
             .workflows
@@ -8458,12 +8450,12 @@ mod tests {
 
         let router = IssueRouterConfiguration {
             enabled: true,
-            workflow: crate::models::IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: crate::models::IssueRouterLimitsConfiguration {
                 project_wip: 1,
@@ -9123,12 +9115,12 @@ mod tests {
         let mut configuration = crate::config::default_project_configuration();
         configuration.router = Some(IssueRouterConfiguration {
             enabled: true,
-            workflow: crate::models::IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: crate::models::IssueRouterLimitsConfiguration {
                 project_wip: 3,
@@ -9172,6 +9164,7 @@ mod tests {
                 semantic_category: "in_progress".to_string(),
                 color: None,
                 collapsed: false,
+                router: false,
             });
         std::fs::write(
             get_configuration_path(&root).expect("configuration path"),
@@ -9822,12 +9815,12 @@ mod tests {
 
         let router = IssueRouterConfiguration {
             enabled: true,
-            workflow: crate::models::IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: crate::models::IssueRouterLimitsConfiguration {
                 project_wip: 2,

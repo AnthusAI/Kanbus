@@ -148,7 +148,7 @@ def test_recovering_preserved_turn_publishes_one_visible_issue_summary(
         project_dir=project_dir,
         issues=[SimpleNamespace(identifier=issue_id, parent=None)],
         router=SimpleNamespace(
-            workflow=SimpleNamespace(review="review", blocked="blocked")
+            lifecycle_statuses=SimpleNamespace(in_review="review", blocked="blocked")
         ),
     )
     comments: list[tuple[str, str, str]] = []

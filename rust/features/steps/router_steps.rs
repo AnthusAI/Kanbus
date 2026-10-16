@@ -24,12 +24,6 @@ use kanbus::file_io::{get_configuration_path, load_project_directory};
 use kanbus::models::{IssueData, ProjectConfiguration};
 
 const VALID_ROUTER: &str = r#"router:
-  workflow:
-    pending: open
-    active: in_progress
-    review: review
-    blocked: blocked
-    terminal: [closed]
   limits:
     project_wip: 4
     review_wip: 2
@@ -101,16 +95,69 @@ fn set_router_yaml(world: &KanbusWorld, source: &str) {
     let mut root_value = read_yaml(world).1;
     let router_doc: Yaml = serde_yaml::from_str(source).expect("router fixture yaml");
     let router = router_doc.get("router").cloned().expect("router key");
-    if router
-        .get("workflow")
-        .and_then(|workflow| workflow.get("review"))
-        .and_then(Yaml::as_str)
-        == Some("review")
-    {
-        add_review_status_and_workflow(&mut root_value);
-    }
+    add_router_lifecycle_statuses(&mut root_value);
     mapping(&mut root_value).insert(Yaml::String("router".to_string()), router);
     write_yaml(world, &root_value);
+}
+
+const ROUTER_STATUS_SEMANTIC_CATEGORIES: &[(&str, &str)] = &[
+    ("open", "todo"),
+    ("in_progress", "in_progress"),
+    ("review", "in_review"),
+    ("blocked", "blocked"),
+    ("closed", "done"),
+];
+
+fn add_router_lifecycle_statuses(root_value: &mut Yaml) {
+    add_review_status_and_workflow(root_value);
+    let already_router_marked_categories: Vec<String> = status_sequence(root_value)
+        .iter()
+        .filter(|status| status.get("router").and_then(Yaml::as_bool) == Some(true))
+        .filter_map(|status| status.get("semantic_category").and_then(Yaml::as_str))
+        .map(str::to_string)
+        .collect();
+    for status in status_sequence(root_value) {
+        let status_mapping = status.as_mapping_mut().expect("status mapping");
+        let status_key = status_mapping
+            .get(Yaml::String("key".to_string()))
+            .and_then(Yaml::as_str)
+            .unwrap_or_default()
+            .to_string();
+        if let Some((_, semantic_category)) = ROUTER_STATUS_SEMANTIC_CATEGORIES.iter().find(
+            |(router_status_key, semantic_category)| {
+                *router_status_key == status_key
+                    && !already_router_marked_categories
+                        .iter()
+                        .any(|marked_category| marked_category == semantic_category)
+            },
+        ) {
+            status_mapping.insert(
+                Yaml::String("semantic_category".to_string()),
+                Yaml::String((*semantic_category).to_string()),
+            );
+            status_mapping.insert(Yaml::String("router".to_string()), Yaml::Bool(true));
+        }
+    }
+}
+
+fn status_sequence(root_value: &mut Yaml) -> &mut Vec<Yaml> {
+    mapping(root_value)
+        .get_mut(Yaml::String("statuses".to_string()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("status list")
+}
+
+fn status_definition<'a>(root_value: &'a mut Yaml, status_key: &str) -> &'a mut Mapping {
+    status_sequence(root_value)
+        .iter_mut()
+        .filter_map(Yaml::as_mapping_mut)
+        .find(|status| {
+            status
+                .get(Yaml::String("key".to_string()))
+                .and_then(Yaml::as_str)
+                == Some(status_key)
+        })
+        .expect("configured status")
 }
 
 fn add_review_status_and_workflow(root_value: &mut Yaml) {
@@ -1860,8 +1907,293 @@ fn then_soft_duplicate_work(world: &mut KanbusWorld) {
 fn given_project_without_router(world: &mut KanbusWorld) {
     ensure_default_project(world);
     let mut yaml = read_yaml(world).1;
+    add_router_lifecycle_statuses(&mut yaml);
     mapping(&mut yaml).remove(Yaml::String("router".to_string()));
     write_yaml(world, &yaml);
+}
+
+fn default_workflow_and_labels(root_value: &mut Yaml) -> (&mut Mapping, &mut Mapping) {
+    let root = mapping(root_value);
+    let mut workflows = None;
+    let mut transition_labels = None;
+    for (key, value) in root.iter_mut() {
+        match key.as_str() {
+            Some("workflows") => workflows = value.as_mapping_mut(),
+            Some("transition_labels") => transition_labels = value.as_mapping_mut(),
+            _ => {}
+        }
+    }
+    let default_key = Yaml::String("default".to_string());
+    (
+        workflows
+            .expect("workflows")
+            .get_mut(&default_key)
+            .and_then(Yaml::as_mapping_mut)
+            .expect("default workflow"),
+        transition_labels
+            .expect("transition labels")
+            .get_mut(&default_key)
+            .and_then(Yaml::as_mapping_mut)
+            .expect("default transition labels"),
+    )
+}
+
+#[given("the project has the canonical router statuses")]
+fn given_canonical_router_statuses(world: &mut KanbusWorld) {
+    let mut yaml = read_yaml(world).1;
+    let ready_status = status_definition(&mut yaml, "open");
+    ready_status.insert(
+        Yaml::String("name".to_string()),
+        Yaml::String("Ready".to_string()),
+    );
+    ready_status.remove(Yaml::String("router".to_string()));
+    let discovery_already_configured = status_sequence(&mut yaml)
+        .iter()
+        .any(|status| status.get("key").and_then(Yaml::as_str) == Some("Discovery"));
+    if !discovery_already_configured {
+        let discovery_status: Yaml = serde_yaml::from_str(
+            "key: Discovery\nname: Discovery\ncategory: To do\nsemantic_category: todo\nrouter: true\ncollapsed: false\n",
+        )
+        .expect("discovery status yaml");
+        status_sequence(&mut yaml).push(discovery_status);
+    }
+    let (workflow, labels) = default_workflow_and_labels(&mut yaml);
+    workflow.insert(
+        Yaml::String("Discovery".to_string()),
+        serde_yaml::from_str("[in_progress, open, backlog]").expect("discovery workflow"),
+    );
+    labels.insert(
+        Yaml::String("Discovery".to_string()),
+        serde_yaml::from_str(
+            "in_progress: Start agent work\nopen: Start work\nbacklog: Back to backlog\n",
+        )
+        .expect("discovery transition labels"),
+    );
+    write_yaml(world, &yaml);
+}
+
+#[given(expr = "the status {string} is not router-marked")]
+fn given_status_not_router_marked(world: &mut KanbusWorld, status_key: String) {
+    let mut yaml = read_yaml(world).1;
+    status_definition(&mut yaml, &status_key).remove(Yaml::String("router".to_string()));
+    write_yaml(world, &yaml);
+}
+
+#[given(expr = "the status {string} is also router-marked")]
+fn given_status_also_router_marked(world: &mut KanbusWorld, status_key: String) {
+    let mut yaml = read_yaml(world).1;
+    status_definition(&mut yaml, &status_key)
+        .insert(Yaml::String("router".to_string()), Yaml::Bool(true));
+    write_yaml(world, &yaml);
+}
+
+#[given(expr = "the status {string} has router marker {string}")]
+fn given_status_router_marker_value(world: &mut KanbusWorld, status_key: String, marker: String) {
+    let mut yaml = read_yaml(world).1;
+    status_definition(&mut yaml, &status_key)
+        .insert(Yaml::String("router".to_string()), Yaml::String(marker));
+    write_yaml(world, &yaml);
+}
+
+#[given(expr = "the default workflow does not allow {string} to {string}")]
+fn given_default_workflow_without_transition(
+    world: &mut KanbusWorld,
+    from_status: String,
+    to_status: String,
+) {
+    let mut yaml = read_yaml(world).1;
+    let (workflow, labels) = default_workflow_and_labels(&mut yaml);
+    workflow
+        .get_mut(Yaml::String(from_status.clone()))
+        .and_then(Yaml::as_sequence_mut)
+        .expect("workflow transitions")
+        .retain(|target| target.as_str() != Some(to_status.as_str()));
+    labels
+        .get_mut(Yaml::String(from_status))
+        .and_then(Yaml::as_mapping_mut)
+        .expect("transition labels")
+        .remove(Yaml::String(to_status));
+    write_yaml(world, &yaml);
+}
+
+fn loaded_project_configuration(world: &KanbusWorld) -> ProjectConfiguration {
+    let configuration_path = get_configuration_path(root(world)).expect("configuration path");
+    kanbus::config_loader::load_project_configuration(&configuration_path)
+        .expect("load configuration")
+}
+
+#[then("no configured status should be router-marked")]
+fn then_no_status_router_marked(world: &mut KanbusWorld) {
+    let router_marked_status_keys: Vec<String> = loaded_project_configuration(world)
+        .statuses
+        .into_iter()
+        .filter(|status| status.router)
+        .map(|status| status.key)
+        .collect();
+    assert!(
+        router_marked_status_keys.is_empty(),
+        "{router_marked_status_keys:?}"
+    );
+}
+
+#[then(expr = "the configured status {string} should be router-marked")]
+fn then_status_router_marked(world: &mut KanbusWorld, status_key: String) {
+    assert!(
+        loaded_project_configuration(world)
+            .statuses
+            .iter()
+            .find(|status| status.key == status_key)
+            .expect("configured status")
+            .router
+    );
+}
+
+#[then(expr = "the router status for semantic category {string} should be {string}")]
+fn then_router_status_for_semantic_category(
+    world: &mut KanbusWorld,
+    semantic_category: String,
+    expected_status: String,
+) {
+    let lifecycle_statuses = loaded_project_configuration(world)
+        .router
+        .expect("router configuration")
+        .lifecycle_statuses;
+    let actual_status = match semantic_category.as_str() {
+        "todo" => &lifecycle_statuses.todo,
+        "in_progress" => &lifecycle_statuses.in_progress,
+        "in_review" => &lifecycle_statuses.in_review,
+        "blocked" => &lifecycle_statuses.blocked,
+        "done" => &lifecycle_statuses.done,
+        other => panic!("unknown semantic category {other}"),
+    };
+    assert_eq!(actual_status, &expected_status, "{lifecycle_statuses:?}");
+}
+
+#[given(
+    regex = r#"^an issue "(?P<issue>[^"]+)" of type "(?P<issue_type>[^"]+)" with status "(?P<status>[^"]+)" and label "(?P<label>[^"]+)"$"#
+)]
+fn given_issue_with_status_and_label(
+    world: &mut KanbusWorld,
+    identifier: String,
+    issue_type: String,
+    status: String,
+    label: String,
+) {
+    let mut issue = build_issue(&identifier, &status, vec![label], None, None);
+    issue.issue_type = issue_type;
+    put_issue(world, &issue);
+    write_events_batch(
+        &project_dir(world).join("events"),
+        &[EventRecord::new(
+            &identifier,
+            EventType::StateTransition,
+            "fixture",
+            json!({"from_status": "backlog", "to_status": status}),
+            "2026-09-17T10:00:00Z".to_string(),
+        )],
+    )
+    .expect("seed status event");
+}
+
+#[then(expr = "issue {string} should appear in the eligible packages")]
+fn then_issue_eligible(world: &mut KanbusWorld, identifier: String) {
+    assert_eq!(world.exit_code, Some(0), "{:?}", world.stderr);
+    let plan: Value =
+        serde_json::from_str(world.stdout.as_deref().unwrap_or("")).expect("router plan JSON");
+    assert!(
+        plan["eligible"]
+            .as_array()
+            .expect("eligible packages")
+            .iter()
+            .any(|package| package["issue_id"] == identifier),
+        "{plan}"
+    );
+}
+
+#[then(expr = "issue {string} should remain in status {string}")]
+fn then_issue_remains_in_status(world: &mut KanbusWorld, identifier: String, status: String) {
+    assert_eq!(load_issue(world, &identifier).status, status);
+}
+
+#[then(
+    expr = "package {string} should have transitioned from status {string} to status {string} when it was claimed"
+)]
+fn then_package_claim_transition(
+    world: &mut KanbusWorld,
+    identifier: String,
+    from_status: String,
+    to_status: String,
+) {
+    let mut events = read_router_fixture_events(world);
+    events.extend(kanbus::router::read_shared_router_events(root(world)).unwrap_or_default());
+    let transitions: Vec<(Option<String>, Option<String>)> = events
+        .iter()
+        .filter(|event| {
+            event.issue_id == identifier && matches!(event.event_type, EventType::StateTransition)
+        })
+        .map(|event| {
+            (
+                event
+                    .payload
+                    .get("from_status")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                event
+                    .payload
+                    .get("to_status")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+            )
+        })
+        .collect();
+    assert!(
+        transitions.contains(&(Some(from_status), Some(to_status))),
+        "{transitions:?}"
+    );
+}
+
+fn effective_package_status(world: &KanbusWorld, identifier: &str) -> String {
+    kanbus::router::effective_issue_router_status(root(world), identifier)
+        .expect("reduce effective router status")
+}
+
+#[then(expr = "package {string} should not be in a status with semantic category {string}")]
+fn then_package_not_in_semantic_category(
+    world: &mut KanbusWorld,
+    identifier: String,
+    semantic_category: String,
+) {
+    let status = effective_package_status(world, &identifier);
+    let configured_semantic_category = loaded_project_configuration(world)
+        .statuses
+        .into_iter()
+        .find(|definition| definition.key == status)
+        .map(|definition| definition.semantic_category);
+    assert_ne!(
+        configured_semantic_category.as_deref(),
+        Some(semantic_category.as_str()),
+        "{status}"
+    );
+}
+
+#[then(expr = "the router should not close package {string}")]
+fn then_router_does_not_close_package(world: &mut KanbusWorld, identifier: String) {
+    let status = effective_package_status(world, &identifier);
+    let done_status = loaded_project_configuration(world)
+        .router
+        .expect("router configuration")
+        .lifecycle_statuses
+        .done;
+    assert_ne!(status, done_status);
+}
+
+#[then(expr = "package {string} should not transition to status {string}")]
+fn then_package_not_transition_to_status(
+    world: &mut KanbusWorld,
+    identifier: String,
+    status: String,
+) {
+    assert_ne!(effective_package_status(world, &identifier), status);
 }
 
 #[given(expr = "a Kanbus project with router configuration:")]
@@ -1984,20 +2316,6 @@ fn given_router_watch_interval(world: &mut KanbusWorld, interval: String) {
 }
 
 #[given(
-    regex = r#"^a valid router configuration with workflow role "(?P<role>[^"]+)" set to "(?P<status>.*)"$"#
-)]
-fn given_router_workflow_role(world: &mut KanbusWorld, role: String, status: String) {
-    ensure_default_project(world);
-    set_router_yaml(world, VALID_ROUTER);
-    let value: Yaml = if role == "terminal" {
-        Yaml::Sequence(vec![Yaml::String(status)])
-    } else {
-        serde_yaml::from_str(&status).unwrap_or(Yaml::String(status))
-    };
-    set_router_path(world, &["workflow", &role], value);
-}
-
-#[given(
     regex = r#"^a valid router configuration with "(?P<field>[^"]+)" set to "(?P<value>[^"]+)"$"#
 )]
 fn given_router_limit(world: &mut KanbusWorld, field: String, value: String) {
@@ -2021,24 +2339,6 @@ fn given_router_wip_values(world: &mut KanbusWorld, project: i32, review: i32) {
         &["limits", "review_wip"],
         Yaml::Number(review.into()),
     );
-}
-
-#[given(
-    expr = "a valid router configuration with active status {string} and review status {string}"
-)]
-fn given_duplicate_router_roles(world: &mut KanbusWorld, active: String, review: String) {
-    ensure_default_project(world);
-    set_router_yaml(world, VALID_ROUTER);
-    set_router_path(world, &["workflow", "active"], Yaml::String(active));
-    set_router_path(world, &["workflow", "review"], Yaml::String(review));
-}
-
-#[given(expr = "a valid router configuration with terminal statuses {string}")]
-fn given_terminal_statuses(world: &mut KanbusWorld, statuses: String) {
-    ensure_default_project(world);
-    set_router_yaml(world, VALID_ROUTER);
-    let value = serde_yaml::from_str(&statuses).expect("terminal YAML list");
-    set_router_path(world, &["workflow", "terminal"], value);
 }
 
 #[given(
@@ -2596,16 +2896,6 @@ fn then_stderr_equals(world: &mut KanbusWorld, expected: String) {
     );
 }
 
-#[then(
-    regex = r#"^stderr should equal "error: router\.workflow\.terminal references undefined status .*"$"#
-)]
-fn then_terminal_role_stderr(world: &mut KanbusWorld) {
-    assert_eq!(
-        world.stderr.as_deref().unwrap_or(""),
-        "error: router.workflow.terminal references undefined status \"[\"unknown\"]\"\n"
-    );
-}
-
 #[then(expr = "issue {string} should not appear in the eligible packages")]
 fn then_issue_not_eligible(world: &mut KanbusWorld, identifier: String) {
     let output = world.stdout.as_deref().unwrap_or("");
@@ -2800,9 +3090,9 @@ fn then_router_check_run_lifecycle(world: &mut KanbusWorld, issue_id: String, ex
     .router
     .expect("router configuration");
     let expected_status = if expected == "remain in review" {
-        router.workflow.review
+        router.lifecycle_statuses.in_review
     } else {
-        router.workflow.active
+        router.lifecycle_statuses.in_progress
     };
     assert_eq!(
         kanbus::router::effective_issue_router_status(root(world), &issue_id)

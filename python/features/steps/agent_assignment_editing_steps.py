@@ -24,9 +24,22 @@ def _with_review_status(config: dict) -> None:
             "key": "review",
             "name": "Review",
             "category": "In progress",
-            "semantic_category": "in_progress",
+            "semantic_category": "in_review",
         }
     )
+    router_status_semantic_categories = {
+        "open": "todo",
+        "in_progress": "in_progress",
+        "review": "in_review",
+        "blocked": "blocked",
+        "closed": "done",
+    }
+    for status in config["statuses"]:
+        if status["key"] in router_status_semantic_categories:
+            status["semantic_category"] = router_status_semantic_categories[
+                status["key"]
+            ]
+            status["router"] = True
     workflow = config["workflows"]["default"]
     workflow["in_progress"].append("review")
     workflow["review"] = ["in_progress", "blocked", "closed"]
@@ -50,13 +63,6 @@ def given_router_with_class_and_provider(
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     _with_review_status(config)
     config["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {"project_wip": 3, "review_wip": 2},
         "providers": {provider: {"adapter": "codex"}},
         "classes": {class_name: {"providers": [provider]}},

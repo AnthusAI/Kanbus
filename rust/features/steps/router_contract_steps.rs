@@ -1516,15 +1516,32 @@ fn given_project_has_issue_with_labels(world: &mut KanbusWorld, id: String, labe
     );
 }
 
+fn router_todo_status(world: &mut KanbusWorld) -> String {
+    let (_, configuration) = read_yaml(world);
+    configuration
+        .get("statuses")
+        .and_then(Yaml::as_sequence)
+        .expect("status list")
+        .iter()
+        .find(|status| {
+            status.get("router").and_then(Yaml::as_bool) == Some(true)
+                && status.get("semantic_category").and_then(Yaml::as_str) == Some("todo")
+        })
+        .and_then(|status| status.get("key").and_then(Yaml::as_str))
+        .expect("router-marked todo status")
+        .to_string()
+}
+
 #[given(regex = r#"^pending routed packages are ordered "(?P<ids>[^\"]+)"$"#)]
 fn given_pending_packages(world: &mut KanbusWorld, ids: String) {
     for (ordinal, id) in ids.split(',').map(str::trim).enumerate() {
         let minute = 10 + ordinal as u32;
         let at = Utc.with_ymd_and_hms(2026, 9, 17, minute, 0, 0).unwrap();
+        let router_todo_status = router_todo_status(world);
         seed_issue(
             world,
             id,
-            "open",
+            &router_todo_status,
             vec!["agent-provider:codex-default".to_string()],
             None,
             None,

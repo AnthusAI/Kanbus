@@ -16,6 +16,8 @@ from kanbus.issue_router import (
 )
 from kanbus.models import IssueData, ProjectConfiguration
 
+from test_helpers import mark_router_lifecycle_statuses
+
 
 def _planning_context(
     root: Path,
@@ -48,14 +50,8 @@ def _planning_context(
         "review": "Ready for review",
     }
     labels["review"] = {"in_progress": "Request changes", "closed": "Merge"}
+    mark_router_lifecycle_statuses(configuration_data)
     configuration_data["router"] = {
-        "workflow": {
-            "pending": "open",
-            "active": "in_progress",
-            "review": "review",
-            "blocked": "blocked",
-            "terminal": ["closed"],
-        },
         "limits": {
             "project_wip": project_wip,
             "review_wip": review_wip,

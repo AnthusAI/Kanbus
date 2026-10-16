@@ -12,12 +12,6 @@ Feature: Console snapshot resolves the effective agent assignment
           review_wip: 2
         forge:
           repository: anthusai/kanbus
-        workflow:
-          pending: open
-          active: in_progress
-          review: review
-          blocked: blocked
-          terminal: [closed]
         providers:
           codex-default:
             adapter: codex

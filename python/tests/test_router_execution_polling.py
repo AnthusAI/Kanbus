@@ -363,11 +363,11 @@ def test_pr_event_fences_issue_mutation_after_event_append(monkeypatch, tmp_path
     issue = SimpleNamespace(identifier="kbs-42", status="active")
     router_configuration = SimpleNamespace(
         forge=SimpleNamespace(repository="owner/repo"),
-        workflow=SimpleNamespace(
-            active="active",
-            review="review",
+        lifecycle_statuses=SimpleNamespace(
+            in_progress="active",
+            in_review="review",
             blocked="blocked",
-            terminal=["closed"],
+            done="closed",
         ),
     )
     monkeypatch.setattr(

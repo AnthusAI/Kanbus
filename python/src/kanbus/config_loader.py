@@ -5,12 +5,17 @@ from __future__ import annotations
 import copy
 import os
 from pathlib import Path
+from typing import Dict, List
 
 import yaml
 from pydantic import ValidationError
 
 from kanbus.config import DEFAULT_CONFIGURATION
 from kanbus.models import ProjectConfiguration
+from kanbus.status_semantics import (
+    ROUTER_SEMANTIC_CATEGORIES,
+    VALID_SEMANTIC_CATEGORIES,
+)
 
 CONGREGATION_ENV_FILENAME = ".kanbus.env"
 
@@ -66,6 +71,7 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     if merged.get("router") is not None and not isinstance(merged["router"], dict):
         raise ConfigurationError("router must be a mapping")
     _reject_legacy_fields(merged)
+    _reject_non_boolean_router_markers(merged)
     _reject_standup_lookback_hours(merged)
     _normalize_virtual_projects(merged)
     _apply_environment_overrides(merged)
@@ -295,6 +301,82 @@ def _validate_canonical_config_overrides(path: Path, data: dict) -> None:
             raise ConfigurationError("hierarchy is fixed")
 
 
+def _router_status_marker_errors(configuration: ProjectConfiguration) -> List[str]:
+    """
+    Validate semantic categories and ``router: true`` status markers.
+
+    :param configuration: Project configuration to validate.
+    :type configuration: ProjectConfiguration
+    :return: Validation errors in deterministic order.
+    :rtype: List[str]
+    """
+    errors: List[str] = []
+    for status in configuration.statuses:
+        if status.semantic_category not in VALID_SEMANTIC_CATEGORIES:
+            errors.append(
+                f"statuses.{status.key}.semantic_category "
+                f'"{status.semantic_category}" is unsupported; expected one of '
+                + ", ".join(ROUTER_SEMANTIC_CATEGORIES)
+            )
+    router_statuses_by_semantic_category: Dict[str, List[str]] = {}
+    for status in configuration.statuses:
+        if status.router:
+            router_statuses_by_semantic_category.setdefault(
+                status.semantic_category, []
+            ).append(status.key)
+    for semantic_category in ROUTER_SEMANTIC_CATEGORIES:
+        marked_status_keys = sorted(
+            router_statuses_by_semantic_category.get(semantic_category, [])
+        )
+        if len(marked_status_keys) > 1:
+            quoted_status_keys = " and ".join(
+                f'"{status_key}"' for status_key in marked_status_keys
+            )
+            errors.append(
+                f"statuses {quoted_status_keys} are both router-marked for "
+                f'semantic category "{semantic_category}"'
+            )
+    router = configuration.router
+    if router is None or not router.enabled:
+        return errors
+    for semantic_category in ROUTER_SEMANTIC_CATEGORIES:
+        if semantic_category not in router_statuses_by_semantic_category:
+            errors.append(
+                "router requires exactly one router-marked status for "
+                f'semantic category "{semantic_category}"'
+            )
+    if errors:
+        return errors
+    lifecycle_statuses = router.lifecycle_statuses
+    default_workflow = configuration.workflows.get("default", {})
+    for from_status, to_status in (
+        (lifecycle_statuses.todo, lifecycle_statuses.in_progress),
+        (lifecycle_statuses.in_progress, lifecycle_statuses.in_review),
+        (lifecycle_statuses.in_progress, lifecycle_statuses.blocked),
+        (lifecycle_statuses.in_review, lifecycle_statuses.in_progress),
+        (lifecycle_statuses.in_review, lifecycle_statuses.done),
+    ):
+        if to_status not in default_workflow.get(from_status, []):
+            errors.append(
+                "router lifecycle requires a workflow transition from "
+                f'"{from_status}" to "{to_status}"'
+            )
+    return errors
+
+
+def _reject_non_boolean_router_markers(configuration_data: dict) -> None:
+    statuses = configuration_data.get("statuses")
+    if not isinstance(statuses, list):
+        return
+    for status in statuses:
+        if not isinstance(status, dict) or "router" not in status:
+            continue
+        if not isinstance(status["router"], bool):
+            raise ConfigurationError(
+                f"statuses.{status.get('key')}.router must be a boolean"
+            )
+
+
 def _validate_type_workflow_bindings(
     configuration: ProjectConfiguration,
 ) -> list[str]:
@@ -454,18 +536,7 @@ def validate_project_configuration(configuration: ProjectConfiguration) -> list[
     # Build set of valid status keys
     valid_statuses = {s.key for s in configuration.statuses}
 
-    if router is not None and router.enabled and router.workflow is not None:
-        for role in ("pending", "active", "review", "blocked"):
-            status = getattr(router.workflow, role)
-            if status not in valid_statuses:
-                errors.append(
-                    f'router.workflow.{role} references undefined status "{status}"'
-                )
-        for status in router.workflow.terminal:
-            if status not in valid_statuses:
-                errors.append(
-                    f'router.workflow.terminal references undefined status "{status}"'
-                )
+    errors.extend(_router_status_marker_errors(configuration))
 
     # Validate that initial_status exists in statuses
     if configuration.initial_status not in valid_statuses:
@@ -699,16 +770,8 @@ def _router_validation_error(error: ValidationError) -> str | None:
         if len(location) == 1 and error_type == "model_type":
             return "router must be a mapping"
         if len(location) == 1 and error_type == "value_error":
-            if "workflow, limits, and providers are required" in str(
-                item.get("msg", "")
-            ):
-                return (
-                    "router.workflow, router.limits, and router.providers are required"
-                )
-        if location == ("router", "workflow") and error_type == "value_error":
-            return "router.workflow roles must use distinct statuses"
-        if location == ("router", "workflow", "terminal") and error_type == "too_short":
-            return "router.workflow.terminal must be a nonempty list"
+            if "limits and providers are required" in str(item.get("msg", "")):
+                return "router.limits and router.providers are required"
         if location == ("router", "providers") and error_type == "too_short":
             return "router.providers must be a nonempty mapping"
         if len(location) == 2 and location[1] == "watch_interval":

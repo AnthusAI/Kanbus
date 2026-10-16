@@ -8,9 +8,25 @@ from kanbus.models import ProjectConfiguration
 
 SEMANTIC_TODO = "todo"
 SEMANTIC_IN_PROGRESS = "in_progress"
+SEMANTIC_IN_REVIEW = "in_review"
+SEMANTIC_BLOCKED = "blocked"
 SEMANTIC_DONE = "done"
 
-VALID_SEMANTIC_CATEGORIES = {SEMANTIC_TODO, SEMANTIC_IN_PROGRESS, SEMANTIC_DONE}
+ROUTER_SEMANTIC_CATEGORIES = (
+    SEMANTIC_TODO,
+    SEMANTIC_IN_PROGRESS,
+    SEMANTIC_IN_REVIEW,
+    SEMANTIC_BLOCKED,
+    SEMANTIC_DONE,
+)
+
+VALID_SEMANTIC_CATEGORIES = {
+    SEMANTIC_TODO,
+    SEMANTIC_IN_PROGRESS,
+    SEMANTIC_IN_REVIEW,
+    SEMANTIC_BLOCKED,
+    SEMANTIC_DONE,
+}
 
 
 class SemanticCategoryError(ValueError):
@@ -112,6 +128,10 @@ def default_color_for_semantic_category(semantic_category: str) -> str:
         return "cyan"
     if semantic_category == SEMANTIC_IN_PROGRESS:
         return "blue"
+    if semantic_category == SEMANTIC_IN_REVIEW:
+        return "magenta"
+    if semantic_category == SEMANTIC_BLOCKED:
+        return "red"
     if semantic_category == SEMANTIC_DONE:
         return "green"
     return "white"

@@ -234,10 +234,7 @@ pub fn change_issue_assignment(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{
-        IssueRouterClassConfiguration, IssueRouterLimitsConfiguration,
-        IssueRouterWorkflowConfiguration,
-    };
+    use crate::models::{IssueRouterClassConfiguration, IssueRouterLimitsConfiguration};
     use std::collections::BTreeMap;
 
     fn profile(
@@ -258,12 +255,12 @@ mod tests {
     fn router() -> IssueRouterConfiguration {
         IssueRouterConfiguration {
             enabled: true,
-            workflow: IssueRouterWorkflowConfiguration {
-                pending: "open".to_string(),
-                active: "in_progress".to_string(),
-                review: "review".to_string(),
+            lifecycle_statuses: crate::models::IssueRouterLifecycleStatuses {
+                todo: "open".to_string(),
+                in_progress: "in_progress".to_string(),
+                in_review: "review".to_string(),
                 blocked: "blocked".to_string(),
-                terminal: vec!["closed".to_string()],
+                done: "closed".to_string(),
             },
             limits: IssueRouterLimitsConfiguration {
                 project_wip: 2,
@@ -419,6 +416,7 @@ mod tests {
                     semantic_category: "in_progress".to_string(),
                     color: None,
                     collapsed: false,
+                    router: false,
                 });
             let workflow = configuration
                 .workflows
