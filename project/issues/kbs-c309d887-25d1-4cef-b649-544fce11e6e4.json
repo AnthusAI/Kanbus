@@ -1,0 +1,28 @@
+{
+  "id": "kbs-c309d887-25d1-4cef-b649-544fce11e6e4",
+  "title": "Release embedded Kanbus foundation from main",
+  "description": "Given released Virtuus storage and the embedded Kanbus foundation pass required gates, when stable develop is promoted to main and normal release workflows publish, then consumers can install the shared UI artifact and build the writable API against a valid released storage dependency while the standalone CLI remains available. Verify versions, tags, downloadable artifacts and consumer build.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T10:38:49.060782Z",
+  "updated_at": "2026-10-16T10:38:49.085386Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Kanbus cloud owner",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
