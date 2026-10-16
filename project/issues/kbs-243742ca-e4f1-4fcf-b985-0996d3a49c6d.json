@@ -1,0 +1,62 @@
+{
+  "id": "kbs-243742ca-e4f1-4fcf-b985-0996d3a49c6d",
+  "title": "Cut over only after replacement authentication and CRM persistence pass",
+  "description": "Given the new app passes anonymous401, nonmember403, Google-admin access and real create/move/note/reload/conflict checks, when an explicitly approved DNS change uses the exact verified Amplify target for prospectus.anth.us, then clients reach the replacement with a documented rollback while the old instance and data remain available. No deletion or DNS cutover before acceptance; the separate marketing site is not migrated by this story.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "33648dc1-77b0-401a-8592-9085575aea90",
+      "author": "home",
+      "text": "PR #2 merged with specific approval to main 13155d7f2542f1bf2e3fc80cd1fb0a3398546c56 after full CI38668882232 passed. Amplify job4 exact commit BUILD/DEPLOY/VERIFY SUCCEED. Normal HTTPS and actual Chrome reload at prospectus.anth.us show Anthus and browser title Prospectus · Anthus; old visible branding absent from deployed bundle. Fresh inventories: zero prospect records in source and target, configuration bytes identical. Immutable Google identity continuity and existing admin/member roles verified; hosted authenticated board/CRUD acceptance still pending refreshed user session. No unrelated permission or customer data changes.",
+      "created_at": "2026-10-15T02:29:58.787129Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "124bcd6f-c439-4340-aa66-03901574c718",
+      "author": "home",
+      "text": "Ryan confirmed authenticated Prospectus access with \"Sure it works\" immediately after the main-chat request to Refresh access and confirm the board. Record this as user-confirmed authenticated access acceptance, not an automated hosted CRUD test. Immutable Google provider identity matched the source administrator and admin/prospectus-members role readback was verified. Branding PR #2 is merged to main 13155d7f2542f1bf2e3fc80cd1fb0a3398546c56; Amplify job4 BUILD/DEPLOY/VERIFY succeeded; actual Chrome and public HTTPS show Anthus / Prospectus · Anthus at https://prospectus.anth.us. Fresh complete inventories found zero prospect records in both inspected namespaces, and their 1536-byte configurations match SHA256 6470069400767d619c9269b3aa41d19f884c3561d4c32256e2b7ce886153e185. Old instance, pool, bucket, data and DNS remain preserved. No deletion or additional security/data changes are authorized by this acceptance. Central SaaS identity/membership work remains a separate prototype and is not a deployed CRM capability. Nonblocking follow-up: a separately scoped hosted create/move/note/reload/conflict acceptance exercise; existing local persistence/conflict CI passed, but Ryan's confirmation does not independently establish all those hosted operations.",
+      "created_at": "2026-10-15T02:35:11.528550Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T00:20:13.504729Z",
+  "updated_at": "2026-10-15T02:35:11.528576Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

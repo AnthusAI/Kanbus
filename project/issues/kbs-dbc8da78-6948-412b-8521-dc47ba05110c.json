@@ -1,0 +1,77 @@
+{
+  "id": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "title": "Migrate shared production Prospectus CRM to papyrus-production",
+  "description": "Ryan changed the authoritative CRM target to papyrus-production account712236451410 and prospectus.anth.us. Preserve the live Cyclotron instance and every identity/data record until a separately tested replacement and exact DNS target are verified. Use ordinary Amplify/standard existing bootstrap, no bespoke IAM. SourceSSO currently expired; targetAdminSSO and standard bootstrap verified. Coordinate identity/S3 contract with task01a13a6b; marketing site is separate and excluded. Obtain concrete approval before new persistent grants or credential bindings; no cutover/deletion now.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0f671e31-9b05-4ab8-8f13-7fcd8e0e07f2",
+      "author": "home",
+      "text": "Replacement deployed from main f2950638f87caf88149991bd83525f7d7f96d278 in papyrus-production. Amplify app d15sc1sptohtqb job 3 BUILD/DEPLOY/VERIFY SUCCEED; main CI 38665501280 SUCCESS including backend packaging and browser persistence. Standard existing service role/bootstrap worked; console image and legacy CLI override were corrected in source settings, with no policy/trust expansion. New frontend HTTP200, anonymous API401, controlled read-only member-context config/list200 and admin-only403. Tracked operational config initialized create-only with verified checksum, no prospects seeded. Old CRM HTTP200 and data preserved. Custom hostname/DNS cutover, actual Google sign-in and user/membership continuity remain pending; initiative not complete.",
+      "created_at": "2026-10-15T01:39:17.349849Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "6fc06a77-5b7d-463c-bea5-4ed0fbe7f821",
+      "author": "home",
+      "text": "Custom hostname https://prospectus.anth.us is now AVAILABLE and verified in Amplify, mapped only to main. Fresh parent-delegation check confirmed papyrus-production is now authoritative; no delegation change by this task. Amplify automatically added hostname and TLS validation CNAMEs; old CRM CNAME preserved. Valid hostname/TLS HTTP200 and identical deployed main HTML/JS verified; public resolvers return correct CNAME. Ryan asked for real Google login using old CRM Google account. Read-only source administrator provider-identity comparison proof prepared; actual target login/membership continuity still pending. No email-based identity merge, unknown-user promotion or old data deletion.",
+      "created_at": "2026-10-15T01:48:47.721764Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "f55fb84c-9b1a-488c-8efd-0d47d7d073ad",
+      "author": "home",
+      "text": "Ryan confirmed authenticated Prospectus access with \"Sure it works\" immediately after the main-chat request to Refresh access and confirm the board. Record this as user-confirmed authenticated access acceptance, not an automated hosted CRUD test. Immutable Google provider identity matched the source administrator and admin/prospectus-members role readback was verified. Branding PR #2 is merged to main 13155d7f2542f1bf2e3fc80cd1fb0a3398546c56; Amplify job4 BUILD/DEPLOY/VERIFY succeeded; actual Chrome and public HTTPS show Anthus / Prospectus · Anthus at https://prospectus.anth.us. Fresh complete inventories found zero prospect records in both inspected namespaces, and their 1536-byte configurations match SHA256 6470069400767d619c9269b3aa41d19f884c3561d4c32256e2b7ce886153e185. Old instance, pool, bucket, data and DNS remain preserved. No deletion or additional security/data changes are authorized by this acceptance. Central SaaS identity/membership work remains a separate prototype and is not a deployed CRM capability. Nonblocking follow-up: a separately scoped hosted create/move/note/reload/conflict acceptance exercise; existing local persistence/conflict CI passed, but Ryan's confirmation does not independently establish all those hosted operations.",
+      "created_at": "2026-10-15T02:35:11.680377Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T00:20:12.926656Z",
+  "updated_at": "2026-10-15T02:35:11.680410Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "The replacement is live and verified; old data remains preserved, and a separate hosted CRM test is still needed.",
+  "right_now_updated_at": "2026-10-15T22:18:04.335584Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

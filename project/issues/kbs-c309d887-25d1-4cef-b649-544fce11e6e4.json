@@ -1,0 +1,107 @@
+{
+  "id": "kbs-c309d887-25d1-4cef-b649-544fce11e6e4",
+  "title": "Release embedded Kanbus foundation from main",
+  "description": "Given released Virtuus storage and the embedded Kanbus foundation pass required gates, when stable develop is promoted to main and normal release workflows publish, then consumers can install the shared UI artifact and build the writable API against a valid released storage dependency while the standalone CLI remains available. Verify versions, tags, downloadable artifacts and consumer build.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f61f5c1a-ed37-4649-ba8d-47965120c0d3",
+      "author": "home",
+      "text": "Virtuus actual publication finished: core0.6.1 PyPI/crates and store0.1.0 crates, registry downloads/checksums verified. Kanbus main promotion draftPR403 https://github.com/AnthusAI/Kanbus/pull/403 exacta1af348a2fb25e0cd9ae9168c0fd089e0d4d95e1; fullCI38902900362 + UIparity38902900462 + CodeQL38902900460 running. Registry-backed APIbuild29testsPASS, actualProspectus funnel/owner handoff/restart/conflict/replay proofPASS. Crate packagingPASS; both0.33->0.34 lockupdates rehearsed without unrelated dependency changes; authoritative remote tags select0.34.0. Existing checkout tags preserved. Await fullgates, mainmerge, actualnormalregistrypublication then releaseasset verification.",
+      "created_at": "2026-10-16T12:47:54.312668Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "7f6fd792-acf9-4a3a-8942-dc69b6f7fe92",
+      "author": "home",
+      "text": "PR403 exact head a1af348 promotes develop with published Virtuus0.6.1/store0.1.0, version-lock sync and manual release asset tag correction. Embedded UI/API, Python and parity/install/performance gates pass; Rust MQTT unit failure reproduced as all553 local unit tests PASS, failed hosted jobs rerunning. New release security check reports4 high cleartext logging findings in rust/src/daemon_client.rs lines288/299/313/347, where dynamic project/socket paths enter debug logs. Reviewing/removing diagnostic path/error values before merge; no assertion or security gate suppression. Actual registry API proof and clean consumer artifacts saved locally.",
+      "created_at": "2026-10-16T13:09:31.782891Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "1f929b80-3827-4fb1-84e1-030b222bfaba",
+      "author": "home",
+      "text": "Release candidate now27f73a512104880f44b1dd1b5364823bb3d78760. CodeQL4high path diagnostics redacted inbb34eed5. Repeated hostedMQTTfailure investigated, not retried: deterministic unrelated-publication injection reproduces samepublishedfalse1.26sec beforefixturefix. Mockbroker now waits matchingclaim and preserves unrelatedpublisher lifetime; allpublication/overlayassertionsretained. All553Rustunits/fmt/strictClippyPASS. PythonGitpin also replaced with actualpublishedvirtuus==0.6.1; builtwheelmetadataassertsnoGitrequirements. NewfullCI38907176905,CodeQL38907176918,sharedUI38907176889 active;supersededrunsstoppedtosavecost. No productionMQTTbehaviorchange. Mainmerge/actualKanbuspublicationstillpendingexactheadgates.",
+      "created_at": "2026-10-16T13:22:02.322820Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "bcc6a6e7-96e1-48a5-b5a2-6988ea0a8011",
+      "author": "home",
+      "text": "PR403 merged main1635f9d0820dfee28d99d7c3acff5a6e5ba3d324 after ALL functional,coverage,ratchet,binary-smoke,Beads,CodeQL/Snyk gates PASS. Actualmain tree matches testedPRmerge tree. SupportedSemanticRelease38911587999 SUCCESS produced Python/Rust0.34.0 tags atf81b91857a54f8f51e57a1e52a1100288a4781c2. ActualPyPI0.34 wheel+sdist downloaded/checksumverified;cleanPython3.14consumer usespublishedvirtuus0.6.1 andinit/create/list/showPASS. Existingbinarymatrix38912024949 SUCCESS;all8CLI/consoleassetsactualdownloaded,digests/sizesverified;ARMnativeCLI+embeddedconsoleHTML/JS/issue/config APIsPASS. ActualreleaseAPIlocksync/build+29testsPASS;syntheticProspectusfullfunnel/handoff/preservation/conflict/replay/restart/historyproofPASS. Rustcrate38911964615 stilltestactive,registrypublicationNOTclaimedyet;actualreleasefullmainCI38911688383+CodeQL38911688710 ongoing. ExistingVSCodeMarketplace step skipped dueunsetVSCE_PAT;no newcredential/grantcreated. Retainin_progress until actualcrate/source-main gates verified.",
+      "created_at": "2026-10-16T14:09:57.437651Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "89234943-ddec-48e8-81f6-f82a862bb853",
+      "author": "home",
+      "text": "Actual release acceptance COMPLETE: Kanbus0.34.0 Python/Rust tags f81b91857a54f8f51e57a1e52a1100288a4781c2; both registries downloaded/checksumverified; crate92production/manifestfiles match tag; isolated registrycratebuild+CLI and Pythonwheelconsumer PASS; all8nativeCLI/consoleassets downloaded/digestsverified and ARMCLI/embeddedconsole consumer PASS. ActualtagAPIbuild+29tests and syntheticProspectusfunnel/handoff/conflict/replay/restart/historyproof PASS. Released-source mainCI38911688383 including coverage/ratchet/smoke/Beads and CodeQL38911688710 ALLPASS. PR403 mainmerge1635f9d. ExistingoptionalVSCodeMarketplace skip becauseVSCE_PATunset, no newcredentials. Broaderstorage/multi-project work unchanged; no IAM/account/data/clouddeployment changes.",
+      "created_at": "2026-10-16T14:27:21.266118Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-16T10:38:49.060782Z",
+  "updated_at": "2026-10-16T14:27:21.556750Z",
+  "closed_at": "2026-10-16T14:27:21.529376Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Kanbus cloud owner",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

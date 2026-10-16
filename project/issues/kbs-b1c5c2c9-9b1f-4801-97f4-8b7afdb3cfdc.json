@@ -1,0 +1,41 @@
+{
+  "id": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "title": "Milestone 5: privately deploy Prospectus through Cyclotron CI/CD",
+  "description": "Set up and verify Prospectus at https://prospectus.cyclotron.anth.us in dedicated cyclotron-production account 682849160744/profile cyclotron-production. Inspect and follow current Cyclotron hosting and CI/CD conventions, including Amplify where appropriate; preserve other sites. Delivery must be reproducible from reviewed source and CI rather than depend on manual content uploads. Verify private CRM access and narrow public intake separately. New persistent access/security grants require specific platform approval; expired sessions must be reported without account/environment substitution. Done when custom-domain TLS, auth, write/readback/reload and automated delivery are verified live, with source tests distinguished from live evidence. Do not assume unrelated merges or a shared Cognito decision.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3b5ec631-1867-49da-845f-e82a1b6d73d3",
+      "author": "home",
+      "text": "Amplify setup correction: standard Gen2 service-role selection/creation and the existing CDKToolkit account bootstrap replace the earlier bespoke deployment-bootstrap proposal. Local code and review tests are being updated; no IAM creation, role assignment, policy expansion, backend deployment or publication is authorized or performed. Account inspection found no Amplify-trusting role and no Prospectus deployment jobs, so the account setup is incomplete and there is no observed deployment failure. Google project/client creation remains owner-deferred until tomorrow. Current changes will stay local and unpushed.",
+      "created_at": "2026-10-14T10:45:02.523877Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Preparation"
+      }
+    }
+  ],
+  "created_at": "2026-10-13T23:46:21.209043Z",
+  "updated_at": "2026-10-14T10:45:02.523902Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": "Prospectus is not live yet; deployment setup and Google authentication remain pending.",
+  "right_now_updated_at": "2026-10-14T16:39:50.316020Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

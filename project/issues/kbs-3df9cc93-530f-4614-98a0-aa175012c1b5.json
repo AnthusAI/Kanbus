@@ -1,0 +1,163 @@
+{
+  "id": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "title": "Make Kanbus pluggable and prove a private Prospectus CRM",
+  "description": "As an application builder, I want Kanbus to provide both a general typed issue/stage/workflow model and reusable boards, feeds, lists, filtered lists and interactions, so vertical applications supply domain types, stages, labels and behavior without duplicating Kanbus.\n\nDeliver five milestones: shared model and UI contracts; interchangeable Virtuus filesystem/EFS and cloud persistence; portable snapshots and catalog recovery; a separate writable Prospectus CRM; and verified private delivery at prospectus.cyclotron.anth.us.\n\nArchitecture decision from Ryan: all canonical issue, history and content payloads live in S3 for cloud storage. DynamoDB contains only query metadata, pointers, revision and hashes. Use convention over configuration, one representation for small and large content, and no DynamoDB inline payload or overflow threshold. Keep canonical raw bytes under the normal Kanbus relative paths: project/issues/<id>.json, project/events/<id>.json, .kanbus.yml and related normal files. Use S3 ETag conditions on those normal files and filesystem hash revisions; keep catalog projection repairable. No canonical envelopes, content-addressed replacement layout or giant revision chain. Any auxiliary recovery journal belongs outside the canonical prefix. Local filesystem/EFS and Git remain valid explicitly selected storage choices.\n\nProspectus configures the normal prospect issue type, funnel statuses, ownership and follow-up fields. Queries and indexes stay general Kanbus contracts. Public marketing sites submit through a configured link or narrow intake API without access to CRM records. Papyrus remains separate; no schema plugin or canceled plugin implementation is revived. Shared Cognito, subscriptions, credits and full Salesforce breadth are future decisions.\n\nAuthorized deployment target: dedicated cyclotron-production account 682849160744 and profile cyclotron-production, after verifying current state and established CI/CD. Preserve other sites. New persistent security/access changes require concrete platform approval. Expired authentication is a blocker, not permission to switch accounts. Default any new remote repository to private and report visibility before publishing. No unrelated merges.\n\nDefinition of done: behavior specifications and independent review; applicable builds/typechecks/tests; real persisted create/update/reload proof; tenant and private-access verification; reproducible CI delivery and verified custom domain; documented exact remaining setup blockers. Source checks and live verification must be reported separately.\n\nPrimary access patterns clarified by Ryan: load a board for one project, all authorized projects, or multiple selected authorized projects; include all issue types or selected types, together with existing stage filters, ordering and pagination. Direct full-ID lookup is a separate point-read path. Every operation is constrained to the authenticated tenant and authorized projects. Target generic Kanbus indexes at these real board access and fanout patterns, and validate them with a meaningful board-load test. Do not add speculative time analytics, S3 Tables or Athena. Multi-project UI is an important future capability; it is not claimed as delivered by the current Prospectus milestone. The S3 canonical raw-byte and exact normal-folder-layout decision remains unchanged.",
+  "type": "initiative",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "32c71d45-a2a8-4cdc-b248-5485bdf05b64",
+      "author": "home",
+      "text": "Planning reconciliation: the eight original local draft IDs were retained, and their earlier local-only/no-deployment scope was replaced by Ryan's explicit implementation and Cyclotron deployment authorization. Subsequent storage decisions supersede overflow chunking, threshold-based attachments and canonical revision-head layouts: S3 always stores exact canonical bytes in the normal Kanbus folder layout, and DynamoDB is metadata/pointers only. S3 ETag CAS applies to normal issue files, with explicit recoverable multi-object partial outcomes. Export is a canonical-prefix copy; import copies normal files then rebuilds the catalog. Any recovery journal lives separately outside the canonical prefix. Virtuus implementation is tracked by virt-d1aa5a17-82df-417c-8353-2d8fcb02e4ef in the isolated Virtuus worktree. Related work is implemented in isolated Kanbus, Virtuus and Prospectus branches. Existing main-checkout Right Now summary changes and llm_usage are intentionally excluded from this board publication to preserve concurrent work; no kbs now command was run during reconciliation.",
+      "created_at": "2026-10-14T00:23:18.519247Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Foundation"
+      }
+    },
+    {
+      "id": "68dbc179-2a47-4ee2-99a8-a13349924441",
+      "author": "home",
+      "text": "Right Now reconciliation: the original main Kanbus checkout still has 25 previously changed issue summaries plus llm_usage.jsonl. The prior run identified these as effects of kbs now, but the available baseline does not establish that no concurrent edits have since touched those files. A wholesale revert could discard legitimate work, and publishing them with this initiative would silently adopt unrelated summaries. Therefore they remain exactly where they were, excluded from the isolated tracking commits and draft PR. No kbs now ran during this reconciliation. Any later cleanup must compare the original pre-run baseline with current issue state and preserve independently authored changes; the present work does not claim they were reverted.",
+      "created_at": "2026-10-14T00:27:50.607764Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Foundation"
+      }
+    },
+    {
+      "id": "c7361e59-a0ff-4993-a92a-17ba952afd62",
+      "author": "home",
+      "text": "Progress: public MIT Prospectus repository created at https://github.com/AnthusAI/Prospectus. Local CRM proof passed 11 unit tests and 2 real-browser tests, including sales to customer-success note and reload. Final Virtuus real AWS baseline and focused delta proofs passed, and real S3 API CRUD proof 01 passed. Hosted authentication and CRM proof remain pending: Google OAuth requested; Ryan will create the Google project/client tomorrow. Amplify development app dnfou6dg4d6x2 has automatic builds disabled and DNS hostname verified in account 682849160744; account 335163751677 was used only for DNS, preserving marketing. Product source remains behind review gates and draft publication is pending; no issues closed.",
+      "created_at": "2026-10-14T01:34:51.708918Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol"
+      }
+    },
+    {
+      "id": "33cb8733-67b1-4af2-a2cb-f7e02e6a7d14",
+      "author": "home",
+      "text": "Source drafts are published: Prospectus #1, Kanbus #399 and Virtuus #33. Public MIT and Google OAuth choices are implemented. Final local proof passed 11 unit and 2 browser tests against latest API and pinned revisions 34315a and 639f873. Kanbus embedded GitHub CI is green; pinned Linux Lambda build passed. The one-line browser CI proxy setup correction passed both tests locally; remote rerun is pending. Hosted Google owner credentials remain the blocker until tomorrow: secret prospectus/proof/oauth/google and callback are documented in Prospectus SETUP_STATUS. No IAM, backend or production deployment changes. Issues remain open pending landing and hosted proof.",
+      "created_at": "2026-10-14T02:32:01.222804Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "AWS proof tracking"
+      }
+    },
+    {
+      "id": "b1821616-e846-49b8-90b5-0a050dcd4093",
+      "author": "home",
+      "text": "Replacement Kanbus/Prospectus work retains the completed tested UI and storage foundation. Current authorized work is local preparation for standard Amplify setup: remove the forced app-specific bootstrap qualifier, update local tests/documentation, and record the deployment hold. Prior five-role bootstrap is superseded, not applied. Source/product/board PRs remain drafts and unmerged; Google OAuth setup is still pending owner creation.",
+      "created_at": "2026-10-14T10:45:02.777852Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Preparation"
+      }
+    },
+    {
+      "id": "9bccbd69-15ad-4b74-8818-5bd0aa893c2c",
+      "author": "home",
+      "text": "MVP status reconciliation from original plan/thread and actual source: deployed main13155d7 contains foundation manual create/read/update, stage progression, owner/date, notes, search, board/list, customer view and Google staff access. Full hosted mutation acceptance remains distinct from passed local/CI proofs. The separate local inquiry MVP (initiativekanbus-090f3f, epickanbus-c25497, storieskanbus-27b52c/ead936/0808e0 in the other owner checkout) was implemented beginning5eebfb5, then hardened9ed6ef6 and36d148d; final intake branch004afc4 includes synthetic CTA form, canonical persistence, email dedupe, provenance, contact correction, dated next actions, due exclusion, same-ID customer handoff and recovery. It has not been published/merged/deployed; public-push approval was denied, and production intake activation/real-S3 fault acceptance remain uncompleted. Original suggested exception view, closure reason and metrics dashboard are not implemented. Demo appointment scheduling, invitations/onboarding, notifications and commercial metering belong later planned scope; central accounts/identity is local prototype work, not shipped CRM. No new MVP implementation or deployment undertaken for this status question.",
+      "created_at": "2026-10-15T15:36:01.178413Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "f78160d9-bda3-4fd0-9958-580d7a34ffa5",
+      "author": "home",
+      "text": "Safe CRM release PR3 passes its application, infrastructure, Linux API and browser checks. Shared UI dependency release is pending its final owner gate, so production remains on the accepted earlier release. Separate Accounts frontend PR4 includes actual service DTOs and explicit unconfigured/loading/empty/error states, no fabricated directory or backend activation; TypeScript and three client checks pass, remote complete-flow CI running. Accounts behavior specifications are in features/accounts-directory.feature. Legacy dedicated deployment removal is verified and tracked in the closed retirement story; private inventory is not published.",
+      "created_at": "2026-10-15T16:53:57.381812Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "acefb9c7-2af2-4619-8ac2-b04c40100190",
+      "author": "home",
+      "text": "CRM release PR3 merged to main at 9c31a5b after final CI38773225377 SUCCESS. Hosted deployment completed all build/deploy/verify steps. Normal HTTPS serves the new frontend with Next action and Anthus branding, no visible Cyclotron label. Same released shared UI0.2.0 source is pinned to merged Kanbus19ac921; API/Virtuus pins unchanged. Public synthetic intake remains disabled. Accounts UI-only PR4 is also merged after final CI38773266387 SUCCESS and is rolling out separately; its backend remains unconfigured and no grants were activated. Current browser-provider failure prevents an independent signed-in hosted mutation proof; disposable real-API/browser proof passed in CI.",
+      "created_at": "2026-10-15T17:21:06.096504Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "689acd44-53d3-4d78-a1b6-7d77ec8eafc3",
+      "author": "home",
+      "text": "Both approved CRM and Accounts frontend releases are now merged and deployed on main a58aeb8. Both complete PR CI runs passed; cloud build/deploy/verify all succeeded. Normal hosted HTTPS serves the final Accounts and Next action assets with Anthus branding and the explicit unconfigured directory message. No account backend or public intake activation/grant. Browser provider and native capture failures prevent independent signed-in hosted UI verification; disposable real-API/browser checks passed. Retirement story is closed; detailed cleanup evidence remains private.",
+      "created_at": "2026-10-15T17:29:00.830449Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "86ad43cf-5eea-40db-bcf3-6c84b25cc04e",
+      "author": "home",
+      "text": "Final post-merge verification completed: Accounts main CI38776506329 SUCCESS with no failed steps. Both release PR CI runs and both main post-merge runs passed; both hosted deployments already succeeded. Coordinator independently verified final hosted assets and the honest unconfigured Accounts state. Backend activation remains pending separate exact approval; no new scope or permissions were added.",
+      "created_at": "2026-10-15T17:31:31.927915Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-13T23:45:48.640812Z",
+  "updated_at": "2026-10-15T17:31:31.927954Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": "The CRM and Accounts releases are deployed, but the backend and public intake remain unconfigured.",
+  "right_now_updated_at": "2026-10-15T22:18:06.862294Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

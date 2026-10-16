@@ -1,0 +1,122 @@
+{
+  "id": "kbs-e86763d9-f230-4dc1-9b98-cb5c66c814b7",
+  "title": "Keep account switching responsive with repeated canonical sessions",
+  "description": "Given a Person has several committed Google sessions, when central identity and account requests resolve current authorization, then immutable canonical records are read once per lookup with bounded concurrency, current session and membership checks remain enforced, and subsequent requests reread authority. Given the live account-switch incident, when latency is measured, then central request timing and exact unwanted-record provenance are recorded without deletion, email-based linking, tokens or nonce output.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f3204051-f3af-46fc-ae97-b303167d3e99",
+      "author": "home",
+      "text": "Central fix b82aa7878d8146a7e59a937d8cbc451d3e0b16ee is draft PR10 https://github.com/AnthusAI/Prospectus/pull/10; required CI38893988589 running, not live. Reproduced old duplicate/serialized reads with failing regressions; 138 canonical tests and75 app tests now PASS plus typecheck and bundle. Request-local immutable reads only; batches4; next request reads fresh authority. Lab warm reload8.535sec and switch8.921sec remain unresolved pending central rollout. Exact Capacity account562ac931-c797-49fb-9831-c035234151bc has three versioned product objects; no deletions or email inference.",
+      "created_at": "2026-10-16T11:37:22.334905Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "ca9c0a4c-f482-457e-a5b7-784bf5941e59",
+      "author": "home",
+      "text": "PR10 merged MAIN b000adf35d55a88203a0226faf9d33759e5ec39b after requiredCI38893988589 PASS. Normal Amplify mainjob12 SUCCEED all stages. Central Lambda Active/Successful LastModified11:50:14UTC, deployed ZIP digest matches e9MyclBt3IYowPbTx7kow+PqvkgWGv8FZcAUrLVu528=; compiled request-local read reuse and both bounded loops verified. Postdeploy lab timings still pending; keep this issue in progress. Exact unwanted account and its three product objects remain intact; private versioned recovery evidence retained.",
+      "created_at": "2026-10-16T11:59:04.775169Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "2aea9929-63e0-4898-b4ff-f3eb366ac8dd",
+      "author": "home",
+      "text": "Postdeploy real lab proof: listing7134ms (central6890), selected reload7089/7304ms, selection8011ms, workspace reads20692/20636ms successful. PR10 is live but latency NOT resolved. Verified exact Person has4session pointers; code still makes12identity helper invocations plus4account reads/list=16helpers per listing, EACHnativeS3init/HeadBucket. No global authority cache added. Remaining transport boundary should reuse native client within an invocation while retaining fresh reads. Separate read-only account-lifecycle inspection found no supported archive/close/delete API, no account lifecycle field, sole-owner revocation rejected, disabled entitlement enforced but no mutation command. Raw storage removal is not an archive contract and leaves4journal controls+3product objects. No account/Person/data mutations.",
+      "created_at": "2026-10-16T12:18:27.152670Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "87e1d4e0-6caf-4284-aefa-6a5871441f3e",
+      "author": "home",
+      "text": "Next measured-path fix is draftProspectusPR11 https://github.com/AnthusAI/Prospectus/pull/11 commit2acb42d2f4da8116accb27ecd4f4c6433abf89b7, fullCI38901593381 running. Nativeget/list uses directcanonical/prefixS3reads; MemoryCatalog is NOT hydrated by scanningS3. Keepone native/S3clientpernamespaceperinvocation, closeonfinish/deadline; noauthoritycache/schema/IAM/registrychange. Scrubbedfixedoperation count/timing records distinguish nativeinitialization, S3operations andbridgecost; nopaths/accounts/identities/tokens/proofs.144 testsPASS,75appPASS3existingoptionalSKIP,typecheck+nativeClippy+Node24bundlePASS. Newactualnative regressions prove oneinit, freshcrossrequestrevocationread, staleCASdenial, close/EOF/oversize/malformedfailclosed. Not deployedyet; liveperformanceproofpending.",
+      "created_at": "2026-10-16T12:52:22.592217Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "a61ae731-7e4c-460d-944e-9854fada0722",
+      "author": "home",
+      "text": "PR11 merged 94f6d4ad57904797fe6beb7a3d4bad0a6a537684 and Amplify job13 SUCCEED at 2026-10-16T13:08:17Z. Actual Lambda ZIP verified against AWS CodeSha256 kfT2l1caJo74G4eHNXWIiA1ISEanMzYE+SjJXxueR1k=; update Active/Successful at13:05:29Z; native stream/timing markers present. First actual Lab post-update samples: selected reload3224ms, successful workspace3746/3944ms.18 observed central requests: one identity storage initialization each,650 sanitized native events,zero failed operations. Still several-second UX, repeated measurements pending. Exact unwanted account preserved; recoverable-close design prepared only, no data/IAM change.",
+      "created_at": "2026-10-16T13:09:31.573930Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "924a595c-963a-4fd0-bb9e-a59fcbfdd939",
+      "author": "home",
+      "text": "Final live validation after PR11/job13: real existing Google flow listing1758/1886ms, selection2358/2646ms, selected reload1973/1990ms, workspace3746–4430ms successful HTTP200/no GraphQL errors, logout1584ms and anonymous workspace denied. Lab UIjob9/e1812e2 no create controls, visible first-login list, immediate named loading,1280/390/320px verified,62UI tests; no physical-iPad/cold-start claim.144 central native/app-scope regressions plus75application tests/3optional skips passed before deployment; current-request authority retained and next requests read fresh.650 observed scrubbed native events across18requests have zero failed ops, one initialization per namespace/request. Exact unwanted account and3productobjects preserved; design-only close proposal and affected-record inventory saved. Incident acceptance complete; several-second workspace UX remains a measured future optimization, not hidden as instant.",
+      "created_at": "2026-10-16T13:13:42.489011Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-16T11:19:14.819835Z",
+  "updated_at": "2026-10-16T13:13:59.945502Z",
+  "closed_at": "2026-10-16T13:13:59.924067Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Kanbus cloud owner",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

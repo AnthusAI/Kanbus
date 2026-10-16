@@ -1,0 +1,41 @@
+{
+  "id": "kbs-9727655b-ff0c-450c-95d0-2cf829cfce56",
+  "title": "Hand won prospects to customer success without losing issue history",
+  "description": "As a customer-success owner, I want won prospects retained with their sales history so follow-up continues after a sale.\n\nFeature: Customer-success handoff\n  Scenario: Continue follow-up after a sale\n    Given a prospect with contact, salesperson ownership, comments and sales history\n    When an authorized user performs the configured customer transition and assigns customer-success follow-up\n    Then the same full Kanbus issue ID and prior history are preserved\n    And the customer-success view uses ordinary configured filters\n    And ownership and next follow-up survive a backend reload",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3e6ec337-13dd-4caa-971d-938db415c2c5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "25951a3e-ab34-4ca5-aa47-ac097204943f",
+      "author": "home",
+      "text": "Backend handoff proof passed against the real local shared Kanbus process with unmodified Prospectus configuration and synthetic data. The prospect begins with salesperson ownership, contact email and a sales-discovery comment; it moves through contacted, qualified, proposal and customer, receives customer-success ownership and an onboarding next action, and survives a process restart/catalog rebuild with the same issue ID, contact and both comments. An ordinary type=prospect/status=customer board query returns the record. A stale write conflicts; replay does not duplicate the handoff comment; conditional deletion retains the audit history.\n\nThe shared runtime is merged through Kanbus PR #399 and Virtuus PR #33. The application owner still owns the customer-success UI acceptance; this records the completed backend portion without claiming that broader application story is closed.\n",
+      "created_at": "2026-10-16T09:29:06.965496Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-13T23:46:22.015355Z",
+  "updated_at": "2026-10-16T09:29:06.965519Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

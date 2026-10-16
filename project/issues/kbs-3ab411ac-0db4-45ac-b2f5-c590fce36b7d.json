@@ -1,0 +1,25 @@
+{
+  "id": "kbs-3ab411ac-0db4-45ac-b2f5-c590fce36b7d",
+  "title": "Reuse configured feeds and lists with the same Kanbus interactions",
+  "description": "As a vertical app builder, I want boards, feeds, lists and filtered lists to share Kanbus data and interactions so domain behavior stays in application configuration.\n\nFeature: Shared Kanbus views\n  Scenario: Consistent configured views\n    Given configured issue types, stage labels and the same issue collection\n    When a host renders a board, feed, list and filtered list\n    Then each view represents the same full issue identities and configured labels\n    And selection and permitted edits use the same host-owned interaction contract\n  Scenario: Domain configuration remains outside the shared implementation\n    Given two hosts with different type and stage configurations\n    When each renders the shared views\n    Then each uses its own configuration without adding domain-specific tables or APIs",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbfec688-e9dc-4dfd-8670-cfbc5c26ff80",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:15.832763Z",
+  "updated_at": "2026-10-14T00:23:15.863933Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

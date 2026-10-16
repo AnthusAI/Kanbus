@@ -1,0 +1,101 @@
+{
+  "id": "kbs-4f00467d-0d85-4915-8e4d-48558ee077d5",
+  "title": "Deliver Prospectus at its private Cyclotron domain through CI/CD",
+  "description": "As a brand operator, I want a separately delivered Prospectus app so public sites integrate through configured links or narrow intake without hosting CRM data.\n\nFeature: Separate Prospectus delivery\n  Scenario: Reproducible delivery\n    Given reviewed source, passing required CI checks and approved platform access\n    When the established Cyclotron delivery workflow runs for Prospectus\n    Then it builds and deploys the app and writable backend to the verified dedicated account\n    And https://prospectus.cyclotron.anth.us serves valid TLS and the expected build\n    And other Cyclotron sites remain unchanged\n  Scenario: Verify the deployed writable path\n    Given an authorized CRM user at the deployed domain\n    When they create and progress a prospect then reload in a fresh session\n    Then the same issue and updated stage are loaded from canonical storage\n    And the verification report distinguishes source checks from live evidence\n  Scenario: Block safely on unavailable platform access\n    Given expired credentials or an unapproved persistent access change\n    When delivery reaches that prerequisite\n    Then the exact prerequisite is reported without changing accounts or bypassing approval",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ec6563c3-ee63-4961-915d-ca1b9acc35cb",
+      "author": "home",
+      "text": "Local preparation authorized: remove the application-forced custom CDK bootstrap qualifier and separate deployment bootstrap template; use standard Amplify Gen2 service-role setup and the account bootstrap. Given the approved Prospectus app and standard account bootstrap, when the backend is synthesized locally, then it uses standard bootstrap asset/deployment references without requiring app-specific bootstrap roles. Given deployment authorization is pending and Google OAuth remains uncreated, when local checks run, then no AWS resources, policies or role assignments change. The existing marketing execution-policy restriction is configuration evidence; there has been no Prospectus deployment job or demonstrated deployment error. Changes and tracking remain local and unpushed.",
+      "created_at": "2026-10-14T10:43:20.726984Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Preparation"
+      }
+    },
+    {
+      "id": "fa142f3e-1ca6-46dd-a6c4-86c763996835",
+      "author": "home",
+      "text": "Owner explicitly authorized standard Amplify role setup and deployment. Account 682849160744 was verified; AmplifyProspectusBackendDeploy was created with AWS-managed AmplifyBackendDeployFullAccess and assigned only to app dnfou6dg4d6x2, with app/account-restricted Amplify trust. Existing marketing/CDK execution policy is unchanged. Google secret metadata now shows AWSCURRENT; no secret values were read. Source commit 861c0d7fa909772f8e234f221b8d426cfb587b07 removes the custom bootstrap requirement; local 18 infrastructure tests, actual offline standard Gen2 synthesis, 11 application tests and production build pass. The public source proof branch is connected. AWS required recreation of the verified empty manual proof branch before repository connection; same app/domain retained and auto-build remains disabled. Authorized Amplify job 1 has started, initially PENDING; this is not a successful hosted deployment claim.",
+      "created_at": "2026-10-14T11:02:39.640696Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Deployment"
+      }
+    },
+    {
+      "id": "e57348e5-abfb-48cd-b10c-172300165936",
+      "author": "home",
+      "text": "Actual deployment checkpoint: job 1 failed before build commands because Amplify could not assume the selected role. AWS documents a branch SourceArn; the role condition was corrected from bare app ARN to exact app/proof branch ARN, retaining the same principal, account and managed policy. Authorized retry job 2 is RUNNING and has passed role assumption, scope verification, shared UI build, typecheck and application tests; pinned Linux Rust packaging is underway. Both remote CI runs at commit 861c0d7fa909772f8e234f221b8d426cfb587b07 passed completely. The recreated branch hostname mapping has been restored; hosted TLS/Google/CRUD acceptance is not yet complete. No additional execution-policy grant or marketing change was made.",
+      "created_at": "2026-10-14T11:11:24.381012Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Deployment"
+      }
+    },
+    {
+      "id": "4e359d96-b65e-4590-83e7-0c035aabfe5b",
+      "author": "home",
+      "text": "Job 2 finished FAILED after successful source checks, pinned Linux Rust packaging and infrastructure checks. Actual CloudFormation denial: existing shared execution role cdk-hnb659fds-cfn-exec-role-682849160744-us-east-1 lacks iam:PassRole on its own exact ARN while creating nested Prospectus stack. Root amplify-dnfou6dg4d6x2-proof-branch-476c8c6dca is ROLLBACK_COMPLETE. This additional persistent execution-role permission has not been applied; existing marketing policy is unchanged. Role assignment/source connection and Google AWSCURRENT metadata are verified. No backend/frontend deployment or hosted Google/CRUD acceptance is claimed. Exact evidence is in Prospectus infra/DEPLOYMENT_EVIDENCE.md. Both source CI runs remain successful; task stays open pending authorization and recovery.",
+      "created_at": "2026-10-14T11:19:24.669056Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Standard Amplify Deployment"
+      }
+    },
+    {
+      "id": "a054ce3b-b20c-405b-9862-9826d37e2397",
+      "author": "home",
+      "text": "Ryan explicitly rejects piecemeal manual IAM configuration and requires a customer clone-and-deploy Amplify product. Pending self-PassRole is not approved and will not be applied. Authorized local preparation will remove customer-code account/app/branch locks and bespoke modifications to Amplify internal helpers, retain runtime storage/auth protections, and separate Cyclotron settings as configuration. Given two independent customer Amplify contexts, when the actual Gen2 backend is synthesized offline, then it uses the standard bootstrap and generated application resources without Cyclotron IDs or manual per-app deployment roles. Given the Cyclotron profile, when synthesized offline, then its existing Google redirect and domain settings are preserved. Account bootstrap correction is one reproducible IaC plan, not serial manual policy patches; no IAM change or deployment retry is authorized yet.",
+      "created_at": "2026-10-14T11:28:16.402695Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus Portable Amplify Correction"
+      }
+    },
+    {
+      "id": "d2ff2ac4-1ad9-47c7-96b3-e071ea1f65a8",
+      "author": "home",
+      "text": "Ryan directly approved the concrete correction with Yes, do it, then Make this work. Applied unchanged-policy dedicated marketing execution role; both marketing stacks rebound using unchanged templates; CDKToolkit restored to standard AdministratorAccess. All operations complete. Recovered failed empty Prospectus root stack. Amplify job 3 RUNNING at exact reviewed source 861c0d7. Marketing source correction preserved in private draft PR AnthusAI/Cyclotron-web#124, unmerged. No hosted success yet. Applied evidence: task-2/account-correction/APPLIED.md.",
+      "created_at": "2026-10-14T12:16:56.908454Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6",
+        "name": "Prospectus"
+      }
+    }
+  ],
+  "created_at": "2026-10-13T23:46:22.253800Z",
+  "updated_at": "2026-10-14T12:17:10.992812Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": "The Prospectus deployment is still running, and no hosted success has been confirmed yet.",
+  "right_now_updated_at": "2026-10-14T12:17:13.946211Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

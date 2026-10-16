@@ -1,0 +1,77 @@
+{
+  "id": "kbs-f06f30aa-8e9e-4b83-9969-a54cf1c8f832",
+  "title": "Google sign-in precedes Prospectus application role assignment",
+  "description": "Given a Google user without a pre-enrolled Prospectus profile, when they sign in, then Cognito creates the federated identity without an invitation and CRM access remains denied until workspace membership is assigned. Given an existing Google identity, when the operator assigns app admin and workspace membership, then refreshed tokens enable the full CRM without a new user, password, invitation or AWS administrator grant. Preserve existing pool and linked identities. Ryan explicitly approved Papyrus-style alignment and admin access for ryan@anth.us. Source 9a7bc5a is deploying in Amplify job 4; tests verify no admission trigger or user-management runtime privileges.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4484cc4c-72a0-42bf-a7ff-bb2cc4bd577a",
+      "author": "home",
+      "text": "Confirmed app administrator grant to the existing Google-linked ryan@anth.us identity: both admin and prospectus-members. No new user, password, invitation, email, pool deletion or AWS IAM admin. Live pre-sign-up trigger removed by job 4 source 9a7bc5a. Operational tracked .kanbus.yml conditionally initialized and verified identical bytes; no prospects seeded. Eight infrastructure and eleven app tests, both types/build and two real filesystem browser persistence tests passed. Amplify job 4 still completing; refresh sign-in for new claims. Hosted member persistence awaits an available authenticated browser session.",
+      "created_at": "2026-10-14T12:47:13.044442Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "9e1852c3-3e85-4f6e-840d-92edea436f40",
+      "author": "home",
+      "text": "Amplify job 4 SUCCEED at 08:48:05 EDT, all phases succeeded for source 9a7bc5a. Published Google-first frontend verified after reload. Ryan administrator grant reverified: admin and prospectus-members on the same Google-linked identity. Anonymous API remains 401. No running AWS operation. Exact-source GitHub CI runs 38565664865 and 38565658799 remain in progress; hosted member CRM persistence awaits an available authenticated session. Intake integration base is 9a7bc5a; API contract unchanged.",
+      "created_at": "2026-10-14T12:49:37.718244Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "d233860f-df23-4139-9d63-2eef3b9a4789",
+      "author": "home",
+      "text": "Final exact-source CI runs 38565664865 and 38565658799 completed success for 9a7bc5a, including Linux packaging and real filesystem browser persistence. Hosted CRM create/move/note/reload remains not attempted: available IAB tab is signed out, and native browser discovery is blocked by the locked Mac. No credentials extracted or new login performed. Administrator grant and job 4 deployment are complete; no merge. Intake integration base 9a7bc5a, unchanged REST contract, local AUTH_INTEGRATION.md.",
+      "created_at": "2026-10-14T12:55:38.392995Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Prospectus",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-14T12:42:34.147591Z",
+  "updated_at": "2026-10-14T12:55:38.393020Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "The deployment grants admin access, but hosted CRM persistence awaits an authenticated browser session.",
+  "right_now_updated_at": "2026-10-14T12:55:41.084077Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
