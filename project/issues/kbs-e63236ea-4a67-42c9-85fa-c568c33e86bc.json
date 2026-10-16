@@ -1,7 +1,7 @@
 {
   "id": "kbs-e63236ea-4a67-42c9-85fa-c568c33e86bc",
-  "title": "README and AGENTS.md document kbs console screenshot, which kbs 0.34.0 does not have",
-  "description": "kbs console --help in 0.34.0 lists snapshot, log, focus and other live-control commands but no screenshot. Either ship the command or remove the documentation.",
+  "title": "kbs console screenshot is missing from the Rust CLI (Python kanbus console screenshot exists)",
+  "description": "Parity gap found in 0.34.0: kanbus console --help (Python) lists screenshot, but kbs console --help (Rust) does not. README and AGENTS.md document kbs console screenshot, so the documented command fails on the recommended CLI. Implement it in Rust to restore parity.",
   "type": "bug",
   "status": "open",
   "priority": 2,
@@ -14,7 +14,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-10-16T14:23:35.409935436Z",
-  "updated_at": "2026-10-16T14:23:35.463282130Z",
+  "updated_at": "2026-10-16T15:49:47.873030406Z",
   "closed_at": null,
   "agent": {
     "platform": "claude-code",
