@@ -1,0 +1,1451 @@
+//! Generic authenticated Kanbus application service.
+
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use chrono::Utc;
+use kanbus::event_history::{
+    event_filename, issue_created_payload, issue_deleted_payload, now_timestamp, EventRecord,
+    EventType,
+};
+use kanbus::hierarchy::validate_parent_child_relationship;
+use kanbus::ids::{generate_issue_identifier, IssueIdentifierRequest};
+use kanbus::models::{IssueData, ProjectConfiguration};
+use kanbus::queries::{filter_issues, search_issues};
+use kanbus::workflows::{
+    apply_transition_side_effects, validate_status_transition, validate_status_value,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, HashSet};
+use virtuus_store::{
+    compare_numbers, CatalogQuery, DeleteMutation, EventObject, JournaledStore, Mutation, Scope,
+    StoreError, StoredObject, WriteCondition,
+};
+
+const MAX_PROJECTS: usize = 8;
+const MAX_STREAMS: usize = 32;
+const MAX_PREDICATES: usize = 16;
+const MAX_CANDIDATES: usize = 1000;
+const MAX_OBJECT_READS: usize = 1000;
+const MAX_ACCEPTED_BYTES: usize = 16 * 1024 * 1024;
+/// Maximum canonical file size accepted by writable application APIs.
+pub const MAX_CANONICAL_OBJECT_BYTES: usize = 2 * 1024 * 1024;
+/// Maximum compact JSON body before gateway string escaping.
+pub const MAX_RESPONSE_BODY_BYTES: usize = 5 * 1024 * 1024 / 2;
+
+#[derive(Default, Serialize)]
+struct ReadBudget {
+    collected_summaries: usize,
+    catalog_candidates_examined: usize,
+    catalog_requests: usize,
+    listed_paths: usize,
+    canonical_objects: usize,
+    canonical_bytes: usize,
+}
+
+impl ReadBudget {
+    fn exceeded(&self, limit: &'static str) -> ApiError {
+        let message = match limit {
+            "event_bytes" | "mutation_bytes" | "object_bytes" => "Canonical content or generated audit history exceeds the API's 2 MiB object limit. Reduce the content size.",
+            _ => "Request exceeds bounded query work; narrow the project/type/status selection or reduce the imported dataset.",
+        };
+        let mut error = ApiError::new(422, "query_budget_exceeded", message);
+        error.cost = Some(json!({"limit":limit,"consumed":self}));
+        error
+    }
+
+    fn summaries(&mut self, count: usize) -> Result<(), ApiError> {
+        self.collected_summaries = self.collected_summaries.saturating_add(count);
+        if self.collected_summaries > MAX_CANDIDATES {
+            return Err(self.exceeded("collected_summaries"));
+        }
+        Ok(())
+    }
+
+    fn before_read(&mut self) -> Result<(), ApiError> {
+        if self.maximum_bytes() == 0 {
+            return Err(self.exceeded("canonical_bytes"));
+        }
+        if self.canonical_objects >= MAX_OBJECT_READS {
+            return Err(self.exceeded("canonical_objects"));
+        }
+        self.canonical_objects += 1;
+        Ok(())
+    }
+
+    fn maximum_bytes(&self) -> usize {
+        MAX_CANONICAL_OBJECT_BYTES.min(MAX_ACCEPTED_BYTES.saturating_sub(self.canonical_bytes))
+    }
+
+    fn read_error(&self, error: StoreError) -> ApiError {
+        match error {
+            StoreError::TooLarge { limit } => {
+                self.exceeded(if limit < MAX_CANONICAL_OBJECT_BYTES {
+                    "canonical_bytes"
+                } else {
+                    "object_bytes"
+                })
+            }
+            error => storage_error(error),
+        }
+    }
+
+    fn accept(&mut self, object: &StoredObject) -> Result<(), ApiError> {
+        self.canonical_bytes = self.canonical_bytes.saturating_add(object.bytes.len());
+        if object.bytes.len() > MAX_CANONICAL_OBJECT_BYTES {
+            return Err(self.exceeded("object_bytes"));
+        }
+        if self.canonical_bytes > MAX_ACCEPTED_BYTES {
+            return Err(self.exceeded("canonical_bytes"));
+        }
+        Ok(())
+    }
+}
+
+/// Safe HTTP error returned without storage or credential internals.
+#[derive(Debug)]
+pub struct ApiError {
+    /// HTTP status code.
+    pub status: u16,
+    /// Stable error category.
+    pub code: &'static str,
+    /// Human-readable explanation.
+    pub message: String,
+    cost: Option<Value>,
+}
+
+impl ApiError {
+    fn new(status: u16, code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            code,
+            message: message.into(),
+            cost: None,
+        }
+    }
+
+    /// Serialize the public error contract.
+    pub fn body(&self) -> Value {
+        let message = if self.message.len() > 4096 {
+            "Request rejected. Validation details exceed supported response limits."
+        } else {
+            &self.message
+        };
+        let mut body = json!({"error":self.code,"message":message});
+        if let Some(cost) = &self.cost {
+            body["cost"] = cost.clone();
+        }
+        body
+    }
+}
+
+fn invalid(message: impl Into<String>) -> ApiError {
+    ApiError::new(400, "invalid_request", message)
+}
+
+fn unsupported_relation_mutation() -> ApiError {
+    ApiError::new(409, "unsupported_relation_mutation", "Relationship changes and hierarchical deletion require related-record concurrency support, which this API does not yet provide.")
+}
+
+fn storage_error(error: StoreError) -> ApiError {
+    match error {
+        StoreError::Conflict => ApiError::new(
+            409,
+            "revision_conflict",
+            "The record changed. Reload it before retrying.",
+        ),
+        StoreError::OperationMismatch => ApiError::new(
+            409,
+            "operation_conflict",
+            "Operation ID already belongs to a different request.",
+        ),
+        StoreError::Invalid(message) => invalid(message),
+        StoreError::TooLarge { .. } => ReadBudget::default().exceeded("object_bytes"),
+        error => {
+            eprintln!("Kanbus storage operation failed: {error}");
+            ApiError::new(
+                503,
+                "storage_unavailable",
+                "Storage is unavailable; the operation may require repair.",
+            )
+        }
+    }
+}
+
+/// Authorize only claims supplied by the configured HTTP API JWT authorizer.
+pub fn authenticate_cloud(event: &Value, required_group: &str) -> Result<String, ApiError> {
+    if required_group.trim().is_empty() {
+        return Err(ApiError::new(
+            503,
+            "auth_configuration",
+            "Member authorization is not configured.",
+        ));
+    }
+    let claims = event
+        .pointer("/requestContext/authorizer/jwt/claims")
+        .ok_or_else(|| ApiError::new(401, "unauthorized", "Verified authorization is required."))?;
+    let actor = claims
+        .get("sub")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| ApiError::new(401, "unauthorized", "Verified subject is required."))?;
+    let groups = claims.get("cognito:groups");
+    let allowed = match groups {
+        Some(Value::Array(values)) => values
+            .iter()
+            .any(|value| value.as_str() == Some(required_group)),
+        Some(Value::String(value)) => value
+            .trim_matches(['[', ']'])
+            .split(|character: char| character == ',' || character.is_ascii_whitespace())
+            .map(|part| part.trim().trim_matches('"'))
+            .any(|part| part == required_group),
+        _ => false,
+    };
+    if !allowed {
+        return Err(ApiError::new(
+            403,
+            "forbidden",
+            "Project membership is required.",
+        ));
+    }
+    Ok(actor.to_string())
+}
+
+/// Authorize an explicitly configured secret for loopback development.
+pub fn authenticate_local(authorization: Option<&str>, secret: &str) -> Result<String, ApiError> {
+    let candidate = authorization
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .unwrap_or("");
+    let candidate_hash = Sha256::digest(candidate.as_bytes());
+    let secret_hash = Sha256::digest(secret.as_bytes());
+    let difference = candidate_hash
+        .iter()
+        .zip(secret_hash.iter())
+        .fold(0u8, |difference, (a, b)| difference | (a ^ b));
+    if secret.is_empty() || candidate.is_empty() || difference != 0 {
+        return Err(ApiError::new(
+            401,
+            "unauthorized",
+            "A valid local bearer secret is required.",
+        ));
+    }
+    Ok("local-member".into())
+}
+
+/// Generic API with a fixed, trusted deployment scope.
+#[derive(Clone)]
+pub struct Api {
+    store: JournaledStore,
+    scope: Scope,
+    namespace: String,
+    authorized: BTreeMap<String, Scope>,
+}
+
+/// Transport-independent request; actor has already passed authorization.
+pub struct ApiRequest {
+    /// HTTP verb.
+    pub method: String,
+    /// Absolute route path.
+    pub path: String,
+    /// Decoded URL parameters.
+    pub query: BTreeMap<String, String>,
+    /// Lowercase HTTP header keys.
+    pub headers: BTreeMap<String, String>,
+    /// Parsed JSON body.
+    pub body: Value,
+    /// Verified member subject.
+    pub actor: String,
+}
+
+/// JSON HTTP response.
+pub struct ApiResponse {
+    /// HTTP response status.
+    pub status: u16,
+    /// JSON response body.
+    pub body: Value,
+}
+
+impl ApiResponse {
+    fn checked(status: u16, body: Value) -> Result<Self, ApiError> {
+        check_response_body(&body)?;
+        Ok(Self { status, body })
+    }
+}
+
+fn check_response_body(body: &Value) -> Result<(), ApiError> {
+    let size = serde_json::to_vec(body).unwrap().len();
+    if size > MAX_RESPONSE_BODY_BYTES {
+        let mut error = ApiError::new(422, "query_budget_exceeded", "Response exceeds the workspace size limit. Select fewer records or contact an administrator for large histories.");
+        error.cost = Some(json!({"limit":"response_bytes","serialized_body_bytes":size}));
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Serialize a bounded HTTP API proxy envelope, including error bodies.
+pub fn api_gateway_response(status: u16, body: Value) -> Value {
+    let (status, body) = match check_response_body(&body) {
+        Ok(()) => (status, body),
+        Err(error) => (error.status, error.body()),
+    };
+    json!({"statusCode":status,"headers":{"content-type":"application/json","cache-control":"no-store"},"body":body.to_string(),"isBase64Encoded":false})
+}
+
+impl Api {
+    /// Bind an API to one authorized tenant/project namespace.
+    pub fn new(store: JournaledStore, namespace: &str) -> Result<Self, ApiError> {
+        let store = store
+            .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)
+            .map_err(storage_error)?;
+        let (tenant, project) = namespace
+            .split_once('/')
+            .ok_or_else(|| invalid("Namespace must be tenant/project."))?;
+        let scope = Scope::new(tenant, project).map_err(|error| invalid(error.to_string()))?;
+        Ok(Self {
+            store,
+            scope: scope.clone(),
+            authorized: BTreeMap::from([(project.into(), scope)]),
+            namespace: namespace.into(),
+        })
+    }
+
+    /// Bind a service to an explicit trusted allowlist within one tenant.
+    pub fn with_projects(
+        store: JournaledStore,
+        tenant: &str,
+        default_project: &str,
+        projects: &[String],
+    ) -> Result<Self, ApiError> {
+        if projects.len() > MAX_PROJECTS {
+            return Err(ReadBudget::default().exceeded("selected_projects"));
+        }
+        let mut api = Self::new(store, &format!("{tenant}/{default_project}"))?;
+        api.authorized.clear();
+        for project in projects {
+            api.authorized.insert(
+                project.clone(),
+                Scope::new(tenant, project).map_err(|error| invalid(error.to_string()))?,
+            );
+        }
+        if !api.authorized.contains_key(default_project) {
+            return Err(invalid("Default project must be authorized."));
+        }
+        if api.authorized.len() > MAX_PROJECTS {
+            return Err(ReadBudget::default().exceeded("selected_projects"));
+        }
+        Ok(api)
+    }
+
+    /// Route an authenticated request through shared Kanbus behavior.
+    pub async fn handle(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
+        if request
+            .query
+            .iter()
+            .map(|(key, value)| key.len().saturating_add(value.len()))
+            .sum::<usize>()
+            > 64 * 1024
+        {
+            return Err(ReadBudget::default().exceeded("query_bytes"));
+        }
+        let projects = self.selected_projects(&request.query)?;
+        let list = request.method == "GET" && request.path.trim_end_matches('/') == "/api/issues";
+        if !list && projects.len() != 1 {
+            return Err(invalid("This route requires one project."));
+        }
+        let mut selected = self.clone();
+        if !list {
+            selected.scope = projects[0].1.clone();
+            selected.namespace = selected.scope.namespace();
+        }
+        selected.route(request).await
+    }
+
+    fn selected_projects(
+        &self,
+        query: &BTreeMap<String, String>,
+    ) -> Result<Vec<(String, Scope)>, ApiError> {
+        if query.contains_key("project") && query.contains_key("projects") {
+            return Err(invalid("Use project or projects, not both."));
+        }
+        let selected = query
+            .get("project")
+            .or_else(|| query.get("projects"))
+            .map(String::as_str);
+        let names: Vec<String> = match selected {
+            Some("*") => self.authorized.keys().cloned().collect(),
+            Some(value) => value.split(',').map(str::to_string).collect(),
+            None => vec![self.namespace.split_once('/').unwrap().1.into()],
+        };
+        let mut projects = BTreeMap::new();
+        for name in names {
+            let scope = self
+                .authorized
+                .get(&name)
+                .ok_or_else(|| ApiError::new(403, "forbidden", "Project is not authorized."))?;
+            projects.insert(name, scope.clone());
+        }
+        if projects.len() > MAX_PROJECTS {
+            return Err(ReadBudget::default().exceeded("selected_projects"));
+        }
+        Ok(projects.into_iter().collect())
+    }
+
+    async fn route(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
+        if request.actor.trim().is_empty() {
+            return Err(ApiError::new(
+                401,
+                "unauthorized",
+                "A verified member is required.",
+            ));
+        }
+        if request.method == "DELETE" {
+            let operation = operation_id(&request)?;
+            if let Some(deleted) = self
+                .store
+                .deletion_operation(&self.scope, &operation, &request_hash(&request))
+                .await
+                .map_err(storage_error)?
+            {
+                return ApiResponse::checked(
+                    200,
+                    json!({"deleted":true,"issue_id":request.path.trim_end_matches('/').rsplit('/').next(),"catalog_pending":deleted.repair_pending}),
+                );
+            }
+        }
+        if matches!(request.method.as_str(), "POST" | "PATCH") {
+            let operation = operation_id(&request)?;
+            if let Some(committed) = self
+                .store
+                .operation(&self.scope, &operation, &request_hash(&request))
+                .await
+                .map_err(storage_error)?
+            {
+                let mut body = issue_response(&committed.stored)?;
+                body["catalog_pending"] = json!(committed.repair_pending);
+                return ApiResponse::checked(200, body);
+            }
+        }
+        if request.method == "GET" && request.path.trim_end_matches('/') == "/api/issues" {
+            return ApiResponse::checked(200, self.list_issues(&request.query).await?);
+        }
+        let configuration = self.configuration().await?;
+        let segments: Vec<_> = request.path.trim_matches('/').split('/').collect();
+        let result = match (request.method.as_str(), segments.as_slice()) {
+            ("GET", ["api", "config"]) => browser_configuration(&configuration, &request.actor)?,
+            ("GET", ["api", "issues"]) => self.list_issues(&request.query).await?,
+            ("POST", ["api", "issues"]) => self.create(&configuration, &request).await?,
+            ("GET", ["api", "issues", identifier]) => {
+                let stored = self.issue(&configuration, identifier).await?;
+                issue_response(&stored)?
+            }
+            ("PATCH", ["api", "issues", identifier]) => {
+                self.update(&configuration, identifier, &request, false)
+                    .await?
+            }
+            ("DELETE", ["api", "issues", identifier]) => {
+                self.delete(&configuration, identifier, &request).await?
+            }
+            ("POST", ["api", "issues", identifier, "comments"]) => {
+                self.update(&configuration, identifier, &request, true)
+                    .await?
+            }
+            ("GET", ["api", "issues", identifier, "events"]) => {
+                self.events(&configuration, identifier).await?
+            }
+            _ => return Err(ApiError::new(404, "not_found", "Route not found.")),
+        };
+        ApiResponse::checked(if request.method == "POST" { 201 } else { 200 }, result)
+    }
+
+    async fn configuration(&self) -> Result<ProjectConfiguration, ApiError> {
+        let stored = self
+            .store
+            .get_bounded(&self.scope, ".kanbus.yml", MAX_CANONICAL_OBJECT_BYTES)
+            .await
+            .map_err(storage_error)?
+            .ok_or_else(|| {
+                ApiError::new(
+                    503,
+                    "configuration_missing",
+                    "Project configuration is missing.",
+                )
+            })?;
+        ReadBudget::default().accept(&stored)?;
+        let configuration: ProjectConfiguration = serde_yaml::from_slice(&stored.bytes)
+            .map_err(|error| ApiError::new(503, "configuration_invalid", error.to_string()))?;
+        safe_relative_path(&configuration.project_directory)?;
+        let errors = kanbus::config_loader::validate_project_configuration(&configuration);
+        if !errors.is_empty() {
+            return Err(ApiError::new(
+                503,
+                "configuration_invalid",
+                errors.join("; "),
+            ));
+        }
+        Ok(configuration)
+    }
+
+    async fn issue(
+        &self,
+        configuration: &ProjectConfiguration,
+        identifier: &str,
+    ) -> Result<StoredObject, ApiError> {
+        let path = issue_path(configuration, identifier)?;
+        let stored = self
+            .store
+            .get_bounded(&self.scope, &path, MAX_CANONICAL_OBJECT_BYTES)
+            .await
+            .map_err(storage_error)?
+            .ok_or_else(|| ApiError::new(404, "not_found", "Issue not found."))?;
+        ReadBudget::default().accept(&stored)?;
+        let raw: Value = serde_json::from_slice(&stored.bytes).map_err(|_| {
+            ApiError::new(503, "invalid_issue", "Canonical issue is not valid JSON.")
+        })?;
+        if raw.get("id").and_then(Value::as_str) != Some(identifier) {
+            return Err(ApiError::new(
+                503,
+                "invalid_issue",
+                "Canonical issue identity does not match its path.",
+            ));
+        }
+        Ok(stored)
+    }
+
+    async fn objects(
+        &self,
+        prefix: &str,
+        budget: &mut ReadBudget,
+    ) -> Result<Vec<(String, StoredObject)>, ApiError> {
+        let mut result = Vec::new();
+        let mut cursor = None;
+        loop {
+            let page = self
+                .store
+                .list(&self.scope, prefix, cursor.as_deref(), 100)
+                .await
+                .map_err(storage_error)?;
+            budget.listed_paths = budget.listed_paths.saturating_add(page.paths.len());
+            if budget.listed_paths > MAX_CANDIDATES {
+                return Err(budget.exceeded("listed_paths"));
+            }
+            for path in page.paths {
+                if !path.ends_with(".json") {
+                    continue;
+                }
+                budget.before_read()?;
+                if let Some(object) = self
+                    .store
+                    .get_bounded(&self.scope, &path, budget.maximum_bytes())
+                    .await
+                    .map_err(|error| budget.read_error(error))?
+                {
+                    budget.accept(&object)?;
+                    result.push((path, object));
+                }
+            }
+            cursor = page.next_cursor;
+            if cursor.is_none() {
+                break;
+            }
+        }
+        Ok(result)
+    }
+
+    async fn list_issues(&self, query: &BTreeMap<String, String>) -> Result<Value, ApiError> {
+        let allowed = [
+            "type", "status", "assignee", "label", "parent", "search", "sort", "limit", "cursor",
+            "fields", "project", "projects", "types",
+        ];
+        if query.keys().any(|key| !allowed.contains(&key.as_str())) {
+            return Err(invalid("Unknown query parameter."));
+        }
+        let predicates: Vec<FieldPredicate> = query
+            .get("fields")
+            .map(|value| serde_json::from_str(value))
+            .transpose()
+            .map_err(|error| invalid(format!("Invalid fields: {error}")))?
+            .unwrap_or_default();
+        if predicates.len() > MAX_PREDICATES {
+            return Err(ReadBudget::default().exceeded("field_predicates"));
+        }
+        for predicate in &predicates {
+            predicate.validate()?;
+        }
+        let limit = query
+            .get("limit")
+            .map(|value| value.parse::<usize>())
+            .transpose()
+            .map_err(|_| invalid("Invalid limit."))?
+            .unwrap_or(100);
+        if !(1..=100).contains(&limit) {
+            return Err(invalid("Limit must be between 1 and 100."));
+        }
+        let mut bound_query = query.clone();
+        bound_query.remove("cursor");
+        let fingerprint = format!(
+            "{:x}",
+            Sha256::digest(
+                format!(
+                    "{}:{}",
+                    self.namespace,
+                    serde_json::to_string(&bound_query).unwrap()
+                )
+                .as_bytes()
+            )
+        );
+        let offset = match query.get("cursor") {
+            None => 0,
+            Some(cursor) => {
+                let bytes = URL_SAFE_NO_PAD
+                    .decode(cursor)
+                    .map_err(|_| invalid("Invalid cursor."))?;
+                let decoded: Cursor =
+                    serde_json::from_slice(&bytes).map_err(|_| invalid("Invalid cursor."))?;
+                if decoded.query != fingerprint {
+                    return Err(invalid("Cursor does not belong to this query."));
+                }
+                decoded.offset
+            }
+        };
+        if query.contains_key("type") && query.contains_key("types") {
+            return Err(invalid("Use type or types, not both."));
+        }
+        let types: Vec<String> = query
+            .get("type")
+            .or_else(|| query.get("types"))
+            .map(|value| value.split(',').map(str::to_string).collect())
+            .unwrap_or_default();
+        if types.iter().any(|value| value.is_empty()) {
+            return Err(invalid("Issue type selection must not be empty."));
+        }
+        let candidate_query = CatalogQuery {
+            issue_types: types.clone(),
+            statuses: query
+                .get("status")
+                .map(|value| vec![value.clone()])
+                .unwrap_or_default(),
+        };
+        let selected_projects = self.selected_projects(query)?;
+        let mut distinct_types = types.clone();
+        distinct_types.sort();
+        distinct_types.dedup();
+        if distinct_types.len() > MAX_PREDICATES
+            || selected_projects
+                .len()
+                .saturating_mul(distinct_types.len().max(1))
+                > MAX_STREAMS
+        {
+            return Err(ReadBudget::default().exceeded("query_streams"));
+        }
+        let mut budget = ReadBudget::default();
+        let mut candidates = Vec::new();
+        for (project, scope) in selected_projects {
+            let mut scoped = self.clone();
+            scoped.namespace = scope.namespace();
+            scoped.scope = scope;
+            let configuration = scoped.configuration().await?;
+            let prefix = format!("{}/issues/", configuration.project_directory);
+            let mut cursor = None;
+            loop {
+                let page = scoped
+                    .store
+                    .query(&scoped.scope, &candidate_query, cursor.as_deref(), 100)
+                    .await
+                    .map_err(storage_error)?;
+                budget.catalog_requests = budget.catalog_requests.saturating_add(page.requests);
+                budget.catalog_candidates_examined = budget
+                    .catalog_candidates_examined
+                    .saturating_add(page.candidates);
+                if budget.catalog_requests > 512 {
+                    return Err(budget.exceeded("catalog_requests"));
+                }
+                if budget.catalog_candidates_examined > 32_000 {
+                    return Err(budget.exceeded("catalog_candidates_examined"));
+                }
+                budget.summaries(page.cards.len())?;
+                for card in page.cards {
+                    if card.path.starts_with(&prefix) {
+                        candidates.push((
+                            scoped.clone(),
+                            project.clone(),
+                            card.path,
+                            prefix.clone(),
+                        ));
+                    }
+                }
+                cursor = page.next_cursor;
+                if cursor.is_none() {
+                    break;
+                }
+            }
+        }
+        let mut matches = Vec::new();
+        for (scoped, project, path, prefix) in candidates {
+            budget.before_read()?;
+            let Some(stored) = scoped
+                .store
+                .get_bounded(&scoped.scope, &path, budget.maximum_bytes())
+                .await
+                .map_err(|error| budget.read_error(error))?
+            else {
+                continue;
+            };
+            budget.accept(&stored)?;
+            let raw: Value = serde_json::from_slice(&stored.bytes)
+                .map_err(|error| ApiError::new(503, "invalid_issue", error.to_string()))?;
+            let issue: IssueData = serde_json::from_value(raw.clone())
+                .map_err(|error| ApiError::new(503, "invalid_issue", error.to_string()))?;
+            if validate_issue_identifier(&issue.identifier).is_err()
+                || path != format!("{prefix}{}.json", issue.identifier)
+            {
+                return Err(ApiError::new(
+                    503,
+                    "invalid_issue",
+                    "Canonical issue identity does not match its path.",
+                ));
+            }
+            if !types.is_empty() && !types.contains(&issue.issue_type) {
+                continue;
+            }
+            let selected = filter_issues(
+                vec![issue.clone()],
+                query.get("status").map(String::as_str),
+                None,
+                query.get("assignee").map(String::as_str),
+                query.get("label").map(String::as_str),
+                query.get("parent").map(String::as_str),
+            );
+            if search_issues(selected, query.get("search").map(String::as_str)).is_empty()
+                || !predicates.iter().all(|predicate| predicate.matches(&raw))
+            {
+                continue;
+            }
+            matches.push((issue, raw, stored.revision, project.clone()));
+        }
+        match query
+            .get("sort")
+            .map(String::as_str)
+            .unwrap_or("updated_at")
+        {
+            "priority" => matches.sort_by(|a, b| {
+                a.0.priority
+                    .cmp(&b.0.priority)
+                    .then_with(|| a.3.cmp(&b.3))
+                    .then_with(|| a.0.identifier.cmp(&b.0.identifier))
+            }),
+            "updated_at" => matches.sort_by(|a, b| {
+                b.0.updated_at
+                    .cmp(&a.0.updated_at)
+                    .then_with(|| a.3.cmp(&b.3))
+                    .then_with(|| a.0.identifier.cmp(&b.0.identifier))
+            }),
+            _ => return Err(invalid("Invalid sort key.")),
+        }
+        let next_offset = offset.saturating_add(limit);
+        let next_cursor = if next_offset < matches.len() {
+            Some(
+                URL_SAFE_NO_PAD.encode(
+                    serde_json::to_vec(&Cursor {
+                        query: fingerprint,
+                        offset: next_offset,
+                    })
+                    .unwrap(),
+                ),
+            )
+        } else {
+            None
+        };
+        let issues: Vec<_> = matches
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .map(|(_, issue, revision, project)| json!({"issue":issue,"revision":revision,"project":project}))
+            .collect();
+        Ok(json!({"issues":issues,"next_cursor":next_cursor,"cost":budget}))
+    }
+
+    async fn create(
+        &self,
+        configuration: &ProjectConfiguration,
+        request: &ApiRequest,
+    ) -> Result<Value, ApiError> {
+        let operation_id = operation_id(request)?;
+        let fields = mutable_fields(&request.body)?;
+        let title = fields
+            .get("title")
+            .and_then(Value::as_str)
+            .filter(|title| !title.trim().is_empty())
+            .ok_or_else(|| invalid("A nonempty title is required."))?;
+        let issue_type = fields
+            .get("type")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("An issue type is required."))?;
+        let identifier = generate_issue_identifier(&IssueIdentifierRequest {
+            title: title.into(),
+            existing_ids: HashSet::new(),
+            prefix: configuration.project_key.clone(),
+            requested_id: None,
+        })
+        .map_err(|error| invalid(error.to_string()))?
+        .identifier;
+        let timestamp = now_timestamp();
+        let mut raw = json!({"id":identifier,"title":title,"description":"","type":issue_type,"status":configuration.initial_status,"priority":configuration.default_priority,"assignee":configuration.assignee,"creator":request.actor,"parent":null,"labels":[],"dependencies":[],"comments":[],"created_at":timestamp,"updated_at":timestamp,"closed_at":null,"custom":{}});
+        for (key, value) in fields {
+            raw[key] = value.clone();
+        }
+        let issue = self.validate(configuration, &raw, None).await?;
+        let effect = apply_transition_side_effects(&issue, &issue.status, issue.created_at);
+        raw["closed_at"] = serde_json::to_value(effect.closed_at).unwrap();
+        let event = EventRecord::new(
+            &issue.identifier,
+            EventType::IssueCreated,
+            &request.actor,
+            issue_created_payload(&issue),
+            timestamp,
+        );
+        self.commit(
+            configuration,
+            raw,
+            WriteCondition::Absent,
+            operation_id,
+            request_hash(request),
+            vec![event],
+        )
+        .await
+    }
+
+    async fn update(
+        &self,
+        configuration: &ProjectConfiguration,
+        identifier: &str,
+        request: &ApiRequest,
+        comment: bool,
+    ) -> Result<Value, ApiError> {
+        let operation_id = operation_id(request)?;
+        let expected = request
+            .headers
+            .get("if-match")
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| ApiError::new(428, "revision_required", "If-Match is required."))?
+            .trim_matches('"')
+            .to_string();
+        let stored = self.issue(configuration, identifier).await?;
+        if stored.revision.trim_matches('"') != expected.trim_matches('"') {
+            return Err(ApiError::new(
+                409,
+                "revision_conflict",
+                "The record changed. Reload it before retrying.",
+            ));
+        }
+        let mut raw: Value =
+            serde_json::from_slice(&stored.bytes).map_err(|error| invalid(error.to_string()))?;
+        let before: IssueData =
+            serde_json::from_value(raw.clone()).map_err(|error| invalid(error.to_string()))?;
+        let timestamp = now_timestamp();
+        let mut events = Vec::new();
+        if comment {
+            let fields = request
+                .body
+                .as_object()
+                .ok_or_else(|| invalid("Expected a JSON object."))?;
+            if fields.len() != 1 {
+                return Err(invalid("Comments accept only text."));
+            }
+            let text = fields
+                .get("text")
+                .and_then(Value::as_str)
+                .filter(|text| !text.trim().is_empty())
+                .ok_or_else(|| invalid("Comment text is required."))?;
+            let comment_id = uuid::Uuid::new_v4().to_string();
+            let comments = raw
+                .get_mut("comments")
+                .and_then(Value::as_array_mut)
+                .ok_or_else(|| invalid("Issue comments are invalid."))?;
+            comments.push(json!({"id":comment_id,"author":request.actor,"text":text,"created_at":timestamp,"comment_type":"default"}));
+            events.push(EventRecord::new(
+                identifier,
+                EventType::CommentAdded,
+                &request.actor,
+                json!({"comment_id":comment_id,"comment_author":request.actor}),
+                timestamp.clone(),
+            ));
+        } else {
+            for (key, value) in mutable_fields(&request.body)? {
+                if key == "custom" {
+                    let custom = value
+                        .as_object()
+                        .ok_or_else(|| invalid("Custom values must be an object."))?;
+                    let target = raw
+                        .get_mut("custom")
+                        .and_then(Value::as_object_mut)
+                        .ok_or_else(|| invalid("Issue custom values are invalid."))?;
+                    for (name, value) in custom {
+                        target.insert(name.clone(), value.clone());
+                    }
+                } else {
+                    raw[key] = value.clone();
+                }
+            }
+        }
+        raw["updated_at"] = json!(timestamp);
+        let after = self.validate(configuration, &raw, Some(&before)).await?;
+        if after.status != before.status {
+            let effect = apply_transition_side_effects(&before, &after.status, Utc::now());
+            raw["closed_at"] = serde_json::to_value(effect.closed_at).unwrap();
+            events.push(EventRecord::new(
+                identifier,
+                EventType::StateTransition,
+                &request.actor,
+                json!({"from_status":before.status,"to_status":after.status}),
+                timestamp.clone(),
+            ));
+        }
+        if !comment {
+            let original: Value = serde_json::from_slice(&stored.bytes).unwrap();
+            let mut changes = Map::new();
+            for (key, value) in raw.as_object().unwrap() {
+                if key != "updated_at"
+                    && key != "status"
+                    && key != "closed_at"
+                    && original.get(key) != Some(value)
+                {
+                    changes.insert(key.clone(), json!({"from":original.get(key),"to":value}));
+                }
+            }
+            if !changes.is_empty() {
+                events.push(EventRecord::new(
+                    identifier,
+                    EventType::FieldUpdated,
+                    &request.actor,
+                    json!({"changes":changes}),
+                    timestamp,
+                ));
+            }
+        }
+        self.commit(
+            configuration,
+            raw,
+            WriteCondition::Revision(stored.revision.clone()),
+            operation_id,
+            request_hash(request),
+            events,
+        )
+        .await
+    }
+
+    async fn validate(
+        &self,
+        configuration: &ProjectConfiguration,
+        raw: &Value,
+        before: Option<&IssueData>,
+    ) -> Result<IssueData, ApiError> {
+        self.validate_mutation_support(configuration).await?;
+        self.validate_issue(configuration, raw, before).await
+    }
+
+    async fn validate_mutation_support(
+        &self,
+        configuration: &ProjectConfiguration,
+    ) -> Result<(), ApiError> {
+        let mut policy_cursor = None;
+        let mut policy_budget = ReadBudget::default();
+        loop {
+            let policies = self
+                .store
+                .list(
+                    &self.scope,
+                    &format!("{}/policies/", configuration.project_directory),
+                    policy_cursor.as_deref(),
+                    100,
+                )
+                .await
+                .map_err(storage_error)?;
+            policy_budget.listed_paths = policy_budget
+                .listed_paths
+                .saturating_add(policies.paths.len());
+            if policy_budget.listed_paths > MAX_CANDIDATES {
+                return Err(policy_budget.exceeded("listed_paths"));
+            }
+            if policies.paths.iter().any(|path| path.ends_with(".policy")) {
+                return Err(ApiError::new(409,"unsupported_project_policy","This API does not yet execute project policies; mutations are disabled for this project."));
+            }
+            policy_cursor = policies.next_cursor;
+            if policy_cursor.is_none() {
+                break;
+            }
+        }
+        if configuration.hooks.enabled
+            && (!configuration.hooks.before.is_empty() || !configuration.hooks.after.is_empty())
+        {
+            return Err(ApiError::new(
+                409,
+                "unsupported_project_hooks",
+                "This API does not execute project hooks; mutations are disabled for this project.",
+            ));
+        }
+        Ok(())
+    }
+
+    async fn validate_issue(
+        &self,
+        configuration: &ProjectConfiguration,
+        raw: &Value,
+        before: Option<&IssueData>,
+    ) -> Result<IssueData, ApiError> {
+        let issue: IssueData =
+            serde_json::from_value(raw.clone()).map_err(|error| invalid(error.to_string()))?;
+        match before {
+            None if issue.parent.is_some() => return Err(unsupported_relation_mutation()),
+            Some(previous)
+                if previous.parent != issue.parent
+                    || previous
+                        .dependencies
+                        .iter()
+                        .map(|link| (&link.target, &link.dependency_type))
+                        .collect::<Vec<_>>()
+                        != issue
+                            .dependencies
+                            .iter()
+                            .map(|link| (&link.target, &link.dependency_type))
+                            .collect::<Vec<_>>() =>
+            {
+                return Err(unsupported_relation_mutation())
+            }
+            Some(previous)
+                if previous.issue_type != issue.issue_type
+                    && (configuration.hierarchy.contains(&previous.issue_type)
+                        || configuration.hierarchy.contains(&issue.issue_type)) =>
+            {
+                return Err(unsupported_relation_mutation())
+            }
+            _ => {}
+        }
+        if issue.title.trim().is_empty() {
+            return Err(invalid("A nonempty title is required."));
+        }
+        if !configuration.types.contains(&issue.issue_type)
+            && !configuration.hierarchy.contains(&issue.issue_type)
+        {
+            return Err(invalid("Unknown issue type."));
+        }
+        if issue.priority < 0
+            || issue.priority > u8::MAX as i32
+            || !configuration
+                .priorities
+                .contains_key(&(issue.priority as u8))
+        {
+            return Err(invalid("Invalid priority."));
+        }
+        validate_status_value(
+            configuration,
+            &issue.issue_type,
+            &issue.status,
+            Some(&issue.identifier),
+        )
+        .map_err(|error| invalid(error.to_string()))?;
+        if let Some(before) = before {
+            if before.status != issue.status {
+                validate_status_transition(
+                    configuration,
+                    &issue.issue_type,
+                    &before.status,
+                    &issue.status,
+                )
+                .map_err(|error| invalid(error.to_string()))?;
+            }
+        }
+        if let Some(parent) = &issue.parent {
+            if parent == &issue.identifier {
+                return Err(invalid("An issue cannot parent itself."));
+            }
+            let parent_object = self.issue(configuration, parent).await?;
+            let parent_issue: IssueData = serde_json::from_slice(&parent_object.bytes)
+                .map_err(|error| invalid(error.to_string()))?;
+            validate_parent_child_relationship(
+                configuration,
+                &parent_issue.issue_type,
+                &issue.issue_type,
+            )
+            .map_err(|error| invalid(error.to_string()))?;
+        }
+        if before.is_some_and(|before| before.issue_type != issue.issue_type) {
+            for (_, object) in self
+                .objects(
+                    &format!("{}/issues/", configuration.project_directory),
+                    &mut ReadBudget::default(),
+                )
+                .await?
+            {
+                let child: IssueData = serde_json::from_slice(&object.bytes)
+                    .map_err(|error| invalid(error.to_string()))?;
+                if child.parent.as_deref() == Some(issue.identifier.as_str()) {
+                    validate_parent_child_relationship(
+                        configuration,
+                        &issue.issue_type,
+                        &child.issue_type,
+                    )
+                    .map_err(|error| invalid(error.to_string()))?;
+                }
+            }
+        }
+        Ok(issue)
+    }
+
+    async fn delete(
+        &self,
+        configuration: &ProjectConfiguration,
+        identifier: &str,
+        request: &ApiRequest,
+    ) -> Result<Value, ApiError> {
+        if !request.body.is_null() {
+            return Err(invalid("DELETE does not accept a request body."));
+        }
+        let expected = request
+            .headers
+            .get("if-match")
+            .filter(|revision| !revision.is_empty())
+            .ok_or_else(|| ApiError::new(428, "revision_required", "If-Match is required."))?
+            .trim_matches('"')
+            .to_string();
+        self.validate_mutation_support(configuration).await?;
+        let stored = self.issue(configuration, identifier).await?;
+        if stored.revision.trim_matches('"') != expected.trim_matches('"') {
+            return Err(storage_error(StoreError::Conflict));
+        }
+        let issue: IssueData =
+            serde_json::from_slice(&stored.bytes).map_err(|error| invalid(error.to_string()))?;
+        if configuration.hierarchy.contains(&issue.issue_type) {
+            return Err(unsupported_relation_mutation());
+        }
+        for (_, object) in self
+            .objects(
+                &format!("{}/issues/", configuration.project_directory),
+                &mut ReadBudget::default(),
+            )
+            .await?
+        {
+            let other: IssueData = serde_json::from_slice(&object.bytes)
+                .map_err(|error| invalid(error.to_string()))?;
+            if other.parent.as_deref() == Some(identifier)
+                || other
+                    .dependencies
+                    .iter()
+                    .any(|dependency| dependency.target == identifier)
+            {
+                return Err(ApiError::new(
+                    409,
+                    "issue_referenced",
+                    "Remove child and dependency references before deleting this issue.",
+                ));
+            }
+        }
+        let event = EventRecord::new(
+            identifier,
+            EventType::IssueDeleted,
+            &request.actor,
+            issue_deleted_payload(&issue),
+            now_timestamp(),
+        );
+        let result = self
+            .store
+            .delete(
+                &self.scope,
+                &DeleteMutation {
+                    path: issue_path(configuration, identifier)?,
+                    expected_revision: stored.revision.clone(),
+                    event_objects: vec![event_object(configuration, &event)?],
+                    operation_id: operation_id(request)?,
+                    request_hash: request_hash(request),
+                },
+            )
+            .await
+            .map_err(storage_error)?;
+        Ok(json!({"deleted":true,"issue_id":identifier,"catalog_pending":result.repair_pending}))
+    }
+
+    async fn commit(
+        &self,
+        configuration: &ProjectConfiguration,
+        raw: Value,
+        condition: WriteCondition,
+        operation_id: String,
+        request_hash: String,
+        events: Vec<EventRecord>,
+    ) -> Result<Value, ApiError> {
+        let identifier = raw["id"].as_str().unwrap();
+        let event_objects = events
+            .iter()
+            .map(|event| event_object(configuration, event))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut fields = BTreeMap::new();
+        for name in [
+            "id",
+            "type",
+            "status",
+            "priority",
+            "assignee",
+            "parent",
+            "created_at",
+            "updated_at",
+        ] {
+            if let Some(value) = raw.get(name) {
+                fields.insert(name.to_string(), value.clone());
+            }
+        }
+        let bytes = json_bytes(&raw);
+        if bytes.len() > MAX_CANONICAL_OBJECT_BYTES {
+            return Err(ReadBudget::default().exceeded("mutation_bytes"));
+        }
+        let mutation = Mutation {
+            path: issue_path(configuration, identifier)?,
+            condition,
+            bytes,
+            content_type: "application/json".into(),
+            event_objects,
+            operation_id,
+            request_hash,
+            fields,
+        };
+        let committed = self
+            .store
+            .commit(&self.scope, &mutation)
+            .await
+            .map_err(storage_error)?;
+        let mut response = issue_response(&committed.stored)?;
+        response["catalog_pending"] = json!(committed.repair_pending);
+        Ok(response)
+    }
+
+    async fn events(
+        &self,
+        configuration: &ProjectConfiguration,
+        identifier: &str,
+    ) -> Result<Value, ApiError> {
+        issue_path(configuration, identifier)?;
+        let mut events = Vec::new();
+        let mut budget = ReadBudget::default();
+        for (_, object) in self
+            .objects(
+                &format!("{}/events/", configuration.project_directory),
+                &mut budget,
+            )
+            .await?
+        {
+            let value: Value = serde_json::from_slice(&object.bytes)
+                .map_err(|error| invalid(error.to_string()))?;
+            if value["issue_id"].as_str() == Some(identifier) {
+                events.push(value);
+            }
+        }
+        events.sort_by(|a, b| {
+            a["occurred_at"]
+                .as_str()
+                .cmp(&b["occurred_at"].as_str())
+                .then_with(|| a["event_id"].as_str().cmp(&b["event_id"].as_str()))
+        });
+        if events.is_empty() {
+            self.issue(configuration, identifier).await?;
+        }
+        Ok(json!({"issue_id":identifier,"events":events,"next_before":null,"cost":budget}))
+    }
+}
+
+fn event_object(
+    configuration: &ProjectConfiguration,
+    event: &EventRecord,
+) -> Result<EventObject, ApiError> {
+    let bytes = json_bytes(event);
+    if bytes.len() > MAX_CANONICAL_OBJECT_BYTES {
+        return Err(ReadBudget::default().exceeded("event_bytes"));
+    }
+    Ok(EventObject {
+        path: format!(
+            "{}/events/{}",
+            configuration.project_directory,
+            event_filename(&event.occurred_at, &event.event_id)
+        ),
+        bytes,
+        content_type: "application/json".into(),
+    })
+}
+
+fn json_bytes(value: &impl Serialize) -> Vec<u8> {
+    let mut bytes = serde_json::to_vec_pretty(value).expect("JSON data is serializable");
+    bytes.push(b'\n');
+    bytes
+}
+
+fn issue_response(stored: &StoredObject) -> Result<Value, ApiError> {
+    let issue: Value =
+        serde_json::from_slice(&stored.bytes).map_err(|error| invalid(error.to_string()))?;
+    Ok(json!({"issue":issue,"revision":stored.revision}))
+}
+
+fn safe_relative_path(path: &str) -> Result<(), ApiError> {
+    if path.is_empty()
+        || path.split('/').any(|part| {
+            part.is_empty()
+                || part == "."
+                || part == ".."
+                || part.contains('\\')
+                || part.contains(':')
+        })
+    {
+        return Err(invalid("Project directory must be a safe relative path."));
+    }
+    Ok(())
+}
+
+fn issue_path(configuration: &ProjectConfiguration, identifier: &str) -> Result<String, ApiError> {
+    validate_issue_identifier(identifier)?;
+    Ok(format!(
+        "{}/issues/{identifier}.json",
+        configuration.project_directory
+    ))
+}
+
+fn validate_issue_identifier(identifier: &str) -> Result<(), ApiError> {
+    if identifier.is_empty()
+        || matches!(identifier, "." | "..")
+        || !identifier.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.')
+        })
+    {
+        return Err(invalid("A full issue identifier is required."));
+    }
+    Ok(())
+}
+
+fn mutable_fields(body: &Value) -> Result<&Map<String, Value>, ApiError> {
+    let fields = body
+        .as_object()
+        .ok_or_else(|| invalid("Expected a JSON object."))?;
+    if fields.contains_key("dependencies") {
+        return Err(unsupported_relation_mutation());
+    }
+    let allowed = [
+        "title",
+        "description",
+        "type",
+        "status",
+        "priority",
+        "assignee",
+        "parent",
+        "labels",
+        "custom",
+    ];
+    if fields.keys().any(|key| !allowed.contains(&key.as_str())) {
+        return Err(invalid("Request contains a protected or unknown field."));
+    }
+    Ok(fields)
+}
+
+fn operation_id(request: &ApiRequest) -> Result<String, ApiError> {
+    let value = request
+        .headers
+        .get("x-operation-id")
+        .ok_or_else(|| invalid("X-Operation-Id is required."))?;
+    uuid::Uuid::parse_str(value).map_err(|_| invalid("X-Operation-Id must be a UUID."))?;
+    Ok(value.clone())
+}
+
+#[derive(Serialize, Deserialize)]
+struct Cursor {
+    query: String,
+    offset: usize,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FieldPredicate {
+    field: String,
+    operator: String,
+    value: Value,
+}
+
+impl FieldPredicate {
+    fn validate(&self) -> Result<(), ApiError> {
+        if !self.field.starts_with("custom.")
+            || self.field.split('.').any(|part| {
+                part.is_empty()
+                    || !part
+                        .chars()
+                        .all(|character| character.is_ascii_alphanumeric() || character == '_')
+            })
+        {
+            return Err(invalid("Field paths must name custom scalar fields."));
+        }
+        if !["eq", "lt", "lte", "gt", "gte"].contains(&self.operator.as_str())
+            || self.value.is_object()
+            || self.value.is_array()
+        {
+            return Err(invalid("Invalid field predicate."));
+        }
+        Ok(())
+    }
+    fn matches(&self, raw: &Value) -> bool {
+        let mut current = raw;
+        for segment in self.field.split('.') {
+            let Some(value) = current.get(segment) else {
+                return false;
+            };
+            current = value;
+        }
+        if self.operator == "eq" {
+            return if current.is_number() && self.value.is_number() {
+                compare_numbers(current, &self.value) == Some(std::cmp::Ordering::Equal)
+            } else {
+                current == &self.value
+            };
+        }
+        let ordering = match (current, &self.value) {
+            (Value::String(a), Value::String(b)) => Some(a.cmp(b)),
+            (Value::Number(_), Value::Number(_)) => compare_numbers(current, &self.value),
+            _ => None,
+        };
+        ordering.is_some_and(|order| match self.operator.as_str() {
+            "lt" => order.is_lt(),
+            "lte" => order.is_le(),
+            "gt" => order.is_gt(),
+            "gte" => order.is_ge(),
+            _ => false,
+        })
+    }
+}
+
+fn request_hash(request: &ApiRequest) -> String {
+    format!("{:x}", Sha256::digest(json!({"method":request.method,"path":request.path,"body":request.body,"actor":request.actor,"revision":request.headers.get("if-match")}).to_string().as_bytes()))
+}
+
+fn browser_configuration(
+    configuration: &ProjectConfiguration,
+    actor: &str,
+) -> Result<Value, ApiError> {
+    let serialized =
+        serde_json::to_value(configuration).map_err(|error| invalid(error.to_string()))?;
+    let mut safe = Map::new();
+    for key in [
+        "project_key",
+        "project_directory",
+        "name",
+        "hierarchy",
+        "types",
+        "workflows",
+        "transition_labels",
+        "initial_status",
+        "priorities",
+        "default_priority",
+        "assignee",
+        "time_zone",
+        "statuses",
+        "categories",
+        "sort_order",
+        "type_colors",
+    ] {
+        if let Some(value) = serialized.get(key) {
+            safe.insert(key.into(), value.clone());
+        }
+    }
+    safe.insert("actor_id".into(), json!(actor));
+    Ok(Value::Object(safe))
+}

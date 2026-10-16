@@ -9,6 +9,40 @@ permissions:
   contents: write
 
 jobs:
+  embedded-kanbus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      - name: Verify reusable UI behavior specs
+        working-directory: packages/ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm test
+
+      - name: Set up API Rust toolchain
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Verify API and Lambda targets
+        working-directory: services/kanbus-api
+        run: |
+          cargo fmt --check
+          cargo test --locked --all-features --all-targets
+          cargo clippy --locked --all-features --all-targets -- -D warnings
+
   python:
     runs-on: ubuntu-latest
     outputs:

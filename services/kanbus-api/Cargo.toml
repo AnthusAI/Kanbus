@@ -1,0 +1,42 @@
+[package]
+name = "kanbus-api"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+
+[features]
+default = []
+aws = ["virtuus-store/aws", "dep:aws-config", "dep:aws-sdk-s3", "dep:aws-sdk-dynamodb"]
+
+[dependencies]
+kanbus = { path = "../../rust", default-features = false }
+virtuus-store = { git = "https://github.com/AnthusAI/Virtuus.git", rev = "6c9bcf03d999e7fb344d7b777e50b71f1750224f", package = "virtuus-store" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
+serde_yaml = "0.9"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+axum = "0.7"
+lambda_runtime = "0.9"
+base64 = "0.22"
+sha2 = "0.10"
+url = "2"
+
+aws-config = { version = "1", optional = true }
+aws-sdk-s3 = { version = "1", optional = true, default-features = false, features = ["rt-tokio", "rustls", "default-https-client"] }
+aws-sdk-dynamodb = { version = "1", optional = true }
+
+[dev-dependencies]
+async-trait = "0.1"
+tempfile = "3"
+
+[[bin]]
+name = "kanbus-api-local"
+path = "src/bin/local.rs"
+
+[[bin]]
+name = "kanbus-api-lambda"
+path = "src/bin/lambda.rs"
+required-features = ["aws"]
