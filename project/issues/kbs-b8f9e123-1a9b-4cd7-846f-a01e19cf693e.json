@@ -3,7 +3,7 @@
   "title": "Specify router-aware semantic statuses in shared Gherkin",
   "description": "Define the behavior contract for router-aware status configuration in shared Gherkin. Canonical semantic categories are todo, in_progress, in_review, blocked, and done. A status may set router: true to mark the canonical router status for its semantic category. Require unique router-marked statuses per category and exactly one of each category when the router is enabled. Unmarked todo statuses must not become dispatch candidates or router transition targets. Specify that router.workflow is rejected after migration. Cover missing or duplicate markers, unsupported categories, Discovery intake, Ready exclusion, lifecycle destinations, and configured transition validation. Acceptance: both Behave and Rust Cucumber can parse the scenarios, and the scenarios fail against the old exact-key workflow configuration for the expected reasons.",
   "type": "story",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -22,12 +22,24 @@
         "model": "Claude Opus 5.5",
         "name": "Issue Router"
       }
+    },
+    {
+      "id": "4601c3a9-18c4-4fa7-b395-5eaf941161b6",
+      "author": "home",
+      "text": "Stopped 2026-10-16. Ryan: removing router.workflow was a misunderstanding caused by a misdirected message (the same cause as the 2026-09-24 revert of PRs #366/#367); router.workflow is critical and stays. This ticket's removal language is wrong and must be rewritten or the ticket closed before any further work. The branches spec/state-native-router-statuses and feat/state-native-router-config and draft PR #406 implement the removal and must not merge.",
+      "created_at": "2026-10-16T19:07:27.897201Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Issue Router"
+      }
     }
   ],
   "created_at": "2026-09-18T16:17:35.120738Z",
-  "updated_at": "2026-10-16T18:02:41.459213Z",
+  "updated_at": "2026-10-16T19:07:35.107508Z",
   "closed_at": null,
-  "right_now_summary": "The router-aware status spec is on a branch with lifecycle rules and cross-runner tests being finalized.",
-  "right_now_updated_at": "2026-10-16T18:02:44.047250Z",
+  "right_now_summary": "Work is paused until the ticket is corrected or closed because router.workflow must remain.",
+  "right_now_updated_at": "2026-10-16T19:07:36.963098Z",
   "custom": {}
 }
