@@ -25,10 +25,25 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "3e90842d-3313-4420-84a5-b0699936841e",
+      "author": "home",
+      "text": "The reusable foundation is merged:\n\n- Virtuus PR #33: 8d53b6e78d763b503ef5c4c9305a41ae2e8ee7a2.\n- Kanbus PR #399: 57b5e770470130e641dc3df8a99093b9ebc1e405.\n- Required hosted validation passed, including the all-feature store 100% source gate, shared UI behavior, standalone console, coverage ratchet, binary smoke and Beads interoperability.\n\nThe API manifest and lock agree on immutable store commit 6c9bcf03d999e7fb344d7b777e50b71f1750224f, verified as an ancestor of merged Virtuus develop. Later producer commits change only tests, documentation and coverage tooling; runtime sources and dependency configuration are unchanged. The shared UI matches the existing canonical package exactly, with no duplicate extraction.\n\nThe service AMPLIFY.md guide documents normal Gen2/CDK composition and automatic configuration seeding. Actual local HTTP proof using unmodified Prospectus configuration passes workflow transitions, ownership/next-action changes, conflict rejection, replay, restart persistence, configured customer filtering and retained history. Earlier isolated real S3/DynamoDB evidence remains separately recorded. This increment did not add a fresh EFS deployment trial, so the broader multi-backend story remains open for its remaining acceptance.\n",
+      "created_at": "2026-10-16T09:29:06.840072Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
     }
   ],
   "created_at": "2026-10-14T00:23:16.066399Z",
-  "updated_at": "2026-10-16T07:32:55.106512Z",
+  "updated_at": "2026-10-16T09:29:06.840093Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

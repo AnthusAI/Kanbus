@@ -10,9 +10,25 @@
   "parent": "kbs-3e6ec337-13dd-4caa-971d-938db415c2c5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "25951a3e-ab34-4ca5-aa47-ac097204943f",
+      "author": "home",
+      "text": "Backend handoff proof passed against the real local shared Kanbus process with unmodified Prospectus configuration and synthetic data. The prospect begins with salesperson ownership, contact email and a sales-discovery comment; it moves through contacted, qualified, proposal and customer, receives customer-success ownership and an onboarding next action, and survives a process restart/catalog rebuild with the same issue ID, contact and both comments. An ordinary type=prospect/status=customer board query returns the record. A stale write conflicts; replay does not duplicate the handoff comment; conditional deletion retains the audit history.\n\nThe shared runtime is merged through Kanbus PR #399 and Virtuus PR #33. The application owner still owns the customer-success UI acceptance; this records the completed backend portion without claiming that broader application story is closed.\n",
+      "created_at": "2026-10-16T09:29:06.965496Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-13T23:46:22.015355Z",
-  "updated_at": "2026-10-14T00:23:14.999402Z",
+  "updated_at": "2026-10-16T09:29:06.965519Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
