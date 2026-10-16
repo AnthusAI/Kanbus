@@ -10,9 +10,24 @@
   "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "cff4f22f-4875-48bd-a696-e4b6b9b2a573",
+      "author": "home",
+      "text": "PR9 passed all 29 required CI steps and merged to main as 3c90214afd312ed7dd9ef5912fedfe8eb7913da5 at 2026-10-16 07:25 UTC. Automatic Amplify job 11 is running against this exact commit. Deployment and console owner login proof remain pending; no IAM, registry or OAuth settings changed.",
+      "created_at": "2026-10-16T07:31:43.267912Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-16T07:07:32.920614Z",
-  "updated_at": "2026-10-16T07:07:59.219397Z",
+  "updated_at": "2026-10-16T07:31:43.267988Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
@@ -24,5 +39,8 @@
   },
   "right_now_summary": null,
   "right_now_updated_at": null,
-  "custom": {}
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
 }
