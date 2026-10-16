@@ -3,7 +3,7 @@
   "title": "Router container smoke test 19fa9c173c50",
   "description": "Disposable live integration task. Generate exactly three short paragraphs of Lorem ipsum placeholder text. Post them as one issue comment beginning with KANBUS-ROUTER-TEST:19fa9c173c50 using the router result issue_comments field. Do not change source files or any other issue. Do not claim the integration suite passed; this task only proves that a real board issue was dispatched and its comment was published.",
   "type": "task",
-  "status": "review",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -26,13 +26,25 @@
       "text": "## Agent turn complete\n\nFake agent completed the disposable task.\n\n- Checkpoint: `refs/kanbus/router/checkpoints/kbs-5e94f099-182a-45cb-8a63-8347174f3d11`",
       "created_at": "2026-09-23T20:00:01.306083755Z",
       "comment_type": "default"
+    },
+    {
+      "id": "447f2599-df73-416a-b05c-844db3f1bd5c",
+      "author": "home",
+      "text": "Disposable harness fixture from the September router container runs. Validation is complete (PR #362), so this fixture is no longer needed for inspection. Closing in WIP cleanup.",
+      "created_at": "2026-10-16T16:39:19.394386Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-23T19:58:05.764871Z",
-  "updated_at": "2026-09-23T20:00:13.688585302Z",
-  "closed_at": null,
-  "right_now_summary": null,
-  "right_now_updated_at": null,
+  "updated_at": "2026-10-16T16:39:26.173205Z",
+  "closed_at": "2026-10-16T16:39:26.144656Z",
+  "right_now_summary": "The router posted the required three-paragraph comment, and the disposable fixture is being removed.",
+  "right_now_updated_at": "2026-10-16T16:39:27.861953Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

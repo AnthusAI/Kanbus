@@ -3,7 +3,7 @@
   "title": "Run hard-lease integration with isolated router workers and test tasks",
   "description": "Provision an isolated Kanbus test project and one routed test task. Run two independent router-worker processes against the same MQTT broker and Mutex API. Assert one hard acquire/transition succeeds, the competitor receives the documented contention response and performs no task transition, expiry permits takeover, and disabling Mutex permits documented soft duplicate work. Capture logs and clean only generated fixture data.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -24,13 +24,25 @@
       "text": "Activated after the successful single-worker router test. Begin isolated-worker hard-lease integration using disposable test tasks; capture acquire contention, expiry/takeover, and soft-provider behavior without changing real board tasks.",
       "created_at": "2026-09-18T10:57:48.800630Z",
       "comment_type": "default"
+    },
+    {
+      "id": "e538114c-ef44-44e8-af9f-ad7f1609d6cf",
+      "author": "home",
+      "text": "Done: PR #362 (2026-09-23) records the two-worker live run: exactly one hard start, the loser got the documented 'package already claimed' contention response with no transition, expiry permitted takeover, and soft-duplicate behavior with Mutex disabled matched the documented behavior. Closing.",
+      "created_at": "2026-10-16T16:37:31.087203Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-17T00:55:24.620070Z",
-  "updated_at": "2026-09-18T10:57:48.800682Z",
-  "closed_at": null,
-  "right_now_summary": "The isolated two-worker hard-lease test is starting with disposable tasks and captured contention logs.",
-  "right_now_updated_at": "2026-09-18T10:57:51.422491Z",
+  "updated_at": "2026-10-16T16:37:37.376626Z",
+  "closed_at": "2026-10-16T16:37:37.346032Z",
+  "right_now_summary": "PR #362 records one winner, no loser transition, expiry takeover, and documented soft duplicate work.",
+  "right_now_updated_at": "2026-10-16T16:37:40.480618Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

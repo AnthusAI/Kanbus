@@ -3,7 +3,7 @@
   "title": "Level 3: Mutex API (API Gateway + DynamoDB, no Lambda)",
   "description": "## Goal\n\nLevel 3: Optional hard mutex for workloads where duplicate execution has significant consequences (for example one Spoticus scheduling epoch).\n\n## Primitive\n\nAtomically create/claim resource X if and only if nobody currently owns X. Only one competing request succeeds.\n\n## Proposed implementation\n\nWorker → API Gateway REST API → direct DynamoDB service integration.\n\n- No Lambda\n- No AppSync\n- API Gateway assumes a narrowly scoped IAM role and performs a DynamoDB conditional write\n- Workers need credentials for the Kanbus Mutex API, not AWS account credentials\n\n## Storage\n\nDynamoDB holds only **active** coordination state, not Kanbus history. Conceptual fields: resource_id, owner_id, claim_id, revision, claimed_at, expires_at. Delete on complete. DynamoDB TTL for abandoned leases. Even a busy install should have dozens to hundreds of live records.\n\nTiny API: acquire, renew, release, perhaps inspect. Prototype and measure actual request cost.\n\n## Depends on\n\nProtocol Gherkin. Git and MQTT remain fallbacks when this provider is not configured.\n\n## Acceptance\n\nGherkin for acquire/renew/release/inspect and failed conditional checks; dual-runtime client; Git-only and MQTT-only installs unchanged.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -17,18 +17,30 @@
       "text": "The production Level 3 API and dual-runtime client are deployed; this epic is now active alongside hard-lease integration validation. Request-cost measurement remains tracked separately in kbs-357ca650.",
       "created_at": "2026-09-18T10:57:19.737314Z",
       "comment_type": "default"
+    },
+    {
+      "id": "d9ed9f1b-29e0-43e4-8fd5-cc531ce34290",
+      "author": "home",
+      "text": "Mutex API and dual-runtime client are deployed; the only remaining child is kbs-357ca6 (request-cost measurement), which is in backlog. Moving out of In Progress until that starts.",
+      "created_at": "2026-10-16T16:41:40.427022Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-14T13:33:10.231570708Z",
-  "updated_at": "2026-09-18T10:57:19.737359Z",
+  "updated_at": "2026-10-16T16:41:43.255791Z",
   "closed_at": null,
   "agent": {
     "platform": "grok_bot",
     "model": "grok-4.6",
     "name": "Kanbus"
   },
-  "right_now_summary": "The production API and dual-runtime clients are deployed, with hard-lease integration validation underway.",
-  "right_now_updated_at": "2026-09-18T10:57:21.367362Z",
+  "right_now_summary": "The API and clients are deployed; hard-lease validation continues, while cost measurement awaits.",
+  "right_now_updated_at": "2026-10-16T16:41:45.431957Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"
