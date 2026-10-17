@@ -12,9 +12,7 @@ const SiteFooter = () => {
   return (
     <AnthusFooter
       siteId="kanbus"
-      subtitle="Part of the Anthus Platform"
       description="Kanbus orchestrates AI agent workloads with durable boards, workflow visibility, and operational guardrails for multi-agent delivery."
-      byline="Built by Anthus AI Solutions"
       additionalColumns={[
         {
           title: "Features",
