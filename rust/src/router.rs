@@ -4132,6 +4132,33 @@ fn run_issue_router_once(
     Ok(output)
 }
 
+const GITHUB_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const GITHUB_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const WATCH_POLL_BACKOFF_CEILING_SECONDS: u64 = 300;
+
+fn is_transient_github_polling_error(error: &KanbusError) -> bool {
+    let KanbusError::IssueOperation(message) = error else {
+        return false;
+    };
+    let Some(detail) = message.strip_prefix("GitHub pull request polling failed") else {
+        return false;
+    };
+    match detail.strip_prefix(" with status ") {
+        Some(status) => status
+            .split_whitespace()
+            .next()
+            .and_then(|code| code.parse::<u16>().ok())
+            .is_some_and(|code| code == 429 || (500..600).contains(&code)),
+        None => detail.starts_with(':'),
+    }
+}
+
+fn watch_poll_backoff_seconds(interval_seconds: u64, consecutive_failures: u32) -> u64 {
+    interval_seconds
+        .saturating_mul(1_u64 << consecutive_failures.clamp(1, 16))
+        .min(WATCH_POLL_BACKOFF_CEILING_SECONDS)
+}
+
 fn run_issue_router_watch(
     root: &Path,
     router: &IssueRouterConfiguration,
@@ -4211,6 +4238,7 @@ fn run_issue_router_watch(
     );
     let mut next_scheduler_renew = Instant::now() + scheduler_renewal;
     let mut output = String::new();
+    let mut consecutive_poll_failures = 0_u32;
     loop {
         local = read_local_router_state(root)?;
         if local.stop_requested {
@@ -4226,15 +4254,25 @@ fn run_issue_router_watch(
         }
         let mut run_cycle = false;
         if Instant::now() >= next_poll {
-            if let Err(error) =
-                reconcile_github_pull_requests(root, project_dir, router, &forge, &configuration)
+            match reconcile_github_pull_requests(root, project_dir, router, &forge, &configuration)
             {
-                release_watch_scheduler_claim(root, project_dir, &configuration)?;
-                clear_watch_router_state(root)?;
-                return Err(error);
+                Ok(()) => {
+                    consecutive_poll_failures = 0;
+                    next_poll = Instant::now() + Duration::from_secs(interval);
+                    run_cycle = true;
+                }
+                Err(error) if is_transient_github_polling_error(&error) => {
+                    consecutive_poll_failures = consecutive_poll_failures.saturating_add(1);
+                    let backoff = watch_poll_backoff_seconds(interval, consecutive_poll_failures);
+                    eprintln!("router watch: {error}; retrying in {backoff}s");
+                    next_poll = Instant::now() + Duration::from_secs(backoff);
+                }
+                Err(error) => {
+                    release_watch_scheduler_claim(root, project_dir, &configuration)?;
+                    clear_watch_router_state(root)?;
+                    return Err(error);
+                }
             }
-            next_poll = Instant::now() + Duration::from_secs(interval);
-            run_cycle = true;
         }
         if run_cycle {
             match run_issue_router_once(root, router, project_dir) {
@@ -6458,6 +6496,8 @@ impl GitHubForge {
             .ok_or_else(|| KanbusError::Configuration("router.forge is required".to_string()))?;
         let client = reqwest::blocking::Client::builder()
             .user_agent("kanbus-issue-router")
+            .connect_timeout(GITHUB_CONNECT_TIMEOUT)
+            .timeout(GITHUB_REQUEST_TIMEOUT)
             .build()
             .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
         Ok(Self {
@@ -7480,6 +7520,37 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[test]
+    fn only_network_and_server_side_github_failures_are_transient() {
+        let issue = |message: &str| KanbusError::IssueOperation(message.to_string());
+        assert!(is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed: connection reset"
+        )));
+        assert!(is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed with status 500 Internal Server Error"
+        )));
+        assert!(is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed with status 429 Too Many Requests"
+        )));
+        assert!(!is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed with status 401 Unauthorized"
+        )));
+        assert!(!is_transient_github_polling_error(&issue(
+            "stale router scheduler claim; no current local lease is recorded"
+        )));
+        assert!(!is_transient_github_polling_error(
+            &KanbusError::Configuration("router.forge is required".to_string())
+        ));
+    }
+
+    #[test]
+    fn watch_poll_backoff_doubles_and_is_capped() {
+        assert_eq!(watch_poll_backoff_seconds(30, 1), 60);
+        assert_eq!(watch_poll_backoff_seconds(30, 2), 120);
+        assert_eq!(watch_poll_backoff_seconds(30, 10), 300);
+        assert_eq!(watch_poll_backoff_seconds(30, 200), 300);
     }
 
     #[test]
