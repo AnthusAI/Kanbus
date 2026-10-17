@@ -165,6 +165,11 @@ async fn main() {
             {
                 return false;
             }
+            let scenario_is_skipped = scenario.tags.iter().any(|tag| tag == "skip");
+            let feature_is_skipped = feature.tags.iter().any(|tag| tag == "skip");
+            if scenario_is_skipped || feature_is_skipped {
+                return false;
+            }
             let scenario_has_wip = scenario.tags.iter().any(|tag| tag == "wip");
             let feature_has_wip = feature.tags.iter().any(|tag| tag == "wip");
             let scenario_has_console = scenario.tags.iter().any(|tag| tag == "console");
