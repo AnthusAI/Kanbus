@@ -45,6 +45,13 @@ impl FileStore {
         Self { root: root.into() }
     }
 
+    /// Return true when a tenant path segment is a safe directory name.
+    pub fn is_valid_tenant_segment(segment: &str) -> bool {
+        let mut characters = segment.chars();
+        matches!(characters.next(), Some(first) if first.is_ascii_alphanumeric())
+            && characters.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    }
+
     /// Resolve a tenant root under a shared base directory.
     pub fn resolve_tenant_root(base: &Path, account: &str, project: &str) -> PathBuf {
         base.join(account).join(project)
@@ -804,6 +811,16 @@ mod tests {
             Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
             None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
         }
+    }
+
+    #[test]
+    fn tenant_segment_validation_rejects_traversal_and_separators() {
+        assert!(FileStore::is_valid_tenant_segment("anthus-1_x"));
+        assert!(!FileStore::is_valid_tenant_segment(".."));
+        assert!(!FileStore::is_valid_tenant_segment("../x"));
+        assert!(!FileStore::is_valid_tenant_segment("a/b"));
+        assert!(!FileStore::is_valid_tenant_segment("-a"));
+        assert!(!FileStore::is_valid_tenant_segment(""));
     }
 
     #[test]

@@ -50,6 +50,10 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     }
     let account = segments[0];
     let project = segments[1];
+    if !FileStore::is_valid_tenant_segment(account) || !FileStore::is_valid_tenant_segment(project)
+    {
+        return error_response("invalid tenant path segment", StatusCode::BAD_REQUEST);
+    }
     let store_root = resolve_store_root(Path::new(EFS_ROOT), account, project);
     let store = FileStore::new(store_root);
     if segments.len() < 3 {
