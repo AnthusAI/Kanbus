@@ -4,6 +4,9 @@ ignore_paths:
 console_port: 4242
 project_key: kbs
 name: Kanbus
+methodologies:
+  - bdd
+  - git-flow
 
 hierarchy:
   - initiative

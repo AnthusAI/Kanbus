@@ -1,0 +1,20 @@
+{
+  "id": "kbs-1031b039-9a98-4f03-bb0c-6795dce7074f",
+  "title": "Milestone 3: methodology tools, proven with CRAP reduction",
+  "description": "## Purpose\n\nLet a methodology ship tools, so an installation that adopts it also learns how to run them. The proving case is a CRAP (Change Risk Anti-Patterns: complexity times untested code) reduction methodology.\n\n## Scope\n\n- `METHODOLOGY.md` frontmatter declares tools: name, command relative to the bundle, and a one-line purpose.\n- The assembled agents file lists each active methodology's tools with the exact command to run them from the repository root.\n- `kbs methodology run <methodology> <tool> [args]` runs a declared tool with the bundle directory resolved, so agents need not know where the bundle lives.\n- A `crap` methodology bundle: guidance on reading CRAP scores and reducing them, plus a tool that reports CRAP for the changed code. Decide during the epic whether it ships built in or as an example bundle.\n\n## Definition of done\n\nSpecifications for tool declaration, listing in the agents file, running through `kbs`, and failure on an undeclared tool; the CRAP methodology runs against this repository.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bb44ecc4-35dc-4520-888b-d3a20ce45d3c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T13:10:15.324305303Z",
+  "updated_at": "2026-10-17T13:10:15.389212349Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

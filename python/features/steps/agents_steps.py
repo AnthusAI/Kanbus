@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+import yaml
 from behave import given, then, when
 
 from features.steps.shared import ensure_git_repository, run_cli
@@ -156,3 +157,42 @@ def then_project_management_contains_text(context: object, text: str) -> None:
     repo_path = Path(context.working_directory)
     content = (repo_path / "CONTRIBUTING_AGENT.md").read_text(encoding="utf-8")
     assert normalized in content
+
+
+@given('the Kanbus configuration selects methodologies "{methodology_list}"')
+def given_configuration_selects_methodologies(
+    context: object, methodology_list: str
+) -> None:
+    selected_methodology_names = [
+        name.strip() for name in methodology_list.split(",") if name.strip()
+    ]
+    configuration_path = Path(context.working_directory) / ".kanbus.yml"
+    configuration_document = yaml.safe_load(
+        configuration_path.read_text(encoding="utf-8")
+    )
+    configuration_document["methodologies"] = selected_methodology_names
+    configuration_path.write_text(
+        yaml.safe_dump(configuration_document, sort_keys=False), encoding="utf-8"
+    )
+
+
+@given("the Kanbus configuration selects no methodologies")
+def given_configuration_selects_no_methodologies(context: object) -> None:
+    given_configuration_selects_methodologies(context, "")
+
+
+@then('CONTRIBUTING_AGENT.md should not contain "{text}"')
+def then_project_management_does_not_contain_text(context: object, text: str) -> None:
+    repo_path = Path(context.working_directory)
+    content = (repo_path / "CONTRIBUTING_AGENT.md").read_text(encoding="utf-8")
+    assert text not in content
+
+
+@then('CONTRIBUTING_AGENT.md should show "{earlier_text}" before "{later_text}"')
+def then_project_management_orders_text(
+    context: object, earlier_text: str, later_text: str
+) -> None:
+    repo_path = Path(context.working_directory)
+    content = (repo_path / "CONTRIBUTING_AGENT.md").read_text(encoding="utf-8")
+    assert earlier_text in content and later_text in content
+    assert content.index(earlier_text) < content.index(later_text)

@@ -703,6 +703,8 @@ class ProjectConfiguration(BaseModel):
     :type name: Optional[str]
     :param project_management_template: Optional template path for CONTRIBUTING_AGENT.md.
     :type project_management_template: Optional[str]
+    :param methodologies: Methodology names assembled into CONTRIBUTING_AGENT.md.
+    :type methodologies: Optional[List[str]]
     :param hierarchy: Hierarchy ordering.
     :type hierarchy: List[str]
     :param types: Non-hierarchical types.
@@ -753,6 +755,7 @@ class ProjectConfiguration(BaseModel):
     project_key: str = Field(min_length=1)
     name: Optional[str] = None
     project_management_template: Optional[str] = None
+    methodologies: Optional[List[str]] = None
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]

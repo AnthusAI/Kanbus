@@ -14,7 +14,7 @@ Feature: Project initialization
     And a ".kanbus.yml" file should be created
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."
-    And CONTRIBUTING_AGENT.template.md should contain "As a <role>, I want <capability>, so that <benefit>."
+    And CONTRIBUTING_AGENT.template.md should contain "{% for methodology in methodologies %}"
     And CONTRIBUTING_AGENT.template.md should contain "Agent provenance metadata"
     And CONTRIBUTING_AGENT.template.md should contain "Title Case"
     And CONTRIBUTING_AGENT.template.md should contain "--no-agent-provenance"

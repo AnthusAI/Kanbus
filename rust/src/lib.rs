@@ -52,6 +52,7 @@ pub mod lifecycle_compaction;
 pub mod litellm_completion;
 pub mod llm_cost;
 pub mod maintenance;
+pub mod methodology_bundles;
 pub mod migration;
 pub mod models;
 pub mod mutex_api;
