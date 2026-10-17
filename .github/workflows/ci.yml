@@ -419,6 +419,9 @@ jobs:
   implementation-cochange:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -427,12 +430,14 @@ jobs:
 
       - name: Require both implementations to change together
         env:
-          PULL_REQUEST_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REFERENCE: origin/${{ github.base_ref }}
         run: |
+          current_labels=$(gh pr view "$PULL_REQUEST_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
           python tools/check_implementation_cochange.py \
             --base "$BASE_REFERENCE" \
-            --labels "$PULL_REQUEST_LABELS"
+            --labels "$current_labels"
 
   console-ui:
     runs-on: ubuntu-latest
