@@ -44,7 +44,10 @@ use crate::hooks::{
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
-use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
+use crate::issue_comment::{
+    add_comment, delete_comment, ensure_issue_comment_ids, load_issue_with_display_comment_ids,
+    update_comment,
+};
 use crate::issue_commit::commit_project_issues;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
@@ -2142,7 +2145,8 @@ fn execute_command(
                         let configuration = load_project_configuration(&get_configuration_path(
                             lookup.project_dir.as_path(),
                         )?)?;
-                        let mut issue = ensure_issue_comment_ids(lookup_root, &identifier)?;
+                        let mut issue =
+                            load_issue_with_display_comment_ids(lookup_root, &identifier)?;
                         if configuration.beads_compatibility {
                             if let Ok(beads_issue) =
                                 load_beads_issue_by_id(&beads_root_for_show, &identifier)
