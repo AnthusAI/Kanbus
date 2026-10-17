@@ -1,0 +1,22 @@
+{
+  "id": "kbs-76b265f8-3240-4722-9017-d849889ce3c3",
+  "title": "Regenerate configuration and CLI docs from code; remove console-control instructions from agent files; add LICENSE, CONTRIBUTING, SECURITY",
+  "description": "Problem: the documentation set has two layers that disagree. docs/CONFIGURATION.md documents keys that do not exist (issue_types, workflow_bindings, priority_import_aliases, priority_accept_unmapped, data_dir, date_format: zero hits in rust/src) and the loader rejects unknown fields, so a user copying it gets a hard error (already filed as kbs-5142096e); root CONFIGURATION.md is a different document using 'prefix:' where the field is project_key; neither documents statuses, categories or transition_labels which the repo's own .kanbus.yml uses. docs/CLI_REFERENCE.md covers about a third of the CLI: missing in both runtimes are bulk, move, repair, rekey, promote, localize, now, summarize, cost, lifecycle, coordination, edit, hooks, policy, most wiki and console subcommands and the issues/epics/tasks/bugs aliases; it documents 'list --priority' and a global --json that do not exist. AGENTS.md and CONTRIBUTING_AGENT.md each devote their longest section (about 90 and 110 lines) to running 'kbs console focus' after every action, and every console-control command is hard-disabled (rust/src/cli.rs:1723-1731); the examples use tskl-auth.1 hierarchical ids that Kanbus never generates. The committed CONTRIBUTING_AGENT.md is not what 'kbs setup agents' produces: the root CONTRIBUTING_AGENT.template.md overrides the embedded default (agents_management.rs:175-199) and has drifted 282 lines from it, and the committed output predates PR #410. The methodology Markdown is duplicated byte-for-byte in rust/src/methodologies and python/src/kanbus/methodologies with nothing enforcing sync. AGENTS.md carries three different coverage numbers, a RIGHT example that raises 'No config.yaml found', and a 'Console ports (Ryan's machine)' table. README says No Daemon, No API, No Syncing above sections describing the daemon, the cloud API and MQTT sync, describes specs/ as the feature files and .beads/ as the task database, and cites a nonexistent index_benchmark bin. docs/ARCHITECTURE.md describes a two-module project and names the kanbusr binary. mkdocs nav omits 14 of 23 pages. On develop there is no root LICENSE (main has it), no CONTRIBUTING.md for humans, no SECURITY.md, no CODE_OF_CONDUCT, no issue or PR templates, and no CHANGELOG though semantic-release runs.\n\nWork: generate docs/CONFIGURATION.md from ProjectConfiguration (rust/src/models.rs:605-730) with .kanbus.yml as the worked example and delete the root copy; generate docs/CLI_REFERENCE.md from clap and click help and add a CI check that it is current; delete the console-control sections and tskl examples from AGENTS.md and the template, move the personal port table to AGENTS.override.md, fix the config example and coverage numbers (point at config/coverage-baselines.json); delete the root template or rebase it on the embedded default, regenerate CONTRIBUTING_AGENT.md, add a CI check that 'kbs setup agents' is a no-op and a parity check for the two methodologies directories; rewrite README 'Why Kanbus' to 'git files are canonical; daemon, realtime, cloud API and router are optional layers you can turn off', fix the structure tree and bench command, lead with docs/getting-started; add a Subsystems section to ARCHITECTURE.md mapping each area to its modules and add the missing pages to mkdocs nav; add LICENSE (after the main back-merge), CONTRIBUTING.md (dev install from INSTALL.md, make check-all, branch rules), SECURITY.md, minimal issue templates, and link Releases from README.\n\nAcceptance: every key in docs/CONFIGURATION.md exists in ProjectConfiguration and vice versa (scripted check); every documented command exists (scripted check); AGENTS.md and CONTRIBUTING_AGENT.md together under 25 KB with no reference to console focus or tskl ids; 'kbs setup agents' produces no diff.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T16:37:46.185400837Z",
+  "updated_at": "2026-10-17T16:37:46.257302529Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

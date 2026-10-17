@@ -1,0 +1,22 @@
+{
+  "id": "kbs-9fe83b63-a161-4667-876d-1bd27e5144e1",
+  "title": "Back-merge main into develop and automate it; fix CI triggers and workflow permissions",
+  "description": "Problem: main carries the 0.34.0 release commit, the root LICENSE (#408), the published-Virtuus dependency fix (python/pyproject.toml virtuus==0.6.1 and rust/Cargo.toml =0.6.1, from #403) and the release.yml fix that lets binary jobs run on dispatch, and none of them is on develop: develop says 0.33.0, has no root LICENSE, still declares virtuus as a git URL (which PyPI and crates.io reject), and its release.yml always sets an empty tag on dispatch so binaries can never build. The next release cut from develop would regress all of it. Separately: ci.yml and codeql.yml trigger on push to main, dev (a branch that does not exist) and feature/** but not develop (ci.yml:4-6, codeql.yml:4-6); ci.yml grants contents: write to every job (ci.yml:8-9) when only the badge push needs it; ruleset-sync.yml:35,44 and semantic-release.yml:21 call AnthusAI/platform-ci/...@main (a mutable ref) while passing RULESET_ADMIN_TOKEN and ANTHUSBOT_GH_TOKEN; release.yml:142,212 gate the binary jobs on workflow_dispatch so the 0.34.0 tag push skipped them; the PyPI job has no version-equals-tag check and runs no tests before twine upload (release.yml:94); dependabot.yml has no github-actions ecosystem so SHA pins never bump.\n\nWork:\n1. Merge main into develop now (resolving the version and dependency lines in main's favour) and open the PR.\n2. Add a step to the semantic-release workflow that merges main back into develop after a release (or a scheduled job that opens the back-merge PR).\n3. Replace 'dev' with 'develop' in ci.yml and codeql.yml triggers; add a develop ruleset; make the embedded-kanbus job a required check.\n4. permissions: contents: read at the top of ci.yml, contents: write only on the badges job.\n5. Pin platform-ci reusable workflows by commit SHA and add a github-actions Dependabot entry.\n6. Run rust-binaries and console-server-binaries on kanbus-py-* tag pushes; add a version-equals-tag check and a test dependency to the PyPI job; move PyPI and crates.io to Trusted Publishing (id-token: write) if the registries are configured for it.\n7. Add a develop guard that fails CI if any git-URL dependency is present in pyproject.toml or Cargo.toml.\n\nAcceptance: git log develop..main is empty; CI runs on push to develop; a release from develop would publish LICENSE, pinned Virtuus and binaries without manual steps.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T16:37:45.105040527Z",
+  "updated_at": "2026-10-17T16:37:45.181814515Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,22 @@
+{
+  "id": "kbs-73f796e3-624c-4e55-97fd-13baff47722c",
+  "title": "Load the board once per command; make single-issue reads read one file",
+  "description": "Problem: on this repo's own 1,011-issue board, plain 'kbs list' takes 65 s (0.08 s with --no-hooks --no-guidance). Cause: after listing, guidance runs for every printed issue, and collect_guidance_for_issue (rust/src/policy_guidance.rs:33-71; python/src/kanbus/policy_guidance.py:43) reloads the policy files, the configuration and every issue in the directory for each one, so cost is quadratic in board size. Underneath, every single-issue read rebuilds a whole Virtuus table with five GSIs from the directory (rust/src/issue_files.rs:13-38, 164-195; python/src/kanbus/issue_files.py:27-40, 142-156). The same root makes 'ready' (dependencies.rs:277-290), 'dep add' (dependencies.rs:335-351), 'dep tree' (dependency_tree.rs:75-87), 'update --type' (issue_update.rs:226-243), 'show' (console_snapshot.py:262-271) and overlay reconcile quadratic, beyond the already-filed quadratic 'create' (kbs-98e5d0). None of the GSIs is ever queried, and the blocked_by GSI path references 'dependency_type' while the serialized field is 'type', so it indexes nothing.\n\nWork, in both runtimes:\n1. Pass the already-loaded issue list and configuration into guidance evaluation instead of reloading per issue; skip guidance entirely for read-only listing commands (list, show, ready, now, stats).\n2. Make read_issue_from_file a plain read-and-parse of one file, and write_issue_to_file a temp-file-and-rename write (Virtuus already does that internally). Keep Virtuus, if at all, for the long-lived daemon and console.\n3. Where a command needs all issues, load the directory once and pass the collection down (find_duplicate_title, build_dependency_graph, child scans).\n\nAcceptance: 'kbs list' on the Kanbus board under 0.5 s with guidance on; 'kbs create' under 0.3 s with validation on; strace of 'kbs list' shows each issue file opened at most once; existing Gherkin suites pass in both runtimes.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T16:37:44.239764491Z",
+  "updated_at": "2026-10-17T16:37:44.492244301Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
