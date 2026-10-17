@@ -172,10 +172,12 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
     let record = service_request_with_fallback(
         parent,
         json!({"action": "get", "pk": identifier}),
-        || {
-            Ok(issue_table(parent)?
-                .get(identifier, None)
-                .unwrap_or(Value::Null))
+        || match std::fs::read_to_string(issue_path) {
+            Ok(contents) => {
+                serde_json::from_str(&contents).map_err(|error| KanbusError::Io(error.to_string()))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Value::Null),
+            Err(error) => Err(KanbusError::Io(error.to_string())),
         },
         |response| {
             if response.is_null() {

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 import click
 
@@ -34,42 +36,65 @@ def guidance_is_enabled(no_guidance: bool = False) -> bool:
     return raw not in {"1", "true", "yes", "on"}
 
 
+@dataclass(frozen=True)
+class _LoadedGuidanceEnvironment:
+    policy_documents: list
+    project_configuration: object
+    all_issues: list
+
+
+def _load_guidance_environment(root: Path) -> Optional[_LoadedGuidanceEnvironment]:
+    project_dir = load_project_directory(root)
+    policies_dir = project_dir / "policies"
+    if not policies_dir.is_dir():
+        return None
+
+    policy_documents = load_policies(policies_dir)
+    if not policy_documents:
+        return None
+
+    configuration = load_project_configuration(get_configuration_path(project_dir))
+    all_issues = load_issues_from_directory(project_dir / "issues")
+    return _LoadedGuidanceEnvironment(
+        policy_documents=policy_documents,
+        project_configuration=configuration,
+        all_issues=all_issues,
+    )
+
+
+def _evaluate_guidance_in_environment(
+    environment: _LoadedGuidanceEnvironment,
+    issue: IssueData,
+    operation: PolicyOperation,
+) -> PolicyEvaluationReport:
+    context = PolicyContext(
+        current_issue=issue,
+        proposed_issue=issue,
+        transition=None,
+        operation=operation,
+        project_configuration=environment.project_configuration,
+        all_issues=environment.all_issues,
+    )
+    return evaluate_policies_report(
+        context,
+        environment.policy_documents,
+        PolicyEvaluationOptions(
+            collect_all_violations=True,
+            mode=PolicyEvaluationMode.GUIDANCE,
+        ),
+    )
+
+
 def collect_guidance_for_issue(
     root: Path,
     issue: IssueData,
     operation: PolicyOperation,
 ) -> PolicyEvaluationReport:
     """Evaluate policies in guidance mode for one issue."""
-    project_dir = load_project_directory(root)
-    policies_dir = project_dir / "policies"
-    if not policies_dir.is_dir():
+    environment = _load_guidance_environment(root)
+    if environment is None:
         return PolicyEvaluationReport()
-
-    policy_documents = load_policies(policies_dir)
-    if not policy_documents:
-        return PolicyEvaluationReport()
-
-    configuration = load_project_configuration(get_configuration_path(project_dir))
-    issues_dir = project_dir / "issues"
-    all_issues = load_issues_from_directory(issues_dir)
-
-    context = PolicyContext(
-        current_issue=issue,
-        proposed_issue=issue,
-        transition=None,
-        operation=operation,
-        project_configuration=configuration,
-        all_issues=all_issues,
-    )
-
-    return evaluate_policies_report(
-        context,
-        policy_documents,
-        PolicyEvaluationOptions(
-            collect_all_violations=True,
-            mode=PolicyEvaluationMode.GUIDANCE,
-        ),
-    )
+    return _evaluate_guidance_in_environment(environment, issue, operation)
 
 
 def emit_guidance_for_issues(
@@ -84,9 +109,15 @@ def emit_guidance_for_issues(
         return
 
     collected: list[GuidanceItem] = []
+    try:
+        environment = _load_guidance_environment(root)
+    except Exception:
+        return
+    if environment is None:
+        return
     for issue in issues:
         try:
-            report = collect_guidance_for_issue(root, issue, operation)
+            report = _evaluate_guidance_in_environment(environment, issue, operation)
         except Exception:
             # Guidance must never block successful command paths.
             continue
