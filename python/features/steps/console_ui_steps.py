@@ -132,7 +132,7 @@ def _post_notification(port: int, event: dict) -> None:  # type: ignore[type-arg
     req = urllib.request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Kanbus-Console": "1"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=5) as resp:
@@ -145,6 +145,7 @@ def _stop_kbsc(port: int) -> None:
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/shutdown",
             data=b"",
+            headers={"X-Kanbus-Console": "1"},
             method="POST",
         )
         urllib.request.urlopen(req, timeout=2)
