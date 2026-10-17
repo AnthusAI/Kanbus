@@ -3,7 +3,7 @@
   "title": "Validate gossip issue identifiers before building overlay paths",
   "description": "Problem: persist_gossip_overlay (rust/src/gossip.rs:704-711) and the overlay writer (rust/src/overlay.rs:44-48, 201-218; python/src/kanbus/overlay.py:45-53) write overlay_root/issues/{identifier}.json using the identifier taken straight from a broker envelope (envelope.issue.identifier, or envelope.issue_id for tombstones) with create_dir_all and fs::write. An identifier such as ../../../.git/HEAD escapes the overlay directory. The local UDS broker accepts anonymous publishes (gossip.rs:1036-1067, no frame size limit or topic authorization) and ~/.kanbus/run is created with the default umask (gossip.rs:1620-1623). Distinct from the already-filed cross-repo topic leak (kbs-89b646).\n\nWork, both runtimes: validate identifiers against the project issue-id grammar (letters, digits, dot, underscore, hyphen; no path separators; no '..') before building any overlay or tombstone path and reject envelopes that fail; cap UDS line length; create the run directory 0700. Add unit tests with traversal identifiers in both runtimes.\n\nAcceptance: a gossip envelope with a traversal identifier is dropped with a logged warning and writes nothing; tests cover '../x', 'a/b', '..' and an over-long line.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "509df6c9-b141-49a2-a0ad-8545edd229fe",
+      "author": "unknown",
+      "text": "Merged into develop (PRs #417-#423). Remaining parts are tracked in kbs-e47401.",
+      "created_at": "2026-10-17T19:41:54.658298591Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:37:44.933930198Z",
-  "updated_at": "2026-10-17T16:37:45.041326922Z",
-  "closed_at": null,
+  "updated_at": "2026-10-17T19:41:54.779167885Z",
+  "closed_at": "2026-10-17T19:41:54.718658996Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

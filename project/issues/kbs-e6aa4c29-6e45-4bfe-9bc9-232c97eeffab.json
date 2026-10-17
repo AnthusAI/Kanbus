@@ -3,7 +3,7 @@
   "title": "Cloud console: verify tenant identity instead of trusting unverified JWT claims",
   "description": "Problem: anyone on the internet can read any cloud tenant's board and realtime stream. decode_jwt_claims (rust/src/bin/console_lambda.rs:234-241) base64-decodes the middle JWT segment with no signature, issuer, audience or expiry check, and enforce_tenant_claims (:244-272) compares those claims to the URL path. The CDK stack mounts the console proxy with AuthorizationType.NONE on root and {proxy+} (infra/cloud/kanbus_cloud/cloud_stack.py:701-717); the Cognito authorizer is attached only to token-admin routes. The unit tests at console_lambda.rs:846-915 build unsigned tokens and assert they pass. The IoT custom authorizer has the same gap: _tenant_from_cognito_access_token (infra/cloud/lambda/mqtt_authorizer.py:113-146, 222-250) decodes without verifying and token signing is disabled (cloud_stack.py:980, coordination_stack.py:226). The identity-pool role grants IoT subscribe and receive on topicfilter/projects/*/*/events for every tenant plus execute-api:Invoke on * (cloud_stack.py:732-777); infra/cloud/tests/test_auth_isolation.py:40-50 asserts the wildcard. The webhook handler uses one shared secret for all tenants and takes repo_url from the payload while tenant comes from the path (infra/cloud/lambda/webhook_handler.py:72-97), so one tenant can overwrite another's EFS checkout. The console Lambda is in an isolated subnet with no NAT or endpoints, so it cannot fetch JWKS itself; the fix has to be at the gateway.\n\nWork:\n1. Attach the Cognito authorizer to the console root and {proxy+} methods, keeping /assets, /auth/* and /api/auth/bootstrap public; in the Lambda, read tenant claims from requestContext.authorizer.claims and delete the decode_jwt_claims trust path. Update the unit tests so an unsigned token is rejected.\n2. In mqtt_authorizer.py verify signature, iss, aud and exp against the user-pool JWKS (PyJWT with cached keys) or always call cognito-idp GetUser and ignore decoded claims; enable authorizer token signing.\n3. Scope the identity-pool role ARNs to the principal's account and project via principal tags, or remove the identity-pool path and rely on the fixed custom authorizer; fix the test that asserts the wildcard.\n4. Per-tenant webhook secrets (one Secrets Manager entry per account/project) or a tenant-to-repository allowlist checked against repository.full_name.\n5. Run the infra/cloud/tests suite in CI (it is currently never executed).\nAlso stop sending the id token as an access_token query parameter for SSE (apps/console/src/api/client.ts:113-121) and storing it in localStorage (auth/cloudAuth.ts:70-72), or document why it is acceptable until SSE is replaced by MQTT.\n\nAcceptance: a forged token is rejected with 401 at the gateway and in the Lambda unit tests; a Cognito user from account A cannot read or subscribe to account B; infra/cloud tests pass in CI.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "38b340cf-467f-444a-aac1-037043bd5cc9",
+      "author": "unknown",
+      "text": "Merged into develop (PRs #417-#423). Remaining parts are tracked in kbs-e47401.",
+      "created_at": "2026-10-17T19:41:54.138689361Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:37:44.584263980Z",
-  "updated_at": "2026-10-17T16:37:44.690528254Z",
-  "closed_at": null,
+  "updated_at": "2026-10-17T19:41:54.274397500Z",
+  "closed_at": "2026-10-17T19:41:54.207790830Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
