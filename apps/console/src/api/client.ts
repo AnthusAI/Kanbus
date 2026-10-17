@@ -96,6 +96,7 @@ export function setMqttTokenProvider(provider: QueryProvider | null): void {
 
 async function fetchWithAuth(input: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers ?? {});
+  headers.set("X-Kanbus-Console", "1");
   if (authHeaderProvider) {
     const provided = await authHeaderProvider();
     Object.entries(provided).forEach(([key, value]) => {

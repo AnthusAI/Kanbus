@@ -934,7 +934,7 @@ export function TaskDetailPanel({
           // Use our local D2 rendering endpoint with theme
           const response = await fetch("/api/render/d2", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "X-Kanbus-Console": "1" },
             body: JSON.stringify({ source, theme })
           });
           if (!response.ok) {

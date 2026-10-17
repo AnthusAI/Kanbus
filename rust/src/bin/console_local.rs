@@ -14,9 +14,10 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::body::Bytes;
-use axum::extract::{ConnectInfo, Path as AxumPath, Query, State};
+use axum::extract::{ConnectInfo, Path as AxumPath, Query, RawPathParams, State};
 use axum::http::header::CONTENT_TYPE;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, Method, StatusCode};
+use axum::middleware::{from_fn, Next};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -101,14 +102,16 @@ async fn main() {
         let _ = std::io::stderr().flush();
         eprintln!("[kbsc] {}", msg);
         let _ = std::io::stderr().flush();
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/kbsc_trace.txt")
-            .and_then(|mut f| {
-                use std::io::Write;
-                writeln!(f, "{}", msg).and_then(|_| f.sync_all())
-            });
+        if let Some(trace_path) = std::env::var_os("KBSC_TRACE_FILE") {
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(trace_path)
+                .and_then(|mut f| {
+                    use std::io::Write;
+                    writeln!(f, "{}", msg).and_then(|_| f.sync_all())
+                });
+        }
     };
     trace("entry");
     if std::env::var_os("KANBUS_NO_DAEMON").is_none() {
@@ -317,13 +320,16 @@ async fn main() {
 
     start_gossip_bridge(state.clone());
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
-        .allow_private_network(true);
-
-    let app = app.with_state(state).layer(cors);
+    let app = apply_request_guards(app.with_state(state));
+    let app = match development_origin() {
+        Some(origin) => app.layer(
+            CorsLayer::new()
+                .allow_origin(origin)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        ),
+        None => app,
+    };
     eprintln!(
         "[kbsc] startup repo_root={} data_root={} requested_port={} host={}",
         repo_root.display(),
@@ -668,6 +674,85 @@ async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<St
         return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
     }
     Json(matches[0]).into_response()
+}
+
+const CONSOLE_REQUEST_HEADER: &str = "x-kanbus-console";
+const TELEMETRY_BEACON_PATH_SUFFIX: &str = "/api/telemetry/console";
+
+fn development_origin() -> Option<axum::http::HeaderValue> {
+    std::env::var("CONSOLE_DEV_ORIGIN")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .and_then(|value| value.parse().ok())
+}
+
+fn origin_matches_host_or_development_origin(headers: &HeaderMap) -> bool {
+    let Some(origin) = headers.get(axum::http::header::ORIGIN) else {
+        return true;
+    };
+    let Ok(origin) = origin.to_str() else {
+        return false;
+    };
+    if let Some(development_origin) = development_origin() {
+        if development_origin.to_str().ok() == Some(origin) {
+            return true;
+        }
+    }
+    let origin_authority = origin
+        .split_once("://")
+        .map(|(_, authority)| authority)
+        .unwrap_or(origin);
+    headers
+        .get(axum::http::header::HOST)
+        .and_then(|host| host.to_str().ok())
+        .map(|host| host == origin_authority)
+        .unwrap_or(false)
+}
+
+fn apply_request_guards(app: Router) -> Router {
+    app.route_layer(from_fn(reject_invalid_tenant_segments))
+        .layer(from_fn(guard_mutating_requests))
+}
+
+async fn guard_mutating_requests(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    if matches!(
+        *request.method(),
+        Method::GET | Method::HEAD | Method::OPTIONS
+    ) {
+        return next.run(request).await;
+    }
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    if !origin_matches_host_or_development_origin(request.headers()) {
+        return error_response("cross-origin writes are not allowed", StatusCode::FORBIDDEN);
+    }
+    let is_beacon_route = request.uri().path().ends_with(TELEMETRY_BEACON_PATH_SUFFIX);
+    if !is_beacon_route && !request.headers().contains_key(CONSOLE_REQUEST_HEADER) {
+        return error_response(
+            "missing X-Kanbus-Console request header",
+            StatusCode::FORBIDDEN,
+        );
+    }
+    next.run(request).await
+}
+
+async fn reject_invalid_tenant_segments(
+    params: RawPathParams,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    for (name, value) in &params {
+        if (name == "account" || name == "project") && !FileStore::is_valid_tenant_segment(value) {
+            return error_response("invalid tenant path segment", StatusCode::BAD_REQUEST);
+        }
+    }
+    next.run(request).await
 }
 
 /// Writes (comments, status changes) are refused from anything but the
@@ -2210,6 +2295,106 @@ mod tests {
             .get_or_init(|| Mutex::new(()))
             .lock()
             .expect("env lock")
+    }
+
+    async fn guarded_status(
+        method: Method,
+        uri: &str,
+        extra_headers: &[(&str, &str)],
+        peer: SocketAddr,
+    ) -> StatusCode {
+        use tower::ServiceExt;
+        let app = apply_request_guards(
+            Router::new()
+                .route(
+                    "/:account/:project/api/thing",
+                    post(|| async { "ok" }).get(|| async { "ok" }),
+                )
+                .route(
+                    "/:account/:project/api/telemetry/console",
+                    post(|| async { "ok" }),
+                ),
+        );
+        let mut builder = axum::http::Request::builder().method(method).uri(uri);
+        for (name, value) in extra_headers {
+            builder = builder.header(*name, *value);
+        }
+        let mut request = builder.body(Body::empty()).expect("request");
+        request.extensions_mut().insert(ConnectInfo(peer));
+        app.oneshot(request).await.expect("response").status()
+    }
+
+    #[tokio::test]
+    async fn guards_refuse_cross_origin_and_headerless_writes() {
+        let local: SocketAddr = "127.0.0.1:1".parse().unwrap();
+        let uri = "/acct/proj/api/thing";
+        let same_origin = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://127.0.0.1:5174"),
+            ("x-kanbus-console", "1"),
+        ];
+        assert_eq!(
+            guarded_status(Method::POST, uri, &same_origin, local).await,
+            StatusCode::OK
+        );
+
+        let cross_origin = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://evil.example"),
+            ("x-kanbus-console", "1"),
+        ];
+        assert_eq!(
+            guarded_status(Method::POST, uri, &cross_origin, local).await,
+            StatusCode::FORBIDDEN
+        );
+
+        let missing_header = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://127.0.0.1:5174"),
+        ];
+        assert_eq!(
+            guarded_status(Method::POST, uri, &missing_header, local).await,
+            StatusCode::FORBIDDEN
+        );
+
+        let remote: SocketAddr = "10.0.0.5:1".parse().unwrap();
+        assert_eq!(
+            guarded_status(Method::POST, uri, &same_origin, remote).await,
+            StatusCode::FORBIDDEN
+        );
+
+        assert_eq!(
+            guarded_status(Method::GET, uri, &[], remote).await,
+            StatusCode::OK
+        );
+
+        let beacon = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://127.0.0.1:5174"),
+        ];
+        assert_eq!(
+            guarded_status(
+                Method::POST,
+                "/acct/proj/api/telemetry/console",
+                &beacon,
+                local
+            )
+            .await,
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn guards_reject_traversal_in_tenant_segments() {
+        let local: SocketAddr = "127.0.0.1:1".parse().unwrap();
+        assert_eq!(
+            guarded_status(Method::GET, "/..%2Fetc/proj/api/thing", &[], local).await,
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            guarded_status(Method::GET, "/acct/%2E%2E/api/thing", &[], local).await,
+            StatusCode::BAD_REQUEST
+        );
     }
 
     fn test_state(base_root: PathBuf, assets_root: PathBuf, multi_tenant: bool) -> AppState {

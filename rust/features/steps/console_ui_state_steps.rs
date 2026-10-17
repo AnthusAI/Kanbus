@@ -43,6 +43,7 @@ fn post_notification(world: &KanbusWorld, body: serde_json::Value) {
             .expect("build http client");
         client
             .post(&url)
+            .header("X-Kanbus-Console", "1")
             .json(&body)
             .send()
             .expect("post notification");
@@ -88,6 +89,7 @@ fn request_console_shutdown(port: u16) {
             .expect("build http client");
         let _ = client
             .post(format!("http://127.0.0.1:{port}/api/shutdown"))
+            .header("X-Kanbus-Console", "1")
             .send();
     })
     .join();

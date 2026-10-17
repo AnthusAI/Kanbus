@@ -444,7 +444,7 @@ def then_response_accepts_fields(context: object, fields: str) -> None:
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Kanbus-Console": "1"},
         method="POST",
     )
     try:
