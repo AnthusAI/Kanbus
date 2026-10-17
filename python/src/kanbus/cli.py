@@ -1106,11 +1106,7 @@ def update(
             proposed_issue.priority = priority
         if final_assignee is not None:
             proposed_issue.assignee = final_assignee
-        if (
-            parsed_set_labels is not None
-            or add_labels
-            or remove_labels
-        ):
+        if parsed_set_labels is not None or add_labels or remove_labels:
             from kanbus.issue_update import merge_labels
 
             proposed_issue.labels = merge_labels(

@@ -291,7 +291,8 @@ def _restore_full_precision_timestamps(record: dict, existing: dict) -> None:
         if (
             isinstance(previous, str)
             and _microsecond_prefix(previous) is not None
-            and _microsecond_prefix(previous) == _microsecond_prefix(comment.get("created_at"))
+            and _microsecond_prefix(previous)
+            == _microsecond_prefix(comment.get("created_at"))
         ):
             comment["created_at"] = previous
 
