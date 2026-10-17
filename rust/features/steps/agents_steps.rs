@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use cucumber::{given, then};
+use cucumber::{given, then, when};
 use tempfile::TempDir;
 
 use crate::step_definitions::initialization_steps::KanbusWorld;
@@ -385,6 +385,7 @@ fn given_repository_has_methodology_bundle_declaring_tool_twice(
 }
 
 #[given(expr = "the Kanbus configuration selects methodologies {string}")]
+#[when(expr = "the Kanbus configuration selects methodologies {string}")]
 fn given_configuration_selects_methodologies(world: &mut KanbusWorld, methodology_list: String) {
     let selected_methodologies: Vec<serde_yaml::Value> = methodology_list
         .split(',')

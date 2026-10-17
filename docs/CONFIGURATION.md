@@ -192,6 +192,19 @@ priority_import_aliases:
 priority_accept_unmapped: false
 ```
 
+## Methodologies
+
+`methodologies` selects the process guidance assembled into the generated `CONTRIBUTING_AGENT.md`, in the listed order. Entries are built-in names (`bdd`, `git-flow`) or `{ path: <folder> }` for a bundle in the repository. When the key is absent the default is `[bdd, git-flow]`; `methodologies: []` produces core guidance only.
+
+```yaml
+methodologies:
+  - bdd
+  - git-flow
+  - path: methodologies/crap
+```
+
+See [Methodologies](METHODOLOGIES.md) for the bundle format, tools, and the `kbs methodology` commands.
+
 ## AI and right-now defaults
 
 Kanbus routes LLM calls through LiteLLM (`ai.provider: litellm`). The product default model is `gpt-5.6-luna` (OpenAI via `OPENAI_API_KEY`).

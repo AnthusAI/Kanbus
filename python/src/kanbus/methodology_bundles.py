@@ -274,7 +274,7 @@ def render_selected_methodologies(
     configuration: ProjectConfiguration,
     template_environment: Environment,
     template_context: dict[str, object],
-) -> list[dict[str, str]]:
+) -> list[dict[str, object]]:
     """Render each selected methodology body with the agents-file context.
 
     :param repository_root: Repository root path.
@@ -286,47 +286,120 @@ def render_selected_methodologies(
     :param template_context: Agents-file template context.
     :type template_context: dict[str, object]
     :return: Rendered methodologies as template-ready dictionaries.
-    :rtype: list[dict[str, str]]
+    :rtype: list[dict[str, object]]
     :raises MethodologyError: If loading or rendering a methodology fails.
     """
-    rendered_methodologies: list[dict[str, str]] = []
+    return [
+        render_methodology_document(methodology, template_environment, template_context)
+        for methodology in load_selected_methodologies(repository_root, configuration)
+    ]
+
+
+def render_methodology_document(
+    methodology: MethodologyDocument,
+    template_environment: Environment,
+    template_context: dict[str, object],
+) -> dict[str, object]:
+    """Render one methodology body and append its tool listing.
+
+    :param methodology: Parsed methodology document.
+    :type methodology: MethodologyDocument
+    :param template_environment: Jinja environment used for the agents file.
+    :type template_environment: Environment
+    :param template_context: Agents-file template context.
+    :type template_context: dict[str, object]
+    :return: Rendered methodology as a template-ready dictionary.
+    :rtype: dict[str, object]
+    :raises MethodologyError: If the body fails to render.
+    """
+    try:
+        content = template_environment.from_string(methodology.template_body).render(
+            template_context
+        )
+    except Exception as error:
+        raise MethodologyError(
+            f"methodology {methodology.name} failed to render: {error}"
+        ) from error
+    rendered_tools = [
+        {
+            "name": tool.name,
+            "purpose": tool.purpose,
+            "invocation": (
+                f"{METHODOLOGY_TOOL_INVOCATION_PREFIX} "
+                f"{methodology.name} {tool.name}"
+            ),
+        }
+        for tool in methodology.tools
+    ]
+    if rendered_tools:
+        content = (
+            content.rstrip()
+            + "\n\n"
+            + _methodology_tool_listing_text(methodology.title, rendered_tools)
+        )
+    rendered_methodology: dict[str, object] = asdict(
+        RenderedMethodology(
+            name=methodology.name,
+            title=methodology.title,
+            description=methodology.description,
+            content=content,
+        )
+    )
+    rendered_methodology["tools"] = rendered_tools
+    return rendered_methodology
+
+
+@dataclass(frozen=True)
+class MethodologyListing:
+    """A methodology as shown by ``kbs methodology list``."""
+
+    name: str
+    title: str
+    source: str
+    active: bool
+
+
+def list_methodologies(
+    repository_root: Path, configuration: ProjectConfiguration
+) -> list[MethodologyListing]:
+    """List the configured methodologies in order, then inactive built-ins.
+
+    :param repository_root: Repository root path.
+    :type repository_root: Path
+    :param configuration: Project configuration.
+    :type configuration: ProjectConfiguration
+    :return: Methodology listings.
+    :rtype: list[MethodologyListing]
+    :raises MethodologyError: If a configured methodology cannot be loaded.
+    """
+    listings: list[MethodologyListing] = []
     for methodology in load_selected_methodologies(repository_root, configuration):
-        try:
-            content = template_environment.from_string(
-                methodology.template_body
-            ).render(template_context)
-        except Exception as error:
-            raise MethodologyError(
-                f"methodology {methodology.name} failed to render: {error}"
-            ) from error
-        rendered_tools = [
-            {
-                "name": tool.name,
-                "purpose": tool.purpose,
-                "invocation": (
-                    f"{METHODOLOGY_TOOL_INVOCATION_PREFIX} "
-                    f"{methodology.name} {tool.name}"
-                ),
-            }
-            for tool in methodology.tools
-        ]
-        if rendered_tools:
-            content = (
-                content.rstrip()
-                + "\n\n"
-                + _methodology_tool_listing_text(methodology.title, rendered_tools)
+        source = "built-in"
+        if methodology.bundle_directory is not None:
+            source = (
+                f"bundle {methodology.bundle_directory.relative_to(repository_root)}"
             )
-        rendered_methodology = asdict(
-            RenderedMethodology(
+        listings.append(
+            MethodologyListing(
                 name=methodology.name,
                 title=methodology.title,
-                description=methodology.description,
-                content=content,
+                source=source,
+                active=True,
             )
         )
-        rendered_methodology["tools"] = rendered_tools
-        rendered_methodologies.append(rendered_methodology)
-    return rendered_methodologies
+    for built_in_name in BUILT_IN_METHODOLOGY_NAMES:
+        if any(listing.name == built_in_name for listing in listings):
+            continue
+        built_in_methodology = load_built_in_methodology(built_in_name)
+        listings.append(
+            MethodologyListing(
+                name=built_in_methodology.name,
+                title=built_in_methodology.title,
+                source="built-in",
+                active=False,
+            )
+        )
+    return listings
 
 
 def _methodology_tool_listing_text(

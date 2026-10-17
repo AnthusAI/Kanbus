@@ -249,48 +249,107 @@ pub fn render_selected_methodologies<TemplateContext: Serialize>(
     configuration: &ProjectConfiguration,
     template_context: &TemplateContext,
 ) -> Result<Vec<RenderedMethodology>, KanbusError> {
-    let template_environment = minijinja::Environment::new();
     load_selected_methodologies(repository_root, configuration)?
-        .into_iter()
-        .map(|methodology| {
-            let content = template_environment
-                .render_str(&methodology.template_body, template_context)
-                .map_err(|error| {
-                    KanbusError::IssueOperation(format!(
-                        "methodology {} failed to render: {error}",
-                        methodology.name
-                    ))
-                })?;
-            let rendered_tools: Vec<RenderedMethodologyTool> = methodology
-                .tools
-                .iter()
-                .map(|tool| RenderedMethodologyTool {
-                    name: tool.name.clone(),
-                    purpose: tool.purpose.clone(),
-                    invocation: format!(
-                        "{METHODOLOGY_TOOL_INVOCATION_PREFIX} {} {}",
-                        methodology.name, tool.name
+        .iter()
+        .map(|methodology| render_methodology_document(methodology, template_context))
+        .collect()
+}
+
+/// Render one methodology body with the agents-file template context and append its tool listing.
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` when the body fails to render.
+pub fn render_methodology_document<TemplateContext: Serialize>(
+    methodology: &MethodologyDocument,
+    template_context: &TemplateContext,
+) -> Result<RenderedMethodology, KanbusError> {
+    let content = minijinja::Environment::new()
+        .render_str(&methodology.template_body, template_context)
+        .map_err(|error| {
+            KanbusError::IssueOperation(format!(
+                "methodology {} failed to render: {error}",
+                methodology.name
+            ))
+        })?;
+    let rendered_tools: Vec<RenderedMethodologyTool> = methodology
+        .tools
+        .iter()
+        .map(|tool| RenderedMethodologyTool {
+            name: tool.name.clone(),
+            purpose: tool.purpose.clone(),
+            invocation: format!(
+                "{METHODOLOGY_TOOL_INVOCATION_PREFIX} {} {}",
+                methodology.name, tool.name
+            ),
+        })
+        .collect();
+    let content_with_tool_listing = if rendered_tools.is_empty() {
+        content
+    } else {
+        format!(
+            "{}\n\n{}",
+            content.trim_end(),
+            methodology_tool_listing_text(&methodology.title, &rendered_tools)
+        )
+    };
+    Ok(RenderedMethodology {
+        name: methodology.name.clone(),
+        title: methodology.title.clone(),
+        description: methodology.description.clone(),
+        content: content_with_tool_listing,
+        tools: rendered_tools,
+    })
+}
+
+/// A methodology as shown by `kbs methodology list`.
+#[derive(Debug, Clone)]
+pub struct MethodologyListing {
+    pub name: String,
+    pub title: String,
+    pub source: String,
+    pub active: bool,
+}
+
+/// List the configured methodologies in order, then the built-ins that are not active.
+///
+/// # Errors
+/// Returns `KanbusError::Configuration` when a configured methodology cannot be loaded.
+pub fn list_methodologies(
+    repository_root: &Path,
+    configuration: &ProjectConfiguration,
+) -> Result<Vec<MethodologyListing>, KanbusError> {
+    let mut listings: Vec<MethodologyListing> =
+        load_selected_methodologies(repository_root, configuration)?
+            .into_iter()
+            .map(|methodology| MethodologyListing {
+                source: match methodology.bundle_directory.as_ref() {
+                    Some(bundle_directory) => format!(
+                        "bundle {}",
+                        bundle_directory
+                            .strip_prefix(repository_root)
+                            .unwrap_or(bundle_directory)
+                            .display()
                     ),
-                })
-                .collect();
-            let content_with_tool_listing = if rendered_tools.is_empty() {
-                content
-            } else {
-                format!(
-                    "{}\n\n{}",
-                    content.trim_end(),
-                    methodology_tool_listing_text(&methodology.title, &rendered_tools)
-                )
-            };
-            Ok(RenderedMethodology {
+                    None => "built-in".to_string(),
+                },
                 name: methodology.name,
                 title: methodology.title,
-                description: methodology.description,
-                content: content_with_tool_listing,
-                tools: rendered_tools,
+                active: true,
             })
-        })
-        .collect()
+            .collect();
+    for built_in_name in built_in_methodology_names() {
+        if listings.iter().any(|listing| listing.name == built_in_name) {
+            continue;
+        }
+        let built_in_methodology = load_built_in_methodology(built_in_name)?;
+        listings.push(MethodologyListing {
+            name: built_in_methodology.name,
+            title: built_in_methodology.title,
+            source: "built-in".to_string(),
+            active: false,
+        });
+    }
+    Ok(listings)
 }
 
 fn methodology_tool_listing_text(

@@ -150,3 +150,99 @@ Feature: Methodologies assembled into CONTRIBUTING_AGENT.md
     Then the command should fail
     And stderr should contain "declares tool report more than once"
 
+
+  Scenario: Listing methodologies marks the active defaults
+    Given a Kanbus repository without AGENTS.md
+    When I run "kanbus methodology list"
+    Then the command should succeed
+    And stdout should contain "* bdd (built-in)"
+    And stdout should contain "* git-flow (built-in)"
+
+  Scenario: Listing methodologies shows built-ins that are not active
+    Given a Kanbus repository without AGENTS.md
+    And the Kanbus configuration selects methodologies "git-flow"
+    When I run "kanbus methodology list"
+    Then the command should succeed
+    And stdout should contain "* git-flow (built-in)"
+    And stdout should contain "- bdd (built-in)"
+
+  Scenario: Listing methodologies shows project bundles and the built-ins they replace
+    Given a Kanbus repository without AGENTS.md
+    And the repository has a methodology bundle at "methodologies/house-bdd" named "bdd" with heading "House Behavior Rules"
+    And the Kanbus configuration selects methodologies "path:methodologies/house-bdd"
+    When I run "kanbus methodology list"
+    Then the command should succeed
+    And stdout should contain "* bdd (bundle methodologies/house-bdd) House Behavior Rules"
+    And stdout should not contain "(built-in) Outside-in"
+    And stdout should contain "- git-flow (built-in)"
+
+  Scenario: Listing methodologies fails when a configured bundle is missing
+    Given a Kanbus repository without AGENTS.md
+    And the Kanbus configuration selects methodologies "path:methodologies/absent"
+    When I run "kanbus methodology list"
+    Then the command should fail
+    And stderr should contain "methodology bundle not found: methodologies/absent"
+
+  Scenario: Showing a methodology prints its rendered guidance
+    Given a Kanbus repository without AGENTS.md
+    When I run "kanbus methodology show bdd"
+    Then the command should succeed
+    And stdout should contain "## The Rite of Gherkin"
+    And stdout should not contain "{{"
+
+  Scenario: Showing a project bundle renders it with the project context
+    Given a Kanbus repository without AGENTS.md
+    And the repository has a methodology bundle at "methodologies/crap" named "crap" with heading "CRAP Reduction"
+    And the Kanbus configuration selects methodologies "path:methodologies/crap"
+    When I run "kanbus methodology show crap"
+    Then the command should succeed
+    And stdout should contain "## CRAP Reduction"
+    And stdout should contain "Project key: kbs."
+
+  Scenario: Showing a built-in that is not configured still works
+    Given a Kanbus repository without AGENTS.md
+    And the Kanbus configuration selects methodologies "git-flow"
+    When I run "kanbus methodology show bdd"
+    Then the command should succeed
+    And stdout should contain "## The Rite of Gherkin"
+
+  Scenario: Showing an unknown methodology fails clearly
+    Given a Kanbus repository without AGENTS.md
+    When I run "kanbus methodology show scrum-of-scrums"
+    Then the command should fail
+    And stderr should contain "unknown methodology: scrum-of-scrums"
+
+  Scenario: Doctor reports the configured methodologies
+    Given a Kanbus project with default configuration
+    When I run "kanbus doctor"
+    Then the command should succeed
+    And stdout should contain "methodologies: bdd, git-flow"
+
+  Scenario: Doctor reports when no methodologies are configured
+    Given a Kanbus project with default configuration
+    And the Kanbus configuration selects no methodologies
+    When I run "kanbus doctor"
+    Then the command should succeed
+    And stdout should contain "methodologies: none"
+
+  Scenario: Doctor fails when a configured methodology cannot be resolved
+    Given a Kanbus project with default configuration
+    And the Kanbus configuration selects methodologies "scrum-of-scrums"
+    When I run "kanbus doctor"
+    Then the command should fail
+    And stderr should contain "unknown methodology: scrum-of-scrums"
+
+  Scenario: Doctor warns when CONTRIBUTING_AGENT.md is stale against the methodologies
+    Given a Kanbus project with default configuration
+    When I run "kanbus setup agents --force"
+    And the Kanbus configuration selects methodologies "git-flow"
+    And I run "kanbus doctor"
+    Then the command should succeed
+    And stdout should contain "warning: CONTRIBUTING_AGENT.md differs from what the configured methodologies generate"
+
+  Scenario: Doctor stays quiet when CONTRIBUTING_AGENT.md is current
+    Given a Kanbus project with default configuration
+    When I run "kanbus setup agents --force"
+    And I run "kanbus doctor"
+    Then the command should succeed
+    And stdout should not contain "warning: CONTRIBUTING_AGENT.md"

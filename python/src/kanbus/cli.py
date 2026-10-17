@@ -396,6 +396,36 @@ def methodology() -> None:
     """Work with the methodologies configured in .kanbus.yml."""
 
 
+@methodology.command("list")
+def methodology_list() -> None:
+    """List the configured methodologies, then the built-ins that are not active."""
+    from kanbus.methodology_bundles import MethodologyError, list_methodologies
+
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+        configuration = load_project_configuration(configuration_path)
+        listings = list_methodologies(configuration_path.parent, configuration)
+    except (MethodologyError, ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+    for listing in listings:
+        marker = "*" if listing.active else "-"
+        click.echo(f"{marker} {listing.name} ({listing.source}) {listing.title}")
+
+
+@methodology.command("show")
+@click.argument("methodology_name", metavar="METHODOLOGY")
+def methodology_show(methodology_name: str) -> None:
+    """Show the rendered guidance of a methodology.
+
+    :param methodology_name: Methodology name.
+    :type methodology_name: str
+    """
+    from kanbus.agents_management import render_methodology_by_name
+
+    rendered_methodology = render_methodology_by_name(Path.cwd(), methodology_name)
+    click.echo(rendered_methodology["content"])
+
+
 @methodology.command(
     "run",
     context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
@@ -3719,6 +3749,16 @@ def doctor() -> None:
         click.echo("ai credentials: OPENAI_API_KEY not set (run kbs setup ai)")
     else:
         click.echo(f"ai credentials: OPENAI_API_KEY from {result.ai_credential_source}")
+    click.echo(
+        "methodologies: "
+        + (", ".join(result.methodology_names) if result.methodology_names else "none")
+    )
+    if result.project_management_file_is_current is False:
+        click.echo(
+            "warning: CONTRIBUTING_AGENT.md differs from what the configured "
+            "methodologies generate; run kbs setup agents --force to regenerate it "
+            "(this replaces hand edits)"
+        )
 
 
 @cli.command("migrate")

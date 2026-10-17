@@ -317,6 +317,7 @@ def given_repository_has_methodology_bundle_declaring_tool_twice(
 
 
 @given('the Kanbus configuration selects methodologies "{methodology_list}"')
+@when('the Kanbus configuration selects methodologies "{methodology_list}"')
 def given_configuration_selects_methodologies(
     context: object, methodology_list: str
 ) -> None:

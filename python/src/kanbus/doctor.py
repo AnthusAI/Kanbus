@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import click
+
+from kanbus.agents_management import build_project_management_text
 from kanbus.ai_credentials import (
     CredentialSource,
     describe_api_key_source,
@@ -13,6 +16,7 @@ from kanbus.ai_credentials import (
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.file_io import InitializationError, ensure_git_repository
 from kanbus.maintenance import ProjectValidationError, validate_project
+from kanbus.methodology_bundles import MethodologyError, load_selected_methodologies
 from kanbus.project import (
     ProjectMarkerError,
     get_configuration_path,
@@ -30,6 +34,8 @@ class DoctorResult:
 
     project_dir: Path
     ai_credential_source: str = CredentialSource.NONE.value
+    methodology_names: tuple[str, ...] = ()
+    project_management_file_is_current: bool | None = None
 
 
 def run_doctor(root: Path) -> DoctorResult:
@@ -53,7 +59,7 @@ def run_doctor(root: Path) -> DoctorResult:
 
     try:
         configuration_path = get_configuration_path(root)
-        load_project_configuration(configuration_path)
+        configuration = load_project_configuration(configuration_path)
     except (ConfigurationError, ProjectMarkerError) as error:
         raise DoctorError(str(error)) from error
 
@@ -62,6 +68,22 @@ def run_doctor(root: Path) -> DoctorResult:
     except ProjectValidationError as error:
         raise DoctorError(str(error)) from error
 
+    try:
+        methodology_names = tuple(
+            methodology.name
+            for methodology in load_selected_methodologies(root, configuration)
+        )
+        expected_project_management_text = build_project_management_text(root)
+    except (MethodologyError, click.ClickException) as error:
+        raise DoctorError(str(error)) from error
+    project_management_path = root / "CONTRIBUTING_AGENT.md"
+    project_management_file_is_current = None
+    if project_management_path.exists():
+        project_management_file_is_current = (
+            project_management_path.read_text(encoding="utf-8")
+            == expected_project_management_text
+        )
+
     ai_credential_source = CredentialSource.NONE.value
     try:
         ai_credential_source = describe_api_key_source(resolve_api_key_source(root))
@@ -69,5 +91,8 @@ def run_doctor(root: Path) -> DoctorResult:
         ai_credential_source = CredentialSource.NONE.value
 
     return DoctorResult(
-        project_dir=project_dir, ai_credential_source=ai_credential_source
+        project_dir=project_dir,
+        ai_credential_source=ai_credential_source,
+        methodology_names=methodology_names,
+        project_management_file_is_current=project_management_file_is_current,
     )

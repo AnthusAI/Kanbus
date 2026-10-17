@@ -905,6 +905,14 @@ enum SetupCommands {
 
 #[derive(Debug, Subcommand)]
 enum MethodologyCommands {
+    /// List the configured methodologies, then the built-ins that are not active.
+    List,
+    /// Show the rendered guidance of a methodology.
+    Show {
+        /// Methodology name.
+        #[arg(value_name = "METHODOLOGY")]
+        methodology: String,
+    },
     /// Run a tool declared by a configured methodology bundle, from the repository root.
     Run {
         /// Methodology name.
@@ -1977,6 +1985,32 @@ fn execute_command(
             } => execute_setup_env(root, name, value, from_stdin, status),
         },
         Commands::Methodology { command } => match command {
+            MethodologyCommands::List => {
+                let configuration_path = get_configuration_path(root)?;
+                let configuration = load_project_configuration(&configuration_path)?;
+                let repository_root = configuration_path.parent().unwrap_or(root);
+                let listing_lines: Vec<String> = crate::methodology_bundles::list_methodologies(
+                    repository_root,
+                    &configuration,
+                )?
+                .iter()
+                .map(|listing| {
+                    format!(
+                        "{} {} ({}) {}",
+                        if listing.active { "*" } else { "-" },
+                        listing.name,
+                        listing.source,
+                        listing.title
+                    )
+                })
+                .collect();
+                Ok(Some(listing_lines.join("\n")))
+            }
+            MethodologyCommands::Show { methodology } => {
+                let rendered_methodology =
+                    crate::agents_management::render_methodology_by_name(root, &methodology)?;
+                Ok(Some(rendered_methodology.content))
+            }
             MethodologyCommands::Run {
                 methodology,
                 tool,
@@ -3934,11 +3968,22 @@ fn execute_command(
                     result.ai_credential_source
                 )
             };
-            Ok(Some(format!(
-                "ok {}\n{}",
-                result.project_dir.display(),
-                ai_credentials_line
-            )))
+            let methodologies_line = if result.methodology_names.is_empty() {
+                "methodologies: none".to_string()
+            } else {
+                format!("methodologies: {}", result.methodology_names.join(", "))
+            };
+            let mut doctor_lines = vec![
+                format!("ok {}", result.project_dir.display()),
+                ai_credentials_line,
+                methodologies_line,
+            ];
+            if result.project_management_file_is_current == Some(false) {
+                doctor_lines.push(
+                    "warning: CONTRIBUTING_AGENT.md differs from what the configured methodologies generate; run kbs setup agents --force to regenerate it (this replaces hand edits)".to_string(),
+                );
+            }
+            Ok(Some(doctor_lines.join("\n")))
         }
         Commands::Daemon { root } => {
             run_daemon(Path::new(&root))?;
