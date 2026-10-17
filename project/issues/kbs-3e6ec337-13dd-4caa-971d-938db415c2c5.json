@@ -3,16 +3,24 @@
   "title": "Milestone 4: writable Prospectus sales and customer-success proof",
   "description": "Deliver a separate Prospectus application consuming actual shared Kanbus UI, generic issue operations and Virtuus storage. Configure prospect records, sales-funnel stages, salesperson ownership/follow-up and customer-success follow-up. Use ordinary type/status/assignee/custom-field queries, not specialized CRM tables or APIs. Demonstrate create, stage transition and reload against a real writable backend. Keep development tracking separate from CRM records. Public contact/demo intake is narrow and reveals no CRM records. Done when local and deployed proofs are explicit and all milestone stories pass.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "3de75226-449c-4cec-b004-86146bdf416f",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-16: no child is in progress, so per the board convention this parent returns to open until one of its children becomes active.",
+      "created_at": "2026-10-16T23:49:14.102879184Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-13T23:46:21.007765Z",
-  "updated_at": "2026-10-14T00:23:18.238136Z",
+  "updated_at": "2026-10-16T23:49:14.102905724Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

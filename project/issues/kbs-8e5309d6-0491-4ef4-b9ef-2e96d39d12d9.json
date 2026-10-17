@@ -3,7 +3,7 @@
   "title": "Embed configured Kanbus boards without taking over the host app",
   "description": "As an app developer, I want to embed a configured Kanbus board so my application owns navigation and data access.\n\nFeature: Embedded Kanbus board\n  Scenario: Render a configured domain board\n    Given a host provides normal Kanbus issues and configured issue types and stages\n    When it renders the reusable board\n    Then columns use the configured names and permitted transitions\n    And selection and mutation interactions call the host contract\n    And the host retains routing, authentication and data access\n  Scenario: Preserve standalone usage\n    Given the standalone console configuration and existing records\n    When the console renders and interacts with its board\n    Then the existing standalone behavior remains available",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -55,11 +55,18 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "1a92906b-84fe-4b24-ba90-f8493de94e02",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-16: acceptance met. Prospectus renders the shared exported Board through IssueCollection from released Kanbus UI 0.2.0 with host-owned routing, auth and data access, and the standalone console release passed all gates. Broader cross-app acceptance is tracked by the shared UI work, so closing.",
+      "created_at": "2026-10-16T23:49:14.194337627Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-13T23:46:21.470723Z",
-  "updated_at": "2026-10-15T17:21:09.556217Z",
-  "closed_at": null,
+  "updated_at": "2026-10-16T23:49:14.194382473Z",
+  "closed_at": "2026-10-16T23:48:56.852463336Z",
   "agent": {
     "platform": "codex",
     "model": "GPT-6",

@@ -3,7 +3,7 @@
   "title": "Activate the approved canonical Accounts directory through main",
   "description": "Given the explicitly approved two-runtime Accounts scope and verified Linux packaging, when the canonical directory and JWT BFF are integrated through the existing main Amplify pipeline, then staff CRM data and Google sign-in remain unchanged, anonymous and unauthorized callers are denied, account/member reads stay isolated, and Google identity resolution grants no membership automatically. Packaging must pass before activation. Exact IAM inventory and live verification evidence remain in the private deployment review; public progress is deidentified.",
   "type": "story",
-  "status": "in_progress",
+  "status": "blocked",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -25,10 +25,17 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "68fd07ee-adb4-46d3-9a59-51cf3c93d8ac",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-17 (Ryan chose to park): blocked on acceptance only. Accounts activation is deployed through main. Remaining: authorized test memberships exist in production so populated account/member reads and isolation can be checked live. Close after that.",
+      "created_at": "2026-10-17T06:31:07.893385709Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-15T17:57:02.887785Z",
-  "updated_at": "2026-10-15T18:56:14.965983Z",
+  "updated_at": "2026-10-17T06:31:08.118617835Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

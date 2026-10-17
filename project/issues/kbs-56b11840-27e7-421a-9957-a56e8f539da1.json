@@ -3,7 +3,7 @@
   "title": "Emit integer expiry timestamps from production Google login challenges",
   "description": "Given the production fractional Unix-second clock and an authorized Google challenge, when the central service returns issuedAt and expiresAt, then both public timestamps are integers separated by 300 seconds and the strict console login parser accepts them. Given cryptographic token freshness is checked, when the clock contains a fraction, then existing subsecond security comparisons remain unchanged. Owner fix330713f is integrated as a2d99ba; TypeScript and86 regressions pass; required CI and normal deployment remain gates.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "blocked",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -39,10 +39,17 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "870fe5b7-6bd9-4732-9df7-ef6f4bd3a072",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-17 (Ryan chose to park): blocked on acceptance only. The fix is merged and deployed (Prospectus main 3c90214). Remaining: the console owner signs in with Google in the console and confirms the strict login parser accepts the integer issuedAt/expiresAt. Close after that.",
+      "created_at": "2026-10-17T06:31:06.738796301Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-16T07:07:32.920614Z",
-  "updated_at": "2026-10-16T09:29:07.081624Z",
+  "updated_at": "2026-10-17T06:31:07.100975025Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",

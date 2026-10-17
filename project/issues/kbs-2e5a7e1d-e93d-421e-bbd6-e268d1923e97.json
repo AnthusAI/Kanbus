@@ -3,16 +3,24 @@
   "title": "Milestone 3: lossless snapshots and rebuildable cloud catalog",
   "description": "Make backend choice reversible without data loss. Preserve raw issue fields, full IDs, relations, comments, ordering, timestamps, events/history and configuration in versioned hashed snapshots. Canonical S3 records must export to the local file representation without catalog-only data loss. Define identical duplicate no-op versus conflicting duplicate rejection explicitly. Rebuild DynamoDB directly from normal canonical S3 files, verifying pointers and hashes. S3 export is a simple canonical-prefix copy; import copies normal files then rebuilds the catalog. Auxiliary repair state must not appear in the canonical prefix. Git remains a valid primary filesystem workflow; JSON snapshots do not claim to preserve Git commit ancestry. Done when real large-history fixtures and round-trip/failure/duplicate tests pass.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "4a4ce4ae-323a-420c-ae40-20e3da65b46a",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-16: no child is in progress, so per the board convention this parent returns to open until one of its children becomes active.",
+      "created_at": "2026-10-16T23:49:14.149105920Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-14T00:23:15.648854Z",
-  "updated_at": "2026-10-14T00:23:17.941891Z",
+  "updated_at": "2026-10-16T23:49:14.149131120Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
