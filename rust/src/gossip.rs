@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 #[cfg(unix)]
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -705,12 +705,11 @@ fn persist_gossip_overlay(
     } else if overlay_config.enabled {
         if envelope.event_type == "issue.mutated" {
             if let Some(issue) = envelope.issue.as_ref() {
-                let _ = write_overlay_issue(
-                    project_dir,
-                    issue,
-                    &envelope.ts,
-                    envelope.event_id.clone(),
-                );
+                if let Err(error) =
+                    write_overlay_issue(project_dir, issue, &envelope.ts, envelope.event_id.clone())
+                {
+                    log::warn!("dropping gossip issue envelope: {error}");
+                }
             }
         } else if envelope.event_type == "issue.deleted" {
             if let Some(issue_id) = envelope.issue_id.clone() {
@@ -722,7 +721,9 @@ fn persist_gossip_overlay(
                     ts: envelope.ts.clone(),
                     ttl_s: overlay_config.ttl_s,
                 };
-                let _ = write_tombstone(project_dir, &tombstone);
+                if let Err(error) = write_tombstone(project_dir, &tombstone) {
+                    log::warn!("dropping gossip tombstone envelope: {error}");
+                }
             }
         }
     }
@@ -1009,7 +1010,7 @@ fn run_uds_broker(socket_path: &Path) -> Result<(), KanbusError> {
         let _ = fs::remove_file(socket_path);
     }
     if let Some(parent) = socket_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+        create_private_directory(parent)?;
     }
     let listener =
         UnixListener::bind(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -1032,13 +1033,31 @@ struct Subscriber {
     stream: Arc<Mutex<UnixStream>>,
 }
 
+const MAXIMUM_UDS_LINE_BYTES: u64 = 1024 * 1024;
+
 #[cfg(unix)]
 fn handle_uds_connection(stream: UnixStream, subscribers: Arc<Mutex<Vec<Subscriber>>>) {
     let Ok(read_stream) = stream.try_clone() else {
         return;
     };
-    let reader = BufReader::new(read_stream);
-    for line in reader.lines().map_while(Result::ok) {
+    let mut reader = BufReader::new(read_stream);
+    loop {
+        let mut line = String::new();
+        let bytes_read = match reader
+            .by_ref()
+            .take(MAXIMUM_UDS_LINE_BYTES + 1)
+            .read_line(&mut line)
+        {
+            Ok(bytes_read) => bytes_read,
+            Err(_) => return,
+        };
+        if bytes_read == 0 {
+            return;
+        }
+        if bytes_read as u64 > MAXIMUM_UDS_LINE_BYTES {
+            log::warn!("dropping gossip connection that sent an over-long line");
+            return;
+        }
         if line.trim().is_empty() {
             continue;
         }
@@ -1516,7 +1535,7 @@ fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, 
         return Ok(None);
     }
     let run_dir = broker_run_dir();
-    fs::create_dir_all(&run_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    create_private_directory(&run_dir)?;
     let mut port = if endpoint.port == 0 {
         1883
     } else {
@@ -1599,7 +1618,7 @@ fn load_broker_metadata() -> Option<BrokerMetadata> {
 
 fn write_broker_metadata(metadata: &BrokerMetadata) -> Result<(), KanbusError> {
     let run_dir = broker_run_dir();
-    fs::create_dir_all(&run_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    create_private_directory(&run_dir)?;
     let path = run_dir.join("broker.json");
     let payload = serde_json::to_string_pretty(metadata)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -1620,6 +1639,22 @@ fn uds_socket_path(realtime: Option<&RealtimeConfig>) -> PathBuf {
         return PathBuf::from(runtime_dir).join("kanbus").join("bus.sock");
     }
     home_dir().join(".kanbus").join("run").join("bus.sock")
+}
+
+fn create_private_directory(directory: &Path) -> Result<(), KanbusError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(directory)
+            .map_err(|error| KanbusError::Io(error.to_string()))
+    }
+    #[cfg(not(unix))]
+    {
+        fs::create_dir_all(directory).map_err(|error| KanbusError::Io(error.to_string()))
+    }
 }
 
 fn home_dir() -> PathBuf {

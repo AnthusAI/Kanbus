@@ -37,6 +37,27 @@ pub struct OverlayTombstone {
     pub ttl_s: u64,
 }
 
+const MAXIMUM_OVERLAY_ISSUE_IDENTIFIER_LENGTH: usize = 200;
+
+pub fn is_valid_overlay_issue_identifier(identifier: &str) -> bool {
+    !identifier.is_empty()
+        && identifier.len() <= MAXIMUM_OVERLAY_ISSUE_IDENTIFIER_LENGTH
+        && !identifier.contains("..")
+        && !identifier.starts_with('.')
+        && identifier
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+}
+
+fn require_valid_overlay_issue_identifier(identifier: &str) -> Result<(), KanbusError> {
+    if is_valid_overlay_issue_identifier(identifier) {
+        return Ok(());
+    }
+    Err(KanbusError::Io(format!(
+        "refusing overlay path for invalid issue identifier: {identifier:?}"
+    )))
+}
+
 pub fn overlay_root(project_dir: &Path) -> PathBuf {
     project_dir.join(".overlay")
 }
@@ -210,6 +231,7 @@ pub fn write_overlay_issue(
         overrides: None,
         issue: issue.clone(),
     };
+    require_valid_overlay_issue_identifier(&issue.identifier)?;
     let path = overlay_issue_path(project_dir, &issue.identifier);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -260,6 +282,7 @@ pub fn write_tombstone(
     project_dir: &Path,
     tombstone: &OverlayTombstone,
 ) -> Result<(), KanbusError> {
+    require_valid_overlay_issue_identifier(&tombstone.id)?;
     let path = overlay_tombstone_path(project_dir, &tombstone.id);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -897,6 +920,43 @@ mod tests {
     use chrono::{Duration, TimeZone, Utc};
     use std::collections::BTreeMap;
     use tempfile::TempDir;
+
+    #[test]
+    fn overlay_identifier_validation_rejects_traversal_and_separators() {
+        for accepted in ["kbs-1", "kanbus-abc123.4", "a_b-c"] {
+            assert!(is_valid_overlay_issue_identifier(accepted), "{accepted}");
+        }
+        let too_long = "a".repeat(201);
+        for rejected in [
+            "../x",
+            "a/b",
+            "..",
+            ".",
+            "",
+            "a\\b",
+            ".hidden",
+            "x..y",
+            too_long.as_str(),
+        ] {
+            assert!(!is_valid_overlay_issue_identifier(rejected), "{rejected}");
+        }
+    }
+
+    #[test]
+    fn writing_overlay_or_tombstone_for_traversal_identifier_writes_nothing() {
+        let temp = TempDir::new().expect("tempdir");
+        let tombstone = OverlayTombstone {
+            op: "delete".to_string(),
+            project: "p".to_string(),
+            id: "../../escape".to_string(),
+            event_id: None,
+            ts: "2026-01-01T00:00:00Z".to_string(),
+            ttl_s: 60,
+        };
+        assert!(write_tombstone(temp.path(), &tombstone).is_err());
+        assert!(!temp.path().join("escape.json").exists());
+        assert!(!overlay_root(temp.path()).join("tombstones").exists());
+    }
 
     #[test]
     fn coordination_overlay_uses_shared_hashed_plain_envelope_fixture() {

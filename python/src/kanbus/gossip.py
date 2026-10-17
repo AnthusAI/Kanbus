@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import socket
@@ -338,23 +339,28 @@ def _run_gossip_consumer(
                 ttl_s=configuration.overlay.ttl_s,
             )
         elif configuration.overlay.enabled:
-            if envelope.type == "issue.mutated" and envelope.issue is not None:
-                write_overlay_issue(
-                    target_project,
-                    envelope.issue,
-                    envelope.ts,
-                    envelope.event_id,
+            try:
+                if envelope.type == "issue.mutated" and envelope.issue is not None:
+                    write_overlay_issue(
+                        target_project,
+                        envelope.issue,
+                        envelope.ts,
+                        envelope.event_id,
+                    )
+                elif envelope.type == "issue.deleted" and envelope.issue_id:
+                    tombstone = OverlayTombstone(
+                        op="delete",
+                        project=envelope.project,
+                        id=envelope.issue_id,
+                        event_id=envelope.event_id,
+                        ts=envelope.ts,
+                        ttl_s=configuration.overlay.ttl_s,
+                    )
+                    write_tombstone(target_project, tombstone)
+            except ValueError as error:
+                logging.getLogger(__name__).warning(
+                    "dropping gossip envelope: %s", error
                 )
-            elif envelope.type == "issue.deleted" and envelope.issue_id:
-                tombstone = OverlayTombstone(
-                    op="delete",
-                    project=envelope.project,
-                    id=envelope.issue_id,
-                    event_id=envelope.event_id,
-                    ts=envelope.ts,
-                    ttl_s=configuration.overlay.ttl_s,
-                )
-                write_tombstone(target_project, tombstone)
         if on_envelope is not None:
             on_envelope(envelope)
 
@@ -442,7 +448,7 @@ def run_gossip_broker(root: Path, socket_override: Optional[Path]) -> None:
 
 def run_uds_broker(socket_path: Path) -> None:
     """Run the Unix domain socket gossip broker."""
-    socket_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_private_directory(socket_path.parent)
     if socket_path.exists():
         socket_path.unlink()
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -459,6 +465,13 @@ def run_uds_broker(socket_path: Path) -> None:
         thread.start()
 
 
+MAXIMUM_UDS_LINE_BYTES = 1024 * 1024
+
+
+def _create_private_directory(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+
 def _handle_uds_connection(
     conn: socket.socket,
     subscribers: list[tuple[str, socket.socket]],
@@ -473,6 +486,11 @@ def _handle_uds_connection(
         if not chunk:
             break
         buffer += chunk
+        if len(buffer) > MAXIMUM_UDS_LINE_BYTES and b"\n" not in buffer:
+            logging.getLogger(__name__).warning(
+                "dropping gossip connection that sent an over-long line"
+            )
+            break
         while b"\n" in buffer:
             line, buffer = buffer.split(b"\n", 1)
             if not line.strip():
@@ -663,7 +681,7 @@ def ensure_mosquitto(endpoint: BrokerEndpoint) -> Optional[BrokerStartup]:
     if not _mosquitto_available():
         return None
     run_dir = _broker_run_dir()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    _create_private_directory(run_dir)
     port = endpoint.port if endpoint.port > 0 else 1883
     port = _find_free_port(port)
     conf_path = run_dir / "mosquitto.conf"
@@ -943,7 +961,7 @@ def _load_broker_metadata() -> dict | None:
 
 def _write_broker_metadata(metadata: dict) -> None:
     run_dir = _broker_run_dir()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    _create_private_directory(run_dir)
     path = run_dir / "broker.json"
     path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
