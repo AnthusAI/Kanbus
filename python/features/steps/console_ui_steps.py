@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import socket
@@ -149,7 +150,7 @@ def _stop_kbsc(port: int) -> None:
             method="POST",
         )
         urllib.request.urlopen(req, timeout=2)
-    except (urllib.error.URLError, OSError):
+    except (urllib.error.URLError, http.client.HTTPException, OSError):
         pass
 
 
@@ -165,6 +166,7 @@ def stop_console_server(context: object) -> None:
         proc.wait(timeout=3)
     except subprocess.TimeoutExpired:
         proc.kill()
+        proc.wait()
     context.console_server_process = None
     context.console_server_port = None
 
