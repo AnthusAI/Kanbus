@@ -1,0 +1,27 @@
+{
+  "id": "kbs-cb3a9110-040f-47b0-af94-1b15fd6a450c",
+  "title": "kbs ready prints full UUID ids while other commands print short ids",
+  "description": "kbs ready and kanbus ready print ids like kanbus-29242643-08c5-49fe-8682-3116cb3bdc81, while create, list and show use kanbus-292426. Both forms resolve, but the mismatch is confusing in docs and agent transcripts.",
+  "type": "chore",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:23:24.242593233Z",
+  "updated_at": "2026-10-16T14:23:24.304018233Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

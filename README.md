@@ -62,28 +62,24 @@ Kanbus is in production.
 ## Quick Start
 
 ```bash
-# Initialize a new project
-kanbus init
-
-# Create an issue
-kanbus create "Implement the login flow"
-
-# List open tasks
-kanbus list --status todo
-
-# Show details
-kanbus show kanbus-a1b
+kbs init                                   # or: kanbus init (Python CLI)
+kbs create "Implement the login flow"
+kbs list --status open
+kbs show <id>
+kbs commit                                 # commit board changes to git
 ```
+
+Kanbus runs three ways: on local files, on files in a hosted git repository shared by a team and its agents, or on S3 and DynamoDB behind a web application. [Getting Started](docs/GETTING_STARTED.md) compares them and has a step-by-step guide for each.
 
 ## Documentation
 
-- [Getting Started](docs/GETTING_STARTED.md)
+- [Getting Started](docs/GETTING_STARTED.md): [local files](docs/getting-started/local-files.md), [files in the cloud](docs/getting-started/cloud-files.md), [S3 and DynamoDB in the cloud](docs/getting-started/cloud-database.md)
 - [CLI Reference](docs/CLI_REFERENCE.md)
 - [Agent compaction and right-now elicitation](docs/AGENT_COMPACTION_RIGHT_NOW.md) — reinject board WIP after coding-agent context compaction; on-demand `kbs now`. Run `kbs setup ai` once to store an LLM API key for these features.
 
 ## Console (Rust backend)
 
-The console UI is served by the Rust local server.
+The console UI is served by `kbsc`, the Rust console server.
 
 ### Quick Start (Prebuilt Binary)
 
@@ -91,45 +87,35 @@ Download the prebuilt binary from [GitHub Releases](https://github.com/AnthusAI/
 
 ```bash
 # Linux x86_64
-curl -L -o kanbus-console.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kanbus-console-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kanbus-console.tar.gz
-chmod +x kanbus-console
-./kanbus-console
-# Opens web UI at http://127.0.0.1:5174/
+curl -L -o kbsc.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbsc-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf kbsc.tar.gz
+./kbsc
+# Serves the board on console_port from .kanbus.yml, or http://127.0.0.1:5174/
 ```
 
 The binary includes all frontend assets—no configuration or additional files required.
 
 ### Development Mode
 
-Run the local backend with filesystem assets:
-
 ```bash
-cargo run --bin kanbus-console --manifest-path rust/Cargo.toml
+./dev.sh
 ```
 
-The development build serves assets from `apps/console/dist/`. Build the frontend once if not already built:
-
-```bash
-cd apps/console
-npm install
-npm run build
-```
+This starts the frontend watcher and the Rust backend, rebuilding both on changes.
 
 ### Production Binary (Build from Source)
 
-To build a standalone binary with embedded frontend:
-
 ```bash
 cd apps/console
 npm install
 npm run build
-
-cd ../rust
-cargo build --release --features embed-assets --bin kanbus-console
+cd ../..
+rm -rf rust/embedded_assets/console
+cp -R apps/console/dist rust/embedded_assets/console
+cargo build --release --manifest-path rust/Cargo.toml --bin kbsc
 ```
 
-The resulting binary at `rust/target/release/kanbus-console` includes all frontend assets and requires no additional files.
+The resulting binary at `rust/target/release/kbsc` includes all frontend assets and requires no additional files.
 
 ### Usage
 

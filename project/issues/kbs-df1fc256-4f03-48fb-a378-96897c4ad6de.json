@@ -1,0 +1,104 @@
+{
+  "id": "kbs-df1fc256-4f03-48fb-a378-96897c4ad6de",
+  "title": "Persist prospect intake and sales follow-up through generic Kanbus operations",
+  "description": "As a salesperson, I want contact and demo requests to become prospects so I can own their next follow-up.\n\nFeature: Configured prospect lifecycle\n  Scenario: Record marketing intake\n    Given a brand-configured contact or demo submission link\n    When a valid request is submitted to the narrow intake endpoint\n    Then a normal Kanbus issue of configured type prospect is persisted through Virtuus\n    And source, contact, owner and next follow-up survive a backend reload\n    And the public response reveals no CRM record data\n  Scenario: Progress a prospect\n    Given an authenticated salesperson and a qualified prospect\n    When the salesperson advances an allowed configured funnel stage\n    Then the persisted issue and shared board show the new stage after reload\n    And disallowed transitions are rejected without changing the issue\n  Scenario: Find due follow-up\n    Given prospect and other issue types with owners and configured follow-up values\n    When the app submits ordinary type, assignee and custom-field predicates\n    Then it displays only the matching prospects in the shared filtered list",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3e6ec337-13dd-4caa-971d-938db415c2c5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "84694c7b-03ad-4940-ae91-fc594ae2ea03",
+      "author": "home",
+      "text": "Ryan now explicitly authorized publishing, merging and deploying pending CRM MVP for evaluation. Reconciliation is isolated at prospectus-evaluation on main13155d7, excluding central-account prototype and internal tracking artifacts. Existing33 tests and5 new evaluation-boundary tests pass; frontend/typecheck pass using the prior organizer package locally while waiting for root/shared owner final export/pin. Preparing disabled additive synthetic-only intake IaC for exact new runtime/access approval; no IAM/OAuth/security grant has been made. Accounts API/UI remains separately owned and will be integrated only on handoff. Existing old Cyclotron routing retirement is separate from this CRM release.",
+      "created_at": "2026-10-15T15:54:28.899621Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "d69518b1-50cb-42dc-9863-2d522414a7d0",
+      "author": "home",
+      "text": "Clean public release PR3 https://github.com/AnthusAI/Prospectus/pull/3 is published under Ryan explicit authorization, head966e000cc5663422aeedff606238eab14ef90dc5. Reconciled existing MVP without accounts prototype/internal artifacts.38 app tests,11 infra checks,4 Virtuus binding/mock tests, exact API integration and6 browser acceptance tests PASS (3 separate LAN-only skipped). Shared column collapse/layout/reload proof passes. Runtime-only npm audit0 advisories. UI0.2.0 candidate454f165b is independently pinned from API25410911/Virtuus639f873 because UI PR402 excludes services/kanbus-api. Await shared owner release/merge handoff. Additive synthetic intake proposal remains disabled pending exact role/runtime approval; no IAM/OAuth/secret changes. Accounts visible increment separately owned and pending handoff. Latest CI38766291389 running; no CRM merge/deploy yet.",
+      "created_at": "2026-10-15T16:08:37.323757Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "cc0f93d3-dae2-483e-81e3-c37dc56ef8d4",
+      "author": "home",
+      "text": "The failed release check was an optional runtime packaging install-path typo after successful Linux compilation. The source path is corrected, and disabled optional packaging is now separate from the independently useful CRM release. Updated PR3 is published and CI is running. Accounts handoff and optional intake activation are not blanket CRM deployment gates. Detailed obsolete-resource cleanup inventory is retained privately pending exact confirmation; no irreversible deletion or new access grant occurred.",
+      "created_at": "2026-10-15T16:24:43.316114Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "220f7bea-a75a-4b8d-b2f7-9ab63ac1e694",
+      "author": "home",
+      "text": "Intake inventory completed privately. Public capture remains inactive; the existing synthetic proof passes, while real-contact readiness and separate activation approval remain outstanding. Independent next steps are queued for offline review and acceptance planning. This does not delay Accounts activation or add any access scope. Demo requests are follow-up inquiries, not appointment booking.",
+      "created_at": "2026-10-15T18:11:54.269772Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "e9a525e8-4e2c-439e-b337-ec2c0701dc21",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Source main contains synthetic intake/contact/next-action work; hosted synthetic runtime is disabled and real-contact acquisition needs policy/operating/failure acceptance. Demo inquiry is not booking. Repo-local Prospectus kanbus-67ae2d79-ea39-4402-83b7-5be6c595ae4c tracks readiness; no outbound messages or account grants implied.",
+      "created_at": "2026-10-16T20:46:56.462594Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-13T23:46:21.779472Z",
+  "updated_at": "2026-10-16T20:46:56.462643Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": "CRM release PR3 is published and CI is running; no merge or deployment has happened, and public intake remains inactive.",
+  "right_now_updated_at": "2026-10-15T18:11:57.082516Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

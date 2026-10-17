@@ -1,0 +1,25 @@
+{
+  "id": "kbs-047ba6ad-2951-482d-8899-79638468a752",
+  "title": "Rebuild query metadata from committed S3 canonical state",
+  "description": "As an operator, I want to rebuild the DynamoDB catalog from S3 so query metadata is recoverable independently of canonical records.\n\nFeature: Rebuildable cloud catalog\n  Scenario: Recover catalog contents\n    Given normal canonical issue and event files and missing or stale catalog entries\n    When an authorized scoped catalog rebuild runs\n    Then it verifies payload hashes and restores query metadata and pointers from the current canonical files\n    And ordinary generic queries converge to the same records\n  Scenario: Exclude recovery internals\n    Given auxiliary recovery journal records outside the canonical prefix\n    When the canonical prefix is exported or the catalog is rebuilt\n    Then recovery internals do not become canonical issues or history\n  Scenario: Protect tenant boundaries during recovery\n    Given canonical content for multiple tenants\n    When an operator rebuilds one authorized project\n    Then no other tenant's metadata or canonical files are modified\n  Scenario: Repeat recovery\n    Given an already repaired catalog\n    When rebuild is repeated\n    Then it creates no duplicate records and does not modify canonical payloads",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-2e5a7e1d-e93d-421e-bbd6-e268d1923e97",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:17.026462Z",
+  "updated_at": "2026-10-14T00:23:17.057283Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

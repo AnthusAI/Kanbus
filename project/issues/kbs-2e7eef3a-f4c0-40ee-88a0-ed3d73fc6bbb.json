@@ -1,0 +1,69 @@
+{
+  "id": "kbs-2e7eef3a-f4c0-40ee-88a0-ed3d73fc6bbb",
+  "title": "Clarify Accounts sign-in and restore actionable controls",
+  "description": "Given a signed-in user reaches Accounts before the current login has canonical identity confirmation, when the view is displayed, then it explains the required Google confirmation without implying a service failure. Controls must be visibly interactive, prevent duplicate connection submissions, expose progress and errors, and ordinary explanatory text must remain selectable. Preserve issuer/subject/nonce verification and create no memberships or administrative grants. Reproduce the session behavior and document the administrative-directory scope mismatch before redesign.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fd98c711-9016-44b2-b9d4-bc0ff81cd365",
+      "author": "home",
+      "text": "Implemented scoped confirmation copy, selectable explanatory text, styled controls and duplicate-submission protection. Production build and synthetic browser regression pass. Existing session-confirmation behavior reproduced live. Broader directory scope mismatch is documented privately for product coordination; this change does not expand access.",
+      "created_at": "2026-10-15T19:20:50.349608Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "f4e58c28-9277-40b8-87d5-4e1393ccedb8",
+      "author": "home",
+      "text": "PR6 passed every hosted CI check, including Linux Node24 package loading, real persisted isolation and browser tests, and merged into main as e804e2e. Main deployment job8 is running. The native local fixture dependency has also been restored and persisted tests now pass. Closure awaits live deployment verification.",
+      "created_at": "2026-10-15T19:45:49.828039Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "a3fa9b87-f1c0-4a0b-af89-86d74562d6ea",
+      "author": "home",
+      "text": "PR6 is merged and live. Hosted CI passed all required checks; main deployment job8 succeeded through build, deploy and verification. Live browser confirms corrected confirmation copy, visible themed controls and selectable explanatory text. Broader operator administration is tracked separately in kbs-555319b6-6422-4b17-be82-e2fb66b309c9.",
+      "created_at": "2026-10-15T19:55:56.114548Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-15T19:12:51.864663Z",
+  "updated_at": "2026-10-15T19:56:02.557332Z",
+  "closed_at": "2026-10-15T19:56:02.532973Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "The fix is live, verified in production, and the broader directory scope issue is tracked separately.",
+  "right_now_updated_at": "2026-10-15T19:56:04.242342Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

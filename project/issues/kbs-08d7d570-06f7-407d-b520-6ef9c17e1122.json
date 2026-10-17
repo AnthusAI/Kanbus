@@ -1,0 +1,47 @@
+{
+  "id": "kbs-08d7d570-06f7-407d-b520-6ef9c17e1122",
+  "title": "Retire obsolete dedicated Cyclotron Prospectus hosting while retaining recoverable state",
+  "description": "Given Ryan explicitly requests one central Prospectus deployment and authenticated central access is accepted, when the obsolete dedicated hosting is retired, then the old default URL redirects to prospectus.anth.us and the old prospectus.cyclotron.anth.us record is removed, while central and marketing remain healthy. Configuration, routing, identity and catalog rollback evidence is saved privately; old backend/userpool/secrets/data are retained. Permanent resource cleanup requires exact separate action-time approval.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0923d421-f5fa-4d8e-9ef8-2b295fef239c",
+      "author": "home",
+      "text": "Staged retirement complete: verified source682849160744 and central712236451410; complete old bucket version inventory contained only1536-byte configuration, zero deletions/issue records; catalog empty; one user retained. Saved private exact routing, source version/config checksum, catalog and identity-group rollback snapshots outside public repo. Old appdnfou6dg4d6x2 auto-build remains disabled; default proof URL returns302 to https://prospectus.anth.us/. Deleted only old authoritative prospectus.cyclotron.anth.us CNAME to dgjphcuske3pw.cloudfront.net; Route53 changeC08022533I93KBRNJRFIC INSYNC, authoritative NXDOMAIN verified. Central HTTPS200 unchanged. Old stack/API/Lambda/bucket/catalog/userpool/secret/app-domain shell retained; no irreversible cleanup. Lab configuration belongs to its separate owner and must consume central Prospectus; no lab worktree modified.",
+      "created_at": "2026-10-15T15:58:22.652578Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T15:54:29.451279Z",
+  "updated_at": "2026-10-15T15:58:22.943831Z",
+  "closed_at": "2026-10-15T15:58:22.918178Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

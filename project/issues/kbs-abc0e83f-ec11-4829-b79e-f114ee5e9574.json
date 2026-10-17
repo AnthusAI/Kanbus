@@ -1,0 +1,27 @@
+{
+  "id": "kbs-abc0e83f-ec11-4829-b79e-f114ee5e9574",
+  "title": "Python package installs development tools as runtime dependencies",
+  "description": "pip install kanbus pulls behave, black, coverage, pytest, ruff and sphinx. Move them to an optional dev extra so the CLI install is light, as the getting-started guide promises.",
+  "type": "chore",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:23:47.691408474Z",
+  "updated_at": "2026-10-16T14:23:47.750734580Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

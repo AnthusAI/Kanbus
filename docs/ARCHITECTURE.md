@@ -8,7 +8,7 @@ Kanbus ships two first-class CLIs—Python and Rust—that execute the same Gher
 
 ## File Organization Model
 
-Kanbus stores each issue as its own JSON file under `project/issues/`, eliminating merge-heavy monoliths and removing any secondary database. Hierarchical types and workflows live in `project/config.yaml`, keeping schema alongside data. There is exactly one storage path: the JSON files in the repository. No fallbacks, no mirrored SQLite caches, and no daemon-owned state are required to read or list issues.
+Kanbus stores each issue as its own JSON file under `project/issues/`, eliminating merge-heavy monoliths and removing any secondary database. Hierarchical types and workflows live in `.kanbus.yml`, keeping schema alongside data. There is exactly one storage path: the JSON files in the repository. No fallbacks, no mirrored SQLite caches, and no daemon-owned state are required to read or list issues.
 
 ## Event History
 

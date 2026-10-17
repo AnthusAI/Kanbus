@@ -1,0 +1,47 @@
+{
+  "id": "kbs-ed7d23b5-4845-4ea2-9ec3-dad2adf9f0d6",
+  "title": "Preserve canonical CRM files through a verified cross-account snapshot",
+  "description": "Given a complete source inventory and an agreed quiescent final snapshot, when a replacement Virtuus store is initialized in papyrus-production, then canonical paths/bytes/history/issueIDs are preserved, destination native revisions and supplemental catalog are validated, concurrent source writes are reconciled, and the source remains intact. Never blindly copy source-specific catalog pointers. Identity/S3 worker owns the storage contract; no competing schema or namespace redesign.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cf5926c4-e9c9-452d-bc7f-90c14436816d",
+      "author": "home",
+      "text": "Acceptance update: Ryan confirmed authenticated access works on the replacement. Fresh complete inventories found zero issue objects in source and destination; the sole operational configuration in each is 1536 bytes with identical SHA256 6470069400767d619c9269b3aa41d19f884c3561d4c32256e2b7ce886153e185. No customer issue/history transfer was needed. Source remains intact; no account retirement or deletion. This establishes the inspected empty-record migration result, not a general populated-store snapshot/history migration proof.",
+      "created_at": "2026-10-15T02:35:11.774836Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T00:20:13.108964Z",
+  "updated_at": "2026-10-15T02:35:11.774858Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

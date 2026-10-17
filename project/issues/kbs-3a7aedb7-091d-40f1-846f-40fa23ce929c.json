@@ -1,0 +1,62 @@
+{
+  "id": "kbs-3a7aedb7-091d-40f1-846f-40fa23ce929c",
+  "title": "Preserve Google identity and administrator continuity across the replacement",
+  "description": "Given the existing Google-linked administrator and canonical actor references, when the same verified Google issuer/subject signs into the tested replacement, then role continuity and any changed Cognito subject mapping are explicit and verified without pre-created password accounts or invitations. The original pool/profile remains untouched. New Google credential/redirect binding and app-scoped role resources require concrete review before mutation.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "59488e2e-1fac-4dc1-bacb-6275c3fb299f",
+      "author": "home",
+      "text": "Ryan confirmed Google sign-in at prospectus.anth.us. Target Google provider identity matches the previously approved source administrator by immutable subject hash, not email. Restored existing app-scoped admin and prospectus-members roles and verified readback; user instructed to Refresh access. No user/invite/password/linking trigger created. Authenticated hosted CRM acceptance remains pending. Visible Cyclotron labels corrected to Anthus in PR https://github.com/AnthusAI/Prospectus/pull/2; local build and 11 tests pass.",
+      "created_at": "2026-10-15T02:03:14.099910Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "a78ae3b2-0b80-495a-86a3-9483e843dcc5",
+      "author": "home",
+      "text": "Ryan confirmed authenticated Prospectus access with \"Sure it works\" immediately after the main-chat request to Refresh access and confirm the board. Record this as user-confirmed authenticated access acceptance, not an automated hosted CRUD test. Immutable Google provider identity matched the source administrator and admin/prospectus-members role readback was verified. Branding PR #2 is merged to main 13155d7f2542f1bf2e3fc80cd1fb0a3398546c56; Amplify job4 BUILD/DEPLOY/VERIFY succeeded; actual Chrome and public HTTPS show Anthus / Prospectus · Anthus at https://prospectus.anth.us. Fresh complete inventories found zero prospect records in both inspected namespaces, and their 1536-byte configurations match SHA256 6470069400767d619c9269b3aa41d19f884c3561d4c32256e2b7ce886153e185. Old instance, pool, bucket, data and DNS remain preserved. No deletion or additional security/data changes are authorized by this acceptance. Central SaaS identity/membership work remains a separate prototype and is not a deployed CRM capability. Nonblocking follow-up: a separately scoped hosted create/move/note/reload/conflict acceptance exercise; existing local persistence/conflict CI passed, but Ryan's confirmation does not independently establish all those hosted operations.",
+      "created_at": "2026-10-15T02:35:11.023952Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-15T00:20:13.314001Z",
+  "updated_at": "2026-10-15T02:35:11.355533Z",
+  "closed_at": "2026-10-15T02:35:11.327580Z",
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Prospectus",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "Google identity and admin roles are verified on the replacement; hosted CRM acceptance is still pending.",
+  "right_now_updated_at": "2026-10-15T02:03:16.188121Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

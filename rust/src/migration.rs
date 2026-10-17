@@ -885,6 +885,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         project_key: "BD".to_string(),
         name: None,
         project_management_template: None,
+        methodologies: None,
         hierarchy: vec![
             "initiative".to_string(),
             "epic".to_string(),

@@ -1,0 +1,37 @@
+{
+  "id": "kbs-fcd104da-76d6-4303-b2d2-645a4764c2b0",
+  "title": "Keep public lead intake separate from private CRM access",
+  "description": "As a brand operator, I want public visitors to submit requests while only authorized users can access CRM records.\n\nFeature: Private Prospectus access\n  Scenario: Anonymous visitor cannot browse CRM\n    Given an unauthenticated visitor at the deployed domain or API\n    When they request a board, list, individual issue, history or content object\n    Then CRM record data is not disclosed\n  Scenario: Public intake has a narrow capability\n    Given a configured public contact or demo intake path\n    When a visitor submits a valid request\n    Then the system records it in the configured tenant and project\n    And the response provides no listing, arbitrary issue read or update capability\n  Scenario: Authorized CRM usage\n    Given a verified authorized CRM identity\n    When the user accesses the configured tenant\n    Then permitted issue reads and mutations succeed\n    And forged or cross-tenant credentials and object references are rejected",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b1c5c2c9-9b1f-4801-97f4-8b7afdb3cfdc",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0209ec57-23c1-4b18-b0d2-f664943fd316",
+      "author": "home",
+      "text": "Access progress: Google OAuth is requested; Ryan will create the Google project/client tomorrow. Hosted authentication, anonymous-denial checks and authenticated CRM persistence proof remain pending. Public MIT repository: https://github.com/AnthusAI/Prospectus. Local sales to customer-success note/reload proof passed 11 unit and 2 real-browser tests; this does not claim hosted private access. Amplify development app dnfou6dg4d6x2 has automatic builds disabled and verified DNS hostname in account 682849160744. Legacy account 335163751677 was DNS-only; existing marketing preserved. Source remains subject to review gates and draft publication; issue stays open until changes land.",
+      "created_at": "2026-10-14T01:34:51.711205Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol"
+      }
+    }
+  ],
+  "created_at": "2026-10-14T00:23:17.245666Z",
+  "updated_at": "2026-10-14T01:34:51.711239Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

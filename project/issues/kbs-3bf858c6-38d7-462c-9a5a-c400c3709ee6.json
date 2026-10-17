@@ -1,0 +1,66 @@
+{
+  "id": "kbs-3bf858c6-38d7-462c-9a5a-c400c3709ee6",
+  "title": "Choose one storage backend while preserving Kanbus behavior",
+  "description": "As a Kanbus operator, I want to select filesystem/EFS or cloud storage so deployment choice does not change issue behavior.\n\nFeature: Interchangeable Kanbus persistence\n  Scenario Outline: Persist through the selected backend\n    Given a project explicitly configured for <backend>\n    When an authorized user creates, updates and reloads a typed issue\n    Then its full identity, raw fields and configured workflow are preserved\n    And only the selected backend is authoritative\n    Examples:\n      | backend |\n      | local filesystem |\n      | EFS filesystem |\n      | S3 canonical content with DynamoDB catalog |\n  Scenario: Keep Git a supported choice\n    Given a filesystem project managed with Git\n    When an operator commits and reviews its issue changes\n    Then its existing local issue-file workflow remains available\n    And no implicit cloud dual-write occurs",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "dfeaab9b-e6b2-4553-b600-48f2326a947f",
+      "author": "home",
+      "text": "Reconciled PR399 merge conflicts by retaining packages/ui exactly as current develop, including the released shared board; no duplicate extraction. Local shared UI: 33 scenarios and 186 steps pass. All-feature API targets: 29 behavioral tests pass; Clippy running. Added service AMPLIFY.md explaining immutable shared source, normal Amplify Gen2 CDK composition, exact storage/index/IAM/JWT contracts and domain configuration. PR399 merge is held for shared storage coverage gate and final required checks.",
+      "created_at": "2026-10-16T07:32:55.106475Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "3e90842d-3313-4420-84a5-b0699936841e",
+      "author": "home",
+      "text": "The reusable foundation is merged:\n\n- Virtuus PR #33: 8d53b6e78d763b503ef5c4c9305a41ae2e8ee7a2.\n- Kanbus PR #399: 57b5e770470130e641dc3df8a99093b9ebc1e405.\n- Required hosted validation passed, including the all-feature store 100% source gate, shared UI behavior, standalone console, coverage ratchet, binary smoke and Beads interoperability.\n\nThe API manifest and lock agree on immutable store commit 6c9bcf03d999e7fb344d7b777e50b71f1750224f, verified as an ancestor of merged Virtuus develop. Later producer commits change only tests, documentation and coverage tooling; runtime sources and dependency configuration are unchanged. The shared UI matches the existing canonical package exactly, with no duplicate extraction.\n\nThe service AMPLIFY.md guide documents normal Gen2/CDK composition and automatic configuration seeding. Actual local HTTP proof using unmodified Prospectus configuration passes workflow transitions, ownership/next-action changes, conflict rejection, replay, restart persistence, configured customer filtering and retained history. Earlier isolated real S3/DynamoDB evidence remains separately recorded. This increment did not add a fresh EFS deployment trial, so the broader multi-backend story remains open for its remaining acceptance.\n",
+      "created_at": "2026-10-16T09:29:06.840072Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "34df500e-b6ea-4fe0-804a-c09d3a87b0ba",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-17 (Ryan chose to park): back to open. The foundation is merged (Kanbus #399, Virtuus #33). The remaining acceptance is a fresh EFS deployment trial, and nobody is running it right now.",
+      "created_at": "2026-10-17T06:31:08.331833320Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-14T00:23:16.066399Z",
+  "updated_at": "2026-10-17T06:31:08.548126417Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

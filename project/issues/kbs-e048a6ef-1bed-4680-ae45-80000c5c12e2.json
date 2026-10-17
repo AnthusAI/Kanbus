@@ -1,0 +1,25 @@
+{
+  "id": "kbs-e048a6ef-1bed-4680-ae45-80000c5c12e2",
+  "title": "Write normal canonical files safely under retries and concurrent edits",
+  "description": "As a collaborating user, I want failed writes and stale edits to preserve committed content so history cannot silently disappear.\n\nFeature: Safe canonical writes\n  Scenario: Store every cloud payload canonically\n    Given small and large issue, history and content payloads\n    When cloud writes commit\n    Then their exact canonical bytes are stored in S3 under normal Kanbus relative file paths\n    And DynamoDB contains only query metadata, pointers, revision and hashes\n  Scenario: Competing edits\n    Given two clients editing the same committed revision\n    When both attempt to publish their changes\n    Then exactly one conditional write to the canonical issue file is accepted\n    And the other receives a conflict without overwriting the winner or its history\n  Scenario: Failed content upload\n    Given an existing committed issue and history\n    When a required object upload fails\n    Then the failure outcome identifies which canonical files committed\n    And catalog entries do not point to nonexistent or unverified content\n    And incomplete multi-file mutations can be detected and repaired\n  Scenario: Failed conditional issue write\n    Given an existing issue revision\n    When an S3 ETag condition rejects an issue-file update\n    Then the winning canonical issue file remains unchanged\n    And the rejected mutation is not reported as successful\n  Scenario: Failed catalog projection\n    Given a successfully written canonical issue file\n    When catalog projection fails\n    Then the operation reports the committed-versus-projection outcome accurately\n    And retry or repair converges to that committed revision without duplicating events\n  Scenario: Retry the same mutation\n    Given a mutation with a stable operation identity and a repairable multi-file outcome\n    When the client retries after losing the response\n    Then the result distinguishes completion from partial recovery without duplicating a mutation or history event",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:16.296289Z",
+  "updated_at": "2026-10-14T00:23:16.328633Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

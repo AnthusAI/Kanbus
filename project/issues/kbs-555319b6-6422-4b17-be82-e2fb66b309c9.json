@@ -1,0 +1,114 @@
+{
+  "id": "kbs-555319b6-6422-4b17-be82-e2fb66b309c9",
+  "title": "Browse the central account directory as an explicitly authorized operator",
+  "description": "Given an explicitly approved central Accounts read permission bound to a verified issuer and subject, when the operator opens Account administration, then all canonical organizations and their entitlements and memberships are available read-only. Given a generic CRM admin or personal account member without that permission, when requesting the operator directory or another organization, then access is denied and personal membership isolation remains intact. Given no approved operator grants, when deploying the code, then the operator permission remains inactive. Given unconfirmed or mismatched identity evidence, when requesting operator records, then access is denied without email matching or automatic grants.",
+  "type": "story",
+  "status": "blocked",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "6d42a8a8-deba-4851-a4f2-f923292af46e",
+      "author": "home",
+      "text": "Implemented separate read-only operator API and administration UI, preserving personal membership isolation. Explicit deployment-owned permission defaults to no grants. Build, standard tests, 50 actual-Virtuus persisted tests, synthetic UI tests and browser-to-BFF-to-Virtuus proof pass locally. Activation remains pending review of the intended verified identity and explicit read scope.",
+      "created_at": "2026-10-15T19:29:24.270594Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "2e62424a-97d9-419f-a08f-96c7cbc86d87",
+      "author": "home",
+      "text": "Separate PR7 (604c479) now passes the complete hosted CI suite, including Linux Node24 packaging, persisted identity/account isolation, synthetic browser regressions and actual browser-BFF-Virtuus proof. Production operator grants remain empty. Exact identity/scope proposal is prepared privately; no generic CRM administrator inheritance or membership grants were added.",
+      "created_at": "2026-10-15T19:52:44.971827Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "89c6499c-fcac-4e68-b2bf-413291cdd3dc",
+      "author": "home",
+      "text": "Ryan approved the exact previously proposed operator read mapping. Implementation will preserve issuer/subject matching using a one-way subject digest in public source, retain all write restrictions and deploy through main. Dedicated console client creation is staged ahead of any console principal policy activation to preserve safe ordering.",
+      "created_at": "2026-10-15T21:32:29.655175Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "471cf540-03e6-4614-a394-24019185c69c",
+      "author": "home",
+      "text": "Approved activation and dedicated client stage are preserved on existing PR7 at 9df79f4. Typecheck, operator policy tests, all13 infrastructure tests and actual Gen2 synthesis pass. Required hosted CI is running. No changes remain uncommitted; console pair stays inactive pending exact role/trust verification.",
+      "created_at": "2026-10-15T21:39:29.609937Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "65bddb3d-fcdc-414a-83c3-d90aa69e8f51",
+      "author": "home",
+      "text": "Approved read-only operator mapping and administration UI are deployed through PR7/main f8463f3 and successful Amplifyjob9. Live Google confirmation and denial for the current separate browser profile passed. Positive verification requires the specifically approved profile to sign in normally; no profile substitution or broader grant was applied. Story remains open for that acceptance check.",
+      "created_at": "2026-10-15T22:17:59.900956Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "231b2a3e-26fd-4e9d-b898-08fe39b33c48",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-17 (Ryan chose to park): blocked on acceptance only. The operator mapping and admin UI are deployed (PR7, main f8463f3). Remaining: Ryan signs in with the specifically approved operator profile and confirms Account administration lists organizations read-only. Close after that.",
+      "created_at": "2026-10-17T06:31:07.354917424Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-15T19:23:25.386650Z",
+  "updated_at": "2026-10-17T06:31:07.656589565Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": "The read-only directory is deployed, but the approved profile still needs to complete the final sign-in check.",
+  "right_now_updated_at": "2026-10-15T22:18:01.847325Z",
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

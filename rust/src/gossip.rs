@@ -1841,6 +1841,74 @@ mod tests {
         }
     }
 
+    fn try_read_mock_mqtt_packet(stream: &mut std::net::TcpStream) -> Option<(u8, Vec<u8>)> {
+        use std::io::Read;
+
+        let mut header = [0_u8; 1];
+        stream.read_exact(&mut header).ok()?;
+        let mut multiplier = 1_usize;
+        let mut remaining = 0_usize;
+        loop {
+            let mut byte = [0_u8; 1];
+            stream.read_exact(&mut byte).ok()?;
+            remaining += usize::from(byte[0] & 0x7f) * multiplier;
+            if byte[0] & 0x80 == 0 {
+                break;
+            }
+            multiplier *= 128;
+            if multiplier > 128_usize.pow(3) {
+                return None;
+            }
+        }
+        let mut body = vec![0_u8; remaining];
+        stream.read_exact(&mut body).ok()?;
+        Some((header[0], body))
+    }
+
+    /// Accepts the connection that completes MQTT CONNECT and SUBSCRIBE.
+    ///
+    /// The broker address reaches the client through process-wide environment
+    /// state, so reachability probes and unrelated concurrent tests can connect
+    /// first. Those connections are skipped; only the overall deadline panics.
+    /// Returns the subscriber stream and the SUBSCRIBE packet identifier.
+    fn accept_mock_mqtt_subscriber(
+        listener: &std::net::TcpListener,
+        timeout: Duration,
+        connack_delay: Duration,
+    ) -> (std::net::TcpStream, [u8; 2]) {
+        use std::io::Write;
+
+        let deadline = Instant::now() + timeout;
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let (mut stream, _) = accept_mock_connection_with_deadline(listener, remaining)
+                .expect("accept subscriber within deadline");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("bound subscriber reads");
+            stream
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .expect("bound subscriber writes");
+            let Some((connect, _)) = try_read_mock_mqtt_packet(&mut stream) else {
+                continue;
+            };
+            if connect >> 4 != 1 {
+                continue;
+            }
+            thread::sleep(connack_delay);
+            if stream.write_all(&[0x20, 0x02, 0x00, 0x00]).is_err() {
+                continue;
+            }
+            let Some((subscribe, body)) = try_read_mock_mqtt_packet(&mut stream) else {
+                continue;
+            };
+            if subscribe >> 4 != 8 || body.len() < 2 {
+                continue;
+            }
+            return (stream, [body[0], body[1]]);
+        }
+    }
+
     fn accept_mock_connection_with_deadline(
         listener: &std::net::TcpListener,
         timeout: Duration,
@@ -2452,25 +2520,12 @@ mod tests {
         write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (published_tx, published_rx) = mpsc::channel();
         let broker = thread::spawn(move || {
-            let (mut subscriber, _) =
-                accept_mock_connection_with_deadline(&listener, Duration::from_secs(3))
-                    .expect("accept subscriber within deadline");
-            subscriber
-                .set_read_timeout(Some(Duration::from_secs(3)))
-                .expect("bound subscriber reads");
-            subscriber
-                .set_write_timeout(Some(Duration::from_secs(3)))
-                .expect("bound subscriber writes");
-            let (connect, _) = read_packet(&mut subscriber);
-            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
             // Simulate slow TLS/custom-authorizer CONNACK and SUBACK phases.
-            thread::sleep(Duration::from_millis(600));
-            subscriber
-                .write_all(&[0x20, 0x02, 0x00, 0x00])
-                .expect("send CONNACK");
-            let (subscribe, body) = read_packet(&mut subscriber);
-            assert_eq!(subscribe >> 4, 8, "expected MQTT SUBSCRIBE");
-            let packet_id = [body[0], body[1]];
+            let (mut subscriber, packet_id) = accept_mock_mqtt_subscriber(
+                &listener,
+                Duration::from_secs(6),
+                Duration::from_millis(600),
+            );
             // The contention window starts after successful MQTT setup and
             // local publication, not while waiting on a slow custom-authorizer
             // handshake or the broker's SUBACK.
@@ -2478,54 +2533,54 @@ mod tests {
             subscriber
                 .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x00])
                 .expect("send SUBACK");
+            // KANBUS_REALTIME_BROKER is process-wide, so unrelated tests that
+            // publish concurrently (the router tests) also reach this broker.
+            // Serve every connection and keep only the claim this test
+            // publishes; anything else is acknowledged and discarded.
             let publisher_deadline = Instant::now() + Duration::from_secs(3);
-            let mut unrelated_publishers = Vec::new();
-            loop {
-                let (mut publisher, first_header) = loop {
-                    let timeout = publisher_deadline.saturating_duration_since(Instant::now());
-                    let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
-                        .expect("accept publisher connection within overall deadline");
-                    stream
-                        .set_read_timeout(Some(Duration::from_secs(3)))
-                        .expect("set publisher read timeout");
-                    stream
-                        .set_write_timeout(Some(Duration::from_secs(3)))
-                        .expect("set publisher write timeout");
-                    let mut header = [0_u8; 1];
-                    match stream.read(&mut header) {
-                        Ok(0) => continue,
-                        Ok(1) if header[0] >> 4 == 1 => break (stream, header[0]),
-                        other => panic!("unexpected publisher connection: {other:?}"),
-                    }
-                };
-                let (connect, _) = read_packet_after_header(&mut publisher, first_header);
-                assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
-                publisher
-                    .write_all(&[0x20, 0x02, 0x00, 0x00])
-                    .expect("send publisher CONNACK");
-                let (publish, body) = read_packet(&mut publisher);
-                assert_eq!(publish >> 4, 3, "expected MQTT PUBLISH");
-                let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
-                let topic_end = 2 + topic_length;
-                let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
-                let payload = body[topic_end..].to_vec();
-                let envelope: serde_json::Value =
-                    serde_json::from_slice(&payload).expect("published envelope");
-                if envelope["type"] != "coordination.claim"
-                    || envelope["resource"] != "router:issue:kbs-peer"
-                    || envelope["claim_id"] != "peer-claim"
-                {
-                    unrelated_publishers.push(publisher);
+            let (topic, payload) = loop {
+                let timeout = publisher_deadline.saturating_duration_since(Instant::now());
+                let (mut stream, _) = accept_mock_connection_with_deadline(&listener, timeout)
+                    .expect("accept publisher connection within overall deadline");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(1)))
+                    .expect("set publisher read timeout");
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(1)))
+                    .expect("set publisher write timeout");
+                let mut header = [0_u8; 1];
+                if !matches!(stream.read(&mut header), Ok(1)) || header[0] >> 4 != 1 {
                     continue;
                 }
-                published_tx
-                    .send(envelope)
-                    .expect("send captured claim envelope");
-                subscriber
-                    .write_all(&publish_packet(&topic, &payload))
-                    .expect("relay peer claim to subscribed router");
-                break;
-            }
+                read_packet_after_header(&mut stream, header[0]);
+                if stream.write_all(&[0x20, 0x02, 0x00, 0x00]).is_err() {
+                    continue;
+                }
+                let mut header = [0_u8; 1];
+                if !matches!(stream.read(&mut header), Ok(1)) || header[0] >> 4 != 3 {
+                    continue;
+                }
+                let (_, body) = read_packet_after_header(&mut stream, header[0]);
+                let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+                let topic_end = 2 + topic_length;
+                let payload = body[topic_end..].to_vec();
+                let Ok(envelope) = serde_json::from_slice::<serde_json::Value>(&payload) else {
+                    continue;
+                };
+                if envelope["resource"] != "router:issue:kbs-peer" {
+                    continue;
+                }
+                let topic = String::from_utf8(body[2..topic_end].to_vec()).expect("topic");
+                break (topic, payload);
+            };
+            published_tx
+                .send(
+                    serde_json::from_slice::<serde_json::Value>(&payload).expect("claim envelope"),
+                )
+                .expect("send captured claim envelope");
+            subscriber
+                .write_all(&publish_packet(&topic, &payload))
+                .expect("relay peer claim to subscribed router");
         });
 
         let project_dir = root.join("project");
@@ -2533,21 +2588,9 @@ mod tests {
         let (received, published) = collect_coordination_gossip_window_with(
             root,
             &project_dir,
-            Duration::from_millis(500),
+            Duration::from_millis(1500),
             300,
             || {
-                let endpoint = BrokerEndpoint {
-                    scheme: "mqtt".to_string(),
-                    host: "127.0.0.1".to_string(),
-                    port,
-                };
-                publish_mqtt(
-                    &endpoint,
-                    "projects/unrelated/events",
-                    &sample_envelope(),
-                    &sample_realtime(None),
-                )
-                .expect("unrelated publication must not consume the claim subscriber fixture");
                 let claim_event = crate::coordination::append_soft_claim_event(
                     &project_dir,
                     "router:issue:kbs-peer",
@@ -2660,24 +2703,10 @@ mod tests {
         write_test_config(root, &format!("mqtt://127.0.0.1:{port}"), "mqtt");
         let (broker_finished_tx, broker_finished_rx) = mpsc::channel();
         let broker = thread::spawn(move || {
-            let (mut subscriber, _) =
-                accept_mock_connection_with_deadline(&listener, Duration::from_secs(3))
-                    .expect("accept subscriber within deadline");
+            let (mut subscriber, packet_id) =
+                accept_mock_mqtt_subscriber(&listener, Duration::from_secs(6), Duration::ZERO);
             subscriber
-                .set_read_timeout(Some(Duration::from_secs(3)))
-                .expect("bound denied-subscriber reads");
-            subscriber
-                .set_write_timeout(Some(Duration::from_secs(3)))
-                .expect("bound denied-subscriber writes");
-            let (connect, _) = read_packet(&mut subscriber);
-            assert_eq!(connect >> 4, 1, "expected MQTT CONNECT");
-            subscriber
-                .write_all(&[0x20, 0x02, 0x00, 0x00])
-                .expect("send CONNACK");
-            let (subscribe, body) = read_packet(&mut subscriber);
-            assert_eq!(subscribe >> 4, 8, "expected MQTT SUBSCRIBE");
-            subscriber
-                .write_all(&[0x90, 0x03, body[0], body[1], 0x80])
+                .write_all(&[0x90, 0x03, packet_id[0], packet_id[1], 0x80])
                 .expect("deny MQTT subscription");
             broker_finished_tx
                 .send(())

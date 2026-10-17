@@ -3,7 +3,7 @@
   "title": "Issue Router Testing",
   "description": "Validate that the Issue Router can dispatch actual Kanbus issues from the shared kbs board, starting with clearly marked, disposable test tasks and progressing toward safe real work. Use separate containers as independent router machines, each with its own checkout and no shared UDS socket, connected to the same Git remote, MQTT broker, and Mutex API. First verify hard mutual exclusion so exactly one worker starts an opted-in test issue and the loser makes no lifecycle transition. Then validate lease expiry/takeover and, only with a harmless test task, document soft-provider duplicate behavior. Capture worker logs, claim IDs, issue comments/status, and Git/router-state evidence. Never route unrelated production issues during these tests. Leave successful test issues in the configured Review stage for visible human review; preserve failed issues and diagnostic evidence for inspection rather than closing issues.",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -17,13 +17,25 @@
       "text": "The single-worker production dispatch test task completed and its exact requested comment was reviewed. Multi-router hard-lease validation remains separately tracked for the next stage.",
       "created_at": "2026-09-18T10:39:58.610015Z",
       "comment_type": "default"
+    },
+    {
+      "id": "ecb99f09-9e90-4015-b822-683ba9451c35",
+      "author": "home",
+      "text": "Single-worker dispatch, hard mutual exclusion, expiry/takeover and soft-duplicate behavior are all validated (PR #362). Leftover smoke-test fixtures closed. Closing.",
+      "created_at": "2026-10-16T16:41:30.897015Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "WIP cleanup"
+      }
     }
   ],
   "created_at": "2026-09-17T20:01:34.387959Z",
-  "updated_at": "2026-09-18T14:06:51.257915Z",
-  "closed_at": null,
-  "right_now_summary": "Single-worker dispatch passed; multi-router lease testing is next, while one smoke test awaits its report.",
-  "right_now_updated_at": "2026-09-18T14:02:35.603488Z",
+  "updated_at": "2026-10-16T16:41:35.083870Z",
+  "closed_at": "2026-10-16T16:41:35.052524Z",
+  "right_now_summary": "All router tests passed, and disposable fixtures are being cleaned up; one smoke-test report still awaits a comment.",
+  "right_now_updated_at": "2026-10-16T16:41:38.310308Z",
   "custom": {
     "project_label": "kbs",
     "source": "shared"

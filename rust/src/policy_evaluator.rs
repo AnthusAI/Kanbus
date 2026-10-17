@@ -551,6 +551,7 @@ mod tests {
             project_key: "kanbus".to_string(),
             name: None,
             project_management_template: None,
+            methodologies: None,
             hierarchy: vec!["task".to_string()],
             types: vec!["task".to_string()],
             workflows,

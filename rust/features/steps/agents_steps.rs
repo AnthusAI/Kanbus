@@ -173,3 +173,64 @@ fn then_project_management_contains_text(world: &mut KanbusWorld, text: String) 
     let normalized = text.replace("\\\"", "\"");
     assert!(content.contains(&normalized));
 }
+
+fn read_project_management_file(world: &KanbusWorld) -> String {
+    let repo_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set");
+    fs::read_to_string(repo_path.join("CONTRIBUTING_AGENT.md")).expect("read instructions")
+}
+
+#[given(expr = "the Kanbus configuration selects methodologies {string}")]
+fn given_configuration_selects_methodologies(world: &mut KanbusWorld, methodology_list: String) {
+    let selected_methodology_names: Vec<&str> = methodology_list
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .collect();
+    let configuration_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".kanbus.yml");
+    let configuration_text = fs::read_to_string(&configuration_path).expect("read configuration");
+    let mut configuration_document: serde_yaml::Mapping =
+        serde_yaml::from_str(&configuration_text).expect("parse configuration");
+    configuration_document.insert(
+        serde_yaml::Value::from("methodologies"),
+        serde_yaml::Value::Sequence(
+            selected_methodology_names
+                .into_iter()
+                .map(serde_yaml::Value::from)
+                .collect(),
+        ),
+    );
+    fs::write(
+        &configuration_path,
+        serde_yaml::to_string(&configuration_document).expect("serialize configuration"),
+    )
+    .expect("write configuration");
+}
+
+#[given("the Kanbus configuration selects no methodologies")]
+fn given_configuration_selects_no_methodologies(world: &mut KanbusWorld) {
+    given_configuration_selects_methodologies(world, String::new());
+}
+
+#[then(expr = "CONTRIBUTING_AGENT.md should not contain {string}")]
+fn then_project_management_does_not_contain_text(world: &mut KanbusWorld, text: String) {
+    assert!(!read_project_management_file(world).contains(&text));
+}
+
+#[then(expr = "CONTRIBUTING_AGENT.md should show {string} before {string}")]
+fn then_project_management_orders_text(
+    world: &mut KanbusWorld,
+    earlier_text: String,
+    later_text: String,
+) {
+    let content = read_project_management_file(world);
+    let earlier_index = content.find(&earlier_text).expect("earlier text present");
+    let later_index = content.find(&later_text).expect("later text present");
+    assert!(earlier_index < later_index);
+}

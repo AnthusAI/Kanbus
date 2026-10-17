@@ -12,6 +12,10 @@ import click
 from jinja2 import DictLoader, Environment, select_autoescape
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.methodology_bundles import (
+    MethodologyError,
+    render_selected_methodologies,
+)
 from kanbus.models import ProjectConfiguration
 from kanbus.project import ProjectMarkerError, get_configuration_path
 from kanbus.project_management_template import (
@@ -132,6 +136,12 @@ def build_project_management_text(root: Path) -> str:
         ),
     )
     try:
+        context["methodologies"] = render_selected_methodologies(
+            configuration, environment, context
+        )
+    except MethodologyError as error:
+        raise click.ClickException(str(error)) from error
+    try:
         return environment.get_template("project_management_template.md").render(
             context
         )
@@ -191,14 +201,7 @@ def _build_project_management_context(
         "default_priority_name": default_priority_name,
         "command_examples": _build_command_examples(configuration),
         "semantic_release_mapping": _build_semantic_release_mapping(types),
-        "has_story": any(value.lower() == "story" for value in types),
-        "gherkin_example": [
-            "Feature:",
-            "Scenario:",
-            "Given",
-            "When",
-            "Then",
-        ],
+        "methodologies": [],
     }
 
 

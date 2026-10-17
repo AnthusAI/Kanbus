@@ -1,0 +1,68 @@
+{
+  "id": "kbs-56b11840-27e7-421a-9957-a56e8f539da1",
+  "title": "Emit integer expiry timestamps from production Google login challenges",
+  "description": "Given the production fractional Unix-second clock and an authorized Google challenge, when the central service returns issuedAt and expiresAt, then both public timestamps are integers separated by 300 seconds and the strict console login parser accepts them. Given cryptographic token freshness is checked, when the clock contains a fraction, then existing subsecond security comparisons remain unchanged. Owner fix330713f is integrated as a2d99ba; TypeScript and86 regressions pass; required CI and normal deployment remain gates.",
+  "type": "bug",
+  "status": "blocked",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-dbc8da78-6948-412b-8521-dc47ba05110c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cff4f22f-4875-48bd-a696-e4b6b9b2a573",
+      "author": "home",
+      "text": "PR9 passed all 29 required CI steps and merged to main as 3c90214afd312ed7dd9ef5912fedfe8eb7913da5 at 2026-10-16 07:25 UTC. Automatic Amplify job 11 is running against this exact commit. Deployment and console owner login proof remain pending; no IAM, registry or OAuth settings changed.",
+      "created_at": "2026-10-16T07:31:43.267912Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "c25f16fa-0a52-4b76-9fea-50659458c8f8",
+      "author": "home",
+      "text": "PR #9 is merged on Prospectus main at 3c90214afd312ed7dd9ef5912fedfe8eb7913da5. Required CI passed all 29 steps, and automatic Amplify job 11 passed BUILD/DEPLOY/VERIFY. Read-only inspection of the actual deployed central Lambda confirms issuedAt is floored and expiresAt derives from it plus the 300-second constant; fractional cryptographic freshness comparisons remain unchanged. The deployed function updated at 2026-10-16 07:31:21 UTC.\n\nThe parent relayed completion to the console owner for its live strict-parser/Google-flow verification. No nonce/token was logged and no IAM, registry or OAuth setting changed in this fix. Keep the bug open until the consumer owner records that remaining acceptance.\n",
+      "created_at": "2026-10-16T09:29:07.081597Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Kanbus cloud owner",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "870fe5b7-6bd9-4732-9df7-ef6f4bd3a072",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-17 (Ryan chose to park): blocked on acceptance only. The fix is merged and deployed (Prospectus main 3c90214). Remaining: the console owner signs in with Google in the console and confirms the strict login parser accepts the integer issuedAt/expiresAt. Close after that.",
+      "created_at": "2026-10-17T06:31:06.738796301Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-16T07:07:32.920614Z",
+  "updated_at": "2026-10-17T06:31:07.100975025Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "gpt-6.1-sol",
+    "name": "Codex",
+    "settings": {
+      "reasoning_effort": "medium"
+    }
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

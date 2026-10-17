@@ -13,9 +13,39 @@
     "multi-agent"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ab0ca988-cb04-4938-98a5-9bf7f43c30b1",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Unmerged Kanbus-shortids PR388 and staged changes remain preserved in /Users/home/Projects/Kanbus-shortids. No cleanup or deletion performed; separate cleanup task owns worktree disposition. Reconcile/review unmerged source and staged state before any future integration; do not infer merged from cleanup.",
+      "created_at": "2026-10-16T20:46:56.794038Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "f4492bc9-6c49-464b-9d32-793dbe7924dd",
+      "author": "home",
+      "text": "Baseline origin/develop and reconciled board have identical validation errors (legacy blocks dependency types, absent closed_at and historical reference/status problems). Preserve PR388 and staged source; resolve board integrity separately without claiming the published runtime is blocked.",
+      "created_at": "2026-10-16T20:48:13.654696Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
   "created_at": "2026-10-13T11:18:13.982774Z",
-  "updated_at": "2026-10-13T11:18:14.003916Z",
+  "updated_at": "2026-10-16T20:48:13.654724Z",
   "closed_at": null,
   "agent": {
     "platform": "claude_code",
