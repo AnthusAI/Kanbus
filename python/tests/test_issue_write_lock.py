@@ -57,7 +57,9 @@ def test_second_writer_with_stale_snapshot_is_refused(tmp_path: Path) -> None:
     write_issue_to_file(_issue("Original"), issue_path)
     snapshot_read_by_both = read_issue_from_file(issue_path)
 
-    persist_issue_mutation(_request(project_dir, issue_path, snapshot_read_by_both, "First"))
+    persist_issue_mutation(
+        _request(project_dir, issue_path, snapshot_read_by_both, "First")
+    )
     with pytest.raises(ConcurrentIssueModificationError):
         persist_issue_mutation(
             _request(project_dir, issue_path, snapshot_read_by_both, "Second")
