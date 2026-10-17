@@ -7,7 +7,7 @@ const PricingPage = () => (
     <Hero
       eyebrow="PRICING"
       title="Kanbus stays yours."
-      subtitle="Run the open-source project yourself, or choose the level of help you want from Anthus."
+      subtitle="Run the open-source project yourself, let Anthus host a board, or have Anthus operate a dedicated deployment in your AWS account."
       actions={
         <a href="/#pricing" className="cta-button px-6 py-3 text-sm transition-all hover:brightness-95">
           See the options
@@ -23,6 +23,6 @@ export default PricingPage;
 export const Head = () => (
   <>
     <title>Pricing — Kanbus</title>
-    <meta name="description" content="Kanbus is MIT licensed and free to run yourself. Choose managed operation, assisted setup, or professional services when you want help." />
+    <meta name="description" content="Kanbus is MIT licensed and free to run yourself. Choose a hosted board, a dedicated deployment in your AWS account, or an Anthus engagement when you want help." />
   </>
 );
