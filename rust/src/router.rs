@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -3248,6 +3248,40 @@ fn write_local_router_state(root: &Path, state: &LocalRouterState) -> Result<(),
     })
 }
 
+#[cfg(unix)]
+fn place_router_child_in_own_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn place_router_child_in_own_process_group(_command: &mut Command) {}
+
+#[cfg(unix)]
+fn signal_router_process_group(group_leader_pid: u32, signal: i32) {
+    if let Ok(group) = i32::try_from(group_leader_pid) {
+        if group > 1 {
+            unsafe {
+                libc::killpg(group, signal);
+            }
+        }
+    }
+}
+
+fn request_router_process_group_termination(group_leader_pid: u32) {
+    #[cfg(unix)]
+    signal_router_process_group(group_leader_pid, libc::SIGTERM);
+    #[cfg(not(unix))]
+    let _ = group_leader_pid;
+}
+
+pub(crate) fn terminate_router_child_process_tree(child: &mut Child) {
+    #[cfg(unix)]
+    signal_router_process_group(child.id(), libc::SIGKILL);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 fn process_is_running(pid: u32) -> bool {
     Command::new("kill")
         .args(["-0", &pid.to_string()])
@@ -3436,9 +3470,7 @@ fn cancel_router_package(
     assert_current_router_claim(project_dir, &configuration, &claim)?;
     router_cancel_control_event(project_dir, issue_id, &claim_id, revision)?;
     if let Some(pid) = local.active_child_pid {
-        let _ = Command::new("kill")
-            .args(["-TERM", &pid.to_string()])
-            .status();
+        request_router_process_group_termination(pid);
     }
     let _ = router;
     let checkpoint = reduce_router_events(&load_router_events(project_dir)?)
@@ -5450,6 +5482,7 @@ fn execute_router_adapter(
         data_home.as_ref(),
         ResumeMode::decide(resume.as_ref(), resumed),
     );
+    place_router_child_in_own_process_group(&mut command);
     command
         .current_dir(&worktree)
         .stdout(Stdio::piped())
@@ -5481,14 +5514,12 @@ fn execute_router_adapter(
     let output = loop {
         if let Some(renewer) = external_renewer {
             if let Err(error) = renewer.check() {
-                let _ = child.kill();
-                let _ = child.wait();
+                terminate_router_child_process_tree(&mut child);
                 return Err(error);
             }
         }
         if router_cancel_requested(project_dir, issue_id) {
-            let _ = child.kill();
-            let _ = child.wait();
+            terminate_router_child_process_tree(&mut child);
             let _ = clear_active_router_state(root);
             let state = reduce_router_events(&load_router_events(project_dir)?);
             append_router_event(
@@ -5507,7 +5538,7 @@ fn execute_router_adapter(
             )));
         }
         if started.elapsed() > Duration::from_secs(3600) {
-            let _ = child.kill();
+            terminate_router_child_process_tree(&mut child);
             return Err(KanbusError::IssueOperation(format!(
                 "{adapter_name} router adapter failed"
             )));
@@ -5519,8 +5550,7 @@ fn execute_router_adapter(
                 renew_router_claims(root, project_dir, configuration, claim)
             };
             if let Err(error) = renew_result {
-                let _ = child.kill();
-                let _ = child.wait();
+                terminate_router_child_process_tree(&mut child);
                 return Err(error);
             }
             next_renewal = Instant::now() + Duration::from_secs(renewal_seconds);
@@ -7480,6 +7510,45 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[cfg(unix)]
+    fn process_is_alive_and_not_a_zombie(pid: u32) -> bool {
+        match fs::read_to_string(format!("/proc/{pid}/stat")) {
+            Ok(stat) => stat
+                .rsplit(')')
+                .next()
+                .and_then(|rest| rest.trim_start().chars().next())
+                .is_some_and(|state| state != 'Z'),
+            Err(_) => process_is_running(pid),
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminating_a_router_child_kills_grandchildren_it_spawned() {
+        let mut command = Command::new("sh");
+        command
+            .args(["-c", "sleep 300 & echo $!; wait"])
+            .stdout(Stdio::piped());
+        place_router_child_in_own_process_group(&mut command);
+        let mut child = command.spawn().expect("spawn shell with a grandchild");
+        let mut stdout = child.stdout.take().expect("child stdout");
+        let mut announced = [0u8; 32];
+        let length = stdout.read(&mut announced).expect("read grandchild pid");
+        let grandchild_pid: u32 = String::from_utf8_lossy(&announced[..length])
+            .trim()
+            .parse()
+            .expect("grandchild pid");
+        assert!(process_is_alive_and_not_a_zombie(grandchild_pid));
+
+        terminate_router_child_process_tree(&mut child);
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while process_is_alive_and_not_a_zombie(grandchild_pid) && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(50));
+        }
+        assert!(!process_is_alive_and_not_a_zombie(grandchild_pid));
     }
 
     #[test]

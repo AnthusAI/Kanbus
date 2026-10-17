@@ -62,6 +62,9 @@ rpassword = "7"
 log = "0.4"
 virtuus = { version = "=0.6.1" }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 serial_test = "3"

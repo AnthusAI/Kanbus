@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 from pathlib import Path
@@ -17,6 +18,34 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from kanbus.issue_router import IssueRouterError
 from kanbus.models import RouterAgentProfile
 from kanbus.router_conversation import codex_session_id
+
+
+def signal_process_group(group_leader_pid: int, signal_number: int) -> None:
+    """Send a signal to a router adapter's whole process group.
+
+    :param group_leader_pid: Process id of the adapter, which leads its own group.
+    :type group_leader_pid: int
+    :param signal_number: Signal to deliver to every process in the group.
+    :type signal_number: int
+    """
+    if group_leader_pid <= 1 or not hasattr(os, "killpg"):
+        return
+    try:
+        os.killpg(group_leader_pid, signal_number)
+    except (ProcessLookupError, PermissionError):
+        return
+
+
+def terminate_process_tree(process: "subprocess.Popen[Any]") -> None:
+    """Kill an adapter and everything it spawned, then reap the adapter.
+
+    :param process: Adapter subprocess started in its own session.
+    :type process: subprocess.Popen[Any]
+    """
+    signal_process_group(process.pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+    if process.poll() is None:
+        process.kill()
+    process.communicate()
 
 
 class RouterIssueUpdate(BaseModel):
@@ -152,6 +181,7 @@ class _SubprocessAdapter:
                 stderr=subprocess.PIPE,
                 text=True,
                 env=self._environment(request),
+                start_new_session=True,
                 **self._popen_extras(),
             )
             self._record_process(request)
@@ -161,9 +191,8 @@ class _SubprocessAdapter:
             self.session_id = self._session_id(stdout)
             return_code = self.process.returncode
         except (OSError, subprocess.TimeoutExpired) as error:
-            if self.process is not None and self.process.poll() is None:
-                self.process.terminate()
-                self.process.communicate()
+            if self.process is not None:
+                terminate_process_tree(self.process)
             raise IssueRouterError(
                 f"{self.display_name} router adapter failed"
             ) from error
@@ -207,7 +236,7 @@ class _SubprocessAdapter:
         """
         del claim_id
         if self.process is not None and self.process.poll() is None:
-            self.process.terminate()
+            signal_process_group(self.process.pid, signal.SIGTERM)
 
     def _record_process(self, request: RouterExecutionRequest) -> None:
         if self.process_record_path is None or self.process is None:
