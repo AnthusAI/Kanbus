@@ -75,7 +75,7 @@ def _issue_write_request(
     req = urllib.request.Request(
         f"{api_base}/issues/{issue_id}/{route}",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Kanbus-Console": "1"},
         method="POST",
     )
     try:
