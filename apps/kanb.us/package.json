@@ -26,7 +26,7 @@
     "@radix-ui/react-tabs": "^1.1.2",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/dompurify": "^3.2.0",
-    "anthus-footer": "github:AnthusAI/anthus-footer#102153af2e2cb5f633fc441cd4f5f0c905c61ad0",
+    "anthus-footer": "github:AnthusAI/anthus-footer#01c5e8c46b7d4e2f3145d0bd9af1a1587fff481e",
     "@videoml/player": "^1.0.0",
     "@videoml/stdlib": "^1.0.0",
     "@webcomponents/custom-elements": "^1.6.0",
