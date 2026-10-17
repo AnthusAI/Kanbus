@@ -11,6 +11,7 @@ use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::file_io::refresh_project_wiki_agents_file;
+use crate::methodology_bundles::{render_selected_methodologies, RenderedMethodology};
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     default_project_management_template, default_project_management_template_filename,
@@ -112,7 +113,8 @@ fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
         }
         None => default_project_management_template().to_string(),
     };
-    let context = build_project_management_context(&configuration);
+    let mut context = build_project_management_context(&configuration);
+    context.methodologies = render_selected_methodologies(&configuration, &context)?;
     let env = minijinja::Environment::new();
     env.render_str(&template_text, context)
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))
@@ -167,8 +169,7 @@ struct ProjectManagementContext {
     default_priority_name: String,
     command_examples: Vec<String>,
     semantic_release_mapping: Vec<SemanticReleaseMapping>,
-    has_story: bool,
-    gherkin_example: Vec<String>,
+    methodologies: Vec<RenderedMethodology>,
 }
 
 fn resolve_project_management_template_path(
@@ -224,14 +225,7 @@ fn build_project_management_context(
         default_priority_name,
         command_examples: build_command_examples(configuration),
         semantic_release_mapping: build_semantic_release_mapping(types),
-        has_story: types.iter().any(|value| value.to_lowercase() == "story"),
-        gherkin_example: vec![
-            "Feature:".to_string(),
-            "Scenario:".to_string(),
-            "Given".to_string(),
-            "When".to_string(),
-            "Then".to_string(),
-        ],
+        methodologies: Vec::new(),
     }
 }
 

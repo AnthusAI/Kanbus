@@ -93,6 +93,25 @@ Priority assigned to new issues when not explicitly provided.
 Whether CLI commands default to Beads compatibility mode when `--beads` is not provided.
 Defaults to `false`.
 
+### `methodologies` (list of strings, optional)
+
+Selects the methodologies whose process guidance is assembled into the generated `CONTRIBUTING_AGENT.md`, in the listed order. Kanbus core describes only board mechanics; methodologies carry opinions such as how specifications are written or how branches are used.
+
+Built-in methodologies:
+
+- `bdd`: outside-in Behavior-Driven Design. Stories carry Gherkin, specifications are written and seen failing before code, and specification coverage is complete.
+- `git-flow`: `main` and `develop` branches with feature, release and hotfix branches, plus the mapping from issue types to release categories.
+
+When the key is absent, Kanbus uses `[bdd, git-flow]`. An empty list (`methodologies: []`) produces core guidance only. Unknown or repeated names fail `kbs setup agents`.
+
+```yaml
+methodologies:
+  - bdd
+  - git-flow
+```
+
+A custom `project_management_template` places the rendered methodologies with `{% for methodology in methodologies %}{{ methodology.content }}{% endfor %}`. Each entry also exposes `name`, `title` and `description`.
+
 ### `ai` (mapping, optional)
 
 LLM configuration for wiki summarization, issue compaction, and right-now summaries.

@@ -846,6 +846,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         project_key: "kanbus".to_string(),
         name: None,
         project_management_template: None,
+        methodologies: None,
         hierarchy: vec!["initiative".to_string(), "epic".to_string()],
         types: vec!["bug".to_string()],
         workflows,

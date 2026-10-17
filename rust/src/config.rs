@@ -188,6 +188,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         project_key: "kanbus".to_string(),
         name: None,
         project_management_template: None,
+        methodologies: None,
         hierarchy: vec![
             "initiative".to_string(),
             "epic".to_string(),

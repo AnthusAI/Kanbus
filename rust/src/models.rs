@@ -618,6 +618,8 @@ pub struct ProjectConfiguration {
     pub name: Option<String>,
     #[serde(default)]
     pub project_management_template: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub methodologies: Option<Vec<String>>,
     pub hierarchy: Vec<String>,
     pub types: Vec<String>,
     pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-12f60cd7-9a46-4dd6-8802-81f465282bd8",
+  "title": "Agents file assembles selected built-in methodologies",
+  "description": "As a team adopting Kanbus, I want CONTRIBUTING_AGENT.md assembled from the methodologies I select, so that Kanbus core carries no process opinions of its own.\n\n```gherkin\nFeature: Built-in methodologies in the generated agents file\n  Scenario: Default methodologies when none are configured\n    Given a Kanbus project without a methodologies setting\n    When I run \"kanbus setup agents --force\"\n    Then CONTRIBUTING_AGENT.md should contain \"## The Rite of Gherkin\"\n    And CONTRIBUTING_AGENT.md should contain \"## Git Flow\"\n\n  Scenario: An empty methodology list yields core guidance only\n    Given a Kanbus project with methodologies set to an empty list\n    When I run \"kanbus setup agents --force\"\n    Then CONTRIBUTING_AGENT.md should contain \"## The Order of Being\"\n    And CONTRIBUTING_AGENT.md should not contain \"Gherkin\"\n\n  Scenario: Selected methodologies render in configured order\n    Given a Kanbus project with methodologies \"git-flow, bdd\"\n    When I run \"kanbus setup agents --force\"\n    Then \"## Git Flow\" should appear before \"## The Cognitive Framework\" in CONTRIBUTING_AGENT.md\n\n  Scenario: Unknown methodology names fail clearly\n    Given a Kanbus project with methodologies \"scrum-of-scrums\"\n    When I run \"kanbus setup agents --force\"\n    Then the command should fail\n    And stderr should contain \"unknown methodology: scrum-of-scrums\"\n```",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-b5713619-bcd2-44fd-a75a-eeb405ab9280",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T13:13:52.973618622Z",
+  "updated_at": "2026-10-17T13:35:15.917829074Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
