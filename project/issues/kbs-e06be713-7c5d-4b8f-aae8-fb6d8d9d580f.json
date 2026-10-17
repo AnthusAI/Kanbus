@@ -1,0 +1,33 @@
+{
+  "id": "kbs-e06be713-7c5d-4b8f-aae8-fb6d8d9d580f",
+  "title": "Flaky Rust test gossip::tests::bounded_coordination_mqtt_subscriber_persists_peer_claim_overlay",
+  "description": "CI on develop head 57b5e77 (run 38880379042, 2026-10-16) failed in Rust quality gates on this test, while the same code plus docs-only changes passed every job twice on PR #404 the same day. The performance job in that run also failed in Set up Rust (runner setup), and console-ui failed in its specs. Root-cause the gossip test timing rather than re-running until green.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4a2d6cfe-181e-4ca8-bf6c-5d54f3338d47",
+      "author": "unknown",
+      "text": "Duplicate of kbs-53436f, which tracks the same flaky test and is in progress.",
+      "created_at": "2026-10-16T16:47:52.865756702Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-16T16:35:36.508316290Z",
+  "updated_at": "2026-10-16T16:47:52.981862447Z",
+  "closed_at": "2026-10-16T16:47:52.910647584Z",
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

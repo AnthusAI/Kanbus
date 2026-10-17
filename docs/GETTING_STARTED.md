@@ -1,249 +1,96 @@
 # Getting Started
 
-This guide is a 10-minute walkthrough to initialize a Kanbus project, create and update issues, and learn basic queries. Kanbus is in production.
+Kanbus keeps issues, events, and wiki pages as ordinary files next to your code. Where those files live, and who can write them, is up to you. This guide helps you pick a setup, install the tools, and then follow a step-by-step guide for that setup.
 
-## Prerequisites
+## Choose how to run Kanbus
 
-- Git
-- Python 3.11+ or Rust 1.88+ (repo root `rust-toolchain.toml` pins the compiler for rustup and CI)
+| | Local files | Files in the cloud | S3 and DynamoDB in the cloud |
+| --- | --- | --- | --- |
+| Where the board lives | `project/` in your working tree | `project/` in a hosted git repository (GitHub, GitLab, and so on) | Objects in a private S3 bucket, indexed by a DynamoDB table |
+| Who writes to it | You and the agents on your machine | Everyone with a clone: people, agents, CI, cloud coding sandboxes | Signed-in users of a web application, through an HTTP API |
+| How changes travel | Instantly, on disk | `git push` and `git pull`, plus optional live updates over MQTT | Every write goes straight to S3; there is nothing to sync |
+| Tools you use | `kbs` or `kanbus`, and the `kbsc` console | The same tools, in every clone | The Kanbus API service and the shared board UI (`@kanbus/ui`) |
+| What you need | Git, and one Kanbus CLI | A shared git remote; an MQTT broker for live updates | An AWS account and an application backend (Amplify Gen 2) to deploy into |
+| Best for | Solo projects, trying Kanbus out, personal boards | Teams and multi-agent work on code repositories | Boards embedded in a product, used by people who never touch git |
 
-## Installation
+All three use the same issue format, configuration file (`.kanbus.yml`), workflows, and validation rules. A board can move between them: a local board becomes a cloud-files board as soon as you push it, and an existing folder can be imported into S3.
 
-Kanbus provides two **completely equivalent** CLI implementations plus a web console. Both CLIs run the same behavior specs with full coverage, share the same interoperability tests (including Beads), and use the same file formats and commands. Pick Python if you want the lightest setup, or Rust if you are willing to install it for significantly faster execution.
+Pick one and follow its guide:
 
-### Option 1: Download Prebuilt Binaries (Recommended)
+1. [Local files](getting-started/local-files.md). Start here if you are new to Kanbus; the other two guides build on it.
+2. [Files in the cloud](getting-started/cloud-files.md). Share a board through a hosted git repository, with optional live updates and an optional hosted console.
+3. [S3 and DynamoDB in the cloud](getting-started/cloud-database.md). Run the Kanbus API on AWS and embed the board in a web application.
 
-Download the latest release from [GitHub Releases](https://github.com/AnthusAI/Kanbus/releases):
+## Install the CLI
 
-**CLI Binary:**
+Kanbus has two equivalent command-line tools. Both run the same behavior specifications and read and write the same files, so a team can mix them.
+
+- `kbs` is the Rust CLI. It is the fastest and comes with `kbsc`, the web console server.
+- `kanbus` is the Python CLI. It has the same commands as `kbs`; it does not include the console server.
+
+Every example in these guides uses `kbs`. Replace it with `kanbus` if you installed the Python CLI.
+
+### Prebuilt binaries (recommended)
+
+Download `kbs` and `kbsc` from [GitHub Releases](https://github.com/AnthusAI/Kanbus/releases) and put them on your `PATH`:
+
 ```bash
 # Linux x86_64
 curl -L -o kbs.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbs-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kbs.tar.gz
-chmod +x kbs
-./kbs --help
-
-# macOS (choose your architecture)
-curl -L -o kbs.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbs-aarch64-apple-darwin.tar.gz  # Apple Silicon
-curl -L -o kbs.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbs-x86_64-apple-darwin.tar.gz   # Intel
-```
-
-**Console Server Binary:**
-```bash
-# Linux x86_64
 curl -L -o kbsc.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbsc-x86_64-unknown-linux-gnu.tar.gz
+
+# macOS: use kbs-aarch64-apple-darwin.tar.gz (Apple Silicon) or kbs-x86_64-apple-darwin.tar.gz (Intel),
+# and the matching kbsc archive
+
+tar -xzf kbs.tar.gz
 tar -xzf kbsc.tar.gz
-chmod +x kbsc
-./kbsc
-# Opens web UI at http://127.0.0.1:5174/
+sudo mv kbs kbsc /usr/local/bin/
+kbs --version
 ```
 
-### Option 2: Install from Package Managers
+### Package managers
 
-**Python** (pip) - Recommended for scripting and AI workflows (CLI: `kanbus`):
 ```bash
-pip install kanbus
+pip install kanbus      # Python CLI: kanbus (Python 3.11 or later)
+cargo install kanbus    # Rust: kbs and kbsc (Rust 1.88 or later)
 ```
 
-**Rust** (cargo) - Recommended for max performance and CI/CD (installs `kbs` and `kbsc`):
-```bash
-cargo install kanbus
-```
-
-The Rust installation includes `kbs` (CLI) and `kbsc` (web server).
-
-Linux build dependencies (for OpenSSL/reqwest):
+`cargo install` compiles OpenSSL bindings. On Linux, install the build dependencies first:
 
 ```bash
-# Amazon Linux / RHEL / CentOS
-sudo yum install -y gcc make perl-core openssl-devel pkgconfig
-
 # Ubuntu / Debian
-sudo apt-get update
 sudo apt-get install -y build-essential perl pkg-config libssl-dev
+
+# Amazon Linux / RHEL
+sudo yum install -y gcc make perl-core openssl-devel pkgconfig
 ```
 
-## Step 1: Initialize a project
-
-Create a new repository or enter an existing one, then initialize Kanbus.
+### From source
 
 ```bash
-git init
-
-kbs init
-# or: kanbus init (Python CLI)
+git clone https://github.com/AnthusAI/Kanbus.git
+cd Kanbus
+cargo build --release --manifest-path rust/Cargo.toml
+# Binaries: rust/target/release/kbs and rust/target/release/kbsc
 ```
 
-You should now see:
+To work on the console itself, `./dev.sh` starts the frontend watcher and the Rust backend with automatic rebuilds.
 
-```
-project/
-  config.yaml
-  issues/
-  wiki/
-  .cache/   # created on demand
-.kanbus.yml
-```
+## Optional: an LLM key for AI features
 
-If you want a local-only workspace for personal issues, initialize with:
-
-```bash
-kbs init --local
-# or: kanbus init --local
-```
-
-That creates `project-local/` alongside `project/` and adds it to `.gitignore`.
-
-Before running wiki render, compaction, or right-now summary commands, store an LLM API key once:
+Wiki rendering, summaries, compaction, and right-now summaries call an LLM through LiteLLM. Store a key once for every project on the machine:
 
 ```bash
 kbs setup ai
-# or: kanbus setup ai
 ```
 
-This saves the key to `~/.kanbus.env` (mode `600`) so it works across every project on the
-machine. You can also set `OPENAI_API_KEY` in your shell environment or a project `.env` instead.
-See [CONFIGURATION.md](CONFIGURATION.md) for `ai` and `right_now` fields.
+The key goes in `~/.kanbus.env` (mode `600`). Setting `OPENAI_API_KEY` in your shell or a project `.env` also works. Board commands never need a key; without one, Kanbus prints a hint during `kbs init` and carries on.
 
-## Step 1b: Keep agent guidance updated
+## Next steps
 
-Kanbus keeps agent instructions in sync with your configuration. Run this anytime the template or configuration changes.
-
-```bash
-kbs setup agents
-# or: kanbus setup agents
-```
-
-This updates `AGENTS.md`, refreshes `CONTRIBUTING_AGENT.md`, and re-writes the guard files under `project/issues/` and `project/events/`. The agent may edit `project/wiki/` directly; it must not edit `project/issues/` or `project/events/` directly (use Kanbus commands instead).
-
-If you have an existing repo with a `.cursorignore` that lists `project/`, change it to `project/issues/` and `project/events/` so the agent can edit the wiki.
-
-## Optional: Require a minimum CLI version
-
-Teams can pin a minimum Kanbus CLI release by adding a root file named `kanbus-version` with a single semantic version line:
-
-```
-0.19.1
-```
-
-When this file is present, commands such as `kbs list` and `kbs doctor` fail fast if the running CLI is older than the required version. The check is skipped when the file is absent. Use `0.0.0` to accept any installed CLI version.
-
-See [CLI_REFERENCE.md](CLI_REFERENCE.md) for full behavior, including git-describe handling and exempt commands.
-
-## Beads compatibility mode
-
-If you are transitioning from Beads and keeping `.beads/issues.jsonl` for a while, enable compatibility mode in both configuration files:
-
-```yaml
-beads_compatibility: true
-```
-
-Set it in `.kanbus.yml` and in `project/config.yaml`. Kanbus will read Beads JSONL while still using `project/` for configuration and wiki content.
-
-## Step 2: Create your first issue
-
-```bash
-kbs create "Set up the project structure"
-# or: kanbus create "Set up the project structure"
-```
-
-Kanbus returns a generated ID like `kanbus-a1b2c3`.
-
-## Step 3: Update the issue
-
-Move the issue into progress and assign it.
-
-```bash
-kbs update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
-# or: kanbus update kanbus-a1b2c3 --status in_progress --assignee "you@example.com"
-```
-
-## Step 4: Query issues
-
-List all open issues:
-
-```bash
-kanbus list --status open
-```
-
-List issues that are ready to work on:
-
-```bash
-kanbus ready
-```
-
-Search by text:
-
-```bash
-kanbus search "project structure"
-```
-
-## Step 5: Close the issue
-
-```bash
-kanbus close kanbus-a1b2c3 --comment "Initial structure is complete."
-```
-
-## Realtime quickstart
-
-### One console hub (UDS)
-
-Terminal 1:
-
-```bash
-kbsc
-# or: kanbus-console
-```
-
-Terminal 2:
-
-```bash
-kbs create "Realtime task"
-kbs update <id> --status in_progress
-kbs delete <id>
-```
-
-Optional: observe incremental realtime events:
-
-```bash
-curl -N http://127.0.0.1:5174/api/events/realtime
-```
-
-### Local MQTT autostart
-
-```bash
-kanbus gossip watch --transport mqtt --broker auto
-```
-
-### Overlay maintenance
-
-```bash
-kanbus overlay reconcile --all --prune
-kanbus overlay gc --all
-kanbus overlay install-hooks
-```
-
-## Running the specifications
-
-Kanbus uses a shared Gherkin specification suite under the repository `features/` directory. Both implementations run against the same files.
-
-Run the Python suite:
-
-```bash
-cd python
-python -m behave
-```
-
-Run the Rust suite:
-
-```bash
-cd rust
-cargo test --test cucumber
-```
-
-## Next Steps
-
-- Read the CLI reference: [CLI_REFERENCE.md](CLI_REFERENCE.md)
-- Configure workflows and types: [CONFIGURATION.md](CONFIGURATION.md)
-- Learn the wiki system: [WIKI_GUIDE.md](WIKI_GUIDE.md)
-- Troubleshoot common issues: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- [CLI reference](CLI_REFERENCE.md)
+- [Configuration](CONFIGURATION.md): types, workflows, statuses, realtime, and coordination settings
+- [Realtime collaboration](REALTIME.md)
+- [Wiki guide](WIKI_GUIDE.md)
+- [Migrating from Beads](MIGRATION.md)
+- [Troubleshooting](TROUBLESHOOTING.md)

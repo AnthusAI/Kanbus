@@ -339,20 +339,20 @@ List open issues with no open blockers.
 kanbus ready
 ```
 
-### `kanbus blocked`
+### Blocked issues
 
 List issues in blocked status.
 
 ```bash
-kanbus blocked
+kanbus list --status blocked
 ```
 
-### `kanbus search`
+### Searching
 
-Full-text search across titles and descriptions.
+Full-text search across titles, descriptions, and comments.
 
 ```bash
-kanbus search <text>
+kanbus list --search <text>
 ```
 
 ## Dependencies

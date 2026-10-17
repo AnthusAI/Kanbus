@@ -1,0 +1,27 @@
+{
+  "id": "kbs-5142096e-331e-400d-9b90-e27ab6bc4527",
+  "title": "CONFIGURATION.md schema does not match the configuration kbs init writes",
+  "description": "The schema section shows project_key as 2 to 6 uppercase letters, issue_types, workflow_bindings and a priorities list, while init writes a lowercase key, types, a priorities map and many sections the page does not describe. Regenerate the reference from the real model.",
+  "type": "chore",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:24:11.251301229Z",
+  "updated_at": "2026-10-16T14:24:11.310925201Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

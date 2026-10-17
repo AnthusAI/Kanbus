@@ -1,0 +1,27 @@
+{
+  "id": "kbs-67f2f0fa-037c-4d9c-b130-037f0160cb19",
+  "title": "list and show return stale data when an issue file is unparseable",
+  "description": "With conflict markers in an issue file, kbs list and kbs show keep printing the cached version and exit 0; only kbs validate reports invalid JSON. Users can work on a board that is silently broken. Board commands should warn or fail when a file does not parse.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:23:00.859444796Z",
+  "updated_at": "2026-10-16T14:23:00.929660049Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

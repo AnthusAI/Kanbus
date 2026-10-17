@@ -1,0 +1,27 @@
+{
+  "id": "kbs-d75be98d-7c11-4b40-876d-77b31704238c",
+  "title": "Document or ship a command to import a board into S3 and rebuild the DynamoDB catalog",
+  "description": "The S3 and DynamoDB setup says to copy .kanbus.yml and the project folder into the namespace and rebuild the catalog with Virtuus, but there is no documented command for either step. This is the only path from a git board to the cloud API.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "acceptance-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T14:23:59.888938364Z",
+  "updated_at": "2026-10-16T14:23:59.951142595Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "Claude",
+    "name": "Docs-thread"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
