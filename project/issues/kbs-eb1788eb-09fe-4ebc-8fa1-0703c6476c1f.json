@@ -1,0 +1,22 @@
+{
+  "id": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "title": "Decide the Python strategy and add a cross-runtime parity lane that diffs kbs and kanbus",
+  "description": "Problem: the dual implementation (66,500 lines Rust, 38,300 lines Python) is kept in lockstep by convention and the convention is failing. Of the last 300 commits, 52 touched implementation code: 30 both sides, 15 Rust-only, 7 Python-only (42 percent one-sided). Rust honours about 25 KANBUS_* environment variables Python does not. The shared Gherkin suite catches behavioural drift but never diffs the two runtimes: exactly one scenario runs both (features/standup/standup_time_windows.feature:167, tagged @python-parity) and Rust excludes it. tools/check_spec_parity.py runs with KANBUS_PARITY_STRICT=0 and today reports 78 steps missing in Rust and 14 in Python with false positives from unparsed cucumber expressions. 41 scenarios starting 'Given a Kanbus project with virtual projects configured' never reach the real CLI: maybe_simulate_virtual_project_command (rust/features/steps/virtual_project_steps.rs:433, 1,404 lines; python mirror :218) fabricates stdout. _promote_quality_signals_to_stderr (python/features/steps/shared.py:70-75) returns stdout as stderr when stderr is empty, so 453 'stderr should contain' steps enforce a different contract than Rust. Rust ignores @skip so five scenarios are spec in Rust and dead in Python. ~450 lines of #[cfg(tarpaulin)] padding in rust/tests/cucumber.rs:201-648 export cover_* functions from the production crate and never compile under llvm-cov.\n\nWork:\n1. Decision for Ryan, recorded in this issue: (a) Rust canonical with 'kanbus' becoming a thin wrapper (PyO3 bindings or subprocess over kbs with JSON output), or (b) keep the full port and enforce parity mechanically. The rest of this task assumes (b) until decided; (a) supersedes it.\n2. Parity lane in CI: a fixture script of a few dozen golden commands run against both binaries, diffing normalised stdout, stderr, exit code and the resulting project directory.\n3. Make check_spec_parity tag-aware and cucumber-expression-aware, then set KANBUS_PARITY_STRICT=1.\n4. Delete the simulated virtual-project CLI and run those scenarios against a real multi-root temp tree in both runtimes.\n5. Remove the stdout-to-stderr promotion and fix the scenarios that depended on it; honour @skip in the Rust harness; delete the tarpaulin padding and the cover_* exports.\n6. A CI check that fails when rust/src changes without python/src (and vice versa) unless the PR carries a 'parity-exempt' label.\n\nAcceptance: parity lane green on develop; strict spec parity green; no simulated CLI code under features/steps.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T16:37:46.028515447Z",
+  "updated_at": "2026-10-17T16:37:46.104207373Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

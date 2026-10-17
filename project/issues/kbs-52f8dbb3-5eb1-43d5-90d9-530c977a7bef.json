@@ -1,0 +1,22 @@
+{
+  "id": "kbs-52f8dbb3-5eb1-43d5-90d9-530c977a7bef",
+  "title": "Advisory lock around issue read-modify-write; no repository writes from read commands",
+  "description": "Problem: two agents updating the same issue at once is last-writer-wins. issue_update.rs:78 reads and :340-348 writes with no lock and no precondition; persist_issue_mutation (rust/src/issue_mutation.rs:52-84) writes the issue, then the overlay, then events; the rollback path rewrites before_issue, which can clobber a concurrent writer's change, and the overlay is never rolled back, so after an event-write failure the overlay can out-rank the restored base. Python mirrors this (issue_mutation.py:88-115). Separately, 'kbs show' calls ensure_issue_comment_ids (issue_comment.rs:194-201) which rewrites the issue file outside the mutation gate: no event, overlay not updated, git tree dirtied. This is the same family as the right-now rewrites that caused 11 merge conflicts in Papyrus (kbs-de99e5).\n\nWork, both runtimes:\n1. Take an advisory lock (flock or equivalent; fd-lock or fs2 in Rust, fcntl in Python) on project/issues/.lock or a per-issue lock file around lookup-to-write inside persist_issue_mutation.\n2. Compare the on-disk updated_at (or mtime) with before_issue and refuse with a clear 'concurrent modification' error when it moved.\n3. Roll back the overlay snapshot alongside the issue file.\n4. Make show (and any other read command) normalise comment ids in memory for display only; persist on the next real mutation.\n5. Add a test that runs two concurrent updates and asserts neither field change is lost.\n\nAcceptance: concurrent-update test passes; 'git status' is clean after 'kbs show', 'kbs list', 'kbs ready' on a board with legacy comments missing ids.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T16:37:45.385717527Z",
+  "updated_at": "2026-10-17T16:37:45.478946743Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

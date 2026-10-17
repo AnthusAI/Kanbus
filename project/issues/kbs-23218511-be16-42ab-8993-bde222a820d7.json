@@ -1,0 +1,22 @@
+{
+  "id": "kbs-23218511-be16-42ab-8993-bde222a820d7",
+  "title": "Byte-identical issue files across Rust and Python: unknown-field round-trip, serializer parity, one label-merge rule",
+  "description": "Problem: the two CLIs write different JSON for the same issue, so alternating them churns every file and feeds the merge-conflict problem (fd3e4c). Verified: reading a Rust-written issue and writing it back with Python adds top-level 'agent': null and 'agent_assignment': null, adds 'data': {} and 'agent': null to every comment, and truncates created_at from nanoseconds to microseconds (python/src/kanbus/issue_files.py:206 model_dump; models.py:116-125, 213-230 versus rust/src/models.rs:69-82, 108-109 skip_serializing_if). Rust then drops those keys again on its next write because IssueData has no catch-all for unknown fields (models.rs:89-115) and no agent_assignment field at all; agent_assignment is a console-only view field (console_snapshot.py:45-49) that leaked into the Python persistence model. Pydantic's default extra='ignore' means Python drops unknown keys too, so forward-compatible data written by a newer CLI is lost by an older one. Label updates follow three algorithms: Python update_issue uses case-sensitive set union and sorts (issue_update.py:170-186); Rust trims, dedupes case-insensitively and preserves order (issue_update.rs:146-172); beads mode in cli.py:1109-1118 appends with neither. Rust also lacks #[serde(default)] on labels, dependencies, comments and custom (models.rs:102-114), so a file Python accepts can fail in Rust.\n\nWork:\n1. Rust: add a flattened extra map to IssueData and IssueComment so unknown keys round-trip; add #[serde(default)] on the collections; keep agent_assignment out of the persisted model in both runtimes (or add it to both).\n2. Python: a model_serializer that omits None and empty exactly where Rust does; preserve the raw timestamp string or agree on one precision with Rust.\n3. One merge_labels rule (trim, case-insensitive dedupe, order preserved) used by update_issue and the beads branch in both runtimes, with a shared Gherkin scenario.\n4. A golden fixture test in CI: write a project with one CLI, rewrite every issue with the other, assert byte-identical files; run it both directions.\n\nAcceptance: the golden test passes both directions; a file with an unknown top-level key survives update, comment and close in both runtimes.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T16:37:45.250189913Z",
+  "updated_at": "2026-10-17T16:37:45.324336911Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
