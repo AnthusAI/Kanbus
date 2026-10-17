@@ -1,0 +1,27 @@
+{
+  "id": "kbs-2941417b-bbae-483e-a4fc-5802a212610f",
+  "title": "Other intermittent Rust test flakes found while stress-testing gossip",
+  "description": "Seen during the kbs-53436f stress runs (PR #405), not fixed there: gossip::dedupe_tests::dedupe_set_tracks_seen_keys_and_prunes, gossip::tests::local_uds_broker_recovers_a_stale_socket, gossip::tests::run_uds_subscription_ignores_invalid_payloads_before_valid_envelope, router::tests::hard_lease_renewer_runs_while_start_publication_is_delayed. Also IsolatedHomeGuard's drop does not remove env vars it forced when they were absent before, so they leak into later tests in the same process (a likely common cause, since several tests share process-wide env such as KANBUS_REALTIME_BROKER). Make each deterministic under the parallel cargo test --lib run. Separately, the Rust test suite appends to the tracked project/events/llm_usage.jsonl; tests should not write to the repo's own board.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "ci"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-16T18:20:15.873792Z",
+  "updated_at": "2026-10-16T18:20:15.894759Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "Claude Opus 5.5",
+    "name": "Issue Router"
+  },
+  "right_now_summary": "Rust stress runs still expose intermittent gossip and router test flakes, env leaks, and tracked file writes.",
+  "right_now_updated_at": "2026-10-16T18:20:17.017486Z",
+  "custom": {}
+}

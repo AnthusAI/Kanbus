@@ -1,0 +1,59 @@
+{
+  "id": "kbs-151d2330-d5f1-4ded-85c5-2e851f46e38e",
+  "title": "Milestone 2: interchangeable Virtuus filesystem and S3/DynamoDB storage",
+  "description": "Extend the existing Virtuus persistence seam rather than invent a parallel domain API. Provide explicit filesystem/EFS and cloud backends behind a general scoped record/query/mutation contract. Cloud canonical payloads always live in S3; DynamoDB is a rebuildable metadata/pointer catalog. Preserve ordinary Kanbus type/status/assignee/parent/label queries and add bounded generic configured field predicates where needed. Enforce revision conflicts, retry identity, tenant/project scope and publication integrity. Done when shared backend contract tests and independent failure/concurrency tests pass; no specialized prospect/account/follow-up tables or APIs are introduced.\n\nQuery priority: board loads for one, selected, or all authorized projects with all or selected issue types, existing stage filters, declared ordering and pagination; exact full-ID reads bypass board enumeration. Choose general Kanbus indexes for these concrete fanout patterns. Demonstrate the chosen read shape on realistic mixed-project/type data with measured query and content-fetch work; do not create speculative analytics indexes, S3 Tables or Athena dependencies. Current Prospectus proof remains a single configured project; later multi-project UI is tracked separately.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-3df9cc93-530f-4614-98a0-aa175012c1b5",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c15eae72-6fa5-410a-b200-decddcf706ae",
+      "author": "home",
+      "text": "Ryan authorized completing the shared cloud backend on October 16: reconcile PR399 with current develop without duplicating released UI, close storage coverage requirements, validate both backend PRs and merge when required checks pass, and document reusable Amplify consumption. Existing Prospectus deployment/data remain preserved; no new persistent permissions or paid model calls.",
+      "created_at": "2026-10-16T06:58:53.533406Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "Codex",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    },
+    {
+      "id": "5f11a086-9b0d-4ec4-8999-284881463e67",
+      "author": "home",
+      "text": "2026-10-16 reconciliation: Shared cloud runtime PR399 merged and release0.34.0 completed via main PR403. Virtuus0.6.1 released. Canonical ordinary S3 files and supplemental DynamoDB catalog are delivered; no always-on SQLite service. Downstream hosted app acceptance is separately tracked.",
+      "created_at": "2026-10-16T20:46:55.160737Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "gpt-6.1-sol",
+        "name": "unfinished-work-reconciliation",
+        "settings": {
+          "reasoning_effort": "medium"
+        }
+      }
+    }
+  ],
+  "created_at": "2026-10-14T00:23:15.420675Z",
+  "updated_at": "2026-10-16T20:46:55.160778Z",
+  "closed_at": "2026-10-16T20:46:55.022336Z",
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}

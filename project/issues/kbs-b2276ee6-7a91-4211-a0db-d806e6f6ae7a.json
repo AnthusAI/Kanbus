@@ -1,0 +1,25 @@
+{
+  "id": "kbs-b2276ee6-7a91-4211-a0db-d806e6f6ae7a",
+  "title": "Round-trip raw Kanbus snapshots without changing identity or history",
+  "description": "As an operator, I want portable complete snapshots so I can change storage without rewriting my records.\n\nFeature: Lossless Kanbus snapshots\n  Scenario: Round-trip canonical data\n    Given issues with unknown nested fields, null and missing values, stable IDs, links, comments, timestamps, large history and configuration\n    When a consistent filesystem snapshot is copied to the canonical S3 prefix and its catalog rebuilt\n    And that prefix is copied to a fresh filesystem project\n    Then hashes match the original canonical bytes and normal Kanbus file paths\n    And no canonical payload envelope or alternate object layout must be decoded\n    And IDs, relations, comment order, history and configuration are preserved\n    And no synthetic mutation events or timestamps are introduced\n  Scenario: Idempotent duplicate\n    Given a scoped record already imported with the same identity and bytes\n    When the same snapshot is imported again\n    Then it is a no-op without duplicate history\n  Scenario: Conflicting duplicate\n    Given two different payloads for the same scoped identity\n    When a snapshot import is requested\n    Then a conflict is reported before publishing partial replacement state\n    And titles or contact addresses are not used to merge different IDs\n  Scenario: Incomplete or corrupt snapshot\n    Given a missing object or mismatched content hash\n    When the snapshot is validated\n    Then publication is rejected and the previous complete state remains usable",
+  "type": "story",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-2e5a7e1d-e93d-421e-bbd6-e268d1923e97",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:23:16.814934Z",
+  "updated_at": "2026-10-14T00:23:16.843670Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

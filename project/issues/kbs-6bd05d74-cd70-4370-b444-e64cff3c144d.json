@@ -1,0 +1,28 @@
+{
+  "id": "kbs-6bd05d74-cd70-4370-b444-e64cff3c144d",
+  "title": "Future: select one, several or all authorized projects in shared views",
+  "description": "As a member working across projects, I want to select one, several or all authorized projects in shared Kanbus views so I can inspect my work without changing applications.\n\nFeature: Future multi-project views\n  Scenario: Select project scope\n    Given a member with access to multiple projects in one tenant\n    When the member selects one project, several projects or all authorized projects\n    Then the board and filtered list show only that selected authorized scope\n    And the member can choose all issue types or selected types within that scope\n    And configured stage filtering, ordering and paging remain consistent\n  Scenario: Keep unauthorized projects private\n    Given projects outside the member's access\n    When the member opens or changes the project selector\n    Then unauthorized project records are not exposed\n  Scenario: Preserve domain configuration\n    Given selected projects with configured types and stage labels\n    When the member navigates a shared view\n    Then each issue retains its configured meaning and full identity\n    And interactions use the same generic Kanbus contracts\n\nFuture capability: this story is backlog and is not part of the current single-project Prospectus proof. Backend and component choices should leave room for this behavior without claiming the UI is implemented.",
+  "type": "story",
+  "status": "backlog",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-fbfec688-e9dc-4dfd-8670-cfbc5c26ff80",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-14T00:27:49.690976Z",
+  "updated_at": "2026-10-14T00:27:50.220515Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "codex",
+    "model": "GPT-6",
+    "name": "Prospectus Foundation"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
