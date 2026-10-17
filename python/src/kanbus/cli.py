@@ -1106,16 +1106,15 @@ def update(
             proposed_issue.priority = priority
         if final_assignee is not None:
             proposed_issue.assignee = final_assignee
-        if parsed_set_labels is not None:
-            proposed_issue.labels = list(parsed_set_labels)
-        if add_labels:
-            for label in add_labels:
-                if label not in proposed_issue.labels:
-                    proposed_issue.labels.append(label)
-        if remove_labels:
-            proposed_issue.labels = [
-                label for label in proposed_issue.labels if label not in remove_labels
-            ]
+        if parsed_set_labels is not None or add_labels or remove_labels:
+            from kanbus.issue_update import merge_labels
+
+            proposed_issue.labels = merge_labels(
+                proposed_issue.labels,
+                list(parsed_set_labels) if parsed_set_labels is not None else None,
+                list(add_labels) if add_labels else None,
+                list(remove_labels) if remove_labels else None,
+            )
 
         _run_lifecycle_hooks_for_context(
             context,

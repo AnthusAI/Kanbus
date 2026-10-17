@@ -99,8 +99,11 @@ pub struct IssueData {
     pub assignee: Option<String>,
     pub creator: Option<String>,
     pub parent: Option<String>,
+    #[serde(default)]
     pub labels: Vec<String>,
+    #[serde(default)]
     pub dependencies: Vec<DependencyLink>,
+    #[serde(default)]
     pub comments: Vec<IssueComment>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -111,8 +114,33 @@ pub struct IssueData {
     pub right_now_summary: Option<String>,
     #[serde(default)]
     pub right_now_updated_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub custom: BTreeMap<String, serde_json::Value>,
 }
+
+/// Top-level keys that `IssueData` persists; any other key found on disk belongs to
+/// a newer or foreign writer and must survive a rewrite.
+pub const PERSISTED_ISSUE_KEYS: &[&str] = &[
+    "id",
+    "title",
+    "description",
+    "type",
+    "status",
+    "priority",
+    "assignee",
+    "creator",
+    "parent",
+    "labels",
+    "dependencies",
+    "comments",
+    "created_at",
+    "updated_at",
+    "closed_at",
+    "agent",
+    "right_now_summary",
+    "right_now_updated_at",
+    "custom",
+];
 
 /// Jira synchronization configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
