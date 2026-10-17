@@ -451,6 +451,38 @@ kanbus migrate --into-existing
 `--into-existing` imports Beads issues into an already initialized Kanbus
 project and is safe to re-run.
 
+## Methodologies
+
+### `kanbus methodology list`
+
+List the methodologies configured in `.kanbus.yml`, then the built-ins that are not active.
+
+```bash
+kanbus methodology list
+```
+
+Each line is `<marker> <name> (<source>) <title>`. `*` marks an active methodology and `-` a built-in that is not active. The source is `built-in` or `bundle <folder>`.
+
+### `kanbus methodology show`
+
+Print a methodology's guidance, rendered with the project's template variables.
+
+```bash
+kanbus methodology show <name>
+```
+
+Works for configured methodologies and for built-ins that are not active. An unknown name fails with the built-in names.
+
+### `kanbus methodology run`
+
+Run a tool that a configured methodology bundle declares.
+
+```bash
+kanbus methodology run <methodology> <tool> [args...]
+```
+
+The tool runs from the repository root with `KANBUS_METHODOLOGY_DIRECTORY` set to the bundle folder. Arguments pass through unchanged, and a non-zero exit fails the command. See [Methodologies](docs/METHODOLOGIES.md).
+
 ## Diagnostics
 
 ### `kanbus doctor`
@@ -463,6 +495,8 @@ kanbus doctor
 
 Output includes an AI credentials line, e.g. `ai credentials: OPENAI_API_KEY from ~/.kanbus.env`,
 or `ai credentials: OPENAI_API_KEY not set (run kbs setup ai)` when no key is configured.
+
+It also lists the active methodologies (`methodologies: bdd, git-flow`), fails when one cannot be loaded or rendered, and prints a warning when `CONTRIBUTING_AGENT.md` differs from what the configured methodologies generate.
 
 ### `kanbus --version`
 

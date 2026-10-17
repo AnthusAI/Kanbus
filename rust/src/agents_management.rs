@@ -11,7 +11,10 @@ use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::file_io::refresh_project_wiki_agents_file;
-use crate::methodology_bundles::{render_selected_methodologies, RenderedMethodology};
+use crate::methodology_bundles::{
+    load_built_in_methodology, load_selected_methodologies, render_methodology_document,
+    render_selected_methodologies, RenderedMethodology,
+};
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     default_project_management_template, default_project_management_template_filename,
@@ -101,6 +104,28 @@ pub fn kanbus_section_text() -> String {
 /// Returns `KanbusError` if configuration lookup fails.
 pub fn project_management_text(root: &Path) -> Result<String, KanbusError> {
     build_project_management_text(root)
+}
+
+/// Render one methodology for display, configured or built in.
+///
+/// # Errors
+/// Returns `KanbusError` when the methodology is unknown or fails to render.
+pub fn render_methodology_by_name(
+    root: &Path,
+    methodology_name: &str,
+) -> Result<RenderedMethodology, KanbusError> {
+    let configuration_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    let context = build_project_management_context(&configuration);
+    let configured_methodologies = load_selected_methodologies(root, &configuration)?;
+    let methodology = match configured_methodologies
+        .into_iter()
+        .find(|configured_methodology| configured_methodology.name == methodology_name)
+    {
+        Some(configured_methodology) => configured_methodology,
+        None => load_built_in_methodology(methodology_name)?,
+    };
+    render_methodology_document(&methodology, &context)
 }
 
 fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {

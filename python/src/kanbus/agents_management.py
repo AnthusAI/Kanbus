@@ -14,6 +14,9 @@ from jinja2 import DictLoader, Environment, select_autoescape
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.methodology_bundles import (
     MethodologyError,
+    load_built_in_methodology,
+    load_selected_methodologies,
+    render_methodology_document,
     render_selected_methodologies,
 )
 from kanbus.models import ProjectConfiguration
@@ -109,6 +112,42 @@ def _ensure_project_guard_files(root: Path) -> None:
 
 def _ensure_tool_block_files(root: Path) -> None:
     _write_tool_block_files(root)
+
+
+def render_methodology_by_name(root: Path, methodology_name: str) -> dict[str, object]:
+    """Render one methodology for display, configured or built in.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param methodology_name: Methodology name.
+    :type methodology_name: str
+    :return: Rendered methodology as a template-ready dictionary.
+    :rtype: dict[str, object]
+    :raises click.ClickException: If the methodology is unknown or fails to render.
+    """
+    configuration = _load_configuration_for_instructions(root)
+    context = _build_project_management_context(configuration)
+    environment = Environment(
+        autoescape=select_autoescape(
+            enabled_extensions=("html", "htm", "xml"),
+            default_for_string=False,
+            default=False,
+        ),
+    )
+    try:
+        methodology = next(
+            (
+                configured_methodology
+                for configured_methodology in load_selected_methodologies(
+                    root, configuration
+                )
+                if configured_methodology.name == methodology_name
+            ),
+            None,
+        ) or load_built_in_methodology(methodology_name)
+        return render_methodology_document(methodology, environment, context)
+    except MethodologyError as error:
+        raise click.ClickException(str(error)) from error
 
 
 def build_project_management_text(root: Path) -> str:

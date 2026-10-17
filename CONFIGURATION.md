@@ -130,7 +130,24 @@ description: Keep change risk low by pairing complexity with coverage.
 ...guidance for agents...
 ```
 
-A custom `project_management_template` places the rendered methodologies with `{% for methodology in methodologies %}{{ methodology.content }}{% endfor %}`. Each entry also exposes `name`, `title` and `description`.
+A bundle can ship tools. Declare each one in the frontmatter with a `name`, a `command` path inside the bundle directory, and a one-line `purpose`:
+
+```markdown
+---
+name: crap
+title: CRAP Reduction
+tools:
+  - name: report
+    command: tools/crap-report
+    purpose: Report the CRAP score of every Python function in files changed since the base branch, worst first.
+---
+```
+
+The generated `CONTRIBUTING_AGENT.md` lists each tool under its methodology with the command to run from the repository root, `kbs methodology run <methodology> <tool> [args]`. That command runs the tool from the repository root, passes the arguments through unchanged, and sets `KANBUS_METHODOLOGY_DIRECTORY` to the bundle directory so the tool can find its own files. The tool's standard output is printed, and a non-zero exit fails the command. A `command` that is absolute, empty or contains `..`, and a tool name declared twice in one bundle, are rejected. Only configured methodologies can run tools, and built-in methodologies declare none.
+
+This repository ships an example at `methodologies/crap`. Run `kbs methodology run crap report` after listing `- path: methodologies/crap` under `methodologies`, or run `methodologies/crap/tools/crap-report` directly. The report reads `coverage.xml` from the repository root, so refresh that file first when tests have changed.
+
+A custom `project_management_template` places the rendered methodologies with `{% for methodology in methodologies %}{{ methodology.content }}{% endfor %}`. Each entry also exposes `name`, `title`, `description` and `tools` (each with `name`, `purpose` and `invocation`); the tool listing is already appended to `content`.
 
 ### `ai` (mapping, optional)
 

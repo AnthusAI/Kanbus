@@ -4,7 +4,7 @@
 //! set of process opinions (for example Behavior-Driven Design or Git Flow).
 //! Kanbus core stays neutral; the configured methodologies supply the opinions.
 
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +25,12 @@ pub const DEFAULT_METHODOLOGY_NAMES: [&str; 2] = ["bdd", "git-flow"];
 /// File that defines a methodology inside its bundle directory.
 pub const METHODOLOGY_DOCUMENT_FILENAME: &str = "METHODOLOGY.md";
 
+/// Command that runs a methodology tool from the repository root.
+pub const METHODOLOGY_TOOL_INVOCATION_PREFIX: &str = "kbs methodology run";
+
+/// Environment variable that tells a running tool where its bundle lives.
+pub const METHODOLOGY_DIRECTORY_ENVIRONMENT_VARIABLE: &str = "KANBUS_METHODOLOGY_DIRECTORY";
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct MethodologyFrontmatter {
@@ -32,6 +38,17 @@ struct MethodologyFrontmatter {
     title: String,
     #[serde(default)]
     description: Option<String>,
+    #[serde(default)]
+    tools: Vec<MethodologyToolDeclaration>,
+}
+
+/// A tool a methodology bundle ships, declared in its frontmatter.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MethodologyToolDeclaration {
+    pub name: String,
+    pub command: String,
+    pub purpose: String,
 }
 
 /// A methodology document split into its frontmatter and template body.
@@ -41,6 +58,16 @@ pub struct MethodologyDocument {
     pub title: String,
     pub description: String,
     pub template_body: String,
+    pub tools: Vec<MethodologyToolDeclaration>,
+    pub bundle_directory: Option<PathBuf>,
+}
+
+/// A methodology tool as listed in the agents file.
+#[derive(Debug, Clone, Serialize)]
+pub struct RenderedMethodologyTool {
+    pub name: String,
+    pub purpose: String,
+    pub invocation: String,
 }
 
 /// A methodology whose body has been rendered with the agents-file context.
@@ -50,6 +77,7 @@ pub struct RenderedMethodology {
     pub title: String,
     pub description: String,
     pub content: String,
+    pub tools: Vec<RenderedMethodologyTool>,
 }
 
 /// Return the names of the built-in methodologies.
@@ -99,12 +127,44 @@ pub fn parse_methodology_document(
                 "methodology {source_description} has invalid frontmatter: {error}"
             ))
         })?;
+    validate_methodology_tool_declarations(&frontmatter.tools, source_description)?;
     Ok(MethodologyDocument {
         name: frontmatter.name,
         title: frontmatter.title,
         description: frontmatter.description.unwrap_or_default(),
         template_body: template_body.to_string(),
+        tools: frontmatter.tools,
+        bundle_directory: None,
     })
+}
+
+fn validate_methodology_tool_declarations(
+    tools: &[MethodologyToolDeclaration],
+    source_description: &str,
+) -> Result<(), KanbusError> {
+    for (tool_index, tool) in tools.iter().enumerate() {
+        if tools[..tool_index]
+            .iter()
+            .any(|earlier_tool| earlier_tool.name == tool.name)
+        {
+            return Err(KanbusError::Configuration(format!(
+                "methodology {source_description} declares tool {} more than once",
+                tool.name
+            )));
+        }
+        let command_path = Path::new(&tool.command);
+        let command_stays_inside_bundle = !tool.command.is_empty()
+            && command_path
+                .components()
+                .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
+        if !command_stays_inside_bundle {
+            return Err(KanbusError::Configuration(format!(
+                "methodology {source_description} tool {} command must be a path inside the bundle: {}",
+                tool.name, tool.command
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Load a built-in methodology by name.
@@ -144,7 +204,10 @@ pub fn load_project_methodology_bundle(
             "methodology bundle {bundle_relative_path} has no {METHODOLOGY_DOCUMENT_FILENAME}"
         ))
     })?;
-    parse_methodology_document(&source_text, &format!("bundle {bundle_relative_path}"))
+    let mut methodology =
+        parse_methodology_document(&source_text, &format!("bundle {bundle_relative_path}"))?;
+    methodology.bundle_directory = Some(bundle_directory);
+    Ok(methodology)
 }
 
 /// Load every methodology selected by the configuration, in configured order.
@@ -186,26 +249,203 @@ pub fn render_selected_methodologies<TemplateContext: Serialize>(
     configuration: &ProjectConfiguration,
     template_context: &TemplateContext,
 ) -> Result<Vec<RenderedMethodology>, KanbusError> {
-    let template_environment = minijinja::Environment::new();
     load_selected_methodologies(repository_root, configuration)?
-        .into_iter()
-        .map(|methodology| {
-            let content = template_environment
-                .render_str(&methodology.template_body, template_context)
-                .map_err(|error| {
-                    KanbusError::IssueOperation(format!(
-                        "methodology {} failed to render: {error}",
-                        methodology.name
-                    ))
-                })?;
-            Ok(RenderedMethodology {
+        .iter()
+        .map(|methodology| render_methodology_document(methodology, template_context))
+        .collect()
+}
+
+/// Render one methodology body with the agents-file template context and append its tool listing.
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` when the body fails to render.
+pub fn render_methodology_document<TemplateContext: Serialize>(
+    methodology: &MethodologyDocument,
+    template_context: &TemplateContext,
+) -> Result<RenderedMethodology, KanbusError> {
+    let content = minijinja::Environment::new()
+        .render_str(&methodology.template_body, template_context)
+        .map_err(|error| {
+            KanbusError::IssueOperation(format!(
+                "methodology {} failed to render: {error}",
+                methodology.name
+            ))
+        })?;
+    let rendered_tools: Vec<RenderedMethodologyTool> = methodology
+        .tools
+        .iter()
+        .map(|tool| RenderedMethodologyTool {
+            name: tool.name.clone(),
+            purpose: tool.purpose.clone(),
+            invocation: format!(
+                "{METHODOLOGY_TOOL_INVOCATION_PREFIX} {} {}",
+                methodology.name, tool.name
+            ),
+        })
+        .collect();
+    let content_with_tool_listing = if rendered_tools.is_empty() {
+        content
+    } else {
+        format!(
+            "{}\n\n{}",
+            content.trim_end(),
+            methodology_tool_listing_text(&methodology.title, &rendered_tools)
+        )
+    };
+    Ok(RenderedMethodology {
+        name: methodology.name.clone(),
+        title: methodology.title.clone(),
+        description: methodology.description.clone(),
+        content: content_with_tool_listing,
+        tools: rendered_tools,
+    })
+}
+
+/// A methodology as shown by `kbs methodology list`.
+#[derive(Debug, Clone)]
+pub struct MethodologyListing {
+    pub name: String,
+    pub title: String,
+    pub source: String,
+    pub active: bool,
+}
+
+/// List the configured methodologies in order, then the built-ins that are not active.
+///
+/// # Errors
+/// Returns `KanbusError::Configuration` when a configured methodology cannot be loaded.
+pub fn list_methodologies(
+    repository_root: &Path,
+    configuration: &ProjectConfiguration,
+) -> Result<Vec<MethodologyListing>, KanbusError> {
+    let mut listings: Vec<MethodologyListing> =
+        load_selected_methodologies(repository_root, configuration)?
+            .into_iter()
+            .map(|methodology| MethodologyListing {
+                source: match methodology.bundle_directory.as_ref() {
+                    Some(bundle_directory) => format!(
+                        "bundle {}",
+                        bundle_directory
+                            .strip_prefix(repository_root)
+                            .unwrap_or(bundle_directory)
+                            .display()
+                    ),
+                    None => "built-in".to_string(),
+                },
                 name: methodology.name,
                 title: methodology.title,
-                description: methodology.description,
-                content,
+                active: true,
             })
-        })
-        .collect()
+            .collect();
+    for built_in_name in built_in_methodology_names() {
+        if listings.iter().any(|listing| listing.name == built_in_name) {
+            continue;
+        }
+        let built_in_methodology = load_built_in_methodology(built_in_name)?;
+        listings.push(MethodologyListing {
+            name: built_in_methodology.name,
+            title: built_in_methodology.title,
+            source: "built-in".to_string(),
+            active: false,
+        });
+    }
+    Ok(listings)
+}
+
+fn methodology_tool_listing_text(
+    methodology_title: &str,
+    rendered_tools: &[RenderedMethodologyTool],
+) -> String {
+    let tool_lines: Vec<String> = rendered_tools
+        .iter()
+        .map(|tool| format!("- `{}`: {}", tool.invocation, tool.purpose))
+        .collect();
+    format!(
+        "### {methodology_title} tools\n\nRun these from the repository root:\n\n{}\n",
+        tool_lines.join("\n")
+    )
+}
+
+/// Run a tool declared by one of the configured methodologies.
+///
+/// The tool runs from the repository root with the bundle directory exported in
+/// `KANBUS_METHODOLOGY_DIRECTORY`. Its standard output is returned; its standard
+/// error is passed through.
+///
+/// # Errors
+/// Returns `KanbusError` when the methodology is not configured, the tool is not
+/// declared, the command cannot start, or the tool exits unsuccessfully.
+pub fn run_methodology_tool(
+    repository_root: &Path,
+    configuration: &ProjectConfiguration,
+    methodology_name: &str,
+    tool_name: &str,
+    tool_arguments: &[String],
+) -> Result<String, KanbusError> {
+    let configured_methodologies = load_selected_methodologies(repository_root, configuration)?;
+    let methodology = configured_methodologies
+        .iter()
+        .find(|configured_methodology| configured_methodology.name == methodology_name)
+        .ok_or_else(|| {
+            let configured_names: Vec<&str> = configured_methodologies
+                .iter()
+                .map(|configured_methodology| configured_methodology.name.as_str())
+                .collect();
+            KanbusError::IssueOperation(format!(
+                "methodology not configured: {methodology_name} (configured methodologies: {})",
+                configured_names.join(", ")
+            ))
+        })?;
+    let tool = methodology
+        .tools
+        .iter()
+        .find(|declared_tool| declared_tool.name == tool_name)
+        .ok_or_else(|| {
+            let declared_tool_names: Vec<&str> = methodology
+                .tools
+                .iter()
+                .map(|declared_tool| declared_tool.name.as_str())
+                .collect();
+            let declared_tool_summary = if declared_tool_names.is_empty() {
+                "it declares no tools".to_string()
+            } else {
+                format!("declared tools: {}", declared_tool_names.join(", "))
+            };
+            KanbusError::IssueOperation(format!(
+                "methodology {methodology_name} has no tool named {tool_name} ({declared_tool_summary})"
+            ))
+        })?;
+    let bundle_directory = methodology.bundle_directory.as_ref().ok_or_else(|| {
+        KanbusError::IssueOperation(format!(
+            "methodology {methodology_name} is built in and has no bundle directory"
+        ))
+    })?;
+    let tool_program_path = bundle_directory.join(&tool.command);
+    let tool_output = std::process::Command::new(&tool_program_path)
+        .args(tool_arguments)
+        .current_dir(repository_root)
+        .env(METHODOLOGY_DIRECTORY_ENVIRONMENT_VARIABLE, bundle_directory)
+        .output()
+        .map_err(|error| {
+            KanbusError::IssueOperation(format!(
+                "methodology tool {methodology_name} {tool_name} could not start {}: {error}",
+                tool.command
+            ))
+        })?;
+    let tool_standard_output = String::from_utf8_lossy(&tool_output.stdout).to_string();
+    let tool_standard_error = String::from_utf8_lossy(&tool_output.stderr).to_string();
+    if tool_output.status.success() {
+        eprint!("{tool_standard_error}");
+        return Ok(tool_standard_output);
+    }
+    let exit_status_description = tool_output
+        .status
+        .code()
+        .map(|exit_code| exit_code.to_string())
+        .unwrap_or_else(|| "a signal".to_string());
+    Err(KanbusError::IssueOperation(format!(
+        "{tool_standard_output}{tool_standard_error}methodology tool {methodology_name} {tool_name} exited with status {exit_status_description}"
+    )))
 }
 
 #[cfg(test)]
