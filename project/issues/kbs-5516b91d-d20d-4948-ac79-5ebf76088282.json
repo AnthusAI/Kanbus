@@ -3,17 +3,32 @@
   "title": "Milestone 4: methodology commands, doctor checks and docs",
   "description": "## Purpose\n\nMake methodologies discoverable and safe to adopt.\n\n## Scope\n\n- `kbs methodology list` (built-in and configured, with active ones marked) and `kbs methodology show <name>` (rendered content).\n- `kbs doctor` checks configured methodologies resolve and render, and warns when `CONTRIBUTING_AGENT.md` is stale against them.\n- Documentation: CONFIGURATION.md entry for `methodologies`, a methodology authoring guide, getting-started notes on choosing methodologies, and a site page on kanb.us explaining that Kanbus's process opinions are pluggable.\n\n## Definition of done\n\nSpecifications for list, show and doctor checks in both implementations; docs reviewed against real output.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-bb44ecc4-35dc-4520-888b-d3a20ce45d3c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7e729a0e-1e82-43a1-82a9-894bafc59f06",
+      "author": "unknown",
+      "text": "Delivered in PR #425: kbs methodology list and show, doctor checks for resolve, render and a stale CONTRIBUTING_AGENT.md, and docs (docs/METHODOLOGIES.md, CLI reference, configuration, getting started). The kanb.us feature page goes into Kanbus-web separately.",
+      "created_at": "2026-10-17T18:58:40.810444085Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "d1ecb7f8-a5fc-4287-a20c-89d761cca243",
+      "author": "unknown",
+      "text": "Kanbus-web PR #1 merged: the kanb.us Pluggable methodologies feature page is live in content/features.",
+      "created_at": "2026-10-17T19:00:32.650574408Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T13:11:08.293991058Z",
-  "updated_at": "2026-10-17T13:11:08.370395074Z",
-  "closed_at": null,
+  "updated_at": "2026-10-17T19:01:08.631865366Z",
+  "closed_at": "2026-10-17T19:01:08.563811826Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
