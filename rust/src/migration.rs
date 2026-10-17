@@ -590,11 +590,7 @@ fn convert_dependencies(
             && (canonical_parent == "epic" || canonical_parent == "task");
         if !skip_validation {
             let validation_result =
-                if cfg!(tarpaulin) && std::env::var_os("KANBUS_TEST_HIERARCHY_ERROR").is_some() {
-                    Err(KanbusError::Io("forced hierarchy error".to_string()))
-                } else {
-                    validate_parent_child_relationship(configuration, &canonical_parent, issue_type)
-                };
+                validate_parent_child_relationship(configuration, &canonical_parent, issue_type);
             match validation_result {
                 Ok(()) => {}
                 Err(KanbusError::InvalidHierarchy(_message)) => {

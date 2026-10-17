@@ -796,46 +796,6 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         Ok(Value::from(result))
     });
 
-    #[cfg(tarpaulin)]
-    {
-        let _ = resolve_wiki_page_path(&request.root, "project/wiki/coverage-missing.md");
-        let _ = env.render_str(
-            "{% for issue in query(sort=\"title\") %}{% endfor %}",
-            context! {},
-        );
-        let _ = env.render_str(
-            "{% for issue in query(sort=\"priority\") %}{% endfor %}",
-            context! {},
-        );
-        let _ = env.render_str(
-            "{% for issue in query(sort=\"invalid\") %}{% endfor %}",
-            context! {},
-        );
-        let dummy_issue = IssueData {
-            identifier: "kanbus-dummy".to_string(),
-            title: "Dummy".to_string(),
-            description: "".to_string(),
-            issue_type: "task".to_string(),
-            status: "open".to_string(),
-            priority: 2,
-            assignee: None,
-            creator: None,
-            parent: None,
-            labels: Vec::new(),
-            dependencies: Vec::new(),
-            comments: Vec::new(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            closed_at: None,
-            agent: None,
-            right_now_summary: None,
-            right_now_updated_at: None,
-            custom: std::collections::BTreeMap::new(),
-        };
-        let mut dummy_list = vec![dummy_issue];
-        apply_issue_type_filter(&mut dummy_list, "task");
-    }
-
     let rendered = env
         .render_str(&template, context! {})
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;

@@ -81,9 +81,6 @@ embed-assets = ["rust-embed"]
 name = "cucumber"
 harness = false
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin)"] }
-
 [lints.clippy]
 uninlined_format_args = "allow"
 
