@@ -621,7 +621,7 @@ def _resolve_file_task(
 def _detect_repo_from_git(root: Path) -> Optional[str]:
     """Detect the GitHub repo slug from git remote origin URL.
 
-    Returns e.g. "AnthusAI/Plexus" from https or SSH remote URLs.
+    Returns e.g. "AnthusAI/Primus" from https or SSH remote URLs.
     """
     try:
         result = subprocess.run(
@@ -658,7 +658,7 @@ def _fetch_snyk_projects(
 ) -> Dict[str, str]:
     """Fetch all projects, returning a map of project_id → target_file.
 
-    If ``repo_filter`` is set (e.g. "AnthusAI/Plexus"), only projects whose
+    If ``repo_filter`` is set (e.g. "AnthusAI/Primus"), only projects whose
     Snyk name starts with ``"{repo_filter}:"`` are included.
     """
     headers = {

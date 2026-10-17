@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kanbus"
-version = "0.33.0"
+version = "0.34.0"
 description = "A git-backed project management system."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ dependencies = [
     "requests",
     "litellm",
     "paho-mqtt",
-    "virtuus @ git+https://github.com/AnthusAI/Virtuus.git@94365c00a1e81c0682d31d9de73d0e7f758d0bb8#subdirectory=python",
+    "virtuus==0.6.1",
     "behave",
     "pytest",
     "gherkin-official",
@@ -76,6 +76,6 @@ version_toml = [
 version_variables = ["src/kanbus/__init__.py:__version__"]
 tag_format = "kanbus-py-{version}"
 changelog_file = "CHANGELOG.md"
-build_command = "cargo update --manifest-path ../rust/Cargo.toml -p kanbus --precise $NEW_VERSION && git add ../rust/Cargo.lock && python -m build"
+build_command = "cargo update --manifest-path ../rust/Cargo.toml -p kanbus --precise $NEW_VERSION && cargo update --manifest-path ../services/kanbus-api/Cargo.toml -p kanbus --precise $NEW_VERSION && git add ../rust/Cargo.lock ../services/kanbus-api/Cargo.lock && python -m build"
 allow_zero_version = true
 major_on_zero = false

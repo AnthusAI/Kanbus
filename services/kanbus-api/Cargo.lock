@@ -1792,7 +1792,7 @@ dependencies = [
 
 [[package]]
 name = "kanbus"
-version = "0.33.0"
+version = "0.34.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -1825,7 +1825,7 @@ dependencies = [
  "tokio-stream",
  "tower-http",
  "uuid",
- "virtuus 0.6.0",
+ "virtuus",
 ]
 
 [[package]]
@@ -3439,19 +3439,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "virtuus"
-version = "0.5.1"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=6c9bcf03d999e7fb344d7b777e50b71f1750224f#6c9bcf03d999e7fb344d7b777e50b71f1750224f"
-dependencies = [
- "libc",
- "serde",
- "serde_json",
- "serde_yaml",
-]
-
-[[package]]
-name = "virtuus"
-version = "0.6.0"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=94365c00a1e81c0682d31d9de73d0e7f758d0bb8#94365c00a1e81c0682d31d9de73d0e7f758d0bb8"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efbd7d45434085d7c99b822d652dab875ef61cb005d7edafb1a66c6688032dd5"
 dependencies = [
  "clap",
  "libc",
@@ -3464,7 +3454,8 @@ dependencies = [
 [[package]]
 name = "virtuus-store"
 version = "0.1.0"
-source = "git+https://github.com/AnthusAI/Virtuus.git?rev=6c9bcf03d999e7fb344d7b777e50b71f1750224f#6c9bcf03d999e7fb344d7b777e50b71f1750224f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee57fc8ff1fbd600411abd14e0092e56484c1de2ec1cf9517bc8bdea12040917"
 dependencies = [
  "async-trait",
  "aws-sdk-dynamodb",
@@ -3476,7 +3467,7 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "thiserror 1.0.69",
- "virtuus 0.5.1",
+ "virtuus",
 ]
 
 [[package]]
