@@ -68,14 +68,6 @@ def write_default_kanbus_config(
     )
 
 
-def _promote_quality_signals_to_stderr(stdout: str, stderr: str) -> str:
-    if stderr:
-        return stderr
-    if stdout:
-        return stdout
-    return ""
-
-
 def run_cli_args(context: object, args: list[str]) -> None:
     """Run the Kanbus CLI with an explicit list of arguments.
 
@@ -131,7 +123,6 @@ def run_cli_args(context: object, args: list[str]) -> None:
             stderr = result.output
             if not stderr and result.exception:
                 stderr = str(result.exception)
-        stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,
@@ -193,7 +184,6 @@ def run_cli(context: object, command: str) -> None:
             stderr = result.output
             if not stderr and result.exception:
                 stderr = str(result.exception)
-        stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,
@@ -270,7 +260,6 @@ def run_cli_with_input(context: object, command: str, input_text: str) -> None:
             stderr = ""
         if result.exit_code != 0 and not stderr:
             stderr = result.output
-        stderr = _promote_quality_signals_to_stderr(stdout, stderr)
         context.result = SimpleNamespace(
             exit_code=result.exit_code,
             stdout=stdout,

@@ -859,13 +859,6 @@ fn merge_issue_views(mut beads: IssueData, project: IssueData) -> IssueData {
     beads
 }
 
-#[cfg(tarpaulin)]
-fn cover_help_request() {
-    let _ = is_help_request(ErrorKind::DisplayHelp);
-    let _ = is_help_request(ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand);
-    let _ = is_help_request(ErrorKind::DisplayVersion);
-}
-
 #[derive(Debug, Subcommand)]
 enum SetupCommands {
     /// Ensure AGENTS.md includes Kanbus guidance.
@@ -1468,8 +1461,6 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    #[cfg(tarpaulin)]
-    cover_help_request();
     start_stderr_capture();
     let args_vec: Vec<OsString> = args.into_iter().map(Into::into).collect();
     let beads_flag = args_vec.iter().any(|arg| arg == "--beads");
