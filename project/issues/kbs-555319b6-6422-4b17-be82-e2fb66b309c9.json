@@ -3,7 +3,7 @@
   "title": "Browse the central account directory as an explicitly authorized operator",
   "description": "Given an explicitly approved central Accounts read permission bound to a verified issuer and subject, when the operator opens Account administration, then all canonical organizations and their entitlements and memberships are available read-only. Given a generic CRM admin or personal account member without that permission, when requesting the operator directory or another organization, then access is denied and personal membership isolation remains intact. Given no approved operator grants, when deploying the code, then the operator permission remains inactive. Given unconfirmed or mismatched identity evidence, when requesting operator records, then access is denied without email matching or automatic grants.",
   "type": "story",
-  "status": "in_progress",
+  "status": "blocked",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -85,10 +85,17 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "231b2a3e-26fd-4e9d-b898-08fe39b33c48",
+      "author": "unknown",
+      "text": "WIP triage 2026-10-17 (Ryan chose to park): blocked on acceptance only. The operator mapping and admin UI are deployed (PR7, main f8463f3). Remaining: Ryan signs in with the specifically approved operator profile and confirms Account administration lists organizations read-only. Close after that.",
+      "created_at": "2026-10-17T06:31:07.354917424Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-15T19:23:25.386650Z",
-  "updated_at": "2026-10-15T22:17:59.900990Z",
+  "updated_at": "2026-10-17T06:31:07.656589565Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
