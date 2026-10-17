@@ -383,6 +383,62 @@ jobs:
           cd python
           KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --tags "@console-server and not @slow"
 
+  cli-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        with:
+          toolchain: 1.88.0
+
+      - name: Build kbs
+        run: |
+          cd rust
+          cargo build --bin kbs
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e python
+
+      - name: Diff kbs and kanbus on the golden commands
+        run: |
+          python tools/parity_lane.py \
+            --rust rust/target/debug/kbs \
+            --python "$(command -v kanbus)"
+
+  implementation-cochange:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Require both implementations to change together
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REFERENCE: origin/${{ github.base_ref }}
+        run: |
+          current_labels=$(gh pr view "$PULL_REQUEST_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
+          python tools/check_implementation_cochange.py \
+            --base "$BASE_REFERENCE" \
+            --labels "$current_labels"
+
   console-ui:
     runs-on: ubuntu-latest
     steps:

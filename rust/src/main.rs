@@ -15,7 +15,7 @@ fn run_cli(runner: impl FnOnce() -> Result<(), KanbusError>) -> i32 {
                 exit_code
             }
             error => {
-                eprintln!("{error}");
+                eprintln!("Error: {error}");
                 match error {
                     KanbusError::CommandFailure { exit_code, .. } => exit_code,
                     _ => 1,
