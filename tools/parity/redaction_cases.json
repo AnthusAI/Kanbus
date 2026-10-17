@@ -1,0 +1,13 @@
+[
+  {"name": "openai key", "input": "token sk-abcdefghijklmnop done", "expected": "token [REDACTED] done"},
+  {"name": "openai project key", "input": "key=sk-proj-AbCdEf_123456-7890xyz", "expected": "key=[REDACTED]"},
+  {"name": "github classic token", "input": "pushed with ghp_0123456789abcdefghijABCDEFGHIJ0123", "expected": "pushed with [REDACTED]"},
+  {"name": "github fine grained token", "input": "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz", "expected": "[REDACTED]"},
+  {"name": "aws access key id", "input": "id AKIAIOSFODNN7EXAMPLE end", "expected": "id [REDACTED] end"},
+  {"name": "aws secret access key", "input": "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "expected": "aws_secret_access_key = [REDACTED]"},
+  {"name": "slack token", "input": "xoxb-123456789012-abcdefghijkl", "expected": "[REDACTED]"},
+  {"name": "authorization header", "input": "Authorization: Bearer abc.def-ghi", "expected": "Authorization: Bearer [REDACTED]"},
+  {"name": "bare bearer token", "input": "sent Bearer abcdefghijklmnopqrstuvwxyz0123456789 ok", "expected": "sent Bearer [REDACTED] ok"},
+  {"name": "newlines are preserved", "input": "line one\n\n  indented sk-abcdefghijklmnop\nlast", "expected": "line one\n\n  indented [REDACTED]\nlast"},
+  {"name": "clean text is untouched", "input": "Ran 12 tests\n  all passed", "expected": "Ran 12 tests\n  all passed"}
+]

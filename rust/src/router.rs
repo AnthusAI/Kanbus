@@ -6001,19 +6001,47 @@ fn codex_session_id(stdout: &str) -> Option<String> {
     None
 }
 
-fn redact_router_log(value: &str) -> String {
-    // Keep review evidence in Git without copying likely bearer or OpenAI keys.
-    value
-        .split_whitespace()
-        .map(|word| {
-            if word.starts_with("sk-") && word.len() > 12 {
-                "[REDACTED]"
-            } else {
-                word
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+const ROUTER_LOG_CREDENTIAL_PATTERNS: [(&str, &str); 8] = [
+    (r"\bsk-[A-Za-z0-9_-]{12,}", "[REDACTED]"),
+    (r"\bgh[pousr]_[A-Za-z0-9]{20,}", "[REDACTED]"),
+    (r"\bgithub_pat_[A-Za-z0-9_]{20,}", "[REDACTED]"),
+    (r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b", "[REDACTED]"),
+    (
+        r#"(?i)(aws_secret_access_key["']?\s*[:=]\s*["']?)[A-Za-z0-9/+=]{40}"#,
+        "${1}[REDACTED]",
+    ),
+    (r"\bxox[abprs]-[A-Za-z0-9-]{10,}", "[REDACTED]"),
+    (
+        r#"(?i)(authorization\s*[:=]\s*(?:bearer|basic|token)\s+)[^\s"']+"#,
+        "${1}[REDACTED]",
+    ),
+    (
+        r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{20,}",
+        "${1}[REDACTED]",
+    ),
+];
+
+/// Remove credential-shaped values before agent output is committed to Git.
+/// Newlines and spacing are preserved; the Python runtime applies the same patterns.
+pub fn redact_router_log(value: &str) -> String {
+    static COMPILED: std::sync::OnceLock<Vec<(regex::Regex, &'static str)>> =
+        std::sync::OnceLock::new();
+    let patterns = COMPILED.get_or_init(|| {
+        ROUTER_LOG_CREDENTIAL_PATTERNS
+            .iter()
+            .map(|(pattern, replacement)| {
+                (
+                    regex::Regex::new(pattern).expect("credential pattern compiles"),
+                    *replacement,
+                )
+            })
+            .collect()
+    });
+    let mut redacted = value.to_string();
+    for (pattern, replacement) in patterns {
+        redacted = pattern.replace_all(&redacted, *replacement).into_owned();
+    }
+    redacted
 }
 
 fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
