@@ -599,6 +599,21 @@ impl Default for HooksConfiguration {
     }
 }
 
+/// One entry of the `methodologies` list in .kanbus.yml.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MethodologySelection {
+    BuiltInName(String),
+    ProjectBundle(ProjectMethodologyBundleReference),
+}
+
+/// A methodology bundle directory inside the repository.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectMethodologyBundleReference {
+    pub path: String,
+}
+
 /// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -619,7 +634,7 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub project_management_template: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub methodologies: Option<Vec<String>>,
+    pub methodologies: Option<Vec<MethodologySelection>>,
     pub hierarchy: Vec<String>,
     pub types: Vec<String>,
     pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,

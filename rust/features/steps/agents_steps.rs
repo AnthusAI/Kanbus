@@ -182,12 +182,70 @@ fn read_project_management_file(world: &KanbusWorld) -> String {
     fs::read_to_string(repo_path.join("CONTRIBUTING_AGENT.md")).expect("read instructions")
 }
 
+const PROJECT_BUNDLE_STEP_PREFIX: &str = "path:";
+
+fn methodology_selection_from_step_text(selection_text: &str) -> serde_yaml::Value {
+    match selection_text.strip_prefix(PROJECT_BUNDLE_STEP_PREFIX) {
+        Some(bundle_relative_path) => {
+            let mut bundle_reference = serde_yaml::Mapping::new();
+            bundle_reference.insert(
+                serde_yaml::Value::from("path"),
+                serde_yaml::Value::from(bundle_relative_path),
+            );
+            serde_yaml::Value::Mapping(bundle_reference)
+        }
+        None => serde_yaml::Value::from(selection_text),
+    }
+}
+
+fn write_methodology_bundle_document(
+    world: &KanbusWorld,
+    bundle_relative_path: &str,
+    document_text: &str,
+) {
+    let bundle_directory = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(bundle_relative_path);
+    fs::create_dir_all(&bundle_directory).expect("create bundle directory");
+    fs::write(bundle_directory.join("METHODOLOGY.md"), document_text)
+        .expect("write methodology document");
+}
+
+#[given(
+    expr = "the repository has a methodology bundle at {string} named {string} with heading {string}"
+)]
+fn given_repository_has_methodology_bundle(
+    world: &mut KanbusWorld,
+    bundle_relative_path: String,
+    methodology_name: String,
+    heading: String,
+) {
+    write_methodology_bundle_document(
+        world,
+        &bundle_relative_path,
+        &format!(
+            "---\nname: {methodology_name}\ntitle: {heading}\n---\n## {heading}\n\nProject key: {{{{ project_key }}}}.\n"
+        ),
+    );
+}
+
+#[given(expr = "the repository has a methodology bundle at {string} without frontmatter")]
+fn given_repository_has_methodology_bundle_without_frontmatter(
+    world: &mut KanbusWorld,
+    bundle_relative_path: String,
+) {
+    write_methodology_bundle_document(world, &bundle_relative_path, "## Plain Guidance\n");
+}
+
 #[given(expr = "the Kanbus configuration selects methodologies {string}")]
 fn given_configuration_selects_methodologies(world: &mut KanbusWorld, methodology_list: String) {
-    let selected_methodology_names: Vec<&str> = methodology_list
+    let selected_methodologies: Vec<serde_yaml::Value> = methodology_list
         .split(',')
         .map(str::trim)
         .filter(|name| !name.is_empty())
+        .map(methodology_selection_from_step_text)
         .collect();
     let configuration_path = world
         .working_directory
@@ -199,12 +257,7 @@ fn given_configuration_selects_methodologies(world: &mut KanbusWorld, methodolog
         serde_yaml::from_str(&configuration_text).expect("parse configuration");
     configuration_document.insert(
         serde_yaml::Value::from("methodologies"),
-        serde_yaml::Value::Sequence(
-            selected_methodology_names
-                .into_iter()
-                .map(serde_yaml::Value::from)
-                .collect(),
-        ),
+        serde_yaml::Value::Sequence(selected_methodologies),
     );
     fs::write(
         &configuration_path,

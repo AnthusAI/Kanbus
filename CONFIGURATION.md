@@ -110,6 +110,26 @@ methodologies:
   - git-flow
 ```
 
+A project can add its own methodology as a bundle directory in the repository and list it with `path`, relative to the repository root. The directory holds a `METHODOLOGY.md` whose YAML frontmatter declares `name` and `title` (and optionally `description`); the Markdown body is rendered with the same template variables as the agents file. A bundle whose `name` matches a built-in replaces it when listed instead of that built-in; listing both is an error.
+
+```yaml
+methodologies:
+  - path: methodologies/house-bdd   # name: bdd, replaces the built-in
+  - git-flow
+  - path: methodologies/crap
+```
+
+```markdown
+---
+name: crap
+title: CRAP Reduction
+description: Keep change risk low by pairing complexity with coverage.
+---
+## CRAP Reduction
+
+...guidance for agents...
+```
+
 A custom `project_management_template` places the rendered methodologies with `{% for methodology in methodologies %}{{ methodology.content }}{% endfor %}`. Each entry also exposes `name`, `title` and `description`.
 
 ### `ai` (mapping, optional)

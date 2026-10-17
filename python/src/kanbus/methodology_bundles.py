@@ -9,14 +9,16 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from importlib import resources
+from pathlib import Path
 
 import yaml
 from jinja2 import Environment
 
-from kanbus.models import ProjectConfiguration
+from kanbus.models import ProjectConfiguration, ProjectMethodologyBundleReference
 
 BUILT_IN_METHODOLOGY_NAMES = ("bdd", "git-flow")
 DEFAULT_METHODOLOGY_NAMES = ("bdd", "git-flow")
+METHODOLOGY_DOCUMENT_FILENAME = "METHODOLOGY.md"
 FRONTMATTER_DELIMITER = "---\n"
 ALLOWED_FRONTMATTER_KEYS = {"name", "title", "description"}
 
@@ -45,13 +47,15 @@ class RenderedMethodology:
     content: str
 
 
-def selected_methodology_names(configuration: ProjectConfiguration) -> list[str]:
-    """Return the methodology names selected by the configuration.
+def selected_methodologies(
+    configuration: ProjectConfiguration,
+) -> list[str | ProjectMethodologyBundleReference]:
+    """Return the methodologies selected by the configuration.
 
     :param configuration: Project configuration.
     :type configuration: ProjectConfiguration
-    :return: Configured names, or the default names when unset.
-    :rtype: list[str]
+    :return: Configured selections, or the default built-in names when unset.
+    :rtype: list[str | ProjectMethodologyBundleReference]
     """
     if configuration.methodologies is None:
         return list(DEFAULT_METHODOLOGY_NAMES)
@@ -132,32 +136,75 @@ def load_built_in_methodology(name: str) -> MethodologyDocument:
     return parse_methodology_document(source_text, f"built-in {name}")
 
 
+def load_project_methodology_bundle(
+    repository_root: Path, bundle_relative_path: str
+) -> MethodologyDocument:
+    """Load a methodology bundle directory from the repository.
+
+    :param repository_root: Repository root path.
+    :type repository_root: Path
+    :param bundle_relative_path: Bundle directory relative to the repository root.
+    :type bundle_relative_path: str
+    :return: Parsed methodology document.
+    :rtype: MethodologyDocument
+    :raises MethodologyError: If the bundle or its document is missing or malformed.
+    """
+    bundle_directory = repository_root / bundle_relative_path
+    if not bundle_directory.is_dir():
+        raise MethodologyError(f"methodology bundle not found: {bundle_relative_path}")
+    document_path = bundle_directory / METHODOLOGY_DOCUMENT_FILENAME
+    try:
+        source_text = document_path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise MethodologyError(
+            f"methodology bundle {bundle_relative_path} has no "
+            f"{METHODOLOGY_DOCUMENT_FILENAME}"
+        ) from error
+    return parse_methodology_document(source_text, f"bundle {bundle_relative_path}")
+
+
 def load_selected_methodologies(
-    configuration: ProjectConfiguration,
+    repository_root: Path, configuration: ProjectConfiguration
 ) -> list[MethodologyDocument]:
     """Load every methodology selected by the configuration, in configured order.
 
+    :param repository_root: Repository root path.
+    :type repository_root: Path
     :param configuration: Project configuration.
     :type configuration: ProjectConfiguration
     :return: Parsed methodology documents.
     :rtype: list[MethodologyDocument]
-    :raises MethodologyError: For unknown or duplicated names.
+    :raises MethodologyError: For unknown, missing, malformed or duplicated methodologies.
     """
     loaded_methodologies: list[MethodologyDocument] = []
-    for name in selected_methodology_names(configuration):
-        if any(methodology.name == name for methodology in loaded_methodologies):
-            raise MethodologyError(f"methodology listed more than once: {name}")
-        loaded_methodologies.append(load_built_in_methodology(name))
+    for selection in selected_methodologies(configuration):
+        if isinstance(selection, ProjectMethodologyBundleReference):
+            methodology = load_project_methodology_bundle(
+                repository_root, selection.path
+            )
+        else:
+            methodology = load_built_in_methodology(selection)
+        if any(
+            loaded_methodology.name == methodology.name
+            for loaded_methodology in loaded_methodologies
+        ):
+            raise MethodologyError(
+                f"methodology listed more than once: {methodology.name}"
+            )
+        loaded_methodologies.append(methodology)
     return loaded_methodologies
 
 
 def render_selected_methodologies(
+    repository_root: Path,
     configuration: ProjectConfiguration,
     template_environment: Environment,
     template_context: dict[str, object],
 ) -> list[dict[str, str]]:
     """Render each selected methodology body with the agents-file context.
 
+    :param repository_root: Repository root path.
+    :type repository_root: Path
     :param configuration: Project configuration.
     :type configuration: ProjectConfiguration
     :param template_environment: Jinja environment used for the agents file.
@@ -169,7 +216,7 @@ def render_selected_methodologies(
     :raises MethodologyError: If loading or rendering a methodology fails.
     """
     rendered_methodologies: list[dict[str, str]] = []
-    for methodology in load_selected_methodologies(configuration):
+    for methodology in load_selected_methodologies(repository_root, configuration):
         try:
             content = template_environment.from_string(
                 methodology.template_body

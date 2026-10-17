@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from pydantic import (
@@ -254,6 +254,18 @@ class PriorityDefinition(BaseModel):
 
     name: str = Field(min_length=1)
     color: Optional[str] = None
+
+
+class ProjectMethodologyBundleReference(BaseModel):
+    """A methodology bundle directory inside the repository.
+
+    :param path: Bundle directory relative to the repository root.
+    :type path: str
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1)
 
 
 class AiConfiguration(BaseModel):
@@ -704,7 +716,7 @@ class ProjectConfiguration(BaseModel):
     :param project_management_template: Optional template path for CONTRIBUTING_AGENT.md.
     :type project_management_template: Optional[str]
     :param methodologies: Methodology names assembled into CONTRIBUTING_AGENT.md.
-    :type methodologies: Optional[List[str]]
+    :type methodologies: Optional[List[Union[str, ProjectMethodologyBundleReference]]]
     :param hierarchy: Hierarchy ordering.
     :type hierarchy: List[str]
     :param types: Non-hierarchical types.
@@ -755,7 +767,7 @@ class ProjectConfiguration(BaseModel):
     project_key: str = Field(min_length=1)
     name: Optional[str] = None
     project_management_template: Optional[str] = None
-    methodologies: Optional[List[str]] = None
+    methodologies: Optional[List[Union[str, ProjectMethodologyBundleReference]]] = None
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]

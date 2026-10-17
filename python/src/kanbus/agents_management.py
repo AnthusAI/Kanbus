@@ -137,7 +137,7 @@ def build_project_management_text(root: Path) -> str:
     )
     try:
         context["methodologies"] = render_selected_methodologies(
-            configuration, environment, context
+            root, configuration, environment, context
         )
     except MethodologyError as error:
         raise click.ClickException(str(error)) from error
