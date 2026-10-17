@@ -86,6 +86,7 @@ from kanbus.router_adapters import (
     RouterCheckpoint,
     RouterExecutionRequest,
     _process_identity,
+    signal_process_group,
 )
 from kanbus.router_conversation import latest_conversation, record_conversation
 from kanbus.router_forge import (
@@ -2346,6 +2347,7 @@ def _signal_registered_adapter(root: Path, package_id: str, claim_id: str) -> No
                 os.close(process_handle)
         elif _process_identity(pid) == process_identity:
             os.kill(pid, signal.SIGTERM)
+        signal_process_group(pid, signal.SIGTERM)
     except (OSError, ValueError, TypeError):
         return
 

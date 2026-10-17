@@ -1243,6 +1243,7 @@ dependencies = [
  "http-body-util",
  "iana-time-zone",
  "lambda_http",
+ "libc",
  "log",
  "mime_guess",
  "minijinja",
