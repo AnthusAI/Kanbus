@@ -699,21 +699,37 @@ class KanbusCloudFoundationStack(Stack):
         )
 
         lambda_integration = apigw.LambdaIntegration(console_lambda, proxy=True)
-        api.root.add_method(
-            "ANY",
-            lambda_integration,
-            authorization_type=apigw.AuthorizationType.NONE,
+        public_method_options = {"authorization_type": apigw.AuthorizationType.NONE}
+        authorized_method_options = {
+            "authorization_type": apigw.AuthorizationType.COGNITO,
+            "authorizer": api_authorizer,
+        }
+        api.root.add_method("ANY", lambda_integration, **public_method_options)
+        api.root.add_resource("assets").add_resource("{proxy+}").add_method(
+            "GET", lambda_integration, **public_method_options
         )
-        api.root.add_resource("{proxy+}").add_method(
-            "ANY",
-            lambda_integration,
-            authorization_type=apigw.AuthorizationType.NONE,
+        api.root.add_resource("auth").add_resource("{proxy+}").add_method(
+            "ANY", lambda_integration, **public_method_options
         )
         api_auth_resource = api_root_resource.add_resource("auth")
         api_auth_resource.add_resource("bootstrap").add_method(
-            "GET",
-            lambda_integration,
-            authorization_type=apigw.AuthorizationType.NONE,
+            "GET", lambda_integration, **public_method_options
+        )
+        tenant_account_resource = api.root.add_resource("{account}")
+        tenant_project_resource = tenant_account_resource.add_resource("{project}")
+        tenant_project_resource.add_method("ANY", lambda_integration, **public_method_options)
+        tenant_project_resource.add_resource("{page+}").add_method(
+            "ANY", lambda_integration, **public_method_options
+        )
+        tenant_api_resource = tenant_project_resource.add_resource("api")
+        tenant_api_resource.add_resource("auth").add_resource("bootstrap").add_method(
+            "GET", lambda_integration, **public_method_options
+        )
+        tenant_api_resource.add_resource("telemetry").add_resource("{proxy+}").add_method(
+            "ANY", lambda_integration, **public_method_options
+        )
+        tenant_api_resource.add_resource("{proxy+}").add_method(
+            "ANY", lambda_integration, **authorized_method_options
         )
 
         identity_pool = cognito.CfnIdentityPool(

@@ -110,14 +110,87 @@ async function fetchWithAuth(input: string, init?: RequestInit): Promise<Respons
   });
 }
 
-function withAuthQuery(url: string): string {
-  const token = authQueryProvider?.();
-  if (!token) {
-    return url;
+interface ServerSentEventStream {
+  onopen: ((event: Event) => void) | null;
+  onmessage: ((event: MessageEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  close: () => void;
+}
+
+const SERVER_SENT_EVENT_RECONNECT_DELAY_MS = 3_000;
+
+function openAuthenticatedServerSentEventStream(url: string): ServerSentEventStream {
+  const abortController = new AbortController();
+  const stream: ServerSentEventStream = {
+    onopen: null,
+    onmessage: null,
+    onerror: null,
+    close: () => abortController.abort()
+  };
+
+  const dispatchEventBlock = (block: string) => {
+    const dataLines = block
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""));
+    if (dataLines.length > 0) {
+      stream.onmessage?.(new MessageEvent("message", { data: dataLines.join("\n") }));
+    }
+  };
+
+  const readStreamOnce = async () => {
+    const response = await fetchWithAuth(url, {
+      headers: { Accept: "text/event-stream" },
+      signal: abortController.signal
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`event stream failed with status ${response.status}`);
+    }
+    stream.onopen?.(new Event("open"));
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        return;
+      }
+      buffered += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      let separatorIndex = buffered.indexOf("\n\n");
+      while (separatorIndex !== -1) {
+        dispatchEventBlock(buffered.slice(0, separatorIndex));
+        buffered = buffered.slice(separatorIndex + 2);
+        separatorIndex = buffered.indexOf("\n\n");
+      }
+    }
+  };
+
+  const runWithReconnect = async () => {
+    while (!abortController.signal.aborted) {
+      try {
+        await readStreamOnce();
+      } catch {
+        if (abortController.signal.aborted) {
+          return;
+        }
+      }
+      if (abortController.signal.aborted) {
+        return;
+      }
+      stream.onerror?.(new Event("error"));
+      await new Promise((resolve) => setTimeout(resolve, SERVER_SENT_EVENT_RECONNECT_DELAY_MS));
+    }
+  };
+
+  void runWithReconnect();
+  return stream;
+}
+
+function openServerSentEventStream(url: string): ServerSentEventStream {
+  if (authHeaderProvider) {
+    return openAuthenticatedServerSentEventStream(url);
   }
-  const u = new URL(url, window.location.origin);
-  u.searchParams.set("access_token", token);
-  return `${u.pathname}${u.search}`;
+  return new EventSource(url);
 }
 
 async function buildSignedIotWebsocketUrl(
@@ -365,7 +438,7 @@ export function subscribeToSnapshots(
   onSnapshot: (snapshot: IssuesSnapshot) => void,
   onError: (error: Event) => void
 ): () => void {
-  const source = new EventSource(withAuthQuery(`${apiBase}/events`));
+  const source = openServerSentEventStream(`${apiBase}/events`);
   let lastMessageAt = Date.now();
   let errorReported = false;
 
@@ -426,7 +499,7 @@ export function subscribeToNotifications(
   onNotification: (event: NotificationEvent) => void,
   onError?: (error: Event) => void
 ): () => void {
-  const source = new EventSource(withAuthQuery(`${apiBase}/events/realtime`));
+  const source = openServerSentEventStream(`${apiBase}/events/realtime`);
 
   source.onmessage = (event) => {
     try {

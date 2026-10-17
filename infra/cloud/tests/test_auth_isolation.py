@@ -36,6 +36,37 @@ class AuthIsolationTemplateTests(unittest.TestCase):
             },
         )
 
+    def test_tenant_api_proxy_requires_cognito_authorizer(self) -> None:
+        resources = self._template().to_json()["Resources"]
+        gateway_resources = {
+            logical_id: resource["Properties"]
+            for logical_id, resource in resources.items()
+            if resource["Type"] == "AWS::ApiGateway::Resource"
+        }
+
+        def full_path(logical_id: str) -> str:
+            properties = gateway_resources[logical_id]
+            parent = properties["ParentId"]
+            parent_id = parent.get("Ref") if isinstance(parent, dict) else None
+            prefix = full_path(parent_id) if parent_id in gateway_resources else ""
+            return f"{prefix}/{properties['PathPart']}"
+
+        authorization_by_path = {}
+        for resource in resources.values():
+            if resource["Type"] != "AWS::ApiGateway::Method":
+                continue
+            properties = resource["Properties"]
+            resource_ref = properties["ResourceId"]
+            logical_id = resource_ref.get("Ref") if isinstance(resource_ref, dict) else None
+            if logical_id in gateway_resources:
+                authorization_by_path[full_path(logical_id)] = properties["AuthorizationType"]
+
+        self.assertEqual(
+            authorization_by_path["/{account}/{project}/api/{proxy+}"],
+            "COGNITO_USER_POOLS",
+        )
+        self.assertEqual(authorization_by_path["/assets/{proxy+}"], "NONE")
+
     def test_identity_role_includes_tenant_scoped_iot_policy(self) -> None:
         template = self._template()
         rendered = template.to_json()
