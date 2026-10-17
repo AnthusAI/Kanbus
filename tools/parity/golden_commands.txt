@@ -1,0 +1,44 @@
+# Each scenario runs in a fresh git repository, once per CLI. The first command
+# must be init. Commands are the arguments after the executable name.
+
+# scenario: init
+init
+
+# scenario: create_show_list
+init
+create "Parity epic" --type epic --id kbs-ee0001 --no-agent-provenance
+create "Parity task" --type task --parent kbs-ee0001 --id kbs-aa0001 --no-agent-provenance --priority 1 --label parity
+show kbs-aa0001
+list
+list --status open
+list --type task
+
+# scenario: update_comment_close
+init
+create "Parity epic" --type epic --id kbs-ee0001 --no-agent-provenance
+create "Parity task" --type task --parent kbs-ee0001 --id kbs-aa0001 --no-agent-provenance
+update kbs-aa0001 --status in_progress --priority 2 --add-label parity
+comment kbs-aa0001 "First comment" --no-agent-provenance
+show kbs-aa0001
+close kbs-aa0001 --comment "Done"
+list --status closed
+
+# scenario: dependencies
+init
+create "Blocker" --type task --id kbs-aa0001 --no-agent-provenance
+create "Blocked" --type task --id kbs-aa0002 --no-agent-provenance
+dep kbs-aa0002 blocked-by kbs-aa0001
+ready
+dep tree kbs-aa0002
+
+# scenario: validate_doctor
+init
+create "Valid task" --type task --id kbs-aa0001 --no-agent-provenance
+validate
+doctor
+
+# scenario: missing_issue_errors
+init
+show kbs-nonexistent
+update kbs-nonexistent --status closed
+close kbs-nonexistent --comment "x"
