@@ -86,6 +86,15 @@ jobs:
             echo "release_ready=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Require package version to match release tag
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          version="$(python -c 'import tomllib; print(tomllib.load(open("python/pyproject.toml", "rb"))["project"]["version"])')"
+          if [ "$GITHUB_REF_NAME" != "kanbus-py-$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match packaged version $version" >&2
+            exit 1
+          fi
+
       - name: Publish release to PyPI
         working-directory: python
         if: ${{ steps.release_ready.outputs.release_ready == 'true' }}
@@ -144,7 +153,7 @@ jobs:
 
   rust-binaries:
     needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
+    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -214,7 +223,7 @@ jobs:
 
   console-server-binaries:
     needs: pypi-release
-    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
+    if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.event.inputs.pypi_only != 'true') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

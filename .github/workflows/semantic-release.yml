@@ -91,3 +91,23 @@ jobs:
 
           git tag "${rust_tag}" "${target_sha}"
           git push origin "${rust_tag}"
+
+  back-merge-main-into-develop:
+    needs: [release, guard-pre-1-0]
+    if: ${{ needs.release.outputs.released == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open pull request that merges the release commit back into develop
+        env:
+          GH_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          existing="$(gh pr list --repo "${GITHUB_REPOSITORY}" --base develop --head main --state open --json number --jq '.[0].number // empty')"
+          if [ -n "${existing}" ]; then
+            echo "Back-merge pull request #${existing} already open."
+            exit 0
+          fi
+          gh pr create --repo "${GITHUB_REPOSITORY}" --base develop --head main \
+            --title "chore: back-merge main into develop after ${RELEASE_VERSION}" \
+            --body "Automated back-merge so develop carries the release commit, version bump and any release-only fixes."
