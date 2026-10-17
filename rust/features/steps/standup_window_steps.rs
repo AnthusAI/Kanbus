@@ -422,6 +422,7 @@ fn then_response_accepts_fields(
     let response = std::thread::spawn(move || {
         reqwest::blocking::Client::new()
             .post(url)
+            .header("X-Kanbus-Console", "1")
             .json(&payload)
             .send()
     })
