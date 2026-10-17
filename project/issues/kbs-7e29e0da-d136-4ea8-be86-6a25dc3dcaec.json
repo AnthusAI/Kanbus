@@ -3,7 +3,7 @@
   "title": "Local console: same-origin CORS, one write-guard middleware, tenant path validation",
   "description": "Problem: any web page the operator visits can read and mutate the local board. kbsc configures CorsLayer with allow_origin(Any), allow_methods(Any), allow_headers(Any) and allow_private_network(true) (rust/src/bin/console_local.rs:320-326). The only write protection is require_loopback (:678-688), which a browser on the same machine satisfies, so a page can POST status changes and comments to http://127.0.0.1:<port>/api/issues/<id>/status and read the responses. Only about 6 of 14 mutating routes call require_loopback at all: wiki create, update, delete and rename (:1600-1737), notifications (:1290-1298) and telemetry (:1215-1230) have no guard, so with CONSOLE_HOST=0.0.0.0 (what dev.sh defaults to) anyone on the LAN can edit wiki files in the repo and push ui_control events to every connected console. In multi-tenant mode resolve_tenant_root joins :account and :project into a path without validation (rust/src/console_backend.rs:49-51), so a percent-encoded ../ escapes CONSOLE_DATA_ROOT. Also: kbsc appends repo paths to a fixed world-readable /tmp/kbsc_trace.txt on every start (:98-110), and error_response echoes raw error strings including filesystem paths and maps every write failure to 400 (:811, 844, 884, 1906-1909).\n\nWork:\n1. Restrict allow_origin to the console's own origin(s) plus CONSOLE_DEV_ORIGIN when set; drop allow_private_network.\n2. Require a custom request header (for example X-Kanbus-Console: 1) on every non-GET route so a cross-origin request fails preflight, and validate Origin/Host against the bound address.\n3. Replace the per-handler require_loopback calls with one axum middleware layer applied to all mutating routes.\n4. Validate account and project segments against ^[A-Za-z0-9][A-Za-z0-9_-]*$ in resolve_tenant_root and canonicalise plus starts_with(base) as serve_asset_from_filesystem already does. Python console mirrors get the same checks.\n5. Gate the /tmp trace behind an env var or remove it; map KanbusError variants to proper status codes (NotFound 404, InvalidTransition 409 or 422, Io 500) with generic bodies.\n6. Decide the bind-host story once (loopback by default, explicit opt-in for LAN with a token) and make dev.sh, the code comment at :674 and resolve_bind_host agree.\n\nAcceptance: a cross-origin fetch from a test page to a mutating route is refused; every non-GET route is covered by the middleware (add a test that enumerates routes); ..%2F in a tenant segment returns 400; existing console cucumber scenarios pass.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "b8cb72ec-a6c3-4c4b-9f0a-036102b046f1",
+      "author": "unknown",
+      "text": "Merged into develop (PRs #417-#423). Remaining parts are tracked in kbs-e47401.",
+      "created_at": "2026-10-17T19:41:54.401428769Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:37:44.779840359Z",
-  "updated_at": "2026-10-17T16:37:44.875751608Z",
-  "closed_at": null,
+  "updated_at": "2026-10-17T19:41:54.536584353Z",
+  "closed_at": "2026-10-17T19:41:54.462043394Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
