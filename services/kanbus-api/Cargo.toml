@@ -11,7 +11,7 @@ aws = ["virtuus-store/aws", "dep:aws-config", "dep:aws-sdk-s3", "dep:aws-sdk-dyn
 
 [dependencies]
 kanbus = { path = "../../rust", default-features = false }
-virtuus-store = { git = "https://github.com/AnthusAI/Virtuus.git", rev = "6c9bcf03d999e7fb344d7b777e50b71f1750224f", package = "virtuus-store" }
+virtuus-store = "=0.1.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
 serde_yaml = "0.9"

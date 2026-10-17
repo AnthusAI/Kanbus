@@ -2,6 +2,186 @@
 
 <!-- version list -->
 
+## v0.34.0 (2026-10-16)
+
+### Bug Fixes
+
+- Align Virtuus issue store with canonical schema
+  ([`30ad66d`](https://github.com/AnthusAI/Kanbus/commit/30ad66de1c88b6184ce03bb8e028ca07af6c04c0))
+
+- Consume published Virtuus Python package
+  ([`27f73a5`](https://github.com/AnthusAI/Kanbus/commit/27f73a512104880f44b1dd1b5364823bb3d78760))
+
+- Generate right-now summaries lazily and report unpriced LLM cost
+  ([`2fca195`](https://github.com/AnthusAI/Kanbus/commit/2fca1952e47a3d127ce9d62275153ecf2458e45a))
+
+- Install Virtuus Python package from source subdirectory
+  ([`07f95af`](https://github.com/AnthusAI/Kanbus/commit/07f95aff6d179a0a6047e7fb63385c0e65bafb24))
+
+- Pin anthus-footer to the old footer version plus the Primus rename
+  ([`6b5c854`](https://github.com/AnthusAI/Kanbus/commit/6b5c854cf4f2cc3e8e0a75b35384f4ff7661a49a))
+
+- Redact project paths from daemon diagnostics
+  ([`bb34eed`](https://github.com/AnthusAI/Kanbus/commit/bb34eed5eca8efbe8fb6c00bf29bd2ec443deeef))
+
+- Remove stale index cache benchmark checks
+  ([`f6c97c9`](https://github.com/AnthusAI/Kanbus/commit/f6c97c9f105e71b151df3c0828d2624fa387f46e))
+
+- **cli**: Show configured statuses with no issues in list output (kbs-60bf38)
+  ([#387](https://github.com/AnthusAI/Kanbus/pull/387),
+  [`d6fe870`](https://github.com/AnthusAI/Kanbus/commit/d6fe8701fdf731742555f9f2b8d0263abd475649))
+
+- **console**: Board horizontal scroll no longer jumps on realtime updates (kbs-217bf8)
+  ([#375](https://github.com/AnthusAI/Kanbus/pull/375),
+  [`bd2b67f`](https://github.com/AnthusAI/Kanbus/commit/bd2b67fdd4d7f35fc823f0dc26b311fef6a29ec4))
+
+- **console**: Keep the board's horizontal scroll while cards animate (kbs-217bf8)
+  ([#375](https://github.com/AnthusAI/Kanbus/pull/375),
+  [`bd2b67f`](https://github.com/AnthusAI/Kanbus/commit/bd2b67fdd4d7f35fc823f0dc26b311fef6a29ec4))
+
+- **coordination**: Initialize MQTT scenario messages
+  ([`90415eb`](https://github.com/AnthusAI/Kanbus/commit/90415eba375132739958b5ec85d4f4c3f5dc91ec))
+
+- **storage**: Treat the Virtuus daemon as an optional JIT accelerator
+  ([`1f74c32`](https://github.com/AnthusAI/Kanbus/commit/1f74c32d202c76c29ab53f62ba73bf8c438f0274))
+
+- **ui**: Preserve contextual and hierarchy selector semantics
+  ([`e24aea7`](https://github.com/AnthusAI/Kanbus/commit/e24aea72290124e8596f29ae617d10b3fb63465c))
+
+### Build System
+
+- Pin Kanbus to merged Virtuus service
+  ([`55b03eb`](https://github.com/AnthusAI/Kanbus/commit/55b03eba3d0d7ea331dafe1b719715e11ccd349b))
+
+- Pin Kanbus to Virtuus 0.5.2
+  ([`acc92be`](https://github.com/AnthusAI/Kanbus/commit/acc92bebe22a58586392df33cd82087090efdc61))
+
+- Update Virtuus resident service revision
+  ([`a382fe9`](https://github.com/AnthusAI/Kanbus/commit/a382fe96df17884be07de2e1aae7fc1bb3b3f145))
+
+- **api**: Pin fully covered shared storage
+  ([`2cb3ae3`](https://github.com/AnthusAI/Kanbus/commit/2cb3ae31dfa8a5b349b592052cbd83963113febd))
+
+- **release**: Consume published portable storage
+  ([`a1af348`](https://github.com/AnthusAI/Kanbus/commit/a1af348a2fb25e0cd9ae9168c0fd089e0d4d95e1))
+
+### Chores
+
+- Bump anthus-footer to the Primus-renamed footer
+  ([`4970700`](https://github.com/AnthusAI/Kanbus/commit/497070073f5e6e2f74b52d0ce20cbc6739b4053e))
+
+- Drop unused import flagged by ruff ([#387](https://github.com/AnthusAI/Kanbus/pull/387),
+  [`d6fe870`](https://github.com/AnthusAI/Kanbus/commit/d6fe8701fdf731742555f9f2b8d0263abd475649))
+
+- Rename Plexus to Primus
+  ([`17868e3`](https://github.com/AnthusAI/Kanbus/commit/17868e3eeaec024bef2f67406338e17979886791))
+
+- **kanbus**: Commit board state (issues)
+  ([`9431d53`](https://github.com/AnthusAI/Kanbus/commit/9431d5346365e73d42e08846be3a3a78fc846f30))
+
+- **kanbus**: Commit board state (issues)
+  ([`7a81013`](https://github.com/AnthusAI/Kanbus/commit/7a810130fc45eb4aad4ef0ace86708d58308aaa2))
+
+- **kanbus**: Commit board state (issues)
+  ([`7456322`](https://github.com/AnthusAI/Kanbus/commit/7456322643905b3c1c9c6c722909e919d5b11998))
+
+- **kanbus**: Commit board state (issues)
+  ([`703af43`](https://github.com/AnthusAI/Kanbus/commit/703af43d859269249003f8b8559b7fbb6556e283))
+
+- **kanbus**: Commit board state (issues)
+  ([`c3e06d2`](https://github.com/AnthusAI/Kanbus/commit/c3e06d2eba3efc26da7e40a5c5c072cf93184b57))
+
+- **kanbus**: Commit board state (issues)
+  ([`be80d5b`](https://github.com/AnthusAI/Kanbus/commit/be80d5ba8b7166fc299ee6305a376629b6c586a4))
+
+- **kanbus**: Commit board state (issues)
+  ([`df868cb`](https://github.com/AnthusAI/Kanbus/commit/df868cbe0c6f30a5c480dc4aa8671b5ca1d35b46))
+
+- **kanbus**: File usability tickets kbs-592969 de99e5 775034 99bbb7 a11be7 2d6653 3b0e25
+  ([#397](https://github.com/AnthusAI/Kanbus/pull/397),
+  [`02c1cef`](https://github.com/AnthusAI/Kanbus/commit/02c1cef08485daa5117a14d02e92019a3812290d))
+
+- **kanbus**: Record shared board parity verification
+  ([`454f165`](https://github.com/AnthusAI/Kanbus/commit/454f165b8fffa1f2b07c0795faf0f5666a63cbf5))
+
+- **lint**: Satisfy rust 1.88 clippy across step files and tests
+  ([`e7cdf9f`](https://github.com/AnthusAI/Kanbus/commit/e7cdf9f3474635c336c5a97fe3ce1f5b805c1558))
+
+### Documentation
+
+- **kbs-60bf38**: Record CI blocker status on the issue
+  ([#387](https://github.com/AnthusAI/Kanbus/pull/387),
+  [`d6fe870`](https://github.com/AnthusAI/Kanbus/commit/d6fe8701fdf731742555f9f2b8d0263abd475649))
+
+### Features
+
+- Back Kanbus issue storage with Virtuus
+  ([`0ff8d76`](https://github.com/AnthusAI/Kanbus/commit/0ff8d765a16609dbbfd9dfb6b01873ce252c2591))
+
+- Index Kanbus labels and blocked dependencies in Virtuus
+  ([`bea3f42`](https://github.com/AnthusAI/Kanbus/commit/bea3f42655825f7cd2276da04361af36db01056b))
+
+- Route issue deletes through Virtuus service
+  ([`8ebabbe`](https://github.com/AnthusAI/Kanbus/commit/8ebabbe3439d6055a2887fe1689dee813550d7f3))
+
+- Route issue storage through Virtuus service
+  ([`7d13e2e`](https://github.com/AnthusAI/Kanbus/commit/7d13e2e6518883f527b8d1ac9625da4d3ae50076))
+
+- **console**: Show agent message and run metadata in conversation events (kbs-15ffe1)
+  ([#376](https://github.com/AnthusAI/Kanbus/pull/376),
+  [`0d898ca`](https://github.com/AnthusAI/Kanbus/commit/0d898cac3591808e7a5f4a8d99c7f730f1f1e044))
+
+- **ui**: Share complete board interactions across console and hosts
+  ([`eb781a1`](https://github.com/AnthusAI/Kanbus/commit/eb781a1626ad01861b71438ea6eda317d1ab7fd6))
+
+### Refactoring
+
+- Remove legacy Kanbus issue index cache
+  ([`f63e855`](https://github.com/AnthusAI/Kanbus/commit/f63e85565549f9a0986994df2837fa0b75aa3b7e))
+
+- Route issue listing through Virtuus
+  ([`43110c1`](https://github.com/AnthusAI/Kanbus/commit/43110c1b925fc79bd54f8e15192814cbb63043c0))
+
+- Route issue relocation through Virtuus
+  ([`4f75d0f`](https://github.com/AnthusAI/Kanbus/commit/4f75d0fe9083ea9e22261b6ee753e497cb62c3af))
+
+- Use resident table for issue identifiers
+  ([`958f968`](https://github.com/AnthusAI/Kanbus/commit/958f9682e03fa457ecb6963702e6ba18332bbc0c))
+
+### Testing
+
+- Benchmark Virtuus resident issue storage
+  ([`1a2bfff`](https://github.com/AnthusAI/Kanbus/commit/1a2bfff92b2e89950124290af125c795004f08ad))
+
+- Cover resident Virtuus issue storage
+  ([`81848b8`](https://github.com/AnthusAI/Kanbus/commit/81848b8f1651f3c4040821f4241a50a96a28f109))
+
+- Isolate coordination broker from unrelated publications
+  ([`41af6a5`](https://github.com/AnthusAI/Kanbus/commit/41af6a50d7f4ebbaf4086ba2b4c0f06d77bb3535))
+
+- Remove legacy cache index scenarios
+  ([`2b2ad3e`](https://github.com/AnthusAI/Kanbus/commit/2b2ad3e8a43a13bb9ae024f427abafb917b18937))
+
+- Replace legacy cache coverage with Virtuus store
+  ([`382f159`](https://github.com/AnthusAI/Kanbus/commit/382f159c52e29326dd04c4b0551d6f89445ff0ab))
+
+- **console**: Wait for the board card, not the hidden status tree title
+  ([#375](https://github.com/AnthusAI/Kanbus/pull/375),
+  [`bd2b67f`](https://github.com/AnthusAI/Kanbus/commit/bd2b67fdd4d7f35fc823f0dc26b311fef6a29ec4))
+
+- **coverage**: Cover daemon fallback edge paths to hold the ratchet
+  ([`bbcb638`](https://github.com/AnthusAI/Kanbus/commit/bbcb638cdc942bff52345664c40bf89260c4f9fd))
+
+- **right-now**: Avoid writing credential literals
+  ([`66ee516`](https://github.com/AnthusAI/Kanbus/commit/66ee516697383595d03180dde4d843ddce1473eb))
+
+- **router**: Remove lease renewal race in second-clone renewal test
+  ([`d7c69a9`](https://github.com/AnthusAI/Kanbus/commit/d7c69a9fe9f8af9e19bef4f498f2b591fa8360e0))
+
+- **specs**: Restore non-issue file steps and drop legacy index feature
+  ([`472cfb3`](https://github.com/AnthusAI/Kanbus/commit/472cfb3375c745099359f8eef0016e85f1313fc0))
+
+
 ## v0.33.0 (2026-09-26)
 
 ### Bug Fixes
