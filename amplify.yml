@@ -23,7 +23,7 @@ frontend:
         # Build the shared UI package first
         - cd packages/ui && npm ci --prefer-offline --no-audit && npm run build && cd ../..
         # Install site dependencies
-        - cd apps/kanb.us && npm ci --prefer-offline --no-audit && cd ../..
+        - cd apps/kanb.us && npm ci --prefer-offline --no-audit && npm update anthus-footer && cd ../..
 
     build:
       commands:
