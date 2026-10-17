@@ -9,7 +9,7 @@ where your agents can participate
 ![Rust Coverage](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/rust-coverage.svg)
 [![PyPI](https://img.shields.io/pypi/v/kanbus.svg)](https://pypi.org/project/kanbus/)
 [![Crates.io](https://img.shields.io/crates/v/kanbus.svg)](https://crates.io/crates/kanbus)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](rust/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Inspiration & Lineage
 
