@@ -100,7 +100,7 @@ Selects the methodologies whose process guidance is assembled into the generated
 Built-in methodologies:
 
 - `bdd`: outside-in Behavior-Driven Design. Stories carry Gherkin, specifications are written and seen failing before code, and specification coverage is complete.
-- `git-flow`: `main` and `develop` branches with feature, release and hotfix branches, plus the mapping from issue types to release categories.
+- `git-flow`: `develop` for continuous integration and `main` for releases, short-lived feature and hotfix branches, board changes committed straight to `develop`, plus the mapping from issue types to release categories.
 
 When the key is absent, Kanbus uses `[bdd, git-flow]`. An empty list (`methodologies: []`) produces core guidance only. Unknown or repeated names fail `kbs setup agents`.
 
@@ -108,6 +108,26 @@ When the key is absent, Kanbus uses `[bdd, git-flow]`. An empty list (`methodolo
 methodologies:
   - bdd
   - git-flow
+```
+
+A project can add its own methodology as a bundle directory in the repository and list it with `path`, relative to the repository root. The directory holds a `METHODOLOGY.md` whose YAML frontmatter declares `name` and `title` (and optionally `description`); the Markdown body is rendered with the same template variables as the agents file. A bundle whose `name` matches a built-in replaces it when listed instead of that built-in; listing both is an error.
+
+```yaml
+methodologies:
+  - path: methodologies/house-bdd   # name: bdd, replaces the built-in
+  - git-flow
+  - path: methodologies/crap
+```
+
+```markdown
+---
+name: crap
+title: CRAP Reduction
+description: Keep change risk low by pairing complexity with coverage.
+---
+## CRAP Reduction
+
+...guidance for agents...
 ```
 
 A custom `project_management_template` places the rendered methodologies with `{% for methodology in methodologies %}{{ methodology.content }}{% endfor %}`. Each entry also exposes `name`, `title` and `description`.

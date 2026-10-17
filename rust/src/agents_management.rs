@@ -114,7 +114,7 @@ fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
         None => default_project_management_template().to_string(),
     };
     let mut context = build_project_management_context(&configuration);
-    context.methodologies = render_selected_methodologies(&configuration, &context)?;
+    context.methodologies = render_selected_methodologies(root, &configuration, &context)?;
     let env = minijinja::Environment::new();
     env.render_str(&template_text, context)
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))

@@ -4,10 +4,12 @@
 //! set of process opinions (for example Behavior-Driven Design or Git Flow).
 //! Kanbus core stays neutral; the configured methodologies supply the opinions.
 
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::KanbusError;
-use crate::models::ProjectConfiguration;
+use crate::models::{MethodologySelection, ProjectConfiguration};
 
 const BUILT_IN_METHODOLOGY_SOURCES: [(&str, &str); 2] = [
     ("bdd", include_str!("methodologies/bdd/METHODOLOGY.md")),
@@ -19,6 +21,9 @@ const BUILT_IN_METHODOLOGY_SOURCES: [(&str, &str); 2] = [
 
 /// Methodologies used when `.kanbus.yml` does not set `methodologies`.
 pub const DEFAULT_METHODOLOGY_NAMES: [&str; 2] = ["bdd", "git-flow"];
+
+/// File that defines a methodology inside its bundle directory.
+pub const METHODOLOGY_DOCUMENT_FILENAME: &str = "METHODOLOGY.md";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,13 +60,13 @@ pub fn built_in_methodology_names() -> Vec<&'static str> {
         .collect()
 }
 
-/// Return the methodology names selected by the configuration, applying the default.
-pub fn selected_methodology_names(configuration: &ProjectConfiguration) -> Vec<String> {
+/// Return the methodologies selected by the configuration, applying the default.
+pub fn selected_methodologies(configuration: &ProjectConfiguration) -> Vec<MethodologySelection> {
     match configuration.methodologies.as_ref() {
-        Some(names) => names.clone(),
+        Some(selections) => selections.clone(),
         None => DEFAULT_METHODOLOGY_NAMES
             .iter()
-            .map(|name| name.to_string())
+            .map(|name| MethodologySelection::BuiltInName(name.to_string()))
             .collect(),
     }
 }
@@ -119,24 +124,55 @@ pub fn load_built_in_methodology(name: &str) -> Result<MethodologyDocument, Kanb
     parse_methodology_document(source_text, &format!("built-in {name}"))
 }
 
+/// Load a methodology bundle directory from the repository.
+///
+/// # Errors
+/// Returns `KanbusError::Configuration` when the bundle or its document is missing or malformed.
+pub fn load_project_methodology_bundle(
+    repository_root: &Path,
+    bundle_relative_path: &str,
+) -> Result<MethodologyDocument, KanbusError> {
+    let bundle_directory = repository_root.join(bundle_relative_path);
+    if !bundle_directory.is_dir() {
+        return Err(KanbusError::Configuration(format!(
+            "methodology bundle not found: {bundle_relative_path}"
+        )));
+    }
+    let document_path = bundle_directory.join(METHODOLOGY_DOCUMENT_FILENAME);
+    let source_text = std::fs::read_to_string(&document_path).map_err(|_| {
+        KanbusError::Configuration(format!(
+            "methodology bundle {bundle_relative_path} has no {METHODOLOGY_DOCUMENT_FILENAME}"
+        ))
+    })?;
+    parse_methodology_document(&source_text, &format!("bundle {bundle_relative_path}"))
+}
+
 /// Load every methodology selected by the configuration, in configured order.
 ///
 /// # Errors
-/// Returns `KanbusError::Configuration` for unknown or duplicated names.
+/// Returns `KanbusError::Configuration` for unknown, missing, malformed or duplicated methodologies.
 pub fn load_selected_methodologies(
+    repository_root: &Path,
     configuration: &ProjectConfiguration,
 ) -> Result<Vec<MethodologyDocument>, KanbusError> {
     let mut loaded_methodologies: Vec<MethodologyDocument> = Vec::new();
-    for name in selected_methodology_names(configuration) {
+    for selection in selected_methodologies(configuration) {
+        let methodology = match &selection {
+            MethodologySelection::BuiltInName(name) => load_built_in_methodology(name)?,
+            MethodologySelection::ProjectBundle(bundle_reference) => {
+                load_project_methodology_bundle(repository_root, &bundle_reference.path)?
+            }
+        };
         if loaded_methodologies
             .iter()
-            .any(|methodology| methodology.name == name)
+            .any(|loaded_methodology| loaded_methodology.name == methodology.name)
         {
             return Err(KanbusError::Configuration(format!(
-                "methodology listed more than once: {name}"
+                "methodology listed more than once: {}",
+                methodology.name
             )));
         }
-        loaded_methodologies.push(load_built_in_methodology(&name)?);
+        loaded_methodologies.push(methodology);
     }
     Ok(loaded_methodologies)
 }
@@ -146,11 +182,12 @@ pub fn load_selected_methodologies(
 /// # Errors
 /// Returns `KanbusError` when loading or rendering a methodology fails.
 pub fn render_selected_methodologies<TemplateContext: Serialize>(
+    repository_root: &Path,
     configuration: &ProjectConfiguration,
     template_context: &TemplateContext,
 ) -> Result<Vec<RenderedMethodology>, KanbusError> {
     let template_environment = minijinja::Environment::new();
-    load_selected_methodologies(configuration)?
+    load_selected_methodologies(repository_root, configuration)?
         .into_iter()
         .map(|methodology| {
             let content = template_environment
