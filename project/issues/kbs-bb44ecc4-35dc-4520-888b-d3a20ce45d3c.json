@@ -1,0 +1,20 @@
+{
+  "id": "kbs-bb44ecc4-35dc-4520-888b-d3a20ce45d3c",
+  "title": "Pluggable methodologies",
+  "description": "## Objective\n\nAs a team adopting Kanbus, I want the software-process opinions Kanbus teaches agents to come from pluggable **methodologies** I pick and combine, so that Kanbus is a neutral instrument of record and does not bring one hard-coded process with it.\n\nToday `CONTRIBUTING_AGENT.md` is rendered from a single built-in template that hard-codes outside-in Behavior-Driven Design (The Cognitive Framework, Roles in the Order, The Rite of Gherkin, The Outside-In Ritual, Coverage) next to neutral Kanbus mechanics (hierarchy, workflows, priorities, commands, wiki, console). The agents file context also hard-codes a Gherkin example and a `has_story` flag.\n\n## Shape\n\nA methodology is a skill-like bundle: a directory with a `METHODOLOGY.md` (frontmatter plus Markdown body, rendered with the same template context) and optional `tools/` with scripts or commands the methodology teaches agents to use. It is like an agent skill, but its content is assembled into the generated `CONTRIBUTING_AGENT.md` rather than loaded on demand.\n\n```yaml\nmethodologies:\n  - bdd                       # built in\n  - git-flow                  # built in\n  - path: methodologies/crap  # project-provided bundle with tools\n```\n\n```mermaid\nflowchart TD\n  C[.kanbus.yml methodologies] --> R[Resolve built-in names and local paths]\n  R --> M[Render each METHODOLOGY.md]\n  K[Core Kanbus mechanics template] --> A[Assemble]\n  M --> A\n  A --> F[CONTRIBUTING_AGENT.md]\n```\n\n## Rules\n\n- When `methodologies` is absent, the default is `[bdd, git-flow]`, built into the binary, with no files needed in the repository. Today's generated output stays equivalent for existing installations.\n- `methodologies: []` yields a core-only agents file with no process opinions.\n- More than one methodology can be active; they render in the configured order.\n- No Gherkin- or BDD-specific behavior is hard-coded in core Kanbus. \"Stories contain Gherkin\" becomes a convention of the BDD methodology, not a rule of Kanbus. Gherkin as the language of Kanbus policy-as-code, and generic syntax validation of fenced `gherkin` blocks, are Kanbus features and stay.\n- Rust and Python implementations stay in parity.\n- `router.workflow` and existing configuration keys are untouched.\n\n## Milestones\n\n1. Built-in BDD and Git Flow methodologies assembled into the agents file.\n2. Project-provided methodology bundles.\n3. Methodology tools, proven with a CRAP complexity-reduction methodology.\n4. Methodology commands, doctor checks and documentation.\n\n## Definition of done\n\nBehavior specifications for selection, defaults, ordering, custom bundles and tools pass in both implementations; this repository regenerates its own `CONTRIBUTING_AGENT.md` from methodologies; the authoring guide lets someone write a new methodology without reading Kanbus source.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T13:07:42.282755667Z",
+  "updated_at": "2026-10-17T13:07:42.348131072Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

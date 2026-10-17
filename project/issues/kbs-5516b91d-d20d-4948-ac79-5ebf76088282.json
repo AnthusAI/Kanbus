@@ -1,0 +1,20 @@
+{
+  "id": "kbs-5516b91d-d20d-4948-ac79-5ebf76088282",
+  "title": "Milestone 4: methodology commands, doctor checks and docs",
+  "description": "## Purpose\n\nMake methodologies discoverable and safe to adopt.\n\n## Scope\n\n- `kbs methodology list` (built-in and configured, with active ones marked) and `kbs methodology show <name>` (rendered content).\n- `kbs doctor` checks configured methodologies resolve and render, and warns when `CONTRIBUTING_AGENT.md` is stale against them.\n- Documentation: CONFIGURATION.md entry for `methodologies`, a methodology authoring guide, getting-started notes on choosing methodologies, and a site page on kanb.us explaining that Kanbus's process opinions are pluggable.\n\n## Definition of done\n\nSpecifications for list, show and doctor checks in both implementations; docs reviewed against real output.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bb44ecc4-35dc-4520-888b-d3a20ce45d3c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T13:11:08.293991058Z",
+  "updated_at": "2026-10-17T13:11:08.370395074Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

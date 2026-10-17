@@ -1,0 +1,20 @@
+{
+  "id": "kbs-b5713619-bcd2-44fd-a75a-eeb405ab9280",
+  "title": "Milestone 1: built-in BDD and Git Flow methodologies",
+  "description": "## Purpose\n\nMove every process opinion out of the core agents-file template into two built-in methodologies, `bdd` and `git-flow`, and assemble the generated `CONTRIBUTING_AGENT.md` from core mechanics plus the selected methodologies.\n\n## Scope\n\n- New `methodologies` key in `.kanbus.yml`: a list of built-in names. Absent means `[bdd, git-flow]`; an empty list means none.\n- Built-in bundles embedded in the binary (Rust `include_str!`, Python package data), each a `METHODOLOGY.md` with frontmatter (`name`, `title`, `description`) and a Jinja body rendered with the existing template context.\n- `bdd` takes The Cognitive Framework, Roles in the Order, The Rite of Gherkin, The Outside-In Ritual and Coverage, plus the Gherkin example now built in `build_project_management_context`.\n- `git-flow` captures branch roles (main, develop, feature, release, hotfix), PR targets and the Semantic Release Alignment section.\n- Core template keeps only neutral Kanbus mechanics and gets one insertion point for rendered methodologies. Core context drops `gherkin_example` and `has_story`.\n- A custom `project_management_template` keeps working and can place methodologies with a `{{ methodologies }}` variable.\n- Unknown methodology names fail with a clear error.\n\n## Definition of done\n\n- Specifications: default selection, explicit list, empty list, ordering, unknown name.\n- For a default configuration the generated file contains the same BDD and Git Flow guidance as today.\n- `rg -i gherkin` over the core template and core context code finds nothing.\n- Rust and Python parity; this repository's `CONTRIBUTING_AGENT.md` regenerated.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bb44ecc4-35dc-4520-888b-d3a20ce45d3c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T13:08:32.655135798Z",
+  "updated_at": "2026-10-17T13:08:32.720926933Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

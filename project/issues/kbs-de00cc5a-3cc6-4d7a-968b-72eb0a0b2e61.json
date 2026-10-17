@@ -1,0 +1,20 @@
+{
+  "id": "kbs-de00cc5a-3cc6-4d7a-968b-72eb0a0b2e61",
+  "title": "Milestone 2: project-provided methodology bundles",
+  "description": "## Purpose\n\nLet a project supply its own methodology bundles from the repository, alongside or instead of the built-ins.\n\n## Scope\n\n- `methodologies` entries accept `{ path: <dir> }` relative to the repository root, next to built-in names.\n- Bundle layout mirrors the agent skills format so a skill author already knows it: `<dir>/METHODOLOGY.md` with frontmatter, optional supporting Markdown files it references, optional `tools/`.\n- A project bundle may override a built-in by declaring the same `name`, so teams can fork `bdd` without forking Kanbus.\n- Validation: missing directory, missing or malformed `METHODOLOGY.md`, duplicate names, and template errors report the bundle path.\n\n## Definition of done\n\nSpecifications for path entries, override of a built-in, mixed built-in and custom ordering, and each validation error, in both implementations.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bb44ecc4-35dc-4520-888b-d3a20ce45d3c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T13:09:23.227972363Z",
+  "updated_at": "2026-10-17T13:09:23.310282111Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
