@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+import argparse
+import ast
+import subprocess
+import sys
+import xml.etree.ElementTree as ElementTree
+from pathlib import Path
+
+DEFAULT_BASE_REFERENCE = "origin/develop"
+DEFAULT_COVERAGE_FILE = "coverage.xml"
+DEFAULT_THRESHOLD = 30.0
+BRANCHING_NODE_TYPES = (
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.ExceptHandler,
+    ast.IfExp,
+    ast.comprehension,
+    ast.Assert,
+)
+
+
+def cyclomatic_complexity(function_node):
+    complexity = 1
+    for node in ast.walk(function_node):
+        if isinstance(node, BRANCHING_NODE_TYPES):
+            complexity += 1
+        elif isinstance(node, ast.BoolOp):
+            complexity += len(node.values) - 1
+    return complexity
+
+
+def covered_line_numbers_by_file(coverage_file):
+    covered_lines_by_file = {}
+    if not coverage_file.is_file():
+        return covered_lines_by_file
+    for class_element in ElementTree.parse(coverage_file).getroot().iter("class"):
+        filename = class_element.get("filename")
+        measured_lines = {}
+        for line_element in class_element.iter("line"):
+            measured_lines[int(line_element.get("number"))] = (
+                int(line_element.get("hits")) > 0
+            )
+        covered_lines_by_file[filename] = measured_lines
+    return covered_lines_by_file
+
+
+def measured_lines_for(path, covered_lines_by_file):
+    for coverage_filename, measured_lines in covered_lines_by_file.items():
+        if path.as_posix().endswith(coverage_filename):
+            return measured_lines
+    return {}
+
+
+def function_coverage(function_node, measured_lines):
+    lines_in_function = [
+        line_number
+        for line_number in range(function_node.lineno, function_node.end_lineno + 1)
+        if line_number in measured_lines
+    ]
+    if not lines_in_function:
+        return 0.0
+    return sum(measured_lines[line] for line in lines_in_function) / len(
+        lines_in_function
+    )
+
+
+def crap_score(complexity, coverage):
+    return complexity**2 * (1 - coverage) ** 3 + complexity
+
+
+def changed_python_files(base_reference):
+    completed = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=AM", f"{base_reference}...HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        sys.exit(f"cannot diff against {base_reference}: {completed.stderr.strip()}")
+    return [
+        Path(line)
+        for line in completed.stdout.splitlines()
+        if line.endswith(".py") and Path(line).is_file()
+    ]
+
+
+def score_functions(path, covered_lines_by_file):
+    measured_lines = measured_lines_for(path, covered_lines_by_file)
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    scored_functions = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            complexity = cyclomatic_complexity(node)
+            coverage = function_coverage(node, measured_lines)
+            scored_functions.append(
+                (crap_score(complexity, coverage), complexity, coverage, path, node)
+            )
+    return scored_functions
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Report CRAP scores for Python functions.")
+    parser.add_argument("files", nargs="*", type=Path, help="Files to score; defaults to files changed since the base reference.")
+    parser.add_argument("--base", default=DEFAULT_BASE_REFERENCE)
+    parser.add_argument("--coverage", type=Path, default=Path(DEFAULT_COVERAGE_FILE))
+    parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
+    arguments = parser.parse_args()
+
+    files_to_score = arguments.files or changed_python_files(arguments.base)
+    covered_lines_by_file = covered_line_numbers_by_file(arguments.coverage)
+    if not covered_lines_by_file:
+        print(f"no coverage data in {arguments.coverage}; every function counts as untested", file=sys.stderr)
+
+    all_scores = []
+    for path in files_to_score:
+        all_scores.extend(score_functions(path, covered_lines_by_file))
+    all_scores.sort(key=lambda scored: scored[0], reverse=True)
+
+    print(f"{'CRAP':>8} {'CC':>4} {'COV':>5}  FUNCTION")
+    for score, complexity, coverage, path, node in all_scores:
+        marker = " !" if score > arguments.threshold else ""
+        print(f"{score:8.1f} {complexity:4d} {coverage:5.0%}  {path}:{node.lineno} {node.name}{marker}")
+    above_threshold = sum(1 for scored in all_scores if scored[0] > arguments.threshold)
+    print(f"\n{len(all_scores)} functions scored, {above_threshold} above {arguments.threshold:g}")
+
+
+if __name__ == "__main__":
+    main()

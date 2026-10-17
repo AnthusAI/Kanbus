@@ -239,6 +239,151 @@ fn given_repository_has_methodology_bundle_without_frontmatter(
     write_methodology_bundle_document(world, &bundle_relative_path, "## Plain Guidance\n");
 }
 
+fn methodology_tool_frontmatter(
+    methodology_name: &str,
+    tool_declarations: &[(&str, &str, &str)],
+) -> String {
+    let tool_entries: Vec<serde_yaml::Value> = tool_declarations
+        .iter()
+        .map(|(tool_name, command, purpose)| {
+            let mut tool_entry = serde_yaml::Mapping::new();
+            tool_entry.insert("name".into(), (*tool_name).into());
+            tool_entry.insert("command".into(), (*command).into());
+            tool_entry.insert("purpose".into(), (*purpose).into());
+            serde_yaml::Value::Mapping(tool_entry)
+        })
+        .collect();
+    let mut frontmatter = serde_yaml::Mapping::new();
+    frontmatter.insert("name".into(), methodology_name.into());
+    frontmatter.insert(
+        "title".into(),
+        format!("{methodology_name} methodology").into(),
+    );
+    frontmatter.insert("tools".into(), serde_yaml::Value::Sequence(tool_entries));
+    format!(
+        "---\n{}---\n## Tool Guidance\n",
+        serde_yaml::to_string(&frontmatter).expect("serialize frontmatter")
+    )
+}
+
+fn write_methodology_tool_script(
+    world: &KanbusWorld,
+    bundle_relative_path: &str,
+    script_text: &str,
+) {
+    use std::os::unix::fs::PermissionsExt;
+    let tool_script = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(bundle_relative_path)
+        .join("tools")
+        .join("run-tool");
+    fs::create_dir_all(tool_script.parent().expect("tool directory")).expect("create tools");
+    fs::write(&tool_script, format!("#!/bin/sh\n{script_text}\n")).expect("write tool script");
+    fs::set_permissions(&tool_script, fs::Permissions::from_mode(0o755))
+        .expect("make tool executable");
+}
+
+#[given(
+    expr = "the repository has a methodology bundle at {string} named {string} with a tool {string} that prints {string}"
+)]
+fn given_repository_has_methodology_bundle_with_tool(
+    world: &mut KanbusWorld,
+    bundle_relative_path: String,
+    methodology_name: String,
+    tool_name: String,
+    printed_text: String,
+) {
+    write_methodology_bundle_document(
+        world,
+        &bundle_relative_path,
+        &methodology_tool_frontmatter(
+            &methodology_name,
+            &[(&tool_name, "tools/run-tool", "Report the demo output")],
+        ),
+    );
+    write_methodology_tool_script(
+        world,
+        &bundle_relative_path,
+        &format!("echo \"{printed_text} $*\""),
+    );
+}
+
+#[given(
+    expr = "the repository has a methodology bundle at {string} named {string} with a failing tool {string}"
+)]
+fn given_repository_has_methodology_bundle_with_failing_tool(
+    world: &mut KanbusWorld,
+    bundle_relative_path: String,
+    methodology_name: String,
+    tool_name: String,
+) {
+    write_methodology_bundle_document(
+        world,
+        &bundle_relative_path,
+        &methodology_tool_frontmatter(
+            &methodology_name,
+            &[(&tool_name, "tools/run-tool", "Always fails")],
+        ),
+    );
+    write_methodology_tool_script(
+        world,
+        &bundle_relative_path,
+        "echo \"tool failed loudly\"\nexit 3",
+    );
+}
+
+#[given(
+    expr = "the repository has a methodology bundle at {string} declaring a tool {string} with command {string}"
+)]
+fn given_repository_has_methodology_bundle_declaring_tool_command(
+    world: &mut KanbusWorld,
+    bundle_relative_path: String,
+    tool_name: String,
+    command: String,
+) {
+    let methodology_name = PathBuf::from(&bundle_relative_path)
+        .file_name()
+        .expect("bundle directory name")
+        .to_string_lossy()
+        .to_string();
+    write_methodology_bundle_document(
+        world,
+        &bundle_relative_path,
+        &methodology_tool_frontmatter(
+            &methodology_name,
+            &[(&tool_name, &command, "Declared only")],
+        ),
+    );
+}
+
+#[given(
+    expr = "the repository has a methodology bundle at {string} declaring the tool {string} twice"
+)]
+fn given_repository_has_methodology_bundle_declaring_tool_twice(
+    world: &mut KanbusWorld,
+    bundle_relative_path: String,
+    tool_name: String,
+) {
+    let methodology_name = PathBuf::from(&bundle_relative_path)
+        .file_name()
+        .expect("bundle directory name")
+        .to_string_lossy()
+        .to_string();
+    write_methodology_bundle_document(
+        world,
+        &bundle_relative_path,
+        &methodology_tool_frontmatter(
+            &methodology_name,
+            &[
+                (&tool_name, "tools/run-tool", "Declared twice"),
+                (&tool_name, "tools/run-tool", "Declared twice"),
+            ],
+        ),
+    );
+}
+
 #[given(expr = "the Kanbus configuration selects methodologies {string}")]
 fn given_configuration_selects_methodologies(world: &mut KanbusWorld, methodology_list: String) {
     let selected_methodologies: Vec<serde_yaml::Value> = methodology_list

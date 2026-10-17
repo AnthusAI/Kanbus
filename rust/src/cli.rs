@@ -283,6 +283,11 @@ enum Commands {
         #[command(subcommand)]
         command: SetupCommands,
     },
+    /// Work with the methodologies configured in .kanbus.yml.
+    Methodology {
+        #[command(subcommand)]
+        command: MethodologyCommands,
+    },
     /// Create a new issue.
     ///
     /// Issue types follow a hierarchy: initiative > epic > story / task / bug > sub-task.
@@ -895,6 +900,26 @@ enum SetupCommands {
         /// Report where the value currently resolves from. Never prints the value.
         #[arg(long)]
         status: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum MethodologyCommands {
+    /// Run a tool declared by a configured methodology bundle, from the repository root.
+    Run {
+        /// Methodology name.
+        #[arg(value_name = "METHODOLOGY")]
+        methodology: String,
+        /// Tool name declared in the methodology's frontmatter.
+        #[arg(value_name = "TOOL")]
+        tool: String,
+        /// Arguments passed to the tool unchanged.
+        #[arg(
+            value_name = "ARGS",
+            trailing_var_arg = true,
+            allow_hyphen_values = true
+        )]
+        tool_arguments: Vec<String>,
     },
 }
 
@@ -1950,6 +1975,25 @@ fn execute_command(
                 from_stdin,
                 status,
             } => execute_setup_env(root, name, value, from_stdin, status),
+        },
+        Commands::Methodology { command } => match command {
+            MethodologyCommands::Run {
+                methodology,
+                tool,
+                tool_arguments,
+            } => {
+                let configuration_path = get_configuration_path(root)?;
+                let configuration = load_project_configuration(&configuration_path)?;
+                let repository_root = configuration_path.parent().unwrap_or(root);
+                let tool_standard_output = crate::methodology_bundles::run_methodology_tool(
+                    repository_root,
+                    &configuration,
+                    &methodology,
+                    &tool,
+                    &tool_arguments,
+                )?;
+                Ok(Some(tool_standard_output))
+            }
         },
         Commands::Create {
             title,

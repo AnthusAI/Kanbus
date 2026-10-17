@@ -391,6 +391,47 @@ def setup_agents(force: bool) -> None:
     _ensure_project_guard_files(root)
 
 
+@cli.group("methodology")
+def methodology() -> None:
+    """Work with the methodologies configured in .kanbus.yml."""
+
+
+@methodology.command(
+    "run",
+    context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.argument("methodology_name", metavar="METHODOLOGY")
+@click.argument("tool_name", metavar="TOOL")
+@click.argument("tool_arguments", nargs=-1, type=click.UNPROCESSED, metavar="[ARGS]...")
+def methodology_run(
+    methodology_name: str, tool_name: str, tool_arguments: tuple[str, ...]
+) -> None:
+    """Run a tool declared by a configured methodology bundle, from the repository root.
+
+    :param methodology_name: Methodology name.
+    :type methodology_name: str
+    :param tool_name: Tool name declared in the methodology's frontmatter.
+    :type tool_name: str
+    :param tool_arguments: Arguments passed to the tool unchanged.
+    :type tool_arguments: tuple[str, ...]
+    """
+    from kanbus.methodology_bundles import MethodologyError, run_methodology_tool
+
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+        configuration = load_project_configuration(configuration_path)
+        tool_standard_output = run_methodology_tool(
+            configuration_path.parent,
+            configuration,
+            methodology_name,
+            tool_name,
+            list(tool_arguments),
+        )
+    except (MethodologyError, ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(tool_standard_output, nl=False)
+
+
 _VARIABLE_NAME_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 
 
