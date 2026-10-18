@@ -218,3 +218,23 @@ def test_has_unknown_fields_detects_extra_forbidden() -> None:
         assert config_loader._has_unknown_fields(error) is True
     else:
         raise AssertionError("expected ValidationError")
+
+
+def test_load_dotenv_file_skips_a_file_it_has_already_applied(
+    tmp_path: Path, monkeypatch
+) -> None:
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text("KANBUS_TEST_DOTENV_ONCE=first\n", encoding="utf-8")
+    monkeypatch.delenv("KANBUS_TEST_DOTENV_ONCE", raising=False)
+
+    config_loader.load_dotenv_file(dotenv_path)
+    assert os.environ["KANBUS_TEST_DOTENV_ONCE"] == "first"
+
+    monkeypatch.delenv("KANBUS_TEST_DOTENV_ONCE")
+    config_loader.load_dotenv_file(dotenv_path)
+    assert "KANBUS_TEST_DOTENV_ONCE" not in os.environ
+
+    dotenv_path.write_text("KANBUS_TEST_DOTENV_ONCE=second-value\n", encoding="utf-8")
+    config_loader.load_dotenv_file(dotenv_path)
+    assert os.environ["KANBUS_TEST_DOTENV_ONCE"] == "second-value"
+    monkeypatch.delenv("KANBUS_TEST_DOTENV_ONCE")

@@ -282,7 +282,33 @@ pub(crate) fn user_home_directory() -> PathBuf {
     PathBuf::from(".")
 }
 
+static APPLIED_DOTENV_FINGERPRINTS: std::sync::Mutex<
+    Option<std::collections::HashMap<PathBuf, (std::time::SystemTime, u64)>>,
+> = std::sync::Mutex::new(None);
+
+fn dotenv_already_applied(path: &Path) -> bool {
+    let Ok(metadata) = fs::metadata(path) else {
+        return false;
+    };
+    let Ok(modified) = metadata.modified() else {
+        return false;
+    };
+    let fingerprint = (modified, metadata.len());
+    let mut applied = APPLIED_DOTENV_FINGERPRINTS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let applied = applied.get_or_insert_with(std::collections::HashMap::new);
+    if applied.get(path) == Some(&fingerprint) {
+        return true;
+    }
+    applied.insert(path.to_path_buf(), fingerprint);
+    false
+}
+
 fn load_dotenv(path: &Path) {
+    if dotenv_already_applied(path) {
+        return;
+    }
     let Ok(contents) = fs::read_to_string(path) else {
         return;
     };
@@ -952,6 +978,27 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
     use tempfile::TempDir;
+
+    #[test]
+    fn dotenv_file_already_applied_is_not_applied_again() {
+        let directory = TempDir::new().expect("tempdir");
+        let dotenv_path = directory.path().join(".env");
+        let variable = "KANBUS_TEST_DOTENV_APPLIED_ONCE";
+        fs::write(&dotenv_path, format!("{variable}=first\n")).expect("write dotenv");
+        env::remove_var(variable);
+
+        load_dotenv(&dotenv_path);
+        assert_eq!(env::var(variable).as_deref(), Ok("first"));
+
+        env::remove_var(variable);
+        load_dotenv(&dotenv_path);
+        assert!(env::var_os(variable).is_none());
+
+        fs::write(&dotenv_path, format!("{variable}=second-value\n")).expect("rewrite dotenv");
+        load_dotenv(&dotenv_path);
+        assert_eq!(env::var(variable).as_deref(), Ok("second-value"));
+        env::remove_var(variable);
+    }
 
     struct MutexApiEnvironmentRestore {
         endpoint: Option<std::ffi::OsString>,

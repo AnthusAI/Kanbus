@@ -263,13 +263,32 @@ def parse_dotenv_lines(content: str) -> list[tuple[str, str]]:
     return pairs
 
 
+_applied_dotenv_fingerprints: dict[Path, tuple[int, int]] = {}
+
+
+def _dotenv_already_applied(path: Path) -> bool:
+    try:
+        stat_result = path.stat()
+    except OSError:
+        return False
+    fingerprint = (stat_result.st_mtime_ns, stat_result.st_size)
+    if _applied_dotenv_fingerprints.get(path) == fingerprint:
+        return True
+    _applied_dotenv_fingerprints[path] = fingerprint
+    return False
+
+
 def load_dotenv_file(path: Path) -> None:
     """Load key/value pairs from a dotenv file without overriding existing env vars.
+
+    A file whose modification time and size are unchanged since it was last
+    applied is skipped, so repeated configuration loads do not keep rewriting
+    the process environment.
 
     :param path: Dotenv file path.
     :type path: Path
     """
-    if not path.exists():
+    if not path.exists() or _dotenv_already_applied(path):
         return
     try:
         content = path.read_text(encoding="utf-8")
