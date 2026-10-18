@@ -1,0 +1,2 @@
+papyrus-newsroom[markus]==1.1.1
+anthus-markus==0.5.1
