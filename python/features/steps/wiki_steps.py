@@ -76,7 +76,7 @@ def given_wiki_page_with_content_string(
     wiki_subdir = getattr(context, "wiki_directory", "wiki")
     if wiki_subdir.startswith("../"):
         repo_root = Path(context.working_directory)
-        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+        wiki_dir = repo_root / wiki_subdir.replace("\\", "/").removeprefix("../")
     else:
         wiki_dir = project_dir / wiki_subdir
     wiki_dir.mkdir(parents=True, exist_ok=True)
@@ -92,7 +92,7 @@ def given_wiki_page_with_content(context: object, filename: str) -> None:
     wiki_subdir = getattr(context, "wiki_directory", "wiki")
     if wiki_subdir.startswith("../"):
         repo_root = Path(context.working_directory)
-        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+        wiki_dir = repo_root / wiki_subdir.replace("\\", "/").removeprefix("../")
     else:
         wiki_dir = project_dir / wiki_subdir
     wiki_dir.mkdir(parents=True, exist_ok=True)
@@ -319,7 +319,7 @@ def given_wiki_directory_missing(context: object) -> None:
     wiki_subdir = getattr(context, "wiki_directory", "wiki")
     if wiki_subdir.startswith("../"):
         repo_root = Path(context.working_directory)
-        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+        wiki_dir = repo_root / wiki_subdir.replace("\\", "/").removeprefix("../")
     else:
         wiki_dir = project_dir / wiki_subdir
     if wiki_dir.exists():
@@ -334,7 +334,7 @@ def given_empty_wiki_directory(context: object) -> None:
     wiki_subdir = getattr(context, "wiki_directory", "wiki")
     if wiki_subdir.startswith("../"):
         repo_root = Path(context.working_directory)
-        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+        wiki_dir = repo_root / wiki_subdir.replace("\\", "/").removeprefix("../")
     else:
         wiki_dir = project_dir / wiki_subdir
     wiki_dir.mkdir(parents=True, exist_ok=True)
@@ -357,7 +357,7 @@ def then_wiki_page_exists_with_content(
     wiki_subdir = getattr(context, "wiki_directory", "wiki")
     if wiki_subdir.startswith("../"):
         repo_root = Path(context.working_directory)
-        wiki_dir = repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+        wiki_dir = repo_root / wiki_subdir.replace("\\", "/").removeprefix("../")
     else:
         wiki_dir = project_dir / wiki_subdir
     target = wiki_dir / filename
@@ -385,7 +385,7 @@ def _wiki_dir_for_context(context: object) -> Path:
     wiki_subdir = getattr(context, "wiki_directory", "wiki")
     if wiki_subdir.startswith("../"):
         repo_root = Path(context.working_directory)
-        return repo_root / wiki_subdir.lstrip("../").lstrip("..\\")
+        return repo_root / wiki_subdir.replace("\\", "/").removeprefix("../")
     return project_dir / wiki_subdir
 
 
