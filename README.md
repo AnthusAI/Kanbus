@@ -1,7 +1,6 @@
 # Kanbus
 
-**Track issues in your repository**
-where your agents can participate
+**Track issues in your repository where your agents can participate.**
 
 ![Python CI](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/python-ci.svg)
 ![Rust CI](https://raw.githubusercontent.com/AnthusAI/Kanbus/badges/rust-ci.svg)
@@ -11,296 +10,65 @@ where your agents can participate
 [![Crates.io](https://img.shields.io/crates/v/kanbus.svg)](https://crates.io/crates/kanbus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Inspiration & Lineage
+Kanbus keeps issues, events, and wiki pages as ordinary files next to your code, so people and coding agents share one board that travels with the repository. There is no database to run and no service to sign up for.
 
-Kanbus is a spiritual successor to [Beads](https://github.com/steveyegge/beads), inspired by its elegant, domain-specific approach to project management. We are deeply grateful to the Beads author and community for proving that a dedicated cognitive framework for tasks is game-changing.
-
-Kanbus builds on this foundation by adapting the model to be a thinner, more native layer over Git—optimizing for AI agents and distributed teams:
-
-*   **A Thinner Layer over Git**: We removed the secondary SQLite index. The complexity of maintaining and synchronizing a shadow database isn't worth the operational cost. Kanbus reads files directly.
-*   **Better Storage Alignment**: Things like "exclusively claiming" a task don't align well with the distributed Git model. We removed them to ensure the tool behaves exactly like the version control system underneath it.
-*   **Conflict-Free Storage**: Instead of a single JSON-L file (which guarantees merge conflicts when agents work in parallel), Kanbus stores separate tasks in separate files. This eliminates conflicts and allows deep linking to specific issues from GitHub.
-*   **Streamlined Cognitive Model**: Beads is powerful but complex, with 130+ attributes per issue. We streamlined this to a focused core (Status, Priority, Dependencies) to reduce the "context pollution" for AI agents. We want the model to think about the work, not how to use the tracker. The goal is a **helpful cognitive model** that unburdens your mental state rather than adding to it.
-*   **AI-Native Nomenclature**: Instead of teaching models new terms like "beads", we use the standard Jira vocabulary (Epics, Tasks, Sub-tasks) that AI models are already extensively pre-trained on. This leverages their existing knowledge graph for better reasoning.
-*   **Git-Native Scoping**: We replaced complex "contributor roles" with standard Git patterns. Want local tasks? Just `.gitignore` a folder. Working in a monorepo? Kanbus respects your current directory scope automatically.
-
-## Frictionless Workflow
-
-Kanbus is designed to **remove friction**, not add it. 
-
-*   **No Syncing**: There is no secondary database to synchronize. The files on disk are the source of truth. You will never be blocked from pushing code because a background daemon is out of sync.
-*   **Git Hooks Help You**: Git hooks should assist your workflow, not interrupt it. Kanbus hooks are designed to be invisible helpers, ensuring data integrity without stopping you from getting work done.
-
-For a detailed comparison, see [Kanbus vs. Beads](docs/VS_BEADS.md).
-
-## Why Kanbus?
-
-### 1. The Sleep Factor
-Offload your mental context. Instead of keeping 15 different chat sessions and open loops in your head, tell your agent to "record the current state" into Kanbus. It's a permanent, searchable memory bank for your AI workforce.
-
-### 2. Files are the Database
-- **No SQL Server**: We removed the SQLite daemon entirely. Each command reads the JSON files directly, so there is nothing to synchronize or keep running.
-- **No JSONL Merge Conflicts**: There is no monolithic JSONL file. Every issue has its own JSON document, which eliminates merge conflicts when teams (or agents) edit work in parallel.
-- **No Daemon**: There is no background process to crash or manage.
-- **No API**: Your agents read and write files directly (or use the simple CLI).
-
-### 3. Concurrency Solved
-Unlike other file-based systems that use a single JSONL file (guaranteeing merge conflicts), Kanbus stores **one issue per file**. This allows multiple agents and developers to work in parallel without blocking each other.
-
-### 4. Jira + Confluence for Agents
-Kanbus includes a **Wiki Engine** that renders Markdown templates with live issue data. Your planning documents always reflect the real-time state of the project, giving agents the "forest view" they often lack.
-
-### 5. Zero Cost Footprint
-There are no per-seat licenses or hosted fees. If you have a git repository, you already have the database—and that keeps Kanbus affordable for very large teams (or fleets of agents).
-
----
-
-## Status
-
-Kanbus is in production.
-
-## Quick Start
+## Quick start
 
 ```bash
-kbs init                                   # or: kanbus init (Python CLI)
+pip install kanbus        # or: cargo install kanbus, or download kbs from GitHub Releases
+
+kbs init                  # or: kanbus init
 kbs create "Implement the login flow"
 kbs list --status open
 kbs show <id>
-kbs commit                                 # commit board changes to git
+kbs commit                # commit board changes to git
 ```
 
-Kanbus runs three ways: on local files, on files in a hosted git repository shared by a team and its agents, or on S3 and DynamoDB behind a web application. [Getting Started](docs/GETTING_STARTED.md) compares them and has a step-by-step guide for each.
+[Installation](INSTALL.md) lists every install path, and [Getting Started](docs/GETTING_STARTED.md) walks through your first board.
+
+## Three ways to run it
+
+| | Local files | Files in the cloud | S3 and DynamoDB |
+| --- | --- | --- | --- |
+| Where the board lives | `project/` in your working tree | `project/` in a shared git repository | A private S3 bucket indexed by DynamoDB |
+| Who writes to it | You and your agents | Everyone with a clone, plus CI and cloud sandboxes | Signed-in users of a web application, through the Kanbus API |
+| Status | Stable | Early; live updates over MQTT are optional | Preview |
+
+All three use the same issue format, configuration, workflows, and validation. [Getting Started](docs/GETTING_STARTED.md) compares them and has a guide for each.
+
+## Why files
+
+- **One issue per file.** Parallel edits by people and agents merge cleanly, and every issue has a stable path you can link to from GitHub.
+- **Git is the history.** Branches, reviews, blame, and revert work on the board exactly as they do on code.
+- **Familiar vocabulary.** Initiatives, epics, tasks, and sub-tasks are the Jira terms models already know, with a small core model of status, priority, and dependencies.
+- **A wiki that reads the board.** Markdown pages render with live issue data, so planning documents reflect the real state of the project.
+- **Agent provenance and WIP.** Writes can record which agent and model acted, and `kbs now` reinjects work in progress after an agent's context is compacted.
+
+Kanbus is a spiritual successor to [Beads](https://github.com/steveyegge/beads). It drops the secondary SQLite index and single JSONL file in favor of plain files, and it can read and import Beads data. See [Kanbus vs. Beads](docs/VS_BEADS.md) and [Migrating from Beads](docs/MIGRATION.md).
+
+## Two implementations
+
+Kanbus ships a Python CLI (`kanbus`) and a Rust CLI (`kbs`, plus the `kbsc` console server). They are separate, complete implementations that run the same Gherkin behavior specifications in [`features/`](features), so commands, output, and file formats match. Python installs with `pip` and is the lighter dependency; Rust is faster on large boards.
+
+Read-heavy commands use an automatically started index daemon. Set `KANBUS_NO_DAEMON=1` to bypass it, and see `kbs daemon-status` and `kbs daemon-stop`.
+
+## Console
+
+`kbsc` serves a web board for the repository you run it in, on the `console_port` from `.kanbus.yml` or `http://127.0.0.1:5174/`. Prebuilt binaries embed the frontend, and `kbs console screenshot` captures the board as a PNG. See [Getting Started](docs/GETTING_STARTED.md) for installation and `./dev.sh` for development.
 
 ## Documentation
 
-- [Getting Started](docs/GETTING_STARTED.md): [local files](docs/getting-started/local-files.md), [files in the cloud](docs/getting-started/cloud-files.md), [S3 and DynamoDB in the cloud](docs/getting-started/cloud-database.md)
-- [CLI Reference](docs/CLI_REFERENCE.md)
-- [Agent compaction and right-now elicitation](docs/AGENT_COMPACTION_RIGHT_NOW.md) — reinject board WIP after coding-agent context compaction; on-demand `kbs now`. Run `kbs setup ai` once to store an LLM API key for these features.
-
-## Console (Rust backend)
-
-The console UI is served by `kbsc`, the Rust console server.
-
-### Quick Start (Prebuilt Binary)
-
-Download the prebuilt binary from [GitHub Releases](https://github.com/AnthusAI/Kanbus/releases):
-
-```bash
-# Linux x86_64
-curl -L -o kbsc.tar.gz https://github.com/AnthusAI/Kanbus/releases/latest/download/kbsc-x86_64-unknown-linux-gnu.tar.gz
-tar -xzf kbsc.tar.gz
-./kbsc
-# Serves the board on console_port from .kanbus.yml, or http://127.0.0.1:5174/
-```
-
-The binary includes all frontend assets—no configuration or additional files required.
-
-### Development Mode
-
-```bash
-./dev.sh
-```
-
-This starts the frontend watcher and the Rust backend, rebuilding both on changes.
-
-### Production Binary (Build from Source)
-
-```bash
-cd apps/console
-npm install
-npm run build
-cd ../..
-rm -rf rust/embedded_assets/console
-cp -R apps/console/dist rust/embedded_assets/console
-cargo build --release --manifest-path rust/Cargo.toml --bin kbsc
-```
-
-The resulting binary at `rust/target/release/kbsc` includes all frontend assets and requires no additional files.
-
-### Usage
-
-Open in browser (local mode):
-
-```
-http://127.0.0.1:5174/
-```
-
-Or for multi-tenant mode (set `CONSOLE_TENANT_MODE=multi`):
-
-```
-http://127.0.0.1:5174/<account>/<project>/
-```
-
-### Board screenshot (CLI)
-
-With the console server running, capture a PNG of the board UI:
-
-```bash
-kbs console screenshot
-# writes kanbus-board.png in the current directory
-
-kbs console screenshot --output reports/board.png
-
-# Dark appearance mode (light is the default for reproducible captures)
-kbs console screenshot --mode dark --output reports/board-dark.png
-
-# All issue types (?type=all) with every column expanded
-kbs console screenshot --view all --expand-all
-
-# Epics tab only, expand backlog and closed columns
-kbs console screenshot --view epics --expand backlog --expand closed
-```
-
-Headless capture uses Playwright against the live console page (not a separate renderer). Install Chromium once:
-
-```bash
-cd apps/console && npx playwright install chromium
-```
-
-If Chromium is missing, the command fails with an actionable error instead of crashing.
-
-### Environment Variables
-
-- `CONSOLE_PORT` (default `5174`)
-- `CONSOLE_ROOT` (sets both data root and assets root)
-- `CONSOLE_DATA_ROOT` (data root override)
-- `CONSOLE_ASSETS_ROOT` (assets root override, takes precedence over embedded assets)
-- `CONSOLE_TENANT_MODE=multi` (enable `/account/project` mapping under data root)
-
-**Note**: When using the production binary with `--features embed-assets`, frontend assets are embedded in the binary and served automatically. Setting `CONSOLE_ASSETS_ROOT` will override embedded assets and serve from the filesystem instead.
-
-## Daemon Behavior
-
-Kanbus uses a just-in-time index daemon for read-heavy commands such as `kanbus list`. The CLI auto-starts the daemon when needed, reuses a healthy socket, and removes stale sockets before restarting.
-
-To disable daemon mode for a command:
-
-```bash
-KANBUS_NO_DAEMON=1 kanbus list
-```
-
-Operational commands:
-
-```bash
-kbs daemon-status
-kbs daemon-stop
-# or: kanbus daemon-status / kanbus daemon-stop
-```
-
-## Python vs Rust
-
-Kanbus ships two CLI implementations with identical features. Both run the same behavior specs with full coverage and share interoperability tests (including Beads), so workflows and outputs match exactly. The difference is setup and speed: Python is the lightest install path, while Rust requires Rust 1.88+ (pinned in `rust-toolchain.toml` for rustup and CI) but runs substantially faster.
-
-**Choose Python if:**
-- You want easy `pip install` with no compilation
-- You are scripting custom agent workflows
-
-**Choose Rust if:**
-- You need maximum performance (sub-millisecond queries)
-- You have a massive repository (> 2000 issues)
-
-## Architecture Snapshot
-
-### Language duality
-Kanbus keeps Python and Rust in lockstep: both CLIs run the same Gherkin specs, share identical JSON serialization, and target the same operational model. The duality is intentional—pick the runtime that fits your packaging or performance needs without changing workflows.
-
-### File-organization dimension
-Storage is single-path and conflict-resistant: every issue lives in its own JSON file under `project/issues/`, with hierarchy and workflow rules in `kanbus.yml`. There is no secondary SQLite cache or fallback location to reconcile, which removes whole classes of sync defects and keeps the mental model aligned with Git.
-
-### Performance benchmark
-We benchmarked real data from the Beads project (836 issues) to measure end-to-end “list all beads” latency, including process startup. Scenarios: Beads (Go, SQLite + JSONL), Kanbus Python/Rust reading the Beads JSONL (`--beads`), and Kanbus Python/Rust reading project JSON files. Five runs each with caches cleared between runs.
-
-Key takeaway: direct JSON reads are fast enough that a SQLite sidecar solves a problem we do not have. Removing it simplifies operations, eliminates sync fragility, and keeps deployments portable.
-
-![Beads CLI Listing Response Time (warm)](docs/images/beads_cli_benchmark.png)
-
-Warm-start median response times (ms): Go 5277.6; Python — Beads JSONL 538.7; Rust — Beads JSONL 9.9; Python — Project JSON 653.5; Rust — Project JSON 54.6.
-
-![Beads CLI Cold vs Warm Response Time](docs/images/beads_cli_benchmark_warm_cold.png)
-
-Cold/Warm medians (ms, cold over warm shown as stacked bars): Go 197.6/5277.6; Python — Beads 566.1/538.7; Rust — Beads 11.9/9.9; Python — JSON 648.3/653.5; Rust — JSON 92.4/54.6. Warm runs reuse the resident daemon for Kanbus; cold runs force `KANBUS_NO_DAEMON=1` and clear caches each iteration. Go/Beads warm path spikes because its SQLite daemon import dominates the second run.
-
-## Project Structure
-
-```
-Kanbus/
-|-- planning/
-|   |-- VISION.md                  # Complete specification
-|   `-- IMPLEMENTATION_PLAN.md     # Detailed technical plan
-|-- specs/                         # Shared Gherkin feature files
-|-- python/                        # Python implementation
-|-- rust/                          # Rust implementation
-|-- apps/                          # Public website (Gatsby)
-`-- .beads/                        # Project task database
-```
-
-## Video Uploads
-
-The marketing website (`apps/kanb.us`) features rendered VideoML content that showcases Kanbus features. To render and upload videos:
-
-### Quick Reference
-
-```bash
-# Render videos from VideoML sources
-node scripts/render-videos.js
-
-# Upload to AWS S3
-node scripts/upload-videos.js --profile=anthus
-
-# Set environment variable and preview
-export GATSBY_VIDEOS_BASE_URL=https://your-bucket.s3.amazonaws.com/kanbus-feature-videos
-cd apps/kanb.us && npm run develop
-```
-
-For detailed instructions, see [VIDEOS_UPLOAD_GUIDE.md](VIDEOS_UPLOAD_GUIDE.md).
+- [Getting Started](docs/GETTING_STARTED.md)
+- [CLI reference](docs/CLI_REFERENCE.md) and [configuration](docs/CONFIGURATION.md), both generated from the code
+- [Methodologies](docs/METHODOLOGIES.md): pluggable process guidance for your agents
+- [Realtime collaboration](docs/REALTIME.md), [wiki guide](docs/WIKI_GUIDE.md), [lifecycle hooks](docs/LIFECYCLE_HOOKS.md)
+- [Agent compaction and right-now summaries](docs/AGENT_COMPACTION_RIGHT_NOW.md); run `kbs setup ai` once to store an LLM key for AI features
+- [Architecture](docs/ARCHITECTURE.md) and [troubleshooting](docs/TROUBLESHOOTING.md)
 
 ## Contributing
 
-We welcome contributions! Please:
-1. Pick a task from `kanbus ready`.
-2. Follow the BDD workflow in [AGENTS.md](AGENTS.md).
-3. Ensure all quality gates pass.
-
-## Testing
-
-Run the full quality gates:
-
-```bash
-make check-all
-```
-
-Run only Python checks:
-
-```bash
-make check-python
-```
-
-Run only Rust checks:
-
-```bash
-make check-rust
-```
-
-## Benchmarking
-
-Run index build and cache load benchmarks:
-
-```bash
-python tools/benchmark_index.py
-cd rust && cargo run --release --bin index_benchmark
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
-
-## Single Source of Truth
-We firmly believe in the ideal single-source-of-spec religion: all system behavior should be codified into shared Gherkin `.feature` specifications that run against both Python and Rust implementations, minimizing language-specific unit tests.
-
----
-
-Built by [Anthus AI Solutions](https://anth.us). We run this class of system in production.
-
-We use Kanbus so agents and humans share one board.
-
-If you need this operated, not just cloned, [talk to us](https://anth.us).
+MIT. Built by [Anthus AI Solutions](https://anth.us), who use Kanbus so agents and humans share one board.
