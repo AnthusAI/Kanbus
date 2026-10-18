@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from types import SimpleNamespace
 from typing import Any, Callable, Protocol
 from urllib.parse import quote
@@ -93,6 +94,20 @@ class PullRequestForge(Protocol):
         """
 
 
+def _token_from_github_cli() -> str:
+    try:
+        completed = subprocess.run(
+            ["gh", "auth", "token"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
 class GitHubForge:
     """GitHub REST API implementation of the forge boundary."""
 
@@ -124,8 +139,11 @@ class GitHubForge:
             raise IssueRouterError("router GitHub forge is not configured")
         token = os.environ.get(forge.token_env, "").strip()
         if not token:
+            token = _token_from_github_cli()
+        if not token:
             raise IssueRouterError(
-                f"GitHub token environment variable {forge.token_env} is not set"
+                f"GitHub token environment variable {forge.token_env} is not set "
+                "and `gh auth token` returned no token"
             )
         return cls(
             repository=forge.repository,

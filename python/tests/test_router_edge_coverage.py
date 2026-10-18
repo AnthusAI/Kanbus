@@ -466,8 +466,14 @@ def test_github_forge_configuration_observation_and_pagination(monkeypatch) -> N
     with pytest.raises(IssueRouterError, match="not configured"):
         GitHubForge.from_configuration(IssueRouterConfiguration(enabled=False))
     config = _router_configuration()
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr("kanbus.router_forge._token_from_github_cli", lambda: "")
     with pytest.raises(IssueRouterError, match="GITHUB_TOKEN is not set"):
         GitHubForge.from_configuration(config)
+    monkeypatch.setattr(
+        "kanbus.router_forge._token_from_github_cli", lambda: "cli-token"
+    )
+    assert GitHubForge.from_configuration(config).token == "cli-token"
     monkeypatch.setenv("GITHUB_TOKEN", "  test-token  ")
     assert GitHubForge.from_configuration(config).token == "test-token"
 
