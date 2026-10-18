@@ -1242,6 +1242,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "iana-time-zone",
+ "kanbus",
  "lambda_http",
  "libc",
  "log",

@@ -53,7 +53,7 @@ fn load_rollup_configuration(root: &Path) -> Result<ProjectConfiguration, Kanbus
 }
 
 fn mock_standup_rollup_reduce(summaries: &[String]) -> String {
-    if let Ok(stub) = std::env::var(TEST_STANDUP_ROLLUP_COMPLETION_ENV) {
+    if let Ok(stub) = crate::test_hooks::var(TEST_STANDUP_ROLLUP_COMPLETION_ENV) {
         let trimmed = stub.trim();
         if !trimmed.is_empty() {
             return truncate_rollup_text(trimmed);
@@ -94,14 +94,14 @@ pub fn reduce_summaries_for_standup_rollup(
         return Ok(truncate_rollup_text(&deduped[0]));
     }
 
-    if let Ok(stub) = std::env::var(TEST_STANDUP_ROLLUP_COMPLETION_ENV) {
+    if let Ok(stub) = crate::test_hooks::var(TEST_STANDUP_ROLLUP_COMPLETION_ENV) {
         let trimmed = stub.trim();
         if !trimmed.is_empty() {
             return Ok(truncate_rollup_text(trimmed));
         }
     }
 
-    if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+    if crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
         return Ok(mock_standup_rollup_reduce(&deduped));
     }
 

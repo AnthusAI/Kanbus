@@ -278,7 +278,11 @@ pub fn compaction_summarize(
         return Ok(Vec::new());
     }
 
-    if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() != Some("1") {
+    if crate::test_hooks::var("KANBUS_TEST_AI_MOCK")
+        .ok()
+        .as_deref()
+        != Some("1")
+    {
         let model = &ai_configuration.model;
         let uses_openai_default = !model.contains('/') || model.starts_with("openai/");
         if uses_openai_default {

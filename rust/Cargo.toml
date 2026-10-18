@@ -74,11 +74,13 @@ regex = "1.10.4"
 shell-words = "1.1.0"
 futures = "0.3"
 chrono-tz = "0.8"
+kanbus = { path = ".", features = ["test-hooks"] }
 once_cell = "1.21.3"
 
 [features]
 default = ["embed-assets"]
 embed-assets = ["rust-embed"]
+test-hooks = []
 
 [[test]]
 name = "cucumber"

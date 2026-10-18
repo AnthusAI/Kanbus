@@ -536,6 +536,15 @@ jobs:
           cd rust
           cargo build --release --bin kbs --bin kbsc --features embed-assets
 
+      - name: Release binary ignores test hooks
+        run: |
+          scratch="$(mktemp -d)"
+          cd "$scratch"
+          git init -q
+          "$GITHUB_WORKSPACE/rust/target/release/kbs" init
+          KANBUS_NO_DAEMON=1 KANBUS_TEST_INVALID_STATUS=1 \
+            "$GITHUB_WORKSPACE/rust/target/release/kbs" create "release binary ignores test hooks"
+
       - name: Prepare binaries for Docker test
         run: |
           mkdir -p dist
