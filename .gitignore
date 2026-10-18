@@ -93,3 +93,7 @@ infra/cloud/cdk.context.json
 rust/*.profraw
 src/videos/*/*.timing.xml
 .agents/
+
+coverage.xml
+python/build/
+.claude/settings.json
