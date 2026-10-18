@@ -155,6 +155,7 @@ pub enum IssueRouterOperation {
 #[serde(default)]
 struct LocalRouterState {
     watch_pid: Option<u32>,
+    watch_process_identity: Option<String>,
     scheduler_claim_id: Option<String>,
     scheduler_owner: Option<String>,
     scheduler_hard: bool,
@@ -3282,11 +3283,71 @@ pub(crate) fn terminate_router_child_process_tree(child: &mut Child) {
     let _ = child.wait();
 }
 
+#[cfg(unix)]
+fn process_is_running(pid: u32) -> bool {
+    let Ok(pid) = libc::pid_t::try_from(pid) else {
+        return false;
+    };
+    // SAFETY: signal 0 only checks that the process exists and is signalable.
+    let outcome = unsafe { libc::kill(pid, 0) };
+    outcome == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+#[cfg(not(unix))]
 fn process_is_running(pid: u32) -> bool {
     Command::new("kill")
         .args(["-0", &pid.to_string()])
         .status()
         .is_ok_and(|status| status.success())
+}
+
+fn process_identity(pid: u32) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    let stat_path = format!("/proc/{pid}/stat");
+    if Path::new(&stat_path).is_file() {
+        let stat_text = fs::read_to_string(&stat_path).ok()?;
+        let after_command = stat_text.get(stat_text.rfind(')')? + 2..)?;
+        let start_time = after_command.split_whitespace().nth(19)?.to_string();
+        let boot_id = fs::read_to_string("/proc/sys/kernel/random/boot_id")
+            .ok()?
+            .trim()
+            .to_string();
+        let executable = fs::read_link(format!("/proc/{pid}/exe")).ok()?;
+        let command_digest = format!(
+            "{:x}",
+            Sha256::digest(fs::read(format!("/proc/{pid}/cmdline")).ok()?)
+        );
+        return Some(format!(
+            "linux:{boot_id}:{start_time}:{}:{command_digest}",
+            executable.display()
+        ));
+    }
+    let output = Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "lstart=,command="])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())?;
+    let identity_bytes = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if identity_bytes.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "ps:{:x}",
+        Sha256::digest(identity_bytes.as_bytes())
+    ))
+}
+
+fn watch_process_is_running(local: &LocalRouterState) -> bool {
+    let Some(pid) = local.watch_pid else {
+        return false;
+    };
+    if !process_is_running(pid) {
+        return false;
+    }
+    match (&local.watch_process_identity, process_identity(pid)) {
+        (Some(recorded), Some(current)) => *recorded == current,
+        _ => true,
+    }
 }
 
 fn append_router_event(
@@ -3346,7 +3407,7 @@ fn route_is_held(route: &IssueRouterRoute, state: &RouterEventState) -> bool {
 fn router_status_output(root: &Path, project_dir: &Path) -> Result<String, KanbusError> {
     let local = read_local_router_state(root)?;
     let state = reduce_router_events(&load_router_events(project_dir)?);
-    let running = local.watch_pid.is_some_and(process_is_running);
+    let running = watch_process_is_running(&local);
     let active_runs = usize::from(
         local.active_issue_id.is_some()
             && (running || local.active_child_pid.is_some_and(process_is_running)),
@@ -3539,8 +3600,9 @@ fn execute_issue_router_operation_inner(
 ) -> Result<String, KanbusError> {
     if let IssueRouterOperation::Stop = operation {
         let mut local = read_local_router_state(root)?;
-        if !local.watch_pid.is_some_and(process_is_running) {
+        if !watch_process_is_running(&local) {
             local.watch_pid = None;
+            local.watch_process_identity = None;
             local.active_issue_id = None;
             local.stop_requested = false;
             write_local_router_state(root, &local)?;
@@ -4207,7 +4269,7 @@ fn run_issue_router_watch(
         parse_duration_seconds(&router.watch_interval).map_err(KanbusError::Configuration)?;
     let forge = GitHubForge::from_router(router)?;
     let mut local = read_local_router_state(root)?;
-    if local.watch_pid.is_some_and(process_is_running) {
+    if watch_process_is_running(&local) {
         return Err(KanbusError::IssueOperation(
             "Issue Router is already running".to_string(),
         ));
@@ -4256,6 +4318,7 @@ fn run_issue_router_watch(
         )?;
     }
     local.watch_pid = Some(std::process::id());
+    local.watch_process_identity = process_identity(std::process::id());
     local.scheduler_claim_id = Some(scheduler_claim_id.clone());
     local.scheduler_owner = Some(scheduler_owner.clone());
     local.scheduler_hard = scheduler_hard;
@@ -6302,6 +6365,7 @@ fn clear_active_router_state(root: &Path) -> Result<(), KanbusError> {
 fn clear_watch_router_state(root: &Path) -> Result<(), KanbusError> {
     let mut state = read_local_router_state(root)?;
     state.watch_pid = None;
+    state.watch_process_identity = None;
     state.stop_requested = false;
     state.scheduler_claim_id = None;
     state.scheduler_owner = None;
@@ -7638,6 +7702,26 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn watch_process_identity_distinguishes_a_reused_process_id() {
+        let own_pid = std::process::id();
+        let own_identity = process_identity(own_pid);
+        assert!(own_identity.is_some());
+        let mut local = LocalRouterState {
+            watch_pid: Some(own_pid),
+            watch_process_identity: own_identity,
+            ..Default::default()
+        };
+        assert!(watch_process_is_running(&local));
+        local.watch_process_identity = Some("linux:other-boot:1:/bin/other:digest".to_string());
+        assert!(!watch_process_is_running(&local));
+        local.watch_process_identity = None;
+        assert!(watch_process_is_running(&local));
+        local.watch_pid = Some(u32::MAX - 1);
+        assert!(!watch_process_is_running(&local));
     }
 
     #[cfg(unix)]
