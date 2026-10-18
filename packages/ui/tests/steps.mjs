@@ -233,7 +233,8 @@ When("the host renders the organizer board", async function () {
 Then("the organizer has square outlined cards and folder headers", async function () {
   await expect(this.page.locator('.issue-card').first()).toHaveCSS('border-radius', '0px');
   await expect(this.page.locator('.issue-card').first()).toHaveCSS('border-top-width', '2px');
-  await expect(this.page.locator('.kb-column-header').first()).toHaveCSS('clip-path', /polygon/);
+  await expect(this.page.locator('.kb-column-header').first()).toHaveCSS('border-bottom-style', 'double');
+  await expect(this.page.locator('.kb-column-header').first()).toHaveCSS('border-radius', '0px');
   const heights = await this.page.locator('.kb-column').evaluateAll(columns => columns.map(column => column.getBoundingClientRect().height));
   expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(2);
 });
