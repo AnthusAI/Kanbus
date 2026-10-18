@@ -755,6 +755,22 @@ class ProjectConfiguration(BaseModel):
     :type hooks: HooksConfiguration
     :param github_security: Optional GitHub security synchronization configuration.
     :type github_security: Optional[GithubSecurityConfiguration]
+    :param console_port: Optional port for the web console server.
+    :type console_port: Optional[int]
+    :param transition_labels: Display label for every workflow transition, keyed by workflow, from-status, then to-status.
+    :type transition_labels: Dict[str, Dict[str, Dict[str, str]]]
+    :param statuses: Status definitions with display names, categories, and colors.
+    :type statuses: List[StatusDefinition]
+    :param categories: Status category definitions with display names and colors.
+    :type categories: List[CategoryDefinition]
+    :param wiki_directory: Optional directory containing wiki pages.
+    :type wiki_directory: Optional[str]
+    :param ai: Optional AI provider and model configuration.
+    :type ai: Optional[AiConfiguration]
+    :param coordination: Multi-agent coordination configuration.
+    :type coordination: CoordinationConfiguration
+    :param router: Optional issue router configuration.
+    :type router: Optional[IssueRouterConfiguration]
     """
 
     model_config = ConfigDict(extra="forbid")
