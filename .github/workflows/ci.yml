@@ -136,6 +136,9 @@ jobs:
       - name: Check spec parity
         run: python tools/check_spec_parity.py
 
+      - name: Check generated CLI reference
+        run: python tools/generate_cli_reference.py --check
+
   python-versions:
     runs-on: ubuntu-latest
     strategy:
