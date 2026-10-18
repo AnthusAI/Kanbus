@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from types import SimpleNamespace
@@ -2959,3 +2960,26 @@ def test_other_outcomes_are_never_rewritten_for_lacking_changes(monkeypatch):
             ).outcome
             == outcome
         )
+
+
+def test_stalled_git_network_operations_time_out_instead_of_wedging_the_router(
+    monkeypatch, tmp_path
+):
+    from kanbus import router_execution
+    from kanbus.issue_router import IssueRouterError
+
+    def stalled_git(*arguments, **keyword_arguments):
+        assert keyword_arguments["timeout"] == (
+            router_execution.ROUTER_GIT_NETWORK_TIMEOUT_SECONDS
+        )
+        assert keyword_arguments["env"]["GIT_TERMINAL_PROMPT"] == "0"
+        raise subprocess.TimeoutExpired(arguments[0], keyword_arguments["timeout"])
+
+    monkeypatch.setattr(router_execution.subprocess, "run", stalled_git)
+    assert (
+        router_execution._remote_branch_exists(tmp_path, "codex/router/a/r1") is False
+    )
+    with pytest.raises(IssueRouterError, match="remote ref"):
+        router_execution._remote_ref_sha(tmp_path, "refs/heads/a")
+    with pytest.raises(IssueRouterError, match="worktree operation failed"):
+        router_execution._git(tmp_path, ["fetch", "origin"])
