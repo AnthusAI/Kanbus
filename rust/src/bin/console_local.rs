@@ -12,8 +12,9 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::body::Bytes;
-use axum::extract::{ConnectInfo, Path as AxumPath, Query, RawPathParams, State};
+use axum::extract::{ConnectInfo, FromRequestParts, Path as AxumPath, Query, RawPathParams, State};
 use axum::http::header::CONTENT_TYPE;
+use axum::http::request::Parts;
 use axum::http::{HeaderMap, Method, StatusCode};
 use axum::middleware::{from_fn, Next};
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -33,7 +34,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::agent_assignment::{change_issue_assignment, AssignmentChoice};
-use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::console_backend::{find_issue_matches, ConsoleSnapshot, FileStore};
 use kanbus::console_snapshot_feed::SnapshotFeedRegistry;
 use kanbus::console_standup::{generate_standup_report, StandupGenerateRequest};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
@@ -207,20 +208,9 @@ async fn main() {
     let _assets_root = state.assets_root.clone();
 
     let app = Router::new()
+        .merge(store_api_routes())
+        .nest("/:account/:project", store_api_routes())
         .route("/assets/*path", get(get_public_asset))
-        .route("/api/config", get(get_config_root))
-        .route("/api/issues", get(get_issues_root))
-        .route("/api/now", get(get_now_root))
-        .route("/api/standup", post(post_standup_root))
-        .route("/api/issues/:id", get(get_issue_root))
-        .route("/api/issues/:id/comments", post(post_issue_comment_root))
-        .route("/api/issues/:id/status", post(post_issue_status_root))
-        .route(
-            "/api/issues/:id/assignment",
-            post(post_issue_assignment_root),
-        )
-        .route("/api/issues/:id/events", get(get_issue_events_root))
-        .route("/api/events", get(get_events_root))
         .route("/api/events/realtime", get(get_realtime_events_root))
         .route("/api/realtime/bootstrap", get(get_realtime_bootstrap_root))
         .route("/api/auth/bootstrap", get(get_auth_bootstrap_root))
@@ -251,28 +241,6 @@ async fn main() {
         .route("/issues/:parent/:id", get(get_index_root))
         .route("/index.html", get(get_index_root))
         .route("/favicon.ico", get(get_favicon))
-        .route("/:account/:project/api/config", get(get_config))
-        .route("/:account/:project/api/issues", get(get_issues))
-        .route("/:account/:project/api/now", get(get_now))
-        .route("/:account/:project/api/standup", post(post_standup))
-        .route("/:account/:project/api/issues/:id", get(get_issue))
-        .route(
-            "/:account/:project/api/issues/:id/comments",
-            post(post_issue_comment),
-        )
-        .route(
-            "/:account/:project/api/issues/:id/status",
-            post(post_issue_status),
-        )
-        .route(
-            "/:account/:project/api/issues/:id/assignment",
-            post(post_issue_assignment),
-        )
-        .route(
-            "/:account/:project/api/issues/:id/events",
-            get(get_issue_events),
-        )
-        .route("/:account/:project/api/events", get(get_events))
         .route(
             "/:account/:project/api/events/realtime",
             get(get_realtime_events),
@@ -367,6 +335,20 @@ async fn main() {
     )
     .await
     .expect("server failure");
+}
+
+fn store_api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/config", get(get_config))
+        .route("/api/issues", get(get_issues))
+        .route("/api/now", get(get_now))
+        .route("/api/standup", post(post_standup))
+        .route("/api/issues/:id", get(get_issue))
+        .route("/api/issues/:id/comments", post(post_issue_comment))
+        .route("/api/issues/:id/status", post(post_issue_status))
+        .route("/api/issues/:id/assignment", post(post_issue_assignment))
+        .route("/api/issues/:id/events", get(get_issue_events))
+        .route("/api/events", get(get_events))
 }
 
 fn maybe_prompt_project_repair(root: &Path) {
@@ -505,78 +487,136 @@ fn exit_with_port_error(port: u16, message: &str) -> ! {
     std::process::exit(1);
 }
 
-async fn get_config(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.config).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
-    }
+#[derive(Debug)]
+struct ConsoleApiError {
+    status: StatusCode,
+    message: String,
 }
 
-async fn get_config_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+impl ConsoleApiError {
+    fn new(status: StatusCode, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
         }
-    };
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.config).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-async fn get_issues(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.issues).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+impl From<KanbusError> for ConsoleApiError {
+    fn from(error: KanbusError) -> Self {
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
     }
 }
 
-async fn get_issues_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+impl IntoResponse for ConsoleApiError {
+    fn into_response(self) -> Response {
+        error_response(self.message, self.status)
+    }
+}
+
+async fn run_blocking<T, F>(task: F) -> Result<T, ConsoleApiError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, ConsoleApiError> + Send + 'static,
+{
+    tokio::task::spawn_blocking(task).await.map_err(|error| {
+        ConsoleApiError::new(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+    })?
+}
+
+async fn build_snapshot_off_runtime(store: FileStore) -> Result<ConsoleSnapshot, ConsoleApiError> {
+    run_blocking(move || Ok(store.build_snapshot()?)).await
+}
+
+fn resolve_single_issue<'snapshot>(
+    snapshot: &'snapshot ConsoleSnapshot,
+    identifier: &str,
+) -> Result<&'snapshot IssueData, ConsoleApiError> {
+    let matches = find_issue_matches(&snapshot.issues, identifier, &snapshot.config.project_key);
+    match matches.as_slice() {
+        [] => Err(ConsoleApiError::new(
+            StatusCode::NOT_FOUND,
+            "issue not found",
+        )),
+        [issue] => Ok(issue),
+        _ => Err(ConsoleApiError::new(
+            StatusCode::BAD_REQUEST,
+            "issue id is ambiguous",
+        )),
+    }
+}
+
+/// The project store a request addresses: the single local store on root
+/// routes, or the tenant store on `/:account/:project` routes.
+struct StoreSelector {
+    store: FileStore,
+}
+
+#[axum::async_trait]
+impl FromRequestParts<AppState> for StoreSelector {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let params = RawPathParams::from_request_parts(parts, state)
+            .await
+            .map_err(|error| error_response(error.to_string(), StatusCode::BAD_REQUEST))?;
+        let named = |wanted: &str| {
+            params
+                .iter()
+                .find(|(name, _)| *name == wanted)
+                .map(|(_, value)| value.to_string())
+        };
+        match (named("account"), named("project")) {
+            (Some(account), Some(project)) => Ok(Self {
+                store: store_for(state, &account, &project),
+            }),
+            _ => store_for_root(state)
+                .map(|store| Self { store })
+                .ok_or_else(|| {
+                    error_response(
+                        "multi-tenant mode requires /:account/:project",
+                        StatusCode::BAD_REQUEST,
+                    )
+                }),
         }
-    };
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.issues).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-async fn get_now(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    now_snapshot_response(store).await
+struct IssueIdentifierPath(String);
+
+#[axum::async_trait]
+impl FromRequestParts<AppState> for IssueIdentifierPath {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let params = RawPathParams::from_request_parts(parts, state)
+            .await
+            .map_err(|error| error_response(error.to_string(), StatusCode::BAD_REQUEST))?;
+        params
+            .iter()
+            .find(|(name, _)| *name == "id")
+            .map(|(_, value)| Self(value.to_string()))
+            .ok_or_else(|| error_response("missing issue id", StatusCode::BAD_REQUEST))
+    }
 }
 
-async fn get_now_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
+async fn get_config(StoreSelector { store }: StoreSelector) -> Result<Response, ConsoleApiError> {
+    let snapshot = build_snapshot_off_runtime(store).await?;
+    Ok(Json(snapshot.config).into_response())
+}
+
+async fn get_issues(StoreSelector { store }: StoreSelector) -> Result<Response, ConsoleApiError> {
+    let snapshot = build_snapshot_off_runtime(store).await?;
+    Ok(Json(snapshot.issues).into_response())
+}
+
+async fn get_now(StoreSelector { store }: StoreSelector) -> Response {
     now_snapshot_response(store).await
 }
 
@@ -593,28 +633,10 @@ async fn now_snapshot_response(store: FileStore) -> Response {
     }
 }
 
-async fn post_standup_root(
-    State(state): State<AppState>,
-    Json(payload): Json<StandupGenerateRequest>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    standup_response(store, payload).await
-}
-
 async fn post_standup(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    StoreSelector { store }: StoreSelector,
     Json(payload): Json<StandupGenerateRequest>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
     standup_response(store, payload).await
 }
 
@@ -629,50 +651,12 @@ async fn standup_response(store: FileStore, payload: StandupGenerateRequest) -> 
 }
 
 async fn get_issue(
-    State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    Json(matches[0]).into_response()
-}
-
-async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    Json(matches[0]).into_response()
+    StoreSelector { store }: StoreSelector,
+    IssueIdentifierPath(id): IssueIdentifierPath,
+) -> Result<Json<IssueData>, ConsoleApiError> {
+    let snapshot = build_snapshot_off_runtime(store).await?;
+    let issue = resolve_single_issue(&snapshot, &id)?;
+    Ok(Json(issue.clone()))
 }
 
 const CONSOLE_REQUEST_HEADER: &str = "x-kanbus-console";
@@ -982,194 +966,67 @@ fn crate_project_dir(root: &Path) -> Result<PathBuf, KanbusError> {
     kanbus::file_io::load_project_directory(root)
 }
 
-async fn post_issue_comment_root(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Json(payload): Json<IssueCommentRequest>,
-) -> Response {
-    if let Some(refused) = require_loopback(addr) {
-        return refused;
-    }
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    issue_comment_response(store, id, payload.text).await
-}
-
 async fn post_issue_comment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    StoreSelector { store }: StoreSelector,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueCommentRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = store_for(&state, &account, &project);
     issue_comment_response(store, id, payload.text).await
-}
-
-async fn post_issue_status_root(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Json(payload): Json<IssueStatusRequest>,
-) -> Response {
-    if let Some(refused) = require_loopback(addr) {
-        return refused;
-    }
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    issue_status_response(store, id, payload.status).await
 }
 
 async fn post_issue_status(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    StoreSelector { store }: StoreSelector,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueStatusRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = store_for(&state, &account, &project);
     issue_status_response(store, id, payload.status).await
-}
-
-async fn post_issue_assignment_root(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Json(payload): Json<IssueAssignmentRequest>,
-) -> Response {
-    if let Some(refused) = require_loopback(addr) {
-        return refused;
-    }
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    issue_assignment_response(store, id, payload).await
 }
 
 async fn post_issue_assignment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    StoreSelector { store }: StoreSelector,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueAssignmentRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = store_for(&state, &account, &project);
     issue_assignment_response(store, id, payload).await
 }
 
-async fn get_issue_events_root(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Query(query): Query<IssueEventsQuery>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    let issue_id = matches[0].identifier.clone();
-    let project_dir = store.root().join(&snapshot.config.project_directory);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) = match load_console_issue_events(
-        store.root(),
-        &project_dir,
-        &issue_id,
-        query.before.as_deref(),
-        limit,
-    ) {
-        Ok(result) => result,
-        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
-    };
-    Json(IssueEventsResponse {
-        issue_id,
-        events,
-        next_before,
-    })
-    .into_response()
-}
-
 async fn get_issue_events(
-    State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    StoreSelector { store }: StoreSelector,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Query(query): Query<IssueEventsQuery>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    let issue_id = matches[0].identifier.clone();
-    let project_dir = store.root().join(&snapshot.config.project_directory);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) = match load_console_issue_events(
-        store.root(),
-        &project_dir,
-        &issue_id,
-        query.before.as_deref(),
-        limit,
-    ) {
-        Ok(result) => result,
-        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
-    };
-    Json(IssueEventsResponse {
-        issue_id,
-        events,
-        next_before,
+) -> Result<Json<IssueEventsResponse>, ConsoleApiError> {
+    run_blocking(move || {
+        let snapshot = store.build_snapshot()?;
+        let issue_id = resolve_single_issue(&snapshot, &id)?.identifier.clone();
+        let project_dir = store.root().join(&snapshot.config.project_directory);
+        let limit = query.limit.unwrap_or(50).clamp(1, 200);
+        let (events, next_before) = load_console_issue_events(
+            store.root(),
+            &project_dir,
+            &issue_id,
+            query.before.as_deref(),
+            limit,
+        )?;
+        Ok(IssueEventsResponse {
+            issue_id,
+            events,
+            next_before,
+        })
     })
-    .into_response()
+    .await
+    .map(Json)
 }
 
 /// Load canonical issue events and, on the newest page, durable agent turns
@@ -1243,31 +1100,9 @@ fn snapshot_event_stream(
 
 async fn get_events(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    StoreSelector { store }: StoreSelector,
 ) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
-    let store = store_for(&state, &account, &project);
     snapshot_event_stream(state.snapshot_feeds.clone(), store)
-}
-
-async fn get_events_root(
-    State(state): State<AppState>,
-) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
-    match store_for_root(&state) {
-        Some(store) => snapshot_event_stream(state.snapshot_feeds.clone(), store),
-        None => {
-            let payload = serde_json::json!({
-                "error": "multi-tenant mode requires /:account/:project",
-                "updated_at": chrono::Utc::now().to_rfc3339(),
-            })
-            .to_string();
-            let stream = stream::once(async move { Ok(Event::default().data(payload)) }).boxed();
-            Sse::new(stream).keep_alive(
-                KeepAlive::new()
-                    .interval(Duration::from_secs(15))
-                    .text(": keep-alive"),
-            )
-        }
-    }
 }
 
 async fn post_console_telemetry_root(State(state): State<AppState>, body: Bytes) -> StatusCode {
@@ -2256,6 +2091,25 @@ mod tests {
         app.oneshot(request).await.expect("response").status()
     }
 
+    async fn store_api_status(state: AppState, uri: &str) -> StatusCode {
+        use tower::ServiceExt;
+        let app = apply_request_guards(
+            Router::new()
+                .merge(store_api_routes())
+                .nest("/:account/:project", store_api_routes())
+                .with_state(state),
+        );
+        let mut request = axum::http::Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .body(Body::empty())
+            .expect("request");
+        request
+            .extensions_mut()
+            .insert(ConnectInfo(loopback_addr()));
+        app.oneshot(request).await.expect("response").status()
+    }
+
     #[tokio::test]
     async fn guards_refuse_cross_origin_and_headerless_writes() {
         let local: SocketAddr = "127.0.0.1:1".parse().unwrap();
@@ -2433,10 +2287,12 @@ mod tests {
         write_issue(&root, "kbs-remote");
         let state = test_state(root.clone(), root.clone(), false);
 
-        let response = post_issue_comment_root(
+        let response = post_issue_comment(
             ConnectInfo(remote_addr()),
-            State(state),
-            AxumPath("kbs-remote".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-remote".to_string()),
             Json(IssueCommentRequest {
                 text: "should be refused".to_string(),
             }),
@@ -2461,10 +2317,12 @@ mod tests {
         write_issue(&root, "kbs-local");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_comment_root(
+        let response = post_issue_comment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-local".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-local".to_string()),
             Json(IssueCommentRequest {
                 text: "hello from localhost".to_string(),
             }),
@@ -2482,10 +2340,12 @@ mod tests {
         write_issue(&root, "kbs-assign");
         let state = test_state(root.clone(), root.clone(), false);
 
-        let response = post_issue_assignment_root(
+        let response = post_issue_assignment(
             ConnectInfo(remote_addr()),
-            State(state),
-            AxumPath("kbs-assign".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Set {
                 kind: "class".to_string(),
                 name: "implementation".to_string(),
@@ -2508,10 +2368,12 @@ mod tests {
         write_issue(&root, "kbs-assign");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_assignment_root(
+        let response = post_issue_assignment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-assign".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Set {
                 kind: "class".to_string(),
                 name: "implementation".to_string(),
@@ -2530,10 +2392,12 @@ mod tests {
         write_issue(&root, "kbs-assign");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_assignment_root(
+        let response = post_issue_assignment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-assign".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Clear { clear: false }),
         )
         .await;
@@ -2563,10 +2427,12 @@ mod tests {
         write_issue(&root, "kbs-status");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_status_root(
+        let response = post_issue_status(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-status".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-status".to_string()),
             Json(IssueStatusRequest {
                 status: "not-a-status".to_string(),
             }),
@@ -2604,10 +2470,12 @@ mod tests {
         write_awaiting_reply_event(&root, "kbs-blocked", "session-A");
         let state = test_state(root.clone(), root.clone(), false);
 
-        let response = post_issue_comment_root(
+        let response = post_issue_comment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-blocked".to_string()),
+            StoreSelector {
+                store: store_for_root(&state).expect("root store"),
+            },
+            IssueIdentifierPath("kbs-blocked".to_string()),
             Json(IssueCommentRequest {
                 text: "please continue".to_string(),
             }),
@@ -3141,33 +3009,19 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
 
-        assert_eq!(
-            get_config_root(State(state.clone())).await.status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_issues_root(State(state.clone())).await.status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
-                .await
-                .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_issue_events_root(
-                State(state.clone()),
-                AxumPath("kbs-1".to_string()),
-                Query(IssueEventsQuery {
-                    limit: Some(10),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
+        for uri in [
+            "/api/config",
+            "/api/issues",
+            "/api/issues/kbs-1",
+            "/api/issues/kbs-1/events?limit=10",
+            "/api/events",
+        ] {
+            assert_eq!(
+                store_api_status(state.clone(), uri).await,
+                StatusCode::BAD_REQUEST,
+                "{uri}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -3330,28 +3184,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn events_root_supports_single_and_multi_tenant_modes() {
+    async fn events_stream_is_served_as_server_sent_events_for_a_single_tenant_store() {
+        use tower::ServiceExt;
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         setup_project_root(&root);
         write_issue(&root, "kbs-1");
-
-        let single_tenant = test_state(root.clone(), root.clone(), false);
-        let single_response = get_events_root(State(single_tenant)).await.into_response();
-        assert_eq!(single_response.status(), StatusCode::OK);
+        let state = test_state(root.clone(), root, false);
+        let app = Router::new().merge(store_api_routes()).with_state(state);
+        let request = axum::http::Request::builder()
+            .uri("/api/events")
+            .body(Body::empty())
+            .expect("request");
+        let response = app.oneshot(request).await.expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
-            single_response
-                .headers()
-                .get(CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok()),
-            Some("text/event-stream")
-        );
-
-        let multi_tenant = test_state(root.clone(), root, true);
-        let multi_response = get_events_root(State(multi_tenant)).await.into_response();
-        assert_eq!(multi_response.status(), StatusCode::OK);
-        assert_eq!(
-            multi_response
+            response
                 .headers()
                 .get(CONTENT_TYPE)
                 .and_then(|value| value.to_str().ok()),
@@ -3367,113 +3215,30 @@ mod tests {
         write_issue(&root, "kbs-1");
         let state = test_state(root.clone(), root, false);
 
-        assert_eq!(
-            get_config(
-                State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string()))
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issues(
-                State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string()))
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue(
-                State(state.clone()),
-                AxumPath((
-                    "acct".to_string(),
-                    "proj".to_string(),
-                    "kbs-999".to_string()
-                ))
-            )
-            .await
-            .status(),
-            StatusCode::NOT_FOUND
-        );
-        assert_eq!(
-            get_issue_events(
-                State(state),
-                AxumPath((
-                    "acct".to_string(),
-                    "proj".to_string(),
-                    "kbs-999".to_string()
-                )),
-                Query(IssueEventsQuery {
-                    limit: Some(10),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::NOT_FOUND
-        );
-    }
-
-    #[tokio::test]
-    async fn root_and_tenant_issue_endpoints_succeed_for_existing_issue() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
-        setup_project_root(&root);
-        write_issue(&root, "kbs-1");
-        let state = test_state(root.clone(), root, false);
-
-        assert_eq!(
-            get_config_root(State(state.clone())).await.status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issues_root(State(state.clone())).await.status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
-                .await
-                .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue_events_root(
-                State(state.clone()),
-                AxumPath("kbs-1".to_string()),
-                Query(IssueEventsQuery {
-                    limit: Some(20),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue(
-                State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue_events(
-                State(state),
-                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
-                Query(IssueEventsQuery {
-                    limit: Some(20),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
+        for (uri, expected) in [
+            ("/acct/proj/api/config", StatusCode::OK),
+            ("/acct/proj/api/issues", StatusCode::OK),
+            ("/acct/proj/api/issues/kbs-1", StatusCode::OK),
+            ("/acct/proj/api/issues/kbs-999", StatusCode::NOT_FOUND),
+            (
+                "/acct/proj/api/issues/kbs-999/events?limit=10",
+                StatusCode::NOT_FOUND,
+            ),
+            ("/api/config", StatusCode::OK),
+            ("/api/issues", StatusCode::OK),
+            ("/api/issues/kbs-1", StatusCode::OK),
+            ("/api/issues/kbs-1/events?limit=20", StatusCode::OK),
+            (
+                "/acct/proj/api/issues/kbs-1/events?limit=20",
+                StatusCode::OK,
+            ),
+        ] {
+            assert_eq!(
+                store_api_status(state.clone(), uri).await,
+                expected,
+                "{uri}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -3773,61 +3538,37 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_issue_events_root_returns_not_found_for_missing_issue() {
+    async fn issue_events_return_not_found_for_a_missing_issue_on_root_and_tenant_routes() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         setup_project_root(&root);
-        let state = test_state(root.clone(), root, false);
-        let response = get_issue_events_root(
-            State(state),
-            AxumPath("missing".to_string()),
-            Query(IssueEventsQuery {
-                before: None,
-                limit: None,
-            }),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
+        let single_tenant = test_state(root.clone(), root.clone(), false);
+        assert_eq!(
+            store_api_status(single_tenant, "/api/issues/missing/events").await,
+            StatusCode::NOT_FOUND
+        );
 
-    #[tokio::test]
-    async fn get_issue_events_returns_not_found_for_missing_issue() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
         let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
         setup_project_root(&tenant_dir);
-        let state = test_state(root.clone(), root, true);
-        let response = get_issue_events(
-            State(state),
-            AxumPath((
-                "acct".to_string(),
-                "proj".to_string(),
-                "missing".to_string(),
-            )),
-            Query(IssueEventsQuery {
-                before: None,
-                limit: None,
-            }),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let multi_tenant = test_state(root.clone(), root, true);
+        assert_eq!(
+            store_api_status(multi_tenant, "/acct/proj/api/issues/missing/events").await,
+            StatusCode::NOT_FOUND
+        );
     }
 
     #[tokio::test]
-    async fn get_events_returns_events_in_multi_tenant_mode() {
+    async fn events_stream_is_served_for_a_tenant_store_in_multi_tenant_mode() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
         setup_project_root(&tenant_dir);
         write_issue(&tenant_dir, "kbs-1");
         let state = test_state(root.clone(), root, true);
-        let response = get_events(
-            State(state),
-            AxumPath(("acct".to_string(), "proj".to_string())),
-        )
-        .await
-        .into_response();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            store_api_status(state, "/acct/proj/api/events").await,
+            StatusCode::OK
+        );
     }
 
     #[tokio::test]
@@ -3839,20 +3580,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_issues_root_returns_error_when_snapshot_fails() {
+    async fn snapshot_routes_return_server_error_when_the_project_cannot_be_loaded() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         let state = test_state(root.clone(), root, false);
-        let response = get_issues_root(State(state)).await;
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    #[tokio::test]
-    async fn get_config_root_returns_error_when_snapshot_fails() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
-        let state = test_state(root.clone(), root, false);
-        let response = get_config_root(State(state)).await;
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        for uri in ["/api/issues", "/api/config"] {
+            assert_eq!(
+                store_api_status(state.clone(), uri).await,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "{uri}"
+            );
+        }
     }
 }
