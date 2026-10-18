@@ -34,7 +34,12 @@ jobs:
         run: python -m pip install -r docsite/requirements.txt
 
       - name: Build site
-        run: python docsite/build_site.py --out _site
+        run: >-
+          python -m papyrus_content.markus_renderer.docs_site
+          --docs docs --out _site --name Kanbus
+          --tagline "Git-backed project management for people and AI agents."
+          --source-url https://github.com/AnthusAI/Kanbus
+          --redirect-former-urls
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
