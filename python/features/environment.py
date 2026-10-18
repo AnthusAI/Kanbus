@@ -114,6 +114,7 @@ def before_all(context: object) -> None:
     os.environ["HOME"] = context.bdd_home_dir
 
     context._stripped_developer_env_vars = _strip_developer_environment_variables()
+    os.environ["KANBUS_ENABLE_TEST_HOOKS"] = "1"
 
     if os.environ.get("KANBUS_ENABLE_COVERAGE_HELPER") != "1":
         return

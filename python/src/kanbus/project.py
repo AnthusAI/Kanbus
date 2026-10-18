@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional
 
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.models import ProjectConfiguration
+from kanbus.test_hooks import read_test_hook
 
 
 @dataclass
@@ -261,7 +261,7 @@ def resolve_project_path(path: Path) -> Path:
 
 
 def _resolve_path(path: Path) -> Path:
-    if os.getenv("KANBUS_TEST_CANONICALIZE_FAILURE"):
+    if read_test_hook("KANBUS_TEST_CANONICALIZE_FAILURE"):
         raise OSError("forced canonicalize failure")
     return path.resolve()
 
@@ -333,7 +333,7 @@ def get_configuration_path(root: Path) -> Path:
     :raises ProjectMarkerError: If the configuration file is missing.
     :raises ConfigurationError: If configuration path lookup fails.
     """
-    if os.getenv("KANBUS_TEST_CONFIGURATION_PATH_FAILURE"):
+    if read_test_hook("KANBUS_TEST_CONFIGURATION_PATH_FAILURE"):
         raise ConfigurationError("configuration path lookup failed")
     marker = _find_configuration_file(root)
     if marker is None:

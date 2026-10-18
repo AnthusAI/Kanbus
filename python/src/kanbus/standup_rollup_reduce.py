@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import List
 
@@ -23,6 +22,7 @@ from kanbus.standup_rollup import (
     dedupe_summary_list,
     truncate_bullet,
 )
+from kanbus.test_hooks import read_test_hook
 
 TEST_STANDUP_ROLLUP_COMPLETION_ENV = "KANBUS_TEST_STANDUP_ROLLUP_COMPLETION"
 STANDUP_ROLLUP_MAX_LENGTH = 120
@@ -40,7 +40,7 @@ def _build_standup_rollup_reduce_prompt(summaries: List[str], max_length: int) -
 
 
 def _mock_standup_rollup_reduce(summaries: List[str]) -> str:
-    stub = os.environ.get(TEST_STANDUP_ROLLUP_COMPLETION_ENV)
+    stub = read_test_hook(TEST_STANDUP_ROLLUP_COMPLETION_ENV)
     if stub is not None and stub.strip():
         return truncate_bullet(stub.strip(), STANDUP_ROLLUP_MAX_LENGTH)
     first = summaries[0].rstrip(".")
@@ -76,11 +76,11 @@ def reduce_summaries_for_standup_rollup(
     except RightNowError as error:
         raise StandupRollupError(str(error)) from error
 
-    stub = os.environ.get(TEST_STANDUP_ROLLUP_COMPLETION_ENV)
+    stub = read_test_hook(TEST_STANDUP_ROLLUP_COMPLETION_ENV)
     if stub is not None and stub.strip():
         return truncate_bullet(stub.strip(), STANDUP_ROLLUP_MAX_LENGTH)
 
-    if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
+    if read_test_hook("KANBUS_TEST_AI_MOCK") == "1":
         return _mock_standup_rollup_reduce(deduped)
 
     try:
