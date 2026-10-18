@@ -11,6 +11,7 @@ npm ci
 npm run build
 popd >/dev/null
 
+mkdir -p "$ROOT_DIR/rust/embedded_assets"
 rm -rf "$ROOT_DIR/rust/embedded_assets/console"
 cp -R "$ROOT_DIR/apps/console/dist" "$ROOT_DIR/rust/embedded_assets/console"
 
