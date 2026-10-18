@@ -136,6 +136,9 @@ jobs:
       - name: Check spec parity
         run: python tools/check_spec_parity.py
 
+      - name: Check generated CLI reference
+        run: python tools/generate_cli_reference.py --check
+
       - name: Check generated configuration reference
         run: python tools/generate_configuration_reference.py --check
 
