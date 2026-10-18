@@ -1,0 +1,966 @@
+"""Right-now summary helpers."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
+
+from kanbus.ai_credentials import missing_api_key_message, requires_openai_key
+from kanbus.config_loader import (
+    ConfigurationError,
+    load_project_configuration,
+    load_repository_environment,
+)
+from kanbus.issue_files import read_issue_from_file, write_issue_to_file
+from kanbus.issue_listing import IssueListingError, list_issues
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.models import IssueComment, IssueData, ProjectConfiguration
+from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay_issue
+from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.test_hooks import read_test_hook
+
+RIGHT_NOW_SUMMARY_OPERATION = "right_now_summary"
+LLM_USAGE_LOG = "llm_usage.jsonl"
+MOCK_PROMPT_TOKENS = 42
+MOCK_COMPLETION_TOKENS = 12
+MOCK_TOTAL_TOKENS = 54
+MOCK_COST = 0.0
+MAX_RECENT_COMMENTS = 5
+MAX_RECENT_ACTIVITY_CHARACTERS = 2000
+STATUS_KEYWORDS = ("done", "in progress", "blocked", "closed", "open")
+AI_PROVIDER_NOT_CONFIGURED_MESSAGE = (
+    "Right-now summary generation requires ai.provider litellm in .kanbus.yml"
+)
+DEFAULT_RIGHT_NOW_STATUS = "in_progress"
+OPENAI_API_KEY_NOT_LOADED_MESSAGE = missing_api_key_message()
+RIGHT_NOW_DISABLED_MESSAGE = "Right-now summary generation is disabled in .kanbus.yml"
+TEST_RIGHT_NOW_COMPLETION_ENV = "KANBUS_TEST_RIGHT_NOW_COMPLETION"
+
+
+class RightNowError(RuntimeError):
+    """Raised when right-now summary generation fails."""
+
+
+@dataclass
+class RightNowChildSummary:
+    """Child issue summary for parent context assembly.
+
+    :param identifier: Child issue identifier.
+    :type identifier: str
+    :param summary: Child right-now summary text.
+    :type summary: str
+    """
+
+    identifier: str
+    summary: str
+
+
+@dataclass
+class RightNowContext:
+    """Structured context for right-now summary generation.
+
+    :param title: Issue title.
+    :type title: str
+    :param description: Issue description.
+    :type description: str
+    :param recent_activity: Recent non-summary comment text.
+    :type recent_activity: str
+    :param child_summaries: Optional child summaries for parent roll-up.
+    :type child_summaries: Optional[List[RightNowChildSummary]]
+    """
+
+    title: str
+    description: str
+    recent_activity: str
+    child_summaries: list[RightNowChildSummary] | None = field(default=None)
+
+
+def get_right_now_summary(issue: IssueData) -> str | None:
+    """Return the right-now summary for an issue.
+
+    :param issue: Issue data to read.
+    :type issue: IssueData
+    :return: The right-now summary text, or None when absent.
+    :rtype: Optional[str]
+    """
+    return issue.right_now_summary
+
+
+def is_persisted_mock_right_now_summary(summary: str, identifier: str) -> bool:
+    """Return whether a summary matches the deterministic test mock pattern.
+
+    :param summary: Summary text to inspect.
+    :type summary: str
+    :param identifier: Issue identifier for the mock template.
+    :type identifier: str
+    :return: True when the summary is a persisted test mock string.
+    :rtype: bool
+    """
+    return summary == mock_right_now_summary_text(identifier)
+
+
+def mock_right_now_summary_text(identifier: str) -> str:
+    """Return the deterministic mock right-now summary for an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :return: Mock summary text.
+    :rtype: str
+    """
+    return f"Mock right-now summary for {identifier}."
+
+
+def get_child_full_summary(issue: IssueData) -> str | None:
+    """Return a child's compaction full summary when present.
+
+    On this branch no compaction/full-summary tier exists, so a child
+    full summary is never available and this always returns None. When a
+    full-summary tier lands, this helper is updated there (alongside the
+    IssueComment comment_type field) rather than speculatively here.
+
+    :param issue: Child issue to inspect.
+    :type issue: IssueData
+    :return: Full summary text, or None when no compaction artifact exists.
+    :rtype: Optional[str]
+    """
+    return None
+
+
+def build_bounded_raw_child_summary(issue: IssueData) -> str:
+    """Render a bounded raw child summary from title, description, and activity.
+
+    :param issue: Child issue to render.
+    :type issue: IssueData
+    :return: Bounded raw child summary text.
+    :rtype: str
+    """
+    recent_comments = _select_recent_non_summary_comments(issue.comments)
+    activity_lines = [
+        f"{comment.author}: {comment.text or ''}" for comment in recent_comments
+    ]
+    recent_activity = _bound_activity_text("\n".join(activity_lines))
+    raw_text = (
+        f"Title: {issue.title}\n"
+        f"Description: {issue.description}\n"
+        f"Recent activity:\n{recent_activity}"
+    )
+    return _bound_activity_text(raw_text)
+
+
+def resolve_child_summary(issue: IssueData) -> str:
+    """Resolve the summary text used when rolling a child into parent context.
+
+    :param issue: Child issue to resolve.
+    :type issue: IssueData
+    :return: Child summary text from right-now cache, full summary, or raw issue.
+    :rtype: str
+    """
+    if issue.right_now_summary:
+        return issue.right_now_summary
+    full_summary = get_child_full_summary(issue)
+    if full_summary:
+        return full_summary
+    return build_bounded_raw_child_summary(issue)
+
+
+def build_parent_right_now_context(
+    issue: IssueData,
+    children: list[IssueData],
+) -> RightNowContext:
+    """Assemble parent-issue context from own fields and child summaries.
+
+    :param issue: Parent issue to build context for.
+    :type issue: IssueData
+    :param children: Direct child issues.
+    :type children: List[IssueData]
+    :return: Structured right-now context with child summaries.
+    :rtype: RightNowContext
+    """
+    leaf_context = build_leaf_right_now_context(issue)
+    child_summaries = [
+        RightNowChildSummary(
+            identifier=child.identifier,
+            summary=resolve_child_summary(child),
+        )
+        for child in children
+    ]
+    return RightNowContext(
+        title=leaf_context.title,
+        description=leaf_context.description,
+        recent_activity=leaf_context.recent_activity,
+        child_summaries=child_summaries,
+    )
+
+
+def build_right_now_context(
+    issue: IssueData,
+    children: list[IssueData],
+) -> RightNowContext:
+    """Assemble right-now context for a leaf or parent issue.
+
+    :param issue: Issue to build context for.
+    :type issue: IssueData
+    :param children: Direct child issues, or an empty list for leaf issues.
+    :type children: List[IssueData]
+    :return: Structured right-now context.
+    :rtype: RightNowContext
+    """
+    if not children:
+        return build_leaf_right_now_context(issue)
+    return build_parent_right_now_context(issue, children)
+
+
+def load_child_issues(root: Path, issue_identifier: str) -> list[IssueData]:
+    """Load direct child issues for a parent issue identifier.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Parent issue identifier.
+    :type issue_identifier: str
+    :return: Child issues whose parent matches the identifier.
+    :rtype: List[IssueData]
+    :raises IssueListingError: When issue listing fails.
+    """
+    # Use the same file-backed source as the console snapshot. The general
+    # issue listing path can use a stale daemon index and omit children from
+    # virtual projects, leaving visible Now-tree cards unresolved.
+    from kanbus.console_snapshot import get_issues_for_root
+
+    return [
+        issue for issue in get_issues_for_root(root) if issue.parent == issue_identifier
+    ]
+
+
+def build_leaf_right_now_context(issue: IssueData) -> RightNowContext:
+    """Assemble leaf-issue context from title, description, and recent comments.
+
+    :param issue: Issue to build context for.
+    :type issue: IssueData
+    :return: Structured right-now context.
+    :rtype: RightNowContext
+    """
+    recent_comments = _select_recent_non_summary_comments(issue.comments)
+    activity_lines = [
+        f"{comment.author}: {comment.text or ''}" for comment in recent_comments
+    ]
+    recent_activity = _bound_activity_text("\n".join(activity_lines))
+    return RightNowContext(
+        title=issue.title,
+        description=issue.description,
+        recent_activity=recent_activity,
+        child_summaries=None,
+    )
+
+
+def generate_right_now_summary(
+    root: Path,
+    issue: IssueData,
+    context: RightNowContext,
+) -> str:
+    """Generate a right-now summary for an issue using configured AI.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue: Issue to summarize.
+    :type issue: IssueData
+    :param context: Assembled right-now context.
+    :type context: RightNowContext
+    :return: One-sentence right-now summary text.
+    :rtype: str
+    :raises RightNowError: When AI is not configured or generation fails.
+    """
+    load_repository_environment(root)
+    configuration = _load_configuration(root)
+    _ensure_litellm_provider(configuration)
+    max_length = configuration.right_now.max_length
+    model = _resolve_right_now_model(configuration)
+    _ensure_openai_credentials_when_required()
+
+    stub_completion = read_test_hook(TEST_RIGHT_NOW_COMPLETION_ENV)
+    if stub_completion is not None:
+        return _truncate_to_max_length(stub_completion.strip(), max_length)
+
+    if read_test_hook("KANBUS_TEST_AI_MOCK") == "1":
+        summary = mock_right_now_summary_text(issue.identifier)
+        _record_llm_usage(
+            root=root,
+            configuration=configuration,
+            issue_identifier=issue.identifier,
+            model=model,
+            prompt_tokens=MOCK_PROMPT_TOKENS,
+            completion_tokens=MOCK_COMPLETION_TOKENS,
+            total_tokens=MOCK_TOTAL_TOKENS,
+            cost=MOCK_COST,
+            mock=True,
+        )
+        return _truncate_to_max_length(summary, max_length)
+
+    prompt = _build_right_now_prompt(context, max_length)
+    completion_text, usage = _completion(model=model, prompt=prompt)
+    _record_llm_usage(
+        root=root,
+        configuration=configuration,
+        issue_identifier=issue.identifier,
+        model=model,
+        prompt_tokens=usage["prompt_tokens"],
+        completion_tokens=usage["completion_tokens"],
+        total_tokens=usage["total_tokens"],
+        cost=usage["cost"],
+        mock=False,
+    )
+    return _truncate_to_max_length(completion_text.strip(), max_length)
+
+
+def persist_right_now_summary(
+    project_dir: Path,
+    issue_path: Path,
+    issue_identifier: str,
+    summary: str,
+    updated_at: datetime,
+) -> None:
+    """Persist only right-now summary fields without re-entering the write gate.
+
+    Writes the two right-now fields onto every live store for the issue:
+    the canonical IssueData file when ``issue_path`` is that file, and the
+    overlay snapshot when one exists.
+
+    :param project_dir: Shared project directory.
+    :type project_dir: Path
+    :param issue_path: Path used by issue lookup (canonical or overlay).
+    :type issue_path: Path
+    :param issue_identifier: Issue identifier whose stores are updated.
+    :type issue_identifier: str
+    :param summary: Generated right-now summary text.
+    :type summary: str
+    :param updated_at: Timestamp for right_now_updated_at.
+    :type updated_at: datetime
+    """
+    fields = {
+        "right_now_summary": summary,
+        "right_now_updated_at": updated_at,
+    }
+    overlay_path = overlay_issue_path(project_dir, issue_identifier)
+    if issue_path.resolve() != overlay_path.resolve() and issue_path.exists():
+        stored_issue = read_issue_from_file(issue_path)
+        write_issue_to_file(stored_issue.model_copy(update=fields), issue_path)
+    overlay_record = load_overlay_issue(project_dir, issue_identifier)
+    if overlay_record is not None:
+        write_overlay_issue(
+            project_dir,
+            overlay_record.issue.model_copy(update=fields),
+            overlay_record.overlay_ts,
+            overlay_record.overlay_event_id,
+        )
+
+
+def regenerate_right_now_for_issue(
+    root: Path,
+    issue_identifier: str,
+    *,
+    fail_closed: bool = False,
+) -> None:
+    """Regenerate and persist the right-now summary for one issue.
+
+    When ``fail_closed`` is false, generation failures leave the existing summary
+    unchanged. When true, failures raise ``RightNowError``.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Issue identifier to regenerate.
+    :type issue_identifier: str
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
+    """
+    load_repository_environment(root)
+    try:
+        configuration = _load_configuration(root)
+    except RightNowError:
+        if fail_closed:
+            raise
+        return
+    if not configuration.right_now.enabled:
+        if fail_closed:
+            raise RightNowError(RIGHT_NOW_DISABLED_MESSAGE)
+        return
+    if configuration.ai is None or configuration.ai.provider != "litellm":
+        if fail_closed:
+            _ensure_litellm_provider(configuration)
+        return
+    try:
+        lookup = load_issue_from_project(root, issue_identifier)
+    except IssueLookupError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
+        return
+    issue = lookup.issue
+    try:
+        children = load_child_issues(root, issue_identifier)
+    except IssueListingError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
+        return
+    context = build_right_now_context(issue, children)
+    try:
+        summary = generate_right_now_summary(root, issue, context)
+    except RightNowError:
+        if fail_closed:
+            raise
+        return
+    current_time = datetime.now(UTC)
+    try:
+        persist_right_now_summary(
+            lookup.project_dir,
+            lookup.issue_path,
+            issue.identifier,
+            summary,
+            current_time,
+        )
+    except OSError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
+
+
+def right_now_summary_is_missing_or_stale(issue: IssueData) -> bool:
+    """Return whether an issue needs a just-in-time right-now summary.
+
+    :param issue: Issue to inspect.
+    :type issue: IssueData
+    :return: True when the summary is absent or older than the issue.
+    :rtype: bool
+    """
+    summary = issue.right_now_summary
+    if summary is None or not summary.strip():
+        return True
+    if issue.right_now_updated_at is None:
+        return False
+    return issue.updated_at > issue.right_now_updated_at
+
+
+def right_now_summary_needs_regeneration(issue: IssueData) -> bool:
+    """Return whether an issue needs JIT right-now summary regeneration.
+
+    :param issue: Issue to inspect.
+    :type issue: IssueData
+    :return: True when the summary is absent, stale, or a persisted test mock.
+    :rtype: bool
+    """
+    summary = issue.right_now_summary
+    if summary is None or not summary.strip():
+        return True
+    if is_persisted_mock_right_now_summary(summary, issue.identifier):
+        if read_test_hook("KANBUS_TEST_AI_MOCK") != "1":
+            return True
+    return right_now_summary_is_missing_or_stale(issue)
+
+
+def right_now_summary_predates_child_changes(
+    issue: IssueData, children: list[IssueData]
+) -> bool:
+    """Return whether a direct child changed after the issue summary was generated.
+
+    :param issue: Parent issue to inspect.
+    :type issue: IssueData
+    :param children: Direct children of the issue.
+    :type children: List[IssueData]
+    :return: True when any child was updated after ``right_now_updated_at``.
+    :rtype: bool
+    """
+    if issue.right_now_updated_at is None:
+        return False
+    return any(child.updated_at > issue.right_now_updated_at for child in children)
+
+
+def require_display_right_now_summary(issue: IssueData) -> str:
+    """Return the right-now summary for CLI display or raise when invalid.
+
+    :param issue: Issue whose summary is required.
+    :type issue: IssueData
+    :return: Non-empty right-now summary text.
+    :rtype: str
+    :raises RightNowError: When the summary is missing or a persisted test mock.
+    """
+    summary = get_right_now_summary(issue)
+    if summary is None or not summary.strip():
+        raise RightNowError(f"right-now summary missing for {issue.identifier}")
+    if is_persisted_mock_right_now_summary(summary, issue.identifier):
+        if read_test_hook("KANBUS_TEST_AI_MOCK") != "1":
+            raise RightNowError(
+                "persisted test mock right-now summary for "
+                f"{issue.identifier} must be regenerated"
+            )
+    return summary
+
+
+def clear_right_now_summary(
+    project_dir: Path,
+    issue_path: Path,
+    issue_identifier: str,
+) -> None:
+    """Clear right-now summary fields from every live store for an issue.
+
+    :param project_dir: Shared project directory.
+    :type project_dir: Path
+    :param issue_path: Path used by issue lookup (canonical or overlay).
+    :type issue_path: Path
+    :param issue_identifier: Issue identifier whose stores are updated.
+    :type issue_identifier: str
+    """
+    fields = {
+        "right_now_summary": None,
+        "right_now_updated_at": None,
+    }
+    overlay_path = overlay_issue_path(project_dir, issue_identifier)
+    if issue_path.resolve() != overlay_path.resolve() and issue_path.exists():
+        stored_issue = read_issue_from_file(issue_path)
+        write_issue_to_file(stored_issue.model_copy(update=fields), issue_path)
+    overlay_record = load_overlay_issue(project_dir, issue_identifier)
+    if overlay_record is not None:
+        write_overlay_issue(
+            project_dir,
+            overlay_record.issue.model_copy(update=fields),
+            overlay_record.overlay_ts,
+            overlay_record.overlay_event_id,
+        )
+
+
+def purge_right_now_summaries(root: Path) -> int:
+    """Clear right-now summary fields for every issue on the board.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Number of issues whose right-now fields were cleared.
+    :rtype: int
+    :raises IssueListingError: When issue listing fails.
+    :raises IssueLookupError: When an issue cannot be reloaded for writing.
+    """
+    issues = list_issues(root)
+    purged = 0
+    for issue in issues:
+        if issue.right_now_summary is None and issue.right_now_updated_at is None:
+            continue
+        lookup = load_issue_from_project(root, issue.identifier)
+        clear_right_now_summary(
+            lookup.project_dir,
+            lookup.issue_path,
+            issue.identifier,
+        )
+        purged += 1
+    return purged
+
+
+def ensure_right_now_subtree(
+    root: Path,
+    issue_identifier: str,
+    selected_identifiers: set[str],
+    memo: dict[str, bool] | None = None,
+    *,
+    fail_closed: bool = False,
+) -> bool:
+    """Backfill right-now summaries for an issue after selected descendants.
+
+    Only children in ``selected_identifiers`` are visited. Unlisted descendants
+    are left unchanged so a large closed subtree cannot block the parent.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifier: Issue identifier to ensure.
+    :type issue_identifier: str
+    :param selected_identifiers: Issue identifiers in the current Now view.
+    :type selected_identifiers: Set[str]
+    :param memo: Per-walk cache of whether a subtree generated a summary.
+    :type memo: Optional[Dict[str, bool]]
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    :return: True when this subtree generated or refreshed a summary.
+    :rtype: bool
+    :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
+    """
+    if memo is None:
+        memo = {}
+    if issue_identifier in memo:
+        return memo[issue_identifier]
+    try:
+        children = load_child_issues(root, issue_identifier)
+    except IssueListingError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
+        memo[issue_identifier] = False
+        return False
+    descendant_generated = False
+    for child in children:
+        if child.identifier not in selected_identifiers:
+            continue
+        if ensure_right_now_subtree(
+            root,
+            child.identifier,
+            selected_identifiers,
+            memo,
+            fail_closed=fail_closed,
+        ):
+            descendant_generated = True
+    try:
+        lookup = load_issue_from_project(root, issue_identifier)
+    except IssueLookupError as error:
+        if fail_closed:
+            raise RightNowError(str(error)) from error
+        memo[issue_identifier] = False
+        return False
+    should_generate = (
+        descendant_generated
+        or right_now_summary_needs_regeneration(lookup.issue)
+        or right_now_summary_predates_child_changes(lookup.issue, children)
+    )
+    generated = False
+    if should_generate:
+        previous_summary = lookup.issue.right_now_summary
+        previous_updated = lookup.issue.right_now_updated_at
+        regenerate_right_now_for_issue(root, issue_identifier, fail_closed=fail_closed)
+        try:
+            after = load_issue_from_project(root, issue_identifier).issue
+            generated = (
+                after.right_now_summary != previous_summary
+                or after.right_now_updated_at != previous_updated
+            )
+            if fail_closed:
+                require_display_right_now_summary(after)
+        except IssueLookupError as error:
+            if fail_closed:
+                raise RightNowError(str(error)) from error
+            generated = False
+    memo[issue_identifier] = generated or descendant_generated
+    return memo[issue_identifier]
+
+
+def association_trees_for_seeds(
+    issues: List[IssueData],
+    seed_identifiers: Set[str],
+) -> Tuple[List[str], Set[str]]:
+    """Return roots and every issue in association trees for the given seeds.
+
+    Walks ancestors of each seed, then every descendant of those nodes, so a Now
+    listing can backfill and render the complete tree regardless of status.
+
+    :param issues: All issues in the project.
+    :type issues: List[IssueData]
+    :param seed_identifiers: Issue identifiers that matched the Now filter.
+    :type seed_identifiers: Set[str]
+    :return: Sorted tree roots and the complete selected identifier set.
+    :rtype: Tuple[List[str], Set[str]]
+    """
+    parents = {issue.identifier: issue.parent for issue in issues}
+    children_by_parent: Dict[str, List[str]] = {}
+    for issue in issues:
+        if issue.parent is not None:
+            children_by_parent.setdefault(issue.parent, []).append(issue.identifier)
+
+    selected_identifiers: Set[str] = set()
+    for seed in seed_identifiers:
+        if seed not in parents:
+            continue
+        current = seed
+        visited: Set[str] = set()
+        while current not in visited:
+            visited.add(current)
+            selected_identifiers.add(current)
+            parent = parents.get(current)
+            if parent is None or parent not in parents:
+                break
+            current = parent
+
+    pending = list(selected_identifiers)
+    while pending:
+        identifier = pending.pop()
+        for child in children_by_parent.get(identifier, []):
+            if child not in selected_identifiers:
+                selected_identifiers.add(child)
+                pending.append(child)
+
+    roots = sorted(
+        identifier
+        for identifier in selected_identifiers
+        if parents.get(identifier) not in selected_identifiers
+    )
+    if not roots and selected_identifiers:
+        roots = sorted(selected_identifiers)
+    return roots, selected_identifiers
+
+
+def active_right_now_tree(issues: List[IssueData]) -> Tuple[List[str], Set[str]]:
+    """Return roots and every issue in trees containing in-progress work.
+
+    :param issues: All issues in the project.
+    :type issues: List[IssueData]
+    :return: Sorted tree roots and the complete selected identifier set.
+    :rtype: Tuple[List[str], Set[str]]
+    """
+    seeds = {
+        issue.identifier for issue in issues if issue.status == DEFAULT_RIGHT_NOW_STATUS
+    }
+    return association_trees_for_seeds(issues, seeds)
+
+
+def ensure_right_now_summaries(
+    root: Path,
+    issue_identifiers: list[str],
+    *,
+    fail_closed: bool = False,
+) -> None:
+    """Backfill right-now summaries for the issues in the current Now view.
+
+    Descendants that are not in ``issue_identifiers`` are not generated.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param issue_identifiers: Issue identifiers in the current Now view.
+    :type issue_identifiers: List[str]
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    :raises RightNowError: When ``fail_closed`` is true and generation cannot run.
+    """
+    selected_identifiers = set(issue_identifiers)
+    ensure_right_now_summary_subtrees(
+        root, issue_identifiers, selected_identifiers, fail_closed=fail_closed
+    )
+
+
+def ensure_right_now_summary_subtrees(
+    root: Path,
+    root_identifiers: List[str],
+    selected_identifiers: Set[str],
+    *,
+    fail_closed: bool = False,
+) -> None:
+    """Backfill selected right-now subtrees from their actual roots.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param root_identifiers: Roots of the selected Now trees.
+    :type root_identifiers: List[str]
+    :param selected_identifiers: Every issue in those trees.
+    :type selected_identifiers: Set[str]
+    :param fail_closed: Whether generation failures should raise.
+    :type fail_closed: bool
+    """
+    memo: Dict[str, bool] = {}
+    for identifier in root_identifiers:
+        ensure_right_now_subtree(
+            root,
+            identifier,
+            selected_identifiers,
+            memo,
+            fail_closed=fail_closed,
+        )
+
+
+def summary_contains_status_keyword(summary: str) -> bool:
+    """Return whether a summary contains a bare status keyword.
+
+    :param summary: Summary text to inspect.
+    :type summary: str
+    :return: True when a status keyword appears as a standalone token.
+    :rtype: bool
+    """
+    lowered = summary.lower()
+    for keyword in STATUS_KEYWORDS:
+        pattern = rf"\b{re.escape(keyword)}\b"
+        if re.search(pattern, lowered):
+            return True
+    return False
+
+
+def _load_configuration(root: Path) -> ProjectConfiguration:
+    try:
+        return load_project_configuration(get_configuration_path(root))
+    except (ConfigurationError, ProjectMarkerError) as error:
+        raise RightNowError(str(error)) from error
+
+
+def _ensure_litellm_provider(configuration: ProjectConfiguration) -> None:
+    if configuration.ai is None or configuration.ai.provider != "litellm":
+        raise RightNowError(AI_PROVIDER_NOT_CONFIGURED_MESSAGE)
+
+
+def _ensure_openai_credentials_when_required() -> None:
+    if read_test_hook("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS") != "1":
+        return
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key is None or not api_key.strip():
+        raise RightNowError(OPENAI_API_KEY_NOT_LOADED_MESSAGE)
+
+
+def _resolve_right_now_model(configuration: ProjectConfiguration) -> str:
+    if configuration.ai is None:
+        raise RightNowError(AI_PROVIDER_NOT_CONFIGURED_MESSAGE)
+    if configuration.right_now.model:
+        return configuration.right_now.model
+    return configuration.ai.model
+
+
+def _select_recent_non_summary_comments(
+    comments: list[IssueComment],
+) -> list[IssueComment]:
+    filtered = [
+        comment
+        for comment in comments
+        if not (comment.text or "").strip().lower().startswith("summary:")
+    ]
+    return filtered[-MAX_RECENT_COMMENTS:]
+
+
+def _bound_activity_text(activity_text: str) -> str:
+    if len(activity_text) <= MAX_RECENT_ACTIVITY_CHARACTERS:
+        return activity_text
+    return activity_text[-MAX_RECENT_ACTIVITY_CHARACTERS:]
+
+
+def _build_right_now_prompt(context: RightNowContext, max_length: int) -> str:
+    child_section = ""
+    if context.child_summaries:
+        lines = [
+            f"- {child.identifier}: {child.summary}"
+            for child in context.child_summaries
+        ]
+        child_section = "Child summaries:\n" + "\n".join(lines) + "\n\n"
+    return (
+        "Write exactly one short sentence describing what is happening with this "
+        "issue right now. Use plain, direct language in Hemingway style. "
+        "State only facts present in the text below. Do not describe work as "
+        "underway, running, or finished unless the text says so. "
+        f"Do not mention issue status labels such as open, closed, blocked, done, "
+        f"or in progress. Maximum {max_length} characters.\n\n"
+        f"Title: {context.title}\n"
+        f"Description: {context.description}\n"
+        f"Recent activity:\n{context.recent_activity}\n\n"
+        f"{child_section}"
+    )
+
+
+def _curated_litellm_failure_message(error: Exception) -> str:
+    """Return a user-facing message for LiteLLM failures without stack traces.
+
+    :param error: Exception raised by LiteLLM or its provider adapters.
+    :type error: Exception
+    :return: Curated Kanbus error message.
+    :rtype: str
+    """
+    message = str(error).strip()
+    if "Missing credentials" in message or "OPENAI_API_KEY" in message:
+        return OPENAI_API_KEY_NOT_LOADED_MESSAGE
+    lowered_message = message.lower()
+    if "litellm" in lowered_message and (
+        "not installed" in lowered_message or "is required" in lowered_message
+    ):
+        return "litellm is required for right-now summary generation (pip install 'kanbus[ai]')"
+    if message:
+        return f"right-now summary generation failed: {message}"
+    return "right-now summary generation failed"
+
+
+def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int | None]]:
+    test_completion = read_test_hook("KANBUS_TEST_LITELLM_COMPLETION")
+    if test_completion is not None:
+        os.environ["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = "1"
+        return test_completion, {
+            "prompt_tokens": 1,
+            "completion_tokens": 2,
+            "total_tokens": 3,
+            "cost": None,
+        }
+
+    if read_test_hook("KANBUS_TEST_SIMULATE_LITELLM_MISSING") == "1":
+        raise RightNowError("litellm is required for right-now summary generation (pip install 'kanbus[ai]')")
+    try:
+        import litellm
+    except ImportError:
+        raise RightNowError("litellm is required for right-now summary generation (pip install 'kanbus[ai]')")
+
+    if requires_openai_key(model) and not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise RightNowError(missing_api_key_message())
+
+    litellm.suppress_debug_info = True
+    litellm.set_verbose = False
+    os.environ["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = "1"
+    try:
+        response = litellm.completion(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as error:
+        raise RightNowError(_curated_litellm_failure_message(error)) from None
+    message = response.choices[0].message.content
+    if not message:
+        raise RightNowError("right-now summary generation returned empty content")
+    usage = response.usage
+    prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+    completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+    reported_total = getattr(usage, "total_tokens", None)
+    total_tokens = int(reported_total or (prompt_tokens + completion_tokens))
+    cost = _priced_response_cost(response)
+    return message, {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "cost": cost,
+    }
+
+
+def _priced_response_cost(response: object) -> float | None:
+    """Return the LiteLLM response cost, or None when the model has no known price.
+
+    LiteLLM reports a zero or missing cost for models absent from its price
+    table, so a non-positive value means the real spend is unknown.
+
+    :param response: LiteLLM completion response.
+    :type response: object
+    :return: Cost in USD, or None when unpriced.
+    :rtype: Optional[float]
+    """
+    reported_cost = getattr(response, "_hidden_params", {}).get("response_cost")
+    if reported_cost is None or float(reported_cost) <= 0.0:
+        return None
+    return float(reported_cost)
+
+
+def _record_llm_usage(
+    root: Path,
+    configuration: ProjectConfiguration,
+    issue_identifier: str,
+    model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    total_tokens: int,
+    cost: float | None,
+    mock: bool,
+) -> None:
+    events_dir = root.joinpath(configuration.project_directory, "events")
+    events_dir.mkdir(parents=True, exist_ok=True)
+    log_path = events_dir / LLM_USAGE_LOG
+    entry = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "operation": RIGHT_NOW_SUMMARY_OPERATION,
+        "issue_id": issue_identifier,
+        "model": model,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "cost": cost,
+        "mock": mock,
+    }
+    with open(log_path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def _truncate_to_max_length(text: str, max_length: int) -> str:
+    if len(text) <= max_length:
+        return text
+    truncated = text[:max_length]
+    last_space = truncated.rfind(" ")
+    if last_space > 0:
+        return truncated[:last_space].rstrip()
+    return truncated.rstrip()

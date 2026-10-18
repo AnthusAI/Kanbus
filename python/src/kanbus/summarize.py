@@ -350,7 +350,9 @@ def _completion(
         return text
 
     if litellm is None:
-        raise RuntimeError("litellm package is not installed")
+        raise RuntimeError(
+            "litellm is required for AI summaries (pip install 'kanbus[ai]')"
+        )
 
     if requires_openai_key(model) and not os.environ.get("OPENAI_API_KEY", "").strip():
         raise RuntimeError(missing_api_key_message())

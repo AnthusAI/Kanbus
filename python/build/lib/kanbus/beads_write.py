@@ -1,0 +1,784 @@
+"""Beads compatibility write helpers."""
+
+from __future__ import annotations
+
+import json
+import secrets
+import string
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Set
+
+from uuid import NAMESPACE_URL, uuid5
+
+from kanbus.models import DependencyLink, IssueData
+from kanbus.users import get_current_user
+from kanbus.event_history import (
+    build_update_events,
+    comment_payload,
+    create_event,
+    delete_events_for_issues,
+    dependency_payload,
+    events_dir_for_project,
+    issue_created_payload,
+    now_timestamp,
+    write_events_batch,
+)
+from kanbus.gossip import publish_issue_deleted, publish_issue_mutation
+from kanbus.migration import load_beads_issue
+from kanbus.project import load_project_directory
+
+
+class BeadsWriteError(RuntimeError):
+    """Raised when writing Beads JSONL issues fails."""
+
+
+class BeadsDeleteError(RuntimeError):
+    """Raised when deleting Beads issues fails."""
+
+
+_TEST_BEADS_SLUG_SEQUENCE: Optional[list[str]] = None
+
+
+def _beads_comment_uuid(issue_id: str, comment_id: str) -> str:
+    key = f"kanbus-comment:{issue_id}:{comment_id}"
+    return str(uuid5(NAMESPACE_URL, key))
+
+
+def set_test_beads_slug_sequence(sequence: Optional[Iterable[str]]) -> None:
+    """
+    Override Beads slug generation for deterministic tests.
+
+    :param sequence: Sequence of slug strings to use, or None to clear.
+    :type sequence: Optional[Iterable[str]]
+    """
+    global _TEST_BEADS_SLUG_SEQUENCE
+    _TEST_BEADS_SLUG_SEQUENCE = list(sequence) if sequence is not None else None
+
+
+def _next_beads_slug() -> Optional[str]:
+    if _TEST_BEADS_SLUG_SEQUENCE:
+        return _TEST_BEADS_SLUG_SEQUENCE.pop(0)
+    return None
+
+
+def create_beads_issue(
+    root: Path,
+    title: str,
+    issue_type: Optional[str],
+    priority: Optional[int],
+    assignee: Optional[str],
+    parent: Optional[str],
+    description: Optional[str],
+) -> IssueData:
+    """Create a Beads-compatible issue in .beads/issues.jsonl.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param title: Issue title.
+    :type title: str
+    :param issue_type: Issue type override.
+    :type issue_type: Optional[str]
+    :param priority: Priority override.
+    :type priority: Optional[int]
+    :param assignee: Assignee identifier.
+    :type assignee: Optional[str]
+    :param parent: Parent issue identifier.
+    :type parent: Optional[str]
+    :param description: Issue description.
+    :type description: Optional[str]
+    :return: Created issue data.
+    :rtype: IssueData
+    :raises BeadsWriteError: If Beads data cannot be read or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
+
+    records = _load_beads_records(issues_path)
+    if not records:
+        raise BeadsWriteError("no beads issues available")
+
+    existing_ids = {record["id"] for record in records if "id" in record}
+    prefix = _derive_prefix(existing_ids)
+    identifier = _generate_identifier(existing_ids, prefix, parent)
+
+    if parent is not None and parent not in existing_ids:
+        raise BeadsWriteError("not found")
+
+    created_at = datetime.now(timezone.utc)
+    created_at_text = created_at.isoformat()
+    created_by = get_current_user()
+    resolved_type = issue_type or "task"
+    resolved_priority = priority if priority is not None else 2
+    resolved_description = description or ""
+    dependencies: List[Dict[str, object]] = []
+    dependency_links: List[DependencyLink] = []
+    if parent is not None:
+        dependency = {
+            "issue_id": identifier,
+            "depends_on_id": parent,
+            "type": "parent-child",
+            "created_at": created_at_text,
+            "created_by": created_by,
+        }
+        dependencies.append(dependency)
+        dependency_links.append(
+            DependencyLink(target=parent, **{"type": "parent-child"})
+        )
+
+    record: Dict[str, object] = {
+        "id": identifier,
+        "title": title,
+        "description": resolved_description,
+        "status": "open",
+        "priority": resolved_priority,
+        "issue_type": resolved_type,
+        "owner": created_by,
+        "created_at": created_at_text,
+        "created_by": created_by,
+        "updated_at": created_at_text,
+    }
+    if assignee is not None:
+        record["assignee"] = assignee
+    if dependencies:
+        record["dependencies"] = dependencies
+    record["comments"] = []
+
+    _append_beads_record(issues_path, record)
+
+    issue = IssueData(
+        id=identifier,
+        title=title,
+        description=resolved_description,
+        type=resolved_type,
+        status="open",
+        priority=resolved_priority,
+        assignee=assignee,
+        creator=created_by,
+        parent=parent,
+        labels=[],
+        dependencies=dependency_links,
+        comments=[],
+        created_at=created_at,
+        updated_at=created_at,
+        closed_at=None,
+        custom={},
+    )
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return issue
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=issue.identifier,
+        event_type="issue_created",
+        actor_id=actor_id,
+        payload=issue_created_payload(issue),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            event.event_id,
+            "issue.mutated",
+        )
+
+    publish_issue_mutation(
+        root,
+        project_dir,
+        issue,
+        event.event_id,
+        "issue.mutated",
+    )
+
+    return issue
+
+
+def update_beads_issue(
+    root: Path,
+    identifier: str,
+    status: Optional[str] = None,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    priority: Optional[int] = None,
+    assignee: Optional[str] = None,
+    add_labels: Optional[Iterable[str]] = None,
+    remove_labels: Optional[Iterable[str]] = None,
+    set_labels: Optional[Iterable[str]] = None,
+) -> IssueData:
+    """Update a Beads-compatible issue in .beads/issues.jsonl.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier to update.
+    :type identifier: str
+    :param status: New status value.
+    :type status: Optional[str]
+    :param title: New title value.
+    :type title: Optional[str]
+    :param description: New description value.
+    :type description: Optional[str]
+    :param priority: New priority value.
+    :type priority: Optional[int]
+    :param assignee: New assignee value.
+    :type assignee: Optional[str]
+    :param add_labels: Labels to add to existing labels.
+    :type add_labels: Optional[Iterable[str]]
+    :param remove_labels: Labels to remove from existing labels.
+    :type remove_labels: Optional[Iterable[str]]
+    :param set_labels: Replace all labels with this set.
+    :type set_labels: Optional[Iterable[str]]
+    :return: Updated issue.
+    :rtype: IssueData
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
+    try:
+        before_issue = load_beads_issue(root, identifier)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
+    records = _load_beads_records(issues_path)
+    updated = False
+    for record in records:
+        if record.get("id") != identifier:
+            continue
+        if status is not None:
+            record["status"] = status
+        if title is not None:
+            record["title"] = title
+        if description is not None:
+            record["description"] = description
+        if priority is not None:
+            record["priority"] = priority
+        if assignee is not None:
+            record["assignee"] = assignee
+
+        # Handle label operations
+        if set_labels is not None:
+            record["labels"] = list(set_labels)
+        elif add_labels is not None or remove_labels is not None:
+            current_labels = set(record.get("labels", []))
+            if add_labels:
+                current_labels.update(add_labels)
+            if remove_labels:
+                current_labels.difference_update(remove_labels)
+            record["labels"] = list(current_labels)
+
+        record["updated_at"] = datetime.now(timezone.utc).isoformat()
+        updated = True
+        break
+    if not updated:
+        raise BeadsWriteError("not found")
+
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            handle.write(json.dumps(record) + "\n")
+
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
+
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return updated_issue
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, events)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+
+    event_id = events[0].event_id if events else None
+    publish_issue_mutation(
+        root,
+        project_dir,
+        updated_issue,
+        event_id,
+        "issue.mutated",
+    )
+
+    return updated_issue
+
+
+def add_beads_comment(root: Path, identifier: str, author: str, text: str) -> None:
+    """Add a comment to a Beads issue in .beads/issues.jsonl.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param author: Comment author.
+    :type author: str
+    :param text: Comment text.
+    :type text: str
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
+
+    records = _load_beads_records(issues_path)
+    found = False
+    created_comment_id: Optional[str] = None
+    for record in records:
+        if record.get("id") == identifier:
+            found = True
+            # Add comment to comments array
+            if "comments" not in record:
+                record["comments"] = []
+            comment_id = len(record["comments"]) + 1
+            created_comment_id = str(comment_id)
+            comment = {
+                "id": comment_id,
+                "issue_id": identifier,
+                "author": author,
+                "text": text,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            record["comments"].append(comment)
+            # Update updated_at timestamp
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+
+    if not found:
+        raise BeadsWriteError("not found")
+
+    # Write back all records
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            json.dump(record, handle, separators=(",", ":"))
+            handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsWriteError(str(error)) from error
+    try:
+        updated_issue = load_beads_issue(root, identifier)
+    except Exception:
+        updated_issue = None
+    if updated_issue is not None:
+        publish_issue_mutation(
+            root,
+            project_dir,
+            updated_issue,
+            None,
+            "issue.mutated",
+        )
+    if created_comment_id is None:  # pragma: no cover
+        raise BeadsWriteError("comment id is required")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="comment_added",
+        actor_id=actor_id,
+        payload=comment_payload(
+            _beads_comment_uuid(identifier, created_comment_id), author
+        ),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+
+
+def get_beads_descendant_identifiers(root: Path, identifier: str) -> List[str]:
+    """Return Beads descendant issue identifiers in leaf-first order.
+
+    :param root: Repository root containing .beads/issues.jsonl.
+    :type root: Path
+    :param identifier: Root issue identifier.
+    :type identifier: str
+    :return: List of descendant IDs, deepest first.
+    :rtype: List[str]
+    """
+    beads_dir = root / ".beads"
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        return []
+    records = _load_beads_records(issues_path)
+    parent_to_children: Dict[str, List[str]] = {}
+    for record in records:
+        rid = record.get("id")
+        if not rid:
+            continue
+        parent = record.get("parent")
+        if parent is not None:
+            parent_to_children.setdefault(str(parent), []).append(str(rid))
+    depth: Dict[str, int] = {identifier: 0}
+    queue: List[str] = [identifier]
+    while queue:
+        parent_id = queue.pop(0)
+        for child_id in parent_to_children.get(parent_id, []):
+            if child_id not in depth:
+                depth[child_id] = depth[parent_id] + 1
+                queue.append(child_id)
+    descendants = [k for k in depth if k != identifier]
+    return sorted(descendants, key=lambda x: -depth[x])
+
+
+def _delete_single_beads_issue(root: Path, issues_path: Path, identifier: str) -> None:
+    """Remove one issue from .beads/issues.jsonl and prune its events."""
+    original_contents = issues_path.read_text(encoding="utf-8")
+    records = _load_beads_records(issues_path)
+    remaining = [r for r in records if r.get("id") != identifier]
+    if len(remaining) == len(records):
+        raise BeadsDeleteError("not found")
+    for record in remaining:
+        if record.get("parent") == identifier:
+            record["parent"] = None
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+        dependencies = record.get("dependencies", [])
+        if dependencies:
+            new_deps = [
+                dep
+                for dep in dependencies
+                if not (
+                    dep.get("type") == "parent-child"
+                    and dep.get("depends_on_id") == identifier
+                )
+            ]
+            if len(new_deps) != len(dependencies):
+                record["dependencies"] = new_deps
+                record["updated_at"] = datetime.now(timezone.utc).isoformat()
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in remaining:
+            handle.write(json.dumps(record) + "\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+    events_dir = events_dir_for_project(project_dir)
+    delete_events_for_issues(events_dir, {identifier})
+    publish_issue_deleted(root, project_dir, identifier, None)
+
+
+def delete_beads_issue(root: Path, identifier: str, recursive: bool = False) -> None:
+    """Delete a Beads-compatible issue from .beads/issues.jsonl and prune its events.
+
+    Child issues with the deleted issue as parent will have their parent field cleared.
+    When recursive is True, deletes all descendants first (leaf-first), then the target.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier to delete.
+    :type identifier: str
+    :param recursive: If True, also delete all descendants.
+    :type recursive: bool
+    :raises BeadsDeleteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsDeleteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsDeleteError("no issues.jsonl")
+    try:
+        load_beads_issue(root, identifier)
+    except Exception as error:  # noqa: BLE001
+        raise BeadsDeleteError(str(error)) from error
+
+    to_delete: List[str] = []
+    if recursive:
+        to_delete = get_beads_descendant_identifiers(root, identifier)
+    to_delete.append(identifier)
+
+    for issue_id in to_delete:
+        _delete_single_beads_issue(root, issues_path, issue_id)
+
+
+def _load_beads_records(issues_path: Path) -> List[Dict[str, object]]:
+    records: List[Dict[str, object]] = []
+    for line in issues_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        records.append(json.loads(line))
+    return records
+
+
+def _append_beads_record(issues_path: Path, record: Dict[str, object]) -> None:
+    with issues_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record) + "\n")
+
+
+def _derive_prefix(existing_ids: Set[str]) -> str:
+    for identifier in existing_ids:
+        if "-" in identifier:
+            return identifier.split("-", 1)[0]
+    raise BeadsWriteError("invalid beads id")
+
+
+def _generate_identifier(
+    existing_ids: Set[str], prefix: str, parent: Optional[str]
+) -> str:
+    if parent is not None:
+        suffix = _next_child_suffix(existing_ids, parent)
+        return f"{parent}.{suffix}"
+    for _ in range(10):
+        slug = _generate_slug()
+        identifier = f"{prefix}-{slug}"
+        if identifier not in existing_ids:
+            return identifier
+    raise BeadsWriteError("unable to generate unique id after 10 attempts")
+
+
+def _next_child_suffix(existing_ids: Set[str], parent: str) -> int:
+    max_suffix = 0
+    prefix = f"{parent}."
+    for identifier in existing_ids:
+        if not identifier.startswith(prefix):
+            continue
+        suffix_text = identifier[len(prefix) :]
+        if suffix_text.isdigit():
+            max_suffix = max(max_suffix, int(suffix_text))
+    return max_suffix + 1
+
+
+def _generate_slug() -> str:
+    overridden = _next_beads_slug()
+    if overridden is not None:
+        return overridden
+    alphabet = string.ascii_lowercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(3))
+
+
+def add_beads_dependency(
+    root: Path, identifier: str, target: str, dependency_type: str
+) -> None:
+    """Add a dependency to a Beads-compatible issue.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param target: Target issue identifier.
+    :type target: str
+    :param dependency_type: Dependency type (blocked-by or relates-to).
+    :type dependency_type: str
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+    original_contents = issues_path.read_text(encoding="utf-8")
+
+    records = _load_beads_records(issues_path)
+    found = False
+    existing_ids = {record.get("id") for record in records if record.get("id")}
+
+    # Validate target exists
+    if target not in existing_ids:
+        raise BeadsWriteError(f"target issue {target} not found")
+
+    # Check for circular dependencies with parent-child relationships
+    # Find the records for both issues
+    source_record = None
+    target_record = None
+    for record in records:
+        if record.get("id") == identifier:
+            source_record = record
+        if record.get("id") == target:
+            target_record = record
+
+    # If target is a child of identifier (or vice versa), it's circular
+    if source_record and target_record:
+        # Check if target is a child of identifier
+        if target_record.get("parent") == identifier:
+            raise BeadsWriteError(
+                "circular dependency: cannot depend on your own child"
+            )
+        # Check if identifier is a child of target
+        if source_record.get("parent") == target:
+            raise BeadsWriteError(
+                "circular dependency: cannot depend on your own parent"
+            )
+
+    # Add dependency to the issue
+    for record in records:
+        if record.get("id") == identifier:
+            found = True
+            dependencies = record.get("dependencies", [])
+            if not isinstance(dependencies, list):
+                dependencies = []
+
+            # Check if dependency already exists
+            for dep in dependencies:
+                if (
+                    dep.get("type") == dependency_type
+                    and dep.get("depends_on_id") == target
+                ):
+                    raise BeadsWriteError(
+                        f"dependency {dependency_type} to {target} already exists"
+                    )
+
+            # Add the new dependency
+            dependencies.append({"type": dependency_type, "depends_on_id": target})
+            record["dependencies"] = dependencies
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+
+    if not found:
+        raise BeadsWriteError("not found")
+
+    # Write back all records
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            json.dump(record, handle, separators=(",", ":"))
+            handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="dependency_added",
+        actor_id=actor_id,
+        payload=dependency_payload(dependency_type, target),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error
+
+
+def remove_beads_dependency(
+    root: Path, identifier: str, target: str, dependency_type: str
+) -> None:
+    """Remove a dependency from a Beads-compatible issue.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param target: Target issue identifier.
+    :type target: str
+    :param dependency_type: Dependency type (blocked-by or relates-to).
+    :type dependency_type: str
+    :raises BeadsWriteError: If the issue cannot be found or written.
+    """
+    beads_dir = root / ".beads"
+    if not beads_dir.exists():
+        raise BeadsWriteError("no .beads directory")
+    issues_path = beads_dir / "issues.jsonl"
+    if not issues_path.exists():
+        raise BeadsWriteError("no issues.jsonl")
+
+    original_contents = issues_path.read_text(encoding="utf-8")
+    records = _load_beads_records(issues_path)
+    found = False
+
+    # Remove dependency from the issue
+    for record in records:
+        if record.get("id") == identifier:
+            found = True
+            dependencies = record.get("dependencies", [])
+            if not isinstance(dependencies, list):
+                dependencies = []
+
+            # Filter out the dependency to remove
+            new_dependencies = [
+                dep
+                for dep in dependencies
+                if not (
+                    dep.get("type") == dependency_type
+                    and dep.get("depends_on_id") == target
+                )
+            ]
+
+            if len(new_dependencies) == len(dependencies):
+                raise BeadsWriteError(
+                    f"dependency {dependency_type} to {target} not found"
+                )
+
+            record["dependencies"] = new_dependencies
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+
+    if not found:
+        raise BeadsWriteError("not found")
+
+    # Write back all records
+    with issues_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            json.dump(record, handle, separators=(",", ":"))
+            handle.write("\n")
+    try:
+        project_dir = load_project_directory(root)
+    except Exception:  # noqa: BLE001
+        return
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    event = create_event(
+        issue_id=identifier,
+        event_type="dependency_removed",
+        actor_id=actor_id,
+        payload=dependency_payload(dependency_type, target),
+        occurred_at=occurred_at,
+    )
+    events_dir = events_dir_for_project(project_dir)
+    try:
+        write_events_batch(events_dir, [event])
+    except Exception as error:  # noqa: BLE001
+        issues_path.write_text(original_contents, encoding="utf-8")
+        raise BeadsWriteError(str(error)) from error

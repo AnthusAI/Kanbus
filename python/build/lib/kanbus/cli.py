@@ -1,0 +1,4850 @@
+"""Kanbus CLI entry point."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from typing import Optional
+
+import click
+
+from kanbus import __version__
+from kanbus.file_io import (
+    InitializationError,
+    detect_repairable_project_issues,
+    ensure_git_repository,
+    initialize_project,
+    repair_project_structure,
+)
+from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
+from kanbus.content_validation import ContentValidationError, validate_code_blocks
+from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
+from kanbus.issue_creation import IssueCreationError, create_issue
+from kanbus.coordination import (
+    CoordinationError,
+    claim as coordination_claim,
+    inspect_lease as inspect_coordination_lease,
+    operation_sequence_for_event,
+    release as coordination_release,
+    publish_result as publish_coordination_result,
+    renew as coordination_renew,
+    utc_now,
+)
+from kanbus.issue_close import IssueCloseError, close_issue
+from kanbus.issue_comment import IssueCommentError, add_comment, update_comment
+from kanbus.issue_delete import (
+    IssueDeleteError,
+    delete_issue,
+    get_descendant_identifiers,
+)
+from kanbus.beads_write import (
+    BeadsDeleteError,
+    BeadsWriteError,
+    add_beads_comment,
+    create_beads_issue,
+    delete_beads_issue,
+    get_beads_descendant_identifiers,
+    update_beads_issue,
+)
+from kanbus.issue_display import format_issue_for_display
+from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.coordination import LeaseState
+from kanbus.ids import format_issue_key
+from kanbus.issue_line import (
+    compute_widths,
+    format_empty_status_lines,
+    format_issue_line,
+)
+from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+from kanbus.issue_update import IssueUpdateError, update_issue
+from kanbus.issue_commit import IssueCommitError, commit_project_issues
+from kanbus.issue_transfer import IssueTransferError, localize_issue, promote_issue
+from kanbus.issue_listing import IssueListingError, list_issues
+from kanbus.queries import QueryError
+from kanbus.daemon_client import DaemonClientError, request_shutdown, request_status
+from kanbus.users import get_current_user
+from kanbus.migration import (
+    MigrationError,
+    load_beads_issue,
+    load_beads_issues,
+    migrate_from_beads,
+    migrate_from_beads_into_project,
+)
+from kanbus.doctor import DoctorError, run_doctor
+from kanbus.maintenance import (
+    ProjectStatsError,
+    ProjectValidationError,
+    collect_project_stats,
+    validate_project,
+)
+from kanbus.dependencies import (
+    DependencyError,
+    add_dependency,
+    list_ready_issues,
+    remove_dependency,
+)
+from kanbus.dependency_tree import (
+    DependencyTreeError,
+    build_dependency_tree,
+    render_dependency_tree,
+)
+from kanbus.wiki import (
+    WikiError,
+    WikiRenderRequest,
+    apply_wiki_page_limit,
+    check_wiki_page_links,
+    convert_wiki_markdown_to_html,
+    format_wiki_link_problem,
+    format_wiki_list_json,
+    format_wiki_render_json,
+    format_wiki_search_json,
+    init_wiki,
+    lint_wiki,
+    list_wiki_pages,
+    render_wiki_page,
+    resolve_wiki_page_path,
+    search_wiki_pages,
+    show_wiki_page,
+)
+from kanbus.text_editor import (
+    TextEditorError,
+    edit_view,
+    edit_str_replace,
+    edit_create,
+    edit_insert,
+)
+from kanbus.console_now import build_now_issues
+from kanbus.console_snapshot import ConsoleSnapshotError, build_console_snapshot
+from kanbus.console_standup import (
+    StandupGenerateRequest,
+    StandupGenerateResponseModel,
+    generate_standup_report,
+)
+from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
+from kanbus.console_ui_state import fetch_console_ui_state
+from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.config_loader import (
+    ConfigurationError,
+    congregation_env_path,
+    load_project_configuration,
+    load_repository_environment,
+)
+from kanbus.ai_credentials import (
+    CredentialSource,
+    DEFAULT_API_KEY_VARIABLE,
+    describe_api_key_source,
+    resolve_api_key_source,
+    write_congregation_env_value,
+)
+from kanbus.agents_management import _ensure_project_guard_files, ensure_agents_file
+from kanbus.agent_metadata import (
+    AgentMetadataRequest,
+    AgentMetadataResolutionError,
+    emit_agent_provenance_warning,
+    format_agent_display_line,
+    reject_agent_metadata_in_beads_mode,
+    resolve_agent_metadata,
+)
+from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
+from kanbus.overlay import (
+    gc_overlay_for_projects,
+    install_overlay_hooks,
+    reconcile_overlay_for_projects,
+)
+from kanbus.hooks import (
+    HookEvent,
+    HookExecutionError,
+    HookPhase,
+    list_hooks,
+    run_lifecycle_hooks,
+    serialize_issue,
+    validate_hooks,
+)
+from kanbus.right_now import (
+    RightNowError,
+    build_leaf_right_now_context,
+    generate_right_now_summary,
+)
+from kanbus.right_now_command import (
+    RightNowCommandError,
+    RightNowCommandOptions,
+    resolve_right_now_output_format,
+    run_right_now_command,
+)
+from kanbus.standup import StandupError
+from kanbus.standup_command import (
+    StandupCommandError,
+    StandupCommandOptions,
+    run_standup_command,
+)
+from kanbus.router_cli import router_group
+
+
+def _deprecated_console_control(command: str) -> click.ClickException:
+    return click.ClickException(
+        f"`kanbus console {command}` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    )
+
+
+def _deprecated_create_focus() -> click.ClickException:
+    return click.ClickException(
+        "`kanbus create --focus` is deprecated. UI control commands are being migrated to the pub/sub convention and are temporarily unavailable."
+    )
+
+
+def _resolve_cli_agent_metadata(
+    agent_platform: Optional[str],
+    agent_model: Optional[str],
+    agent_settings: Optional[str],
+    agent_name: Optional[str] = None,
+):
+    """Resolve optional agent metadata from CLI flags and environment.
+
+    :param agent_platform: Platform flag value.
+    :type agent_platform: Optional[str]
+    :param agent_model: Model flag value.
+    :type agent_model: Optional[str]
+    :param agent_settings: Settings JSON flag value.
+    :type agent_settings: Optional[str]
+    :param agent_name: Session or bot name flag value.
+    :type agent_name: Optional[str]
+    :return: Validated agent metadata or None.
+    :rtype: Optional[kanbus.models.AgentMetadata]
+    :raises click.ClickException: If validation fails.
+    """
+    try:
+        return resolve_agent_metadata(
+            AgentMetadataRequest(
+                platform=agent_platform,
+                model=agent_model,
+                name=agent_name,
+                settings_json=agent_settings,
+            )
+        )
+    except AgentMetadataResolutionError as error:
+        raise click.ClickException(str(error)) from error
+
+
+def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
+    source = context.get_parameter_source("beads_mode")
+    if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
+        return True, True
+    try:
+        configuration = load_project_configuration(get_configuration_path(Path.cwd()))
+    except ProjectMarkerError:
+        return False, False
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+    return configuration.beads_compatibility, False
+
+
+def _resolve_beads_root(cwd: Path) -> Path:
+    """Resolve the repository root for Beads-mode operations.
+
+    When beads compatibility is enabled, the data lives under `.beads/` at the
+    repository root. Users may run `kanbus` from a subdirectory (e.g. `python/`);
+    in that case, Beads mode should still work by walking upward.
+    """
+    try:
+        marker = get_configuration_path(cwd)
+        return marker.parent
+    except (ProjectMarkerError, ConfigurationError):
+        pass
+
+    current: Optional[Path] = cwd
+    while current is not None:
+        if (current / ".beads").is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return cwd
+
+
+DEP_USAGE = (
+    "usage: kanbus dep <identifier> blocked-by|relates-to <target>\n"
+    "       kanbus dep <identifier> remove blocked-by|relates-to <target>\n"
+    "       kanbus dep tree <identifier> [--depth N] [--format FORMAT]"
+)
+
+
+@click.group()
+@click.version_option(__version__, prog_name="kanbus")
+@click.option("--beads", "beads_mode", is_flag=True, default=False)
+@click.option("--no-guidance", is_flag=True, default=False)
+@click.option("--no-hooks", is_flag=True, default=False)
+@click.pass_context
+def cli(
+    context: click.Context, beads_mode: bool, no_guidance: bool, no_hooks: bool
+) -> None:
+    """Kanbus issue tracker CLI.
+
+    \b
+    Quick start:
+      kbs list                           list all issues
+      kbs create "Fix bug" --type bug    create an issue
+      kbs update <id> --status done      update an issue
+      kbs move <id> epic                 change issue type
+      kbs comment <id> "Note"            add a comment
+      kbs close <id>                     close an issue
+
+    \b
+    Issue types:  initiative > epic > story / task / bug > sub-task
+    Statuses:     open  in_progress  blocked  done  closed
+    Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
+    """
+    _enforce_kanbus_version(context)
+    _preload_repository_environment()
+    resolved, forced = _resolve_beads_mode(context, beads_mode)
+    context.obj = {
+        "beads_mode": resolved,
+        "beads_mode_forced": forced,
+        "no_guidance": no_guidance,
+        "no_hooks": no_hooks,
+    }
+    _maybe_prompt_project_repair(context)
+
+
+def _preload_repository_environment() -> None:
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+    except (ProjectMarkerError, ConfigurationError):
+        return
+    load_repository_environment(configuration_path.parent)
+
+
+def _should_check_project_structure(context: click.Context) -> bool:
+    if context.invoked_subcommand is None:
+        return False
+    return context.invoked_subcommand not in {"init", "setup", "repair", "edit"}
+
+
+def _enforce_kanbus_version(context: click.Context) -> None:
+    if not _should_check_project_structure(context):
+        return
+    root = Path.cwd()
+    try:
+        enforce_kanbus_version(root, __version__)
+    except KanbusVersionError as error:
+        raise click.ClickException(str(error)) from error
+
+
+def _terminal_is_interactive() -> bool:
+    if os.getenv("KANBUS_FORCE_INTERACTIVE") == "1":
+        return True
+    return bool(
+        getattr(sys.stdin, "isatty", None)
+        and sys.stdin.isatty()
+        and getattr(sys.stdout, "isatty", None)
+        and sys.stdout.isatty()
+    )
+
+
+def _maybe_prompt_project_repair(context: click.Context) -> None:
+    if not _should_check_project_structure(context):
+        return
+    root = Path.cwd()
+    try:
+        plan = detect_repairable_project_issues(root, allow_uninitialized=True)
+    except PermissionError:
+        return
+    if plan is None:
+        return
+    if not os.environ.get("KANBUS_FORCE_INTERACTIVE") and (
+        not sys.stdin.isatty() or not sys.stdout.isatty()
+    ):
+        return
+    missing = []
+    if plan.missing_project_dir:
+        missing.append("project/")
+    if plan.missing_issues_dir:
+        missing.append("project/issues")
+    if plan.missing_events_dir:
+        missing.append("project/events")
+    prompt = (
+        f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+    )
+    if click.confirm(prompt, default=False):
+        repair_project_structure(root, plan)
+        click.echo("Project structure repaired.", err=True)
+
+
+@cli.group("setup")
+def setup() -> None:
+    """Setup utilities for Kanbus."""
+
+
+@setup.command("agents")
+@click.option("--force", is_flag=True, default=False)
+def setup_agents(force: bool) -> None:
+    """Ensure AGENTS.md contains Kanbus instructions.
+
+    :param force: Overwrite existing Kanbus section without prompting.
+    :type force: bool
+    """
+    root = Path.cwd()
+    ensure_agents_file(root, force)
+    _ensure_project_guard_files(root)
+
+
+@cli.group("methodology")
+def methodology() -> None:
+    """Work with the methodologies configured in .kanbus.yml."""
+
+
+@methodology.command("list")
+def methodology_list() -> None:
+    """List the configured methodologies, then the built-ins that are not active."""
+    from kanbus.methodology_bundles import MethodologyError, list_methodologies
+
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+        configuration = load_project_configuration(configuration_path)
+        listings = list_methodologies(configuration_path.parent, configuration)
+    except (MethodologyError, ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+    for listing in listings:
+        marker = "*" if listing.active else "-"
+        click.echo(f"{marker} {listing.name} ({listing.source}) {listing.title}")
+
+
+@methodology.command("show")
+@click.argument("methodology_name", metavar="METHODOLOGY")
+def methodology_show(methodology_name: str) -> None:
+    """Show the rendered guidance of a methodology.
+
+    :param methodology_name: Methodology name.
+    :type methodology_name: str
+    """
+    from kanbus.agents_management import render_methodology_by_name
+
+    rendered_methodology = render_methodology_by_name(Path.cwd(), methodology_name)
+    click.echo(rendered_methodology["content"])
+
+
+@methodology.command(
+    "run",
+    context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.argument("methodology_name", metavar="METHODOLOGY")
+@click.argument("tool_name", metavar="TOOL")
+@click.argument("tool_arguments", nargs=-1, type=click.UNPROCESSED, metavar="[ARGS]...")
+def methodology_run(
+    methodology_name: str, tool_name: str, tool_arguments: tuple[str, ...]
+) -> None:
+    """Run a tool declared by a configured methodology bundle, from the repository root.
+
+    :param methodology_name: Methodology name.
+    :type methodology_name: str
+    :param tool_name: Tool name declared in the methodology's frontmatter.
+    :type tool_name: str
+    :param tool_arguments: Arguments passed to the tool unchanged.
+    :type tool_arguments: tuple[str, ...]
+    """
+    from kanbus.methodology_bundles import MethodologyError, run_methodology_tool
+
+    try:
+        configuration_path = get_configuration_path(Path.cwd())
+        configuration = load_project_configuration(configuration_path)
+        tool_standard_output = run_methodology_tool(
+            configuration_path.parent,
+            configuration,
+            methodology_name,
+            tool_name,
+            list(tool_arguments),
+        )
+    except (MethodologyError, ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(tool_standard_output, nl=False)
+
+
+_VARIABLE_NAME_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
+@setup.command("ai")
+@click.option(
+    "--key",
+    "key_value",
+    default=None,
+    help=(
+        "API key value. Prefer the interactive prompt or --from-stdin so the "
+        "key does not land in shell history."
+    ),
+)
+@click.option(
+    "--from-stdin",
+    is_flag=True,
+    default=False,
+    help="Read the key from the first line of standard input.",
+)
+@click.option(
+    "--variable",
+    default=DEFAULT_API_KEY_VARIABLE,
+    show_default=True,
+    help="Environment variable name to store.",
+)
+@click.option(
+    "--status",
+    is_flag=True,
+    default=False,
+    help="Report where the key currently resolves from. Never prints the key.",
+)
+def setup_ai(
+    key_value: Optional[str], from_stdin: bool, variable: str, status: bool
+) -> None:
+    """Store or inspect a user-level AI credential in ~/.kanbus.env."""
+    if not _VARIABLE_NAME_PATTERN.match(variable):
+        raise click.ClickException(f"invalid variable name: {variable}")
+
+    if status:
+        _print_credential_status(
+            variable,
+            "Run 'kbs setup ai' (or 'kanbus setup ai') to store one in "
+            "~/.kanbus.env.",
+        )
+        return
+
+    _store_congregation_value(
+        variable,
+        key_value,
+        from_stdin,
+        no_value_message=(
+            "no key provided; pass --key, --from-stdin, or run interactively"
+        ),
+        empty_message="API key value is empty",
+    )
+
+
+@setup.command("env")
+@click.argument("name")
+@click.option(
+    "--value",
+    "value_option",
+    default=None,
+    help=(
+        "Value to store. Prefer the interactive prompt or --from-stdin so the "
+        "value does not land in shell history."
+    ),
+)
+@click.option(
+    "--from-stdin",
+    is_flag=True,
+    default=False,
+    help="Read the value from the first line of standard input.",
+)
+@click.option(
+    "--status",
+    is_flag=True,
+    default=False,
+    help="Report where the value currently resolves from. Never prints the value.",
+)
+def setup_env(
+    name: str, value_option: Optional[str], from_stdin: bool, status: bool
+) -> None:
+    """Store or inspect any user-level Kanbus environment value in ~/.kanbus.env."""
+    if not _VARIABLE_NAME_PATTERN.match(name):
+        raise click.ClickException(f"invalid variable name: {name}")
+
+    if status:
+        _print_credential_status(
+            name,
+            f"Run 'kbs setup env {name}' (or 'kanbus setup env {name}') to store "
+            "one in ~/.kanbus.env.",
+        )
+        return
+
+    _store_congregation_value(
+        name,
+        value_option,
+        from_stdin,
+        no_value_message=(
+            "no value provided; pass --value, --from-stdin, or run interactively"
+        ),
+        empty_message="value is empty",
+    )
+
+
+def _store_congregation_value(
+    variable: str,
+    value_option: Optional[str],
+    from_stdin: bool,
+    *,
+    no_value_message: str,
+    empty_message: str,
+) -> None:
+    if value_option is not None:
+        value = value_option
+    elif from_stdin:
+        value = sys.stdin.readline().strip()
+    elif _terminal_is_interactive():
+        value = click.prompt(f"Enter {variable}", hide_input=True)
+    else:
+        raise click.ClickException(no_value_message)
+
+    if not value.strip():
+        raise click.ClickException(empty_message)
+
+    try:
+        write_congregation_env_value(congregation_env_path(), variable, value)
+    except (OSError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        f"Saved {variable} to ~/.kanbus.env (mode 600). A project .env or "
+        "your shell environment can override it per project."
+    )
+
+
+def _print_credential_status(variable: str, not_set_hint: str) -> None:
+    root: Optional[Path] = None
+    try:
+        root = get_configuration_path(Path.cwd()).parent
+    except (ProjectMarkerError, ConfigurationError):
+        root = None
+
+    source = resolve_api_key_source(root, variable)
+    click.echo(f"{variable}: {describe_api_key_source(source)}")
+    click.echo("Lookup order: shell environment, then ~/.kanbus.env, then <repo>/.env")
+    if source is CredentialSource.NONE:
+        click.echo(not_set_hint)
+
+
+def _maybe_print_ai_credentials_hint(root: Path) -> None:
+    if resolve_api_key_source(root) is CredentialSource.NONE:
+        click.echo(
+            'Hint: no OPENAI_API_KEY found. Run "kanbus setup ai" to store one '
+            "in ~/.kanbus.env.",
+            err=True,
+        )
+
+
+@cli.command("init")
+@click.option("--local", "create_local", is_flag=True, default=False)
+def init(create_local: bool) -> None:
+    """Initialize a Kanbus project in the current repository.
+
+    :param create_local: Whether to create a project-local directory.
+    :type create_local: bool
+    """
+    root = Path.cwd()
+    try:
+        ensure_git_repository(root)
+        initialize_project(root, create_local)
+    except InitializationError as error:
+        raise click.ClickException(str(error)) from error
+    _maybe_run_setup_agents(root)
+    _maybe_print_ai_credentials_hint(root)
+
+
+def _maybe_run_setup_agents(root: Path) -> None:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return
+    if click.confirm('Run "kanbus setup agents" now?', default=False):
+        ensure_agents_file(root, force=False)
+
+
+@cli.command("repair")
+@click.option("--yes", is_flag=True, default=False)
+def repair(yes: bool) -> None:
+    """Repair a broken project structure."""
+    root = Path.cwd()
+    try:
+        plan = detect_repairable_project_issues(root, allow_uninitialized=False)
+    except ProjectMarkerError as error:
+        raise click.ClickException(str(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if plan is None:
+        click.echo("Project structure is already healthy.")
+        return
+
+    if not yes:
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            raise click.ClickException(
+                "project structure requires repair (re-run with --yes)"
+            )
+        missing = []
+        if plan.missing_project_dir:
+            missing.append("project/")
+        if plan.missing_issues_dir:
+            missing.append("project/issues")
+        if plan.missing_events_dir:
+            missing.append("project/events")
+        prompt = (
+            f"Project structure incomplete (missing: {', '.join(missing)}). Repair now?"
+        )
+        if not click.confirm(prompt, default=False):
+            click.echo("Repair cancelled.")
+            return
+
+    repair_project_structure(root, plan)
+    click.echo("Project structure repaired.")
+
+
+@cli.command("rekey")
+@click.argument("new_key")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print planned changes without modifying files",
+)
+def rekey(new_key: str, dry_run: bool) -> None:
+    """Rename a project key and all issue IDs.
+
+    Changes the project key in .kanbus.yml, renames all issue files and IDs,
+    updates all references (parent, dependencies, text mentions), and invalidates
+    caches. Requires a clean git working tree under project/.
+    """
+    from kanbus.rekey import RekeyError, execute_rekey, plan_rekey
+
+    root = Path.cwd()
+
+    try:
+        config = load_project_configuration(get_configuration_path(root))
+        old_key = config.project_key
+    except (ConfigurationError, ProjectMarkerError) as error:
+        raise click.ClickException(str(error)) from error
+
+    try:
+        plan = plan_rekey(root, old_key, new_key, dry_run=dry_run)
+    except RekeyError as error:
+        raise click.ClickException(str(error)) from error
+
+    if not plan.issue_renames:
+        # Already rekeyed to this key - print message to stderr and succeed
+        click.echo("Project is already rekeyed to this key", err=True)
+        return
+
+    if dry_run:
+        for old_id, new_id in sorted(plan.issue_renames.items()):
+            rewrites = plan.text_rewrites.get(old_id, 0)
+            click.echo(f"{old_id} -> {new_id} ({rewrites} rewrites)")
+    else:
+        try:
+            execute_rekey(root, plan)
+        except RekeyError as error:
+            raise click.ClickException(str(error)) from error
+
+        for old_id, new_id in sorted(plan.issue_renames.items()):
+            click.echo(f"Rekeyed {old_id} -> {new_id}")
+
+
+@cli.command("create")
+@click.argument("title", nargs=-1)
+@click.option("--type", "issue_type")
+@click.option("--priority", type=int)
+@click.option("--assignee")
+@click.option("--parent")
+@click.option("--label", "labels", multiple=True)
+@click.option("--description", default="")
+@click.option("--local", "local_issue", is_flag=True, default=False)
+@click.option("--id", "requested_id", help="Explicitly specify the issue ID")
+@click.option(
+    "--focus",
+    "focus_issue",
+    is_flag=True,
+    default=False,
+    help="Deprecated. UI control commands are temporarily unavailable.",
+)
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-name")
+@click.option("--agent-settings")
+@click.option(
+    "--no-agent-provenance",
+    "no_agent_provenance",
+    is_flag=True,
+    default=False,
+    help="Do not warn when agent provenance is incomplete. See CONTRIBUTING_AGENT.md.",
+)
+@click.pass_context
+def create(
+    context: click.Context,
+    title: tuple[str, ...],
+    issue_type: str | None,
+    priority: int | None,
+    assignee: str | None,
+    parent: str | None,
+    labels: tuple[str, ...],
+    description: str,
+    local_issue: bool,
+    requested_id: str | None,
+    focus_issue: bool,
+    no_validate: bool,
+    agent_platform: str | None,
+    agent_model: str | None,
+    agent_name: str | None,
+    agent_settings: str | None,
+    no_agent_provenance: bool = False,
+) -> None:
+    """Create a new issue in the current project.
+
+    \b
+    Examples:
+      kbs create "Plan the roadmap" --type initiative
+      kbs create "Release v1" --type epic --parent <initiative-id>
+      kbs create "Implement login" --type task --parent <epic-id>
+      kbs create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+
+    :param title: Issue title words.
+    :type title: tuple[str, ...]
+    :param issue_type: Issue type override.
+    :type issue_type: str | None
+    :param priority: Issue priority override.
+    :type priority: int | None
+    :param assignee: Issue assignee.
+    :type assignee: str | None
+    :param parent: Parent issue identifier.
+    :type parent: str | None
+    :param labels: Issue labels.
+    :type labels: tuple[str, ...]
+    :param description: Issue description.
+    :type description: str
+    :param local_issue: Whether to create the issue in project-local.
+    :type local_issue: bool
+    """
+    title_text = " ".join(title).strip()
+    description_text = description.strip()
+    if not title_text:
+        raise click.ClickException("title is required")
+    if focus_issue:
+        raise _deprecated_create_focus()
+
+    quality_result = None
+    if description_text:
+        quality_result = apply_text_quality_signals(description_text)
+        description_text = quality_result.text
+
+    if not no_validate and description_text:
+        try:
+            validate_code_blocks(description_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
+        root = _resolve_beads_root(root)
+        if local_issue:
+            raise click.ClickException("beads mode does not support local issues")
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_CREATE,
+            operation={
+                "title": title_text,
+                "issue_type": issue_type,
+                "priority": priority,
+                "assignee": assignee,
+                "parent": parent,
+                "labels": list(labels),
+                "description": description_text,
+                "local": False,
+            },
+            root=root,
+            beads_mode=True,
+        )
+        try:
+            issue = create_beads_issue(
+                root=root,
+                title=title_text,
+                issue_type=issue_type,
+                priority=priority,
+                assignee=assignee,
+                parent=parent,
+                description=description_text,
+            )
+        except BeadsWriteError as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(
+            format_issue_for_display(
+                issue,
+                configuration=None,
+                project_context=False,
+            )
+        )
+        if quality_result:
+            emit_signals(quality_result, "description", issue_id=issue.identifier)
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_CREATE,
+            operation={"issue": serialize_issue(issue)},
+            root=root,
+            beads_mode=True,
+        )
+        return
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_CREATE,
+        operation={
+            "title": title_text,
+            "issue_type": issue_type,
+            "priority": priority,
+            "assignee": assignee,
+            "parent": parent,
+            "labels": list(labels),
+            "description": description_text,
+            "local": local_issue,
+        },
+        root=root,
+        beads_mode=False,
+    )
+    try:
+        result = create_issue(
+            root=root,
+            title=title_text,
+            issue_type=issue_type,
+            priority=priority,
+            assignee=assignee,
+            parent=parent,
+            labels=labels,
+            description=description_text,
+            local=local_issue,
+            validate=not no_validate,
+            requested_id=requested_id,
+            agent=agent_metadata,
+        )
+    except IssueCreationError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        format_issue_for_display(
+            result.issue,
+            configuration=result.configuration,
+            project_context=False,
+        )
+    )
+    if quality_result:
+        emit_signals(quality_result, "description", issue_id=result.issue.identifier)
+    emit_agent_provenance_warning(
+        result.issue.identifier,
+        result.issue.agent,
+        silenced=no_agent_provenance,
+    )
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_CREATE,
+        operation={"issue": serialize_issue(result.issue)},
+        issues_for_policy=[result.issue],
+        root=root,
+        beads_mode=False,
+    )
+
+
+@cli.command("show")
+@click.argument("identifier")
+@click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--raw", is_flag=True, help="Show raw issue data without summary interception"
+)
+@click.pass_context
+def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> None:
+    """Show details for an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    :param raw: Bypass summary interception when set.
+    :type raw: bool
+    """
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
+            pass
+
+    if beads_mode:
+        root = _resolve_beads_root(root)
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_SHOW,
+        operation={"identifier": identifier, "as_json": as_json},
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+    if beads_mode:
+        try:
+            issue = load_beads_issue(root, identifier)
+        except MigrationError as error:
+            raise click.ClickException(str(error)) from error
+        configuration = None
+    else:
+        try:
+            lookup = load_issue_from_project(root, identifier)
+        except IssueLookupError as error:
+            raise click.ClickException(str(error)) from error
+        issue = lookup.issue
+        configuration = load_project_configuration(get_configuration_path(root))
+
+    if as_json:
+        payload = issue.model_dump(by_alias=True, mode="json")
+        click.echo(json.dumps(payload, indent=2, sort_keys=False))
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_SHOW,
+            operation={"identifier": identifier, "as_json": True, "issue": payload},
+            issues_for_policy=[issue],
+            root=root,
+            beads_mode=beads_mode,
+        )
+        return
+
+    all_issues = None
+    if not beads_mode:
+        try:
+            from kanbus.console_snapshot import get_issues_for_root
+
+            all_issues = list(get_issues_for_root(root))
+        except Exception:
+            pass
+
+    summary_comment = next(
+        (
+            c
+            for c in reversed(issue.comments)
+            if getattr(c, "comment_type", "default") == "summary"
+        ),
+        None,
+    )
+    if summary_comment is not None:
+        from kanbus.summarize import apply_virtualized_issue_view
+
+        apply_virtualized_issue_view(issue, raw=raw)
+
+    click.echo(
+        format_issue_for_display(
+            issue,
+            configuration=configuration,
+            project_context=False,
+            all_issues=all_issues,
+        )
+    )
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_SHOW,
+        operation={
+            "identifier": identifier,
+            "as_json": False,
+            "issue": serialize_issue(issue),
+        },
+        issues_for_policy=[issue],
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+
+@cli.command("update")
+@click.argument("identifier")
+@click.option("--title")
+@click.option("--description")
+@click.option("--status")
+@click.option("--priority", type=int)
+@click.option("--assignee")
+@click.option("--parent")
+@click.option("--add-label", "add_labels", multiple=True)
+@click.option("--remove-label", "remove_labels", multiple=True)
+@click.option("--set-labels", "set_labels")
+@click.option("--claim", is_flag=True, default=False)
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-name")
+@click.option("--agent-settings")
+@click.pass_context
+def update(
+    context: click.Context,
+    identifier: str,
+    title: str | None,
+    description: str | None,
+    status: str | None,
+    priority: int | None,
+    assignee: str | None,
+    parent: str | None,
+    add_labels: tuple[str, ...],
+    remove_labels: tuple[str, ...],
+    set_labels: str | None,
+    claim: bool,
+    no_validate: bool,
+    agent_platform: str | None = None,
+    agent_model: str | None = None,
+    agent_name: str | None = None,
+    agent_settings: str | None = None,
+) -> None:
+    """Update an existing issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param title: Updated title.
+    :type title: str | None
+    :param description: Updated description.
+    :type description: str | None
+    :param status: Updated status.
+    :type status: str | None
+    :param priority: Updated priority.
+    :type priority: int | None
+    :param assignee: Updated assignee.
+    :type assignee: str | None
+    :param parent: Updated parent identifier.
+    :type parent: str | None
+    :param claim: Whether to claim the issue.
+    :type claim: bool
+    """
+    root = Path.cwd()
+    beads_mode = False
+    if context.obj:
+        beads_mode = bool(context.obj.get("beads_mode"))
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
+            pass
+
+    update_quality_result = None
+    if description:
+        description_text_stripped = description.strip()
+        if description_text_stripped:
+            update_quality_result = apply_text_quality_signals(
+                description_text_stripped
+            )
+            description = update_quality_result.text
+
+    if not no_validate and description:
+        try:
+            validate_code_blocks(description)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+
+    # Parse set_labels if provided
+    parsed_set_labels = None
+    if set_labels:
+        parsed_set_labels = [label.strip() for label in set_labels.split(",")]
+
+    final_assignee = assignee or (get_current_user() if claim else None)
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
+
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
+        root = _resolve_beads_root(root)
+        if parent is not None:
+            raise click.ClickException("parent update not supported in beads mode")
+        try:
+            before_issue = load_beads_issue(root, identifier)
+        except MigrationError as error:
+            raise click.ClickException(str(error)) from error
+        proposed_issue = before_issue.model_copy(deep=True)
+        if status is not None:
+            proposed_issue.status = status
+        if title:
+            proposed_issue.title = title.strip()
+        if description:
+            proposed_issue.description = description.strip()
+        if priority is not None:
+            proposed_issue.priority = priority
+        if final_assignee is not None:
+            proposed_issue.assignee = final_assignee
+        if parsed_set_labels is not None or add_labels or remove_labels:
+            from kanbus.issue_update import merge_labels
+
+            proposed_issue.labels = merge_labels(
+                proposed_issue.labels,
+                list(parsed_set_labels) if parsed_set_labels is not None else None,
+                list(add_labels) if add_labels else None,
+                list(remove_labels) if remove_labels else None,
+            )
+
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_UPDATE,
+            operation={
+                "identifier": identifier,
+                "changes": {
+                    "title": title.strip() if title else None,
+                    "description": description.strip() if description else None,
+                    "status": status,
+                    "priority": priority,
+                    "assignee": final_assignee,
+                    "parent": None,
+                    "add_labels": list(add_labels),
+                    "remove_labels": list(remove_labels),
+                    "set_labels": parsed_set_labels,
+                },
+                "before_issue": serialize_issue(before_issue),
+                "proposed_issue": serialize_issue(proposed_issue),
+            },
+            root=root,
+            beads_mode=True,
+        )
+
+        if not no_validate:
+            from kanbus.policy_context import (
+                PolicyContext,
+                PolicyOperation,
+                StatusTransition,
+            )
+            from kanbus.policy_evaluator import evaluate_policies
+            from kanbus.policy_loader import load_policies
+            from kanbus.project import load_project_directory
+            from kanbus.workflows import (
+                validate_status_transition,
+                validate_status_value,
+            )
+
+            project_dir: Path | None = None
+            configuration = None
+            try:
+                project_dir = load_project_directory(root)
+                configuration = load_project_configuration(
+                    get_configuration_path(project_dir)
+                )
+            except (ProjectMarkerError, ConfigurationError):
+                # Beads mode can operate without an initialized Kanbus project.
+                project_dir = None
+                configuration = None
+
+            if configuration and proposed_issue.status != before_issue.status:
+                validate_status_value(
+                    configuration,
+                    proposed_issue.issue_type,
+                    proposed_issue.status,
+                    proposed_issue.identifier,
+                )
+                validate_status_transition(
+                    configuration,
+                    proposed_issue.issue_type,
+                    before_issue.status,
+                    proposed_issue.status,
+                )
+
+            policies_dir = project_dir / "policies" if project_dir else None
+            if policies_dir and policies_dir.is_dir() and configuration:
+                policy_documents = load_policies(policies_dir)
+                if policy_documents:
+                    all_issues = load_beads_issues(root)
+                    for index, existing_issue in enumerate(all_issues):
+                        if existing_issue.identifier == proposed_issue.identifier:
+                            all_issues[index] = proposed_issue
+                            break
+                    context = PolicyContext(
+                        current_issue=before_issue,
+                        proposed_issue=proposed_issue,
+                        transition=(
+                            StatusTransition(
+                                from_status=before_issue.status,
+                                to_status=proposed_issue.status,
+                            )
+                            if proposed_issue.status != before_issue.status
+                            else None
+                        ),
+                        operation=PolicyOperation.UPDATE,
+                        project_configuration=configuration,
+                        all_issues=all_issues,
+                    )
+                    evaluate_policies(context, policy_documents)
+
+        try:
+            update_beads_issue(
+                root,
+                identifier,
+                status=status,
+                title=title.strip() if title else None,
+                description=description.strip() if description else None,
+                priority=priority,
+                assignee=final_assignee,
+                add_labels=list(add_labels) if add_labels else None,
+                remove_labels=list(remove_labels) if remove_labels else None,
+                set_labels=parsed_set_labels,
+            )
+        except BeadsWriteError as error:
+            raise click.ClickException(str(error)) from error
+        updated_issue = load_beads_issue(root, identifier)
+        formatted_identifier = format_issue_key(identifier, project_context=False)
+        click.echo(f"Updated {formatted_identifier}")
+        if update_quality_result:
+            emit_signals(
+                update_quality_result,
+                "description",
+                issue_id=identifier,
+                is_update=True,
+            )
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_UPDATE,
+            operation={
+                "identifier": identifier,
+                "issue": serialize_issue(updated_issue),
+            },
+            root=root,
+            beads_mode=True,
+        )
+        return
+
+    # Regular Kanbus mode
+    before_issue_snapshot: IssueData | None = None
+    try:
+        before_issue_snapshot = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        before_issue_snapshot = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "identifier": identifier,
+            "changes": {
+                "title": title.strip() if title else None,
+                "description": description.strip() if description else None,
+                "status": status,
+                "priority": priority,
+                "assignee": final_assignee,
+                "parent": parent,
+                "add_labels": list(add_labels),
+                "remove_labels": list(remove_labels),
+                "set_labels": parsed_set_labels,
+            },
+            "before_issue": serialize_issue(before_issue_snapshot),
+        },
+        root=root,
+        beads_mode=False,
+    )
+    try:
+        update_result = update_issue(
+            root=root,
+            identifier=identifier,
+            title=title.strip() if title else None,
+            description=description.strip() if description else None,
+            status=status,
+            assignee=final_assignee,
+            claim=claim,
+            validate=not no_validate,
+            priority=priority,
+            add_labels=list(add_labels) if add_labels else None,
+            remove_labels=list(remove_labels) if remove_labels else None,
+            set_labels=parsed_set_labels,
+            parent=parent,
+            agent=agent_metadata,
+        )
+    except IssueUpdateError as error:
+        raise click.ClickException(str(error)) from error
+
+    updated_issue = update_result.issue
+    formatted_identifier = format_issue_key(identifier, project_context=False)
+    if update_result.changed:
+        click.echo(f"Updated {formatted_identifier}")
+    else:
+        click.echo(f"No changes for {formatted_identifier}")
+    if update_quality_result:
+        emit_signals(
+            update_quality_result, "description", issue_id=identifier, is_update=True
+        )
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "identifier": identifier,
+            "issue": serialize_issue(updated_issue),
+        },
+        issues_for_policy=[updated_issue],
+        root=root,
+        beads_mode=False,
+    )
+
+
+@cli.group("bulk")
+def bulk() -> None:
+    """Bulk issue operations."""
+
+
+@bulk.command("update")
+@click.option("--id", "ids", multiple=True)
+@click.option("--where-type", "where_type")
+@click.option("--where-status", "where_status")
+@click.option("--set-status", "set_status")
+@click.option("--set-assignee", "set_assignee")
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.pass_context
+def bulk_update(
+    context: click.Context,
+    ids: tuple[str, ...],
+    where_type: str | None,
+    where_status: str | None,
+    set_status: str | None,
+    set_assignee: str | None,
+    no_validate: bool,
+) -> None:
+    """Update multiple issues selected by IDs and/or filters."""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        raise click.ClickException("bulk update is not supported in beads mode")
+    if not ids and where_type is None and where_status is None:
+        raise click.ClickException(
+            "bulk update requires at least one selector (--id, --where-type, or --where-status)"
+        )
+    if set_status is None and set_assignee is None:
+        raise click.ClickException(
+            "bulk update requires at least one setter (--set-status or --set-assignee)"
+        )
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "bulk": True,
+            "selectors": {
+                "ids": list(ids),
+                "where_type": where_type,
+                "where_status": where_status,
+            },
+            "changes": {
+                "status": set_status,
+                "assignee": set_assignee,
+            },
+        },
+        root=root,
+        beads_mode=False,
+    )
+
+    updated: list[IssueData] = []
+    seen: set[str] = set()
+
+    for identifier in ids:
+        try:
+            update_result = update_issue(
+                root=root,
+                identifier=identifier,
+                title=None,
+                description=None,
+                status=set_status,
+                assignee=set_assignee,
+                claim=False,
+                validate=not no_validate,
+                priority=None,
+                add_labels=None,
+                remove_labels=None,
+                set_labels=None,
+                parent=None,
+            )
+        except IssueUpdateError as error:
+            raise click.ClickException(str(error)) from error
+        issue = update_result.issue
+        if update_result.changed and issue.identifier not in seen:
+            seen.add(issue.identifier)
+            updated.append(issue)
+
+    if where_type is not None or where_status is not None:
+        try:
+            matching = list_issues(
+                root=root,
+                status=where_status,
+                issue_type=where_type,
+            )
+        except IssueListingError as error:
+            raise click.ClickException(str(error)) from error
+        for issue in matching:
+            if issue.identifier in seen:
+                continue
+            try:
+                update_result = update_issue(
+                    root=root,
+                    identifier=issue.identifier,
+                    title=None,
+                    description=None,
+                    status=set_status,
+                    assignee=set_assignee,
+                    claim=False,
+                    validate=not no_validate,
+                    priority=None,
+                    add_labels=None,
+                    remove_labels=None,
+                    set_labels=None,
+                    parent=None,
+                )
+            except IssueUpdateError as error:
+                raise click.ClickException(str(error)) from error
+            updated_issue = update_result.issue
+            if update_result.changed:
+                seen.add(updated_issue.identifier)
+                updated.append(updated_issue)
+
+    click.echo(f"Updated {len(updated)} issue(s)")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "bulk": True,
+            "issue_ids": [issue.identifier for issue in updated],
+            "count": len(updated),
+        },
+        issues_for_policy=updated,
+        root=root,
+        beads_mode=False,
+    )
+
+
+@cli.command("close")
+@click.argument("identifier")
+@click.option("--comment", "comment_text", help="Add a comment before closing.")
+@click.pass_context
+def close(context: click.Context, identifier: str, comment_text: Optional[str]) -> None:
+    """Close an issue.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        root = _resolve_beads_root(root)
+
+    # This deliberately is not transactional: a failed close retains a
+    # successfully recorded comment, matching explicit comment-then-close.
+    if comment_text is not None:
+        if not comment_text.strip():
+            raise click.ClickException("comment text is required")
+        comment_quality_result = apply_text_quality_signals(comment_text)
+        comment_text = comment_quality_result.text
+        try:
+            validate_code_blocks(comment_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+        before_comment_issue = None
+        if beads_mode:
+            try:
+                before_comment_issue = load_beads_issue(root, identifier)
+            except MigrationError:
+                before_comment_issue = None
+        else:
+            try:
+                before_comment_issue = load_issue_from_project(root, identifier).issue
+            except IssueLookupError:
+                before_comment_issue = None
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_COMMENT,
+            operation={
+                "identifier": identifier,
+                "comment_text": comment_text,
+                "comment_length": len(comment_text),
+                "before_issue": serialize_issue(before_comment_issue),
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+        result_comment = None
+        try:
+            if beads_mode:
+                add_beads_comment(root, identifier, get_current_user(), comment_text)
+                emit_signals(comment_quality_result, "comment", issue_id=identifier)
+                try:
+                    after_comment_issue = load_beads_issue(root, identifier)
+                except MigrationError:
+                    after_comment_issue = None
+            else:
+                result_comment = add_comment(
+                    root=root,
+                    identifier=identifier,
+                    author=get_current_user(),
+                    text=comment_text,
+                )
+                emit_signals(
+                    comment_quality_result,
+                    "comment",
+                    issue_id=identifier,
+                    comment_id=result_comment.comment.id,
+                )
+                after_comment_issue = result_comment.issue
+        except (IssueCommentError, BeadsWriteError, MigrationError) as error:
+            raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_COMMENT,
+            operation={
+                "identifier": identifier,
+                "issue": serialize_issue(after_comment_issue),
+                "comment_id": (
+                    result_comment.comment.id
+                    if result_comment is not None
+                    and result_comment.comment.id is not None
+                    else None
+                ),
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+
+    before_issue = None
+    if beads_mode:
+        try:
+            before_issue = load_beads_issue(root, identifier)
+        except MigrationError:
+            before_issue = None
+    else:
+        try:
+            before_issue = load_issue_from_project(root, identifier).issue
+        except IssueLookupError:
+            before_issue = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_CLOSE,
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+    try:
+        if beads_mode:
+            update_beads_issue(root, identifier, status="closed")
+            issue = load_beads_issue(root, identifier)
+        else:
+            issue = close_issue(root, identifier)
+    except (IssueCloseError, BeadsWriteError, MigrationError) as error:
+        raise click.ClickException(str(error)) from error
+    formatted_identifier = format_issue_key(identifier, project_context=False)
+    click.echo(f"Closed {formatted_identifier}")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_CLOSE,
+        operation={"identifier": identifier, "issue": serialize_issue(issue)},
+        issues_for_policy=[issue],
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+
+@cli.command("commit")
+def commit() -> None:
+    """Commit project/issues changes to git.
+
+    \b
+    Examples:
+      kbs commit
+    """
+    root = Path.cwd()
+    try:
+        result = commit_project_issues(root)
+    except IssueCommitError as error:
+        raise click.ClickException(str(error)) from error
+    if result.committed:
+        click.echo("Committed project/issues")
+    else:
+        click.echo("Nothing to commit")
+
+
+@cli.command("move")
+@click.argument("identifier")
+@click.argument("issue_type")
+@click.option("--status")
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.pass_context
+def move(
+    context: click.Context,
+    identifier: str,
+    issue_type: str,
+    status: str | None,
+    no_validate: bool,
+) -> None:
+    """Move an issue to a different issue type."""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
+            pass
+
+    if beads_mode:
+        raise click.ClickException("move is not supported in beads mode")
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={
+            "identifier": identifier,
+            "changes": {"issue_type": issue_type, "status": status},
+        },
+        root=root,
+        beads_mode=False,
+    )
+    try:
+        update_result = update_issue(
+            root=root,
+            identifier=identifier,
+            title=None,
+            description=None,
+            status=status,
+            assignee=None,
+            claim=False,
+            validate=not no_validate,
+            priority=None,
+            add_labels=None,
+            remove_labels=None,
+            set_labels=None,
+            parent=None,
+            issue_type=issue_type,
+        )
+    except IssueUpdateError as error:
+        raise click.ClickException(str(error)) from error
+
+    updated_issue = update_result.issue
+    formatted_identifier = format_issue_key(identifier, project_context=False)
+    click.echo(f"Moved {formatted_identifier} to type {updated_issue.issue_type}")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_UPDATE,
+        operation={"identifier": identifier, "issue": serialize_issue(updated_issue)},
+        issues_for_policy=[updated_issue],
+        root=root,
+        beads_mode=False,
+    )
+
+
+@cli.command("delete")
+@click.argument("identifier")
+@click.option("--yes", "yes_flag", is_flag=True, default=False)
+@click.option("--recursive", is_flag=True, default=False)
+@click.pass_context
+def delete(
+    context: click.Context, identifier: str, yes_flag: bool, recursive: bool
+) -> None:
+    """Delete an issue and its event history.
+
+    Prompts for confirmation unless --yes is given. With --recursive, also
+    prompts to delete descendant issues.
+
+    :param context: Click context.
+    :type context: click.Context
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param yes_flag: Skip confirmation prompts.
+    :type yes_flag: bool
+    :param recursive: Allow deleting descendants after confirmation.
+    :type recursive: bool
+    """
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode"))
+    issue_for_guidance: IssueData | None = None
+    issue_for_hooks: IssueData | None = None
+
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
+
+    if not beads_mode:
+        try:
+            lookup = load_issue_from_project(root, identifier)
+            issue_for_guidance = lookup.issue
+            issue_for_hooks = lookup.issue
+        except IssueLookupError:
+            issue_for_guidance = None
+            issue_for_hooks = None
+
+    if beads_mode:
+        root = _resolve_beads_root(root)
+        try:
+            issue_for_hooks = load_beads_issue(root, identifier)
+        except MigrationError:
+            issue_for_hooks = None
+        if not yes_flag:
+            if not _terminal_is_interactive():
+                raise click.ClickException(
+                    "delete requires confirmation (re-run with --yes)"
+                )
+            if not click.confirm(
+                f'Delete "{identifier}" and its event history?', default=False
+            ):
+                click.echo("Delete cancelled.")
+                return
+        beads_recursive = recursive
+        if recursive and not yes_flag:
+            beads_descendants = get_beads_descendant_identifiers(root, identifier)
+            if beads_descendants:
+                formatted_desc = ", ".join(beads_descendants)
+                if len(beads_descendants) > 5:
+                    formatted_desc = (
+                        ", ".join(beads_descendants[:5])
+                        + f" and {len(beads_descendants) - 5} more"
+                    )
+                if not click.confirm(
+                    f"Also delete {len(beads_descendants)} descendant(s): {formatted_desc}?",
+                    default=False,
+                ):
+                    beads_recursive = False
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_DELETE,
+            operation={
+                "identifier": identifier,
+                "recursive": beads_recursive,
+                "before_issue": serialize_issue(issue_for_hooks),
+            },
+            root=root,
+            beads_mode=True,
+        )
+        try:
+            delete_beads_issue(root, identifier, recursive=beads_recursive)
+        except BeadsDeleteError as error:
+            raise click.ClickException(str(error)) from error
+        formatted_identifier = format_issue_key(identifier, project_context=False)
+        click.echo(f"Deleted {formatted_identifier}")
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_DELETE,
+            operation={
+                "identifier": identifier,
+                "recursive": beads_recursive,
+                "before_issue": serialize_issue(issue_for_hooks),
+            },
+            root=root,
+            beads_mode=True,
+        )
+        return
+
+    if not yes_flag:
+        if not _terminal_is_interactive():
+            raise click.ClickException(
+                "delete requires confirmation (re-run with --yes)"
+            )
+        if not click.confirm(
+            f'Delete "{identifier}" and its event history?', default=False
+        ):
+            click.echo("Delete cancelled.")
+            return
+
+    try:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+
+    descendants: list[str] = []
+    if recursive:
+        descendants = get_descendant_identifiers(lookup.project_dir, identifier)
+    if descendants and not yes_flag:
+        formatted_desc = ", ".join(descendants)
+        if len(descendants) > 5:
+            formatted_desc = (
+                ", ".join(descendants[:5]) + f" and {len(descendants) - 5} more"
+            )
+        if not click.confirm(
+            f"Also delete {len(descendants)} descendant(s): {formatted_desc}?",
+            default=False,
+        ):
+            descendants = []
+
+    to_delete = descendants + [identifier]
+    retain_audit_event = not recursive
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_DELETE,
+        operation={
+            "identifier": identifier,
+            "recursive": recursive,
+            "deleted_ids": list(to_delete),
+            "before_issue": serialize_issue(issue_for_hooks),
+        },
+        root=root,
+        beads_mode=False,
+    )
+    for issue_id in to_delete:
+        try:
+            delete_issue(root, issue_id, retain_audit_event=retain_audit_event)
+        except IssueDeleteError as error:
+            raise click.ClickException(str(error)) from error
+        formatted_identifier = format_issue_key(issue_id, project_context=False)
+        click.echo(f"Deleted {formatted_identifier}")
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_DELETE,
+        operation={
+            "identifier": identifier,
+            "recursive": recursive,
+            "deleted_ids": list(to_delete),
+            "before_issue": serialize_issue(issue_for_hooks),
+        },
+        issues_for_policy=(
+            [issue_for_guidance] if issue_for_guidance is not None else []
+        ),
+        root=root,
+        beads_mode=False,
+    )
+
+
+@cli.command("promote")
+@click.argument("identifier")
+@click.pass_context
+def promote(context: click.Context, identifier: str) -> None:
+    """Promote a local issue to the shared project.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    before_issue = None
+    try:
+        before_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        before_issue = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_PROMOTE,
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
+        root=root,
+        beads_mode=False,
+    )
+    try:
+        promote_issue(root, identifier)
+    except IssueTransferError as error:
+        raise click.ClickException(str(error)) from error
+    after_issue = None
+    try:
+        after_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        after_issue = None
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_PROMOTE,
+        operation={"identifier": identifier, "issue": serialize_issue(after_issue)},
+        root=root,
+        beads_mode=False,
+    )
+
+
+@cli.command("localize")
+@click.argument("identifier")
+@click.pass_context
+def localize(context: click.Context, identifier: str) -> None:
+    """Move a shared issue into project-local.
+
+    :param identifier: Issue identifier.
+    :type identifier: str
+    """
+    root = Path.cwd()
+    before_issue = None
+    try:
+        before_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        before_issue = None
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_LOCALIZE,
+        operation={
+            "identifier": identifier,
+            "before_issue": serialize_issue(before_issue),
+        },
+        root=root,
+        beads_mode=False,
+    )
+    try:
+        localize_issue(root, identifier)
+    except IssueTransferError as error:
+        raise click.ClickException(str(error)) from error
+    after_issue = None
+    try:
+        after_issue = load_issue_from_project(root, identifier).issue
+    except IssueLookupError:
+        after_issue = None
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_LOCALIZE,
+        operation={"identifier": identifier, "issue": serialize_issue(after_issue)},
+        root=root,
+        beads_mode=False,
+    )
+
+
+def _update_issue_comment(
+    context: click.Context,
+    tokens: tuple[str, ...],
+    no_validate: bool,
+    agent_platform: str | None,
+    agent_model: str | None,
+    agent_name: str | None,
+    agent_settings: str | None,
+) -> None:
+    """Add missing agent provenance or replace comment text.
+
+    :param context: Click context.
+    :type context: click.Context
+    :param tokens: Issue id, comment id, and optional replacement text.
+    :type tokens: tuple[str, ...]
+    :param no_validate: Bypass validation checks.
+    :type no_validate: bool
+    :param agent_platform: Agent platform flag.
+    :type agent_platform: str | None
+    :param agent_model: Agent model flag.
+    :type agent_model: str | None
+    :param agent_name: Agent session name flag.
+    :type agent_name: str | None
+    :param agent_settings: Agent settings JSON flag.
+    :type agent_settings: str | None
+    """
+    if len(tokens) < 2:
+        raise click.ClickException("comment update requires an issue id and comment id")
+    identifier = tokens[0]
+    comment_id = tokens[1]
+    text = " ".join(tokens[2:]).strip() if len(tokens) > 2 else ""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            pass
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
+        raise click.ClickException("beads mode does not support comment update")
+    replacement_text = text if text else None
+    if replacement_text is None and agent_metadata is None:
+        raise click.ClickException("comment text is required")
+    if replacement_text is not None:
+        quality_result = apply_text_quality_signals(replacement_text)
+        replacement_text = quality_result.text
+        if not no_validate:
+            try:
+                validate_code_blocks(replacement_text)
+            except ContentValidationError as error:
+                raise click.ClickException(str(error)) from error
+        emit_signals(
+            quality_result,
+            "comment",
+            issue_id=identifier,
+            comment_id=comment_id,
+            is_update=True,
+        )
+    try:
+        update_comment(
+            root,
+            identifier,
+            comment_id,
+            replacement_text,
+            agent_metadata,
+        )
+    except IssueCommentError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("comment")
+@click.argument("tokens", nargs=-1)
+@click.option("--body-file", type=click.File("r"), default=None)
+@click.option("--no-validate", "no_validate", is_flag=True, default=False)
+@click.option("--agent-platform")
+@click.option("--agent-model")
+@click.option("--agent-name")
+@click.option("--agent-settings")
+@click.option(
+    "--no-agent-provenance",
+    "no_agent_provenance",
+    is_flag=True,
+    default=False,
+    help="Do not warn when agent provenance is incomplete. See CONTRIBUTING_AGENT.md.",
+)
+@click.pass_context
+def comment(
+    context: click.Context,
+    tokens: tuple[str, ...],
+    body_file: Optional[click.File],
+    no_validate: bool = False,
+    agent_platform: str | None = None,
+    agent_model: str | None = None,
+    agent_name: str | None = None,
+    agent_settings: str | None = None,
+    no_agent_provenance: bool = False,
+) -> None:
+    """Add a comment to an issue.
+
+    :param context: Click context.
+    :type context: click.Context
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param text: Comment text (or use --body-file for multi-line).
+    :type text: Optional[str]
+    :param body_file: File to read comment text from (use '-' for stdin).
+    :type body_file: Optional[click.File]
+    :param no_validate: Bypass validation checks.
+    :type no_validate: bool
+    """
+    if tokens and tokens[0] == "update":
+        _update_issue_comment(
+            context,
+            tokens[1:],
+            no_validate=no_validate,
+            agent_platform=agent_platform,
+            agent_model=agent_model,
+            agent_name=agent_name,
+            agent_settings=agent_settings,
+        )
+        return
+    if not tokens:
+        raise click.ClickException("issue identifier is required")
+    identifier = tokens[0]
+    text = " ".join(tokens[1:]) if len(tokens) > 1 else None
+    root = Path.cwd()
+    beads_mode = context.obj.get("beads_mode", False)
+    agent_metadata = _resolve_cli_agent_metadata(
+        agent_platform, agent_model, agent_settings, agent_name
+    )
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
+            pass
+
+    if beads_mode:
+        reject_agent_metadata_in_beads_mode(agent_metadata is not None)
+
+    # Handle body-file input
+    comment_text = text or ""
+    if body_file is not None:
+        comment_text = body_file.read()
+
+    if not comment_text:
+        raise click.ClickException("Comment text required")
+
+    comment_quality_result = apply_text_quality_signals(comment_text)
+    comment_text = comment_quality_result.text
+
+    if not no_validate:
+        try:
+            validate_code_blocks(comment_text)
+        except ContentValidationError as error:
+            raise click.ClickException(str(error)) from error
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_COMMENT,
+        operation={
+            "identifier": identifier,
+            "comment_text": comment_text,
+            "comment_length": len(comment_text),
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+    result_comment = None
+    try:
+        if beads_mode:
+            from kanbus.beads_write import add_beads_comment, BeadsWriteError
+
+            try:
+                add_beads_comment(
+                    root=root,
+                    identifier=identifier,
+                    author=get_current_user(),
+                    text=comment_text,
+                )
+            except BeadsWriteError as error:
+                raise click.ClickException(str(error)) from error
+            emit_signals(comment_quality_result, "comment", issue_id=identifier)
+        else:
+            result_comment = add_comment(
+                root=root,
+                identifier=identifier,
+                author=get_current_user(),
+                text=comment_text,
+                agent=agent_metadata,
+            )
+            emit_signals(
+                comment_quality_result,
+                "comment",
+                issue_id=identifier,
+                comment_id=result_comment.comment.id,
+            )
+            emit_agent_provenance_warning(
+                identifier,
+                result_comment.comment.agent,
+                comment_id=result_comment.comment.id,
+                silenced=no_agent_provenance,
+            )
+            if result_comment.comment.agent is not None:
+                click.echo(
+                    f"Agent: {format_agent_display_line(result_comment.comment.agent)}"
+                )
+    except IssueCommentError as error:
+        raise click.ClickException(str(error)) from error
+
+    after_issue = None
+    if beads_mode:
+        try:
+            after_issue = load_beads_issue(root, identifier)
+        except MigrationError:
+            after_issue = None
+    elif result_comment is not None:
+        after_issue = result_comment.issue
+
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_COMMENT,
+        operation={
+            "identifier": identifier,
+            "issue": serialize_issue(after_issue),
+            "comment_id": (
+                result_comment.comment.id
+                if result_comment is not None and result_comment.comment.id is not None
+                else None
+            ),
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+
+@cli.command("list")
+@click.option("--status")
+@click.option("--type", "issue_type")
+@click.option("--assignee")
+@click.option("--label")
+@click.option("--parent")
+@click.option("--sort")
+@click.option("--search")
+@click.option("--project", "projects", multiple=True, help="Filter by project label.")
+@click.option("--no-local", is_flag=True, default=False)
+@click.option("--local-only", is_flag=True, default=False)
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum issues to display (0 for no limit).",
+)
+@click.option(
+    "--all",
+    "list_all",
+    is_flag=True,
+    default=False,
+    help="Show all issues (same as --limit 0).",
+)
+@click.option(
+    "--porcelain",
+    is_flag=True,
+    default=False,
+    help="Plain, non-colorized output for machine parsing.",
+)
+@click.option(
+    "--full-ids",
+    "full_ids",
+    is_flag=True,
+    default=False,
+    help="Show full issue keys even in single-project context.",
+)
+@click.pass_context
+def list_command(
+    context: click.Context,
+    status: str | None,
+    issue_type: str | None,
+    assignee: str | None,
+    label: str | None,
+    parent: str | None,
+    sort: str | None,
+    search: str | None,
+    projects: tuple[str, ...],
+    no_local: bool,
+    local_only: bool,
+    limit: int,
+    list_all: bool,
+    porcelain: bool,
+    full_ids: bool,
+) -> None:
+    """List issues in the current project.
+
+    \b
+    Examples:
+      kbs list
+      kbs list --type epic
+      kbs list --status open
+      kbs list --type task --status in_progress
+      kbs list --parent <id>
+      kbs list --all
+      kbs issues / kbs epics / kbs tasks / kbs bugs   shorthand aliases
+    """
+    if (
+        list_all
+        and context.get_parameter_source("limit")
+        == click.core.ParameterSource.COMMANDLINE
+    ):
+        raise click.ClickException("cannot combine --all with --limit")
+    if list_all:
+        limit = 0
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        root = _resolve_beads_root(root)
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_LIST,
+        operation={
+            "status": status,
+            "issue_type": issue_type,
+            "assignee": assignee,
+            "label": label,
+            "parent": parent,
+            "sort": sort,
+            "search": search,
+            "projects": list(projects),
+            "no_local": no_local,
+            "local_only": local_only,
+            "limit": limit,
+            "porcelain": porcelain,
+            "full_ids": full_ids,
+        },
+        root=root,
+        beads_mode=beads_mode,
+    )
+    try:
+        issues = list_issues(
+            root,
+            status=status,
+            issue_type=issue_type,
+            assignee=assignee,
+            label=label,
+            parent=parent,
+            sort=sort,
+            search=search,
+            project_filter=list(projects),
+            include_local=not no_local,
+            local_only=local_only,
+            beads_mode=beads_mode,
+        )
+    except (IssueListingError, QueryError) as error:
+        raise click.ClickException(str(error)) from error
+
+    if beads_mode:
+        issues = sorted(
+            issues,
+            key=lambda issue: (
+                issue.priority,
+                -_issue_sort_timestamp(issue),
+                issue.identifier,
+            ),
+        )
+    if limit > 0:
+        issues = issues[:limit]
+
+    configuration = None
+    if not beads_mode:
+        try:
+            configuration = load_project_configuration(get_configuration_path(root))
+        except ProjectMarkerError:
+            configuration = None
+        except ConfigurationError as error:
+            raise click.ClickException(str(error)) from error
+
+    # In Beads mode, always show full IDs (project_context=False)
+    # In regular mode, use project_context if all issues are from same project
+    project_context = (
+        False
+        if beads_mode or full_ids
+        else not any(issue.custom.get("project_path") for issue in issues)
+    )
+    widths = (
+        None if porcelain else compute_widths(issues, project_context=project_context)
+    )
+    for issue in issues:
+        line = format_issue_line(
+            issue,
+            porcelain=porcelain,
+            widths=widths,
+            project_context=project_context,
+            configuration=configuration,
+        )
+        click.echo(line)
+    if not porcelain and configuration is not None:
+        for empty_line in format_empty_status_lines(issues, configuration, issue_type):
+            click.echo(empty_line)
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_LIST,
+        operation={
+            "status": status,
+            "issue_type": issue_type,
+            "assignee": assignee,
+            "label": label,
+            "sort": sort,
+            "search": search,
+            "projects": list(projects),
+            "no_local": no_local,
+            "local_only": local_only,
+            "issue_ids": [issue.identifier for issue in issues],
+        },
+        issues_for_policy=issues,
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+
+def _issue_sort_timestamp(issue: IssueData) -> float:
+    """Return a sortable UTC timestamp (seconds) for an issue."""
+
+    timestamp = issue.closed_at or issue.updated_at or issue.created_at
+    return timestamp.timestamp()
+
+
+def _run_lifecycle_hooks_for_context(
+    context: click.Context,
+    *,
+    phase: HookPhase,
+    event: HookEvent,
+    operation: dict[str, object] | None = None,
+    issues_for_policy: list[IssueData] | None = None,
+    root: Path | None = None,
+    beads_mode: bool | None = None,
+) -> None:
+    """Run lifecycle hooks with context-aware global controls."""
+    if not context.obj:
+        return
+    try:
+        run_lifecycle_hooks(
+            root=root or Path.cwd(),
+            phase=phase,
+            event=event,
+            actor=get_current_user(),
+            beads_mode=(
+                bool(context.obj.get("beads_mode", False))
+                if beads_mode is None
+                else beads_mode
+            ),
+            operation=operation or {},
+            issues_for_policy=issues_for_policy,
+            no_hooks=bool(context.obj.get("no_hooks", False)),
+            no_guidance=bool(context.obj.get("no_guidance", False)),
+        )
+    except HookExecutionError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.group("hooks")
+def hooks_group() -> None:
+    """Inspect and validate lifecycle hook configuration."""
+
+
+@hooks_group.command("list")
+def hooks_list_command() -> None:
+    """List configured hooks and built-in providers."""
+    root = Path.cwd()
+    rows = list_hooks(root)
+    if not rows:
+        click.echo("No hooks configured.")
+        return
+
+    for row in rows:
+        timeout = row["timeout_ms"] if row["timeout_ms"] is not None else "default"
+        click.echo(
+            f"[{row['source']}] {row['phase']} {row['event']} {row['id']}\n"
+            f"  command: {row['command']}\n"
+            f"  blocking: {row['blocking']} timeout_ms: {timeout}"
+        )
+
+
+@hooks_group.command("validate")
+def hooks_validate_command() -> None:
+    """Validate hook commands, IDs, and event bindings."""
+    root = Path.cwd()
+    issues = validate_hooks(root)
+    if issues:
+        lines = [f"Found {len(issues)} hook validation issue(s):"]
+        lines.extend([f"- {issue}" for issue in issues])
+        raise click.ClickException("\n".join(lines))
+    click.echo("Hook configuration is valid.")
+
+
+@cli.group("wiki")
+def wiki() -> None:
+    """Manage wiki pages."""
+
+
+@wiki.command("render")
+@click.argument("page")
+@click.option("--json", "as_json", is_flag=True)
+@click.option("--html", "as_html", is_flag=True)
+def render_wiki(page: str, as_json: bool, as_html: bool) -> None:
+    """Render a wiki page.
+
+    :param page: Wiki page path.
+    :type page: str
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    :param as_html: Emit Markus HTML after Jinja when set.
+    :type as_html: bool
+    """
+    root = Path.cwd()
+    request = WikiRenderRequest(root=root, page_path=Path(page))
+    try:
+        link_problems = check_wiki_page_links(root, page)
+        reference_warnings: list[str] = []
+        output = render_wiki_page(request, reference_warnings=reference_warnings)
+        rendered_html = ""
+        if as_json or as_html:
+            rendered_html = convert_wiki_markdown_to_html(output)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    for problem in link_problems:
+        click.echo(format_wiki_link_problem(problem, warning=True), err=True)
+    for warning in reference_warnings:
+        click.echo(warning, err=True)
+    if as_json:
+        try:
+            resolved_page = resolve_wiki_page_path(root, page)
+        except WikiError as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(
+            format_wiki_render_json(resolved_page.as_posix(), output, rendered_html)
+        )
+        return
+    if as_html:
+        click.echo(rendered_html)
+        return
+    click.echo(output)
+
+
+@wiki.command("show")
+@click.argument("page")
+def show_wiki(page: str) -> None:
+    """Show raw wiki page source without rendering templates.
+
+    :param page: Wiki page path.
+    :type page: str
+    """
+    root = Path.cwd()
+    try:
+        output = show_wiki_page(root, page)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=False)
+
+
+@wiki.command("list")
+@click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum pages to display (0 for no limit).",
+)
+def wiki_list(as_json: bool, limit: int) -> None:
+    """List wiki pages.
+
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    :param limit: Maximum pages to display (0 for no limit).
+    :type limit: int
+    """
+    root = Path.cwd()
+    try:
+        pages = list_wiki_pages(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    pages = apply_wiki_page_limit(pages, limit)
+    if as_json:
+        click.echo(format_wiki_list_json(pages))
+        return
+    for path in pages:
+        click.echo(path)
+
+
+@wiki.command("search")
+@click.argument("query")
+@click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--limit",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum pages to display (0 for no limit).",
+)
+def wiki_search(query: str, as_json: bool, limit: int) -> None:
+    """Search wiki pages by path, title, and body.
+
+    :param query: Case-insensitive search string.
+    :type query: str
+    :param as_json: Emit JSON output when set.
+    :type as_json: bool
+    :param limit: Maximum pages to display (0 for no limit).
+    :type limit: int
+    """
+    root = Path.cwd()
+    try:
+        pages = search_wiki_pages(root, query)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    pages = apply_wiki_page_limit(pages, limit)
+    if as_json:
+        click.echo(format_wiki_search_json(query, pages))
+        return
+    if not pages:
+        click.echo("0 results")
+        return
+    for path in pages:
+        click.echo(path)
+
+
+@wiki.command("init")
+def wiki_init() -> None:
+    """Create the wiki directory and a stub index page."""
+    root = Path.cwd()
+    try:
+        index_path = init_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(index_path)
+
+
+def _run_wiki_lint(root: Path) -> None:
+    """Validate wiki-internal markdown links and report failures.
+
+    :param root: Repository root directory.
+    :type root: Path
+    :raises click.ClickException: When lint finds broken links or wiki errors occur.
+    """
+    try:
+        problems = lint_wiki(root)
+    except WikiError as error:
+        raise click.ClickException(str(error)) from error
+    if problems:
+        lines = [
+            format_wiki_link_problem(problem, warning=False) for problem in problems
+        ]
+        raise click.ClickException("\n".join(lines))
+    click.echo("wiki lint: ok")
+
+
+@wiki.command("lint")
+def wiki_lint() -> None:
+    """Validate wiki-internal markdown links across the wiki tree."""
+    _run_wiki_lint(Path.cwd())
+
+
+@wiki.command("check")
+def wiki_check() -> None:
+    """Validate the wiki tree (alias for wiki lint)."""
+    _run_wiki_lint(Path.cwd())
+
+
+@cli.group("edit")
+def edit_group() -> None:
+    """File edit commands mirroring the Anthropic text editor tool."""
+
+
+@edit_group.command("view")
+@click.argument("path", type=click.Path())
+@click.option(
+    "--view-range",
+    nargs=2,
+    type=int,
+    default=None,
+    help="Start and end line numbers (1-indexed; -1 for end).",
+)
+def edit_view_cmd(path: str, view_range: tuple[int, int] | None) -> None:
+    """View file contents or list directory."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_view(root, path_obj, view_range)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("str-replace")
+@click.argument("path", type=click.Path())
+@click.option("--old-str", required=True)
+@click.option("--new-str", required=True)
+def edit_str_replace_cmd(path: str, old_str: str, new_str: str) -> None:
+    """Replace exact text in file (must match exactly one location)."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_str_replace(root, path_obj, old_str, new_str)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("create")
+@click.argument("path", type=click.Path())
+@click.option("--file-text", required=True)
+def edit_create_cmd(path: str, file_text: str) -> None:
+    """Create a new file with the given content."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_create(root, path_obj, file_text)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@edit_group.command("insert")
+@click.argument("path", type=click.Path())
+@click.option("--insert-line", type=int, required=True)
+@click.option("--insert-text", required=True)
+def edit_insert_cmd(path: str, insert_line: int, insert_text: str) -> None:
+    """Insert text after the given line number (0 = beginning)."""
+    root = Path.cwd()
+    path_obj = Path(path)
+    try:
+        output = edit_insert(root, path_obj, insert_line, insert_text)
+    except TextEditorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output)
+
+
+@cli.group("policy")
+def policy() -> None:
+    """Policy management commands."""
+
+
+@policy.command("check")
+@click.argument("identifier")
+def policy_check(identifier: str) -> None:
+    """Check policies against an issue.
+
+    :param identifier: Issue identifier to check policies against.
+    :type identifier: str
+    """
+    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+    from kanbus.policy_loader import load_policies
+    from kanbus.policy_evaluator import (
+        evaluate_policies_with_options,
+        PolicyEvaluationOptions,
+    )
+    from kanbus.policy_context import PolicyContext, PolicyOperation
+    from kanbus.issue_listing import load_issues_from_directory
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.project import get_configuration_path
+
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, identifier)
+        configuration = load_project_configuration(
+            get_configuration_path(lookup.project_dir)
+        )
+        policies_dir = lookup.project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        issues_dir = lookup.project_dir / "issues"
+        all_issues = load_issues_from_directory(issues_dir)
+        context = PolicyContext(
+            current_issue=lookup.issue,
+            proposed_issue=lookup.issue,
+            transition=None,
+            operation=PolicyOperation.UPDATE,
+            project_configuration=configuration,
+            all_issues=all_issues,
+        )
+
+        violations = evaluate_policies_with_options(
+            context,
+            policy_documents,
+            PolicyEvaluationOptions(collect_all_violations=True),
+        )
+
+        if violations:
+            error_msg = [f"Found {len(violations)} policy violation(s):"]
+            for i, v in enumerate(violations):
+                error_msg.append(f"\n{i + 1}. {v}")
+            raise click.ClickException("\n".join(error_msg))
+
+        click.echo(f"All policies passed for {identifier}")
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@policy.command("guide")
+@click.argument("identifier")
+def policy_guide(identifier: str) -> None:
+    """Run policy guidance against an issue without enforcing blocks."""
+    from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
+    from kanbus.policy_context import PolicyOperation
+    from kanbus.policy_guidance import (
+        collect_guidance_for_issue,
+        sorted_deduped_guidance_items,
+    )
+
+    root = Path.cwd()
+    try:
+        lookup = load_issue_from_project(root, identifier)
+        report = collect_guidance_for_issue(
+            root=lookup.project_dir,
+            issue=lookup.issue,
+            operation=PolicyOperation.VIEW,
+        )
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+    if report.violations:
+        lines = [
+            f"Found {len(report.violations)} policy validation issue(s) while generating guidance:"
+        ]
+        for index, violation in enumerate(report.violations, start=1):
+            lines.append(f"\n{index}. {violation}")
+        raise click.ClickException("\n".join(lines))
+
+    items = sorted_deduped_guidance_items(report.guidance_items)
+    if not items:
+        click.echo(f"No guidance for {identifier}")
+        return
+
+    for item in items:
+        prefix = (
+            "GUIDANCE WARNING"
+            if item.severity.value == "warning"
+            else "GUIDANCE SUGGESTION"
+        )
+        click.echo(f"{prefix}: {item.message}", err=True)
+        for explanation in item.explanations:
+            click.echo(f"  Explanation: {explanation}", err=True)
+
+
+@policy.command("list")
+def policy_list() -> None:
+    """List all loaded policy files."""
+    from kanbus.project import load_project_directory
+    from kanbus.policy_loader import load_policies
+
+    root = Path.cwd()
+    try:
+        project_dir = load_project_directory(root)
+        policies_dir = project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        for filename, document in policy_documents:
+            click.echo(f"{filename}")
+            if document.feature:
+                click.echo(f"  Feature: {document.feature.name}")
+                for child in document.feature.children:
+                    scenario = getattr(child, "scenario", None)
+                    if scenario:
+                        click.echo(f"    Scenario: {scenario.name}")
+                        continue
+                    rule = getattr(child, "rule", None)
+                    if not rule:
+                        continue
+                    for rule_child in getattr(rule, "children", []):
+                        nested = getattr(rule_child, "scenario", None)
+                        if not nested:
+                            continue
+                        click.echo(f"    Rule: {rule.name} / {nested.name}")
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@policy.command("steps")
+@click.option("--category", help="Filter by category (given, when, then).")
+@click.option("--search", help="Filter by search term.")
+def policy_steps(category: str | None, search: str | None) -> None:
+    """List available policy steps.
+
+    :param category: Filter by category.
+    :type category: str | None
+    :param search: Filter by search term.
+    :type search: str | None
+    """
+    from kanbus.policy_evaluator import _get_step_registry
+
+    registry = _get_step_registry()
+    output = []
+
+    for step in registry.steps:
+        if category:
+            if category.lower() != step.category.value.lower():
+                continue
+        if search:
+            search_lower = search.lower()
+            if (
+                search_lower not in step.description.lower()
+                and search_lower not in step.usage_pattern.lower()
+            ):
+                continue
+        output.append(
+            f"{step.category.value} - {step.description}\n  Pattern: {step.usage_pattern}"
+        )
+
+    if not output:
+        click.echo("No matching steps found")
+    else:
+        click.echo("\n".join(output))
+
+
+@policy.command("validate")
+def policy_validate() -> None:
+    """Validate all policy files for syntax errors."""
+    from datetime import datetime, timezone
+
+    from kanbus.models import IssueData
+    from kanbus.policy_context import PolicyContext, PolicyOperation
+    from kanbus.policy_evaluator import validate_policy_documents
+    from kanbus.project import load_project_directory
+    from kanbus.policy_loader import load_policies
+
+    root = Path.cwd()
+    try:
+        project_dir = load_project_directory(root)
+        policies_dir = project_dir / "policies"
+
+        if not policies_dir.is_dir():
+            click.echo("No policies directory found")
+            return
+
+        policy_documents = load_policies(policies_dir)
+        if not policy_documents:
+            click.echo("No policy files found")
+            return
+
+        configuration = load_project_configuration(get_configuration_path(project_dir))
+        now = datetime.now(timezone.utc)
+        validation_issue = IssueData(
+            id="kanbus-policy-validate",
+            title="Policy Validation Context",
+            description="",
+            type="task",
+            status=configuration.initial_status,
+            priority=configuration.default_priority,
+            assignee=None,
+            creator=None,
+            parent=None,
+            labels=[],
+            dependencies=[],
+            comments=[],
+            created_at=now,
+            updated_at=now,
+            closed_at=None,
+            custom={},
+        )
+        validation_context = PolicyContext(
+            current_issue=validation_issue,
+            proposed_issue=validation_issue,
+            transition=None,
+            operation=PolicyOperation.UPDATE,
+            project_configuration=configuration,
+            all_issues=[],
+        )
+        validation_violations = validate_policy_documents(
+            validation_context,
+            policy_documents,
+        )
+        if validation_violations:
+            lines = [f"Found {len(validation_violations)} policy validation issue(s):"]
+            for index, violation in enumerate(validation_violations, start=1):
+                lines.append(f"\n{index}. {violation}")
+            raise click.ClickException("\n".join(lines))
+
+        click.echo(f"All {len(policy_documents)} policy files are valid")
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.group("console")
+def console() -> None:
+    """Console-related utilities."""
+
+
+@console.command("snapshot")
+def console_snapshot() -> None:
+    """Emit a JSON snapshot for the console."""
+    root = Path.cwd()
+    try:
+        snapshot = build_console_snapshot(root)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    payload = json.dumps(snapshot, indent=2, sort_keys=False)
+    click.echo(payload)
+
+
+@console.command("now")
+def console_now() -> None:
+    """Emit JSON issues for the Now panel with JIT right-now summaries."""
+    root = Path.cwd()
+    try:
+        issues = build_now_issues(root)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+    payload = json.dumps(
+        [issue.model_dump(by_alias=True, mode="json") for issue in issues],
+        indent=2,
+        sort_keys=False,
+    )
+    click.echo(payload)
+
+
+@console.command("standup")
+@click.option(
+    "--request-json",
+    default=None,
+    help="Standup request JSON. When omitted, JSON is read from stdin.",
+)
+def console_standup(request_json: str | None) -> None:
+    """Emit a JSON standup report for the console API."""
+    root = Path.cwd()
+    raw_request = request_json if request_json is not None else sys.stdin.read()
+    if not raw_request.strip():
+        raise click.ClickException("standup request JSON is required")
+    try:
+        request = StandupGenerateRequest.model_validate(json.loads(raw_request))
+        response = generate_standup_report(root, request)
+    except ConsoleSnapshotError as error:
+        raise click.ClickException(str(error)) from error
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+    payload = StandupGenerateResponseModel(
+        profile=response.profile,
+        sections=[
+            {"name": section.name, "bullets": section.bullets}
+            for section in response.sections
+        ],
+        text=response.text,
+        source_issues=response.source_issues,
+        right_now_texts=response.right_now_texts,
+    ).model_dump()
+    click.echo(json.dumps(payload, indent=2, sort_keys=False))
+
+
+@console.command("screenshot")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output PNG path (default: kanbus-board.png in the current directory).",
+)
+@click.option(
+    "--mode",
+    default="light",
+    show_default=True,
+    help="Appearance mode for the board (light or dark). Defaults to light for reproducible captures.",
+)
+@click.option(
+    "--view",
+    default=None,
+    help="Board type filter. Use all for every issue type (console ?type=all).",
+)
+@click.option(
+    "--expand-all",
+    is_flag=True,
+    help="Expand every collapsed status column before capture.",
+)
+@click.option(
+    "--expand",
+    "expand_columns",
+    multiple=True,
+    help="Expand a status column before capture (repeatable).",
+)
+@click.option(
+    "--collapse",
+    "collapse_columns",
+    multiple=True,
+    help="Collapse a status column before capture (repeatable).",
+)
+def console_screenshot(
+    output: Optional[str],
+    mode: str,
+    view: Optional[str],
+    expand_all: bool,
+    expand_columns: tuple[str, ...],
+    collapse_columns: tuple[str, ...],
+) -> None:
+    """Capture a PNG screenshot of the console board."""
+    root = Path.cwd()
+    try:
+        path = capture_console_screenshot(
+            root,
+            output,
+            mode,
+            view,
+            expand_all,
+            list(expand_columns),
+            list(collapse_columns),
+        )
+    except ConsoleScreenshotError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(str(path))
+
+
+@console.command("focus")
+@click.argument("identifier")
+@click.option("--comment", default=None, help="Comment ID to scroll to.")
+def console_focus(identifier: str, comment: Optional[str]) -> None:
+    """Focus on an issue and its descendants in the console."""
+    raise _deprecated_console_control("focus")
+
+
+@console.command("unfocus")
+def console_unfocus() -> None:
+    """Clear the current focus filter in the console."""
+    raise _deprecated_console_control("unfocus")
+
+
+@console.command("view")
+@click.argument("mode", type=click.Choice(["initiatives", "epics", "issues"]))
+def console_view(mode: str) -> None:
+    """Switch the console to a different view mode."""
+    raise _deprecated_console_control("view")
+
+
+@console.command("search")
+@click.argument("query", required=False, default=None)
+@click.option("--clear", is_flag=True, help="Clear the active search query.")
+def console_search(query: Optional[str], clear: bool) -> None:
+    """Set or clear the search query in the console."""
+    raise _deprecated_console_control("search")
+
+
+@console.command("maximize")
+def console_maximize() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("maximize")
+
+
+@console.command("restore")
+def console_restore() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("restore")
+
+
+@console.command("close-detail")
+def console_close_detail() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("close-detail")
+
+
+@console.command("toggle-settings")
+def console_toggle_settings() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("toggle-settings")
+
+
+@console.command("reload")
+def console_reload() -> None:
+    """Deprecated console command."""
+    raise _deprecated_console_control("reload")
+
+
+@console.command("set-setting")
+@click.argument("key")
+@click.argument("value")
+def console_set_setting(key: str, value: str) -> None:
+    """Deprecated console command."""
+    _ = (key, value)
+    raise _deprecated_console_control("set-setting")
+
+
+@console.command("collapse")
+@click.argument("column")
+def console_collapse(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("collapse")
+
+
+@console.command("collapse-column")
+@click.argument("column")
+def console_collapse_column(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("collapse-column")
+
+
+@console.command("expand")
+@click.argument("column")
+def console_expand(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("expand")
+
+
+@console.command("expand-column")
+@click.argument("column")
+def console_expand_column(column: str) -> None:
+    """Deprecated console command."""
+    _ = column
+    raise _deprecated_console_control("expand-column")
+
+
+@console.command("select")
+@click.argument("identifier")
+def console_select(identifier: str) -> None:
+    """Deprecated console command."""
+    _ = identifier
+    raise _deprecated_console_control("select")
+
+
+@console.command("status")
+def console_status() -> None:
+    """Print a human-readable summary of the current console UI state."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    focused = ui_state.get("focused_issue_id") or "none"
+    view = ui_state.get("view_mode") or "none"
+    search = ui_state.get("search_query") or "none"
+    click.echo(f"focus:  {focused}")
+    click.echo(f"view:   {view}")
+    click.echo(f"search: {search}")
+
+
+@console.group("get")
+def console_get() -> None:
+    """Query a specific piece of console UI state."""
+
+
+@console_get.command("focus")
+def console_get_focus() -> None:
+    """Print the currently focused issue ID, or 'none'."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    click.echo(ui_state.get("focused_issue_id") or "none")
+
+
+@console_get.command("view")
+def console_get_view() -> None:
+    """Print the current view mode, or 'none'."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    click.echo(ui_state.get("view_mode") or "none")
+
+
+@console_get.command("search")
+def console_get_search() -> None:
+    """Print the active search query, or 'none'."""
+    root = Path.cwd()
+    ui_state = fetch_console_ui_state(root)
+    if ui_state is None:
+        click.echo("Console server is not running.")
+        return
+    click.echo(ui_state.get("search_query") or "none")
+
+
+@cli.command("validate")
+def validate() -> None:
+    """Validate project integrity."""
+    root = Path.cwd()
+    try:
+        validate_project(root)
+    except ProjectValidationError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("stats")
+def stats() -> None:
+    """Report project statistics."""
+    root = Path.cwd()
+    try:
+        stats_result = collect_project_stats(root)
+    except ProjectStatsError as error:
+        raise click.ClickException(str(error)) from error
+
+    lines = [
+        f"total issues: {stats_result.total}",
+        f"open issues: {stats_result.open_count}",
+        f"closed issues: {stats_result.closed_count}",
+    ]
+    for issue_type in sorted(stats_result.type_counts):
+        count = stats_result.type_counts[issue_type]
+        lines.append(f"type: {issue_type}: {count}")
+    click.echo("\n".join(lines))
+
+
+@cli.command(
+    "dep",
+    context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.argument("args", nargs=-1, required=False)
+@click.pass_context
+def dep(context: click.Context, args: tuple[str, ...]) -> None:
+    """Manage issue dependencies.
+
+    Usage: kanbus dep <identifier> <blocked-by|relates-to> <target>
+           kanbus dep <identifier> remove <blocked-by|relates-to> <target>
+           kanbus dep tree <identifier> [--depth N] [--format FORMAT]
+    """
+    if len(args) < 1:
+        raise click.ClickException(DEP_USAGE)
+
+    # Check if this is a tree command - handle it separately since it needs options
+    if args[0] == "tree":
+        # Redirect to separate tree implementation
+        if len(args) < 2:
+            raise click.ClickException("tree requires an identifier")
+
+        # For tree, we need to parse options differently
+        # Just pass through to the tree handler with a simple parse
+        tree_args = list(args[1:])
+        tree_identifier = tree_args[0] if tree_args else None
+        if not tree_identifier:
+            raise click.ClickException("tree requires an identifier")
+
+        # Simple option parsing
+        depth = None
+        output_format = "text"
+        i = 1
+        while i < len(tree_args):
+            if tree_args[i] == "--depth" and i + 1 < len(tree_args):
+                try:
+                    depth = int(tree_args[i + 1])
+                except ValueError:
+                    raise click.ClickException("depth must be a number")
+                i += 2
+            elif tree_args[i] == "--format" and i + 1 < len(tree_args):
+                output_format = tree_args[i + 1]
+                i += 2
+            else:
+                i += 1
+
+        root = Path.cwd()
+        try:
+            tree = build_dependency_tree(root, tree_identifier, depth)
+            output = render_dependency_tree(tree, output_format)
+        except DependencyTreeError as error:
+            raise click.ClickException(str(error)) from error
+        click.echo(output)
+        return
+
+    if len(args) < 2:
+        raise click.ClickException(DEP_USAGE)
+
+    identifier = args[0]
+
+    # Check if this is a remove operation
+    if len(args) > 1 and args[1] == "remove":
+        if len(args) < 4:
+            raise click.ClickException("dependency target is required")
+        dep_type = args[2]
+        target = args[3]
+        is_remove = True
+    else:
+        if len(args) < 3:
+            raise click.ClickException("dependency target is required")
+        dep_type = args[1]
+        target = args[2]
+        is_remove = False
+
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+
+    # Check if beads_compatibility is enabled in config
+    if not beads_mode:
+        try:
+            config = load_project_configuration(get_configuration_path(root))
+            if config.beads_compatibility:
+                beads_mode = True
+        except (ConfigurationError, ProjectMarkerError):
+            # Treat unreadable/missing project config as standard Kanbus mode.
+            pass
+
+    if is_remove:
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "remove",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+        if beads_mode:
+            try:
+                from kanbus.beads_write import remove_beads_dependency
+
+                remove_beads_dependency(root, identifier, target, dep_type)
+            except BeadsWriteError as error:
+                raise click.ClickException(str(error)) from error
+        else:
+            try:
+                remove_dependency(root, identifier, target, dep_type)
+            except DependencyError as error:
+                raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "remove",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+    else:
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.BEFORE,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "add",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+        if beads_mode:
+            try:
+                from kanbus.beads_write import add_beads_dependency
+
+                add_beads_dependency(root, identifier, target, dep_type)
+            except BeadsWriteError as error:
+                raise click.ClickException(str(error)) from error
+        else:
+            try:
+                add_dependency(root, identifier, target, dep_type)
+            except DependencyError as error:
+                raise click.ClickException(str(error)) from error
+        _run_lifecycle_hooks_for_context(
+            context,
+            phase=HookPhase.AFTER,
+            event=HookEvent.ISSUE_DEPENDENCY,
+            operation={
+                "action": "add",
+                "identifier": identifier,
+                "dependency_type": dep_type,
+                "target": target,
+            },
+            root=root,
+            beads_mode=beads_mode,
+        )
+
+
+@cli.command("ready")
+@click.option("--no-local", is_flag=True, default=False)
+@click.option("--local-only", is_flag=True, default=False)
+@click.pass_context
+def ready(context: click.Context, no_local: bool, local_only: bool) -> None:
+    """List issues that are ready (not blocked)."""
+    root = Path.cwd()
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    if beads_mode:
+        root = _resolve_beads_root(root)
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.BEFORE,
+        event=HookEvent.ISSUE_READY,
+        operation={"no_local": no_local, "local_only": local_only},
+        root=root,
+        beads_mode=beads_mode,
+    )
+    try:
+        issues = list_ready_issues(
+            root,
+            include_local=not no_local,
+            local_only=local_only,
+            beads_mode=beads_mode,
+        )
+    except DependencyError as error:
+        raise click.ClickException(str(error)) from error
+    for issue in issues:
+        project_path = issue.custom.get("project_path")
+        prefix = f"{project_path} " if project_path else ""
+        click.echo(f"{prefix}{issue.identifier}")
+    _run_lifecycle_hooks_for_context(
+        context,
+        phase=HookPhase.AFTER,
+        event=HookEvent.ISSUE_READY,
+        operation={
+            "no_local": no_local,
+            "local_only": local_only,
+            "issue_ids": [issue.identifier for issue in issues],
+        },
+        issues_for_policy=issues,
+        root=root,
+        beads_mode=beads_mode,
+    )
+
+
+@cli.command("now")
+@click.argument("issue_ids", nargs=-1)
+@click.option("--limit", default=None, type=int)
+@click.option("--all", "show_all", is_flag=True, default=False)
+@click.option("--list", "as_list", is_flag=True, default=False)
+@click.option("--no-recursive", is_flag=True, default=False)
+@click.option("--expanded", is_flag=True, default=False)
+@click.option("--collapsed", is_flag=True, default=False)
+@click.option("--raw", is_flag=True, default=False)
+@click.option("--yaml", "as_yaml", is_flag=True, default=False)
+@click.option("--json", "as_json", is_flag=True, default=False)
+@click.option("--text", "as_text", is_flag=True, default=False)
+@click.option(
+    "--status",
+    default=None,
+    help="Status filter. Default: in_progress. Use all for every status.",
+)
+@click.option(
+    "--purge",
+    is_flag=True,
+    default=False,
+    help="Clear right_now_summary and right_now_updated_at across the board.",
+)
+def right_now_command(
+    issue_ids: tuple[str, ...],
+    limit: int | None,
+    show_all: bool,
+    as_list: bool,
+    no_recursive: bool,
+    expanded: bool,
+    collapsed: bool,
+    raw: bool,
+    as_yaml: bool,
+    as_json: bool,
+    as_text: bool,
+    status: str | None,
+    purge: bool,
+) -> None:
+    """List recently-updated issues with right-now summaries.
+
+    \b
+
+    Examples:
+      kbs now                          YAML tree of recently-updated issues (cap 30)
+      kbs now --list                   reverse-chronological YAML list
+      kbs now --all                    every issue as a YAML tree
+      kbs now --limit 10               10 most recently updated
+      kbs now kbs-abc                  issue and descendants as a YAML tree
+      kbs now kbs-abc --no-recursive   that issue only
+      kbs now kbs-abc --list           descendants as a flat YAML list
+      kbs now --json                   machine-readable JSON for agents
+      kbs now --text                   human-readable text lines
+      kbs now --raw                    titles only, no summaries
+      kbs now --status all             every status, not just in-progress
+      kbs now --purge                  clear all right-now summaries on the board
+    """
+    root = Path.cwd()
+    try:
+        output_format = resolve_right_now_output_format(
+            as_yaml=as_yaml,
+            as_json=as_json,
+            as_text=as_text,
+        )
+    except RightNowCommandError as error:
+        raise click.ClickException(str(error)) from error
+    options = RightNowCommandOptions(
+        limit=limit,
+        tree=not as_list,
+        expanded=expanded,
+        collapsed=collapsed,
+        raw=raw,
+        output_format=output_format,
+        show_all=show_all,
+        recursive=not no_recursive,
+        issue_ids=issue_ids,
+        status=status,
+        purge=purge,
+    )
+    try:
+        output = run_right_now_command(root, options)
+    except (IssueListingError, RightNowCommandError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=not output.endswith("\n"))
+
+
+@cli.command("standup")
+@click.argument("issue_ids", nargs=-1)
+@click.option(
+    "--profile",
+    default=None,
+    help="Standup profile: meeting-script or director-brief (default: meeting-script).",
+)
+@click.option(
+    "--window",
+    default=None,
+    type=click.Choice(["rolling", "calendar"]),
+    help="Standup window mode: rolling or calendar.",
+)
+@click.option(
+    "--lookback",
+    default=None,
+    help="Rolling lookback duration (for example 24h or 1d).",
+)
+@click.option("--skip-weekends", is_flag=True, default=False)
+@click.option("--no-skip-weekends", is_flag=True, default=False)
+@click.option("--json", "as_json", is_flag=True, default=False)
+@click.option("--no-recursive", is_flag=True, default=False)
+@click.option(
+    "--rollup",
+    default=None,
+    type=click.Choice(["flat", "project", "tree"]),
+    help="Today rollup: flat, project (multi-board default), or tree.",
+)
+def standup_command(
+    issue_ids: tuple[str, ...],
+    profile: str | None,
+    window: str | None,
+    lookback: str | None,
+    skip_weekends: bool,
+    no_skip_weekends: bool,
+    as_json: bool,
+    no_recursive: bool,
+    rollup: str | None,
+) -> None:
+    """Generate on-demand standup reports from right-now facts.
+
+    \b
+
+    Examples:
+      kbs standup                              board-wide meeting script
+      kbs standup --profile director-brief     executive brief
+      kbs standup --rollup project             one bullet per virtual project
+      kbs standup kbs-abc kbs-def              scoped report
+      kbs standup kbs-abc --no-recursive       selected issues only
+      kbs standup kbs-abc --json               machine-readable JSON
+    """
+    root = Path.cwd()
+    skip_weekends_override = None
+    if skip_weekends and no_skip_weekends:
+        raise click.ClickException(
+            "cannot use both --skip-weekends and --no-skip-weekends"
+        )
+    if skip_weekends:
+        skip_weekends_override = True
+    elif no_skip_weekends:
+        skip_weekends_override = False
+    options = StandupCommandOptions(
+        issue_ids=issue_ids,
+        profile=profile,
+        as_json=as_json,
+        recursive=not no_recursive,
+        window=window,
+        lookback=lookback,
+        skip_weekends=skip_weekends_override,
+        rollup=rollup,
+    )
+    try:
+        output = run_standup_command(root, options)
+    except (IssueListingError, StandupCommandError, StandupError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(output, nl=not output.endswith("\n"))
+
+
+@cli.command("doctor")
+def doctor() -> None:
+    """Run environment diagnostics for Kanbus."""
+    root = Path.cwd()
+    try:
+        result = run_doctor(root)
+    except DoctorError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"ok {result.project_dir}")
+    if result.ai_credential_source == CredentialSource.NONE.value:
+        click.echo("ai credentials: OPENAI_API_KEY not set (run kbs setup ai)")
+    else:
+        click.echo(f"ai credentials: OPENAI_API_KEY from {result.ai_credential_source}")
+    click.echo(
+        "methodologies: "
+        + (", ".join(result.methodology_names) if result.methodology_names else "none")
+    )
+    if result.project_management_file_is_current is False:
+        click.echo(
+            "warning: CONTRIBUTING_AGENT.md differs from what the configured "
+            "methodologies generate; run kbs setup agents --force to regenerate it "
+            "(this replaces hand edits)"
+        )
+
+
+@cli.command("migrate")
+@click.option(
+    "--into-existing",
+    is_flag=True,
+    help=(
+        "Import Beads issues into an already initialized project. "
+        "Repeatable: re-runs and overwrites matching issue JSON files."
+    ),
+)
+def migrate(into_existing: bool) -> None:
+    """Migrate Beads issues into Kanbus.
+
+    :raises click.ClickException: If migration fails.
+    """
+    root = Path.cwd()
+    try:
+        if into_existing:
+            result = migrate_from_beads_into_project(root)
+        else:
+            result = migrate_from_beads(root)
+    except MigrationError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"migrated {result.issue_count} issues")
+
+
+@cli.command("daemon-status")
+def daemon_status() -> None:
+    """Report daemon status."""
+    root = Path.cwd()
+    try:
+        result = request_status(root)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except DaemonClientError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(json.dumps(result, indent=2, sort_keys=False))
+
+
+@cli.command("daemon-stop")
+def daemon_stop() -> None:
+    """Stop the daemon process."""
+    root = Path.cwd()
+    try:
+        result = request_shutdown(root)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except DaemonClientError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(json.dumps(result, indent=2, sort_keys=False))
+
+
+@cli.group()
+def gossip() -> None:
+    """Realtime gossip commands."""
+
+
+@gossip.command("broker")
+@click.option("--socket", "socket_path", type=click.Path(path_type=Path))
+def gossip_broker(socket_path: Optional[Path]) -> None:
+    """Run a local UDS gossip broker."""
+    root = Path.cwd()
+    try:
+        run_gossip_broker(root, socket_path)
+    except GossipError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@gossip.command("watch")
+@click.option("--project", "project_label", default=None)
+@click.option("--transport", default=None)
+@click.option("--broker", default=None)
+@click.option("--autostart/--no-autostart", default=None)
+@click.option("--keepalive/--no-keepalive", default=None)
+@click.option(
+    "--print/--no-print",
+    "print_envelopes",
+    default=False,
+    help="Print each received envelope as JSON (NDJSON) to stdout.",
+)
+def gossip_watch(
+    project_label: Optional[str],
+    transport: Optional[str],
+    broker: Optional[str],
+    autostart: Optional[bool],
+    keepalive: Optional[bool],
+    print_envelopes: bool,
+) -> None:
+    """Watch gossip notifications and update overlay cache."""
+    root = Path.cwd()
+    try:
+        run_gossip_watch(
+            root,
+            project_label,
+            transport,
+            broker,
+            autostart,
+            keepalive,
+            print_envelopes,
+        )
+    except GossipError as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.group()
+def overlay() -> None:
+    """Overlay cache commands."""
+
+
+@overlay.command("gc")
+@click.option("--project", "project_label", default=None)
+@click.option("--all", "all_projects", is_flag=True, default=False)
+def overlay_gc(project_label: Optional[str], all_projects: bool) -> None:
+    """Sweep overlay cache entries."""
+    root = Path.cwd()
+    try:
+        count = gc_overlay_for_projects(root, project_label, all_projects)
+    except (ConfigurationError, ProjectMarkerError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(f"overlay gc complete ({count} project(s))")
+
+
+@overlay.command("reconcile")
+@click.option("--project", "project_label", default=None)
+@click.option("--all", "all_projects", is_flag=True, default=False)
+@click.option("--prune", is_flag=True, default=False)
+@click.option("--dry-run", "dry_run", is_flag=True, default=False)
+def overlay_reconcile(
+    project_label: Optional[str],
+    all_projects: bool,
+    prune: bool,
+    dry_run: bool,
+) -> None:
+    """Reconcile overlay cache entries against canonical issue files."""
+    root = Path.cwd()
+    try:
+        stats = reconcile_overlay_for_projects(
+            root,
+            project_label=project_label,
+            all_projects=all_projects,
+            prune=prune,
+            dry_run=dry_run,
+        )
+    except (ConfigurationError, ProjectMarkerError, ValueError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(
+        "overlay reconcile complete "
+        f"(projects={stats.projects}, scanned={stats.issues_scanned}, "
+        f"updated={stats.issues_updated}, removed={stats.issues_removed}, "
+        f"pruned={stats.fields_pruned})"
+    )
+
+
+@overlay.command("install-hooks")
+def overlay_install_hooks() -> None:
+    """Install git hooks to run overlay gc after git operations."""
+    root = Path.cwd()
+    try:
+        install_overlay_hooks(root)
+    except (ConfigurationError, ProjectMarkerError, OSError, RuntimeError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("overlay hooks installed")
+
+
+def _format_project_marker_error(error: ProjectMarkerError) -> str:
+    message = str(error)
+    if message.startswith("multiple projects found"):
+        return (
+            "multiple projects found. Run this command from a directory containing a "
+            "single project/ folder."
+        )
+    if message == "project not initialized":
+        return 'project not initialized. Run "kanbus init" to create a project/ folder.'
+    return message
+
+
+@cli.group()
+def snyk() -> None:
+    """Snyk vulnerability synchronization commands."""
+
+
+@snyk.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--org-id",
+    default=None,
+    help="Override Snyk org ID.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach bugs to.",
+)
+@click.pass_context
+def snyk_pull(
+    context: click.Context,
+    dry_run: bool,
+    min_severity: Optional[str],
+    org_id: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull vulnerabilities from Snyk into Kanbus."""
+    from kanbus.snyk_sync import SnykSyncError, pull_from_snyk
+
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if configuration.snyk is None:
+        raise click.ClickException("no snyk configuration in .kanbus.yml")
+
+    snyk_config = configuration.snyk.model_copy(
+        update={
+            k: v
+            for k, v in {
+                "min_severity": min_severity,
+                "org_id": org_id,
+                "parent_epic": parent_epic,
+            }.items()
+            if v is not None
+        }
+    )
+
+    if dry_run:
+        click.echo("Dry run — no files will be written.\n")
+
+    try:
+        result = pull_from_snyk(root, snyk_config, configuration.project_key, dry_run)
+    except SnykSyncError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        f"pulled {result.pulled} new, updated {result.updated} existing, "
+        f"skipped {result.skipped} duplicates"
+    )
+
+
+@cli.group()
+def jira() -> None:
+    """Jira synchronization commands."""
+
+
+@jira.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.pass_context
+def jira_pull(context: click.Context, dry_run: bool) -> None:
+    """Pull issues from Jira into Kanbus."""
+    from kanbus.jira_sync import JiraSyncError, pull_from_jira
+
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    if configuration.jira is None:
+        raise click.ClickException("no jira configuration in .kanbus.yml")
+
+    if configuration.jira.sync_direction not in ("pull", "both"):
+        raise click.ClickException(
+            "sync_direction must be 'pull' or 'both' to use jira pull"
+        )
+
+    if dry_run:
+        click.echo("Dry run — no files will be written.\n")
+
+    try:
+        result = pull_from_jira(
+            root, configuration.jira, configuration.project_key, dry_run
+        )
+    except JiraSyncError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(f"pulled {result.pulled} new, updated {result.updated} existing")
+
+
+@cli.group(name="github")
+def github_security() -> None:
+    """GitHub security synchronization commands."""
+
+
+@cli.group(name="gh")
+def github_security_short() -> None:
+    """Alias for GitHub security synchronization commands."""
+
+
+@github_security.group()
+def dependabot() -> None:
+    """Dependabot synchronization commands."""
+
+
+@github_security_short.group(name="dependabot")
+def dependabot_short() -> None:
+    """Dependabot synchronization commands."""
+
+
+def _run_github_dependabot_pull(
+    context: click.Context,
+    dry_run: bool,
+    repo: Optional[str],
+    min_severity: Optional[str],
+    state: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull Dependabot alerts from GitHub into Kanbus."""
+    from kanbus.github_security_sync import (
+        GithubSecuritySyncError,
+        pull_dependabot_from_github,
+        pull_dependabot_from_github_beads,
+    )
+    from kanbus.models import DependabotConfiguration, GithubSecurityConfiguration
+
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except ProjectMarkerError as error:
+        raise click.ClickException(_format_project_marker_error(error)) from error
+    except ConfigurationError as error:
+        raise click.ClickException(str(error)) from error
+
+    beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
+    root_for_beads = config_path.parent
+
+    github_security_config = (
+        configuration.github_security
+        or GithubSecurityConfiguration(
+            repo=None,
+            dependabot=None,
+        )
+    )
+    dependabot_config = github_security_config.dependabot or DependabotConfiguration()
+
+    if repo is not None:
+        github_security_config = github_security_config.model_copy(
+            update={"repo": repo}
+        )
+    if min_severity is not None:
+        dependabot_config = dependabot_config.model_copy(
+            update={"min_severity": min_severity}
+        )
+    if state is not None:
+        dependabot_config = dependabot_config.model_copy(update={"state": state})
+    if parent_epic is not None:
+        dependabot_config = dependabot_config.model_copy(
+            update={"parent_epic": parent_epic}
+        )
+
+    github_security_config = github_security_config.model_copy(
+        update={"dependabot": dependabot_config}
+    )
+
+    if dry_run:
+        click.echo("Dry run — no files will be written.\n")
+
+    try:
+        if beads_mode:
+            result = pull_dependabot_from_github_beads(
+                root_for_beads,
+                github_security_config,
+                dry_run,
+            )
+        else:
+            result = pull_dependabot_from_github(
+                root,
+                github_security_config,
+                configuration.project_key,
+                dry_run,
+            )
+    except GithubSecuritySyncError as error:
+        raise click.ClickException(str(error)) from error
+
+    click.echo(
+        f"pulled {result.pulled} new, updated {result.updated} existing, "
+        f"skipped {result.skipped} duplicates"
+    )
+
+
+@dependabot.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--repo",
+    default=None,
+    help="Override GitHub repository slug (owner/repo).",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--state",
+    default=None,
+    help="Override Dependabot alert state filter.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach findings to.",
+)
+@click.pass_context
+def github_dependabot_pull(
+    context: click.Context,
+    dry_run: bool,
+    repo: Optional[str],
+    min_severity: Optional[str],
+    state: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull Dependabot alerts from GitHub into Kanbus."""
+    _run_github_dependabot_pull(
+        context,
+        dry_run=dry_run,
+        repo=repo,
+        min_severity=min_severity,
+        state=state,
+        parent_epic=parent_epic,
+    )
+
+
+@dependabot_short.command(name="pull")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without writing files.",
+)
+@click.option(
+    "--repo",
+    default=None,
+    help="Override GitHub repository slug (owner/repo).",
+)
+@click.option(
+    "--min-severity",
+    default=None,
+    help="Override minimum severity (critical, high, medium, low).",
+)
+@click.option(
+    "--state",
+    default=None,
+    help="Override Dependabot alert state filter.",
+)
+@click.option(
+    "--parent-epic",
+    default=None,
+    help="Override parent epic issue ID to attach findings to.",
+)
+@click.pass_context
+def github_dependabot_pull_short(
+    context: click.Context,
+    dry_run: bool,
+    repo: Optional[str],
+    min_severity: Optional[str],
+    state: Optional[str],
+    parent_epic: Optional[str],
+) -> None:
+    """Pull Dependabot alerts from GitHub into Kanbus."""
+    _run_github_dependabot_pull(
+        context,
+        dry_run=dry_run,
+        repo=repo,
+        min_severity=min_severity,
+        state=state,
+        parent_epic=parent_epic,
+    )
+
+
+@cli.command("issues", hidden=True)
+@click.pass_context
+def issues_alias(context: click.Context) -> None:
+    """Alias for: kbs list"""
+    context.invoke(list_command)
+
+
+@cli.command("epics", hidden=True)
+@click.pass_context
+def epics_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type epic"""
+    context.invoke(list_command, issue_type="epic")
+
+
+@cli.command("tasks", hidden=True)
+@click.pass_context
+def tasks_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type task"""
+    context.invoke(list_command, issue_type="task")
+
+
+@cli.command("stories", hidden=True)
+@click.pass_context
+def stories_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type story"""
+    context.invoke(list_command, issue_type="story")
+
+
+@cli.command("bugs", hidden=True)
+@click.pass_context
+def bugs_alias(context: click.Context) -> None:
+    """Alias for: kbs list --type bug"""
+    context.invoke(list_command, issue_type="bug")
+
+
+@cli.command("now-generate-internal", hidden=True)
+@click.argument("issue_id")
+def right_now_generate_internal(issue_id: str) -> None:
+    """Generate a right-now summary for internal runtime delegation."""
+    root = Path.cwd()
+    load_repository_environment(root)
+    try:
+        lookup = load_issue_from_project(root, issue_id)
+    except IssueLookupError as error:
+        raise click.ClickException(str(error)) from error
+    issue = lookup.issue
+    context = build_leaf_right_now_context(issue)
+    try:
+        summary = generate_right_now_summary(root, issue, context)
+    except RightNowError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(summary)
+
+
+@cli.command("summarize")
+@click.argument("identifier")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the summary without saving to issue.",
+)
+@click.pass_context
+def summarize(context: click.Context, identifier: str, dry_run: bool) -> None:
+    """Summarize an issue using AI."""
+    root = Path.cwd()
+    from kanbus.summarize import compaction_summarize
+
+    try:
+        compaction_summarize(root, identifier, dry_run=dry_run)
+    except Exception as error:
+        raise click.ClickException(str(error)) from error
+
+
+@cli.command("cost")
+@click.option(
+    "--days", type=int, default=None, help="Number of days to aggregate over."
+)
+@click.pass_context
+def cost(context: click.Context, days: int | None) -> None:
+    """Report LLM usage costs."""
+    from kanbus.llm_cost import build_llm_cost_report
+
+    click.echo(build_llm_cost_report(Path.cwd(), days))
+
+
+@click.group()
+def lifecycle() -> None:
+    """Issue lifecycle management commands."""
+    pass
+
+
+@lifecycle.command("compact")
+@click.option("--all", "all_issues", is_flag=True, help="Process all eligible issues.")
+@click.option("--query", type=str, help="Filter issues by query.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show which issues would be compacted without mutating.",
+)
+@click.option(
+    "--archived-only",
+    is_flag=True,
+    help="Only compact archived issues (closed > 30 days).",
+)
+@click.option("--max-items", type=int, help="Limit number of issues to compact.")
+@click.pass_context
+def compact_command(
+    context: click.Context,
+    all_issues: bool,
+    query: str | None,
+    dry_run: bool,
+    archived_only: bool,
+    max_items: int | None,
+) -> None:
+    """Batch compact (summarize) issues based on lifecycle policies."""
+    from kanbus.lifecycle import run_lifecycle_compaction
+
+    root = Path.cwd()
+    run_lifecycle_compaction(
+        root=root,
+        all=all_issues,
+        query=query,
+        dry_run=dry_run,
+        archived_only=archived_only,
+        max_items=max_items,
+    )
+
+
+cli.add_command(lifecycle)
+
+
+@cli.group("coordination")
+def coordination_group() -> None:
+    """Manage soft coordination leases."""
+
+
+def _coordination_context() -> tuple[Path, Path, ProjectConfiguration]:
+    """Load the current project directory and coordination configuration."""
+    root = Path.cwd()
+    try:
+        config_path = get_configuration_path(root)
+        configuration = load_project_configuration(config_path)
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise click.ClickException(str(error)) from error
+    return (
+        root,
+        config_path.parent / configuration.project_directory,
+        configuration,
+    )
+
+
+def _coordination_provider(root: Path, configuration: ProjectConfiguration) -> str:
+    """Select the first available configured provider, falling back to Git."""
+    from kanbus.coordination_mutex_api import is_configured
+
+    if "mutex_api" in configuration.coordination.providers and is_configured(
+        configuration.coordination.mutex_api
+    ):
+        return "mutex_api"
+    return _coordination_fallback_provider(root, configuration)
+
+
+def _coordination_fallback_provider(
+    root: Path, configuration: ProjectConfiguration
+) -> str:
+    """Select MQTT when it is usable, otherwise retain Git as the fallback."""
+    from kanbus.coordination_runtime import select_soft_provider
+
+    return select_soft_provider(root, configuration)
+
+
+def _mutex_lease_state(lease, *, operation_event_id: str | None = None) -> LeaseState:
+    return LeaseState(
+        resource=lease.resource,
+        owner=lease.owner,
+        claim_id=lease.claim_id,
+        expires_at=lease.expires_at,
+        active=True,
+        event_id=operation_event_id,
+        operation_event_id=operation_event_id,
+        claimed_at=lease.claimed_at,
+        revision=lease.revision,
+    )
+
+
+def _echo_coordination_state(state: LeaseState, provider: str) -> None:
+    click.echo(f"provider: {provider}")
+    click.echo(f"resource: {state.resource}")
+    if state.active:
+        click.echo(
+            "state: active hard mutex"
+            if provider == "mutex_api"
+            else "state: active soft ownership"
+        )
+        click.echo(f"owner: {state.owner}")
+        click.echo(f"claim_id: {state.claim_id}")
+        if state.revision is not None:
+            click.echo(f"revision: {state.revision}")
+        if provider == "mutex_api" and state.claimed_at is not None:
+            click.echo(
+                "claimed_at: "
+                f"{state.claimed_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
+            )
+        click.echo(
+            f"expires_at: {state.expires_at.isoformat(timespec='milliseconds').replace('+00:00', 'Z')}"
+        )
+    else:
+        click.echo("state: eligible")
+
+
+@coordination_group.command("claim")
+@click.option("--resource", required=True, help="Resource to claim.")
+@click.option("--owner", required=True, help="Stable worker identifier.")
+@click.option("--claim-id", required=True, help="Unique claim identifier.")
+@click.option(
+    "--revision",
+    type=click.IntRange(min=1),
+    default=1,
+    show_default=True,
+    help="Positive fencing revision for hard mutex providers.",
+)
+def coordination_claim_command(
+    resource: str, owner: str, claim_id: str, revision: int
+) -> None:
+    """Record a durable soft claim and announce it over MQTT when available."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus.coordination import parse_duration
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            acquire as acquire_mutex_lease,
+            release as release_mutex_lease,
+        )
+
+        try:
+            lease = acquire_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+                revision=revision,
+                ttl_seconds=parse_duration(
+                    configuration.coordination.default_lease_ttl
+                ),
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                state = coordination_claim(
+                    project_dir / "events",
+                    configuration.coordination,
+                    resource=resource,
+                    owner=owner,
+                    claim_id=claim_id,
+                    revision=revision,
+                    # The mutex service supplies the authoritative lease epoch.
+                    # Persist it so Python and Rust write the same hard-claim
+                    # timestamp and derived expiry from an API response.
+                    now=lease.claimed_at,
+                )
+            except CoordinationError as error:
+                rollback_error = None
+                try:
+                    release_mutex_lease(
+                        configuration.coordination.mutex_api,
+                        resource=resource,
+                        owner=owner,
+                        claim_id=claim_id,
+                    )
+                except CoordinationError as release_error:
+                    rollback_error = release_error
+                message = (
+                    "mutex api acquired lease but durable Git claim could not be recorded: "
+                    f"{error}"
+                )
+                if rollback_error is not None:
+                    message += f"; best-effort mutex release failed: {rollback_error}"
+                raise click.ClickException(message) from error
+            state = _mutex_lease_state(
+                lease, operation_event_id=state.operation_event_id
+            )
+            _echo_coordination_state(state, "mutex_api")
+            return
+    try:
+        state = coordination_claim(
+            project_dir / "events",
+            configuration.coordination,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            revision=revision,
+            now=occurred_at,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    if provider == "mqtt" and state.operation_event_id:
+        from kanbus.coordination_mqtt import inspect_lease as inspect_mqtt_lease
+        from kanbus.coordination_runtime import publish_claim_visibility
+        from kanbus.coordination import parse_duration
+
+        published = publish_claim_visibility(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=state.operation_event_id,
+            occurred_at=occurred_at,
+            lease_ttl_s=parse_duration(configuration.coordination.default_lease_ttl),
+            operation_sequence=state.operation_sequence,
+        )
+        if published:
+            state = inspect_mqtt_lease(
+                project_dir / "events",
+                project_dir,
+                resource,
+                configuration,
+                now=occurred_at,
+            )
+        else:
+            provider = "git"
+    _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("renew")
+@click.option("--resource", required=True, help="Resource to renew.")
+@click.option("--owner", required=True, help="Current lease owner.")
+@click.option("--claim-id", required=True, help="Current claim identifier.")
+@click.option(
+    "--extend",
+    "extend_duration",
+    default=None,
+    help="Duration to add to the current expiry (for example 120s).",
+)
+def coordination_renew_command(
+    resource: str, owner: str, claim_id: str, extend_duration: str | None
+) -> None:
+    """Extend the current winning soft lease."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus import coordination
+        from kanbus.coordination import format_timestamp, parse_duration
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            renew as renew_mutex_lease,
+        )
+
+        try:
+            extension_seconds = parse_duration(
+                extend_duration or configuration.coordination.default_lease_ttl
+            )
+            lease = renew_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+                extend_seconds=extension_seconds,
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                coordination._record_event(
+                    project_dir / "events",
+                    resource=resource,
+                    event_type="coordination.renew",
+                    owner=owner,
+                    claim_id=claim_id,
+                    payload={
+                        "lease_expires_at": format_timestamp(lease.expires_at),
+                        "revision": lease.revision,
+                    },
+                    occurred_at=occurred_at,
+                )
+            except CoordinationError as error:
+                raise click.ClickException(
+                    "mutex api renewed lease but durable Git renewal could not be "
+                    f"recorded: {error}"
+                ) from error
+            _echo_coordination_state(_mutex_lease_state(lease), "mutex_api")
+            return
+    try:
+        state = coordination_renew(
+            project_dir / "events",
+            configuration.coordination,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            extend=extend_duration,
+            now=occurred_at,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    if (
+        provider == "mqtt"
+        and state.active
+        and state.event_id
+        and state.claimed_at
+        and state.expires_at
+        and state.contention_window_ends_at
+        and occurred_at >= state.contention_window_ends_at
+    ):
+        from kanbus.coordination_runtime import publish_renewal_visibility
+
+        published = publish_renewal_visibility(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            occurred_at=occurred_at,
+            state=state,
+        )
+        if not published:
+            provider = "git"
+    _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("release")
+@click.option("--resource", required=True, help="Resource to release.")
+@click.option("--owner", required=True, help="Current lease owner.")
+@click.option("--claim-id", required=True, help="Current claim identifier.")
+def coordination_release_command(resource: str, owner: str, claim_id: str) -> None:
+    """Release the current soft lease and publish the visibility change."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    occurred_at = utc_now()
+    if provider == "mutex_api":
+        from kanbus import coordination
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            release as release_mutex_lease,
+        )
+
+        try:
+            release_mutex_lease(
+                configuration.coordination.mutex_api,
+                resource=resource,
+                owner=owner,
+                claim_id=claim_id,
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            try:
+                coordination._record_event(
+                    project_dir / "events",
+                    resource=resource,
+                    event_type="coordination.release",
+                    owner=owner,
+                    claim_id=claim_id,
+                    payload={},
+                    occurred_at=occurred_at,
+                )
+            except CoordinationError as error:
+                raise click.ClickException(
+                    "mutex api released lease but durable Git release could not be "
+                    f"recorded: {error}"
+                ) from error
+            click.echo("provider: mutex_api")
+            click.echo(f"resource: {resource}")
+            click.echo("state: released")
+            return
+    try:
+        release_event_id = coordination_release(
+            project_dir / "events",
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            now=occurred_at,
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    if provider == "mqtt":
+        from kanbus.coordination_runtime import publish_release_visibility
+
+        published = publish_release_visibility(
+            root,
+            project_dir,
+            configuration,
+            resource=resource,
+            owner=owner,
+            claim_id=claim_id,
+            event_id=release_event_id,
+            occurred_at=occurred_at,
+            operation_sequence=operation_sequence_for_event(
+                project_dir / "events", resource, release_event_id
+            ),
+        )
+        if not published:
+            provider = "git"
+    click.echo(f"provider: {provider}")
+    click.echo(f"resource: {resource}")
+    click.echo("state: released")
+
+
+@coordination_group.command("inspect")
+@click.option("--resource", required=True, help="Resource to inspect.")
+def coordination_inspect_command(resource: str) -> None:
+    """Inspect a resource's derived soft coordination lease."""
+    root, project_dir, configuration = _coordination_context()
+    provider = _coordination_provider(root, configuration)
+    events_dir = project_dir / "events"
+    if provider == "mutex_api":
+        from kanbus.coordination_mutex_api import (
+            MutexApiUnavailable,
+            inspect as inspect_mutex_lease,
+        )
+
+        try:
+            lease = inspect_mutex_lease(
+                configuration.coordination.mutex_api, resource=resource
+            )
+        except MutexApiUnavailable:
+            provider = _coordination_fallback_provider(root, configuration)
+        except CoordinationError as error:
+            raise click.ClickException(str(error)) from error
+        else:
+            state = (
+                _mutex_lease_state(lease)
+                if lease is not None
+                else LeaseState(resource=resource)
+            )
+            _echo_coordination_state(state, "mutex_api")
+            return
+    try:
+        if provider == "mqtt":
+            from kanbus.coordination_mqtt import reconcile_lease
+
+            state, published = reconcile_lease(
+                root,
+                project_dir,
+                events_dir,
+                resource,
+                configuration,
+            )
+            if not published:
+                provider = "git"
+        else:
+            state = inspect_coordination_lease(events_dir, resource)
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    _echo_coordination_state(state, provider)
+
+
+@coordination_group.command("publish-result")
+@click.option("--resource", required=True, help="Logical resource being published.")
+@click.option(
+    "--revision",
+    required=True,
+    type=click.IntRange(min=1),
+    help="Positive logical task revision.",
+)
+@click.option("--artifact", required=True, help="Artifact reference to publish.")
+def coordination_publish_result_command(
+    resource: str, revision: int, artifact: str
+) -> None:
+    """Publish an artifact reference only when its logical revision is current."""
+    _, project_dir, _ = _coordination_context()
+    try:
+        publication = publish_coordination_result(
+            project_dir / "events",
+            resource=resource,
+            revision=revision,
+            artifact=artifact,
+            actor_id=get_current_user(),
+        )
+    except CoordinationError as error:
+        raise click.ClickException(str(error)) from error
+    click.echo("provider: git")
+    click.echo(f"resource: {publication.resource}")
+    click.echo(f"revision: {publication.revision}")
+    click.echo("state: published")
+
+
+cli.add_command(router_group)
+
+
+if __name__ == "__main__":
+    cli()

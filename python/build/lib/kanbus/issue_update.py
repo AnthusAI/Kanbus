@@ -1,0 +1,408 @@
+"""Issue update workflow."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional
+
+from dataclasses import dataclass
+
+from pydantic import ValidationError
+
+from kanbus.config_loader import load_project_configuration
+from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.issue_files import read_issue_from_file
+from kanbus.issue_lookup import (
+    IssueLookupError,
+    load_issue_from_project,
+    resolve_issue_identifier,
+)
+from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
+from kanbus.agent_metadata import (
+    AgentMetadataResolutionError,
+    assign_agent_metadata_if_incomplete,
+)
+from kanbus.models import AgentMetadata, IssueData
+from kanbus.project import get_configuration_path
+from kanbus.status_semantics import (
+    SEMANTIC_IN_PROGRESS,
+    resolve_primary_status_key_for_semantic_category,
+)
+from kanbus.workflows import (
+    InvalidTransitionError,
+    apply_transition_side_effects,
+    validate_status_transition,
+    validate_status_value,
+)
+from kanbus.event_history import (
+    build_update_events,
+    now_timestamp,
+)
+from kanbus.users import get_current_user
+from kanbus.gossip import publish_issue_mutation
+
+
+class IssueUpdateError(RuntimeError):
+    """Raised when issue updates fail."""
+
+
+@dataclass(frozen=True)
+class IssueUpdateResult:
+    """Result of an issue update operation."""
+
+    issue: IssueData
+    changed: bool
+
+
+def merge_labels(
+    current_labels: List[str],
+    set_labels: Optional[List[str]],
+    add_labels: Optional[List[str]],
+    remove_labels: Optional[List[str]],
+) -> List[str]:
+    """Apply label operations: trim, dedupe case-insensitively, keep order."""
+    if set_labels is not None:
+        labels = [label.strip() for label in set_labels if label.strip()]
+    else:
+        labels = list(current_labels)
+    for label in add_labels or []:
+        trimmed = label.strip()
+        if trimmed and not any(
+            existing.lower() == trimmed.lower() for existing in labels
+        ):
+            labels.append(trimmed)
+    removals = [label.strip().lower() for label in remove_labels or []]
+    if removals:
+        labels = [label for label in labels if label.lower() not in removals]
+    return labels
+
+
+def update_issue(
+    root: Path,
+    identifier: str,
+    title: Optional[str],
+    description: Optional[str],
+    status: Optional[str],
+    assignee: Optional[str],
+    claim: bool,
+    validate: bool = True,
+    priority: Optional[int] = None,
+    add_labels: Optional[list[str]] = None,
+    remove_labels: Optional[list[str]] = None,
+    set_labels: Optional[list[str]] = None,
+    parent: Optional[str] = None,
+    issue_type: Optional[str] = None,
+    agent: Optional[AgentMetadata] = None,
+) -> IssueUpdateResult:
+    """Update an issue and persist it to disk.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :param title: Updated title if provided.
+    :type title: Optional[str]
+    :param description: Updated description if provided.
+    :type description: Optional[str]
+    :param status: Updated status if provided.
+    :type status: Optional[str]
+    :param assignee: Updated assignee if provided.
+    :type assignee: Optional[str]
+    :param claim: Whether to claim the issue.
+    :type claim: bool
+    :param priority: Updated priority if provided.
+    :type priority: Optional[int]
+    :param add_labels: Labels to add.
+    :type add_labels: Optional[list[str]]
+    :param remove_labels: Labels to remove.
+    :type remove_labels: Optional[list[str]]
+    :param set_labels: Labels to set (replacing all existing labels).
+    :type set_labels: Optional[list[str]]
+    :param parent: Updated parent identifier.
+    :type parent: Optional[str]
+    :param agent: Agent provenance to set when the issue has none or is incomplete.
+    :type agent: Optional[AgentMetadata]
+    :return: Updated issue data and whether disk state changed.
+    :rtype: IssueUpdateResult
+    :raises IssueUpdateError: If the update fails.
+    """
+    fields_requested = (
+        title is not None
+        or description is not None
+        or status is not None
+        or claim
+        or assignee is not None
+        or priority is not None
+        or add_labels is not None
+        or remove_labels is not None
+        or set_labels is not None
+        or parent is not None
+        or issue_type is not None
+        or agent is not None
+    )
+
+    try:
+        lookup = load_issue_from_project(root, identifier)
+    except IssueLookupError as error:
+        raise IssueUpdateError(str(error)) from error
+
+    project_dir = lookup.project_dir
+    configuration = load_project_configuration(get_configuration_path(project_dir))
+    before_issue = lookup.issue
+    updated_issue = lookup.issue
+    current_time = datetime.now(timezone.utc)
+
+    resolved_status = status
+    if claim:
+        resolved_status = resolve_primary_status_key_for_semantic_category(
+            configuration, SEMANTIC_IN_PROGRESS
+        )
+    resolved_type = issue_type.strip() if issue_type is not None else None
+    if resolved_type == "":
+        resolved_type = None
+
+    if resolved_type is not None and resolved_type == updated_issue.issue_type:
+        resolved_type = None
+
+    if title is not None:
+        normalized_title = title.strip()
+        if normalized_title.casefold() == updated_issue.title.strip().casefold():
+            title = None
+        else:
+            duplicate_identifier = _find_duplicate_title(
+                project_dir / "issues",
+                normalized_title,
+                updated_issue.identifier,
+            )
+            if duplicate_identifier is not None:
+                message = (
+                    f'duplicate title: "{normalized_title}" '
+                    f"already exists as {duplicate_identifier}"
+                )
+                raise IssueUpdateError(message)
+            title = normalized_title
+
+    if description is not None:
+        description = description.strip()
+        if description == updated_issue.description:
+            description = None
+
+    if assignee is not None and assignee == updated_issue.assignee:
+        assignee = None
+
+    if resolved_status is not None and resolved_status == updated_issue.status:
+        resolved_status = None
+
+    if priority is not None and priority == updated_issue.priority:
+        priority = None
+
+    labels = None
+    if set_labels is not None or add_labels is not None or remove_labels is not None:
+        candidate_labels = merge_labels(
+            updated_issue.labels, set_labels, add_labels, remove_labels
+        )
+        if candidate_labels != updated_issue.labels:
+            labels = candidate_labels
+
+    updated_parent: Optional[str] = None
+    if parent is not None:
+        issues_dir = project_dir / "issues"
+        try:
+            resolved_parent = resolve_issue_identifier(
+                issues_dir, configuration.project_key, parent
+            )
+        except IssueLookupError as error:
+            raise IssueUpdateError(str(error)) from error
+        if updated_issue.parent != resolved_parent:
+            if validate:
+                parent_issue = read_issue_from_file(
+                    issues_dir / f"{resolved_parent}.json"
+                )
+                try:
+                    validate_parent_child_relationship(
+                        configuration,
+                        parent_issue.issue_type,
+                        resolved_type or updated_issue.issue_type,
+                    )
+                except InvalidHierarchyError as error:
+                    raise IssueUpdateError(str(error)) from error
+            updated_parent = resolved_parent
+
+    if validate and resolved_type is not None:
+        valid_types = configuration.hierarchy + configuration.types
+        if resolved_type not in valid_types:
+            raise IssueUpdateError("unknown issue type")
+
+        issues_dir = project_dir / "issues"
+
+        if updated_issue.parent:
+            parent_issue = read_issue_from_file(
+                issues_dir / f"{updated_issue.parent}.json"
+            )
+            try:
+                validate_parent_child_relationship(
+                    configuration,
+                    parent_issue.issue_type,
+                    resolved_type,
+                )
+            except InvalidHierarchyError as error:
+                raise IssueUpdateError(str(error)) from error
+
+        for child_path in issues_dir.glob("*.json"):
+            child = read_issue_from_file(child_path)
+            if child.parent != updated_issue.identifier:
+                continue
+            try:
+                validate_parent_child_relationship(
+                    configuration,
+                    resolved_type,
+                    child.issue_type,
+                )
+            except InvalidHierarchyError as error:
+                raise IssueUpdateError(str(error)) from error
+
+    try:
+        assigned_agent = assign_agent_metadata_if_incomplete(updated_issue.agent, agent)
+    except AgentMetadataResolutionError as error:
+        raise IssueUpdateError(str(error)) from error
+    agent_changed = assigned_agent != updated_issue.agent
+
+    if (
+        resolved_status is None
+        and resolved_type is None
+        and title is None
+        and description is None
+        and assignee is None
+        and priority is None
+        and labels is None
+        and updated_parent is None
+        and not agent_changed
+    ):
+        if fields_requested:
+            return IssueUpdateResult(issue=before_issue, changed=False)
+        raise IssueUpdateError("no updates requested")
+
+    if resolved_status is not None:
+        if validate:
+            try:
+                validate_status_value(
+                    configuration,
+                    resolved_type or updated_issue.issue_type,
+                    resolved_status,
+                    updated_issue.identifier,
+                )
+                validate_status_transition(
+                    configuration,
+                    resolved_type or updated_issue.issue_type,
+                    updated_issue.status,
+                    resolved_status,
+                )
+            except InvalidTransitionError as error:
+                raise IssueUpdateError(str(error)) from error
+        updated_issue = apply_transition_side_effects(
+            updated_issue,
+            resolved_status,
+            current_time,
+        )
+        updated_issue = updated_issue.model_copy(update={"status": resolved_status})
+
+    update_fields = {}
+    if title is not None:
+        update_fields["title"] = title
+    if description is not None:
+        update_fields["description"] = description
+    if assignee is not None:
+        update_fields["assignee"] = assignee
+    if priority is not None:
+        update_fields["priority"] = priority
+    if labels is not None:
+        update_fields["labels"] = labels
+    if updated_parent is not None:
+        update_fields["parent"] = updated_parent
+    if resolved_type is not None:
+        update_fields["issue_type"] = resolved_type
+    if agent_changed:
+        update_fields["agent"] = assigned_agent
+
+    updated_issue = updated_issue.model_copy(update=update_fields)
+
+    policies_dir = project_dir / "policies"
+    if policies_dir.is_dir():
+        from kanbus.policy_loader import load_policies
+        from kanbus.policy_evaluator import evaluate_policies
+        from kanbus.policy_context import (
+            PolicyContext,
+            PolicyOperation,
+            PolicyViolationError,
+            StatusTransition,
+        )
+        from kanbus.issue_listing import load_issues_from_directory
+
+        policy_documents = load_policies(policies_dir)
+        if policy_documents:
+            issues_dir = project_dir / "issues"
+            all_issues = load_issues_from_directory(issues_dir)
+            context = PolicyContext(
+                current_issue=before_issue,
+                proposed_issue=updated_issue,
+                transition=(
+                    StatusTransition(
+                        from_status=before_issue.status,
+                        to_status=resolved_status,
+                    )
+                    if resolved_status
+                    else None
+                ),
+                operation=PolicyOperation.UPDATE,
+                project_configuration=configuration,
+                all_issues=all_issues,
+            )
+            try:
+                evaluate_policies(context, policy_documents)
+            except PolicyViolationError as error:
+                raise IssueUpdateError(str(error)) from error
+
+    occurred_at = now_timestamp()
+    actor_id = get_current_user()
+    events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
+    try:
+        result = persist_issue_mutation(
+            PersistIssueMutationRequest(
+                project_dir=lookup.project_dir,
+                issue_path=lookup.issue_path,
+                issue=updated_issue,
+                actor_id=actor_id,
+                events=events,
+                before_issue=before_issue,
+            )
+        )
+    except Exception as error:  # noqa: BLE001
+        raise IssueUpdateError(str(error)) from error
+    updated_issue = result.issue
+    if lookup.issue_path.parent == lookup.project_dir / "issues":
+        event_id = events[0].event_id if events else None
+        publish_issue_mutation(
+            root,
+            lookup.project_dir,
+            updated_issue,
+            event_id,
+            "issue.mutated",
+        )
+    return IssueUpdateResult(issue=updated_issue, changed=True)
+
+
+def _find_duplicate_title(
+    issues_dir: Path, title: str, current_identifier: str
+) -> Optional[str]:
+    normalized_title = title.strip().casefold()
+    for issue_path in issues_dir.glob("*.json"):
+        if issue_path.stem == current_identifier:
+            continue
+        try:
+            issue = read_issue_from_file(issue_path)
+        except (ValueError, ValidationError):
+            continue
+        if issue.title.strip().casefold() == normalized_title:
+            return issue.identifier
+    return None

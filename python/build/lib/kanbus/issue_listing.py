@@ -1,0 +1,409 @@
+"""Issue listing utilities."""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+from typing import List
+
+from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.daemon_client import (
+    is_daemon_config_schema_error,
+    is_daemon_enabled,
+    is_daemon_transport_error,
+    request_index_list,
+)
+from kanbus.issue_files import read_issues_from_directory
+from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
+from kanbus.overlay import apply_overlay_to_issues
+from kanbus.project import (
+    ProjectMarkerError,
+    discover_project_directories,
+    find_project_local_directory,
+    get_configuration_path,
+    load_project_directory,
+    resolve_labeled_projects,
+    resolve_project_path,
+)
+from kanbus.migration import MigrationError, load_beads_issues
+from kanbus.queries import filter_issues, search_issues, sort_issues
+
+
+class IssueListingError(RuntimeError):
+    """Raised when listing issues fails."""
+
+
+def list_issues(
+    root: Path,
+    status: str | None = None,
+    issue_type: str | None = None,
+    assignee: str | None = None,
+    label: str | None = None,
+    sort: str | None = None,
+    search: str | None = None,
+    project_filter: List[str] | None = None,
+    include_local: bool = True,
+    local_only: bool = False,
+    beads_mode: bool = False,
+    parent: str | None = None,
+) -> List[IssueData]:
+    """List issues in the project.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: List of issues.
+    :rtype: List[IssueData]
+    :param project_filter: Optional list of project labels to include.
+    :type project_filter: List[str] | None
+    :param beads_mode: Whether to read from Beads JSONL instead of project files.
+    :type beads_mode: bool
+    :raises IssueListingError: If listing fails.
+    """
+    if local_only and not include_local:
+        raise IssueListingError("local-only conflicts with no-local")
+    if beads_mode:
+        if local_only or not include_local:
+            raise IssueListingError("beads mode does not support local filtering")
+        try:
+            issues = load_beads_issues(root)
+        except MigrationError as error:
+            raise IssueListingError(str(error)) from error
+        # Default: exclude closed issues unless status is explicitly specified
+        if status is None:
+            issues = [issue for issue in issues if issue.status != "closed"]
+        return _apply_query(
+            issues, status, issue_type, assignee, label, sort, search, parent
+        )
+
+    if project_filter:
+        return _list_with_project_filter(
+            root,
+            project_filter,
+            status,
+            issue_type,
+            assignee,
+            label,
+            sort,
+            search,
+            include_local,
+            local_only,
+            parent,
+        )
+
+    try:
+        project_dirs = discover_project_directories(root)
+    except ProjectMarkerError as error:
+        raise IssueListingError(str(error)) from error
+    if not project_dirs:
+        raise IssueListingError("project not initialized")
+
+    root_configuration: ProjectConfiguration | None = None
+    project_labels: dict[Path, str] = {}
+    try:
+        root_configuration = load_project_configuration(get_configuration_path(root))
+        project_labels = {
+            project.project_dir: project.label
+            for project in resolve_labeled_projects(root)
+        }
+    except ProjectMarkerError:
+        root_configuration = None
+
+    if len(project_dirs) > 1:
+        overlay_configs = _resolve_overlay_configs(project_dirs, root_configuration)
+        issues = _list_issues_across_projects(
+            root,
+            project_dirs,
+            include_local,
+            local_only,
+            overlay_configs,
+            project_labels,
+        )
+        return _apply_query(
+            issues, status, issue_type, assignee, label, sort, search, parent
+        )
+
+    project_dir = project_dirs[0]
+    overlay_config = _overlay_config_for_project(project_dir, root_configuration)
+    if not os.access(project_dir, os.R_OK | os.X_OK):
+        raise IssueListingError("Permission denied")
+    local_dir = None
+    if include_local or local_only:
+        local_dir = find_project_local_directory(project_dir)
+
+    if local_only:
+        try:
+            issues = _list_issues_with_local(
+                project_dir,
+                local_dir,
+                include_local,
+                local_only,
+                overlay_config,
+                project_labels.get(project_dir),
+            )
+            return _apply_query(
+                issues, status, issue_type, assignee, label, sort, search, parent
+            )
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+
+    shared_issues: List[IssueData]
+    if is_daemon_enabled():
+        try:
+            shared_issues = _load_shared_issues_via_daemon_or_filesystem(root)
+            shared_issues = [
+                _tag_issue_source(issue, "shared") for issue in shared_issues
+            ]
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+    else:
+        try:
+            shared_issues = _list_issues_locally(root)
+            shared_issues = [
+                _tag_issue_source(issue, "shared") for issue in shared_issues
+            ]
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+
+    shared_issues = apply_overlay_to_issues(
+        project_dir,
+        shared_issues,
+        overlay_config,
+        project_label=project_labels.get(project_dir),
+    )
+
+    if include_local and local_dir is not None:
+        try:
+            issues_dir = local_dir / "issues"
+            local_issues: List[IssueData] = []
+            if issues_dir.exists():
+                local_issues = [
+                    _tag_issue_source(issue, "local")
+                    for issue in _load_issues_from_directory(issues_dir)
+                ]
+            shared_issues = [*shared_issues, *local_issues]
+        except Exception as error:
+            raise IssueListingError(str(error)) from error
+
+    return _apply_query(
+        shared_issues, status, issue_type, assignee, label, sort, search, parent
+    )
+
+
+def _list_with_project_filter(
+    root: Path,
+    project_filter: List[str],
+    status: str | None,
+    issue_type: str | None,
+    assignee: str | None,
+    label: str | None,
+    sort: str | None,
+    search: str | None,
+    include_local: bool,
+    local_only: bool,
+    parent: str | None = None,
+) -> List[IssueData]:
+    try:
+        labeled = resolve_labeled_projects(root)
+    except ProjectMarkerError as error:
+        raise IssueListingError(str(error)) from error
+    if not labeled:
+        raise IssueListingError("project not initialized")
+    known_labels = {project.label for project in labeled}
+    for name in project_filter:
+        if name not in known_labels:
+            raise IssueListingError(f"unknown project: {name}")
+    allowed = set(project_filter)
+    filtered_projects = [project for project in labeled if project.label in allowed]
+    project_dirs = [project.project_dir for project in filtered_projects]
+    try:
+        configuration = load_project_configuration(get_configuration_path(root))
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise IssueListingError(str(error)) from error
+    project_labels = {project.project_dir: project.label for project in labeled}
+    issues = _list_issues_across_projects(
+        root,
+        project_dirs,
+        include_local,
+        local_only,
+        configuration,
+        project_labels,
+    )
+    return _apply_query(
+        issues, status, issue_type, assignee, label, sort, search, parent
+    )
+
+
+def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
+    """Load shared issues from the daemon, falling back to filesystem listing.
+
+    The daemon is a just-in-time accelerator and never required for
+    correctness: transport failures fall back to direct listing with only a
+    debug-level log.
+
+    :param root: Repository root path.
+    :type root: Path
+    :return: Shared issues from the project index.
+    :rtype: List[IssueData]
+    :raises IssueListingError: When daemon and filesystem listing both fail.
+    """
+    try:
+        payloads = request_index_list(root)
+        return [IssueData.model_validate(payload) for payload in payloads]
+    except Exception as error:
+        message = str(error)
+        if is_daemon_config_schema_error(message) or is_daemon_transport_error(message):
+            logging.getLogger(__name__).debug(
+                "daemon unavailable (%s); falling back to direct listing", message
+            )
+            return _list_issues_locally(root)
+        raise IssueListingError(message) from error
+
+
+def _list_issues_locally(root: Path) -> List[IssueData]:
+    project_dir = load_project_directory(root)
+    return _list_issues_for_project(project_dir)
+
+
+def _list_issues_for_project(project_dir: Path) -> List[IssueData]:
+    issues_dir = project_dir / "issues"
+    if not issues_dir.is_dir():
+        raise IssueListingError(
+            f"issues directory not found: {issues_dir}. "
+            "Run 'kanbus migrate' if you need to migrate from an older format."
+        )
+    return read_issues_from_directory(issues_dir)
+
+
+def _list_issues_with_local(
+    project_dir: Path,
+    local_dir: Path | None,
+    include_local: bool,
+    local_only: bool,
+    overlay_config: OverlayConfig,
+    project_label: str | None,
+) -> List[IssueData]:
+    shared_issues = _list_issues_for_project(project_dir)
+    shared_tagged = [_tag_issue_source(issue, "shared") for issue in shared_issues]
+    shared_tagged = apply_overlay_to_issues(
+        project_dir,
+        shared_tagged,
+        overlay_config,
+        project_label=project_label,
+    )
+
+    local_tagged: List[IssueData] = []
+    if local_dir is not None:
+        issues_dir = local_dir / "issues"
+        if issues_dir.exists():
+            local_tagged = [
+                _tag_issue_source(issue, "local")
+                for issue in _load_issues_from_directory(issues_dir)
+            ]
+
+    if local_only:
+        return local_tagged
+    if include_local:
+        return [*shared_tagged, *local_tagged]
+    return shared_tagged
+
+
+def _list_issues_across_projects(
+    root: Path,
+    project_dirs: List[Path],
+    include_local: bool,
+    local_only: bool,
+    overlay_configs: dict[Path, OverlayConfig],
+    project_labels: dict[Path, str],
+) -> List[IssueData]:
+    issues: List[IssueData] = []
+    for project_dir in sorted(project_dirs):
+        local_dir = None
+        if include_local or local_only:
+            local_dir = find_project_local_directory(project_dir)
+        if local_only and local_dir is None:
+            continue
+        project_issues = _list_issues_with_local(
+            project_dir,
+            local_dir,
+            include_local,
+            local_only,
+            overlay_configs.get(project_dir, OverlayConfig(enabled=False)),
+            project_labels.get(project_dir),
+        )
+        project_issues = [
+            _tag_issue_project(issue, root, project_dir) for issue in project_issues
+        ]
+        issues.extend(project_issues)
+    return issues
+
+
+def _load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
+    return read_issues_from_directory(issues_dir)
+
+
+def load_issues_from_directory(issues_dir: Path) -> List[IssueData]:
+    """Load all issues from a directory.
+
+    :param issues_dir: Path to the issues directory.
+    :type issues_dir: Path
+    :return: List of issues.
+    :rtype: List[IssueData]
+    """
+    return _load_issues_from_directory(issues_dir)
+
+
+def _tag_issue_source(issue: IssueData, source: str) -> IssueData:
+    custom = {**issue.custom, "source": source}
+    return issue.model_copy(update={"custom": custom})
+
+
+def _tag_issue_project(issue: IssueData, root: Path, project_dir: Path) -> IssueData:
+    project_path = _render_project_path(root, project_dir)
+    custom = {**issue.custom, "project_path": project_path}
+    return issue.model_copy(update={"custom": custom})
+
+
+def _render_project_path(root: Path, project_dir: Path) -> str:
+    root_resolved = resolve_project_path(root)
+    project_resolved = resolve_project_path(project_dir)
+    try:
+        project_path = project_resolved.relative_to(root_resolved)
+    except ValueError:
+        project_path = project_resolved
+    return str(project_path)
+
+
+def _apply_query(
+    issues: List[IssueData],
+    status: str | None,
+    issue_type: str | None,
+    assignee: str | None,
+    label: str | None,
+    sort: str | None,
+    search: str | None,
+    parent: str | None = None,
+) -> List[IssueData]:
+    filtered = filter_issues(issues, status, issue_type, assignee, label, parent)
+    searched = search_issues(filtered, search)
+    return sort_issues(searched, sort)
+
+
+def _overlay_config_for_project(
+    project_dir: Path, root_configuration: ProjectConfiguration | None
+) -> OverlayConfig:
+    if root_configuration is not None:
+        return root_configuration.overlay
+    config_path = project_dir.parent / ".kanbus.yml"
+    if not config_path.is_file():
+        return OverlayConfig(enabled=False)
+    return load_project_configuration(config_path).overlay
+
+
+def _resolve_overlay_configs(
+    project_dirs: List[Path], root_configuration: ProjectConfiguration | None
+) -> dict[Path, OverlayConfig]:
+    return {
+        project_dir: _overlay_config_for_project(project_dir, root_configuration)
+        for project_dir in project_dirs
+    }
