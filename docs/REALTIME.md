@@ -11,7 +11,7 @@ Mosquitto is **optional** for routine Kanbus CLI board work (`kbs list`, `kbs sh
 Mosquitto is needed only when you explicitly use **local MQTT realtime**:
 
 - `kbs gossip watch --transport mqtt --broker auto`
-- MQTT transport with `realtime.autostart=true` and no reachable broker
+- MQTT transport with `realtime.autostart=true` (opt-in; the default is `false`) and no reachable broker
 
 The default console hub path uses UDS (`kbsc` plus routine CLI mutations). Install Mosquitto only when you want local MQTT gossip outside the console UDS broker.
 
@@ -53,11 +53,11 @@ kanbus gossip watch --print
 ### Local MQTT (Mosquitto autostart)
 
 ```bash
-kanbus gossip watch --transport mqtt --broker auto
-# or: kbs gossip watch --transport mqtt --broker auto
+kanbus gossip watch --transport mqtt --broker auto --autostart
+# or: kbs gossip watch --transport mqtt --broker auto --autostart
 ```
 
-If Mosquitto is installed and no broker is reachable, Kanbus will autostart a local broker and write `~/.kanbus/run/broker.json`.
+With `--autostart` (or `realtime.autostart: true`), if Mosquitto is installed and no broker is reachable, Kanbus will autostart a local broker and write `~/.kanbus/run/broker.json`. Autostart is off by default so ordinary `kbs` commands never spawn a broker; the console turns it on for its own bridge.
 
 ## Always-on local broker (recommended for many worktrees and agents)
 
