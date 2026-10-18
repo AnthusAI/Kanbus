@@ -1160,13 +1160,18 @@ def _existing_pull_request_branch(project_dir: Path, package_id: str) -> str | N
 
 
 def _remote_branch_exists(root: Path, branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "ls-remote", "--heads", "origin", f"refs/heads/{branch}"],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "--heads", "origin", f"refs/heads/{branch}"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     if result.returncode != 0:
         return False
     return bool(result.stdout.strip())
@@ -1306,7 +1311,7 @@ def _worktree_base_commit(root: Path, metadata_dir: Path) -> str:
             text=True,
         ).stdout.strip()
         return commit
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError(
             "router could not prepare an isolated worktree"
         ) from error
@@ -1395,8 +1400,10 @@ def _open_pull_request(
                 check=True,
                 capture_output=True,
                 text=True,
+                env=_git_network_environment(),
+                timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
             )
-        except (OSError, subprocess.CalledProcessError) as error:
+        except (OSError, subprocess.SubprocessError) as error:
             raise IssueRouterError(
                 "router could not publish branch to GitHub"
             ) from error
@@ -2252,8 +2259,10 @@ def _restore_stale_pull_request_branch(
             check=True,
             capture_output=True,
             text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.SubprocessError):
         return False
     return True
 
@@ -2954,24 +2963,44 @@ def _prune_stale_worktrees(root: Path) -> None:
     )
 
 
+ROUTER_GIT_NETWORK_TIMEOUT_SECONDS = 120
+
+
+def _git_network_environment() -> dict[str, str]:
+    return {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/bin/false"}
+
+
 def _git(root: Path, arguments: list[str]) -> str:
     try:
         result = subprocess.run(
-            ["git", *arguments], cwd=root, check=True, capture_output=True, text=True
+            ["git", *arguments],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError("router isolated worktree operation failed") from error
     return result.stdout.strip()
 
 
 def _remote_ref_sha(root: Path, ref: str) -> str | None:
-    result = subprocess.run(
-        ["git", "ls-remote", "origin", ref],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "origin", ref],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise IssueRouterError(
+            "router could not inspect the current remote ref"
+        ) from error
     if result.returncode != 0:
         raise IssueRouterError("router could not inspect the current remote ref")
     first = result.stdout.strip().split(maxsplit=1)
@@ -3022,7 +3051,7 @@ def _agent_changed_paths(project_directory: str, claim_id: str) -> list[PurePosi
                 capture_output=True,
             ).stdout
             changed.extend(path for path in committed.split(b"\0") if path)
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError(
             "router could not inspect isolated worktree changes"
         ) from error
@@ -3126,7 +3155,7 @@ def _commit_isolated_worktree(
             capture_output=True,
             text=True,
         )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError(
             "router could not create an isolated checkpoint"
         ) from error
@@ -3168,8 +3197,10 @@ def _update_checkpoint_ref(root: Path, ref: str, object_id: str) -> str | None:
                 check=True,
                 capture_output=True,
                 text=True,
+                env=_git_network_environment(),
+                timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
             )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         if previous is None:
             subprocess.run(
                 ["git", "update-ref", "-d", ref],
@@ -3244,8 +3275,10 @@ def _restore_checkpoint_ref(
                 check=True,
                 capture_output=True,
                 text=True,
+                env=_git_network_environment(),
+                timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
             )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.SubprocessError):
         # The failed claim has no further authority. The newer ref owner wins.
         return
 

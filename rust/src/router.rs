@@ -32,6 +32,7 @@ use crate::policy_loader::load_policies;
 
 const ROUTER_ROUTE_LABEL_PREFIXES: [&str; 2] = ["agent-class:", "agent-provider:"];
 const ROUTER_GIT_TIMEOUT: Duration = Duration::from_secs(20);
+const ROUTER_GIT_NETWORK_TIMEOUT: Duration = Duration::from_secs(120);
 const ROUTER_STATE_FETCH_ATTEMPTS: u32 = 3;
 const ROUTER_STATE_FETCH_RETRY_DELAY: Duration = Duration::from_millis(100);
 
@@ -430,6 +431,16 @@ fn router_git_command() -> Command {
 /// is reported as a recoverable router failure rather than wedging a worker.
 fn router_git_output(command: Command) -> Result<Output, KanbusError> {
     router_git_output_with_timeout(command, ROUTER_GIT_TIMEOUT)
+}
+
+fn router_git_in<I, S>(directory: &Path, arguments: I) -> Result<Output, KanbusError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let mut command = router_git_command();
+    command.args(arguments).current_dir(directory);
+    router_git_output_with_timeout(command, ROUTER_GIT_NETWORK_TIMEOUT)
 }
 
 fn router_git_output_with_timeout(
@@ -914,19 +925,11 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
             let remote_ref = format!("refs/heads/{ROUTER_STATE_BRANCH}");
             let lease = format!("--force-with-lease={remote_ref}:{expected_remote_tip}");
             let push_ref = format!("HEAD:{remote_ref}");
-            let push = Command::new("git")
-                .args(["push", &lease, "origin", &push_ref])
-                .current_dir(&worktree)
-                .output()
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            let push = router_git_in(&worktree, ["push", &lease, "origin", &push_ref])?;
             if push.status.success() {
                 return Ok(true);
             }
-            let current = Command::new("git")
-                .args(["ls-remote", "--heads", "origin", &remote_ref])
-                .current_dir(root)
-                .output()
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            let current = router_git_in(root, ["ls-remote", "--heads", "origin", &remote_ref])?;
             let current_sha = String::from_utf8_lossy(&current.stdout)
                 .split_whitespace()
                 .next()
@@ -6467,11 +6470,7 @@ fn create_router_worktree(
                 .output()
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             if remote.status.success() {
-                let fetched = Command::new("git")
-                    .args(["fetch", "--quiet", "origin", reference])
-                    .current_dir(root)
-                    .output()
-                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                let fetched = router_git_in(root, ["fetch", "--quiet", "origin", reference])?;
                 if fetched.status.success() {
                     let fetched_head = Command::new("git")
                         .args(["rev-parse", "--verify", "FETCH_HEAD^{commit}"])
@@ -7164,11 +7163,7 @@ fn publish_router_branch(
     if remote_published {
         assert_current_router_claim(project_dir, configuration, claim)?;
         let remote_ref = format!("refs/heads/{branch}");
-        let existing = Command::new("git")
-            .args(["ls-remote", "--heads", "origin", &remote_ref])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        let existing = router_git_in(root, ["ls-remote", "--heads", "origin", &remote_ref])?;
         if !existing.status.success() {
             return Err(KanbusError::IssueOperation(
                 "could not inspect remote router branch".to_string(),
@@ -7273,11 +7268,7 @@ fn push_router_branch_with_fence(
     before_push()?;
     let lease = format!("--force-with-lease={remote_ref}:{previous_remote_sha}");
     let push_ref = format!("{pushed_sha}:{remote_ref}");
-    let push = Command::new("git")
-        .args(["push", &lease, "origin", &push_ref])
-        .current_dir(worktree)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let push = router_git_in(worktree, ["push", &lease, "origin", &push_ref])?;
     if !push.status.success() {
         return Err(KanbusError::IssueOperation(
             "could not publish router branch".to_string(),
@@ -7317,11 +7308,7 @@ fn rollback_remote_router_ref_if_unchanged(
     pushed_sha: &str,
     previous_remote_sha: &str,
 ) -> Result<(), KanbusError> {
-    let current = Command::new("git")
-        .args(["ls-remote", "--refs", "origin", remote_ref])
-        .current_dir(root)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let current = router_git_in(root, ["ls-remote", "--refs", "origin", remote_ref])?;
     if !current.status.success() {
         return Err(KanbusError::IssueOperation(
             "router ref rollback could not inspect the remote; operator inspection may be required"
@@ -7341,22 +7328,18 @@ fn rollback_remote_router_ref_if_unchanged(
     }
     let lease = format!("--force-with-lease={remote_ref}:{pushed_sha}");
     let rollback = if previous_remote_sha.is_empty() {
-        Command::new("git")
-            .args(["push", &lease, "origin", &format!(":{remote_ref}")])
-            .current_dir(root)
-            .output()
+        router_git_in(root, ["push", &lease, "origin", &format!(":{remote_ref}")])
     } else {
-        Command::new("git")
-            .args([
+        router_git_in(
+            root,
+            [
                 "push",
                 &lease,
                 "origin",
                 &format!("{previous_remote_sha}:{remote_ref}"),
-            ])
-            .current_dir(root)
-            .output()
-    }
-    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            ],
+        )
+    }?;
     if !rollback.status.success() {
         return Err(KanbusError::IssueOperation(
             "router ref rollback lost its compare-and-swap race; operator inspection may be required"
@@ -7497,11 +7480,7 @@ fn publish_router_checkpoint_ref(
         .map_err(|error| KanbusError::Io(error.to_string()))?;
     let has_remote = remote.status.success();
     let previous_remote = if has_remote {
-        let listed = Command::new("git")
-            .args(["ls-remote", "--refs", "origin", reference])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        let listed = router_git_in(root, ["ls-remote", "--refs", "origin", reference])?;
         if !listed.status.success() {
             return Err(KanbusError::IssueOperation(
                 "could not inspect remote router checkpoint".to_string(),
@@ -7538,16 +7517,15 @@ fn publish_router_checkpoint_ref(
     if has_remote {
         assert_current_router_claim(project_dir, configuration, claim)?;
         let lease = format!("--force-with-lease={reference}:{previous_remote}");
-        let push = Command::new("git")
-            .args([
+        let push = router_git_in(
+            root,
+            [
                 "push",
                 &lease,
                 "origin",
                 &format!("{reference}:{reference}"),
-            ])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+            ],
+        )?;
         if !push.status.success() {
             if previous_local.is_empty() {
                 let _ = Command::new("git")
@@ -7579,20 +7557,20 @@ fn publish_router_checkpoint_ref(
             let _ = restore_local;
             let rollback_lease = format!("--force-with-lease={reference}:{commit_sha}");
             let rollback = if previous_remote.is_empty() {
-                Command::new("git")
-                    .args(["push", &rollback_lease, "--delete", "origin", reference])
-                    .current_dir(root)
-                    .output()
+                router_git_in(
+                    root,
+                    ["push", &rollback_lease, "--delete", "origin", reference],
+                )
             } else {
-                Command::new("git")
-                    .args([
+                router_git_in(
+                    root,
+                    [
                         "push",
                         &rollback_lease,
                         "origin",
                         &format!("{previous_remote}:{reference}"),
-                    ])
-                    .current_dir(root)
-                    .output()
+                    ],
+                )
             };
             let _ = rollback;
             return Err(error);
