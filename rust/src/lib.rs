@@ -12,6 +12,7 @@ pub mod config_loader;
 pub mod console_backend;
 pub mod console_screenshot;
 pub mod console_snapshot;
+pub mod console_snapshot_feed;
 pub mod console_standup;
 pub mod console_telemetry;
 pub mod console_ui_state;

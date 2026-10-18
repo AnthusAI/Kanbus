@@ -1,14 +1,12 @@
 //! Lambda handler for the console backend.
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-use chrono::Utc;
 use lambda_http::request::RequestContext;
 use lambda_http::{http::StatusCode, run, service_fn, Body, Error, Request, Response};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::console_snapshot_feed::snapshot_payload;
 
 const EFS_ROOT: &str = "/mnt/data";
 const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
@@ -435,43 +433,6 @@ fn asset_response(path: &str) -> ResponseType {
         .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"asset response failed\"}")))
 }
 
-fn snapshot_payload(store: &FileStore) -> (String, u64) {
-    let (payload, fingerprint) = match store.build_snapshot() {
-        Ok(snapshot) => {
-            let fingerprint = snapshot_fingerprint(&snapshot);
-            let payload = serde_json::to_string(&snapshot).unwrap_or_else(|error| {
-                serde_json::json!({ "error": error.to_string(), "updated_at": Utc::now().to_rfc3339() })
-                    .to_string()
-            });
-            (payload, fingerprint)
-        }
-        Err(error) => {
-            let payload = serde_json::json!({
-                "error": error.to_string(),
-                "updated_at": Utc::now().to_rfc3339(),
-            })
-            .to_string();
-            (payload.clone(), hash_payload(&payload))
-        }
-    };
-    (payload, fingerprint)
-}
-
-fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
-    let payload = serde_json::to_vec(&(&snapshot.config, &snapshot.issues)).unwrap_or_default();
-    hash_bytes(&payload)
-}
-
-fn hash_payload(payload: &str) -> u64 {
-    hash_bytes(payload.as_bytes())
-}
-
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    bytes.hash(&mut hasher);
-    hasher.finish()
-}
-
 fn body_from_text(text: impl Into<String>) -> Body {
     Body::Text(text.into())
 }
@@ -609,15 +570,6 @@ beads_compatibility: false
         assert!(is_console_route("epics"));
         assert!(!is_console_route("assets/app.js"));
         assert!(!is_console_route("issues/a/b/c"));
-    }
-
-    #[test]
-    fn hash_helpers_are_stable_for_same_payload() {
-        let one = hash_payload("payload");
-        let two = hash_payload("payload");
-        let bytes_hash = hash_bytes(b"payload");
-        assert_eq!(one, two);
-        assert_eq!(one, bytes_hash);
     }
 
     #[test]

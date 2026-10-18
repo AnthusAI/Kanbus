@@ -1,8 +1,6 @@
 //! Local HTTP server for the console backend.
 
-use std::collections::hash_map::DefaultHasher;
 use std::convert::Infallible;
-use std::hash::{Hash, Hasher};
 use std::io::{self, IsTerminal, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path as StdPath;
@@ -31,13 +29,12 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tokio::sync::broadcast;
-use tokio::sync::Mutex;
 use tokio_stream::wrappers::BroadcastStream;
-use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::agent_assignment::{change_issue_assignment, AssignmentChoice};
 use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::console_snapshot_feed::SnapshotFeedRegistry;
 use kanbus::console_standup::{generate_standup_report, StandupGenerateRequest};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
 use kanbus::console_wiki::{
@@ -73,6 +70,7 @@ struct AppState {
     telemetry_tx: broadcast::Sender<String>,
     telemetry_log: Option<Arc<StdMutex<std::fs::File>>>,
     notification_tx: broadcast::Sender<NotificationEvent>,
+    snapshot_feeds: SnapshotFeedRegistry,
     /// Cache of the last URL route pushed to clients, for CLI query commands.
     ui_state: Arc<tokio::sync::RwLock<ConsoleUiState>>,
 }
@@ -203,6 +201,7 @@ async fn main() {
         telemetry_tx,
         telemetry_log,
         notification_tx,
+        snapshot_feeds: SnapshotFeedRegistry::new(),
         ui_state: Arc::new(tokio::sync::RwLock::new(initial_ui_state)),
     };
     let _assets_root = state.assets_root.clone();
@@ -1217,33 +1216,24 @@ fn merge_router_conversation_events(
     events.truncate(limit);
 }
 
-async fn get_events(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let store = store_for(&state, &account, &project);
-    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
-    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
-    let initial = stream::once(async move { Ok(Event::default().data(initial_payload)) });
-    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_store = store.clone();
-    let updates_last = Arc::clone(&last_fingerprint);
-    let updates = interval.filter_map(move |_| {
-        let store = updates_store.clone();
-        let last_fingerprint = Arc::clone(&updates_last);
-        async move {
-            let (payload, fingerprint) = snapshot_payload(&store);
-            let mut guard = last_fingerprint.lock().await;
-            if *guard == fingerprint {
-                None
-            } else {
-                *guard = fingerprint;
-                Some(Ok(Event::default().data(payload)))
-            }
-        }
-    });
-    let stream = initial.chain(updates);
-
+fn snapshot_event_stream(
+    feeds: SnapshotFeedRegistry,
+    store: FileStore,
+) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
+    let stream = stream::once(async move { feeds.subscribe(store).await })
+        .flat_map(|subscription| {
+            let initial = stream::once(async move {
+                Ok::<Event, Infallible>(Event::default().data(subscription.current.json.clone()))
+            });
+            let changes =
+                BroadcastStream::new(subscription.changes).filter_map(|received| async move {
+                    received
+                        .ok()
+                        .map(|payload| Ok(Event::default().data(payload.json.clone())))
+                });
+            initial.chain(changes)
+        })
+        .boxed();
     Sse::new(stream).keep_alive(
         KeepAlive::new()
             .interval(Duration::from_secs(15))
@@ -1251,11 +1241,19 @@ async fn get_events(
     )
 }
 
+async fn get_events(
+    State(state): State<AppState>,
+    AxumPath((account, project)): AxumPath<(String, String)>,
+) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
+    let store = store_for(&state, &account, &project);
+    snapshot_event_stream(state.snapshot_feeds.clone(), store)
+}
+
 async fn get_events_root(
     State(state): State<AppState>,
 ) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
+    match store_for_root(&state) {
+        Some(store) => snapshot_event_stream(state.snapshot_feeds.clone(), store),
         None => {
             let payload = serde_json::json!({
                 "error": "multi-tenant mode requires /:account/:project",
@@ -1263,40 +1261,13 @@ async fn get_events_root(
             })
             .to_string();
             let stream = stream::once(async move { Ok(Event::default().data(payload)) }).boxed();
-            return Sse::new(stream).keep_alive(
+            Sse::new(stream).keep_alive(
                 KeepAlive::new()
                     .interval(Duration::from_secs(15))
                     .text(": keep-alive"),
-            );
+            )
         }
-    };
-    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
-    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
-    let initial = stream::once(async move { Ok(Event::default().data(initial_payload)) });
-    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_store = store.clone();
-    let updates_last = Arc::clone(&last_fingerprint);
-    let updates = interval.filter_map(move |_| {
-        let store = updates_store.clone();
-        let last_fingerprint = Arc::clone(&updates_last);
-        async move {
-            let (payload, fingerprint) = snapshot_payload(&store);
-            let mut guard = last_fingerprint.lock().await;
-            if *guard == fingerprint {
-                None
-            } else {
-                *guard = fingerprint;
-                Some(Ok(Event::default().data(payload)))
-            }
-        }
-    });
-    let stream = initial.chain(updates).boxed();
-
-    Sse::new(stream).keep_alive(
-        KeepAlive::new()
-            .interval(Duration::from_secs(15))
-            .text(": keep-alive"),
-    )
+    }
 }
 
 async fn post_console_telemetry_root(State(state): State<AppState>, body: Bytes) -> StatusCode {
@@ -2006,45 +1977,6 @@ fn wiki_error_to_response(error: WikiServiceError) -> Response {
     }
 }
 
-fn snapshot_payload(store: &FileStore) -> (String, u64) {
-    match store.build_snapshot() {
-        Ok(snapshot) => {
-            let fingerprint = snapshot_fingerprint(&snapshot);
-            let payload = serde_json::to_string(&snapshot).unwrap_or_else(|error| {
-                serde_json::json!({
-                    "error": error.to_string(),
-                    "updated_at": chrono::Utc::now().to_rfc3339(),
-                })
-                .to_string()
-            });
-            (payload, fingerprint)
-        }
-        Err(error) => {
-            let payload = serde_json::json!({
-                "error": error.to_string(),
-                "updated_at": chrono::Utc::now().to_rfc3339(),
-            })
-            .to_string();
-            (payload.clone(), hash_payload(&payload))
-        }
-    }
-}
-
-fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
-    let payload = serde_json::to_vec(&(&snapshot.config, &snapshot.issues)).unwrap_or_default();
-    hash_bytes(&payload)
-}
-
-fn hash_payload(payload: &str) -> u64 {
-    hash_bytes(payload.as_bytes())
-}
-
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    bytes.hash(&mut hasher);
-    hasher.finish()
-}
-
 fn open_telemetry_log(_repo_root: &StdPath) -> Option<Arc<StdMutex<std::fs::File>>> {
     let log_path = match std::env::var("CONSOLE_LOG_PATH") {
         Ok(path) => PathBuf::from(path),
@@ -2408,6 +2340,7 @@ mod tests {
             telemetry_tx,
             telemetry_log: None::<Arc<StdMutex<std::fs::File>>>,
             notification_tx,
+            snapshot_feeds: SnapshotFeedRegistry::new(),
             ui_state: Arc::new(RwLock::new(ConsoleUiState::default())),
         }
     }
@@ -2829,16 +2762,6 @@ mod tests {
     }
 
     #[test]
-    fn hash_helpers_are_deterministic() {
-        let first = hash_payload("payload");
-        let second = hash_payload("payload");
-        let bytes_hash = hash_bytes(b"payload");
-
-        assert_eq!(first, second);
-        assert_eq!(first, bytes_hash);
-    }
-
-    #[test]
     fn parse_json_body_falls_back_to_raw_string_payload() {
         let parsed = parse_json_body(&Bytes::from("not-json"));
         assert_eq!(parsed, serde_json::Value::String("not-json".to_string()));
@@ -3047,6 +2970,7 @@ mod tests {
             telemetry_tx,
             telemetry_log: None,
             notification_tx,
+            snapshot_feeds: SnapshotFeedRegistry::new(),
             ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
         };
 
@@ -3074,6 +2998,7 @@ mod tests {
             telemetry_tx,
             telemetry_log: None,
             notification_tx,
+            snapshot_feeds: SnapshotFeedRegistry::new(),
             ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
         };
 
@@ -3105,30 +3030,6 @@ mod tests {
         assert!(temp.path().join("project").is_dir());
         assert!(temp.path().join("project/issues").is_dir());
         assert!(temp.path().join("project/events").is_dir());
-    }
-
-    #[test]
-    fn snapshot_payload_returns_error_payload_when_snapshot_build_fails() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = FileStore::new(temp.path().to_path_buf());
-        let (payload, fingerprint) = snapshot_payload(&store);
-        assert!(payload.contains("\"error\""));
-        assert_eq!(fingerprint, hash_payload(&payload));
-    }
-
-    #[test]
-    fn snapshot_payload_success_uses_snapshot_fingerprint() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
-        setup_project_root(&root);
-        write_issue(&root, "kbs-1");
-        let store = FileStore::new(root.clone());
-        let snapshot = store.build_snapshot().expect("snapshot");
-        let expected_fingerprint = snapshot_fingerprint(&snapshot);
-
-        let (payload, fingerprint) = snapshot_payload(&store);
-        assert_eq!(fingerprint, expected_fingerprint);
-        assert!(payload.contains("\"issues\""));
     }
 
     #[tokio::test]
