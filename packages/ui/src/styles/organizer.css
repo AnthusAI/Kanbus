@@ -60,3 +60,5 @@
 .kb-theme-organizer .kb-detail-heading h2 { font: 32px/1.1 var(--kb-display-font); }
 .kb-theme-organizer .kb-detail-id, .kb-theme-organizer .kb-detail-close, .kb-theme-organizer .kb-detail-fields dt { font-family: var(--kb-label-font); font-size: 18px; }
 .kb-theme-organizer .kb-detail-close { border: 2px solid var(--organizer-ink); border-radius: 0; box-shadow: 2px 2px 0 var(--organizer-shadow); }
+.kb-theme-organizer, .kb-theme-organizer *, .kb-theme-organizer *::before, .kb-theme-organizer *::after,
+.kb-theme-organizer *::-webkit-scrollbar-thumb, .kb-theme-organizer *::-webkit-scrollbar-track { border-radius: 0 !important; }
