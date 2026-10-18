@@ -1,5 +1,6 @@
 //! Local HTTP server for the console backend.
 
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::io::{self, IsTerminal, Write};
 use std::net::{IpAddr, SocketAddr};
@@ -546,6 +547,13 @@ fn resolve_single_issue<'snapshot>(
     }
 }
 
+async fn named_path_parameters(parts: &mut Parts, state: &AppState) -> HashMap<String, String> {
+    AxumPath::<HashMap<String, String>>::from_request_parts(parts, state)
+        .await
+        .map(|AxumPath(parameters)| parameters)
+        .unwrap_or_default()
+}
+
 /// The project store a request addresses: the single local store on root
 /// routes, or the tenant store on `/:account/:project` routes.
 struct StoreSelector {
@@ -560,19 +568,21 @@ impl FromRequestParts<AppState> for StoreSelector {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let params = RawPathParams::from_request_parts(parts, state)
-            .await
-            .map_err(|error| error_response(error.to_string(), StatusCode::BAD_REQUEST))?;
-        let named = |wanted: &str| {
-            params
-                .iter()
-                .find(|(name, _)| *name == wanted)
-                .map(|(_, value)| value.to_string())
-        };
-        match (named("account"), named("project")) {
-            (Some(account), Some(project)) => Ok(Self {
-                store: store_for(state, &account, &project),
-            }),
+        let parameters = named_path_parameters(parts, state).await;
+        match (parameters.get("account"), parameters.get("project")) {
+            (Some(account), Some(project)) => {
+                if !FileStore::is_valid_tenant_segment(account)
+                    || !FileStore::is_valid_tenant_segment(project)
+                {
+                    return Err(error_response(
+                        "invalid tenant path segment",
+                        StatusCode::BAD_REQUEST,
+                    ));
+                }
+                Ok(Self {
+                    store: store_for(state, account, project),
+                })
+            }
             _ => store_for_root(state)
                 .map(|store| Self { store })
                 .ok_or_else(|| {
@@ -595,13 +605,10 @@ impl FromRequestParts<AppState> for IssueIdentifierPath {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let params = RawPathParams::from_request_parts(parts, state)
+        named_path_parameters(parts, state)
             .await
-            .map_err(|error| error_response(error.to_string(), StatusCode::BAD_REQUEST))?;
-        params
-            .iter()
-            .find(|(name, _)| *name == "id")
-            .map(|(_, value)| Self(value.to_string()))
+            .remove("id")
+            .map(Self)
             .ok_or_else(|| error_response("missing issue id", StatusCode::BAD_REQUEST))
     }
 }
