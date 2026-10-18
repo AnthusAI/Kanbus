@@ -1786,9 +1786,12 @@ async fn post_render_d2(body: Bytes) -> Response {
     }
 }
 
+const UNKNOWN_TENANT_DIRECTORY_NAME: &str = ".kanbus-unknown-tenant";
+
 fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
     let root = if state.multi_tenant {
-        FileStore::resolve_tenant_root(&state.base_root, account, project)
+        FileStore::locate_existing_tenant_root(&state.base_root, account, project)
+            .unwrap_or_else(|| state.base_root.join(UNKNOWN_TENANT_DIRECTORY_NAME))
     } else {
         state.base_root.clone()
     };
@@ -2752,11 +2755,23 @@ mod tests {
     #[test]
     fn store_for_uses_tenant_root_in_multi_tenant_mode() {
         let temp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(temp.path().join("acct").join("proj")).expect("mkdir");
         let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
         let store = store_for(&state, "acct", "proj");
         assert_eq!(
             store.root(),
             FileStore::resolve_tenant_root(temp.path(), "acct", "proj")
+        );
+    }
+
+    #[test]
+    fn store_for_uses_unknown_tenant_sentinel_when_directory_is_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        let store = store_for(&state, "acct", "proj");
+        assert_eq!(
+            store.root(),
+            temp.path().join(UNKNOWN_TENANT_DIRECTORY_NAME)
         );
     }
 

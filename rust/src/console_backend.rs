@@ -39,6 +39,14 @@ pub struct FileStore {
     root: PathBuf,
 }
 
+fn find_child_directory_named(parent: &Path, name: &str) -> Option<PathBuf> {
+    std::fs::read_dir(parent)
+        .ok()?
+        .filter_map(Result::ok)
+        .find(|entry| entry.file_name() == name && entry.path().is_dir())
+        .map(|entry| entry.path())
+}
+
 impl FileStore {
     /// Create a new file store rooted at the provided path.
     pub fn new(root: impl Into<PathBuf>) -> Self {
@@ -55,6 +63,17 @@ impl FileStore {
     /// Resolve a tenant root under a shared base directory.
     pub fn resolve_tenant_root(base: &Path, account: &str, project: &str) -> PathBuf {
         base.join(account).join(project)
+    }
+
+    /// Locate an existing tenant root by matching directory entry names, so the
+    /// returned path derives from the filesystem listing and not from request text.
+    pub fn locate_existing_tenant_root(
+        base: &Path,
+        account: &str,
+        project: &str,
+    ) -> Option<PathBuf> {
+        let account_directory = find_child_directory_named(base, account)?;
+        find_child_directory_named(&account_directory, project)
     }
 
     /// Return the file store root path.
