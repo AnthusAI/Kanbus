@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kanbus.ids import matches_issue_identifier
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import load_project_configuration
 from kanbus.issue_files import list_issue_identifiers, read_issue_from_file
 from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
 from kanbus.overlay import (
@@ -67,7 +67,7 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
             project.project_dir: project.label
             for project in resolve_labeled_projects(root)
         }
-    except (ProjectMarkerError, ConfigurationError):
+    except ProjectMarkerError:
         root_configuration = None
 
     overlay_configs = {
@@ -196,7 +196,4 @@ def _overlay_config_for_project(
     config_path = project_dir.parent / ".kanbus.yml"
     if not config_path.is_file():
         return OverlayConfig(enabled=False)
-    try:
-        return load_project_configuration(config_path).overlay
-    except (ConfigurationError, ProjectMarkerError, RuntimeError):
-        return OverlayConfig(enabled=False)
+    return load_project_configuration(config_path).overlay

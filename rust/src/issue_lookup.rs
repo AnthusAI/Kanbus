@@ -41,7 +41,7 @@ pub fn load_issue_from_project(
             "project not initialized".to_string(),
         ));
     }
-    let root_configuration = load_root_configuration(root);
+    let root_configuration = load_root_configuration(root)?;
     let project_labels: std::collections::BTreeMap<PathBuf, String> =
         resolve_labeled_projects(root)
             .unwrap_or_default()
@@ -52,12 +52,12 @@ pub fn load_issue_from_project(
         project_dirs
             .iter()
             .map(|project_dir| {
-                (
+                Ok((
                     project_dir.clone(),
-                    overlay_config_for_project(project_dir, root_configuration.as_ref()),
-                )
+                    overlay_config_for_project(project_dir, root_configuration.as_ref())?,
+                ))
             })
-            .collect();
+            .collect::<Result<_, KanbusError>>()?;
 
     let mut all_matches: Vec<(String, PathBuf, PathBuf)> = Vec::new();
 
@@ -234,9 +234,13 @@ fn find_matching_issues(
     Ok(matches)
 }
 
-fn load_root_configuration(root: &Path) -> Option<crate::models::ProjectConfiguration> {
-    let config_path = get_configuration_path(root).ok()?;
-    load_project_configuration(&config_path).ok()
+fn load_root_configuration(
+    root: &Path,
+) -> Result<Option<crate::models::ProjectConfiguration>, KanbusError> {
+    match get_configuration_path(root) {
+        Ok(config_path) => load_project_configuration(&config_path).map(Some),
+        Err(_) => Ok(None),
+    }
 }
 
 fn disabled_overlay_config() -> crate::models::OverlayConfig {
@@ -249,20 +253,18 @@ fn disabled_overlay_config() -> crate::models::OverlayConfig {
 fn overlay_config_for_project(
     project_dir: &Path,
     root_configuration: Option<&crate::models::ProjectConfiguration>,
-) -> crate::models::OverlayConfig {
+) -> Result<crate::models::OverlayConfig, KanbusError> {
     if let Some(configuration) = root_configuration {
-        return configuration.overlay.clone();
+        return Ok(configuration.overlay.clone());
     }
     let config_path = project_dir
         .parent()
         .unwrap_or_else(|| Path::new(""))
         .join(".kanbus.yml");
     if !config_path.is_file() {
-        return disabled_overlay_config();
+        return Ok(disabled_overlay_config());
     }
-    load_project_configuration(&config_path)
-        .map(|configuration| configuration.overlay)
-        .unwrap_or_else(|_| disabled_overlay_config())
+    load_project_configuration(&config_path).map(|configuration| configuration.overlay)
 }
 
 #[cfg(test)]
@@ -337,7 +339,8 @@ mod tests {
         root.overlay.enabled = true;
         root.overlay.ttl_s = 123;
 
-        let config = overlay_config_for_project(tempdir.path(), Some(&root));
+        let config =
+            overlay_config_for_project(tempdir.path(), Some(&root)).expect("overlay config");
         assert!(config.enabled);
         assert_eq!(config.ttl_s, 123);
     }
@@ -348,7 +351,7 @@ mod tests {
         let project_dir = tempdir.path().join("project");
         std::fs::create_dir_all(&project_dir).expect("create project dir");
 
-        let config = overlay_config_for_project(&project_dir, None);
+        let config = overlay_config_for_project(&project_dir, None).expect("overlay config");
         assert!(!config.enabled);
     }
 
@@ -365,7 +368,7 @@ mod tests {
         let yaml = serde_yaml::to_string(&config).expect("serialize config");
         std::fs::write(workspace.join(".kanbus.yml"), yaml).expect("write config");
 
-        let resolved = overlay_config_for_project(&project_dir, None);
+        let resolved = overlay_config_for_project(&project_dir, None).expect("overlay config");
         assert!(resolved.enabled);
         assert_eq!(resolved.ttl_s, 4321);
     }
@@ -375,7 +378,17 @@ mod tests {
         let tempdir = tempfile::tempdir().expect("tempdir");
         let root = tempdir.path();
         // Not initialized workspace => no configuration path.
-        assert!(load_root_configuration(root).is_none());
+        assert!(load_root_configuration(root).expect("lookup").is_none());
+    }
+
+    #[test]
+    fn load_root_configuration_fails_on_malformed_configuration() {
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let root = tempdir.path();
+        std::fs::create_dir_all(root.join("project").join("issues")).expect("create project");
+        std::fs::write(root.join(".kanbus.yml"), "project_key: [unterminated\n")
+            .expect("write config");
+        assert!(load_root_configuration(root).is_err());
     }
 
     #[test]
@@ -389,7 +402,9 @@ mod tests {
         let mut file = File::create(root.join(".kanbus.yml")).expect("create config");
         file.write_all(yaml.as_bytes()).expect("write config");
 
-        let loaded = load_root_configuration(root).expect("load root config");
+        let loaded = load_root_configuration(root)
+            .expect("load root config")
+            .expect("configuration present");
         assert_eq!(loaded.project_key, "myproj");
     }
 }

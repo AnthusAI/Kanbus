@@ -111,8 +111,8 @@ def test_overlay_config_for_project_without_root_config(
         "load_project_configuration",
         lambda _p: (_ for _ in ()).throw(RuntimeError("bad config")),
     )
-    fallback = issue_lookup._overlay_config_for_project(project_dir, None)
-    assert fallback.enabled is False
+    with pytest.raises(RuntimeError, match="bad config"):
+        issue_lookup._overlay_config_for_project(project_dir, None)
 
 
 def test_load_issue_from_project_exact_match_and_overlay_virtual(
@@ -196,7 +196,7 @@ def test_load_issue_from_project_not_found_ambiguous_and_single_partial(
     monkeypatch.setattr(
         issue_lookup,
         "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(issue_lookup.ConfigurationError("bad config")),
+        lambda _p: (_ for _ in ()).throw(issue_lookup.ProjectMarkerError("no config")),
     )
     monkeypatch.setattr(
         issue_lookup, "get_configuration_path", lambda _r: root / ".kanbus.yml"
@@ -235,3 +235,13 @@ def test_load_issue_from_project_project_errors(
     monkeypatch.setattr(issue_lookup, "discover_project_directories", lambda _r: [])
     with pytest.raises(issue_lookup.IssueLookupError, match="project not initialized"):
         issue_lookup.load_issue_from_project(tmp_path, "kanbus-1")
+
+
+def test_overlay_config_lookup_fails_on_malformed_workspace_configuration(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (tmp_path / ".kanbus.yml").write_text("project_key: [unterminated\n")
+    with pytest.raises(Exception):
+        issue_lookup._overlay_config_for_project(project_dir, None)

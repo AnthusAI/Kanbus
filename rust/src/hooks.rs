@@ -270,7 +270,7 @@ pub fn run_lifecycle_hooks(
         return Ok(());
     }
 
-    let (hooks_config, project_root) = resolve_hook_configuration(root);
+    let (hooks_config, project_root) = resolve_hook_configuration_or_fail(root)?;
     if !hooks_config.enabled {
         return Ok(());
     }
@@ -371,6 +371,21 @@ fn policy_event_map() -> HashMap<HookEvent, crate::policy_context::PolicyOperati
         (HookEvent::IssueList, PolicyOperation::List),
         (HookEvent::IssueReady, PolicyOperation::Ready),
     ])
+}
+
+fn resolve_hook_configuration_or_fail(
+    root: &Path,
+) -> Result<(HooksConfiguration, PathBuf), KanbusError> {
+    let config_path = match get_configuration_path(root) {
+        Ok(path) => path,
+        Err(_) => return Ok((HooksConfiguration::default(), root.to_path_buf())),
+    };
+    let project_root = config_path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| root.to_path_buf());
+    let configuration = load_project_configuration(&config_path)?;
+    Ok((configuration.hooks, project_root))
 }
 
 fn resolve_hook_configuration(root: &Path) -> (HooksConfiguration, PathBuf) {

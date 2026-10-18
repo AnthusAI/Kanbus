@@ -320,19 +320,18 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     // Virtual project directories are for reading and lookup only — including
     // them here causes "multiple projects found" errors for write operations.
     if let Ok(config_path) = get_configuration_path(root) {
-        if let Ok(configuration) = load_project_configuration(&config_path) {
-            let base = config_path.parent().unwrap_or_else(|| Path::new(""));
-            let primary = base.join(&configuration.project_directory);
-            if is_path_ignored(&primary, base, &configuration.ignore_paths) {
-                return Err(KanbusError::IssueOperation(
-                    "project not initialized".to_string(),
-                ));
-            }
-            return Ok(match canonicalize_path(&primary) {
-                Ok(p) => p,
-                Err(_) => primary,
-            });
+        let configuration = load_project_configuration(&config_path)?;
+        let base = config_path.parent().unwrap_or_else(|| Path::new(""));
+        let primary = base.join(&configuration.project_directory);
+        if is_path_ignored(&primary, base, &configuration.ignore_paths) {
+            return Err(KanbusError::IssueOperation(
+                "project not initialized".to_string(),
+            ));
         }
+        return Ok(match canonicalize_path(&primary) {
+            Ok(p) => p,
+            Err(_) => primary,
+        });
     }
 
     // No config file — fall back to filesystem scanning.
