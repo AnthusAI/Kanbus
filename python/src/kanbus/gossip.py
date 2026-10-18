@@ -28,6 +28,7 @@ from kanbus.project import (
     get_configuration_path,
     resolve_labeled_projects,
 )
+from kanbus.test_hooks import read_test_hook
 
 _MOSQUITTO_MISSING_WARNED = False
 _MOSQUITTO_MISSING_WARNING_COUNT = 0
@@ -712,7 +713,7 @@ def mqtt_endpoint_for_realtime(
 
 
 def ensure_mosquitto(endpoint: BrokerEndpoint) -> Optional[BrokerStartup]:
-    if os.environ.get("KANBUS_TEST_MOSQUITTO_UNAVAILABLE") == "1":
+    if read_test_hook("KANBUS_TEST_MOSQUITTO_UNAVAILABLE") == "1":
         return None
     if endpoint.scheme != "mqtt":
         return None

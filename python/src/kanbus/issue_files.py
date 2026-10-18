@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Callable, Optional, Set, TypeVar
 
+from kanbus.test_hooks import read_test_hook
 from kanbus.models import IssueData
 from kanbus.daemon_client import (
     DaemonClientError,
@@ -74,7 +74,7 @@ def _project_root(issues_directory: Path) -> Path:
 
 def _use_service(issues_directory: Path) -> bool:
     """Return whether this directory belongs to a daemon-addressable project."""
-    if "PYTEST_CURRENT_TEST" in os.environ:
+    if read_test_hook("PYTEST_CURRENT_TEST") is not None:
         return False
     root = _project_root(issues_directory)
     return is_daemon_enabled() and (root / ".kanbus.yml").is_file()

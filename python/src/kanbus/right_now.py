@@ -22,6 +22,7 @@ from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.models import IssueComment, IssueData, ProjectConfiguration
 from kanbus.overlay import load_overlay_issue, overlay_issue_path, write_overlay_issue
 from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.test_hooks import read_test_hook
 
 RIGHT_NOW_SUMMARY_OPERATION = "right_now_summary"
 LLM_USAGE_LOG = "llm_usage.jsonl"
@@ -280,11 +281,11 @@ def generate_right_now_summary(
     model = _resolve_right_now_model(configuration)
     _ensure_openai_credentials_when_required()
 
-    stub_completion = os.environ.get(TEST_RIGHT_NOW_COMPLETION_ENV)
+    stub_completion = read_test_hook(TEST_RIGHT_NOW_COMPLETION_ENV)
     if stub_completion is not None:
         return _truncate_to_max_length(stub_completion.strip(), max_length)
 
-    if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
+    if read_test_hook("KANBUS_TEST_AI_MOCK") == "1":
         summary = mock_right_now_summary_text(issue.identifier)
         _record_llm_usage(
             root=root,
@@ -453,7 +454,7 @@ def right_now_summary_needs_regeneration(issue: IssueData) -> bool:
     if summary is None or not summary.strip():
         return True
     if is_persisted_mock_right_now_summary(summary, issue.identifier):
-        if os.environ.get("KANBUS_TEST_AI_MOCK") != "1":
+        if read_test_hook("KANBUS_TEST_AI_MOCK") != "1":
             return True
     return right_now_summary_is_missing_or_stale(issue)
 
@@ -488,7 +489,7 @@ def require_display_right_now_summary(issue: IssueData) -> str:
     if summary is None or not summary.strip():
         raise RightNowError(f"right-now summary missing for {issue.identifier}")
     if is_persisted_mock_right_now_summary(summary, issue.identifier):
-        if os.environ.get("KANBUS_TEST_AI_MOCK") != "1":
+        if read_test_hook("KANBUS_TEST_AI_MOCK") != "1":
             raise RightNowError(
                 "persisted test mock right-now summary for "
                 f"{issue.identifier} must be regenerated"
@@ -786,7 +787,7 @@ def _ensure_litellm_provider(configuration: ProjectConfiguration) -> None:
 
 
 def _ensure_openai_credentials_when_required() -> None:
-    if os.environ.get("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS") != "1":
+    if read_test_hook("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS") != "1":
         return
     api_key = os.environ.get("OPENAI_API_KEY")
     if api_key is None or not api_key.strip():
@@ -859,7 +860,7 @@ def _curated_litellm_failure_message(error: Exception) -> str:
 
 
 def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int | None]]:
-    test_completion = os.environ.get("KANBUS_TEST_LITELLM_COMPLETION")
+    test_completion = read_test_hook("KANBUS_TEST_LITELLM_COMPLETION")
     if test_completion is not None:
         os.environ["KANBUS_RIGHT_NOW_LITELLM_CALLED"] = "1"
         return test_completion, {
@@ -869,7 +870,7 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int | N
             "cost": None,
         }
 
-    if os.environ.get("KANBUS_TEST_SIMULATE_LITELLM_MISSING") == "1":
+    if read_test_hook("KANBUS_TEST_SIMULATE_LITELLM_MISSING") == "1":
         raise RightNowError("litellm is required for right-now summary generation")
     try:
         import litellm

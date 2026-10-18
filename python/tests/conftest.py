@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
+
+os.environ["KANBUS_ENABLE_TEST_HOOKS"] = "1"
 
 
 @pytest.fixture(autouse=True)
