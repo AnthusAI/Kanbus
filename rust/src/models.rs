@@ -338,7 +338,7 @@ impl Default for RealtimeConfig {
         Self {
             transport: "auto".to_string(),
             broker: "auto".to_string(),
-            autostart: true,
+            autostart: false,
             keepalive: false,
             uds_socket_path: None,
             mqtt_custom_authorizer_name: None,
@@ -748,7 +748,7 @@ mod tests {
         let realtime = RealtimeConfig::default();
         assert_eq!(realtime.transport, "auto");
         assert_eq!(realtime.broker, "auto");
-        assert!(realtime.autostart);
+        assert!(!realtime.autostart);
         assert!(!realtime.keepalive);
         assert!(realtime.uds_socket_path.is_none());
         assert!(realtime.mqtt_custom_authorizer_name.is_none());

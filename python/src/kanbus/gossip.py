@@ -267,7 +267,7 @@ def run_gossip_bridge(
         project_filter=None,
         transport_override=None,
         broker_override=None,
-        autostart_override=None,
+        autostart_override=True,
         keepalive_override=None,
         print_envelopes=False,
         on_envelope=on_envelope,

@@ -395,7 +395,7 @@ class RealtimeConfig(BaseModel):
 
     transport: str = "auto"
     broker: str = "auto"
-    autostart: bool = True
+    autostart: bool = False
     keepalive: bool = False
     uds_socket_path: Optional[str] = None
     mqtt_custom_authorizer_name: Optional[str] = None

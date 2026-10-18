@@ -664,7 +664,7 @@ pub fn run_gossip_bridge(
             project_filter: None,
             transport_override: None,
             broker_override: None,
-            autostart_override: None,
+            autostart_override: Some(true),
             keepalive_override: None,
             print_envelopes: false,
             on_envelope: Some(on_envelope),

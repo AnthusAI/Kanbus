@@ -16,7 +16,7 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
     "realtime": {
         "transport": "auto",
         "broker": "auto",
-        "autostart": True,
+        "autostart": False,
         "keepalive": False,
         "uds_socket_path": None,
         "topics": {
