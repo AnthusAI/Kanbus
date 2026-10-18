@@ -363,7 +363,7 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
     # Config disabled
     monkeypatch.setattr(
         hooks,
-        "_resolve_hook_configuration",
+        "_resolve_hook_configuration_or_fail",
         lambda _root: (_hooks_config(enabled=False), tmp_path),
     )
     hooks.run_lifecycle_hooks(
@@ -377,7 +377,7 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
     # Beads mode blocked
     monkeypatch.setattr(
         hooks,
-        "_resolve_hook_configuration",
+        "_resolve_hook_configuration_or_fail",
         lambda _root: (_hooks_config(run_in_beads_mode=False), tmp_path),
     )
     hooks.run_lifecycle_hooks(
@@ -391,7 +391,7 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
     # Blocking failure on before/mutating event raises.
     cfg = _hooks_config(before={HookEvent.ISSUE_CREATE.value: [_hook("b1", ["echo"])]})
     monkeypatch.setattr(
-        hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path)
+        hooks, "_resolve_hook_configuration_or_fail", lambda _root: (cfg, tmp_path)
     )
 
     class FailHandler:
@@ -424,7 +424,9 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
         before={HookEvent.ISSUE_SHOW.value: [_hook("s1", ["echo"], blocking=False)]}
     )
     monkeypatch.setattr(
-        hooks, "_resolve_hook_configuration", lambda _root: (before_cfg, tmp_path)
+        hooks,
+        "_resolve_hook_configuration_or_fail",
+        lambda _root: (before_cfg, tmp_path),
     )
 
     class WarnHandler:
@@ -456,7 +458,9 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
         after={HookEvent.ISSUE_UPDATE.value: [_hook("a1", ["echo"])]}
     )
     monkeypatch.setattr(
-        hooks, "_resolve_hook_configuration", lambda _root: (after_cfg, tmp_path)
+        hooks,
+        "_resolve_hook_configuration_or_fail",
+        lambda _root: (after_cfg, tmp_path),
     )
 
     class OkHandler:
@@ -591,7 +595,7 @@ def test_validate_hooks_path_executable_branch(
         before={HookEvent.ISSUE_CREATE.value: [_hook("ok", [str(script)])]}
     )
     monkeypatch.setattr(
-        hooks, "_resolve_hook_configuration", lambda _root: (cfg, tmp_path)
+        hooks, "_resolve_hook_configuration_or_fail", lambda _root: (cfg, tmp_path)
     )
 
     issues = hooks.validate_hooks(tmp_path)

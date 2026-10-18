@@ -69,7 +69,7 @@ pub fn list_issues(
     }
     normalized.sort();
     normalized.dedup();
-    let root_configuration = load_root_configuration(root);
+    let root_configuration = load_root_configuration(root)?;
     if let Some(configuration) = root_configuration.as_ref() {
         let base = get_configuration_path(root)?
             .parent()
@@ -108,7 +108,7 @@ pub fn list_issues(
         .collect();
 
     if projects.len() > 1 {
-        let overlay_configs = resolve_overlay_configs(&projects, root_configuration.as_ref());
+        let overlay_configs = resolve_overlay_configs(&projects, root_configuration.as_ref())?;
         let issues = list_issues_across_projects(
             root,
             &projects,
@@ -123,7 +123,7 @@ pub fn list_issues(
     }
 
     let project_dir = projects[0].clone();
-    let overlay_config = overlay_config_for_project(&project_dir, root_configuration.as_ref());
+    let overlay_config = overlay_config_for_project(&project_dir, root_configuration.as_ref())?;
 
     if include_local || local_only {
         let local_dir = find_project_local_directory(&project_dir);
@@ -209,7 +209,7 @@ fn list_with_project_filter(
         .map(|p| p.project_dir)
         .collect();
     let configuration = load_project_configuration(&get_configuration_path(root)?)?;
-    let overlay_configs = resolve_overlay_configs(&project_dirs, Some(&configuration));
+    let overlay_configs = resolve_overlay_configs(&project_dirs, Some(&configuration))?;
     let project_labels: HashMap<std::path::PathBuf, String> = resolve_labeled_projects(root)?
         .into_iter()
         .map(|project| (project.project_dir, project.label))
@@ -345,9 +345,11 @@ fn list_issues_across_projects(
     Ok(issues)
 }
 
-fn load_root_configuration(root: &Path) -> Option<ProjectConfiguration> {
-    let config_path = get_configuration_path(root).ok()?;
-    load_project_configuration(&config_path).ok()
+fn load_root_configuration(root: &Path) -> Result<Option<ProjectConfiguration>, KanbusError> {
+    match get_configuration_path(root) {
+        Ok(config_path) => load_project_configuration(&config_path).map(Some),
+        Err(_) => Ok(None),
+    }
 }
 
 fn disabled_overlay_config() -> crate::models::OverlayConfig {
@@ -360,33 +362,31 @@ fn disabled_overlay_config() -> crate::models::OverlayConfig {
 fn overlay_config_for_project(
     project_dir: &Path,
     root_configuration: Option<&ProjectConfiguration>,
-) -> crate::models::OverlayConfig {
+) -> Result<crate::models::OverlayConfig, KanbusError> {
     if let Some(configuration) = root_configuration {
-        return configuration.overlay.clone();
+        return Ok(configuration.overlay.clone());
     }
     let config_path = project_dir
         .parent()
         .unwrap_or_else(|| Path::new(""))
         .join(".kanbus.yml");
     if !config_path.is_file() {
-        return disabled_overlay_config();
+        return Ok(disabled_overlay_config());
     }
-    load_project_configuration(&config_path)
-        .map(|configuration| configuration.overlay)
-        .unwrap_or_else(|_| disabled_overlay_config())
+    load_project_configuration(&config_path).map(|configuration| configuration.overlay)
 }
 
 fn resolve_overlay_configs(
     project_dirs: &[std::path::PathBuf],
     root_configuration: Option<&ProjectConfiguration>,
-) -> HashMap<std::path::PathBuf, crate::models::OverlayConfig> {
+) -> Result<HashMap<std::path::PathBuf, crate::models::OverlayConfig>, KanbusError> {
     project_dirs
         .iter()
         .map(|project_dir| {
-            (
+            Ok((
                 project_dir.clone(),
-                overlay_config_for_project(project_dir, root_configuration),
-            )
+                overlay_config_for_project(project_dir, root_configuration)?,
+            ))
         })
         .collect()
 }
