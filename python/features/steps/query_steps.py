@@ -186,7 +186,7 @@ def when_list_issues_directly_after_configuration_failure(context: object) -> No
                 porcelain=False,
                 full_ids=False,
             )
-        except click.ClickException as error:
+        except (click.ClickException, ConfigurationError) as error:
             context.result = SimpleNamespace(
                 exit_code=1,
                 stdout="",
