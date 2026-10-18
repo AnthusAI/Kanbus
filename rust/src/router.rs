@@ -5420,6 +5420,12 @@ impl AdapterDataHome {
     }
 }
 
+impl Drop for AdapterDataHome {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(self.path().join("opencode").join("auth.json"));
+    }
+}
+
 /// The branch a run's conversation started on, when one was recorded.
 fn router_started_branch(events: &[EventRecord], issue_id: &str, claim_id: &str) -> Option<String> {
     events
@@ -5786,7 +5792,8 @@ fn validate_router_worktree_changes(
 /// beside the repository's other host-local router state and persists across
 /// attempts so a saved session can be resumed with a human's reply. When the
 /// repository directory cannot be found it is a temporary directory instead.
-/// `auth.json` is copied in so non-AWS providers keep working.
+/// A private owner-only copy of `auth.json` is placed in it for the run so
+/// non-AWS providers keep working, and removed when the run ends.
 fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
     let common_dir = Command::new("git")
         .args(["rev-parse", "--git-common-dir"])
@@ -5836,13 +5843,25 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
         });
     if let Some(auth) = shared.map(|base| base.join("opencode").join("auth.json")) {
         let target = home.path().join("opencode");
-        if auth.is_file() && !target.join("auth.json").exists() {
+        if auth.is_file() {
             fs::create_dir_all(&target).map_err(|error| KanbusError::Io(error.to_string()))?;
-            let _ = fs::copy(&auth, target.join("auth.json"));
+            let private_copy = target.join("auth.json");
+            if fs::copy(&auth, &private_copy).is_ok() {
+                restrict_to_owner_read_write(&private_copy);
+            }
         }
     }
     Ok(home)
 }
+
+#[cfg(unix)]
+fn restrict_to_owner_read_write(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+}
+
+#[cfg(not(unix))]
+fn restrict_to_owner_read_write(_path: &Path) {}
 
 /// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
 ///
@@ -10527,6 +10546,18 @@ mod tests {
         assert_eq!(first.path(), again.path());
         let other = opencode_data_home(repo, "kbs-10").expect("data home");
         assert_ne!(first.path(), other.path());
+    }
+
+    #[test]
+    fn opencode_credentials_copy_is_removed_when_the_data_home_is_dropped() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let private_copy = directory.path().join("opencode").join("auth.json");
+        fs::create_dir_all(private_copy.parent().unwrap()).expect("create");
+        fs::write(&private_copy, "{}").expect("write");
+        let data_home = AdapterDataHome::Persistent(directory.path().to_path_buf());
+        drop(data_home);
+        assert!(!private_copy.exists());
+        assert!(directory.path().is_dir());
     }
 
     #[test]

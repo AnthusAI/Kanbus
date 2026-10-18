@@ -347,8 +347,9 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         with "database is locked", so each package gets its own directory. It
         persists across attempts (when the router provides ``state_dir``) so a
         saved session can be resumed with a human's reply; without one it is a
-        temporary directory removed after the run. Provider credentials
-        (auth.json) are copied in so non-AWS providers keep working.
+        temporary directory removed after the run. A private owner-only copy of the
+        provider credentials (auth.json) is placed in it for the run, and removed
+        when the run ends.
         """
         if self.state_dir is not None:
             # Same key scheme as the Rust runtime, so either can resume the
@@ -365,12 +366,19 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         )
         auth = shared / "opencode" / "auth.json"
         target = data_home / "opencode"
-        if auth.is_file() and not (target / "auth.json").exists():
+        if auth.is_file():
             target.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(auth, target / "auth.json")
+            private_copy = target / "auth.json"
+            shutil.copyfile(auth, private_copy)
+            private_copy.chmod(0o600)
+            self._private_credentials_copy = private_copy
         return str(data_home)
 
     def _cleanup(self) -> None:
+        private_copy = getattr(self, "_private_credentials_copy", None)
+        if private_copy is not None:
+            private_copy.unlink(missing_ok=True)
+            self._private_credentials_copy = None
         data_home = getattr(self, "_data_home", None)
         if data_home:
             shutil.rmtree(data_home, ignore_errors=True)
