@@ -93,3 +93,4 @@ infra/cloud/cdk.context.json
 rust/*.profraw
 src/videos/*/*.timing.xml
 .agents/
+_site/
