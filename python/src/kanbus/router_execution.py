@@ -527,6 +527,7 @@ def run_router_watch(context: RouterContext) -> None:
     renewal_stop: threading.Event | None = None
     renewal_thread: threading.Thread | None = None
     control_started = False
+    _prune_stale_worktrees(context.root)
     consecutive_poll_failures = 0
     try:
         scheduler_handles, scheduler_claim_id = _acquire_watch_scheduler_claim(
@@ -2944,6 +2945,12 @@ def _latest_relevant_review(
             str(review.get("id", "")),
         ),
         default=None,
+    )
+
+
+def _prune_stale_worktrees(root: Path) -> None:
+    subprocess.run(
+        ["git", "worktree", "prune"], cwd=root, check=False, capture_output=True
     )
 
 
