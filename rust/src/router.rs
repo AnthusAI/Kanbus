@@ -4261,6 +4261,7 @@ fn run_issue_router_watch(
     local.scheduler_hard = scheduler_hard;
     local.stop_requested = false;
     write_local_router_state(root, &local)?;
+    prune_stale_router_worktrees(root);
     let mut next_poll = Instant::now();
     let scheduler_renewal = Duration::from_secs(
         parse_duration_seconds(&configuration.coordination.default_lease_ttl)
@@ -6390,7 +6391,7 @@ fn latest_router_worktree(root: &Path, claim_id: &str) -> Result<PathBuf, Kanbus
         .ok_or_else(|| {
             KanbusError::IssueOperation("router worktree claim is no longer active".to_string())
         })?;
-    Ok(router_worktree_path(&issue_id, claim_id))
+    Ok(router_worktree_path(root, &issue_id, claim_id))
 }
 
 fn publish_router_checkpoint(
@@ -6444,7 +6445,7 @@ fn create_router_worktree(
             return Ok(previous.to_path_buf());
         }
     }
-    let worktree = router_worktree_path(issue_id, &claim.claim_id);
+    let worktree = router_worktree_path(root, issue_id, &claim.claim_id);
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
@@ -6531,10 +6532,31 @@ fn worktree_is_registered(root: &Path, path: &Path) -> bool {
         .any(|listed| fs::canonicalize(listed).unwrap_or_else(|_| PathBuf::from(listed)) == wanted)
 }
 
-fn router_worktree_path(issue_id: &str, claim_id: &str) -> PathBuf {
-    std::env::temp_dir()
-        .join("kanbus-router-worktrees")
-        .join(format!("{}-{}", issue_id, claim_id))
+fn router_worktree_root(root: &Path) -> PathBuf {
+    let git_path = Command::new("git")
+        .args(["rev-parse", "--git-path", "kanbus/router/worktrees"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .filter(|path| !path.is_empty());
+    match git_path {
+        Some(path) if Path::new(&path).is_absolute() => PathBuf::from(path),
+        Some(path) => root.join(path),
+        None => std::env::temp_dir().join("kanbus-router-worktrees"),
+    }
+}
+
+fn router_worktree_path(root: &Path, issue_id: &str, claim_id: &str) -> PathBuf {
+    router_worktree_root(root).join(format!("{}-{}", issue_id, claim_id))
+}
+
+fn prune_stale_router_worktrees(root: &Path) {
+    let _ = Command::new("git")
+        .args(["worktree", "prune"])
+        .current_dir(root)
+        .output();
 }
 
 #[derive(Debug)]
@@ -7587,6 +7609,25 @@ fn publish_router_checkpoint_ref(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn router_worktrees_live_in_the_git_directory_of_the_repository() {
+        let repository = tempfile::tempdir().unwrap();
+        Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(repository.path())
+            .status()
+            .unwrap();
+        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1");
+        let expected_prefix = repository
+            .path()
+            .join(".git")
+            .join("kanbus")
+            .join("router")
+            .join("worktrees");
+        assert!(worktree_path.starts_with(&expected_prefix));
+        assert!(worktree_path.ends_with("kanbus-1-claim-1"));
+    }
+
     use super::*;
     use std::process::Output;
 
