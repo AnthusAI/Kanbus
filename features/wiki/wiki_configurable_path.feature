@@ -31,6 +31,14 @@ Feature: Configurable wiki path
     And stdout should contain "Wiki at repo root"
     And the wiki root should be "wiki"
 
+  Scenario: Wiki in a hidden folder at repo root keeps its leading dot
+    Given a Kanbus project with wiki_directory set to "../.wiki"
+    And a wiki page "hidden.md" with content "Hidden wiki"
+    When I run "kanbus wiki render .wiki/hidden.md"
+    Then the command should succeed
+    And stdout should contain "Hidden wiki"
+    And the wiki root should be ".wiki"
+
   Scenario: CLI render respects wiki_directory
     Given a Kanbus project with wiki_directory set to "docs"
     And a wiki page "arch.md" with content:

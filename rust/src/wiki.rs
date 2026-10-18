@@ -50,6 +50,16 @@ pub struct WikiRenderRequest {
     pub page_path: PathBuf,
 }
 
+/// Strip exactly one leading parent-directory marker from a configured wiki
+/// directory, returning the repository-relative path it names. Returns `None`
+/// when the directory lives inside the project directory instead.
+pub fn repository_relative_wiki_directory(wiki_subdir: &str) -> Option<String> {
+    wiki_subdir
+        .replace('\\', "/")
+        .strip_prefix("../")
+        .map(str::to_string)
+}
+
 /// Load wiki directory location from project configuration.
 ///
 /// # Arguments
@@ -64,12 +74,7 @@ pub fn load_wiki_location(root: &Path) -> Result<WikiLocation, KanbusError> {
     let store = FileStore::new(root);
     let config = store.load_config()?;
     let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
-    if wiki_subdir.starts_with("../") {
-        let normalized = wiki_subdir
-            .replace('\\', "/")
-            .trim_start_matches("../")
-            .trim_start_matches("..\\")
-            .to_string();
+    if let Some(normalized) = repository_relative_wiki_directory(wiki_subdir) {
         Ok(WikiLocation {
             wiki_root: root.join(&normalized),
             list_prefix: normalized,
