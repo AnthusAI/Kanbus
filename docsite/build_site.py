@@ -1,4 +1,5 @@
 import argparse
+import html
 import posixpath
 import re
 import shutil
@@ -11,21 +12,45 @@ from papyrus_content.markus_renderer.shell import SiteChrome
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DOCUMENTATION_DIRECTORY = REPOSITORY_ROOT / "docs"
 SITE_THEME_NAME = "catppuccin"
+SITE_STYLESHEET = Path(__file__).resolve().parent / "site.css"
 MARKDOWN_LINK_PATTERN = re.compile(r"\]\(([^)\s#]+\.(?:md|html))(#[^)\s]*)?\)")
 
 
+HOME_HREF = "index.html"
+
+NAVIGATION = (
+    ("Start", ((HOME_HREF, "Overview"), ("articles/getting-started.html", "Choose a setup"), ("articles/getting-started-local-files.html", "Local files"), ("articles/getting-started-cloud-files.html", "Files in the cloud"), ("articles/getting-started-cloud-database.html", "S3 and DynamoDB in the cloud"))),
+    ("Using Kanbus", (("articles/cli-reference.html", "CLI reference"), ("articles/configuration.html", "Configuration"), ("articles/lifecycle-hooks.html", "Lifecycle hooks"), ("articles/realtime.html", "Realtime collaboration"), ("articles/wiki-guide.html", "Wiki guide"), ("articles/github-sync.html", "GitHub sync"), ("articles/troubleshooting.html", "Troubleshooting"), ("articles/migration.html", "Migration from Beads"), ("articles/vs-beads.html", "Kanbus and Beads"))),
+    ("Agents", (("articles/agent-provenance.html", "Agent provenance"), ("articles/agent-compaction-right-now.html", "Agent compaction"), ("articles/claude-code-compaction-right-now-readme.html", "Claude Code compaction"), ("articles/issue-router-design.html", "Issue router design"), ("articles/issue-router-operator-guide.html", "Issue router operator guide"), ("articles/issue-router-integration-harness.html", "Issue router test harness"), ("articles/coordination-integration-harness.html", "Coordination test harness"))),
+    ("Cloud and internals", (("articles/cloud-console-runtime.html", "Cloud console runtime"), ("articles/cloud-launch-checklist.html", "Cloud launch checklist"), ("articles/cloud-ops-runbook.html", "Cloud operations runbook"), ("articles/architecture.html", "Architecture"), ("articles/ipc-protocol.html", "IPC protocol"), ("articles/dotyaml-rust.html", "Dotyaml in Rust"), ("articles/rust-coverage.html", "Rust coverage"), ("articles/dev-code-quality.html", "Code quality"))),
+)
+
+
+def render_navigation(page_context) -> str:
+    groups = []
+    for group_label, entries in NAVIGATION:
+        items = "".join(
+            f'<li><a href="{page_context.prefix}{href}"'
+            + (' aria-current="page"' if href == page_context.active_href else "")
+            + f">{html.escape(label)}</a></li>"
+            for href, label in entries
+        )
+        groups.append(f'<div class="site-nav-group"><p class="site-nav-label">{html.escape(group_label)}</p><ul class="site-nav-list">{items}</ul></div>')
+    return "".join(groups)
+
+
 def render_site_banner(page_context):
-    navigation_links = "".join(
-        f'<a href="{page_context.prefix}{item.href}"'
-        + (' aria-current="page"' if item.href == page_context.active_href else "")
-        + f">{item.label}</a>"
-        for item in page_context.nav_items
-    )
     return (
         '<header class="site-banner">'
-        f'<a class="site-wordmark" href="{page_context.prefix}index.html">Kanbus</a>'
+        '<div class="site-topbar">'
+        f'<a class="site-wordmark" href="{page_context.prefix}{HOME_HREF}">Kanbus</a>'
         '<p class="site-tagline">Git-backed project management for people and AI agents.</p>'
-        f'<div class="site-nav-container"><nav class="site-nav" aria-label="Documentation">{navigation_links}</nav></div>'
+        '<nav class="site-links" aria-label="Project"><a href="https://github.com/AnthusAI/Kanbus">GitHub</a></nav>'
+        "</div>"
+        '<details class="site-menu" open>'
+        "<summary>Contents</summary>"
+        f'<nav class="site-sidebar" aria-label="Documentation">{render_navigation(page_context)}</nav>'
+        "</details>"
         "</header>"
     )
 
@@ -107,6 +132,7 @@ def build_documentation_site(output_directory: Path):
             content_dir=staging_directory,
             out_dir=output_directory,
             theme=SITE_THEME_NAME,
+            site_css=SITE_STYLESHEET,
             chrome=SITE_CHROME,
         )
     write_redirects_from_former_urls(output_directory)
