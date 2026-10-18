@@ -40,11 +40,17 @@ pub struct FileStore {
 }
 
 fn find_child_directory_named(parent: &Path, name: &str) -> Option<PathBuf> {
-    std::fs::read_dir(parent)
-        .ok()?
-        .filter_map(Result::ok)
-        .find(|entry| entry.file_name() == name && entry.path().is_dir())
-        .map(|entry| entry.path())
+    let entries = std::fs::read_dir(parent).ok()?;
+    for entry in entries.flatten() {
+        let listed_name = entry.file_name();
+        if listed_name.to_str() == Some(name) {
+            let listed_path = entry.path();
+            if listed_path.is_dir() {
+                return Some(listed_path);
+            }
+        }
+    }
+    None
 }
 
 impl FileStore {
