@@ -852,8 +852,11 @@ def _curated_litellm_failure_message(error: Exception) -> str:
     message = str(error).strip()
     if "Missing credentials" in message or "OPENAI_API_KEY" in message:
         return OPENAI_API_KEY_NOT_LOADED_MESSAGE
-    if "litellm" in message.lower() and "not installed" in message.lower():
-        return "litellm is required for right-now summary generation"
+    lowered_message = message.lower()
+    if "litellm" in lowered_message and (
+        "not installed" in lowered_message or "is required" in lowered_message
+    ):
+        return "litellm is required for right-now summary generation (pip install 'kanbus[ai]')"
     if message:
         return f"right-now summary generation failed: {message}"
     return "right-now summary generation failed"
@@ -871,11 +874,15 @@ def _completion(model: str, prompt: str) -> tuple[str, dict[str, float | int | N
         }
 
     if read_test_hook("KANBUS_TEST_SIMULATE_LITELLM_MISSING") == "1":
-        raise RightNowError("litellm is required for right-now summary generation")
+        raise RightNowError(
+            "litellm is required for right-now summary generation (pip install 'kanbus[ai]')"
+        )
     try:
         import litellm
     except ImportError:
-        raise RightNowError("litellm is required for right-now summary generation")
+        raise RightNowError(
+            "litellm is required for right-now summary generation (pip install 'kanbus[ai]')"
+        )
 
     if requires_openai_key(model) and not os.environ.get("OPENAI_API_KEY", "").strip():
         raise RightNowError(missing_api_key_message())
