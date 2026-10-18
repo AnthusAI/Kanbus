@@ -273,3 +273,77 @@ When("the host renders a narrow default board",async function(){await this.page.
 Then("the board starts at its final column",async function(){await this.page.waitForFunction(()=>{const b=document.querySelector('.kb-grid');return b&&b.scrollLeft>0&&Math.abs(b.scrollLeft-(b.scrollWidth-b.clientWidth))<2;});});
 When("the host preserves a board scroll position",async function(){await this.page.evaluate(()=>window.renderOrganizer('light','preserve'));await this.page.locator('.kb-grid').evaluate(b=>b.scrollLeft=40);await this.page.evaluate(()=>window.updateIssue('article-1','review'));});
 Then("its scroll position stays unchanged on issue updates",async function(){await this.page.waitForFunction(()=>document.querySelector('.kb-grid')?.scrollLeft===40);});
+
+When(/^the host renders the newsprint board at width (\d+) in (light|dark) mode$/, async function (width, mode) {
+  await this.page.setViewportSize({ width: Number(width), height: 900 });
+  await this.page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
+  await this.page.evaluate((mode) => window.renderNewsprint(mode), mode);
+  await expect(this.page.locator(".issue-card").first()).toBeVisible();
+});
+Then("no element under the newsprint theme has a border radius", async function () {
+  const offenders = await this.page.evaluate(() => [...document.querySelectorAll('[data-kanbus-theme="newsprint"], [data-kanbus-theme="newsprint"] *')]
+    .filter((element) => ["borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius"]
+      .some((corner) => getComputedStyle(element)[corner] !== "0px")).map((element) => element.className || element.tagName));
+  expect(offenders).toEqual([]);
+});
+Then("a single rule separates adjacent cards in the Draft column", async function () {
+  const cards = this.page.locator('[data-column-key="draft"] .issue-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0)).toHaveCSS("border-top-width", "0px");
+  await expect(cards.nth(1)).toHaveCSS("border-top-width", "1px");
+  await expect(cards.nth(1)).toHaveCSS("border-top-style", "solid");
+  const gap = await cards.evaluateAll((elements) => elements[1].getBoundingClientRect().top - elements[0].getBoundingClientRect().bottom);
+  expect(gap).toBeLessThanOrEqual(1);
+});
+Then("the issue id eyebrow sits directly above the headline on {string}", async function (identifier) {
+  const card = this.page.locator(`[data-issue-id="${identifier}"]`);
+  const distance = await card.evaluate((element) => element.querySelector("h3").getBoundingClientRect().top - element.querySelector(".issue-accent-bar").getBoundingClientRect().bottom);
+  expect(distance).toBeGreaterThanOrEqual(0);
+  expect(distance).toBeLessThanOrEqual(6);
+  await expect(card.locator(".issue-accent-bar")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+});
+Then("issue {string} shows a left selection bar and a heavier headline", async function (identifier) {
+  const card = this.page.locator(`[data-issue-id="${identifier}"]`);
+  await expect(card).toHaveCSS("box-shadow", /inset/);
+  await expect(card.locator("h3")).toHaveCSS("font-weight", "800");
+});
+Then("issue {string} keeps a transparent background", async function (identifier) {
+  await expect(this.page.locator(`[data-issue-id="${identifier}"]`)).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+});
+Then("the newsprint detail panel is square with a double rule under its heading", async function () {
+  const panel = this.page.getByRole("region", { name: "First article details" });
+  await expect(panel).toHaveCSS("border-top-left-radius", "0px");
+  await expect(panel.locator("h2")).toHaveCSS("border-bottom-style", "double");
+});
+Then("the excerpt on {string} is clamped to three lines with a More control", async function (identifier) {
+  const excerpt = this.page.locator(`[data-issue-id="${identifier}"] .issue-card-excerpt`);
+  await expect(excerpt.locator("p")).toHaveCSS("-webkit-line-clamp", "3");
+  await expect(excerpt.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
+});
+When("I press More on the excerpt of {string}", async function (identifier) {
+  await this.page.locator(`[data-issue-id="${identifier}"]`).getByRole("button", { name: "More" }).click();
+});
+Then("the excerpt on {string} is fully shown with a Less control", async function (identifier) {
+  const excerpt = this.page.locator(`[data-issue-id="${identifier}"] .issue-card-excerpt`);
+  await expect(excerpt).toHaveAttribute("data-expanded", "true");
+  await expect(excerpt.getByRole("button", { name: "Less" })).toHaveAttribute("aria-expanded", "true");
+});
+Then("issue {string} is not selected", async function (identifier) {
+  await expect(this.page.locator(`[data-issue-id="${identifier}"]`)).not.toHaveAttribute("data-selected", "true");
+  await expect(this.page.getByRole("region", { name: /details$/ })).toHaveCount(0);
+});
+Then("every newsprint text color has at least 4.5 to 1 contrast against the paper", async function () {
+  const ratios = await this.page.evaluate(() => {
+    const parse = (value) => value.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const luminance = ([r, g, b]) => [r, g, b].map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+    const paper = parse(getComputedStyle(document.querySelector('[data-kanbus-theme="newsprint"]')).backgroundColor);
+    return [...document.querySelectorAll('[data-kanbus-theme="newsprint"] :is(h3, p, button, .issue-accent-id, .issue-accent-priority, .issue-card-owner)')]
+      .filter((element) => element.textContent.trim())
+      .map((element) => {
+        const [a, b] = [luminance(parse(getComputedStyle(element).color)), luminance(paper)].sort((x, y) => y - x);
+        return { name: element.className || element.tagName, ratio: (a + 0.05) / (b + 0.05) };
+      });
+  });
+  expect(ratios.length).toBeGreaterThan(5);
+  expect(ratios.filter((entry) => entry.ratio < 4.5)).toEqual([]);
+});

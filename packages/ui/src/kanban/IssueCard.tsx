@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { buildIssueColorStyle } from "./issue-colors";
 import { formatIssueId } from "./format-issue-id";
@@ -18,6 +18,43 @@ export interface IssueCardProps {
   isSelected?: boolean;
   motion?: KanbanMotionConfig;
   motionIndex?: number;
+}
+
+interface IssueCardExcerptProps {
+  text: string;
+}
+
+function IssueCardExcerpt({ text }: IssueCardExcerptProps) {
+  const paragraphRef = useRef<HTMLParagraphElement | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    const paragraph = paragraphRef.current;
+    if (paragraph && !expanded) {
+      setOverflowing(paragraph.scrollHeight > paragraph.clientHeight + 1);
+    }
+  }, [text, expanded]);
+
+  return (
+    <div className="issue-card-excerpt" data-expanded={expanded ? "true" : "false"}>
+      <p ref={paragraphRef}>{text}</p>
+      {overflowing || expanded ? (
+        <button
+          type="button"
+          className="issue-card-excerpt-toggle"
+          aria-expanded={expanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded((value) => !value);
+          }}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          {expanded ? "Less" : "More"}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 export function IssueCard({
@@ -89,6 +126,7 @@ export function IssueCard({
         <h3 className={`text-base font-medium ${isSelected ? "text-selected" : "text-foreground"}`}>
           {issue.title}
         </h3>
+        {issue.excerpt ? <IssueCardExcerpt text={issue.excerpt} /> : null}
         <div className="issue-card-owner flex items-center justify-end text-xs text-muted">
           {issue.assignee ? <span>{issue.assignee}</span> : null}
         </div>

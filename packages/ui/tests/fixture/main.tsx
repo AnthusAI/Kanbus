@@ -4,6 +4,7 @@ import * as Kanbus from "@kanbus/ui";
 import "@kanbus/ui/styles/tokens.css";
 import "@kanbus/ui/styles/kanban.css";
 import "@kanbus/ui/styles/organizer.css";
+import "@kanbus/ui/styles/newsprint.css";
 import "./host-utilities.css";
 
 interface HostIssue extends Kanbus.KanbanIssue {
@@ -22,6 +23,7 @@ declare global {
     selectedIssue?: HostIssue;
     selectedOriginal?: boolean;
     hostReady: boolean;
+    renderNewsprint: (mode?: "light" | "dark") => void;
     renderOrganizer: (mode?: "light" | "dark", initialScroll?: "start" | "end" | "preserve") => void;
   }
 }
@@ -45,6 +47,7 @@ const configuration: Kanbus.KanbanConfig = {
 let issues: HostIssue[] = [
   { id: "article-1", title: "First article", type: "article", status: "draft", priority: 1,
     hostOnlyField: "original record",
+    excerpt: "The council met on Tuesday evening to debate the long awaited proposal for the harbor district, hearing from residents, merchants and engineers before adjourning without a vote until the following week.",
     assignee: "alex", labels: ["newsletter"], parent: "series-1", custom: { score: 8, ready: true },
     comments: [{ author: "alex", created_at: "2026-10-14T00:00:00Z", text: "Hidden text", comment_type: "summary", data: { activity_summary: "Arrange the interview" } }] },
   { id: "article-2", title: "Second article", type: "article", status: "review", priority: 2,
@@ -107,8 +110,23 @@ Object.assign(window, {
     organizer = true; organizerMode = mode; organizerScroll = initialScroll;
     root.render(<OrganizerHost mode={mode} initialScroll={initialScroll} />);
   },
+  renderNewsprint(mode: "light" | "dark" = "light") {
+    organizer = false;
+    root.render(<NewsprintHost mode={mode} />);
+  },
   hostReady: true
 });
+
+function NewsprintHost({ mode }: { mode: "light" | "dark" }) {
+  const [selected, setSelected] = useState<HostIssue | null>(null);
+  return <div data-kanbus-theme="newsprint" data-color-mode={mode} style={{ background: "var(--np-paper)" }}>
+    <Kanbus.IssueCollection issues={issues} config={configuration} query={{ type: "article" }}
+      initialScroll="start" motion={{ mode: "static" }} onSelectIssue={setSelected}
+      selectedIssueId={selected?.id} />
+    {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)}
+      fields={[{ label: "Editorial score", value: String(selected.custom?.score) }]} />}
+  </div>;
+}
 
 function BoardConsumer({ kind, storageKey }: { kind: "console" | "embedded"; storageKey: string }) {
   const [selected, setSelected] = useState<Kanbus.KanbanIssue | null>(null);
