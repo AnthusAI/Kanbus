@@ -1814,6 +1814,88 @@ def test_watch_waits_after_reconciliation_and_surfaces_lease_error(
     assert listener.stopped == 1
 
 
+def test_watch_survives_a_transient_github_error_and_backs_off(monkeypatch, tmp_path):
+    ctx = context(tmp_path)
+
+    class Control:
+        stop_requested = False
+
+        def model_copy(self, update):
+            return SimpleNamespace(**update)
+
+    ctx.control = Control()
+    loads = []
+
+    def load(_root):
+        loads.append(True)
+        ctx.control.stop_requested = len(loads) > 2
+        return ctx
+
+    listener = Listener()
+    scheduler = _ClaimHandle("git", "router:scheduler", "owner", "sched", None)
+    waits = []
+    reconcile_calls = []
+
+    def reconcile(*_args):
+        reconcile_calls.append(True)
+        if len(reconcile_calls) == 1:
+            raise IssueRouterError("GitHub API returned status 500")
+
+    monkeypatch.setattr(router_execution, "start_soft_listener", lambda *_: listener)
+    monkeypatch.setattr(
+        router_execution,
+        "_acquire_watch_scheduler_claim",
+        lambda *_a, **_kw: ([scheduler], "sched"),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "_start_lease_renewer",
+        lambda *_a, **_kw: (SimpleNamespace(set=lambda: None), Thread()),
+    )
+    monkeypatch.setattr("kanbus.router_state.router_state_root", lambda *_a: tmp_path)
+    monkeypatch.setattr(router_execution, "load_router_context", load)
+    monkeypatch.setattr(router_execution, "write_router_control", lambda *_: None)
+    monkeypatch.setattr(
+        router_execution, "record_router_event", lambda *_a, **_kw: None
+    )
+    monkeypatch.setattr(router_execution, "publish_router_state", lambda *_: None)
+    monkeypatch.setattr(router_execution, "_release_claims", lambda *_: None)
+    monkeypatch.setattr(router_execution, "_assert_scheduler_claim", lambda *_: None)
+    monkeypatch.setattr(router_execution, "_reconcile_pull_requests", reconcile)
+    monkeypatch.setattr(
+        router_execution,
+        "run_router_once",
+        lambda *_a, **_kw: router_execution.RouterRunResult(error=None),
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "_wait_for_watch_trigger",
+        lambda _listener, delay: waits.append(delay) or False,
+    )
+
+    router_execution.run_router_watch(ctx)
+
+    assert len(reconcile_calls) == 2
+    assert len(waits) == 2
+    interval = router_execution.parse_duration(ctx.router.watch_interval)
+    assert waits[0] == router_execution.watch_poll_backoff_seconds(interval, 1)
+    assert waits[1] == interval
+
+
+def test_watch_still_stops_on_a_non_transient_github_error(monkeypatch, tmp_path):
+    assert not router_execution.is_transient_github_error(
+        IssueRouterError("GitHub API returned status 401")
+    )
+    assert router_execution.is_transient_github_error(
+        IssueRouterError("GitHub API unavailable")
+    )
+    assert router_execution.is_transient_github_error(
+        IssueRouterError("GitHub API returned status 503")
+    )
+    assert router_execution.watch_poll_backoff_seconds(30, 1) == 60
+    assert router_execution.watch_poll_backoff_seconds(30, 10) == 300
+
+
 def test_wait_for_watch_trigger_polls_without_listener(monkeypatch):
     ticks = iter([1.0, 1.1, 2.0])
     sleeps = []
