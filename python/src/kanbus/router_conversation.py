@@ -8,22 +8,40 @@ useful agent turn disappear.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from kanbus.issue_router import IssueRouterError, record_router_event
 
+CREDENTIAL_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bsk-[A-Za-z0-9_-]{12,}"), "[REDACTED]"),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"), "[REDACTED]"),
+    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"), "[REDACTED]"),
+    (re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"), "[REDACTED]"),
+    (
+        re.compile(
+            r"(?i)(aws_secret_access_key[\"']?\s*[:=]\s*[\"']?)[A-Za-z0-9/+=]{40}"
+        ),
+        r"\1[REDACTED]",
+    ),
+    (re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"), "[REDACTED]"),
+    (
+        re.compile(r"(?i)(authorization\s*[:=]\s*(?:bearer|basic|token)\s+)[^\s\"']+"),
+        r"\1[REDACTED]",
+    ),
+    (re.compile(r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{20,}"), r"\1[REDACTED]"),
+)
+
 
 def redact_text(value: str) -> str:
-    """Remove common credential-shaped values before recording raw output."""
-    import re
+    """Remove credential-shaped values before recording raw output.
 
-    value = re.sub(r"\b(sk-[A-Za-z0-9_-]{12,})\b", "[REDACTED]", value)
-    value = re.sub(
-        r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s\"']+",
-        r"\1[REDACTED]",
-        value,
-    )
+    Newlines and spacing are preserved. The same pattern list and the shared
+    cases in ``tools/parity/redaction_cases.json`` back the Rust runtime.
+    """
+    for pattern, replacement in CREDENTIAL_PATTERNS:
+        value = pattern.sub(replacement, value)
     return value
 
 
