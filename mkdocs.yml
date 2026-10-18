@@ -12,9 +12,21 @@ nav:
   - CLI Reference: CLI_REFERENCE.md
   - Configuration: CONFIGURATION.md
   - Methodologies: METHODOLOGIES.md
+  - Architecture: ARCHITECTURE.md
   - Lifecycle Hooks: LIFECYCLE_HOOKS.md
+  - Issue Router:
+      - Operator guide: ISSUE_ROUTER_OPERATOR_GUIDE.md
+      - Design: ISSUE_ROUTER_DESIGN.md
+  - GitHub Sync: GITHUB_SYNC.md
+  - Agent Provenance: AGENT_PROVENANCE.md
   - Realtime Collaboration: REALTIME.md
   - Wiki Guide: WIKI_GUIDE.md
   - IPC Protocol: IPC_PROTOCOL.md
   - Troubleshooting: TROUBLESHOOTING.md
   - Migration from Beads: MIGRATION.md
+  - Kanbus vs. Beads: VS_BEADS.md
+  - Cloud Operations:
+      - Console runtime: CLOUD_CONSOLE_RUNTIME.md
+      - Operations runbook: CLOUD_OPS_RUNBOOK.md
+      - Launch checklist: CLOUD_LAUNCH_CHECKLIST.md
+  - Code Quality: dev/code-quality.md
