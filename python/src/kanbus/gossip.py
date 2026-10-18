@@ -190,7 +190,7 @@ def publish_issue_mutation(
     )
     topic = configuration.realtime.topics.project_events.format(project=project_label)
     try:
-        _publish_envelope(root, configuration, topic, envelope)
+        _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
     except Exception as error:
         print(
             f"warning: realtime publish failed for {issue.identifier}: {error}",
@@ -225,7 +225,7 @@ def publish_issue_deleted(
     )
     topic = configuration.realtime.topics.project_events.format(project=project_label)
     try:
-        _publish_envelope(root, configuration, topic, envelope)
+        _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
     except Exception as error:  # noqa: BLE001
         print(
             f"warning: realtime publish failed for {issue_id}: {error}",
@@ -562,6 +562,46 @@ def run_uds_subscription(
                 except (json.JSONDecodeError, ValidationError):
                     continue
                 handler(envelope)
+
+
+REALTIME_PUBLISH_HARD_CAP_SECONDS = 5.0
+
+
+def _publish_envelope_within_hard_cap(
+    root: Path,
+    configuration: ProjectConfiguration,
+    topic: str,
+    envelope: GossipEnvelope,
+) -> None:
+    """Publish on a detached thread and stop waiting after a hard cap.
+
+    Realtime delivery is best effort, so a slow or wedged broker must never
+    hold a command open longer than the cap.
+    """
+    failure: list[BaseException] = []
+
+    def publish_and_record_failure() -> None:
+        try:
+            _publish_envelope(root, configuration, topic, envelope)
+        except Exception as error:  # noqa: BLE001
+            failure.append(error)
+
+    publisher_thread = threading.Thread(
+        target=publish_and_record_failure,
+        name="kanbus-realtime-publish",
+        daemon=True,
+    )
+    publisher_thread.start()
+    publisher_thread.join(REALTIME_PUBLISH_HARD_CAP_SECONDS)
+    if publisher_thread.is_alive():
+        print(
+            "warning: realtime publish abandoned after "
+            f"{REALTIME_PUBLISH_HARD_CAP_SECONDS:g}s",
+            file=sys.stderr,
+        )
+        return
+    if failure:
+        raise failure[0]
 
 
 def _publish_envelope(

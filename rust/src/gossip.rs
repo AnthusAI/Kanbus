@@ -1171,7 +1171,60 @@ fn run_uds_subscription(
     ))
 }
 
+const REALTIME_PUBLISH_HARD_CAP: Duration = Duration::from_secs(5);
+
 fn publish_envelope(
+    root: &Path,
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+) -> Result<(), KanbusError> {
+    publish_envelope_within_hard_cap(
+        root,
+        configuration,
+        topic,
+        envelope,
+        REALTIME_PUBLISH_HARD_CAP,
+    )
+}
+
+fn publish_envelope_within_hard_cap(
+    root: &Path,
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+    hard_cap: Duration,
+) -> Result<(), KanbusError> {
+    let root = root.to_path_buf();
+    let configuration = configuration.clone();
+    let topic = topic.to_string();
+    let envelope = envelope.clone();
+    run_on_detached_thread_within_hard_cap(hard_cap, move || {
+        publish_envelope_blocking(&root, &configuration, &topic, &envelope)
+    })
+}
+
+fn run_on_detached_thread_within_hard_cap(
+    hard_cap: Duration,
+    work: impl FnOnce() -> Result<(), KanbusError> + Send + 'static,
+) -> Result<(), KanbusError> {
+    let (result_sender, result_receiver) = mpsc::channel();
+    thread::Builder::new()
+        .name("kanbus-realtime-publish".to_string())
+        .spawn(move || {
+            let _ = result_sender.send(work());
+        })
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    match result_receiver.recv_timeout(hard_cap) {
+        Ok(outcome) => outcome,
+        Err(_) => Err(KanbusError::Io(format!(
+            "realtime publish abandoned after {}s",
+            hard_cap.as_secs_f32()
+        ))),
+    }
+}
+
+fn publish_envelope_blocking(
     _root: &Path,
     configuration: &ProjectConfiguration,
     topic: &str,
@@ -2220,6 +2273,31 @@ mod tests {
             &envelope,
             &realtime
         ));
+    }
+
+    #[test]
+    fn wedged_publish_is_abandoned_at_the_hard_cap() {
+        let started_at = Instant::now();
+        let outcome = run_on_detached_thread_within_hard_cap(Duration::from_millis(100), || {
+            thread::sleep(Duration::from_secs(5));
+            Ok(())
+        });
+        assert!(started_at.elapsed() < Duration::from_secs(2));
+        assert!(outcome
+            .expect_err("abandoned")
+            .to_string()
+            .contains("abandoned"));
+    }
+
+    #[test]
+    fn finished_publish_reports_its_own_outcome_within_the_hard_cap() {
+        let outcome = run_on_detached_thread_within_hard_cap(Duration::from_secs(5), || {
+            Err(KanbusError::Io("broker exploded".to_string()))
+        });
+        assert!(outcome
+            .expect_err("failure")
+            .to_string()
+            .contains("broker exploded"));
     }
 
     #[cfg(unix)]

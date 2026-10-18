@@ -375,8 +375,18 @@ pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusErro
 }
 
 #[cfg(unix)]
+const DAEMON_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+#[cfg(unix)]
+fn apply_daemon_request_timeouts(stream: &UnixStream) -> std::io::Result<()> {
+    stream.set_read_timeout(Some(DAEMON_REQUEST_TIMEOUT))?;
+    stream.set_write_timeout(Some(DAEMON_REQUEST_TIMEOUT))
+}
+
+#[cfg(unix)]
 fn send_virtuus_request(socket_path: &Path, request: &Value) -> Result<Value, String> {
     let mut stream = UnixStream::connect(socket_path).map_err(|error| error.to_string())?;
+    apply_daemon_request_timeouts(&stream).map_err(|error| error.to_string())?;
     let payload = serde_json::to_string(request).map_err(|error| error.to_string())?;
     stream
         .write_all(payload.as_bytes())
@@ -456,6 +466,7 @@ fn send_request(
             error
         ))
     })?;
+    apply_daemon_request_timeouts(&stream).map_err(|error| KanbusError::Io(error.to_string()))?;
     let payload =
         serde_json::to_string(request).map_err(|error| KanbusError::Io(error.to_string()))?;
     stream
