@@ -423,6 +423,7 @@ jobs:
       - name: Sync console assets into Rust bundle
         run: |
           rm -rf rust/embedded_assets/console
+          mkdir -p rust/embedded_assets
           cp -R apps/console/dist rust/embedded_assets/console
 
       - name: Verify console assets bundled for crate

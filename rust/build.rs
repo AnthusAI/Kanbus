@@ -25,6 +25,8 @@ fn main() {
     println!("cargo:rerun-if-changed=../.git/HEAD");
     println!("cargo:rerun-if-changed=../.git/refs/tags");
 
+    ensure_console_assets_directory_exists();
+
     // Print post-install instructions when building for release
     if std::env::var("PROFILE").unwrap_or_default() == "release" {
         println!("cargo:warning=");
@@ -58,4 +60,19 @@ fn has_leading_semver_core(version: &str) -> bool {
     [major, minor, patch]
         .into_iter()
         .all(|part| !part.is_empty() && part.chars().all(|ch| ch.is_ascii_digit()))
+}
+
+const PLACEHOLDER_CONSOLE_INDEX_HTML: &str = "<!doctype html><html><head><title>Kanbus console</title></head><body><h1>Console assets were not built</h1><p>This binary was compiled without the web console bundle. Run <code>make build</code> from the repository root (or <code>rust/tools/sync_console_assets.sh</code>) and rebuild.</p></body></html>\n";
+
+fn ensure_console_assets_directory_exists() {
+    println!("cargo:rerun-if-changed=embedded_assets/console");
+    let console_index = std::path::Path::new("embedded_assets/console/index.html");
+    if console_index.exists() {
+        return;
+    }
+    std::fs::create_dir_all("embedded_assets/console")
+        .expect("create embedded_assets/console placeholder directory");
+    std::fs::write(console_index, PLACEHOLDER_CONSOLE_INDEX_HTML)
+        .expect("write placeholder console index.html");
+    println!("cargo:warning=embedded_assets/console was missing; embedded a placeholder page instead of the web console. Run `make build` to bundle the real console UI.");
 }
