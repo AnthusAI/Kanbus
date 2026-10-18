@@ -11,7 +11,7 @@ from papyrus_content.markus_renderer.shell import SiteChrome
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DOCUMENTATION_DIRECTORY = REPOSITORY_ROOT / "docs"
 SITE_THEME_NAME = "catppuccin"
-MARKDOWN_LINK_PATTERN = re.compile(r"\]\(([^)\s#]+\.md)(#[^)\s]*)?\)")
+MARKDOWN_LINK_PATTERN = re.compile(r"\]\(([^)\s#]+\.(?:md|html))(#[^)\s]*)?\)")
 
 
 def render_site_banner(page_context):
@@ -38,11 +38,15 @@ SITE_CHROME = SiteChrome(
 )
 
 
+def published_page_slug(documentation_relative_path: str) -> str:
+    stem = documentation_relative_path.removesuffix(".md").replace("/", "-")
+    return re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")
+
+
 def published_page_name(documentation_relative_path: str) -> str:
     if documentation_relative_path == "index.md":
         return "index.md"
-    flattened_name = documentation_relative_path.replace("/", "-")
-    return f"articles/{flattened_name}"
+    return f"articles/{published_page_slug(documentation_relative_path)}.md"
 
 
 def rewrite_links_between_pages(page_text: str, documentation_relative_path: str, known_pages: set) -> str:
@@ -51,6 +55,8 @@ def rewrite_links_between_pages(page_text: str, documentation_relative_path: str
 
     def rewrite(match):
         target_path = posixpath.normpath(posixpath.join(source_directory, match.group(1)))
+        if target_path.endswith(".html"):
+            target_path = target_path.removesuffix(".html") + ".md"
         if target_path not in known_pages:
             return match.group(0)
         relative_target = posixpath.relpath(
@@ -75,16 +81,36 @@ def stage_papyrus_content_layout(staging_directory: Path) -> None:
         shutil.copytree(images_directory, staging_directory / "assets")
 
 
+def write_redirects_from_former_urls(output_directory: Path) -> None:
+    for source_page in sorted(DOCUMENTATION_DIRECTORY.rglob("*.md")):
+        relative_path = source_page.relative_to(DOCUMENTATION_DIRECTORY).as_posix()
+        if relative_path == "index.md":
+            continue
+        published_target = f"articles/{published_page_slug(relative_path)}.html"
+        former_directory = output_directory / relative_path.removesuffix(".md")
+        depth_prefix = "../" * (relative_path.removesuffix(".md").count("/") + 1)
+        former_directory.mkdir(parents=True, exist_ok=True)
+        (former_directory / "index.html").write_text(
+            '<!DOCTYPE html><meta charset="utf-8">'
+            f'<meta http-equiv="refresh" content="0; url={depth_prefix}{published_target}">'
+            f'<link rel="canonical" href="{depth_prefix}{published_target}">'
+            f'<a href="{depth_prefix}{published_target}">Moved to {published_target}</a>',
+            encoding="utf-8",
+        )
+
+
 def build_documentation_site(output_directory: Path):
     with tempfile.TemporaryDirectory(prefix="kanbus-site-content-") as staging_name:
         staging_directory = Path(staging_name)
         stage_papyrus_content_layout(staging_directory)
-        return build_markus_site(
+        build_result = build_markus_site(
             content_dir=staging_directory,
             out_dir=output_directory,
             theme=SITE_THEME_NAME,
             chrome=SITE_CHROME,
         )
+    write_redirects_from_former_urls(output_directory)
+    return build_result
 
 
 if __name__ == "__main__":
