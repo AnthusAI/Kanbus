@@ -139,6 +139,9 @@ jobs:
       - name: Check generated CLI reference
         run: python tools/generate_cli_reference.py --check
 
+      - name: Check generated configuration reference
+        run: python tools/generate_configuration_reference.py --check
+
   python-versions:
     runs-on: ubuntu-latest
     strategy:
