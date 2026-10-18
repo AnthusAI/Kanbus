@@ -91,7 +91,7 @@ pub fn is_console_server_running(root: &Path, port: Option<u16>) -> bool {
 
 fn locate_capture_script(root: &Path) -> Result<PathBuf, KanbusError> {
     let script_rel = Path::new("scripts").join("capture_console_screenshot.mjs");
-    if let Ok(override_root) = std::env::var(TEST_SCRIPT_SEARCH_ROOT_ENV) {
+    if let Ok(override_root) = crate::test_hooks::var(TEST_SCRIPT_SEARCH_ROOT_ENV) {
         let candidate = PathBuf::from(override_root).join(&script_rel);
         if candidate.is_file() {
             return Ok(candidate);
@@ -104,7 +104,7 @@ fn locate_capture_script(root: &Path) -> Result<PathBuf, KanbusError> {
             }
         }
     }
-    if std::env::var(TEST_HIDE_PACKAGE_SCRIPT_ENV)
+    if crate::test_hooks::var(TEST_HIDE_PACKAGE_SCRIPT_ENV)
         .ok()
         .map(|value| value == "1")
         .unwrap_or(false)
@@ -148,7 +148,7 @@ fn resolve_output_path(root: &Path, output: Option<String>) -> Result<PathBuf, K
 }
 
 fn server_ready_for_screenshot(root: &Path) -> bool {
-    if std::env::var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER")
+    if crate::test_hooks::var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER")
         .ok()
         .map(|value| {
             let normalized = value.trim().to_ascii_lowercase();
@@ -162,7 +162,7 @@ fn server_ready_for_screenshot(root: &Path) -> bool {
 }
 
 fn mock_mode() -> Option<String> {
-    let value = std::env::var("KANBUS_TEST_SCREENSHOT_MOCK").ok();
+    let value = crate::test_hooks::var("KANBUS_TEST_SCREENSHOT_MOCK").ok();
     value.map(|raw| {
         let normalized = raw.trim().to_ascii_lowercase();
         match normalized.as_str() {
@@ -307,13 +307,13 @@ pub fn capture_console_screenshot(
 }
 
 fn resolve_node_executable() -> Result<String, KanbusError> {
-    if let Ok(override_path) = std::env::var(TEST_NODE_EXECUTABLE_ENV) {
+    if let Ok(override_path) = crate::test_hooks::var(TEST_NODE_EXECUTABLE_ENV) {
         let path = PathBuf::from(override_path);
         if path.is_file() {
             return Ok(path.to_string_lossy().to_string());
         }
     }
-    if std::env::var(TEST_FORCE_NODE_MISSING_ENV)
+    if crate::test_hooks::var(TEST_FORCE_NODE_MISSING_ENV)
         .ok()
         .map(|value| value == "1")
         .unwrap_or(false)

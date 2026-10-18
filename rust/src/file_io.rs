@@ -60,7 +60,7 @@ const LEGACY_DISCOVERY_IGNORE_DIRS: [&str; 10] = [
 ];
 
 fn should_force_canonicalize_failure() -> bool {
-    std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
+    crate::test_hooks::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
 
 pub(crate) fn canonicalize_path(path: &Path) -> Result<PathBuf, std::io::Error> {
@@ -484,7 +484,7 @@ pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, Kan
 ///
 /// Returns `KanbusError::IssueOperation` if the configuration file is missing.
 pub fn get_configuration_path(root: &Path) -> Result<PathBuf, KanbusError> {
-    if std::env::var_os("KANBUS_TEST_CONFIGURATION_PATH_FAILURE").is_some() {
+    if crate::test_hooks::var_os("KANBUS_TEST_CONFIGURATION_PATH_FAILURE").is_some() {
         return Err(KanbusError::Io(
             "configuration path lookup failed".to_string(),
         ));

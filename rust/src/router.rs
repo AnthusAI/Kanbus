@@ -1272,7 +1272,7 @@ fn parse_timestamp(value: &str) -> Option<DateTime<Utc>> {
 
 fn router_now() -> DateTime<Utc> {
     #[cfg(debug_assertions)]
-    if let Ok(value) = std::env::var("KANBUS_TEST_COORDINATION_NOW") {
+    if let Ok(value) = crate::test_hooks::var("KANBUS_TEST_COORDINATION_NOW") {
         if let Some(timestamp) = parse_timestamp(&value) {
             return timestamp;
         }

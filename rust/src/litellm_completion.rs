@@ -46,7 +46,7 @@ pub fn litellm_chat_completion(
     model: &str,
     prompt: &str,
 ) -> Result<(String, LitellmUsageRecord), KanbusError> {
-    if let Ok(stub_completion) = env::var(TEST_LITELLM_COMPLETION_ENV) {
+    if let Ok(stub_completion) = crate::test_hooks::var(TEST_LITELLM_COMPLETION_ENV) {
         env::set_var(LITELLM_CALLED_ENV, "1");
         return Ok((
             stub_completion,

@@ -79,6 +79,7 @@ pub mod standup_rollup_reduce;
 pub mod standup_window;
 pub mod status_semantics;
 pub mod summarize;
+pub mod test_hooks;
 pub mod text_editor;
 pub mod users;
 pub mod wiki;

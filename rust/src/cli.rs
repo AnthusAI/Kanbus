@@ -4633,7 +4633,11 @@ fn execute_command(
             identifier,
             dry_run,
         } => {
-            if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() == Some("1") {
+            if crate::test_hooks::var("KANBUS_TEST_AI_MOCK")
+                .ok()
+                .as_deref()
+                == Some("1")
+            {
                 let messages = crate::summarize::compaction_summarize(root, &identifier, dry_run)?;
                 let output = messages
                     .into_iter()

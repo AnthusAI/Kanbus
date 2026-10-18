@@ -202,7 +202,7 @@ pub fn validate_status_value(
     status: &str,
     issue_identifier: Option<&str>,
 ) -> Result<(), KanbusError> {
-    if std::env::var("KANBUS_TEST_INVALID_STATUS").is_ok() {
+    if crate::test_hooks::var("KANBUS_TEST_INVALID_STATUS").is_ok() {
         return Err(KanbusError::InvalidTransition("unknown status".to_string()));
     }
     let valid_statuses: BTreeSet<&str> = configuration

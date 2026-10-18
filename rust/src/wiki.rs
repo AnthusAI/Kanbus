@@ -777,7 +777,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         if let Some(cached) = ai_summarize_read_cache(&cache_dir, &cache_key) {
             return Ok(Value::from(cached));
         }
-        let result = if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+        let result = if crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
             let identifier =
                 extract_issue_identifier(&value).unwrap_or_else(|| "unknown".to_string());
             format!("Generated summary for {}", identifier)
@@ -790,7 +790,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
             format!("Summary: {}", title)
         };
         ai_summarize_write_cache(&cache_dir, &cache_key, &result);
-        if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+        if crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
             ai_summarize_log_call(&cache_dir);
         }
         Ok(Value::from(result))

@@ -1571,7 +1571,7 @@ fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
 }
 
 fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, KanbusError> {
-    if std::env::var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE")
+    if crate::test_hooks::var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE")
         .ok()
         .as_deref()
         == Some("1")

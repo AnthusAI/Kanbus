@@ -283,7 +283,7 @@ fn list_issues_with_local(
     overlay_config: &crate::models::OverlayConfig,
     project_label: Option<&str>,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    if std::env::var("KANBUS_TEST_LOCAL_LISTING_ERROR").is_ok() {
+    if crate::test_hooks::var("KANBUS_TEST_LOCAL_LISTING_ERROR").is_ok() {
         return Err(KanbusError::IssueOperation(
             "local listing failed".to_string(),
         ));
