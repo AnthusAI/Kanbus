@@ -111,68 +111,6 @@ Each project checkout must have a unique `console_port` in `.kanbus.yml`. Do not
 
 Start kbsc for the repo you are dogfooding, then capture with `kbs console screenshot` from that repo root (or set `CONSOLE_PORT` to match).
 
-## Console UI Control (deprecated live-control commands)
-
-When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention. These commands use real-time socket+SSE notifications with sub-100ms latency.
-
-### Available Commands
-
-**Focus on an issue** - Immediately highlights an issue and opens it in the detail panel, filtering the board to show only that issue and its descendants:
-```bash
-kbs console focus <issue-id>
-```
-
-**Reload the page** - Triggers an immediate page reload in the browser, useful after frontend changes:
-```bash
-kbs console reload
-```
-
-This enables self-iteration on frontend issues: after rebuilding the frontend (`cd apps/console && npm run build`), use `kbs console reload` to instantly test changes without manual browser refresh.
-
-### When to Use UI Control
-
-Use `kbs console focus` proactively when:
-- **After creating important issues**: Direct attention to new epics or critical tasks
-- **After significant updates**: Show the user changes you've made
-- **During collaborative work**: Coordinate by showing what you're working on
-- **To provide context**: Help the user understand relationships between issues
-
-### Example Workflows
-
-After creating a new epic with sub-tasks:
-```bash
-kbs create "Implement authentication" --type epic
-# Creates tskl-abc
-kbs create "Add login form" --parent tskl-abc --type task
-kbs create "Add JWT tokens" --parent tskl-abc --type task
-kbs console focus tskl-abc  # Show the epic and all sub-tasks
-```
-
-When starting work on a task:
-```bash
-kbs update tskl-xyz --status in_progress --assignee agent
-kbs console focus tskl-xyz  # Show what you're working on
-```
-
-After completing a complex change:
-```bash
-kbs close tskl-xyz
-kbs console focus tskl-abc  # Show the parent epic with updated status
-```
-
-### Future Commands (tskl-m59)
-
-Additional UI control commands are planned but not yet implemented:
-- `kbs console unfocus` - Clear focus filter
-- `kbs console view <initiatives|epics|issues>` - Switch view modes
-- `kbs console search <query>` - Set search query
-- `kbs console maximize` - Maximize detail panel
-- `kbs console close-detail` - Close detail panel
-- `kbs console settings mode <light|dark>` - Control appearance
-- `kbs console column collapse <name>` - Collapse board columns
-
-Check `kbs show tskl-m59` for implementation status.
-
 # CRITICAL PROJECT POLICY: NO EMOJIS
 
 **ZERO TOLERANCE: No emojis anywhere in this project.**
