@@ -102,7 +102,7 @@ jobs:
       - name: Build kbsc for integration tests
         run: |
           cd rust
-          cargo build --bin kbsc --no-default-features
+          cargo build --bin kbsc --no-default-features --features test-hooks
           echo "KBSC_BINARY=$(pwd)/target/debug/kbsc" >> "$GITHUB_ENV"
 
       - name: Install Python dependencies
@@ -368,7 +368,7 @@ jobs:
       - name: Build kbsc for console parity tests
         run: |
           cd rust
-          cargo build --bin kbsc --no-default-features
+          cargo build --bin kbsc --no-default-features --features test-hooks
           echo "KBSC_BINARY=$(pwd)/target/debug/kbsc" >> "$GITHUB_ENV"
 
       - name: Install Python dependencies
