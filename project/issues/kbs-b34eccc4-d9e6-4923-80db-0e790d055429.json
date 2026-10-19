@@ -84,10 +84,22 @@
         "model": "GPT-6.1 Sol",
         "name": "Console Tenant Isolation"
       }
+    },
+    {
+      "id": "fc5f694d-c9ca-4db5-8bed-5ae243e2a39a",
+      "author": "home",
+      "text": "CI review found CodeQL alert 136 (rust/path-injection), sink rust/src/bin/console_local.rs:111 symlink_metadata in the new path validator. SARIF traces selection through the returned NotificationSession into its root. Follow-up anchors validation independently to AppState.base_root before state-path/filesystem access, retaining the stricter selected-tenant boundary. No CodeQL dismissal or source suppression is used. Server tests remain 65/65; final five-scenario reruns and scoped Clippy precede the next feature-branch update and scan. Superseded CI runs 39334960024 and 39335005711 were cancelled to conserve runners; current reviewed runs remain active. No develop push, merge, deployment or infrastructure change.",
+      "created_at": "2026-10-19T22:55:28.919040Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T22:36:39.362324Z",
+  "updated_at": "2026-10-19T22:55:28.919341Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
