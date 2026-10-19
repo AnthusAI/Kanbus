@@ -60,10 +60,34 @@
         "model": "GPT-6.1 Sol",
         "name": "Console Tenant Isolation"
       }
+    },
+    {
+      "id": "03593525-8feb-42e0-8156-c576d18f4398",
+      "author": "home",
+      "text": "Focused PR 490 review: route keys derive only from validated Axum path parameters; body/query selectors do not bind tenants; cloud handlers use API Gateway verified claims and local kbsc retains loopback-write trust. Original-server comparison at cf357f42c: all three tenant scenarios fail (live cross-delivery, unscoped routes accepted, missing scoped state), while the corrected legacy single-tenant root getter plus alias notification POST passes. Review found a persistence defect in initial PR code: project_directory can redirect state into another tenant, reproduced by reading beta-private through alpha; regression log /tmp/kanbus-pr490-persistence-red.log. Narrow follow-up validates tenant root identity and cache-path containment on load and before each save, including config/cache symlinks; broader store-path behavior unchanged. Added a fifth shared regression and corrected legacy tests in both runners. Repository parity-exempt label applied for shared kbsc runtime, same as PR 473; initial cochange failure awaiting updated CI. No direct develop push, merge or deployment.",
+      "created_at": "2026-10-19T22:33:44.761172Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "949624d2-7e46-4aee-803d-e11bbb09af25",
+      "author": "home",
+      "text": "Focused-review follow-up passes locally: 65 server unit tests and five shared scenarios/10 steps in both Rust and Python, including redirected project_directory, cache symlinks, aliased tenant roots, and revalidation before saving an already initialized session. Corrected the legacy test to use original root ui-state GET and existing tenant-alias notification POST; original cf357f42c server passes that legacy scenario while failing the three tenant scenarios. Initial PR persistence leak was separately proven by the new regression before guard implementation. Rust format, whole-Python Black/Ruff, spec parity (71 existing gaps) and scoped Clippy pass. Strict Rust 1.98.1 Clippy findings precisely: derivable_impls in rust/src/right_now_command.rs:46 and unnecessary_unwrap in rust/src/workflows.rs:131, both present at cf357f42c and untouched. Broader store/config path trust, local unauthenticated reads and global telemetry remain adjacent limitations. Final PR revision will carry this review evidence; no develop push, merge or deploy.",
+      "created_at": "2026-10-19T22:36:39.362256Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T22:26:37.840217Z",
+  "updated_at": "2026-10-19T22:36:39.362324Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
