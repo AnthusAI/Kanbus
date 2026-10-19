@@ -218,7 +218,7 @@ Project key prefix: kbs.
 
 Hierarchy: initiative -> epic -> task -> sub-task.
 
-Non-hierarchical types: bug, story, chore.
+Non-hierarchical types: bug, story, chore, event.
 
 Only hierarchy types may be parents.
 
@@ -232,10 +232,11 @@ Allowed parent-child relationships:
 
 - sub-task can have parent task.
 
-- bug, story, chore can have parent initiative, epic, task.
+- bug, story, chore, event can have parent initiative, epic, task.
 
 
 Structure is not bureaucracy. Structure is memory.
+
 
 ## The Cognitive Framework
 
@@ -278,17 +279,13 @@ Chores maintain the ground on which behavior stands.
 Every story must contain a Gherkin form.
 
 Minimum structure:
-
+```gherkin
 Feature:
-
-Scenario:
-
-Given
-
-When
-
-Then
-
+  Scenario:
+    Given
+    When
+    Then
+```
 
 This is required.
 
@@ -319,125 +316,6 @@ Every behavior must be specified.
 Every specification must pass.
 
 Green is peace. Red is unfinished.
-
-## Status and Priority
-
-Statuses and workflows are fixed. They exist to maintain order.
-
-Initial status: open.
-Status changes must follow the workflow transitions below.
-Workflow selection: use a workflow named after the issue type when present; otherwise use the default workflow.
-
-
-default workflow:
-
-
-- backlog -> open, closed
-
-- blocked -> in_progress, closed
-
-- closed -> open
-
-- in_progress -> open, blocked, closed
-
-- open -> in_progress, closed, backlog
-
-
-
-
-epic workflow:
-
-
-- closed -> open
-
-- in_progress -> open, closed
-
-- open -> in_progress, closed
-
-
-
-
-Priorities are:
-
-
-- 0 -- critical
-
-- 1 -- high
-
-- 2 -- medium
-
-- 3 -- low
-
-- 4 -- trivial
-
-Default is 2 (medium).
-
-Severity is not emotion. It is signal.
-
-## Wiki Workflow
-
-The wiki lives under project/wiki/. You may edit Markdown files there directly.
-
-Wiki HTML uses **Markus** (Anthus-Flavored Markdown, package `anthus-markus` / `markusmd.convert`). **Do not `pip install markus`** — the PyPI `markus` package is an unrelated metrics library. See [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md#markus-renderer-not-pypi-markus) for the correct dependency, install path, and smoke-test commands (`kbs wiki render ... --html`).
-
-When to use the wiki:
-- Add and edit project/wiki/*.md for reports, status pages, and documentation.
-- Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki show <path>` to print raw page source without rendering templates.
-- Use `kbs wiki search <query>` to find pages by path, title, or body (prints `0 results` when nothing matches).
-- Use `kbs wiki lint` or `kbs wiki check` to validate wiki-internal markdown links (ignores links inside inline code and fenced code blocks).
-- Use `kbs wiki init` to create project/wiki/ with a stub index page and refresh `project/AGENTS.md` with the wiki edit exception.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize). Render warns on broken wiki links but still outputs content.
-- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
-- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier. Link wiki pages to Papyrus story directories with `issue.key`, not `issue.id` (for example `stories/{{ issue.key }}/references/`).
-- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
-- In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
-
-Cache behavior:
-- AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
-- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
-
-## Command examples
-
-
-kanbus create "Plan the roadmap" --type initiative
-
-kanbus create "Release v1" --type epic --parent <initiative-id>
-
-kanbus create "Implement feature" --type task --parent <epic-id>
-
-kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
-
-kanbus update <id> --status in_progress --assignee "you@example.com"
-
-kanbus update <id> --status blocked
-
-kanbus comment <id> "Progress note"
-
-kbs create "Agent task" --type task --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
-
-kbs update <id> --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
-
-kbs comment update <id> <comment-id> --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
-
-kanbus list --status open
-
-kanbus close <id> --comment "Summary of the change"
-
-
-## Semantic Release Alignment
-
-Issue types map directly to release categories.
-
-
-- bug -> fix
-
-- story -> feat
-
-- chore -> chore
-
-
-Release notes are a record, not commentary.
 
 ## Example: Hello World
 
@@ -505,3 +383,134 @@ Run the behavior tests in the repo and confirm the new scenario fails for the ri
 6. Implement the minimum code to pass, then refactor
 Write the smallest change that makes the Gherkin scenario pass.
 Refactor only while all specs remain green.
+
+## Git Flow
+
+Branches have fixed roles.
+
+- `develop` is the continuous-integration branch. Merge accepted, green work there as soon as it is ready.
+- `main` is the release branch. Releases, including semantic-release, run only from `main`. A merge to `develop` is not a production release.
+- Feature branches start from `develop` and return to it through a pull request. They are short-lived: do not park completed work on a feature branch waiting for `main`.
+- Promote `develop` to `main` when you intend a release, not as the daily integration path.
+- Hotfix branches start from `main`, fix an urgent defect, and merge to `main` and back to `develop`.
+
+Open pull requests against `develop` for product work. Merge them there as soon as review is addressed and CI is green.
+
+Project management does not need a pull request. Kanbus issues, comments, status changes and `project/wiki` pages are committed on `develop` and pushed, with no feature branch, pull request or review loop. Do not mix board files into a product pull request; land the board on `develop` first.
+
+Never commit product code directly to `main` or `develop`.
+Name the Kanbus issue in the branch name or the pull request description so code stays linked to intent.
+Branch naming, review, release and approval rules in this repository's AGENTS.md take precedence over this section.
+
+## Semantic Release Alignment
+
+Issue types map directly to release categories.
+
+
+- bug -> fix
+
+- story -> feat
+
+- chore -> chore
+
+- event -> chore
+
+
+Release notes are a record, not commentary.
+
+
+## Status and Priority
+
+Statuses and workflows are fixed. They exist to maintain order.
+
+Initial status: open.
+Status changes must follow the workflow transitions below.
+Workflow selection: use a workflow named after the issue type when present; otherwise use the default workflow.
+
+
+default workflow:
+
+
+- Discovery -> open, backlog
+
+- backlog -> open, closed
+
+- blocked -> in_progress, closed, backlog
+
+- closed -> open, backlog
+
+- in_progress -> open, review, blocked, closed, backlog
+
+- open -> in_progress, closed, backlog
+
+- review -> in_progress, closed
+
+
+
+
+epic workflow:
+
+
+- closed -> open
+
+- in_progress -> open, review, closed
+
+- open -> in_progress, closed
+
+- review -> in_progress, closed
+
+
+
+
+Priorities are:
+
+
+- 0 -- critical
+
+- 1 -- high
+
+- 2 -- medium
+
+- 3 -- low
+
+- 4 -- trivial
+
+Default is 2 (medium).
+
+Severity is not emotion. It is signal.
+
+## Wiki Workflow
+
+The wiki lives under project/wiki/. You may edit Markdown files there directly.
+
+When to use the wiki:
+- Add and edit project/wiki/*.md for reports, status pages, and documentation.
+- Use `kbs wiki list` to discover wiki pages.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
+
+Cache behavior:
+- AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
+- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
+
+## Command examples
+
+
+kanbus create "Plan the roadmap" --type initiative
+
+kanbus create "Release v1" --type epic --parent <initiative-id>
+
+kanbus create "Implement feature" --type task --parent <epic-id>
+
+kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+
+kanbus update <id> --status in_progress --assignee "you@example.com"
+
+kanbus update <id> --status blocked
+
+kanbus comment <id> "Progress note"
+
+kanbus list --status open
+
+kanbus close <id> --comment "Summary of the change"
+
