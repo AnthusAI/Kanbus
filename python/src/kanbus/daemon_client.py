@@ -23,6 +23,7 @@ from kanbus.daemon_protocol import (
 
 logger = logging.getLogger(__name__)
 
+DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 DAEMON_SOCKET_WAIT_SECONDS = 0.4
 DAEMON_SOCKET_POLL_INTERVAL_SECONDS = 0.025
 
@@ -105,7 +106,7 @@ def send_request(socket_path: Path, request: RequestEnvelope) -> ResponseEnvelop
     payload = json.dumps(request.model_dump(mode="json")).encode("utf-8") + b"\n"
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.settimeout(2.0)
+            sock.settimeout(DAEMON_REQUEST_TIMEOUT_SECONDS)
             sock.connect(str(socket_path))
             sock.sendall(payload)
             response_raw = sock.makefile("rb").readline()
@@ -267,6 +268,7 @@ def request_shutdown(root: Path) -> dict[str, Any]:
 
 def _send_virtuus_request(socket_path: Path, request: dict[str, Any]) -> Any:
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+        connection.settimeout(DAEMON_REQUEST_TIMEOUT_SECONDS)
         connection.connect(str(socket_path))
         connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
         response = b""

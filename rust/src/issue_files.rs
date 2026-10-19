@@ -172,10 +172,12 @@ pub fn read_issue_from_file(issue_path: &Path) -> Result<IssueData, KanbusError>
     let record = service_request_with_fallback(
         parent,
         json!({"action": "get", "pk": identifier}),
-        || {
-            Ok(issue_table(parent)?
-                .get(identifier, None)
-                .unwrap_or(Value::Null))
+        || match std::fs::read_to_string(issue_path) {
+            Ok(contents) => {
+                serde_json::from_str(&contents).map_err(|error| KanbusError::Io(error.to_string()))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Value::Null),
+            Err(error) => Err(KanbusError::Io(error.to_string())),
         },
         |response| {
             if response.is_null() {
@@ -235,7 +237,9 @@ pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), K
     let parent = issue_path
         .parent()
         .ok_or_else(|| KanbusError::Io("issue path has no parent".to_string()))?;
-    let record = serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let mut record =
+        serde_json::to_value(issue).map_err(|error| KanbusError::Io(error.to_string()))?;
+    preserve_unknown_keys_from_existing_file(&mut record, issue_path);
     service_request_with_fallback(
         parent,
         json!({"action": "put", "record": record}),
@@ -248,6 +252,23 @@ pub fn write_issue_to_file(issue: &IssueData, issue_path: &Path) -> Result<(), K
         },
         |_response| Ok(()),
     )
+}
+
+fn preserve_unknown_keys_from_existing_file(record: &mut Value, issue_path: &Path) {
+    let Ok(existing_contents) = std::fs::read_to_string(issue_path) else {
+        return;
+    };
+    let Ok(Value::Object(existing)) = serde_json::from_str::<Value>(&existing_contents) else {
+        return;
+    };
+    let Some(record_object) = record.as_object_mut() else {
+        return;
+    };
+    for (key, value) in existing {
+        if !crate::models::PERSISTED_ISSUE_KEYS.contains(&key.as_str()) {
+            record_object.entry(key).or_insert(value);
+        }
+    }
 }
 
 /// Delete an issue through the resident Virtuus table when available.
@@ -366,6 +387,44 @@ mod tests {
         let loaded = read_issue_from_file(&path).expect("read issue");
         assert_eq!(loaded.identifier, "kanbus-1");
         assert_eq!(loaded.status, "open");
+    }
+
+    #[test]
+    fn rewriting_an_issue_preserves_unknown_top_level_keys() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let issues_dir = temp.path().join("issues");
+        std::fs::create_dir_all(&issues_dir).expect("create issues dir");
+        let path = issue_path_for_identifier(&issues_dir, "kanbus-1");
+        write_issue_to_file(&sample_issue("kanbus-1"), &path).expect("write issue");
+
+        let mut on_disk: Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).expect("read")).expect("parse");
+        on_disk["written_by_newer_cli"] = json!({"nested": [1, 2, 3]});
+        std::fs::write(&path, serde_json::to_string_pretty(&on_disk).unwrap()).expect("inject");
+
+        let mut issue = read_issue_from_file(&path).expect("read issue");
+        issue.status = "closed".to_string();
+        write_issue_to_file(&issue, &path).expect("rewrite issue");
+
+        let rewritten: Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).expect("read")).expect("parse");
+        assert_eq!(rewritten["status"], "closed");
+        assert_eq!(
+            rewritten["written_by_newer_cli"],
+            json!({"nested": [1, 2, 3]})
+        );
+    }
+
+    #[test]
+    fn issue_without_collection_keys_deserializes_with_defaults() {
+        let issue: IssueData = serde_json::from_value(json!({
+            "id": "kanbus-1", "title": "t", "description": "", "type": "task",
+            "status": "open", "priority": 2, "assignee": null, "creator": null,
+            "parent": null, "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z", "closed_at": null
+        }))
+        .expect("parse");
+        assert!(issue.labels.is_empty() && issue.comments.is_empty() && issue.custom.is_empty());
     }
 
     #[test]

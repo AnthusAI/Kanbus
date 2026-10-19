@@ -129,7 +129,7 @@ fn validate_gherkin(block: &CodeBlock) -> Result<(), KanbusError> {
 }
 
 fn validate_external(block: &CodeBlock, tool: &str) -> Result<(), KanbusError> {
-    if let Ok(forced_missing) = std::env::var("KANBUS_TEST_EXTERNAL_TOOL_MISSING") {
+    if let Ok(forced_missing) = crate::test_hooks::var("KANBUS_TEST_EXTERNAL_TOOL_MISSING") {
         if forced_missing == tool {
             return Ok(());
         }
@@ -200,7 +200,7 @@ fn validate_external(block: &CodeBlock, tool: &str) -> Result<(), KanbusError> {
         .spawn()
         .map_err(|e| KanbusError::Io(e.to_string()))?;
 
-    let timeout_ms = std::env::var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS")
+    let timeout_ms = crate::test_hooks::var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or(30_000);

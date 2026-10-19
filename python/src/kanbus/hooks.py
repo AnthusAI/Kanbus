@@ -322,7 +322,7 @@ def run_lifecycle_hooks(
     if hooks_globally_disabled(no_hooks):
         return
 
-    hooks_config, project_root = _resolve_hook_configuration(root)
+    hooks_config, project_root = _resolve_hook_configuration_or_fail(root)
     if not hooks_config.enabled:
         return
     if beads_mode and not hooks_config.run_in_beads_mode:
@@ -376,6 +376,17 @@ def run_lifecycle_hooks(
             beads_mode=beads_mode,
             no_guidance=no_guidance,
         )
+
+
+def _resolve_hook_configuration_or_fail(
+    root: Path,
+) -> tuple[HooksConfiguration, Path]:
+    try:
+        config_path = get_configuration_path(root)
+    except ProjectMarkerError:
+        return HooksConfiguration(), root
+    configuration = load_project_configuration(config_path)
+    return configuration.hooks, config_path.parent
 
 
 def _resolve_hook_configuration(root: Path) -> tuple[HooksConfiguration, Path]:

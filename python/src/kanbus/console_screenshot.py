@@ -15,6 +15,7 @@ from typing import Any
 
 from kanbus.config_loader import load_project_configuration
 from kanbus.project import get_configuration_path
+from kanbus.test_hooks import read_test_hook, are_test_hooks_enabled
 
 DEFAULT_SCREENSHOT_FILENAME = "kanbus-board.png"
 DEFAULT_APPEARANCE_MODE = "light"
@@ -64,6 +65,8 @@ class ScreenshotCaptureOptions:
 
     def record_for_tests(self) -> None:
         """Record capture options for behavior-spec assertions."""
+        if not are_test_hooks_enabled():
+            return
         os.environ[TEST_LAST_MODE_ENV] = self.appearance_mode
         os.environ[TEST_CAPTURE_OPTIONS_ENV] = self.to_capture_json()
 
@@ -126,7 +129,7 @@ def locate_capture_script(root: Path) -> Path:
     """
     script_name = Path("scripts") / "capture_console_screenshot.mjs"
     search_roots: list[Path]
-    override = os.environ.get(TEST_SCRIPT_SEARCH_ROOT_ENV)
+    override = read_test_hook(TEST_SCRIPT_SEARCH_ROOT_ENV)
     if override:
         search_roots = [Path(override)]
     else:
@@ -135,7 +138,7 @@ def locate_capture_script(root: Path) -> Path:
         candidate = directory / script_name
         if candidate.is_file():
             return candidate
-    if os.environ.get(TEST_HIDE_PACKAGE_SCRIPT_ENV) == "1":
+    if read_test_hook(TEST_HIDE_PACKAGE_SCRIPT_ENV) == "1":
         raise ConsoleScreenshotError(
             "headless browser capture script not found (scripts/capture_console_screenshot.mjs)."
         )
@@ -162,18 +165,18 @@ def _resolve_output_path(root: Path, output: str | None) -> Path:
 
 
 def _resolve_node_executable() -> str | None:
-    override = os.environ.get(TEST_NODE_EXECUTABLE_ENV)
+    override = read_test_hook(TEST_NODE_EXECUTABLE_ENV)
     if override:
         path = Path(override)
         if path.is_file():
             return str(path)
-    if os.environ.get(TEST_FORCE_NODE_MISSING_ENV) == "1":
+    if read_test_hook(TEST_FORCE_NODE_MISSING_ENV) == "1":
         return None
     return shutil.which("node")
 
 
 def _mock_mode() -> str | None:
-    value = os.environ.get("KANBUS_TEST_SCREENSHOT_MOCK")
+    value = read_test_hook("KANBUS_TEST_SCREENSHOT_MOCK")
     if value is None:
         return None
     normalized = value.strip().lower()
@@ -296,7 +299,8 @@ def capture_console_screenshot(
                 "headless browser capture requires Node.js on PATH to run Playwright."
             )
         options.record_for_tests()
-        os.environ[TEST_PREREQUISITES_VERIFIED_ENV] = "1"
+        if are_test_hooks_enabled():
+            os.environ[TEST_PREREQUISITES_VERIFIED_ENV] = "1"
         output_path.write_bytes(_MOCK_PNG_BYTES)
         return output_path
 

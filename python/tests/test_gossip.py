@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import socket
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from test_helpers import build_issue
 
 from kanbus import coordination_mqtt, gossip
@@ -1940,3 +1942,30 @@ def test_broadcast_payload_ignores_non_string_topic() -> None:
         {"topic": 123, "msg": {}}, subscribers, gossip.threading.Lock()
     )
     assert len(subscribers) == 1
+
+
+def test_publish_within_hard_cap_abandons_a_wedged_publisher(
+    monkeypatch, capsys
+) -> None:
+    release_wedged_publisher = threading.Event()
+
+    def wedged_publish(*_args, **_kwargs) -> None:
+        release_wedged_publisher.wait(timeout=10)
+
+    monkeypatch.setattr(gossip, "_publish_envelope", wedged_publish)
+    monkeypatch.setattr(gossip, "REALTIME_PUBLISH_HARD_CAP_SECONDS", 0.2)
+    started_at = time.monotonic()
+    gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)
+    elapsed_seconds = time.monotonic() - started_at
+    release_wedged_publisher.set()
+    assert elapsed_seconds < 2.0
+    assert "abandoned" in capsys.readouterr().err
+
+
+def test_publish_within_hard_cap_reraises_publisher_failure(monkeypatch) -> None:
+    def failing_publish(*_args, **_kwargs) -> None:
+        raise OSError("broker exploded")
+
+    monkeypatch.setattr(gossip, "_publish_envelope", failing_publish)
+    with pytest.raises(OSError, match="broker exploded"):
+        gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)

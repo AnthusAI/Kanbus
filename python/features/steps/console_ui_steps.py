@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import socket
@@ -132,7 +133,7 @@ def _post_notification(port: int, event: dict) -> None:  # type: ignore[type-arg
     req = urllib.request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Kanbus-Console": "1"},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=5) as resp:
@@ -145,10 +146,11 @@ def _stop_kbsc(port: int) -> None:
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/shutdown",
             data=b"",
+            headers={"X-Kanbus-Console": "1"},
             method="POST",
         )
         urllib.request.urlopen(req, timeout=2)
-    except (urllib.error.URLError, OSError):
+    except (urllib.error.URLError, http.client.HTTPException, OSError):
         pass
 
 
@@ -164,6 +166,7 @@ def stop_console_server(context: object) -> None:
         proc.wait(timeout=3)
     except subprocess.TimeoutExpired:
         proc.kill()
+        proc.wait()
     context.console_server_process = None
     context.console_server_port = None
 

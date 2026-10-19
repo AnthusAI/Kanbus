@@ -24,6 +24,7 @@ from kanbus.issue_listing import load_issues_from_directory
 from kanbus.issue_lookup import load_issue_from_project
 from kanbus.models import IssueComment
 from kanbus.project import get_configuration_path
+from kanbus.test_hooks import read_test_hook
 
 try:
     import litellm
@@ -336,7 +337,7 @@ def _completion(
     project_directory: str,
     temperature: float | None = None,
 ) -> str:
-    if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
+    if read_test_hook("KANBUS_TEST_AI_MOCK") == "1":
         if operation == "compaction_rewritten_description":
             text = f"Mock rewritten description for {issue_identifier}."
         elif operation == "compaction_rewritten_description_retry":
@@ -349,7 +350,9 @@ def _completion(
         return text
 
     if litellm is None:
-        raise RuntimeError("litellm package is not installed")
+        raise RuntimeError(
+            "litellm is required for AI summaries (pip install 'kanbus[ai]')"
+        )
 
     if requires_openai_key(model) and not os.environ.get("OPENAI_API_KEY", "").strip():
         raise RuntimeError(missing_api_key_message())

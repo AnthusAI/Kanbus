@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -32,6 +32,7 @@ use crate::policy_loader::load_policies;
 
 const ROUTER_ROUTE_LABEL_PREFIXES: [&str; 2] = ["agent-class:", "agent-provider:"];
 const ROUTER_GIT_TIMEOUT: Duration = Duration::from_secs(20);
+const ROUTER_GIT_NETWORK_TIMEOUT: Duration = Duration::from_secs(120);
 const ROUTER_STATE_FETCH_ATTEMPTS: u32 = 3;
 const ROUTER_STATE_FETCH_RETRY_DELAY: Duration = Duration::from_millis(100);
 
@@ -155,6 +156,7 @@ pub enum IssueRouterOperation {
 #[serde(default)]
 struct LocalRouterState {
     watch_pid: Option<u32>,
+    watch_process_identity: Option<String>,
     scheduler_claim_id: Option<String>,
     scheduler_owner: Option<String>,
     scheduler_hard: bool,
@@ -430,6 +432,16 @@ fn router_git_command() -> Command {
 /// is reported as a recoverable router failure rather than wedging a worker.
 fn router_git_output(command: Command) -> Result<Output, KanbusError> {
     router_git_output_with_timeout(command, ROUTER_GIT_TIMEOUT)
+}
+
+fn router_git_in<I, S>(directory: &Path, arguments: I) -> Result<Output, KanbusError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<std::ffi::OsStr>,
+{
+    let mut command = router_git_command();
+    command.args(arguments).current_dir(directory);
+    router_git_output_with_timeout(command, ROUTER_GIT_NETWORK_TIMEOUT)
 }
 
 fn router_git_output_with_timeout(
@@ -914,19 +926,11 @@ pub fn publish_shared_router_event(root: &Path, event: &EventRecord) -> Result<(
             let remote_ref = format!("refs/heads/{ROUTER_STATE_BRANCH}");
             let lease = format!("--force-with-lease={remote_ref}:{expected_remote_tip}");
             let push_ref = format!("HEAD:{remote_ref}");
-            let push = Command::new("git")
-                .args(["push", &lease, "origin", &push_ref])
-                .current_dir(&worktree)
-                .output()
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            let push = router_git_in(&worktree, ["push", &lease, "origin", &push_ref])?;
             if push.status.success() {
                 return Ok(true);
             }
-            let current = Command::new("git")
-                .args(["ls-remote", "--heads", "origin", &remote_ref])
-                .current_dir(root)
-                .output()
-                .map_err(|error| KanbusError::Io(error.to_string()))?;
+            let current = router_git_in(root, ["ls-remote", "--heads", "origin", &remote_ref])?;
             let current_sha = String::from_utf8_lossy(&current.stdout)
                 .split_whitespace()
                 .next()
@@ -1268,7 +1272,7 @@ fn parse_timestamp(value: &str) -> Option<DateTime<Utc>> {
 
 fn router_now() -> DateTime<Utc> {
     #[cfg(debug_assertions)]
-    if let Ok(value) = std::env::var("KANBUS_TEST_COORDINATION_NOW") {
+    if let Ok(value) = crate::test_hooks::var("KANBUS_TEST_COORDINATION_NOW") {
         if let Some(timestamp) = parse_timestamp(&value) {
             return timestamp;
         }
@@ -3248,11 +3252,105 @@ fn write_local_router_state(root: &Path, state: &LocalRouterState) -> Result<(),
     })
 }
 
+#[cfg(unix)]
+fn place_router_child_in_own_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn place_router_child_in_own_process_group(_command: &mut Command) {}
+
+#[cfg(unix)]
+fn signal_router_process_group(group_leader_pid: u32, signal: i32) {
+    if let Ok(group) = i32::try_from(group_leader_pid) {
+        if group > 1 {
+            unsafe {
+                libc::killpg(group, signal);
+            }
+        }
+    }
+}
+
+fn request_router_process_group_termination(group_leader_pid: u32) {
+    #[cfg(unix)]
+    signal_router_process_group(group_leader_pid, libc::SIGTERM);
+    #[cfg(not(unix))]
+    let _ = group_leader_pid;
+}
+
+pub(crate) fn terminate_router_child_process_tree(child: &mut Child) {
+    #[cfg(unix)]
+    signal_router_process_group(child.id(), libc::SIGKILL);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+#[cfg(unix)]
+fn process_is_running(pid: u32) -> bool {
+    let Ok(pid) = libc::pid_t::try_from(pid) else {
+        return false;
+    };
+    // SAFETY: signal 0 only checks that the process exists and is signalable.
+    let outcome = unsafe { libc::kill(pid, 0) };
+    outcome == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+#[cfg(not(unix))]
 fn process_is_running(pid: u32) -> bool {
     Command::new("kill")
         .args(["-0", &pid.to_string()])
         .status()
         .is_ok_and(|status| status.success())
+}
+
+fn process_identity(pid: u32) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    let stat_path = format!("/proc/{pid}/stat");
+    if Path::new(&stat_path).is_file() {
+        let stat_text = fs::read_to_string(&stat_path).ok()?;
+        let after_command = stat_text.get(stat_text.rfind(')')? + 2..)?;
+        let start_time = after_command.split_whitespace().nth(19)?.to_string();
+        let boot_id = fs::read_to_string("/proc/sys/kernel/random/boot_id")
+            .ok()?
+            .trim()
+            .to_string();
+        let executable = fs::read_link(format!("/proc/{pid}/exe")).ok()?;
+        let command_digest = format!(
+            "{:x}",
+            Sha256::digest(fs::read(format!("/proc/{pid}/cmdline")).ok()?)
+        );
+        return Some(format!(
+            "linux:{boot_id}:{start_time}:{}:{command_digest}",
+            executable.display()
+        ));
+    }
+    let output = Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "lstart=,command="])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())?;
+    let identity_bytes = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if identity_bytes.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "ps:{:x}",
+        Sha256::digest(identity_bytes.as_bytes())
+    ))
+}
+
+fn watch_process_is_running(local: &LocalRouterState) -> bool {
+    let Some(pid) = local.watch_pid else {
+        return false;
+    };
+    if !process_is_running(pid) {
+        return false;
+    }
+    match (&local.watch_process_identity, process_identity(pid)) {
+        (Some(recorded), Some(current)) => *recorded == current,
+        _ => true,
+    }
 }
 
 fn append_router_event(
@@ -3312,7 +3410,7 @@ fn route_is_held(route: &IssueRouterRoute, state: &RouterEventState) -> bool {
 fn router_status_output(root: &Path, project_dir: &Path) -> Result<String, KanbusError> {
     let local = read_local_router_state(root)?;
     let state = reduce_router_events(&load_router_events(project_dir)?);
-    let running = local.watch_pid.is_some_and(process_is_running);
+    let running = watch_process_is_running(&local);
     let active_runs = usize::from(
         local.active_issue_id.is_some()
             && (running || local.active_child_pid.is_some_and(process_is_running)),
@@ -3436,9 +3534,7 @@ fn cancel_router_package(
     assert_current_router_claim(project_dir, &configuration, &claim)?;
     router_cancel_control_event(project_dir, issue_id, &claim_id, revision)?;
     if let Some(pid) = local.active_child_pid {
-        let _ = Command::new("kill")
-            .args(["-TERM", &pid.to_string()])
-            .status();
+        request_router_process_group_termination(pid);
     }
     let _ = router;
     let checkpoint = reduce_router_events(&load_router_events(project_dir)?)
@@ -3507,8 +3603,9 @@ fn execute_issue_router_operation_inner(
 ) -> Result<String, KanbusError> {
     if let IssueRouterOperation::Stop = operation {
         let mut local = read_local_router_state(root)?;
-        if !local.watch_pid.is_some_and(process_is_running) {
+        if !watch_process_is_running(&local) {
             local.watch_pid = None;
+            local.watch_process_identity = None;
             local.active_issue_id = None;
             local.stop_requested = false;
             write_local_router_state(root, &local)?;
@@ -4132,6 +4229,33 @@ fn run_issue_router_once(
     Ok(output)
 }
 
+const GITHUB_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const GITHUB_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const WATCH_POLL_BACKOFF_CEILING_SECONDS: u64 = 300;
+
+fn is_transient_github_polling_error(error: &KanbusError) -> bool {
+    let KanbusError::IssueOperation(message) = error else {
+        return false;
+    };
+    let Some(detail) = message.strip_prefix("GitHub pull request polling failed") else {
+        return false;
+    };
+    match detail.strip_prefix(" with status ") {
+        Some(status) => status
+            .split_whitespace()
+            .next()
+            .and_then(|code| code.parse::<u16>().ok())
+            .is_some_and(|code| code == 429 || (500..600).contains(&code)),
+        None => detail.starts_with(':'),
+    }
+}
+
+fn watch_poll_backoff_seconds(interval_seconds: u64, consecutive_failures: u32) -> u64 {
+    interval_seconds
+        .saturating_mul(1_u64 << consecutive_failures.clamp(1, 16))
+        .min(WATCH_POLL_BACKOFF_CEILING_SECONDS)
+}
+
 fn run_issue_router_watch(
     root: &Path,
     router: &IssueRouterConfiguration,
@@ -4148,7 +4272,7 @@ fn run_issue_router_watch(
         parse_duration_seconds(&router.watch_interval).map_err(KanbusError::Configuration)?;
     let forge = GitHubForge::from_router(router)?;
     let mut local = read_local_router_state(root)?;
-    if local.watch_pid.is_some_and(process_is_running) {
+    if watch_process_is_running(&local) {
         return Err(KanbusError::IssueOperation(
             "Issue Router is already running".to_string(),
         ));
@@ -4197,11 +4321,13 @@ fn run_issue_router_watch(
         )?;
     }
     local.watch_pid = Some(std::process::id());
+    local.watch_process_identity = process_identity(std::process::id());
     local.scheduler_claim_id = Some(scheduler_claim_id.clone());
     local.scheduler_owner = Some(scheduler_owner.clone());
     local.scheduler_hard = scheduler_hard;
     local.stop_requested = false;
     write_local_router_state(root, &local)?;
+    prune_stale_router_worktrees(root);
     let mut next_poll = Instant::now();
     let scheduler_renewal = Duration::from_secs(
         parse_duration_seconds(&configuration.coordination.default_lease_ttl)
@@ -4211,6 +4337,7 @@ fn run_issue_router_watch(
     );
     let mut next_scheduler_renew = Instant::now() + scheduler_renewal;
     let mut output = String::new();
+    let mut consecutive_poll_failures = 0_u32;
     loop {
         local = read_local_router_state(root)?;
         if local.stop_requested {
@@ -4226,15 +4353,25 @@ fn run_issue_router_watch(
         }
         let mut run_cycle = false;
         if Instant::now() >= next_poll {
-            if let Err(error) =
-                reconcile_github_pull_requests(root, project_dir, router, &forge, &configuration)
+            match reconcile_github_pull_requests(root, project_dir, router, &forge, &configuration)
             {
-                release_watch_scheduler_claim(root, project_dir, &configuration)?;
-                clear_watch_router_state(root)?;
-                return Err(error);
+                Ok(()) => {
+                    consecutive_poll_failures = 0;
+                    next_poll = Instant::now() + Duration::from_secs(interval);
+                    run_cycle = true;
+                }
+                Err(error) if is_transient_github_polling_error(&error) => {
+                    consecutive_poll_failures = consecutive_poll_failures.saturating_add(1);
+                    let backoff = watch_poll_backoff_seconds(interval, consecutive_poll_failures);
+                    eprintln!("router watch: {error}; retrying in {backoff}s");
+                    next_poll = Instant::now() + Duration::from_secs(backoff);
+                }
+                Err(error) => {
+                    release_watch_scheduler_claim(root, project_dir, &configuration)?;
+                    clear_watch_router_state(root)?;
+                    return Err(error);
+                }
             }
-            next_poll = Instant::now() + Duration::from_secs(interval);
-            run_cycle = true;
         }
         if run_cycle {
             match run_issue_router_once(root, router, project_dir) {
@@ -5350,6 +5487,12 @@ impl AdapterDataHome {
     }
 }
 
+impl Drop for AdapterDataHome {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(self.path().join("opencode").join("auth.json"));
+    }
+}
+
 /// The branch a run's conversation started on, when one was recorded.
 fn router_started_branch(events: &[EventRecord], issue_id: &str, claim_id: &str) -> Option<String> {
     events
@@ -5450,6 +5593,7 @@ fn execute_router_adapter(
         data_home.as_ref(),
         ResumeMode::decide(resume.as_ref(), resumed),
     );
+    place_router_child_in_own_process_group(&mut command);
     command
         .current_dir(&worktree)
         .stdout(Stdio::piped())
@@ -5481,14 +5625,12 @@ fn execute_router_adapter(
     let output = loop {
         if let Some(renewer) = external_renewer {
             if let Err(error) = renewer.check() {
-                let _ = child.kill();
-                let _ = child.wait();
+                terminate_router_child_process_tree(&mut child);
                 return Err(error);
             }
         }
         if router_cancel_requested(project_dir, issue_id) {
-            let _ = child.kill();
-            let _ = child.wait();
+            terminate_router_child_process_tree(&mut child);
             let _ = clear_active_router_state(root);
             let state = reduce_router_events(&load_router_events(project_dir)?);
             append_router_event(
@@ -5507,7 +5649,7 @@ fn execute_router_adapter(
             )));
         }
         if started.elapsed() > Duration::from_secs(3600) {
-            let _ = child.kill();
+            terminate_router_child_process_tree(&mut child);
             return Err(KanbusError::IssueOperation(format!(
                 "{adapter_name} router adapter failed"
             )));
@@ -5519,8 +5661,7 @@ fn execute_router_adapter(
                 renew_router_claims(root, project_dir, configuration, claim)
             };
             if let Err(error) = renew_result {
-                let _ = child.kill();
-                let _ = child.wait();
+                terminate_router_child_process_tree(&mut child);
                 return Err(error);
             }
             next_renewal = Instant::now() + Duration::from_secs(renewal_seconds);
@@ -5718,7 +5859,8 @@ fn validate_router_worktree_changes(
 /// beside the repository's other host-local router state and persists across
 /// attempts so a saved session can be resumed with a human's reply. When the
 /// repository directory cannot be found it is a temporary directory instead.
-/// `auth.json` is copied in so non-AWS providers keep working.
+/// A private owner-only copy of `auth.json` is placed in it for the run so
+/// non-AWS providers keep working, and removed when the run ends.
 fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
     let common_dir = Command::new("git")
         .args(["rev-parse", "--git-common-dir"])
@@ -5768,13 +5910,25 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
         });
     if let Some(auth) = shared.map(|base| base.join("opencode").join("auth.json")) {
         let target = home.path().join("opencode");
-        if auth.is_file() && !target.join("auth.json").exists() {
+        if auth.is_file() {
             fs::create_dir_all(&target).map_err(|error| KanbusError::Io(error.to_string()))?;
-            let _ = fs::copy(&auth, target.join("auth.json"));
+            let private_copy = target.join("auth.json");
+            if fs::copy(&auth, &private_copy).is_ok() {
+                restrict_to_owner_read_write(&private_copy);
+            }
         }
     }
     Ok(home)
 }
+
+#[cfg(unix)]
+fn restrict_to_owner_read_write(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+}
+
+#[cfg(not(unix))]
+fn restrict_to_owner_read_write(_path: &Path) {}
 
 /// Inline OpenCode config selecting a Bedrock service tier for the profile's model.
 ///
@@ -6001,19 +6155,47 @@ fn codex_session_id(stdout: &str) -> Option<String> {
     None
 }
 
-fn redact_router_log(value: &str) -> String {
-    // Keep review evidence in Git without copying likely bearer or OpenAI keys.
-    value
-        .split_whitespace()
-        .map(|word| {
-            if word.starts_with("sk-") && word.len() > 12 {
-                "[REDACTED]"
-            } else {
-                word
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+const ROUTER_LOG_CREDENTIAL_PATTERNS: [(&str, &str); 8] = [
+    (r"\bsk-[A-Za-z0-9_-]{12,}", "[REDACTED]"),
+    (r"\bgh[pousr]_[A-Za-z0-9]{20,}", "[REDACTED]"),
+    (r"\bgithub_pat_[A-Za-z0-9_]{20,}", "[REDACTED]"),
+    (r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b", "[REDACTED]"),
+    (
+        r#"(?i)(aws_secret_access_key["']?\s*[:=]\s*["']?)[A-Za-z0-9/+=]{40}"#,
+        "${1}[REDACTED]",
+    ),
+    (r"\bxox[abprs]-[A-Za-z0-9-]{10,}", "[REDACTED]"),
+    (
+        r#"(?i)(authorization\s*[:=]\s*(?:bearer|basic|token)\s+)[^\s"']+"#,
+        "${1}[REDACTED]",
+    ),
+    (
+        r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{20,}",
+        "${1}[REDACTED]",
+    ),
+];
+
+/// Remove credential-shaped values before agent output is committed to Git.
+/// Newlines and spacing are preserved; the Python runtime applies the same patterns.
+pub fn redact_router_log(value: &str) -> String {
+    static COMPILED: std::sync::OnceLock<Vec<(regex::Regex, &'static str)>> =
+        std::sync::OnceLock::new();
+    let patterns = COMPILED.get_or_init(|| {
+        ROUTER_LOG_CREDENTIAL_PATTERNS
+            .iter()
+            .map(|(pattern, replacement)| {
+                (
+                    regex::Regex::new(pattern).expect("credential pattern compiles"),
+                    *replacement,
+                )
+            })
+            .collect()
+    });
+    let mut redacted = value.to_string();
+    for (pattern, replacement) in patterns {
+        redacted = pattern.replace_all(&redacted, *replacement).into_owned();
+    }
+    redacted
 }
 
 fn parse_router_result(stdout: &str) -> Result<RouterAgentResult, KanbusError> {
@@ -6186,6 +6368,7 @@ fn clear_active_router_state(root: &Path) -> Result<(), KanbusError> {
 fn clear_watch_router_state(root: &Path) -> Result<(), KanbusError> {
     let mut state = read_local_router_state(root)?;
     state.watch_pid = None;
+    state.watch_process_identity = None;
     state.stop_requested = false;
     state.scheduler_claim_id = None;
     state.scheduler_owner = None;
@@ -6275,7 +6458,7 @@ fn latest_router_worktree(root: &Path, claim_id: &str) -> Result<PathBuf, Kanbus
         .ok_or_else(|| {
             KanbusError::IssueOperation("router worktree claim is no longer active".to_string())
         })?;
-    Ok(router_worktree_path(&issue_id, claim_id))
+    Ok(router_worktree_path(root, &issue_id, claim_id))
 }
 
 fn publish_router_checkpoint(
@@ -6329,7 +6512,7 @@ fn create_router_worktree(
             return Ok(previous.to_path_buf());
         }
     }
-    let worktree = router_worktree_path(issue_id, &claim.claim_id);
+    let worktree = router_worktree_path(root, issue_id, &claim.claim_id);
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
@@ -6351,11 +6534,7 @@ fn create_router_worktree(
                 .output()
                 .map_err(|error| KanbusError::Io(error.to_string()))?;
             if remote.status.success() {
-                let fetched = Command::new("git")
-                    .args(["fetch", "--quiet", "origin", reference])
-                    .current_dir(root)
-                    .output()
-                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                let fetched = router_git_in(root, ["fetch", "--quiet", "origin", reference])?;
                 if fetched.status.success() {
                     let fetched_head = Command::new("git")
                         .args(["rev-parse", "--verify", "FETCH_HEAD^{commit}"])
@@ -6416,10 +6595,31 @@ fn worktree_is_registered(root: &Path, path: &Path) -> bool {
         .any(|listed| fs::canonicalize(listed).unwrap_or_else(|_| PathBuf::from(listed)) == wanted)
 }
 
-fn router_worktree_path(issue_id: &str, claim_id: &str) -> PathBuf {
-    std::env::temp_dir()
-        .join("kanbus-router-worktrees")
-        .join(format!("{}-{}", issue_id, claim_id))
+fn router_worktree_root(root: &Path) -> PathBuf {
+    let git_path = Command::new("git")
+        .args(["rev-parse", "--git-path", "kanbus/router/worktrees"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .filter(|path| !path.is_empty());
+    match git_path {
+        Some(path) if Path::new(&path).is_absolute() => PathBuf::from(path),
+        Some(path) => root.join(path),
+        None => std::env::temp_dir().join("kanbus-router-worktrees"),
+    }
+}
+
+fn router_worktree_path(root: &Path, issue_id: &str, claim_id: &str) -> PathBuf {
+    router_worktree_root(root).join(format!("{}-{}", issue_id, claim_id))
+}
+
+fn prune_stale_router_worktrees(root: &Path) {
+    let _ = Command::new("git")
+        .args(["worktree", "prune"])
+        .current_dir(root)
+        .output();
 }
 
 #[derive(Debug)]
@@ -6458,6 +6658,8 @@ impl GitHubForge {
             .ok_or_else(|| KanbusError::Configuration("router.forge is required".to_string()))?;
         let client = reqwest::blocking::Client::builder()
             .user_agent("kanbus-issue-router")
+            .connect_timeout(GITHUB_CONNECT_TIMEOUT)
+            .timeout(GITHUB_REQUEST_TIMEOUT)
             .build()
             .map_err(|error| KanbusError::IssueOperation(error.to_string()))?;
         Ok(Self {
@@ -7025,11 +7227,7 @@ fn publish_router_branch(
     if remote_published {
         assert_current_router_claim(project_dir, configuration, claim)?;
         let remote_ref = format!("refs/heads/{branch}");
-        let existing = Command::new("git")
-            .args(["ls-remote", "--heads", "origin", &remote_ref])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        let existing = router_git_in(root, ["ls-remote", "--heads", "origin", &remote_ref])?;
         if !existing.status.success() {
             return Err(KanbusError::IssueOperation(
                 "could not inspect remote router branch".to_string(),
@@ -7134,11 +7332,7 @@ fn push_router_branch_with_fence(
     before_push()?;
     let lease = format!("--force-with-lease={remote_ref}:{previous_remote_sha}");
     let push_ref = format!("{pushed_sha}:{remote_ref}");
-    let push = Command::new("git")
-        .args(["push", &lease, "origin", &push_ref])
-        .current_dir(worktree)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let push = router_git_in(worktree, ["push", &lease, "origin", &push_ref])?;
     if !push.status.success() {
         return Err(KanbusError::IssueOperation(
             "could not publish router branch".to_string(),
@@ -7178,11 +7372,7 @@ fn rollback_remote_router_ref_if_unchanged(
     pushed_sha: &str,
     previous_remote_sha: &str,
 ) -> Result<(), KanbusError> {
-    let current = Command::new("git")
-        .args(["ls-remote", "--refs", "origin", remote_ref])
-        .current_dir(root)
-        .output()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    let current = router_git_in(root, ["ls-remote", "--refs", "origin", remote_ref])?;
     if !current.status.success() {
         return Err(KanbusError::IssueOperation(
             "router ref rollback could not inspect the remote; operator inspection may be required"
@@ -7202,22 +7392,18 @@ fn rollback_remote_router_ref_if_unchanged(
     }
     let lease = format!("--force-with-lease={remote_ref}:{pushed_sha}");
     let rollback = if previous_remote_sha.is_empty() {
-        Command::new("git")
-            .args(["push", &lease, "origin", &format!(":{remote_ref}")])
-            .current_dir(root)
-            .output()
+        router_git_in(root, ["push", &lease, "origin", &format!(":{remote_ref}")])
     } else {
-        Command::new("git")
-            .args([
+        router_git_in(
+            root,
+            [
                 "push",
                 &lease,
                 "origin",
                 &format!("{previous_remote_sha}:{remote_ref}"),
-            ])
-            .current_dir(root)
-            .output()
-    }
-    .map_err(|error| KanbusError::Io(error.to_string()))?;
+            ],
+        )
+    }?;
     if !rollback.status.success() {
         return Err(KanbusError::IssueOperation(
             "router ref rollback lost its compare-and-swap race; operator inspection may be required"
@@ -7358,11 +7544,7 @@ fn publish_router_checkpoint_ref(
         .map_err(|error| KanbusError::Io(error.to_string()))?;
     let has_remote = remote.status.success();
     let previous_remote = if has_remote {
-        let listed = Command::new("git")
-            .args(["ls-remote", "--refs", "origin", reference])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        let listed = router_git_in(root, ["ls-remote", "--refs", "origin", reference])?;
         if !listed.status.success() {
             return Err(KanbusError::IssueOperation(
                 "could not inspect remote router checkpoint".to_string(),
@@ -7399,16 +7581,15 @@ fn publish_router_checkpoint_ref(
     if has_remote {
         assert_current_router_claim(project_dir, configuration, claim)?;
         let lease = format!("--force-with-lease={reference}:{previous_remote}");
-        let push = Command::new("git")
-            .args([
+        let push = router_git_in(
+            root,
+            [
                 "push",
                 &lease,
                 "origin",
                 &format!("{reference}:{reference}"),
-            ])
-            .current_dir(root)
-            .output()
-            .map_err(|error| KanbusError::Io(error.to_string()))?;
+            ],
+        )?;
         if !push.status.success() {
             if previous_local.is_empty() {
                 let _ = Command::new("git")
@@ -7440,20 +7621,20 @@ fn publish_router_checkpoint_ref(
             let _ = restore_local;
             let rollback_lease = format!("--force-with-lease={reference}:{commit_sha}");
             let rollback = if previous_remote.is_empty() {
-                Command::new("git")
-                    .args(["push", &rollback_lease, "--delete", "origin", reference])
-                    .current_dir(root)
-                    .output()
+                router_git_in(
+                    root,
+                    ["push", &rollback_lease, "--delete", "origin", reference],
+                )
             } else {
-                Command::new("git")
-                    .args([
+                router_git_in(
+                    root,
+                    [
                         "push",
                         &rollback_lease,
                         "origin",
                         &format!("{previous_remote}:{reference}"),
-                    ])
-                    .current_dir(root)
-                    .output()
+                    ],
+                )
             };
             let _ = rollback;
             return Err(error);
@@ -7470,6 +7651,25 @@ fn publish_router_checkpoint_ref(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn router_worktrees_live_in_the_git_directory_of_the_repository() {
+        let repository = tempfile::tempdir().unwrap();
+        Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(repository.path())
+            .status()
+            .unwrap();
+        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1");
+        let expected_prefix = repository
+            .path()
+            .join(".git")
+            .join("kanbus")
+            .join("router")
+            .join("worktrees");
+        assert!(worktree_path.starts_with(&expected_prefix));
+        assert!(worktree_path.ends_with("kanbus-1-claim-1"));
+    }
+
     use super::*;
     use std::process::Output;
 
@@ -7480,6 +7680,96 @@ mod tests {
         let error = router_git_output_with_timeout(command, Duration::from_millis(10))
             .expect_err("stalled router Git child must time out");
         assert!(error.to_string().contains("router Git operation timed out"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn watch_process_identity_distinguishes_a_reused_process_id() {
+        let own_pid = std::process::id();
+        let own_identity = process_identity(own_pid);
+        assert!(own_identity.is_some());
+        let mut local = LocalRouterState {
+            watch_pid: Some(own_pid),
+            watch_process_identity: own_identity,
+            ..Default::default()
+        };
+        assert!(watch_process_is_running(&local));
+        local.watch_process_identity = Some("linux:other-boot:1:/bin/other:digest".to_string());
+        assert!(!watch_process_is_running(&local));
+        local.watch_process_identity = None;
+        assert!(watch_process_is_running(&local));
+        local.watch_pid = Some(u32::MAX - 1);
+        assert!(!watch_process_is_running(&local));
+    }
+
+    #[cfg(unix)]
+    fn process_is_alive_and_not_a_zombie(pid: u32) -> bool {
+        match fs::read_to_string(format!("/proc/{pid}/stat")) {
+            Ok(stat) => stat
+                .rsplit(')')
+                .next()
+                .and_then(|rest| rest.trim_start().chars().next())
+                .is_some_and(|state| state != 'Z'),
+            Err(_) => process_is_running(pid),
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminating_a_router_child_kills_grandchildren_it_spawned() {
+        let mut command = Command::new("sh");
+        command
+            .args(["-c", "sleep 300 & echo $!; wait"])
+            .stdout(Stdio::piped());
+        place_router_child_in_own_process_group(&mut command);
+        let mut child = command.spawn().expect("spawn shell with a grandchild");
+        let mut stdout = child.stdout.take().expect("child stdout");
+        let mut announced = [0u8; 32];
+        let length = stdout.read(&mut announced).expect("read grandchild pid");
+        let grandchild_pid: u32 = String::from_utf8_lossy(&announced[..length])
+            .trim()
+            .parse()
+            .expect("grandchild pid");
+        assert!(process_is_alive_and_not_a_zombie(grandchild_pid));
+
+        terminate_router_child_process_tree(&mut child);
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while process_is_alive_and_not_a_zombie(grandchild_pid) && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(50));
+        }
+        assert!(!process_is_alive_and_not_a_zombie(grandchild_pid));
+    }
+
+    #[test]
+    fn only_network_and_server_side_github_failures_are_transient() {
+        let issue = |message: &str| KanbusError::IssueOperation(message.to_string());
+        assert!(is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed: connection reset"
+        )));
+        assert!(is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed with status 500 Internal Server Error"
+        )));
+        assert!(is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed with status 429 Too Many Requests"
+        )));
+        assert!(!is_transient_github_polling_error(&issue(
+            "GitHub pull request polling failed with status 401 Unauthorized"
+        )));
+        assert!(!is_transient_github_polling_error(&issue(
+            "stale router scheduler claim; no current local lease is recorded"
+        )));
+        assert!(!is_transient_github_polling_error(
+            &KanbusError::Configuration("router.forge is required".to_string())
+        ));
+    }
+
+    #[test]
+    fn watch_poll_backoff_doubles_and_is_capped() {
+        assert_eq!(watch_poll_backoff_seconds(30, 1), 60);
+        assert_eq!(watch_poll_backoff_seconds(30, 2), 120);
+        assert_eq!(watch_poll_backoff_seconds(30, 10), 300);
+        assert_eq!(watch_poll_backoff_seconds(30, 200), 300);
     }
 
     #[test]
@@ -10359,6 +10649,18 @@ mod tests {
         assert_eq!(first.path(), again.path());
         let other = opencode_data_home(repo, "kbs-10").expect("data home");
         assert_ne!(first.path(), other.path());
+    }
+
+    #[test]
+    fn opencode_credentials_copy_is_removed_when_the_data_home_is_dropped() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let private_copy = directory.path().join("opencode").join("auth.json");
+        fs::create_dir_all(private_copy.parent().unwrap()).expect("create");
+        fs::write(&private_copy, "{}").expect("write");
+        let data_home = AdapterDataHome::Persistent(directory.path().to_path_buf());
+        drop(data_home);
+        assert!(!private_copy.exists());
+        assert!(directory.path().is_dir());
     }
 
     #[test]

@@ -1,0 +1,30 @@
+{
+  "id": "kbs-e47401a8-0f04-4ae5-b5f3-afb203ded46e",
+  "title": "Engineering review P1 remainders",
+  "description": "Parts of the merged P1 tasks that were deliberately left for follow-up (see the PR bodies for #417 through #423):\n- CI/release (kbs-9fe83b63): pin platform-ci by SHA; develop ruleset and required-check changes (needs admin); PyPI Trusted Publishing (registry side).\n- Cloud auth (kbs-e6aa4c29): verify the MQTT authorizer; scope the Cognito identity-pool role; webhook secrets; map error types to HTTP statuses.\n- Local console (kbs-7e29e0da): decide the default bind host story (kbsc binds 0.0.0.0).\n- File fidelity (kbs-232185): golden cross-runtime parity test (overlaps kbs-eb1788eb).\n- Board load (kbs-73f796e3): remaining quadratic callers (ready, dep add, dep tree, update --type).",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "438dce26-f605-4b42-af04-b3e98f2175ac",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Not started (P1 remainders); no branch or PR exists. The task description is self-contained. Do not start it while kbs-eb1788eb or the console slice (kbs-29c41525) is still open, per the low-WIP rule.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-17T19:41:45.021043975Z",
+  "updated_at": "2026-10-19T16:42:31.569399000Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

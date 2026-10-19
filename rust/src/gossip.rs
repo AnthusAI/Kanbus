@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 #[cfg(unix)]
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -664,7 +664,7 @@ pub fn run_gossip_bridge(
             project_filter: None,
             transport_override: None,
             broker_override: None,
-            autostart_override: None,
+            autostart_override: Some(true),
             keepalive_override: None,
             print_envelopes: false,
             on_envelope: Some(on_envelope),
@@ -705,12 +705,11 @@ fn persist_gossip_overlay(
     } else if overlay_config.enabled {
         if envelope.event_type == "issue.mutated" {
             if let Some(issue) = envelope.issue.as_ref() {
-                let _ = write_overlay_issue(
-                    project_dir,
-                    issue,
-                    &envelope.ts,
-                    envelope.event_id.clone(),
-                );
+                if let Err(error) =
+                    write_overlay_issue(project_dir, issue, &envelope.ts, envelope.event_id.clone())
+                {
+                    log::warn!("dropping gossip issue envelope: {error}");
+                }
             }
         } else if envelope.event_type == "issue.deleted" {
             if let Some(issue_id) = envelope.issue_id.clone() {
@@ -722,7 +721,9 @@ fn persist_gossip_overlay(
                     ts: envelope.ts.clone(),
                     ttl_s: overlay_config.ttl_s,
                 };
-                let _ = write_tombstone(project_dir, &tombstone);
+                if let Err(error) = write_tombstone(project_dir, &tombstone) {
+                    log::warn!("dropping gossip tombstone envelope: {error}");
+                }
             }
         }
     }
@@ -1009,7 +1010,7 @@ fn run_uds_broker(socket_path: &Path) -> Result<(), KanbusError> {
         let _ = fs::remove_file(socket_path);
     }
     if let Some(parent) = socket_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+        create_private_directory(parent)?;
     }
     let listener =
         UnixListener::bind(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -1032,13 +1033,31 @@ struct Subscriber {
     stream: Arc<Mutex<UnixStream>>,
 }
 
+const MAXIMUM_UDS_LINE_BYTES: u64 = 1024 * 1024;
+
 #[cfg(unix)]
 fn handle_uds_connection(stream: UnixStream, subscribers: Arc<Mutex<Vec<Subscriber>>>) {
     let Ok(read_stream) = stream.try_clone() else {
         return;
     };
-    let reader = BufReader::new(read_stream);
-    for line in reader.lines().map_while(Result::ok) {
+    let mut reader = BufReader::new(read_stream);
+    loop {
+        let mut line = String::new();
+        let bytes_read = match reader
+            .by_ref()
+            .take(MAXIMUM_UDS_LINE_BYTES + 1)
+            .read_line(&mut line)
+        {
+            Ok(bytes_read) => bytes_read,
+            Err(_) => return,
+        };
+        if bytes_read == 0 {
+            return;
+        }
+        if bytes_read as u64 > MAXIMUM_UDS_LINE_BYTES {
+            log::warn!("dropping gossip connection that sent an over-long line");
+            return;
+        }
         if line.trim().is_empty() {
             continue;
         }
@@ -1152,7 +1171,60 @@ fn run_uds_subscription(
     ))
 }
 
+const REALTIME_PUBLISH_HARD_CAP: Duration = Duration::from_secs(5);
+
 fn publish_envelope(
+    root: &Path,
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+) -> Result<(), KanbusError> {
+    publish_envelope_within_hard_cap(
+        root,
+        configuration,
+        topic,
+        envelope,
+        REALTIME_PUBLISH_HARD_CAP,
+    )
+}
+
+fn publish_envelope_within_hard_cap(
+    root: &Path,
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+    hard_cap: Duration,
+) -> Result<(), KanbusError> {
+    let root = root.to_path_buf();
+    let configuration = configuration.clone();
+    let topic = topic.to_string();
+    let envelope = envelope.clone();
+    run_on_detached_thread_within_hard_cap(hard_cap, move || {
+        publish_envelope_blocking(&root, &configuration, &topic, &envelope)
+    })
+}
+
+fn run_on_detached_thread_within_hard_cap(
+    hard_cap: Duration,
+    work: impl FnOnce() -> Result<(), KanbusError> + Send + 'static,
+) -> Result<(), KanbusError> {
+    let (result_sender, result_receiver) = mpsc::channel();
+    thread::Builder::new()
+        .name("kanbus-realtime-publish".to_string())
+        .spawn(move || {
+            let _ = result_sender.send(work());
+        })
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    match result_receiver.recv_timeout(hard_cap) {
+        Ok(outcome) => outcome,
+        Err(_) => Err(KanbusError::Io(format!(
+            "realtime publish abandoned after {}s",
+            hard_cap.as_secs_f32()
+        ))),
+    }
+}
+
+fn publish_envelope_blocking(
     _root: &Path,
     configuration: &ProjectConfiguration,
     topic: &str,
@@ -1499,7 +1571,7 @@ fn broker_is_reachable(endpoint: &BrokerEndpoint) -> bool {
 }
 
 fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, KanbusError> {
-    if std::env::var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE")
+    if crate::test_hooks::var("KANBUS_TEST_MOSQUITTO_UNAVAILABLE")
         .ok()
         .as_deref()
         == Some("1")
@@ -1516,7 +1588,7 @@ fn ensure_mosquitto(endpoint: &BrokerEndpoint) -> Result<Option<BrokerStartup>, 
         return Ok(None);
     }
     let run_dir = broker_run_dir();
-    fs::create_dir_all(&run_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    create_private_directory(&run_dir)?;
     let mut port = if endpoint.port == 0 {
         1883
     } else {
@@ -1599,7 +1671,7 @@ fn load_broker_metadata() -> Option<BrokerMetadata> {
 
 fn write_broker_metadata(metadata: &BrokerMetadata) -> Result<(), KanbusError> {
     let run_dir = broker_run_dir();
-    fs::create_dir_all(&run_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
+    create_private_directory(&run_dir)?;
     let path = run_dir.join("broker.json");
     let payload = serde_json::to_string_pretty(metadata)
         .map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -1620,6 +1692,22 @@ fn uds_socket_path(realtime: Option<&RealtimeConfig>) -> PathBuf {
         return PathBuf::from(runtime_dir).join("kanbus").join("bus.sock");
     }
     home_dir().join(".kanbus").join("run").join("bus.sock")
+}
+
+fn create_private_directory(directory: &Path) -> Result<(), KanbusError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(directory)
+            .map_err(|error| KanbusError::Io(error.to_string()))
+    }
+    #[cfg(not(unix))]
+    {
+        fs::create_dir_all(directory).map_err(|error| KanbusError::Io(error.to_string()))
+    }
 }
 
 fn home_dir() -> PathBuf {
@@ -2185,6 +2273,31 @@ mod tests {
             &envelope,
             &realtime
         ));
+    }
+
+    #[test]
+    fn wedged_publish_is_abandoned_at_the_hard_cap() {
+        let started_at = Instant::now();
+        let outcome = run_on_detached_thread_within_hard_cap(Duration::from_millis(100), || {
+            thread::sleep(Duration::from_secs(5));
+            Ok(())
+        });
+        assert!(started_at.elapsed() < Duration::from_secs(2));
+        assert!(outcome
+            .expect_err("abandoned")
+            .to_string()
+            .contains("abandoned"));
+    }
+
+    #[test]
+    fn finished_publish_reports_its_own_outcome_within_the_hard_cap() {
+        let outcome = run_on_detached_thread_within_hard_cap(Duration::from_secs(5), || {
+            Err(KanbusError::Io("broker exploded".to_string()))
+        });
+        assert!(outcome
+            .expect_err("failure")
+            .to_string()
+            .contains("broker exploded"));
     }
 
     #[cfg(unix)]

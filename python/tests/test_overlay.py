@@ -5,6 +5,8 @@ from pathlib import Path
 import json
 import subprocess
 import tempfile
+
+import pytest
 from types import SimpleNamespace
 
 import kanbus.overlay as overlay_module
@@ -1072,3 +1074,38 @@ def test_install_overlay_hooks_appends_block_when_existing_hook_has_other_conten
     contents = hook.read_text(encoding="utf-8")
     assert "echo hello" in contents
     assert "Kanbus overlay cache maintenance" in contents
+
+
+@pytest.mark.parametrize(
+    "identifier", ["../x", "a/b", "..", ".", "", ".hidden", "x..y", "a" * 201]
+)
+def test_overlay_identifier_validation_rejects_unsafe_identifiers(
+    identifier: str,
+) -> None:
+    from kanbus.overlay import is_valid_overlay_issue_identifier
+
+    assert not is_valid_overlay_issue_identifier(identifier)
+
+
+def test_overlay_identifier_validation_accepts_issue_identifiers() -> None:
+    from kanbus.overlay import is_valid_overlay_issue_identifier
+
+    for identifier in ["kbs-1", "kanbus-abc123.4", "a_b-c"]:
+        assert is_valid_overlay_issue_identifier(identifier)
+
+
+def test_write_tombstone_refuses_traversal_identifier(tmp_path: Path) -> None:
+    from kanbus.overlay import OverlayTombstone, write_tombstone
+
+    tombstone = OverlayTombstone(
+        op="delete",
+        project="p",
+        id="../../escape",
+        event_id=None,
+        ts="2026-01-01T00:00:00Z",
+        ttl_s=60,
+    )
+    with pytest.raises(ValueError):
+        write_tombstone(tmp_path, tombstone)
+    assert not (tmp_path / "escape.json").exists()
+    assert not (tmp_path / ".overlay" / "tombstones").exists()

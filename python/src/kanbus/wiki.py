@@ -7,7 +7,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markusmd import convert as convert_markus_source
@@ -240,8 +240,8 @@ def load_wiki_location(root: Path) -> WikiLocation:
 
     project_dir = configuration.project_directory
     wiki_subdir = configuration.wiki_directory or "wiki"
-    if wiki_subdir.startswith("../"):
-        normalized = wiki_subdir.replace("\\", "/").lstrip("../").lstrip("..\\")
+    normalized = repository_relative_wiki_directory(wiki_subdir)
+    if normalized is not None:
         wiki_root = root / normalized
         list_prefix = normalized
     else:
@@ -252,6 +252,20 @@ def load_wiki_location(root: Path) -> WikiLocation:
         list_prefix=list_prefix,
         project_directory=project_dir,
     )
+
+
+def repository_relative_wiki_directory(wiki_subdir: str) -> Optional[str]:
+    """Strip one leading parent-directory marker from a configured wiki directory.
+
+    :param wiki_subdir: Configured wiki directory value.
+    :type wiki_subdir: str
+    :return: Repository-relative path, or None when the directory lives inside the project directory.
+    :rtype: Optional[str]
+    """
+    forward_slashed = wiki_subdir.replace("\\", "/")
+    if not forward_slashed.startswith("../"):
+        return None
+    return forward_slashed.removeprefix("../")
 
 
 def wiki_directory_missing_message(location: WikiLocation) -> str:

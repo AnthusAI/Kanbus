@@ -270,7 +270,7 @@ pub fn run_lifecycle_hooks(
         return Ok(());
     }
 
-    let (hooks_config, project_root) = resolve_hook_configuration(root);
+    let (hooks_config, project_root) = resolve_hook_configuration_or_fail(root)?;
     if !hooks_config.enabled {
         return Ok(());
     }
@@ -373,6 +373,21 @@ fn policy_event_map() -> HashMap<HookEvent, crate::policy_context::PolicyOperati
     ])
 }
 
+fn resolve_hook_configuration_or_fail(
+    root: &Path,
+) -> Result<(HooksConfiguration, PathBuf), KanbusError> {
+    let config_path = match get_configuration_path(root) {
+        Ok(path) => path,
+        Err(_) => return Ok((HooksConfiguration::default(), root.to_path_buf())),
+    };
+    let project_root = config_path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| root.to_path_buf());
+    let configuration = load_project_configuration(&config_path)?;
+    Ok((configuration.hooks, project_root))
+}
+
 fn resolve_hook_configuration(root: &Path) -> (HooksConfiguration, PathBuf) {
     let config_path = match get_configuration_path(root) {
         Ok(path) => path,
@@ -471,18 +486,19 @@ fn run_external_hook(
         }
     };
 
-    if let Some(mut stdin) = child.stdin.take() {
-        let payload = serde_json::to_string(invocation).unwrap_or_else(|_| "{}".to_string());
-        if let Err(error) = stdin.write_all(payload.as_bytes()) {
-            return HookResult {
-                succeeded: false,
-                timed_out: false,
-                exit_code: None,
-                duration_ms: started.elapsed().as_millis() as u64,
-                message: error.to_string(),
-            };
-        }
-    }
+    let payload = serde_json::to_string(invocation).unwrap_or_else(|_| "{}".to_string());
+    let stdin_writer = child.stdin.take().map(|mut stdin| {
+        std::thread::spawn(move || {
+            let _ = stdin.write_all(payload.as_bytes());
+        })
+    });
+    let stderr_reader = child.stderr.take().map(|mut stderr_pipe| {
+        std::thread::spawn(move || {
+            let mut captured = String::new();
+            let _ = stderr_pipe.read_to_string(&mut captured);
+            captured
+        })
+    });
 
     let timeout = Duration::from_millis(timeout_ms.max(1));
     let mut timed_out = false;
@@ -516,10 +532,16 @@ fn run_external_hook(
         }
     }
 
-    let mut stderr = String::new();
-    if let Some(mut stderr_pipe) = child.stderr.take() {
-        let _ = stderr_pipe.read_to_string(&mut stderr);
-    }
+    let stderr = if timed_out {
+        String::new()
+    } else {
+        if let Some(writer) = stdin_writer {
+            let _ = writer.join();
+        }
+        stderr_reader
+            .map(|reader| reader.join().unwrap_or_default())
+            .unwrap_or_default()
+    };
 
     let duration_ms = started.elapsed().as_millis() as u64;
     let succeeded = !timed_out && exit_code == Some(0);
@@ -607,6 +629,21 @@ mod tests {
         let result = run_external_hook(&hook, root, &payload, 50);
         assert!(result.timed_out);
         assert!(result.message.contains("timed out"));
+    }
+
+    #[test]
+    fn hook_that_never_reads_a_large_payload_is_killed_at_its_timeout() {
+        let directory = tempfile::tempdir().unwrap();
+        let hook: HookDefinition = serde_json::from_value(serde_json::json!({
+            "id": "never-reads-stdin",
+            "command": ["sleep", "30"]
+        }))
+        .unwrap();
+        let oversized_payload = serde_json::json!({ "filler": "x".repeat(4 * 1024 * 1024) });
+        let started = Instant::now();
+        let result = run_external_hook(&hook, directory.path(), &oversized_payload, 300);
+        assert!(result.timed_out);
+        assert!(started.elapsed() < Duration::from_secs(5));
     }
 
     #[test]

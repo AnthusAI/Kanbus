@@ -1,14 +1,12 @@
 //! Lambda handler for the console backend.
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-use base64::Engine as _;
-use chrono::Utc;
+use lambda_http::request::RequestContext;
 use lambda_http::{http::StatusCode, run, service_fn, Body, Error, Request, Response};
 
 use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::console_snapshot_feed::snapshot_payload;
 
 const EFS_ROOT: &str = "/mnt/data";
 const DEFAULT_ASSETS_ROOT: &str = "/opt/apps/console/dist";
@@ -25,7 +23,6 @@ async fn main() -> Result<(), Error> {
 
 async fn handler(request: Request) -> Result<ResponseType, Error> {
     let path = request.uri().path();
-    let query = request.uri().query().unwrap_or_default().to_string();
     let raw_segments: Vec<&str> = path
         .trim_start_matches('/')
         .split('/')
@@ -50,6 +47,10 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     }
     let account = segments[0];
     let project = segments[1];
+    if !FileStore::is_valid_tenant_segment(account) || !FileStore::is_valid_tenant_segment(project)
+    {
+        return error_response("invalid tenant path segment", StatusCode::BAD_REQUEST);
+    }
     let store_root = resolve_store_root(Path::new(EFS_ROOT), account, project);
     let store = FileStore::new(store_root);
     if segments.len() < 3 {
@@ -65,27 +66,26 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
     if segments.len() < 4 {
         return Ok(not_found());
     }
-    let token_from_query = query_param(&query, "access_token");
     match segments[3] {
         "telemetry" => match segments.get(4) {
             Some(&"console") => Ok(no_content()),
             _ => Ok(not_found()),
         },
         "config" => {
-            if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+            if let Err(response) = enforce_tenant_claims(&request, account, project) {
                 return Ok(response);
             }
             handle_config(&store)
         }
         "issues" => match segments.get(4) {
             Some(identifier) => {
-                if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                if let Err(response) = enforce_tenant_claims(&request, account, project) {
                     return Ok(response);
                 }
                 handle_issue(&store, identifier)
             }
             None => {
-                if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                if let Err(response) = enforce_tenant_claims(&request, account, project) {
                     return Ok(response);
                 }
                 handle_issues(&store)
@@ -93,18 +93,14 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
         },
         "events" => match segments.get(4) {
             Some(&"realtime") => {
-                if let Err(response) =
-                    enforce_tenant_claims(&request, account, project, token_from_query.as_deref())
-                {
+                if let Err(response) = enforce_tenant_claims(&request, account, project) {
                     return Ok(response);
                 }
                 handle_realtime_events(&store)
             }
             Some(_) => Ok(not_found()),
             None => {
-                if let Err(response) =
-                    enforce_tenant_claims(&request, account, project, token_from_query.as_deref())
-                {
+                if let Err(response) = enforce_tenant_claims(&request, account, project) {
                     return Ok(response);
                 }
                 handle_events(&store)
@@ -112,7 +108,7 @@ async fn handler(request: Request) -> Result<ResponseType, Error> {
         },
         "realtime" => match segments.get(4) {
             Some(&"bootstrap") => {
-                if let Err(response) = enforce_tenant_claims(&request, account, project, None) {
+                if let Err(response) = enforce_tenant_claims(&request, account, project) {
                     return Ok(response);
                 }
                 handle_realtime_bootstrap(account, project)
@@ -212,30 +208,11 @@ fn tenant_project_claim_key() -> String {
         .unwrap_or_else(|_| "custom:project".to_string())
 }
 
-fn query_param(query: &str, key: &str) -> Option<String> {
-    query
-        .split('&')
-        .filter_map(|pair| pair.split_once('='))
-        .find_map(|(k, v)| if k == key { Some(v.to_string()) } else { None })
-}
-
-fn bearer_token(request: &Request) -> Option<String> {
-    request.headers().get("Authorization").and_then(|raw| {
-        let value = raw.to_str().ok()?;
-        let trimmed = value.trim();
-        trimmed
-            .strip_prefix("Bearer ")
-            .or_else(|| trimmed.strip_prefix("bearer "))
-            .map(std::string::ToString::to_string)
-    })
-}
-
-fn decode_jwt_claims(token: &str) -> Option<serde_json::Value> {
-    let payload = token.split('.').nth(1)?;
-    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(payload)
-        .ok()?;
-    serde_json::from_slice(&bytes).ok()
+fn gateway_verified_claims(request: &Request) -> Option<serde_json::Value> {
+    match request.extensions().get::<RequestContext>() {
+        Some(RequestContext::ApiGatewayV1(context)) => context.authorizer.get("claims").cloned(),
+        _ => None,
+    }
 }
 
 #[allow(clippy::result_large_err)]
@@ -243,17 +220,13 @@ fn enforce_tenant_claims(
     request: &Request,
     account: &str,
     project: &str,
-    token_from_query: Option<&str>,
 ) -> Result<(), ResponseType> {
     let auth_mode =
         std::env::var("KANBUS_AUTH_MODE").unwrap_or_else(|_| AUTH_MODE_NONE.to_string());
     if auth_mode == AUTH_MODE_NONE {
         return Ok(());
     }
-    let token = bearer_token(request)
-        .or_else(|| token_from_query.map(std::string::ToString::to_string))
-        .ok_or_else(unauthorized)?;
-    let claims = decode_jwt_claims(&token).ok_or_else(unauthorized)?;
+    let claims = gateway_verified_claims(request).ok_or_else(unauthorized)?;
     let account_key = tenant_account_claim_key();
     let project_key = tenant_project_claim_key();
     let claim_account = claims
@@ -460,43 +433,6 @@ fn asset_response(path: &str) -> ResponseType {
         .unwrap_or_else(|_| Response::new(body_from_text("{\"error\":\"asset response failed\"}")))
 }
 
-fn snapshot_payload(store: &FileStore) -> (String, u64) {
-    let (payload, fingerprint) = match store.build_snapshot() {
-        Ok(snapshot) => {
-            let fingerprint = snapshot_fingerprint(&snapshot);
-            let payload = serde_json::to_string(&snapshot).unwrap_or_else(|error| {
-                serde_json::json!({ "error": error.to_string(), "updated_at": Utc::now().to_rfc3339() })
-                    .to_string()
-            });
-            (payload, fingerprint)
-        }
-        Err(error) => {
-            let payload = serde_json::json!({
-                "error": error.to_string(),
-                "updated_at": Utc::now().to_rfc3339(),
-            })
-            .to_string();
-            (payload.clone(), hash_payload(&payload))
-        }
-    };
-    (payload, fingerprint)
-}
-
-fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
-    let payload = serde_json::to_vec(&(&snapshot.config, &snapshot.issues)).unwrap_or_default();
-    hash_bytes(&payload)
-}
-
-fn hash_payload(payload: &str) -> u64 {
-    hash_bytes(payload.as_bytes())
-}
-
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    bytes.hash(&mut hasher);
-    hasher.finish()
-}
-
 fn body_from_text(text: impl Into<String>) -> Body {
     Body::Text(text.into())
 }
@@ -508,9 +444,11 @@ fn body_from_bytes(bytes: Vec<u8>) -> Body {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
     use chrono::Utc;
     use kanbus::issue_files::write_issue_to_file;
     use kanbus::models::IssueData;
+    use lambda_http::RequestExt;
     use std::collections::BTreeMap;
     use std::env;
     use std::sync::{Mutex, OnceLock};
@@ -622,21 +560,6 @@ beads_compatibility: false
         }
     }
 
-    fn jwt_with_claims(
-        account_key: &str,
-        account: &str,
-        project_key: &str,
-        project: &str,
-    ) -> String {
-        let payload = serde_json::json!({
-            account_key: account,
-            project_key: project,
-        });
-        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(serde_json::to_vec(&payload).expect("serialize claims"));
-        format!("aaa.{encoded}.bbb")
-    }
-
     #[test]
     fn is_console_route_detects_supported_paths() {
         assert!(is_console_route(""));
@@ -647,15 +570,6 @@ beads_compatibility: false
         assert!(is_console_route("epics"));
         assert!(!is_console_route("assets/app.js"));
         assert!(!is_console_route("issues/a/b/c"));
-    }
-
-    #[test]
-    fn hash_helpers_are_stable_for_same_payload() {
-        let one = hash_payload("payload");
-        let two = hash_payload("payload");
-        let bytes_hash = hash_bytes(b"payload");
-        assert_eq!(one, two);
-        assert_eq!(one, bytes_hash);
     }
 
     #[test]
@@ -789,130 +703,78 @@ beads_compatibility: false
         assert!(payload.contains("\"identity_pool_id\":\"us-east-1:pool\""));
     }
 
-    #[test]
-    fn query_param_extracts_expected_value() {
-        let value = query_param("access_token=abc&foo=bar", "access_token");
-        assert_eq!(value.as_deref(), Some("abc"));
-        assert_eq!(query_param("foo=bar", "access_token"), None);
-        assert_eq!(
-            query_param("access_token=&foo=bar", "access_token").as_deref(),
-            Some("")
-        );
+    fn request_with_gateway_claims(claims: Option<serde_json::Value>) -> Request {
+        let mut context =
+            lambda_http::aws_lambda_events::apigw::ApiGatewayProxyRequestContext::default();
+        if let Some(claims) = claims {
+            context.authorizer.insert("claims".to_string(), claims);
+        }
+        Request::new(Body::Empty).with_request_context(RequestContext::ApiGatewayV1(context))
     }
 
-    #[test]
-    fn decode_jwt_claims_parses_payload() {
-        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(r#"{"custom:account":"anthus","custom:project":"kanbus"}"#);
-        let token = format!("aaa.{payload}.bbb");
-        let claims = decode_jwt_claims(&token).expect("claims");
-        assert_eq!(claims["custom:account"], "anthus");
-        assert_eq!(claims["custom:project"], "kanbus");
-    }
-
-    #[test]
-    fn decode_jwt_claims_rejects_invalid_token_shape() {
-        assert!(decode_jwt_claims("not-a-jwt").is_none());
-    }
-
-    #[test]
-    fn bearer_token_supports_standard_and_lowercase_prefix() {
-        let mut req_upper = Request::new(Body::Empty);
-        req_upper
-            .headers_mut()
-            .insert("Authorization", "Bearer token-123".parse().expect("header"));
-        let mut req_lower = Request::new(Body::Empty);
-        req_lower
-            .headers_mut()
-            .insert("Authorization", "bearer token-456".parse().expect("header"));
-
-        assert_eq!(bearer_token(&req_upper).as_deref(), Some("token-123"));
-        assert_eq!(bearer_token(&req_lower).as_deref(), Some("token-456"));
-    }
-
-    #[test]
-    fn bearer_token_returns_none_for_missing_or_invalid_prefix() {
-        let req_missing = Request::new(Body::Empty);
-        let mut req_invalid = Request::new(Body::Empty);
-        req_invalid
-            .headers_mut()
-            .insert("Authorization", "Token abc".parse().expect("header"));
-
-        assert!(bearer_token(&req_missing).is_none());
-        assert!(bearer_token(&req_invalid).is_none());
+    fn enable_cognito_auth_mode() {
+        clear_realtime_env();
+        // SAFETY: guarded by module-level mutex in realtime tests.
+        unsafe {
+            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
+        }
     }
 
     #[test]
     fn enforce_tenant_claims_validates_expected_tenant() {
         let _guard = realtime_env_guard();
-        clear_realtime_env();
-        // SAFETY: guarded by module-level mutex in realtime tests.
-        unsafe {
-            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
-        }
-        let token = jwt_with_claims("custom:account", "anthus", "custom:project", "kanbus");
-        let request = Request::new(Body::Empty);
+        enable_cognito_auth_mode();
+        let request = request_with_gateway_claims(Some(serde_json::json!({
+            "custom:account": "anthus",
+            "custom:project": "kanbus",
+        })));
 
-        let ok = enforce_tenant_claims(&request, "anthus", "kanbus", Some(&token));
-        assert!(ok.is_ok());
-
-        let forbidden_result = enforce_tenant_claims(&request, "other", "kanbus", Some(&token));
+        assert!(enforce_tenant_claims(&request, "anthus", "kanbus").is_ok());
         assert_eq!(
-            forbidden_result.expect_err("should fail").status(),
+            enforce_tenant_claims(&request, "other", "kanbus")
+                .expect_err("should fail")
+                .status(),
             StatusCode::FORBIDDEN
         );
     }
 
     #[test]
-    fn enforce_tenant_claims_requires_token_when_auth_enabled() {
+    fn enforce_tenant_claims_rejects_request_without_gateway_claims() {
         let _guard = realtime_env_guard();
-        clear_realtime_env();
-        // SAFETY: guarded by module-level mutex in realtime tests.
-        unsafe {
-            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
-        }
-        let request = Request::new(Body::Empty);
-        let result = enforce_tenant_claims(&request, "anthus", "kanbus", None);
+        enable_cognito_auth_mode();
+        let request = request_with_gateway_claims(None);
         assert_eq!(
-            result.expect_err("should fail").status(),
+            enforce_tenant_claims(&request, "anthus", "kanbus")
+                .expect_err("should fail")
+                .status(),
             StatusCode::UNAUTHORIZED
         );
     }
 
     #[test]
-    fn enforce_tenant_claims_rejects_invalid_jwt_payload() {
+    fn enforce_tenant_claims_ignores_unverified_bearer_tokens() {
         let _guard = realtime_env_guard();
-        clear_realtime_env();
-        // SAFETY: guarded by module-level mutex in realtime tests.
-        unsafe {
-            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
-        }
-        let request = Request::new(Body::Empty);
-        let result = enforce_tenant_claims(&request, "anthus", "kanbus", Some("invalid.jwt"));
-        assert_eq!(
-            result.expect_err("should fail").status(),
-            StatusCode::UNAUTHORIZED
+        enable_cognito_auth_mode();
+        let forged_payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+            serde_json::to_vec(&serde_json::json!({
+                "custom:account": "anthus",
+                "custom:project": "kanbus",
+            }))
+            .expect("serialize claims"),
         );
-    }
-
-    #[test]
-    fn enforce_tenant_claims_prefers_bearer_header_over_query_token() {
-        let _guard = realtime_env_guard();
-        clear_realtime_env();
-        // SAFETY: guarded by module-level mutex in realtime tests.
-        unsafe {
-            env::set_var("KANBUS_AUTH_MODE", AUTH_MODE_COGNITO_PKCE);
-        }
-        let valid = jwt_with_claims("custom:account", "anthus", "custom:project", "kanbus");
-        let invalid = jwt_with_claims("custom:account", "other", "custom:project", "kanbus");
         let mut request = Request::new(Body::Empty);
         request.headers_mut().insert(
             "Authorization",
-            format!("Bearer {valid}").parse().expect("header"),
+            format!("Bearer aaa.{forged_payload}.bbb")
+                .parse()
+                .expect("header"),
         );
-
-        let result = enforce_tenant_claims(&request, "anthus", "kanbus", Some(&invalid));
-        assert!(result.is_ok());
+        assert_eq!(
+            enforce_tenant_claims(&request, "anthus", "kanbus")
+                .expect_err("should fail")
+                .status(),
+            StatusCode::UNAUTHORIZED
+        );
     }
 
     #[test]

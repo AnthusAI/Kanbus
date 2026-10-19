@@ -322,11 +322,11 @@ pub fn generate_right_now_summary(
     let model = resolve_right_now_model(&configuration)?;
     ensure_openai_credentials_when_required()?;
 
-    if let Ok(stub_completion) = std::env::var(TEST_RIGHT_NOW_COMPLETION_ENV) {
+    if let Ok(stub_completion) = crate::test_hooks::var(TEST_RIGHT_NOW_COMPLETION_ENV) {
         return Ok(truncate_to_max_length(stub_completion.trim(), max_length));
     }
 
-    if cfg!(test) || std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+    if cfg!(test) || crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
         let summary = mock_right_now_summary_text(&issue.identifier);
         record_llm_usage(
             root,
@@ -344,7 +344,7 @@ pub fn generate_right_now_summary(
         return Ok(truncate_to_max_length(&summary, max_length));
     }
 
-    if std::env::var("KANBUS_TEST_SIMULATE_LITELLM_MISSING").as_deref() == Ok("1") {
+    if crate::test_hooks::var("KANBUS_TEST_SIMULATE_LITELLM_MISSING").as_deref() == Ok("1") {
         return Err(KanbusError::IssueOperation(
             "litellm is required for right-now summary generation".to_string(),
         ));
@@ -545,7 +545,7 @@ pub fn right_now_summary_needs_regeneration(issue: &IssueData) -> bool {
         Some(summary) if summary.trim().is_empty() => true,
         Some(summary) => {
             if is_persisted_mock_right_now_summary(summary, &issue.identifier)
-                && std::env::var("KANBUS_TEST_AI_MOCK").as_deref() != Ok("1")
+                && crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() != Ok("1")
             {
                 return true;
             }
@@ -598,7 +598,7 @@ pub fn require_display_right_now_summary(issue: &IssueData) -> Result<String, Ka
             ))
         })?;
     if is_persisted_mock_right_now_summary(summary, &issue.identifier)
-        && std::env::var("KANBUS_TEST_AI_MOCK").as_deref() != Ok("1")
+        && crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() != Ok("1")
     {
         return Err(KanbusError::IssueOperation(format!(
             "persisted test mock right-now summary for {} must be regenerated",
@@ -938,7 +938,7 @@ pub(crate) fn ensure_litellm_provider(
 }
 
 fn ensure_openai_credentials_when_required() -> Result<(), KanbusError> {
-    if std::env::var("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS").as_deref() != Ok("1") {
+    if crate::test_hooks::var("KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS").as_deref() != Ok("1") {
         return Ok(());
     }
     match std::env::var("OPENAI_API_KEY") {

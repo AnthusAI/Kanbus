@@ -70,6 +70,8 @@ export interface KanbanIssue {
   priority: number;
   assignee?: string;
   description?: string;
+  /** Optional short blurb a host may show on the card; clamped to three lines with a More/Less toggle. */
+  excerpt?: string;
   parent?: string;
   labels?: string[];
   custom?: Record<string, unknown>;

@@ -1,8 +1,7 @@
 //! Local HTTP server for the console backend.
 
-use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::convert::Infallible;
-use std::hash::{Hash, Hasher};
 use std::io::{self, IsTerminal, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path as StdPath;
@@ -14,9 +13,11 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::body::Bytes;
-use axum::extract::{ConnectInfo, Path as AxumPath, Query, State};
+use axum::extract::{ConnectInfo, FromRequestParts, Path as AxumPath, Query, RawPathParams, State};
 use axum::http::header::CONTENT_TYPE;
-use axum::http::StatusCode;
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, Method, StatusCode};
+use axum::middleware::{from_fn, Next};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -30,13 +31,12 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tokio::sync::broadcast;
-use tokio::sync::Mutex;
 use tokio_stream::wrappers::BroadcastStream;
-use tokio_stream::wrappers::IntervalStream;
 use tower_http::cors::{Any, CorsLayer};
 
 use kanbus::agent_assignment::{change_issue_assignment, AssignmentChoice};
-use kanbus::console_backend::{find_issue_matches, FileStore};
+use kanbus::console_backend::{find_issue_matches, ConsoleSnapshot, FileStore};
+use kanbus::console_snapshot_feed::SnapshotFeedRegistry;
 use kanbus::console_standup::{generate_standup_report, StandupGenerateRequest};
 use kanbus::console_ui_state::{load_state, save_state, state_path, ConsoleUiState};
 use kanbus::console_wiki::{
@@ -72,6 +72,7 @@ struct AppState {
     telemetry_tx: broadcast::Sender<String>,
     telemetry_log: Option<Arc<StdMutex<std::fs::File>>>,
     notification_tx: broadcast::Sender<NotificationEvent>,
+    snapshot_feeds: SnapshotFeedRegistry,
     /// Cache of the last URL route pushed to clients, for CLI query commands.
     ui_state: Arc<tokio::sync::RwLock<ConsoleUiState>>,
 }
@@ -101,14 +102,16 @@ async fn main() {
         let _ = std::io::stderr().flush();
         eprintln!("[kbsc] {}", msg);
         let _ = std::io::stderr().flush();
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/kbsc_trace.txt")
-            .and_then(|mut f| {
-                use std::io::Write;
-                writeln!(f, "{}", msg).and_then(|_| f.sync_all())
-            });
+        if let Some(trace_path) = std::env::var_os("KBSC_TRACE_FILE") {
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(trace_path)
+                .and_then(|mut f| {
+                    use std::io::Write;
+                    writeln!(f, "{}", msg).and_then(|_| f.sync_all())
+                });
+        }
     };
     trace("entry");
     if std::env::var_os("KANBUS_NO_DAEMON").is_none() {
@@ -200,46 +203,19 @@ async fn main() {
         telemetry_tx,
         telemetry_log,
         notification_tx,
+        snapshot_feeds: SnapshotFeedRegistry::new(),
         ui_state: Arc::new(tokio::sync::RwLock::new(initial_ui_state)),
     };
     let _assets_root = state.assets_root.clone();
 
     let app = Router::new()
+        .merge(store_api_routes())
+        .nest("/:account/:project", store_api_routes())
+        .merge(tenant_api_routes())
+        .nest("/:account/:project", tenant_api_routes())
         .route("/assets/*path", get(get_public_asset))
-        .route("/api/config", get(get_config_root))
-        .route("/api/issues", get(get_issues_root))
-        .route("/api/now", get(get_now_root))
-        .route("/api/standup", post(post_standup_root))
-        .route("/api/issues/:id", get(get_issue_root))
-        .route("/api/issues/:id/comments", post(post_issue_comment_root))
-        .route("/api/issues/:id/status", post(post_issue_status_root))
-        .route(
-            "/api/issues/:id/assignment",
-            post(post_issue_assignment_root),
-        )
-        .route("/api/issues/:id/events", get(get_issue_events_root))
-        .route("/api/events", get(get_events_root))
-        .route("/api/events/realtime", get(get_realtime_events_root))
-        .route("/api/realtime/bootstrap", get(get_realtime_bootstrap_root))
-        .route("/api/auth/bootstrap", get(get_auth_bootstrap_root))
-        .route("/api/notifications", post(post_notification_root))
-        .route("/api/ui-state", get(get_ui_state_root))
-        .route(
-            "/api/wiki/page",
-            get(get_wiki_page_root)
-                .post(post_wiki_page_root)
-                .put(put_wiki_page_root)
-                .delete(delete_wiki_page_root),
-        )
-        .route("/api/wiki/pages", get(get_wiki_pages_root))
-        .route("/api/wiki/rename", post(post_wiki_rename_root))
-        .route("/api/wiki/render", post(post_wiki_render_root))
+        .route("/api/ui-state", get(get_ui_state))
         .route("/api/render/d2", post(post_render_d2))
-        .route("/api/telemetry/console", post(post_console_telemetry_root))
-        .route(
-            "/api/telemetry/console/events",
-            get(get_console_telemetry_events_root),
-        )
         .route("/", get(get_index_root))
         .route("/initiatives/", get(get_index_root))
         .route("/epics/", get(get_index_root))
@@ -249,62 +225,6 @@ async fn main() {
         .route("/issues/:parent/:id", get(get_index_root))
         .route("/index.html", get(get_index_root))
         .route("/favicon.ico", get(get_favicon))
-        .route("/:account/:project/api/config", get(get_config))
-        .route("/:account/:project/api/issues", get(get_issues))
-        .route("/:account/:project/api/now", get(get_now))
-        .route("/:account/:project/api/standup", post(post_standup))
-        .route("/:account/:project/api/issues/:id", get(get_issue))
-        .route(
-            "/:account/:project/api/issues/:id/comments",
-            post(post_issue_comment),
-        )
-        .route(
-            "/:account/:project/api/issues/:id/status",
-            post(post_issue_status),
-        )
-        .route(
-            "/:account/:project/api/issues/:id/assignment",
-            post(post_issue_assignment),
-        )
-        .route(
-            "/:account/:project/api/issues/:id/events",
-            get(get_issue_events),
-        )
-        .route("/:account/:project/api/events", get(get_events))
-        .route(
-            "/:account/:project/api/events/realtime",
-            get(get_realtime_events),
-        )
-        .route(
-            "/:account/:project/api/realtime/bootstrap",
-            get(get_realtime_bootstrap),
-        )
-        .route(
-            "/:account/:project/api/auth/bootstrap",
-            get(get_auth_bootstrap),
-        )
-        .route(
-            "/:account/:project/api/notifications",
-            post(post_notification),
-        )
-        .route(
-            "/:account/:project/api/wiki/page",
-            get(get_wiki_page)
-                .post(post_wiki_page)
-                .put(put_wiki_page)
-                .delete(delete_wiki_page),
-        )
-        .route("/:account/:project/api/wiki/pages", get(get_wiki_pages))
-        .route("/:account/:project/api/wiki/rename", post(post_wiki_rename))
-        .route("/:account/:project/api/wiki/render", post(post_wiki_render))
-        .route(
-            "/:account/:project/api/telemetry/console",
-            post(post_console_telemetry),
-        )
-        .route(
-            "/:account/:project/api/telemetry/console/events",
-            get(get_console_telemetry_events),
-        )
         .route("/:account/:project/", get(get_index))
         .route("/:account/:project/initiatives/", get(get_index))
         .route("/:account/:project/epics/", get(get_index))
@@ -317,13 +237,16 @@ async fn main() {
 
     start_gossip_bridge(state.clone());
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
-        .allow_private_network(true);
-
-    let app = app.with_state(state).layer(cors);
+    let app = apply_request_guards(app.with_state(state));
+    let app = match development_origin() {
+        Some(origin) => app.layer(
+            CorsLayer::new()
+                .allow_origin(origin)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        ),
+        None => app,
+    };
     eprintln!(
         "[kbsc] startup repo_root={} data_root={} requested_port={} host={}",
         repo_root.display(),
@@ -362,6 +285,47 @@ async fn main() {
     )
     .await
     .expect("server failure");
+}
+
+fn store_api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/config", get(get_config))
+        .route("/api/issues", get(get_issues))
+        .route("/api/now", get(get_now))
+        .route("/api/standup", post(post_standup))
+        .route("/api/issues/:id", get(get_issue))
+        .route("/api/issues/:id/comments", post(post_issue_comment))
+        .route("/api/issues/:id/status", post(post_issue_status))
+        .route("/api/issues/:id/assignment", post(post_issue_assignment))
+        .route("/api/issues/:id/events", get(get_issue_events))
+        .route("/api/events", get(get_events))
+        .route(
+            "/api/wiki/page",
+            get(get_wiki_page)
+                .post(post_wiki_page)
+                .put(put_wiki_page)
+                .delete(delete_wiki_page),
+        )
+        .route("/api/wiki/pages", get(get_wiki_pages))
+        .route("/api/wiki/rename", post(post_wiki_rename))
+        .route("/api/wiki/render", post(post_wiki_render))
+}
+
+/// Routes served identically at the root and under `/:account/:project`.
+///
+/// Handlers take a `TenantSelection` and keep working at the root in
+/// multi-tenant mode, unlike store routes which resolve a store.
+fn tenant_api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/events/realtime", get(get_realtime_events))
+        .route("/api/realtime/bootstrap", get(get_realtime_bootstrap))
+        .route("/api/auth/bootstrap", get(get_auth_bootstrap))
+        .route("/api/notifications", post(post_notification))
+        .route("/api/telemetry/console", post(post_console_telemetry))
+        .route(
+            "/api/telemetry/console/events",
+            get(get_console_telemetry_events),
+        )
 }
 
 fn maybe_prompt_project_repair(root: &Path) {
@@ -500,79 +464,158 @@ fn exit_with_port_error(port: u16, message: &str) -> ! {
     std::process::exit(1);
 }
 
-async fn get_config(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.config).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+#[derive(Debug)]
+struct ConsoleApiError {
+    status: StatusCode,
+    message: String,
+}
+
+impl ConsoleApiError {
+    fn new(status: StatusCode, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
+        }
     }
 }
 
-async fn get_config_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.config).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+impl From<KanbusError> for ConsoleApiError {
+    fn from(error: KanbusError) -> Self {
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
     }
+}
+
+impl IntoResponse for ConsoleApiError {
+    fn into_response(self) -> Response {
+        error_response(self.message, self.status)
+    }
+}
+
+async fn run_blocking<T, F>(task: F) -> Result<T, ConsoleApiError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, ConsoleApiError> + Send + 'static,
+{
+    tokio::task::spawn_blocking(task).await.map_err(|error| {
+        ConsoleApiError::new(StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+    })?
+}
+
+async fn build_snapshot_off_runtime(store: FileStore) -> Result<ConsoleSnapshot, ConsoleApiError> {
+    run_blocking(move || Ok(store.build_snapshot()?)).await
+}
+
+fn resolve_single_issue<'snapshot>(
+    snapshot: &'snapshot ConsoleSnapshot,
+    identifier: &str,
+) -> Result<&'snapshot IssueData, ConsoleApiError> {
+    let matches = find_issue_matches(&snapshot.issues, identifier, &snapshot.config.project_key);
+    match matches.as_slice() {
+        [] => Err(ConsoleApiError::new(
+            StatusCode::NOT_FOUND,
+            "issue not found",
+        )),
+        [issue] => Ok(issue),
+        _ => Err(ConsoleApiError::new(
+            StatusCode::BAD_REQUEST,
+            "issue id is ambiguous",
+        )),
+    }
+}
+
+async fn named_path_parameters(parts: &mut Parts, state: &AppState) -> HashMap<String, String> {
+    AxumPath::<HashMap<String, String>>::from_request_parts(parts, state)
+        .await
+        .map(|AxumPath(parameters)| parameters)
+        .unwrap_or_default()
+}
+
+/// The tenant a request addresses: `Some((account, project))` on
+/// `/:account/:project` routes and `None` on root routes.
+struct TenantSelection(Option<(String, String)>);
+
+#[axum::async_trait]
+impl FromRequestParts<AppState> for TenantSelection {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let mut parameters = named_path_parameters(parts, state).await;
+        match (parameters.remove("account"), parameters.remove("project")) {
+            (Some(account), Some(project)) => {
+                if !FileStore::is_valid_tenant_segment(&account)
+                    || !FileStore::is_valid_tenant_segment(&project)
+                {
+                    return Err(error_response(
+                        "invalid tenant path segment",
+                        StatusCode::BAD_REQUEST,
+                    ));
+                }
+                Ok(Self(Some((account, project))))
+            }
+            _ => Ok(Self(None)),
+        }
+    }
+}
+
+fn resolve_store(
+    state: &AppState,
+    TenantSelection(selection): TenantSelection,
+) -> Result<FileStore, ConsoleApiError> {
+    match selection {
+        Some((account, project)) => Ok(store_for(state, &account, &project)),
+        None => store_for_root(state).ok_or_else(|| {
+            ConsoleApiError::new(
+                StatusCode::BAD_REQUEST,
+                "multi-tenant mode requires /:account/:project",
+            )
+        }),
+    }
+}
+
+struct IssueIdentifierPath(String);
+
+#[axum::async_trait]
+impl FromRequestParts<AppState> for IssueIdentifierPath {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        named_path_parameters(parts, state)
+            .await
+            .remove("id")
+            .map(Self)
+            .ok_or_else(|| error_response("missing issue id", StatusCode::BAD_REQUEST))
+    }
+}
+
+async fn get_config(
+    State(state): State<AppState>,
+    selection: TenantSelection,
+) -> Result<Response, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
+    let snapshot = build_snapshot_off_runtime(store).await?;
+    Ok(Json(snapshot.config).into_response())
 }
 
 async fn get_issues(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.issues).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
+    selection: TenantSelection,
+) -> Result<Response, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
+    let snapshot = build_snapshot_off_runtime(store).await?;
+    Ok(Json(snapshot.issues).into_response())
+}
+
+async fn get_now(State(state): State<AppState>, selection: TenantSelection) -> Response {
+    match resolve_store(&state, selection) {
+        Ok(store) => now_snapshot_response(store).await,
+        Err(error) => error.into_response(),
     }
-}
-
-async fn get_issues_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    match store.build_snapshot() {
-        Ok(snapshot) => Json(snapshot.issues).into_response(),
-        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-async fn get_now(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    now_snapshot_response(store).await
-}
-
-async fn get_now_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    now_snapshot_response(store).await
 }
 
 async fn now_snapshot_response(store: FileStore) -> Response {
@@ -588,29 +631,15 @@ async fn now_snapshot_response(store: FileStore) -> Response {
     }
 }
 
-async fn post_standup_root(
-    State(state): State<AppState>,
-    Json(payload): Json<StandupGenerateRequest>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    standup_response(store, payload).await
-}
-
 async fn post_standup(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Json(payload): Json<StandupGenerateRequest>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    standup_response(store, payload).await
+    match resolve_store(&state, selection) {
+        Ok(store) => standup_response(store, payload).await,
+        Err(error) => error.into_response(),
+    }
 }
 
 async fn standup_response(store: FileStore, payload: StandupGenerateRequest) -> Response {
@@ -625,49 +654,92 @@ async fn standup_response(store: FileStore, payload: StandupGenerateRequest) -> 
 
 async fn get_issue(
     State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    Json(matches[0]).into_response()
+    selection: TenantSelection,
+    IssueIdentifierPath(id): IssueIdentifierPath,
+) -> Result<Json<IssueData>, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
+    let snapshot = build_snapshot_off_runtime(store).await?;
+    let issue = resolve_single_issue(&snapshot, &id)?;
+    Ok(Json(issue.clone()))
 }
 
-async fn get_issue_root(State(state): State<AppState>, AxumPath(id): AxumPath<String>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
+const CONSOLE_REQUEST_HEADER: &str = "x-kanbus-console";
+const TELEMETRY_BEACON_PATH_SUFFIX: &str = "/api/telemetry/console";
+
+fn development_origin() -> Option<axum::http::HeaderValue> {
+    std::env::var("CONSOLE_DEV_ORIGIN")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .and_then(|value| value.parse().ok())
+}
+
+fn origin_matches_host_or_development_origin(headers: &HeaderMap) -> bool {
+    let Some(origin) = headers.get(axum::http::header::ORIGIN) else {
+        return true;
     };
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
+    let Ok(origin) = origin.to_str() else {
+        return false;
     };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
+    if let Some(development_origin) = development_origin() {
+        if development_origin.to_str().ok() == Some(origin) {
+            return true;
+        }
     }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
+    let origin_authority = origin
+        .split_once("://")
+        .map(|(_, authority)| authority)
+        .unwrap_or(origin);
+    headers
+        .get(axum::http::header::HOST)
+        .and_then(|host| host.to_str().ok())
+        .map(|host| host == origin_authority)
+        .unwrap_or(false)
+}
+
+fn apply_request_guards(app: Router) -> Router {
+    app.route_layer(from_fn(reject_invalid_tenant_segments))
+        .layer(from_fn(guard_mutating_requests))
+}
+
+async fn guard_mutating_requests(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    if matches!(
+        *request.method(),
+        Method::GET | Method::HEAD | Method::OPTIONS
+    ) {
+        return next.run(request).await;
     }
-    Json(matches[0]).into_response()
+    if let Some(refused) = require_loopback(addr) {
+        return refused;
+    }
+    if !origin_matches_host_or_development_origin(request.headers()) {
+        return error_response("cross-origin writes are not allowed", StatusCode::FORBIDDEN);
+    }
+    let is_beacon_route = request.uri().path().ends_with(TELEMETRY_BEACON_PATH_SUFFIX);
+    if !is_beacon_route && !request.headers().contains_key(CONSOLE_REQUEST_HEADER) {
+        return error_response(
+            "missing X-Kanbus-Console request header",
+            StatusCode::FORBIDDEN,
+        );
+    }
+    next.run(request).await
+}
+
+async fn reject_invalid_tenant_segments(
+    params: RawPathParams,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    for (name, value) in &params {
+        if (name == "account" || name == "project") && !FileStore::is_valid_tenant_segment(value) {
+            return error_response("invalid tenant path segment", StatusCode::BAD_REQUEST);
+        }
+    }
+    next.run(request).await
 }
 
 /// Writes (comments, status changes) are refused from anything but the
@@ -898,194 +970,84 @@ fn crate_project_dir(root: &Path) -> Result<PathBuf, KanbusError> {
     kanbus::file_io::load_project_directory(root)
 }
 
-async fn post_issue_comment_root(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Json(payload): Json<IssueCommentRequest>,
-) -> Response {
-    if let Some(refused) = require_loopback(addr) {
-        return refused;
-    }
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    issue_comment_response(store, id, payload.text).await
-}
-
 async fn post_issue_comment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    selection: TenantSelection,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueCommentRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = store_for(&state, &account, &project);
-    issue_comment_response(store, id, payload.text).await
-}
-
-async fn post_issue_status_root(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Json(payload): Json<IssueStatusRequest>,
-) -> Response {
-    if let Some(refused) = require_loopback(addr) {
-        return refused;
-    }
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
+    let store = match resolve_store(&state, selection) {
+        Ok(store) => store,
+        Err(error) => return error.into_response(),
     };
-    issue_status_response(store, id, payload.status).await
+    issue_comment_response(store, id, payload.text).await
 }
 
 async fn post_issue_status(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    selection: TenantSelection,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueStatusRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = store_for(&state, &account, &project);
-    issue_status_response(store, id, payload.status).await
-}
-
-async fn post_issue_assignment_root(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Json(payload): Json<IssueAssignmentRequest>,
-) -> Response {
-    if let Some(refused) = require_loopback(addr) {
-        return refused;
-    }
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
+    let store = match resolve_store(&state, selection) {
+        Ok(store) => store,
+        Err(error) => return error.into_response(),
     };
-    issue_assignment_response(store, id, payload).await
+    issue_status_response(store, id, payload.status).await
 }
 
 async fn post_issue_assignment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    selection: TenantSelection,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueAssignmentRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = store_for(&state, &account, &project);
+    let store = match resolve_store(&state, selection) {
+        Ok(store) => store,
+        Err(error) => return error.into_response(),
+    };
     issue_assignment_response(store, id, payload).await
-}
-
-async fn get_issue_events_root(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-    Query(query): Query<IssueEventsQuery>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    let issue_id = matches[0].identifier.clone();
-    let project_dir = store.root().join(&snapshot.config.project_directory);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) = match load_console_issue_events(
-        store.root(),
-        &project_dir,
-        &issue_id,
-        query.before.as_deref(),
-        limit,
-    ) {
-        Ok(result) => result,
-        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
-    };
-    Json(IssueEventsResponse {
-        issue_id,
-        events,
-        next_before,
-    })
-    .into_response()
 }
 
 async fn get_issue_events(
     State(state): State<AppState>,
-    AxumPath((account, project, id)): AxumPath<(String, String, String)>,
+    selection: TenantSelection,
+    IssueIdentifierPath(id): IssueIdentifierPath,
     Query(query): Query<IssueEventsQuery>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    let snapshot = match store.build_snapshot() {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-    let matches = find_issue_matches(&snapshot.issues, &id, &snapshot.config.project_key);
-    if matches.is_empty() {
-        return error_response("issue not found", StatusCode::NOT_FOUND);
-    }
-    if matches.len() > 1 {
-        return error_response("issue id is ambiguous", StatusCode::BAD_REQUEST);
-    }
-    let issue_id = matches[0].identifier.clone();
-    let project_dir = store.root().join(&snapshot.config.project_directory);
-    let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let (events, next_before) = match load_console_issue_events(
-        store.root(),
-        &project_dir,
-        &issue_id,
-        query.before.as_deref(),
-        limit,
-    ) {
-        Ok(result) => result,
-        Err(error) => return error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
-    };
-    Json(IssueEventsResponse {
-        issue_id,
-        events,
-        next_before,
+) -> Result<Json<IssueEventsResponse>, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
+    run_blocking(move || {
+        let snapshot = store.build_snapshot()?;
+        let issue_id = resolve_single_issue(&snapshot, &id)?.identifier.clone();
+        let project_dir = store.root().join(&snapshot.config.project_directory);
+        let limit = query.limit.unwrap_or(50).clamp(1, 200);
+        let (events, next_before) = load_console_issue_events(
+            store.root(),
+            &project_dir,
+            &issue_id,
+            query.before.as_deref(),
+            limit,
+        )?;
+        Ok(IssueEventsResponse {
+            issue_id,
+            events,
+            next_before,
+        })
     })
-    .into_response()
+    .await
+    .map(Json)
 }
 
 /// Load canonical issue events and, on the newest page, durable agent turns
@@ -1132,108 +1094,53 @@ fn merge_router_conversation_events(
     events.truncate(limit);
 }
 
+fn snapshot_event_stream(
+    feeds: SnapshotFeedRegistry,
+    store: FileStore,
+) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
+    let stream = stream::once(async move { feeds.subscribe(store).await })
+        .flat_map(|subscription| {
+            let initial = stream::once(async move {
+                Ok::<Event, Infallible>(Event::default().data(subscription.current.json.clone()))
+            });
+            let changes =
+                BroadcastStream::new(subscription.changes).filter_map(|received| async move {
+                    received
+                        .ok()
+                        .map(|payload| Ok(Event::default().data(payload.json.clone())))
+                });
+            initial.chain(changes)
+        })
+        .boxed();
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text(": keep-alive"),
+    )
+}
+
 async fn get_events(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let store = store_for(&state, &account, &project);
-    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
-    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
-    let initial = stream::once(async move { Ok(Event::default().data(initial_payload)) });
-    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_store = store.clone();
-    let updates_last = Arc::clone(&last_fingerprint);
-    let updates = interval.filter_map(move |_| {
-        let store = updates_store.clone();
-        let last_fingerprint = Arc::clone(&updates_last);
-        async move {
-            let (payload, fingerprint) = snapshot_payload(&store);
-            let mut guard = last_fingerprint.lock().await;
-            if *guard == fingerprint {
-                None
-            } else {
-                *guard = fingerprint;
-                Some(Ok(Event::default().data(payload)))
-            }
-        }
-    });
-    let stream = initial.chain(updates);
-
-    Sse::new(stream).keep_alive(
-        KeepAlive::new()
-            .interval(Duration::from_secs(15))
-            .text(": keep-alive"),
-    )
-}
-
-async fn get_events_root(
-    State(state): State<AppState>,
-) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            let payload = serde_json::json!({
-                "error": "multi-tenant mode requires /:account/:project",
-                "updated_at": chrono::Utc::now().to_rfc3339(),
-            })
-            .to_string();
-            let stream = stream::once(async move { Ok(Event::default().data(payload)) }).boxed();
-            return Sse::new(stream).keep_alive(
-                KeepAlive::new()
-                    .interval(Duration::from_secs(15))
-                    .text(": keep-alive"),
-            );
-        }
-    };
-    let (initial_payload, initial_fingerprint) = snapshot_payload(&store);
-    let last_fingerprint = Arc::new(Mutex::new(initial_fingerprint));
-    let initial = stream::once(async move { Ok(Event::default().data(initial_payload)) });
-    let interval = IntervalStream::new(tokio::time::interval(Duration::from_secs(15)));
-    let updates_store = store.clone();
-    let updates_last = Arc::clone(&last_fingerprint);
-    let updates = interval.filter_map(move |_| {
-        let store = updates_store.clone();
-        let last_fingerprint = Arc::clone(&updates_last);
-        async move {
-            let (payload, fingerprint) = snapshot_payload(&store);
-            let mut guard = last_fingerprint.lock().await;
-            if *guard == fingerprint {
-                None
-            } else {
-                *guard = fingerprint;
-                Some(Ok(Event::default().data(payload)))
-            }
-        }
-    });
-    let stream = initial.chain(updates).boxed();
-
-    Sse::new(stream).keep_alive(
-        KeepAlive::new()
-            .interval(Duration::from_secs(15))
-            .text(": keep-alive"),
-    )
-}
-
-async fn post_console_telemetry_root(State(state): State<AppState>, body: Bytes) -> StatusCode {
-    let message = build_telemetry_payload(parse_json_body(&body), None);
-    let _ = state.telemetry_tx.send(message);
-    write_telemetry_log(&state, &body);
-    StatusCode::NO_CONTENT
+    selection: TenantSelection,
+) -> Result<Sse<BoxStream<'static, Result<Event, Infallible>>>, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
+    Ok(snapshot_event_stream(state.snapshot_feeds.clone(), store))
 }
 
 async fn post_console_telemetry(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    TenantSelection(selection): TenantSelection,
     body: Bytes,
 ) -> StatusCode {
-    let message = build_telemetry_payload(parse_json_body(&body), Some((account, project)));
+    let message = build_telemetry_payload(parse_json_body(&body), selection);
     let _ = state.telemetry_tx.send(message);
     write_telemetry_log(&state, &body);
     StatusCode::NO_CONTENT
 }
 
-async fn get_console_telemetry_events_root(
+async fn get_console_telemetry_events(
     State(state): State<AppState>,
+    _selection: TenantSelection,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let receiver = state.telemetry_tx.subscribe();
     let stream = BroadcastStream::new(receiver).filter_map(|payload| async move {
@@ -1247,13 +1154,6 @@ async fn get_console_telemetry_events_root(
             .interval(Duration::from_secs(15))
             .text(": keep-alive"),
     )
-}
-
-async fn get_console_telemetry_events(
-    State(state): State<AppState>,
-    AxumPath((_account, _project)): AxumPath<(String, String)>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    get_console_telemetry_events_root(State(state)).await
 }
 
 fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>) -> String {
@@ -1278,8 +1178,9 @@ fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>)
 
 // Notification handlers for real-time issue updates
 
-async fn post_notification_root(
+async fn post_notification(
     State(state): State<AppState>,
+    _selection: TenantSelection,
     Json(event): Json<NotificationEvent>,
 ) -> StatusCode {
     // Update cached UI state based on the event
@@ -1289,7 +1190,7 @@ async fn post_notification_root(
     StatusCode::OK
 }
 
-async fn get_ui_state_root(State(state): State<AppState>) -> axum::Json<ConsoleUiState> {
+async fn get_ui_state(State(state): State<AppState>) -> axum::Json<ConsoleUiState> {
     let ui_state = state.ui_state.read().await;
     axum::Json(ui_state.clone())
 }
@@ -1341,8 +1242,9 @@ async fn update_ui_state_from_event(state: &AppState, event: &NotificationEvent)
     }
 }
 
-async fn get_realtime_events_root(
+async fn get_realtime_events(
     State(state): State<AppState>,
+    _selection: TenantSelection,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     // Replay last-known UI state to the new subscriber, if any state has been set
     let replay_events: Vec<Result<Event, Infallible>> = {
@@ -1404,21 +1306,6 @@ async fn get_realtime_events_root(
     )
 }
 
-async fn post_notification(
-    State(state): State<AppState>,
-    AxumPath((_account, _project)): AxumPath<(String, String)>,
-    Json(event): Json<NotificationEvent>,
-) -> StatusCode {
-    post_notification_root(State(state), Json(event)).await
-}
-
-async fn get_realtime_events(
-    State(state): State<AppState>,
-    AxumPath((_account, _project)): AxumPath<(String, String)>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    get_realtime_events_root(State(state)).await
-}
-
 #[derive(Debug, Serialize)]
 struct AuthBootstrapResponse {
     mode: &'static str,
@@ -1448,14 +1335,11 @@ struct RealtimeBootstrapResponse {
     project: String,
 }
 
-async fn get_realtime_bootstrap_root() -> Json<RealtimeBootstrapResponse> {
-    Json(build_local_realtime_bootstrap(None, None))
-}
-
 async fn get_realtime_bootstrap(
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    TenantSelection(selection): TenantSelection,
 ) -> Json<RealtimeBootstrapResponse> {
-    Json(build_local_realtime_bootstrap(Some(account), Some(project)))
+    let (account, project) = selection.unzip();
+    Json(build_local_realtime_bootstrap(account, project))
 }
 
 fn build_local_realtime_bootstrap(
@@ -1474,14 +1358,11 @@ fn build_local_realtime_bootstrap(
     }
 }
 
-async fn get_auth_bootstrap_root() -> Json<AuthBootstrapResponse> {
-    Json(build_local_auth_bootstrap(None, None))
-}
-
 async fn get_auth_bootstrap(
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    TenantSelection(selection): TenantSelection,
 ) -> Json<AuthBootstrapResponse> {
-    Json(build_local_auth_bootstrap(Some(account), Some(project)))
+    let (account, project) = selection.unzip();
+    Json(build_local_auth_bootstrap(account, project))
 }
 
 fn build_local_auth_bootstrap(
@@ -1535,220 +1416,134 @@ fn start_gossip_bridge(state: AppState) {
     });
 }
 
-async fn get_wiki_pages_root(State(state): State<AppState>) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    match list_pages(&store) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+async fn wiki_response<Payload, Work>(
+    store: FileStore,
+    success_status: StatusCode,
+    work: Work,
+) -> Response
+where
+    Payload: Serialize + Send + 'static,
+    Work: FnOnce(&FileStore) -> Result<Payload, WikiServiceError> + Send + 'static,
+{
+    match tokio::task::spawn_blocking(move || work(&store)).await {
+        Ok(Ok(payload)) => (success_status, Json(payload)).into_response(),
+        Ok(Err(error)) => wiki_error_to_response(error),
+        Err(error) => error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-async fn get_wiki_pages(
-    State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
-) -> Response {
-    let store = store_for(&state, &account, &project);
-    match list_pages(&store) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
-    }
-}
-
-async fn get_wiki_page_root(
-    State(state): State<AppState>,
-    Query(query): Query<WikiPathQuery>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
-        }
-    };
-    match get_page(&store, &query.path) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+async fn get_wiki_pages(State(state): State<AppState>, selection: TenantSelection) -> Response {
+    match resolve_store(&state, selection) {
+        Ok(store) => wiki_response(store, StatusCode::OK, list_pages).await,
+        Err(error) => error.into_response(),
     }
 }
 
 async fn get_wiki_page(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Query(query): Query<WikiPathQuery>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    match get_page(&store, &query.path) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
-    }
-}
-
-async fn post_wiki_page_root(
-    State(state): State<AppState>,
-    Json(payload): Json<WikiCreateRequest>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+    match resolve_store(&state, selection) {
+        Ok(store) => {
+            wiki_response(store, StatusCode::OK, move |store| {
+                get_page(store, &query.path)
+            })
+            .await
         }
-    };
-    match create_page(&store, &payload) {
-        Ok(result) => (StatusCode::CREATED, Json(result)).into_response(),
-        Err(error) => wiki_error_to_response(error),
+        Err(error) => error.into_response(),
     }
 }
 
 async fn post_wiki_page(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Json(payload): Json<WikiCreateRequest>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    match create_page(&store, &payload) {
-        Ok(result) => (StatusCode::CREATED, Json(result)).into_response(),
-        Err(error) => wiki_error_to_response(error),
-    }
-}
-
-async fn put_wiki_page_root(
-    State(state): State<AppState>,
-    Json(payload): Json<WikiUpdateRequest>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+    match resolve_store(&state, selection) {
+        Ok(store) => {
+            wiki_response(store, StatusCode::CREATED, move |store| {
+                create_page(store, &payload)
+            })
+            .await
         }
-    };
-    match update_page(&store, &payload) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+        Err(error) => error.into_response(),
     }
 }
 
 async fn put_wiki_page(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Json(payload): Json<WikiUpdateRequest>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    match update_page(&store, &payload) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
-    }
-}
-
-async fn delete_wiki_page_root(
-    State(state): State<AppState>,
-    Query(query): Query<WikiPathQuery>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+    match resolve_store(&state, selection) {
+        Ok(store) => {
+            wiki_response(store, StatusCode::OK, move |store| {
+                update_page(store, &payload)
+            })
+            .await
         }
-    };
-    match delete_page(&store, &query.path) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+        Err(error) => error.into_response(),
     }
 }
 
 async fn delete_wiki_page(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Query(query): Query<WikiPathQuery>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    match delete_page(&store, &query.path) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
-    }
-}
-
-async fn post_wiki_rename_root(
-    State(state): State<AppState>,
-    Json(payload): Json<WikiRenameRequest>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+    match resolve_store(&state, selection) {
+        Ok(store) => {
+            wiki_response(store, StatusCode::OK, move |store| {
+                delete_page(store, &query.path)
+            })
+            .await
         }
-    };
-    match rename_page(&store, &payload) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+        Err(error) => error.into_response(),
     }
 }
 
 async fn post_wiki_rename(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Json(payload): Json<WikiRenameRequest>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    match rename_page(&store, &payload) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
-    }
-}
-
-async fn post_wiki_render_root(
-    State(state): State<AppState>,
-    Json(payload): Json<WikiRenderRequestPayload>,
-) -> Response {
-    let store = match store_for_root(&state) {
-        Some(store) => store,
-        None => {
-            return error_response(
-                "multi-tenant mode requires /:account/:project",
-                StatusCode::BAD_REQUEST,
-            )
+    match resolve_store(&state, selection) {
+        Ok(store) => {
+            wiki_response(store, StatusCode::OK, move |store| {
+                rename_page(store, &payload)
+            })
+            .await
         }
-    };
-    match render_page(&store, &payload) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+        Err(error) => error.into_response(),
     }
 }
 
 async fn post_wiki_render(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    selection: TenantSelection,
     Json(payload): Json<WikiRenderRequestPayload>,
 ) -> Response {
-    let store = store_for(&state, &account, &project);
-    match render_page(&store, &payload) {
-        Ok(result) => Json(result).into_response(),
-        Err(error) => wiki_error_to_response(error),
+    match resolve_store(&state, selection) {
+        Ok(store) => {
+            wiki_response(store, StatusCode::OK, move |store| {
+                render_page(store, &payload)
+            })
+            .await
+        }
+        Err(error) => error.into_response(),
     }
 }
 
 async fn post_render_d2(body: Bytes) -> Response {
+    tokio::task::spawn_blocking(move || render_d2_diagram_blocking(body))
+        .await
+        .unwrap_or_else(|error| {
+            error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+        })
+}
+
+fn render_d2_diagram_blocking(body: Bytes) -> Response {
     // Check if d2 is installed
     let d2_available = Command::new("which")
         .arg("d2")
@@ -1888,9 +1683,12 @@ async fn post_render_d2(body: Bytes) -> Response {
     }
 }
 
+const UNKNOWN_TENANT_DIRECTORY_NAME: &str = ".kanbus-unknown-tenant";
+
 fn store_for(state: &AppState, account: &str, project: &str) -> FileStore {
     let root = if state.multi_tenant {
-        FileStore::resolve_tenant_root(&state.base_root, account, project)
+        FileStore::locate_existing_tenant_root(&state.base_root, account, project)
+            .unwrap_or_else(|| state.base_root.join(UNKNOWN_TENANT_DIRECTORY_NAME))
     } else {
         state.base_root.clone()
     };
@@ -1919,45 +1717,6 @@ fn wiki_error_to_response(error: WikiServiceError) -> Response {
         WikiServiceError::Render(message) => error_response(message, StatusCode::BAD_REQUEST),
         WikiServiceError::Io(message) => error_response(message, StatusCode::INTERNAL_SERVER_ERROR),
     }
-}
-
-fn snapshot_payload(store: &FileStore) -> (String, u64) {
-    match store.build_snapshot() {
-        Ok(snapshot) => {
-            let fingerprint = snapshot_fingerprint(&snapshot);
-            let payload = serde_json::to_string(&snapshot).unwrap_or_else(|error| {
-                serde_json::json!({
-                    "error": error.to_string(),
-                    "updated_at": chrono::Utc::now().to_rfc3339(),
-                })
-                .to_string()
-            });
-            (payload, fingerprint)
-        }
-        Err(error) => {
-            let payload = serde_json::json!({
-                "error": error.to_string(),
-                "updated_at": chrono::Utc::now().to_rfc3339(),
-            })
-            .to_string();
-            (payload.clone(), hash_payload(&payload))
-        }
-    }
-}
-
-fn snapshot_fingerprint(snapshot: &kanbus::console_backend::ConsoleSnapshot) -> u64 {
-    let payload = serde_json::to_vec(&(&snapshot.config, &snapshot.issues)).unwrap_or_default();
-    hash_bytes(&payload)
-}
-
-fn hash_payload(payload: &str) -> u64 {
-    hash_bytes(payload.as_bytes())
-}
-
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    bytes.hash(&mut hasher);
-    hasher.finish()
 }
 
 fn open_telemetry_log(_repo_root: &StdPath) -> Option<Arc<StdMutex<std::fs::File>>> {
@@ -2212,6 +1971,136 @@ mod tests {
             .expect("env lock")
     }
 
+    async fn guarded_status(
+        method: Method,
+        uri: &str,
+        extra_headers: &[(&str, &str)],
+        peer: SocketAddr,
+    ) -> StatusCode {
+        use tower::ServiceExt;
+        let app = apply_request_guards(
+            Router::new()
+                .route(
+                    "/:account/:project/api/thing",
+                    post(|| async { "ok" }).get(|| async { "ok" }),
+                )
+                .route(
+                    "/:account/:project/api/telemetry/console",
+                    post(|| async { "ok" }),
+                ),
+        );
+        let mut builder = axum::http::Request::builder().method(method).uri(uri);
+        for (name, value) in extra_headers {
+            builder = builder.header(*name, *value);
+        }
+        let mut request = builder.body(Body::empty()).expect("request");
+        request.extensions_mut().insert(ConnectInfo(peer));
+        app.oneshot(request).await.expect("response").status()
+    }
+
+    async fn store_api_status(state: AppState, uri: &str) -> StatusCode {
+        store_api_status_for_method(state, Method::GET, uri, "").await
+    }
+
+    async fn store_api_status_for_method(
+        state: AppState,
+        method: Method,
+        uri: &str,
+        json_body: &'static str,
+    ) -> StatusCode {
+        use tower::ServiceExt;
+        let app = apply_request_guards(
+            Router::new()
+                .merge(store_api_routes())
+                .nest("/:account/:project", store_api_routes())
+                .with_state(state),
+        );
+        let mut request = axum::http::Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json")
+            .header(CONSOLE_REQUEST_HEADER, "1")
+            .body(Body::from(json_body))
+            .expect("request");
+        request
+            .extensions_mut()
+            .insert(ConnectInfo(loopback_addr()));
+        app.oneshot(request).await.expect("response").status()
+    }
+
+    #[tokio::test]
+    async fn guards_refuse_cross_origin_and_headerless_writes() {
+        let local: SocketAddr = "127.0.0.1:1".parse().unwrap();
+        let uri = "/acct/proj/api/thing";
+        let same_origin = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://127.0.0.1:5174"),
+            ("x-kanbus-console", "1"),
+        ];
+        assert_eq!(
+            guarded_status(Method::POST, uri, &same_origin, local).await,
+            StatusCode::OK
+        );
+
+        let cross_origin = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://evil.example"),
+            ("x-kanbus-console", "1"),
+        ];
+        assert_eq!(
+            guarded_status(Method::POST, uri, &cross_origin, local).await,
+            StatusCode::FORBIDDEN
+        );
+
+        let missing_header = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://127.0.0.1:5174"),
+        ];
+        assert_eq!(
+            guarded_status(Method::POST, uri, &missing_header, local).await,
+            StatusCode::FORBIDDEN
+        );
+
+        let remote: SocketAddr = "10.0.0.5:1".parse().unwrap();
+        assert_eq!(
+            guarded_status(Method::POST, uri, &same_origin, remote).await,
+            StatusCode::FORBIDDEN
+        );
+
+        assert_eq!(
+            guarded_status(Method::GET, uri, &[], remote).await,
+            StatusCode::OK
+        );
+
+        let beacon = [
+            ("host", "127.0.0.1:5174"),
+            ("origin", "http://127.0.0.1:5174"),
+        ];
+        assert_eq!(
+            guarded_status(
+                Method::POST,
+                "/acct/proj/api/telemetry/console",
+                &beacon,
+                local
+            )
+            .await,
+            StatusCode::OK
+        );
+    }
+
+    #[tokio::test]
+    async fn guards_reject_traversal_in_tenant_segments() {
+        let local: SocketAddr = "127.0.0.1:1".parse().unwrap();
+        assert_eq!(
+            guarded_status(Method::GET, "/..%2Fetc/proj/api/thing", &[], local).await,
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            guarded_status(Method::GET, "/acct/%2E%2E/api/thing", &[], local).await,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
     fn test_state(base_root: PathBuf, assets_root: PathBuf, multi_tenant: bool) -> AppState {
         let (telemetry_tx, _) = broadcast::channel(8);
         let (notification_tx, _) = broadcast::channel(8);
@@ -2223,6 +2112,7 @@ mod tests {
             telemetry_tx,
             telemetry_log: None::<Arc<StdMutex<std::fs::File>>>,
             notification_tx,
+            snapshot_feeds: SnapshotFeedRegistry::new(),
             ui_state: Arc::new(RwLock::new(ConsoleUiState::default())),
         }
     }
@@ -2315,10 +2205,11 @@ mod tests {
         write_issue(&root, "kbs-remote");
         let state = test_state(root.clone(), root.clone(), false);
 
-        let response = post_issue_comment_root(
+        let response = post_issue_comment(
             ConnectInfo(remote_addr()),
-            State(state),
-            AxumPath("kbs-remote".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-remote".to_string()),
             Json(IssueCommentRequest {
                 text: "should be refused".to_string(),
             }),
@@ -2343,10 +2234,11 @@ mod tests {
         write_issue(&root, "kbs-local");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_comment_root(
+        let response = post_issue_comment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-local".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-local".to_string()),
             Json(IssueCommentRequest {
                 text: "hello from localhost".to_string(),
             }),
@@ -2364,10 +2256,11 @@ mod tests {
         write_issue(&root, "kbs-assign");
         let state = test_state(root.clone(), root.clone(), false);
 
-        let response = post_issue_assignment_root(
+        let response = post_issue_assignment(
             ConnectInfo(remote_addr()),
-            State(state),
-            AxumPath("kbs-assign".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Set {
                 kind: "class".to_string(),
                 name: "implementation".to_string(),
@@ -2390,10 +2283,11 @@ mod tests {
         write_issue(&root, "kbs-assign");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_assignment_root(
+        let response = post_issue_assignment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-assign".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Set {
                 kind: "class".to_string(),
                 name: "implementation".to_string(),
@@ -2412,10 +2306,11 @@ mod tests {
         write_issue(&root, "kbs-assign");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_assignment_root(
+        let response = post_issue_assignment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-assign".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Clear { clear: false }),
         )
         .await;
@@ -2445,10 +2340,11 @@ mod tests {
         write_issue(&root, "kbs-status");
         let state = test_state(root.clone(), root, false);
 
-        let response = post_issue_status_root(
+        let response = post_issue_status(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-status".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-status".to_string()),
             Json(IssueStatusRequest {
                 status: "not-a-status".to_string(),
             }),
@@ -2486,10 +2382,11 @@ mod tests {
         write_awaiting_reply_event(&root, "kbs-blocked", "session-A");
         let state = test_state(root.clone(), root.clone(), false);
 
-        let response = post_issue_comment_root(
+        let response = post_issue_comment(
             ConnectInfo(loopback_addr()),
-            State(state),
-            AxumPath("kbs-blocked".to_string()),
+            State(state.clone()),
+            TenantSelection(None),
+            IssueIdentifierPath("kbs-blocked".to_string()),
             Json(IssueCommentRequest {
                 text: "please continue".to_string(),
             }),
@@ -2644,16 +2541,6 @@ mod tests {
     }
 
     #[test]
-    fn hash_helpers_are_deterministic() {
-        let first = hash_payload("payload");
-        let second = hash_payload("payload");
-        let bytes_hash = hash_bytes(b"payload");
-
-        assert_eq!(first, second);
-        assert_eq!(first, bytes_hash);
-    }
-
-    #[test]
     fn parse_json_body_falls_back_to_raw_string_payload() {
         let parsed = parse_json_body(&Bytes::from("not-json"));
         assert_eq!(parsed, serde_json::Value::String("not-json".to_string()));
@@ -2769,11 +2656,23 @@ mod tests {
     #[test]
     fn store_for_uses_tenant_root_in_multi_tenant_mode() {
         let temp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(temp.path().join("acct").join("proj")).expect("mkdir");
         let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
         let store = store_for(&state, "acct", "proj");
         assert_eq!(
             store.root(),
             FileStore::resolve_tenant_root(temp.path(), "acct", "proj")
+        );
+    }
+
+    #[test]
+    fn store_for_uses_unknown_tenant_sentinel_when_directory_is_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        let store = store_for(&state, "acct", "proj");
+        assert_eq!(
+            store.root(),
+            temp.path().join(UNKNOWN_TENANT_DIRECTORY_NAME)
         );
     }
 
@@ -2862,6 +2761,7 @@ mod tests {
             telemetry_tx,
             telemetry_log: None,
             notification_tx,
+            snapshot_feeds: SnapshotFeedRegistry::new(),
             ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
         };
 
@@ -2889,6 +2789,7 @@ mod tests {
             telemetry_tx,
             telemetry_log: None,
             notification_tx,
+            snapshot_feeds: SnapshotFeedRegistry::new(),
             ui_state: Arc::new(tokio::sync::RwLock::new(ConsoleUiState::default())),
         };
 
@@ -2920,30 +2821,6 @@ mod tests {
         assert!(temp.path().join("project").is_dir());
         assert!(temp.path().join("project/issues").is_dir());
         assert!(temp.path().join("project/events").is_dir());
-    }
-
-    #[test]
-    fn snapshot_payload_returns_error_payload_when_snapshot_build_fails() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = FileStore::new(temp.path().to_path_buf());
-        let (payload, fingerprint) = snapshot_payload(&store);
-        assert!(payload.contains("\"error\""));
-        assert_eq!(fingerprint, hash_payload(&payload));
-    }
-
-    #[test]
-    fn snapshot_payload_success_uses_snapshot_fingerprint() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
-        setup_project_root(&root);
-        write_issue(&root, "kbs-1");
-        let store = FileStore::new(root.clone());
-        let snapshot = store.build_snapshot().expect("snapshot");
-        let expected_fingerprint = snapshot_fingerprint(&snapshot);
-
-        let (payload, fingerprint) = snapshot_payload(&store);
-        assert_eq!(fingerprint, expected_fingerprint);
-        assert!(payload.contains("\"issues\""));
     }
 
     #[tokio::test]
@@ -3055,33 +2932,19 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
 
-        assert_eq!(
-            get_config_root(State(state.clone())).await.status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_issues_root(State(state.clone())).await.status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
-                .await
-                .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_issue_events_root(
-                State(state.clone()),
-                AxumPath("kbs-1".to_string()),
-                Query(IssueEventsQuery {
-                    limit: Some(10),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
+        for uri in [
+            "/api/config",
+            "/api/issues",
+            "/api/issues/kbs-1",
+            "/api/issues/kbs-1/events?limit=10",
+            "/api/events",
+        ] {
+            assert_eq!(
+                store_api_status(state.clone(), uri).await,
+                StatusCode::BAD_REQUEST,
+                "{uri}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -3089,80 +2952,47 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
 
-        assert_eq!(
-            get_wiki_pages_root(State(state.clone())).await.status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            get_wiki_page_root(
-                State(state.clone()),
-                Query(WikiPathQuery {
-                    path: "page.md".to_string(),
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            post_wiki_page_root(
-                State(state.clone()),
-                Json(WikiCreateRequest {
-                    path: "page.md".to_string(),
-                    content: Some("content".to_string()),
-                    overwrite: Some(false),
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            put_wiki_page_root(
-                State(state.clone()),
-                Json(WikiUpdateRequest {
-                    path: "page.md".to_string(),
-                    content: "updated".to_string(),
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            delete_wiki_page_root(
-                State(state.clone()),
-                Query(WikiPathQuery {
-                    path: "page.md".to_string(),
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            post_wiki_rename_root(
-                State(state.clone()),
-                Json(WikiRenameRequest {
-                    from_path: "old.md".to_string(),
-                    to_path: "new.md".to_string(),
-                    overwrite: Some(false),
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::BAD_REQUEST
-        );
-        assert_eq!(
-            post_wiki_render_root(
-                State(state),
-                Json(WikiRenderRequestPayload {
-                    path: "page.md".to_string(),
-                    content: Some("content".to_string()),
-                }),
-            )
-            .await
-            .status(),
+        let requests = [
+            (Method::GET, "/api/wiki/pages", ""),
+            (Method::GET, "/api/wiki/page?path=page.md", ""),
+            (
+                Method::POST,
+                "/api/wiki/page",
+                r#"{"path":"page.md","content":"content"}"#,
+            ),
+            (
+                Method::PUT,
+                "/api/wiki/page",
+                r#"{"path":"page.md","content":"updated"}"#,
+            ),
+            (Method::DELETE, "/api/wiki/page?path=page.md", ""),
+            (
+                Method::POST,
+                "/api/wiki/rename",
+                r#"{"from_path":"old.md","to_path":"new.md"}"#,
+            ),
+            (
+                Method::POST,
+                "/api/wiki/render",
+                r#"{"path":"page.md","content":"content"}"#,
+            ),
+        ];
+        for (method, uri, body) in requests {
+            assert_eq!(
+                store_api_status_for_method(state.clone(), method.clone(), uri, body).await,
+                StatusCode::BAD_REQUEST,
+                "{method} {uri}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn tenant_wiki_listing_resolves_the_tenant_store() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        assert_ne!(
+            store_api_status(state, "/acct/proj/api/wiki/pages").await,
             StatusCode::BAD_REQUEST
         );
     }
@@ -3176,13 +3006,18 @@ mod tests {
             action: UiControlAction::ReloadPage,
         };
         assert_eq!(
-            post_notification_root(State(state.clone()), Json(event.clone())).await,
+            post_notification(
+                State(state.clone()),
+                TenantSelection(None),
+                Json(event.clone())
+            )
+            .await,
             StatusCode::OK
         );
         assert_eq!(
             post_notification(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Json(event),
             )
             .await,
@@ -3190,13 +3025,18 @@ mod tests {
         );
 
         assert_eq!(
-            post_console_telemetry_root(State(state.clone()), Bytes::from("{}")).await,
+            post_console_telemetry(
+                State(state.clone()),
+                TenantSelection(None),
+                Bytes::from("{}")
+            )
+            .await,
             StatusCode::NO_CONTENT
         );
         assert_eq!(
             post_console_telemetry(
                 State(state),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Bytes::from("{}"),
             )
             .await,
@@ -3214,11 +3054,11 @@ mod tests {
             ui_state.focused_comment_id = Some("comment-2".to_string());
         }
 
-        let ui_state = get_ui_state_root(State(state.clone())).await.0;
+        let ui_state = get_ui_state(State(state.clone())).await.0;
         assert_eq!(ui_state.focused_issue_id.as_deref(), Some("kbs-88"));
         assert_eq!(ui_state.focused_comment_id.as_deref(), Some("comment-2"));
 
-        let realtime = get_realtime_events_root(State(state.clone()))
+        let realtime = get_realtime_events(State(state.clone()), TenantSelection(None))
             .await
             .into_response();
         assert_eq!(realtime.status(), StatusCode::OK);
@@ -3230,7 +3070,7 @@ mod tests {
             Some("text/event-stream")
         );
 
-        let telemetry = get_console_telemetry_events_root(State(state))
+        let telemetry = get_console_telemetry_events(State(state), TenantSelection(None))
             .await
             .into_response();
         assert_eq!(telemetry.status(), StatusCode::OK);
@@ -3244,28 +3084,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn events_root_supports_single_and_multi_tenant_modes() {
+    async fn events_stream_is_served_as_server_sent_events_for_a_single_tenant_store() {
+        use tower::ServiceExt;
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         setup_project_root(&root);
         write_issue(&root, "kbs-1");
-
-        let single_tenant = test_state(root.clone(), root.clone(), false);
-        let single_response = get_events_root(State(single_tenant)).await.into_response();
-        assert_eq!(single_response.status(), StatusCode::OK);
+        let state = test_state(root.clone(), root, false);
+        let app = Router::new().merge(store_api_routes()).with_state(state);
+        let request = axum::http::Request::builder()
+            .uri("/api/events")
+            .body(Body::empty())
+            .expect("request");
+        let response = app.oneshot(request).await.expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(
-            single_response
-                .headers()
-                .get(CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok()),
-            Some("text/event-stream")
-        );
-
-        let multi_tenant = test_state(root.clone(), root, true);
-        let multi_response = get_events_root(State(multi_tenant)).await.into_response();
-        assert_eq!(multi_response.status(), StatusCode::OK);
-        assert_eq!(
-            multi_response
+            response
                 .headers()
                 .get(CONTENT_TYPE)
                 .and_then(|value| value.to_str().ok()),
@@ -3281,113 +3115,30 @@ mod tests {
         write_issue(&root, "kbs-1");
         let state = test_state(root.clone(), root, false);
 
-        assert_eq!(
-            get_config(
-                State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string()))
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issues(
-                State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string()))
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue(
-                State(state.clone()),
-                AxumPath((
-                    "acct".to_string(),
-                    "proj".to_string(),
-                    "kbs-999".to_string()
-                ))
-            )
-            .await
-            .status(),
-            StatusCode::NOT_FOUND
-        );
-        assert_eq!(
-            get_issue_events(
-                State(state),
-                AxumPath((
-                    "acct".to_string(),
-                    "proj".to_string(),
-                    "kbs-999".to_string()
-                )),
-                Query(IssueEventsQuery {
-                    limit: Some(10),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::NOT_FOUND
-        );
-    }
-
-    #[tokio::test]
-    async fn root_and_tenant_issue_endpoints_succeed_for_existing_issue() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
-        setup_project_root(&root);
-        write_issue(&root, "kbs-1");
-        let state = test_state(root.clone(), root, false);
-
-        assert_eq!(
-            get_config_root(State(state.clone())).await.status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issues_root(State(state.clone())).await.status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue_root(State(state.clone()), AxumPath("kbs-1".to_string()))
-                .await
-                .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue_events_root(
-                State(state.clone()),
-                AxumPath("kbs-1".to_string()),
-                Query(IssueEventsQuery {
-                    limit: Some(20),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue(
-                State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            get_issue_events(
-                State(state),
-                AxumPath(("acct".to_string(), "proj".to_string(), "kbs-1".to_string())),
-                Query(IssueEventsQuery {
-                    limit: Some(20),
-                    before: None,
-                }),
-            )
-            .await
-            .status(),
-            StatusCode::OK
-        );
+        for (uri, expected) in [
+            ("/acct/proj/api/config", StatusCode::OK),
+            ("/acct/proj/api/issues", StatusCode::OK),
+            ("/acct/proj/api/issues/kbs-1", StatusCode::OK),
+            ("/acct/proj/api/issues/kbs-999", StatusCode::NOT_FOUND),
+            (
+                "/acct/proj/api/issues/kbs-999/events?limit=10",
+                StatusCode::NOT_FOUND,
+            ),
+            ("/api/config", StatusCode::OK),
+            ("/api/issues", StatusCode::OK),
+            ("/api/issues/kbs-1", StatusCode::OK),
+            ("/api/issues/kbs-1/events?limit=20", StatusCode::OK),
+            (
+                "/acct/proj/api/issues/kbs-1/events?limit=20",
+                StatusCode::OK,
+            ),
+        ] {
+            assert_eq!(
+                store_api_status(state.clone(), uri).await,
+                expected,
+                "{uri}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -3478,7 +3229,7 @@ mod tests {
         assert_eq!(
             post_wiki_page(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Json(WikiCreateRequest {
                     path: "page.md".to_string(),
                     content: Some("hello".to_string()),
@@ -3492,7 +3243,7 @@ mod tests {
         assert_eq!(
             get_wiki_pages(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
             )
             .await
             .status(),
@@ -3501,7 +3252,7 @@ mod tests {
         assert_eq!(
             get_wiki_page(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Query(WikiPathQuery {
                     path: "page.md".to_string(),
                 }),
@@ -3513,7 +3264,7 @@ mod tests {
         assert_eq!(
             put_wiki_page(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Json(WikiUpdateRequest {
                     path: "page.md".to_string(),
                     content: "updated".to_string(),
@@ -3526,7 +3277,7 @@ mod tests {
         assert_eq!(
             post_wiki_rename(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Json(WikiRenameRequest {
                     from_path: "page.md".to_string(),
                     to_path: "renamed.md".to_string(),
@@ -3540,7 +3291,7 @@ mod tests {
         assert_eq!(
             post_wiki_render(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Json(WikiRenderRequestPayload {
                     path: "renamed.md".to_string(),
                     content: None,
@@ -3553,7 +3304,7 @@ mod tests {
         assert_eq!(
             delete_wiki_page(
                 State(state),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Query(WikiPathQuery {
                     path: "renamed.md".to_string(),
                 }),
@@ -3671,77 +3422,154 @@ mod tests {
         }
     }
 
+    async fn tenant_api_response(
+        state: AppState,
+        method: Method,
+        uri: &str,
+        json_body: &'static str,
+    ) -> (StatusCode, Vec<u8>) {
+        use tower::ServiceExt;
+        let app = Router::new()
+            .merge(tenant_api_routes())
+            .nest("/:account/:project", tenant_api_routes())
+            .with_state(state);
+        let mut request = axum::http::Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(json_body))
+            .expect("request");
+        request
+            .extensions_mut()
+            .insert(ConnectInfo(loopback_addr()));
+        let response = app.oneshot(request).await.expect("response");
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        (status, body.to_vec())
+    }
+
+    #[tokio::test]
+    async fn realtime_bootstrap_serves_root_and_tenant_routes_with_tenant_scope() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        let (root_status, root_body) =
+            tenant_api_response(state.clone(), Method::GET, "/api/realtime/bootstrap", "").await;
+        assert_eq!(root_status, StatusCode::OK);
+        let root_json: JsonValue = serde_json::from_slice(&root_body).expect("json");
+        assert_eq!(root_json["account"], "local");
+        assert_eq!(root_json["project"], "local");
+
+        let (tenant_status, tenant_body) = tenant_api_response(
+            state.clone(),
+            Method::GET,
+            "/acct/proj/api/realtime/bootstrap",
+            "",
+        )
+        .await;
+        assert_eq!(tenant_status, StatusCode::OK);
+        let tenant_json: JsonValue = serde_json::from_slice(&tenant_body).expect("json");
+        assert_eq!(tenant_json["account"], "acct");
+        assert_eq!(tenant_json["project"], "proj");
+
+        let (invalid_status, _) = tenant_api_response(
+            state,
+            Method::GET,
+            "/bad%20segment/proj/api/realtime/bootstrap",
+            "",
+        )
+        .await;
+        assert_eq!(invalid_status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn console_telemetry_post_serves_root_and_tenant_routes_with_tenant_scope() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        let mut receiver = state.telemetry_tx.subscribe();
+
+        let (root_status, _) =
+            tenant_api_response(state.clone(), Method::POST, "/api/telemetry/console", "{}").await;
+        assert_eq!(root_status, StatusCode::NO_CONTENT);
+        let root_message: JsonValue =
+            serde_json::from_str(&receiver.recv().await.expect("message")).expect("json");
+        assert!(root_message.get("account").is_none());
+
+        let (tenant_status, _) = tenant_api_response(
+            state.clone(),
+            Method::POST,
+            "/acct/proj/api/telemetry/console",
+            "{}",
+        )
+        .await;
+        assert_eq!(tenant_status, StatusCode::NO_CONTENT);
+        let tenant_message: JsonValue =
+            serde_json::from_str(&receiver.recv().await.expect("message")).expect("json");
+        assert_eq!(tenant_message["account"], "acct");
+        assert_eq!(tenant_message["project"], "proj");
+
+        let (invalid_status, _) = tenant_api_response(
+            state,
+            Method::POST,
+            "/bad%20segment/proj/api/telemetry/console",
+            "{}",
+        )
+        .await;
+        assert_eq!(invalid_status, StatusCode::BAD_REQUEST);
+    }
+
     #[tokio::test]
     async fn auth_bootstrap_endpoints_expose_expected_account_project_scope() {
-        let root = get_auth_bootstrap_root().await.0;
+        let root = get_auth_bootstrap(TenantSelection(None)).await.0;
         assert!(root.account.is_none());
         assert!(root.project.is_none());
         assert_eq!(root.mode, "none");
 
-        let scoped = get_auth_bootstrap(AxumPath(("acct".to_string(), "proj".to_string())))
-            .await
-            .0;
+        let scoped = get_auth_bootstrap(TenantSelection(Some((
+            "acct".to_string(),
+            "proj".to_string(),
+        ))))
+        .await
+        .0;
         assert_eq!(scoped.account.as_deref(), Some("acct"));
         assert_eq!(scoped.project.as_deref(), Some("proj"));
         assert_eq!(scoped.mode, "none");
     }
 
     #[tokio::test]
-    async fn get_issue_events_root_returns_not_found_for_missing_issue() {
+    async fn issue_events_return_not_found_for_a_missing_issue_on_root_and_tenant_routes() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         setup_project_root(&root);
-        let state = test_state(root.clone(), root, false);
-        let response = get_issue_events_root(
-            State(state),
-            AxumPath("missing".to_string()),
-            Query(IssueEventsQuery {
-                before: None,
-                limit: None,
-            }),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
+        let single_tenant = test_state(root.clone(), root.clone(), false);
+        assert_eq!(
+            store_api_status(single_tenant, "/api/issues/missing/events").await,
+            StatusCode::NOT_FOUND
+        );
 
-    #[tokio::test]
-    async fn get_issue_events_returns_not_found_for_missing_issue() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
         let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
         setup_project_root(&tenant_dir);
-        let state = test_state(root.clone(), root, true);
-        let response = get_issue_events(
-            State(state),
-            AxumPath((
-                "acct".to_string(),
-                "proj".to_string(),
-                "missing".to_string(),
-            )),
-            Query(IssueEventsQuery {
-                before: None,
-                limit: None,
-            }),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let multi_tenant = test_state(root.clone(), root, true);
+        assert_eq!(
+            store_api_status(multi_tenant, "/acct/proj/api/issues/missing/events").await,
+            StatusCode::NOT_FOUND
+        );
     }
 
     #[tokio::test]
-    async fn get_events_returns_events_in_multi_tenant_mode() {
+    async fn events_stream_is_served_for_a_tenant_store_in_multi_tenant_mode() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         let tenant_dir = FileStore::resolve_tenant_root(&root, "acct", "proj");
         setup_project_root(&tenant_dir);
         write_issue(&tenant_dir, "kbs-1");
         let state = test_state(root.clone(), root, true);
-        let response = get_events(
-            State(state),
-            AxumPath(("acct".to_string(), "proj".to_string())),
-        )
-        .await
-        .into_response();
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            store_api_status(state, "/acct/proj/api/events").await,
+            StatusCode::OK
+        );
     }
 
     #[tokio::test]
@@ -3753,20 +3581,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_issues_root_returns_error_when_snapshot_fails() {
+    async fn snapshot_routes_return_server_error_when_the_project_cannot_be_loaded() {
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().canonicalize().expect("canonical root");
         let state = test_state(root.clone(), root, false);
-        let response = get_issues_root(State(state)).await;
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    #[tokio::test]
-    async fn get_config_root_returns_error_when_snapshot_fails() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let root = temp.path().canonicalize().expect("canonical root");
-        let state = test_state(root.clone(), root, false);
-        let response = get_config_root(State(state)).await;
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        for uri in ["/api/issues", "/api/config"] {
+            assert_eq!(
+                store_api_status(state.clone(), uri).await,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "{uri}"
+            );
+        }
     }
 }

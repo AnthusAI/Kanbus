@@ -8,7 +8,9 @@ import math
 import os
 import posixpath
 import signal
+import re
 import subprocess
+import sys
 import threading
 import uuid
 from collections import deque
@@ -86,6 +88,7 @@ from kanbus.router_adapters import (
     RouterCheckpoint,
     RouterExecutionRequest,
     _process_identity,
+    signal_process_group,
 )
 from kanbus.router_conversation import latest_conversation, record_conversation
 from kanbus.router_forge import (
@@ -491,6 +494,28 @@ def run_router_once(
                 listener.stop()
 
 
+WATCH_POLL_BACKOFF_CEILING_SECONDS = 300.0
+TRANSIENT_GITHUB_STATUS_PATTERN = re.compile(
+    r"^GitHub API returned status (429|5\d\d)$"
+)
+
+
+def is_transient_github_error(error: Exception) -> bool:
+    """Whether a GitHub failure should delay the watch loop instead of ending it."""
+    message = str(error)
+    return message == "GitHub API unavailable" or bool(
+        TRANSIENT_GITHUB_STATUS_PATTERN.match(message)
+    )
+
+
+def watch_poll_backoff_seconds(interval: float, consecutive_failures: int) -> float:
+    """Delay before the next poll after consecutive transient GitHub failures."""
+    return min(
+        interval * (2 ** max(consecutive_failures, 1)),
+        WATCH_POLL_BACKOFF_CEILING_SECONDS,
+    )
+
+
 def run_router_watch(context: RouterContext) -> None:
     """Reconcile immediately, then poll durable state at the configured interval."""
     interval = parse_duration(context.router.watch_interval)
@@ -502,6 +527,8 @@ def run_router_watch(context: RouterContext) -> None:
     renewal_stop: threading.Event | None = None
     renewal_thread: threading.Thread | None = None
     control_started = False
+    _prune_stale_worktrees(context.root)
+    consecutive_poll_failures = 0
     try:
         scheduler_handles, scheduler_claim_id = _acquire_watch_scheduler_claim(
             context,
@@ -532,7 +559,22 @@ def run_router_watch(context: RouterContext) -> None:
             if current.control.stop_requested:
                 break
             _assert_scheduler_claim(current, scheduler_handles)
-            _reconcile_pull_requests(current, scheduler_handles)
+            try:
+                _reconcile_pull_requests(current, scheduler_handles)
+                consecutive_poll_failures = 0
+            except IssueRouterError as error:
+                if not is_transient_github_error(error):
+                    raise
+                consecutive_poll_failures += 1
+                backoff = watch_poll_backoff_seconds(
+                    interval, consecutive_poll_failures
+                )
+                print(
+                    f"router watch: {error}; retrying in {backoff:.0f}s",
+                    file=sys.stderr,
+                )
+                _wait_for_watch_trigger(listener, backoff)
+                continue
             result = run_router_once(
                 current,
                 listener_managed=True,
@@ -1118,13 +1160,18 @@ def _existing_pull_request_branch(project_dir: Path, package_id: str) -> str | N
 
 
 def _remote_branch_exists(root: Path, branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "ls-remote", "--heads", "origin", f"refs/heads/{branch}"],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "--heads", "origin", f"refs/heads/{branch}"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     if result.returncode != 0:
         return False
     return bool(result.stdout.strip())
@@ -1264,7 +1311,7 @@ def _worktree_base_commit(root: Path, metadata_dir: Path) -> str:
             text=True,
         ).stdout.strip()
         return commit
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError(
             "router could not prepare an isolated worktree"
         ) from error
@@ -1353,8 +1400,10 @@ def _open_pull_request(
                 check=True,
                 capture_output=True,
                 text=True,
+                env=_git_network_environment(),
+                timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
             )
-        except (OSError, subprocess.CalledProcessError) as error:
+        except (OSError, subprocess.SubprocessError) as error:
             raise IssueRouterError(
                 "router could not publish branch to GitHub"
             ) from error
@@ -2210,8 +2259,10 @@ def _restore_stale_pull_request_branch(
             check=True,
             capture_output=True,
             text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.SubprocessError):
         return False
     return True
 
@@ -2346,6 +2397,7 @@ def _signal_registered_adapter(root: Path, package_id: str, claim_id: str) -> No
                 os.close(process_handle)
         elif _process_identity(pid) == process_identity:
             os.kill(pid, signal.SIGTERM)
+        signal_process_group(pid, signal.SIGTERM)
     except (OSError, ValueError, TypeError):
         return
 
@@ -2905,24 +2957,50 @@ def _latest_relevant_review(
     )
 
 
+def _prune_stale_worktrees(root: Path) -> None:
+    subprocess.run(
+        ["git", "worktree", "prune"], cwd=root, check=False, capture_output=True
+    )
+
+
+ROUTER_GIT_NETWORK_TIMEOUT_SECONDS = 120
+
+
+def _git_network_environment() -> dict[str, str]:
+    return {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ASKPASS": "/bin/false"}
+
+
 def _git(root: Path, arguments: list[str]) -> str:
     try:
         result = subprocess.run(
-            ["git", *arguments], cwd=root, check=True, capture_output=True, text=True
+            ["git", *arguments],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
         )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError("router isolated worktree operation failed") from error
     return result.stdout.strip()
 
 
 def _remote_ref_sha(root: Path, ref: str) -> str | None:
-    result = subprocess.run(
-        ["git", "ls-remote", "origin", ref],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", "origin", ref],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=_git_network_environment(),
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise IssueRouterError(
+            "router could not inspect the current remote ref"
+        ) from error
     if result.returncode != 0:
         raise IssueRouterError("router could not inspect the current remote ref")
     first = result.stdout.strip().split(maxsplit=1)
@@ -2973,7 +3051,7 @@ def _agent_changed_paths(project_directory: str, claim_id: str) -> list[PurePosi
                 capture_output=True,
             ).stdout
             changed.extend(path for path in committed.split(b"\0") if path)
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError(
             "router could not inspect isolated worktree changes"
         ) from error
@@ -3077,7 +3155,7 @@ def _commit_isolated_worktree(
             capture_output=True,
             text=True,
         )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise IssueRouterError(
             "router could not create an isolated checkpoint"
         ) from error
@@ -3119,8 +3197,10 @@ def _update_checkpoint_ref(root: Path, ref: str, object_id: str) -> str | None:
                 check=True,
                 capture_output=True,
                 text=True,
+                env=_git_network_environment(),
+                timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
             )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         if previous is None:
             subprocess.run(
                 ["git", "update-ref", "-d", ref],
@@ -3195,8 +3275,10 @@ def _restore_checkpoint_ref(
                 check=True,
                 capture_output=True,
                 text=True,
+                env=_git_network_environment(),
+                timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
             )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.SubprocessError):
         # The failed claim has no further authority. The newer ref owner wins.
         return
 

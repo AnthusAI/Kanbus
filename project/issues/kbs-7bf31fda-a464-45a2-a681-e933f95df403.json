@@ -1,0 +1,30 @@
+{
+  "id": "kbs-7bf31fda-a464-45a2-a681-e933f95df403",
+  "title": "Router process hygiene: process groups and reaping, worktree pruning, timeouts, resilient watch loop, no credential copies",
+  "description": "Problem: the router's operational layer leaks processes, worktrees and credentials. (a) rust/src/router.rs:5489-5494 kills the agent child on the one-hour timeout and returns without wait(); neither runtime puts the agent in its own process group (router.rs:5428-5436 plain spawn; python/src/kanbus/router_adapters.py:146-170 Popen without start_new_session), so Codex or OpenCode grandchildren survive every cancel path and keep holding the worktree. This explains the zombie kbs processes seen in the field. (b) Rust creates a registered worktree per attempt under /tmp/kanbus-router-worktrees/<issue>-<claim> (router.rs:6419-6424) and never prunes; Python keeps them under the git common dir and removes superseded ones (router_execution.py:1172-1209). (c) The watch loop exits on any transient GitHub error (router.rs:4228-4236) and the GitHub reqwest client has no timeout (router.rs:6462-6466); 55 of 62 Command::new(\"git\") sites bypass router_git_command and its ROUTER_GIT_TIMEOUT (router.rs:421-478), and in soft mode lease renewal shares the thread with pushes (router.rs:5500-5520, 712-957). (d) Each OpenCode package copies ~/.local/share/opencode/auth.json under <git-common-dir>/kanbus-router-adapters/opencode/<issue>/ (router.rs:5764-5776; router_adapters.py:333-345), one copy per issue, never removed. (e) Agent transcripts are committed to the shared kanbus/router-state branch with redaction that only masks whitespace-delimited words starting with sk- and collapses newlines (router.rs:6004-6017); Python redacts nothing (router_execution.py:1004). (f) Rust checks PID liveness with a kill -0 shell-out (router.rs:3251-3256) so a reused PID blocks 'router run --watch'; Python stores a boot-id identity (router_adapters.py:465-503). (g) The Mutex API accepts plaintext http:// for bearer tokens (rust/src/mutex_api.rs:55-67; coordination_mutex_api.py:51-57) while the LLM client requires TLS or loopback (litellm_completion.rs:150-175). (h) docs/ISSUE_ROUTER_DESIGN.md:53 says credentials come only from the named env var, but router.rs:6656-6683 falls back to 'gh auth token'; the doc also says OpenCode is supported at :5 and that codex is the only adapter at :49.\n\nWork: setsid/start_new_session and kill the process group on cancel and timeout, always wait after kill; move Rust worktrees to the git common dir, remove on terminal outcomes, 'git worktree prune' at watch start; connect and read timeouts on the GitHub client; route all network git through the timeout helper; log-and-continue with backoff on poll errors, exit only on configuration or fence errors; renew soft leases from the RouterLeaseRenewalGuard thread; stop copying auth.json (point OpenCode at a private data dir with 0600 copies deleted at terminal state at minimum); one shared redaction helper covering OpenAI, GitHub ghp_/github_pat_, AWS, Slack and Authorization headers, preserving newlines, applied in both runtimes; boot-id process identity in Rust; require encrypted transport for the mutex endpoint; fix the design doc. Keep router.workflow exactly as it is; it is the legality gate and is correct.\n\nAcceptance: a test spawns an adapter that forks a sleeping grandchild, cancels, and asserts no survivors; no worktree remains after a package reaches a terminal state; a simulated 500 from GitHub does not stop the watch loop; redaction tests cover each token family in both runtimes.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "221bac46-d8b3-48cc-a711-71c1b7038b22",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Not started (router process hygiene); no branch or PR exists. The task description is self-contained. Do not start it while kbs-eb1788eb or the console slice (kbs-29c41525) is still open, per the low-WIP rule.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-17T16:37:45.540689981Z",
+  "updated_at": "2026-10-19T16:42:31.569399000Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

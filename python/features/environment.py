@@ -114,6 +114,7 @@ def before_all(context: object) -> None:
     os.environ["HOME"] = context.bdd_home_dir
 
     context._stripped_developer_env_vars = _strip_developer_environment_variables()
+    os.environ["KANBUS_ENABLE_TEST_HOOKS"] = "1"
 
     if os.environ.get("KANBUS_ENABLE_COVERAGE_HELPER") != "1":
         return
@@ -142,6 +143,25 @@ def after_all(context: object) -> None:
         shutil.rmtree(bdd_home_dir, ignore_errors=True)
 
 
+def _remove_scenario_temporary_directory(temp_dir_object: object) -> None:
+    """Remove a scenario sandbox even while a child process is still exiting.
+
+    Router and daemon children can write into the sandbox while it is being
+    deleted, which makes a plain cleanup fail with "directory not empty" and
+    turns an unrelated scenario into an errored hook.
+    """
+    import shutil
+    from time import sleep
+
+    for _attempt in range(5):
+        try:
+            temp_dir_object.cleanup()
+            return
+        except OSError:
+            sleep(0.2)
+    shutil.rmtree(temp_dir_object.name, ignore_errors=True)
+
+
 def after_scenario(context: object, scenario: object) -> None:
     """Clean up temp directories after each scenario.
 
@@ -156,7 +176,7 @@ def after_scenario(context: object, scenario: object) -> None:
 
     temp_dir_object = getattr(context, "temp_dir_object", None)
     if temp_dir_object is not None:
-        temp_dir_object.cleanup()
+        _remove_scenario_temporary_directory(temp_dir_object)
         context.temp_dir_object = None
         context.temp_dir = None
     server = getattr(context, "daemon_server", None)

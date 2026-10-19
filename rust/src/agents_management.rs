@@ -5,13 +5,14 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
-#[cfg(tarpaulin)]
-use crate::config::default_project_configuration;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
 use crate::file_io::refresh_project_wiki_agents_file;
-use crate::methodology_bundles::{render_selected_methodologies, RenderedMethodology};
+use crate::methodology_bundles::{
+    load_built_in_methodology, load_selected_methodologies, render_methodology_document,
+    render_selected_methodologies, RenderedMethodology,
+};
 use crate::models::ProjectConfiguration;
 use crate::project_management_template::{
     default_project_management_template, default_project_management_template_filename,
@@ -103,6 +104,28 @@ pub fn project_management_text(root: &Path) -> Result<String, KanbusError> {
     build_project_management_text(root)
 }
 
+/// Render one methodology for display, configured or built in.
+///
+/// # Errors
+/// Returns `KanbusError` when the methodology is unknown or fails to render.
+pub fn render_methodology_by_name(
+    root: &Path,
+    methodology_name: &str,
+) -> Result<RenderedMethodology, KanbusError> {
+    let configuration_path = get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    let context = build_project_management_context(&configuration);
+    let configured_methodologies = load_selected_methodologies(root, &configuration)?;
+    let methodology = match configured_methodologies
+        .into_iter()
+        .find(|configured_methodology| configured_methodology.name == methodology_name)
+    {
+        Some(configured_methodology) => configured_methodology,
+        None => load_built_in_methodology(methodology_name)?,
+    };
+    render_methodology_document(&methodology, &context)
+}
+
 fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
     let configuration_path = get_configuration_path(root)?;
     let configuration = load_project_configuration(&configuration_path)?;
@@ -114,7 +137,7 @@ fn build_project_management_text(root: &Path) -> Result<String, KanbusError> {
         None => default_project_management_template().to_string(),
     };
     let mut context = build_project_management_context(&configuration);
-    context.methodologies = render_selected_methodologies(&configuration, &context)?;
+    context.methodologies = render_selected_methodologies(root, &configuration, &context)?;
     let env = minijinja::Environment::new();
     env.render_str(&template_text, context)
         .map_err(|error| KanbusError::IssueOperation(error.to_string()))
@@ -526,64 +549,6 @@ fn parse_header(line: &str) -> Option<(usize, String)> {
         return None;
     }
     Some((count, text.to_string()))
-}
-
-#[cfg(tarpaulin)]
-pub fn cover_parse_header_cases() {
-    let _ = parse_header("plain text");
-    let _ = parse_header("####### too many");
-    let _ = parse_header("#NoSpace");
-    let _ = parse_header("# ");
-    let _ = parse_header("# Header");
-    let _ = parse_header("##\tTabbed");
-}
-
-#[cfg(tarpaulin)]
-pub fn cover_agents_management_paths(root: &Path) {
-    let mut configuration = default_project_configuration();
-    configuration.project_management_template = Some("missing-template.md".to_string());
-    let _ = resolve_project_management_template_path(root, &configuration);
-    let absolute_template = root.join("absolute-template.md");
-    let _ = fs::write(&absolute_template, "template");
-    configuration.project_management_template =
-        Some(absolute_template.to_string_lossy().to_string());
-    let _ = resolve_project_management_template_path(root, &configuration);
-    configuration.project_management_template = None;
-    let _ = resolve_project_management_template_path(root, &configuration);
-    let conventional = root.join(default_project_management_template_filename());
-    let _ = fs::write(&conventional, "template");
-    let _ = resolve_project_management_template_path(root, &configuration);
-
-    let _ = build_parent_child_rules(&[], &["bug".to_string()]);
-    let _ = build_parent_child_rules(&[], &[]);
-
-    let mut empty_workflows = configuration.clone();
-    empty_workflows.workflows = BTreeMap::new();
-    let _ = build_command_examples(&empty_workflows);
-    let mut single_level = configuration.clone();
-    single_level.hierarchy = vec!["task".to_string()];
-    single_level.types = vec!["bug".to_string()];
-    let _ = build_command_examples(&single_level);
-
-    let mut transitions = BTreeMap::new();
-    transitions.insert("open".to_string(), Vec::new());
-    transitions.insert("done".to_string(), vec!["closed".to_string()]);
-    let _ = select_status_example("open", &transitions);
-    let _ = select_status_example("open", &BTreeMap::new());
-
-    let _ = find_section_end(&[String::from("No headers")], 0, 1);
-    let _ = parse_header("# ");
-    let _ = replace_sections(
-        &[String::from("# Header")],
-        &[],
-        &SectionMatch { start: 1, end: 1 },
-        &["## Project management with Kanbus"],
-    );
-    let _ = find_insert_index(&[String::from("No header here")]);
-
-    let instructions = root.join(PROJECT_MANAGEMENT_FILENAME);
-    let _ = fs::write(&instructions, "content");
-    let _ = ensure_project_management_file(root, false, "content");
 }
 
 fn replace_sections(

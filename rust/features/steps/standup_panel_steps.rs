@@ -252,6 +252,7 @@ fn when_request_standup_from_console_api(world: &mut KanbusWorld, profile: Strin
         let client = Client::new();
         let response = client
             .post(url)
+            .header("X-Kanbus-Console", "1")
             .json(&payload)
             .send()
             .expect("standup request");

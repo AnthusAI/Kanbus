@@ -44,7 +44,10 @@ use crate::hooks::{
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
-use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
+use crate::issue_comment::{
+    add_comment, delete_comment, ensure_issue_comment_ids, load_issue_with_display_comment_ids,
+    update_comment,
+};
 use crate::issue_commit::commit_project_issues;
 use crate::issue_creation::{create_issue, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
@@ -282,6 +285,11 @@ enum Commands {
     Setup {
         #[command(subcommand)]
         command: SetupCommands,
+    },
+    /// Work with the methodologies configured in .kanbus.yml.
+    Methodology {
+        #[command(subcommand)]
+        command: MethodologyCommands,
     },
     /// Create a new issue.
     ///
@@ -851,13 +859,6 @@ fn merge_issue_views(mut beads: IssueData, project: IssueData) -> IssueData {
     beads
 }
 
-#[cfg(tarpaulin)]
-fn cover_help_request() {
-    let _ = is_help_request(ErrorKind::DisplayHelp);
-    let _ = is_help_request(ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand);
-    let _ = is_help_request(ErrorKind::DisplayVersion);
-}
-
 #[derive(Debug, Subcommand)]
 enum SetupCommands {
     /// Ensure AGENTS.md includes Kanbus guidance.
@@ -895,6 +896,34 @@ enum SetupCommands {
         /// Report where the value currently resolves from. Never prints the value.
         #[arg(long)]
         status: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum MethodologyCommands {
+    /// List the configured methodologies, then the built-ins that are not active.
+    List,
+    /// Show the rendered guidance of a methodology.
+    Show {
+        /// Methodology name.
+        #[arg(value_name = "METHODOLOGY")]
+        methodology: String,
+    },
+    /// Run a tool declared by a configured methodology bundle, from the repository root.
+    Run {
+        /// Methodology name.
+        #[arg(value_name = "METHODOLOGY")]
+        methodology: String,
+        /// Tool name declared in the methodology's frontmatter.
+        #[arg(value_name = "TOOL")]
+        tool: String,
+        /// Arguments passed to the tool unchanged.
+        #[arg(
+            value_name = "ARGS",
+            trailing_var_arg = true,
+            allow_hyphen_values = true
+        )]
+        tool_arguments: Vec<String>,
     },
 }
 
@@ -1432,8 +1461,6 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    #[cfg(tarpaulin)]
-    cover_help_request();
     start_stderr_capture();
     let args_vec: Vec<OsString> = args.into_iter().map(Into::into).collect();
     let beads_flag = args_vec.iter().any(|arg| arg == "--beads");
@@ -1951,6 +1978,51 @@ fn execute_command(
                 status,
             } => execute_setup_env(root, name, value, from_stdin, status),
         },
+        Commands::Methodology { command } => match command {
+            MethodologyCommands::List => {
+                let configuration_path = get_configuration_path(root)?;
+                let configuration = load_project_configuration(&configuration_path)?;
+                let repository_root = configuration_path.parent().unwrap_or(root);
+                let listing_lines: Vec<String> = crate::methodology_bundles::list_methodologies(
+                    repository_root,
+                    &configuration,
+                )?
+                .iter()
+                .map(|listing| {
+                    format!(
+                        "{} {} ({}) {}",
+                        if listing.active { "*" } else { "-" },
+                        listing.name,
+                        listing.source,
+                        listing.title
+                    )
+                })
+                .collect();
+                Ok(Some(listing_lines.join("\n")))
+            }
+            MethodologyCommands::Show { methodology } => {
+                let rendered_methodology =
+                    crate::agents_management::render_methodology_by_name(root, &methodology)?;
+                Ok(Some(rendered_methodology.content))
+            }
+            MethodologyCommands::Run {
+                methodology,
+                tool,
+                tool_arguments,
+            } => {
+                let configuration_path = get_configuration_path(root)?;
+                let configuration = load_project_configuration(&configuration_path)?;
+                let repository_root = configuration_path.parent().unwrap_or(root);
+                let tool_standard_output = crate::methodology_bundles::run_methodology_tool(
+                    repository_root,
+                    &configuration,
+                    &methodology,
+                    &tool,
+                    &tool_arguments,
+                )?;
+                Ok(Some(tool_standard_output))
+            }
+        },
         Commands::Create {
             title,
             issue_type,
@@ -2142,7 +2214,8 @@ fn execute_command(
                         let configuration = load_project_configuration(&get_configuration_path(
                             lookup.project_dir.as_path(),
                         )?)?;
-                        let mut issue = ensure_issue_comment_ids(lookup_root, &identifier)?;
+                        let mut issue =
+                            load_issue_with_display_comment_ids(lookup_root, &identifier)?;
                         if configuration.beads_compatibility {
                             if let Ok(beads_issue) =
                                 load_beads_issue_by_id(&beads_root_for_show, &identifier)
@@ -3890,11 +3963,22 @@ fn execute_command(
                     result.ai_credential_source
                 )
             };
-            Ok(Some(format!(
-                "ok {}\n{}",
-                result.project_dir.display(),
-                ai_credentials_line
-            )))
+            let methodologies_line = if result.methodology_names.is_empty() {
+                "methodologies: none".to_string()
+            } else {
+                format!("methodologies: {}", result.methodology_names.join(", "))
+            };
+            let mut doctor_lines = vec![
+                format!("ok {}", result.project_dir.display()),
+                ai_credentials_line,
+                methodologies_line,
+            ];
+            if result.project_management_file_is_current == Some(false) {
+                doctor_lines.push(
+                    "warning: CONTRIBUTING_AGENT.md differs from what the configured methodologies generate; run kbs setup agents --force to regenerate it (this replaces hand edits)".to_string(),
+                );
+            }
+            Ok(Some(doctor_lines.join("\n")))
         }
         Commands::Daemon { root } => {
             run_daemon(Path::new(&root))?;
@@ -4549,7 +4633,11 @@ fn execute_command(
             identifier,
             dry_run,
         } => {
-            if std::env::var("KANBUS_TEST_AI_MOCK").ok().as_deref() == Some("1") {
+            if crate::test_hooks::var("KANBUS_TEST_AI_MOCK")
+                .ok()
+                .as_deref()
+                == Some("1")
+            {
                 let messages = crate::summarize::compaction_summarize(root, &identifier, dry_run)?;
                 let output = messages
                     .into_iter()

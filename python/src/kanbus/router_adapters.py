@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 from pathlib import Path
@@ -17,6 +18,34 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from kanbus.issue_router import IssueRouterError
 from kanbus.models import RouterAgentProfile
 from kanbus.router_conversation import codex_session_id
+
+
+def signal_process_group(group_leader_pid: int, signal_number: int) -> None:
+    """Send a signal to a router adapter's whole process group.
+
+    :param group_leader_pid: Process id of the adapter, which leads its own group.
+    :type group_leader_pid: int
+    :param signal_number: Signal to deliver to every process in the group.
+    :type signal_number: int
+    """
+    if group_leader_pid <= 1 or not hasattr(os, "killpg"):
+        return
+    try:
+        os.killpg(group_leader_pid, signal_number)
+    except (ProcessLookupError, PermissionError):
+        return
+
+
+def terminate_process_tree(process: "subprocess.Popen[Any]") -> None:
+    """Kill an adapter and everything it spawned, then reap the adapter.
+
+    :param process: Adapter subprocess started in its own session.
+    :type process: subprocess.Popen[Any]
+    """
+    signal_process_group(process.pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+    if process.poll() is None:
+        process.kill()
+    process.communicate()
 
 
 class RouterIssueUpdate(BaseModel):
@@ -152,6 +181,7 @@ class _SubprocessAdapter:
                 stderr=subprocess.PIPE,
                 text=True,
                 env=self._environment(request),
+                start_new_session=True,
                 **self._popen_extras(),
             )
             self._record_process(request)
@@ -161,9 +191,8 @@ class _SubprocessAdapter:
             self.session_id = self._session_id(stdout)
             return_code = self.process.returncode
         except (OSError, subprocess.TimeoutExpired) as error:
-            if self.process is not None and self.process.poll() is None:
-                self.process.terminate()
-                self.process.communicate()
+            if self.process is not None:
+                terminate_process_tree(self.process)
             raise IssueRouterError(
                 f"{self.display_name} router adapter failed"
             ) from error
@@ -207,7 +236,7 @@ class _SubprocessAdapter:
         """
         del claim_id
         if self.process is not None and self.process.poll() is None:
-            self.process.terminate()
+            signal_process_group(self.process.pid, signal.SIGTERM)
 
     def _record_process(self, request: RouterExecutionRequest) -> None:
         if self.process_record_path is None or self.process is None:
@@ -318,8 +347,9 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         with "database is locked", so each package gets its own directory. It
         persists across attempts (when the router provides ``state_dir``) so a
         saved session can be resumed with a human's reply; without one it is a
-        temporary directory removed after the run. Provider credentials
-        (auth.json) are copied in so non-AWS providers keep working.
+        temporary directory removed after the run. A private owner-only copy of the
+        provider credentials (auth.json) is placed in it for the run, and removed
+        when the run ends.
         """
         if self.state_dir is not None:
             # Same key scheme as the Rust runtime, so either can resume the
@@ -336,12 +366,19 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         )
         auth = shared / "opencode" / "auth.json"
         target = data_home / "opencode"
-        if auth.is_file() and not (target / "auth.json").exists():
+        if auth.is_file():
             target.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(auth, target / "auth.json")
+            private_copy = target / "auth.json"
+            shutil.copyfile(auth, private_copy)
+            private_copy.chmod(0o600)
+            self._private_credentials_copy = private_copy
         return str(data_home)
 
     def _cleanup(self) -> None:
+        private_copy = getattr(self, "_private_credentials_copy", None)
+        if private_copy is not None:
+            private_copy.unlink(missing_ok=True)
+            self._private_credentials_copy = None
         data_home = getattr(self, "_data_home", None)
         if data_home:
             shutil.rmtree(data_home, ignore_errors=True)

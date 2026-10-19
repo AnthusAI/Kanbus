@@ -1,0 +1,30 @@
+{
+  "id": "kbs-7410f7c6-f126-4831-ad7c-6ef1f8de2d65",
+  "title": "Repository hygiene: untrack ignored files, personal settings, coverage output, root lockfile and video tooling",
+  "description": "Problem: 562 tracked paths violate .gitignore (git ls-files -i -c --exclude-standard), including 544 project/events/*.json (7 MB) despite 'project/events/' being ignored, 15 WAV files (9.5 MB) under public/videoml and src/videos despite 'public/' being ignored, coverage.xml (95 KB, a February artifact covering 35 files) at the root, and python/uv.lock frozen at kanbus 0.15.0. .claude/settings.json is committed with 81 absolute paths under one developer's home directory, nvm paths, an S3 bucket name and Beads commands; it applies to every contributor's Claude Code session. .beads/ (config.yaml, issues.jsonl) is the pre-Kanbus tracker. The root package.json and its 944 KB package-lock.json exist only for the Amplify video-CDN backend under amplify/, which amplify.yml never deploys, and npm audit reports 5 critical and 44 high there (3 critical and 26 high in apps/console, 9 high in packages/ui). Root Markdown: CLI_REFERENCE.md, CONFIGURATION.md, MIGRATION.md, WIKI_GUIDE.md, LIFECYCLE_HOOKS.md are stale copies or stubs of docs/; TEST_COVERAGE_REPORT.md and POLICY_AS_CODE_IMPLEMENTATION.md are March completion reports; four VIDEOS_*.md overlap videos/README.md; INSTALL.md duplicates getting-started with a different story. src/ holds video timelines, specs/fixtures is referenced by nothing, planning/ describes project/config.yaml. About a dozen scripts have no callers (scripts/demo-realtime.sh vs realtime-demo.sh, tools/coverage_gate.py, tools/run_amplify_ci.sh, tools/run_specs.py, verify_installation_suite.py, benchmark_cli_latency.py, setup_beads_test_projects.py, scripts/cloud/probe_iot_mqtt.ts). Real AWS account ids and a profile name appear in infra/cloud/README.md:127,134 and scripts/run-aws-proof.py:9-12. 336 of 614 commits are authored by the placeholder identity 'Example Dev'. Related board item: kbs-138d03.\n\nWork: git rm --cached everything .gitignore excludes (decide first whether project/events should be tracked; if yes, remove the ignore rule instead); replace .claude/settings.json with a project-generic allowlist or move it to the gitignored settings.local.json; remove .beads/, coverage.xml, uv.lock; move package.json, package-lock.json, amplify.yml and amplify/ into a videos-cdn/ or infra/amplify/ folder and move src/videos and public/videoml under videos/ (adjusting the ../src/videos paths in videos/scripts and videos/package.json); delete the root docs copies and completion reports, merge VIDEOS_*.md into videos/README.md, fold INSTALL.md into CONTRIBUTING.md; delete or move unreferenced scripts; replace account ids with placeholders and env vars; add 'npm audit --audit-level=high' to CI after fixing the advisories; set a real git identity in the agent environments that commit (document it in AGENTS.md).\n\nAcceptance: git ls-files -i -c --exclude-standard is empty; root directory has README, LICENSE, CONTRIBUTING, SECURITY, AGENTS, CONTRIBUTING_AGENT and build files only; npm audit high and critical count is zero in all three lockfiles.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d928b630-46c8-46ab-b0d3-bc1b578ab5ea",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Partly delivered: PR #453 and #454 (untracked generated, ignored and personal files; removed stale root docs and moved video guides to videos/docs), #455 (wiki_directory prefix strip), #456 (stopped tracking the built console bundle). Not verified: that git ls-files -i -c --exclude-standard is empty, that .claude/settings.json is generic, that npm audit is clean, and that account ids are gone from infra/cloud/README.md and scripts/run-aws-proof.py. Next step: run the acceptance commands, and do what is left.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-17T16:37:46.318569503Z",
+  "updated_at": "2026-10-19T16:42:31.569399000Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

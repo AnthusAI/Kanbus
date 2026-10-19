@@ -138,7 +138,7 @@ def test_completion_raises_when_litellm_not_installed(
     monkeypatch.delenv("KANBUS_TEST_AI_MOCK", raising=False)
     monkeypatch.setattr(summarize, "litellm", None)
 
-    with pytest.raises(RuntimeError, match="litellm package is not installed"):
+    with pytest.raises(RuntimeError, match="litellm is required for AI summaries"):
         summarize._completion(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": "hi"}],

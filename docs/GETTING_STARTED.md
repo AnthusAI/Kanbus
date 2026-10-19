@@ -51,7 +51,7 @@ kbs --version
 ### Package managers
 
 ```bash
-pip install kanbus      # Python CLI: kanbus (Python 3.11 or later)
+pip install kanbus      # Python CLI: kanbus (Python 3.11 or later); add kanbus[ai] for AI summaries
 cargo install kanbus    # Rust: kbs and kbsc (Rust 1.88 or later)
 ```
 

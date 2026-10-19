@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 use crate::console_backend::FileStore;
 use crate::error::KanbusError;
 use crate::file_io::get_configuration_path;
-use crate::wiki::{render_wiki_page, wiki_page_display_title, WikiRenderRequest};
+use crate::wiki::{
+    render_wiki_page, repository_relative_wiki_directory, wiki_page_display_title,
+    WikiRenderRequest,
+};
 use crate::wiki_markus::convert_wiki_markdown_to_html;
 
 /// A wiki page listed by the console API.
@@ -180,12 +183,7 @@ fn wiki_root(store: &FileStore) -> Result<PathBuf, KanbusError> {
     let config = store.load_config()?;
     let repository_root = configuration_repository_root(store)?;
     let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
-    if wiki_subdir.starts_with("../") {
-        let normalized = wiki_subdir
-            .replace('\\', "/")
-            .trim_start_matches("../")
-            .trim_start_matches("..\\")
-            .to_string();
+    if let Some(normalized) = repository_relative_wiki_directory(wiki_subdir) {
         Ok(repository_root.join(&normalized))
     } else {
         Ok(repository_root
@@ -198,12 +196,7 @@ fn wiki_root(store: &FileStore) -> Result<PathBuf, KanbusError> {
 pub fn wiki_list_prefix(store: &FileStore) -> Result<String, KanbusError> {
     let config = store.load_config()?;
     let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
-    if wiki_subdir.starts_with("../") {
-        let normalized = wiki_subdir
-            .replace('\\', "/")
-            .trim_start_matches("../")
-            .trim_start_matches("..\\")
-            .to_string();
+    if let Some(normalized) = repository_relative_wiki_directory(wiki_subdir) {
         Ok(normalized)
     } else {
         Ok(format!("{}/{}", config.project_directory, wiki_subdir))

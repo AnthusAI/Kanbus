@@ -39,15 +39,47 @@ pub struct FileStore {
     root: PathBuf,
 }
 
+fn find_child_directory_named(parent: &Path, name: &str) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(parent).ok()?;
+    for entry in entries.flatten() {
+        let listed_name = entry.file_name();
+        if listed_name.to_str() == Some(name) {
+            let listed_path = entry.path();
+            if listed_path.is_dir() {
+                return Some(listed_path);
+            }
+        }
+    }
+    None
+}
+
 impl FileStore {
     /// Create a new file store rooted at the provided path.
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
 
+    /// Return true when a tenant path segment is a safe directory name.
+    pub fn is_valid_tenant_segment(segment: &str) -> bool {
+        let mut characters = segment.chars();
+        matches!(characters.next(), Some(first) if first.is_ascii_alphanumeric())
+            && characters.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    }
+
     /// Resolve a tenant root under a shared base directory.
     pub fn resolve_tenant_root(base: &Path, account: &str, project: &str) -> PathBuf {
         base.join(account).join(project)
+    }
+
+    /// Locate an existing tenant root by matching directory entry names, so the
+    /// returned path derives from the filesystem listing and not from request text.
+    pub fn locate_existing_tenant_root(
+        base: &Path,
+        account: &str,
+        project: &str,
+    ) -> Option<PathBuf> {
+        let account_directory = find_child_directory_named(base, account)?;
+        find_child_directory_named(&account_directory, project)
     }
 
     /// Return the file store root path.
@@ -804,6 +836,16 @@ mod tests {
             Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
             None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
         }
+    }
+
+    #[test]
+    fn tenant_segment_validation_rejects_traversal_and_separators() {
+        assert!(FileStore::is_valid_tenant_segment("anthus-1_x"));
+        assert!(!FileStore::is_valid_tenant_segment(".."));
+        assert!(!FileStore::is_valid_tenant_segment("../x"));
+        assert!(!FileStore::is_valid_tenant_segment("a/b"));
+        assert!(!FileStore::is_valid_tenant_segment("-a"));
+        assert!(!FileStore::is_valid_tenant_segment(""));
     }
 
     #[test]

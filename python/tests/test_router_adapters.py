@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import signal
 import subprocess
 
 import pytest
@@ -88,23 +89,29 @@ def test_codex_adapter_captures_structured_output_with_popen(monkeypatch, tmp_pa
     assert not record_path.exists()
 
 
-def test_codex_adapter_cancel_terminates_registered_process(monkeypatch, tmp_path):
+def test_codex_adapter_cancel_terminates_registered_process_group(
+    monkeypatch, tmp_path
+):
     process = type(
         "Process",
         (),
         {
+            "pid": 4242,
             "returncode": None,
             "poll": lambda self: self.returncode,
-            "terminate": lambda self: setattr(self, "terminated", True),
         },
     )()
-    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: process)
+    signalled_groups = []
+    monkeypatch.setattr(
+        "kanbus.router_adapters.os.killpg",
+        lambda group, signal_number: signalled_groups.append((group, signal_number)),
+    )
     adapter = CodexExecAdapter(RouterAgentProfile(adapter="codex"))
     adapter.process = process
 
     adapter.cancel("claim-1")
 
-    assert process.terminated is True
+    assert signalled_groups == [(4242, signal.SIGTERM)]
 
 
 def test_external_cancel_signals_only_the_matching_claim_process(monkeypatch, tmp_path):
@@ -183,8 +190,8 @@ def test_codex_adapter_terminates_timed_out_process_and_removes_record(
         def poll(self):
             return self.returncode
 
-        def terminate(self):
-            self.terminated = True
+        def kill(self):
+            self.killed = True
 
         def communicate(self, timeout=None):
             if timeout is not None:
@@ -192,7 +199,12 @@ def test_codex_adapter_terminates_timed_out_process_and_removes_record(
             return "", ""
 
     process = Process()
+    killed_groups = []
     monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(
+        "kanbus.router_adapters.os.killpg",
+        lambda group, signal_number: killed_groups.append((group, signal_number)),
+    )
     monkeypatch.setattr("kanbus.router_adapters._process_identity", lambda _pid: None)
     adapter = CodexExecAdapter(
         RouterAgentProfile(adapter="codex"), process_record_path=record_path
@@ -209,7 +221,8 @@ def test_codex_adapter_terminates_timed_out_process_and_removes_record(
             )
         )
 
-    assert process.terminated is True
+    assert killed_groups == [(4242, signal.SIGKILL)]
+    assert process.killed is True
     assert adapter.process is None
     assert not record_path.exists()
 

@@ -159,12 +159,172 @@ def then_project_management_contains_text(context: object, text: str) -> None:
     assert normalized in content
 
 
+PROJECT_BUNDLE_STEP_PREFIX = "path:"
+
+
+def _methodology_selection_from_step_text(selection_text: str) -> object:
+    if selection_text.startswith(PROJECT_BUNDLE_STEP_PREFIX):
+        return {"path": selection_text[len(PROJECT_BUNDLE_STEP_PREFIX) :]}
+    return selection_text
+
+
+def _write_methodology_bundle_document(
+    context: object, bundle_relative_path: str, document_text: str
+) -> None:
+    bundle_directory = Path(context.working_directory) / bundle_relative_path
+    bundle_directory.mkdir(parents=True, exist_ok=True)
+    (bundle_directory / "METHODOLOGY.md").write_text(document_text, encoding="utf-8")
+
+
+@given(
+    'the repository has a methodology bundle at "{bundle_relative_path}" named "{methodology_name}" with heading "{heading}"'
+)
+def given_repository_has_methodology_bundle(
+    context: object, bundle_relative_path: str, methodology_name: str, heading: str
+) -> None:
+    _write_methodology_bundle_document(
+        context,
+        bundle_relative_path,
+        f"---\nname: {methodology_name}\ntitle: {heading}\n---\n"
+        f"## {heading}\n\nProject key: {{{{ project_key }}}}.\n",
+    )
+
+
+@given(
+    'the repository has a methodology bundle at "{bundle_relative_path}" without frontmatter'
+)
+def given_repository_has_methodology_bundle_without_frontmatter(
+    context: object, bundle_relative_path: str
+) -> None:
+    _write_methodology_bundle_document(
+        context, bundle_relative_path, "## Plain Guidance\n"
+    )
+
+
+def _methodology_tool_frontmatter(
+    methodology_name: str, tool_declarations: list[dict[str, str]]
+) -> str:
+    frontmatter = {
+        "name": methodology_name,
+        "title": f"{methodology_name} methodology",
+        "tools": tool_declarations,
+    }
+    return f"---\n{yaml.safe_dump(frontmatter, sort_keys=False)}---\n## Tool Guidance\n"
+
+
+def _write_methodology_tool_script(
+    context: object, bundle_relative_path: str, script_text: str
+) -> None:
+    tool_script = (
+        Path(context.working_directory) / bundle_relative_path / "tools" / "run-tool"
+    )
+    tool_script.parent.mkdir(parents=True, exist_ok=True)
+    tool_script.write_text(f"#!/bin/sh\n{script_text}\n", encoding="utf-8")
+    tool_script.chmod(0o755)
+
+
+@given(
+    'the repository has a methodology bundle at "{bundle_relative_path}" named "{methodology_name}" with a tool "{tool_name}" that prints "{printed_text}"'
+)
+def given_repository_has_methodology_bundle_with_tool(
+    context: object,
+    bundle_relative_path: str,
+    methodology_name: str,
+    tool_name: str,
+    printed_text: str,
+) -> None:
+    _write_methodology_bundle_document(
+        context,
+        bundle_relative_path,
+        _methodology_tool_frontmatter(
+            methodology_name,
+            [
+                {
+                    "name": tool_name,
+                    "command": "tools/run-tool",
+                    "purpose": "Report the demo output",
+                }
+            ],
+        ),
+    )
+    _write_methodology_tool_script(
+        context, bundle_relative_path, f'echo "{printed_text} $*"'
+    )
+
+
+@given(
+    'the repository has a methodology bundle at "{bundle_relative_path}" named "{methodology_name}" with a failing tool "{tool_name}"'
+)
+def given_repository_has_methodology_bundle_with_failing_tool(
+    context: object,
+    bundle_relative_path: str,
+    methodology_name: str,
+    tool_name: str,
+) -> None:
+    _write_methodology_bundle_document(
+        context,
+        bundle_relative_path,
+        _methodology_tool_frontmatter(
+            methodology_name,
+            [
+                {
+                    "name": tool_name,
+                    "command": "tools/run-tool",
+                    "purpose": "Always fails",
+                }
+            ],
+        ),
+    )
+    _write_methodology_tool_script(
+        context, bundle_relative_path, 'echo "tool failed loudly"\nexit 3'
+    )
+
+
+@given(
+    'the repository has a methodology bundle at "{bundle_relative_path}" declaring a tool "{tool_name}" with command "{command}"'
+)
+def given_repository_has_methodology_bundle_declaring_tool_command(
+    context: object, bundle_relative_path: str, tool_name: str, command: str
+) -> None:
+    _write_methodology_bundle_document(
+        context,
+        bundle_relative_path,
+        _methodology_tool_frontmatter(
+            Path(bundle_relative_path).name,
+            [{"name": tool_name, "command": command, "purpose": "Declared only"}],
+        ),
+    )
+
+
+@given(
+    'the repository has a methodology bundle at "{bundle_relative_path}" declaring the tool "{tool_name}" twice'
+)
+def given_repository_has_methodology_bundle_declaring_tool_twice(
+    context: object, bundle_relative_path: str, tool_name: str
+) -> None:
+    declaration = {
+        "name": tool_name,
+        "command": "tools/run-tool",
+        "purpose": "Declared twice",
+    }
+    _write_methodology_bundle_document(
+        context,
+        bundle_relative_path,
+        _methodology_tool_frontmatter(
+            Path(bundle_relative_path).name, [declaration, declaration]
+        ),
+    )
+
+
 @given('the Kanbus configuration selects methodologies "{methodology_list}"')
+@when('the Kanbus configuration selects methodologies "{methodology_list}"')
 def given_configuration_selects_methodologies(
     context: object, methodology_list: str
 ) -> None:
     selected_methodology_names = [
-        name.strip() for name in methodology_list.split(",") if name.strip()
+        _methodology_selection_from_step_text(name.strip())
+        for name in methodology_list.split(",")
+        if name.strip()
     ]
     configuration_path = Path(context.working_directory) / ".kanbus.yml"
     configuration_document = yaml.safe_load(

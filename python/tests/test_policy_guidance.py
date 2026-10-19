@@ -187,8 +187,11 @@ def test_emit_guidance_for_issues_emits_sorted_deduped_items_and_converts_violat
         policy_guidance, "guidance_is_enabled", lambda _no_guidance: True
     )
     monkeypatch.setattr(
+        policy_guidance, "_load_guidance_environment", lambda _root: object()
+    )
+    monkeypatch.setattr(
         policy_guidance,
-        "collect_guidance_for_issue",
+        "_evaluate_guidance_in_environment",
         lambda *_args, **_kwargs: report,
     )
 

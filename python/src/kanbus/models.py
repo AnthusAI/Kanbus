@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from pydantic import (
@@ -256,6 +256,18 @@ class PriorityDefinition(BaseModel):
     color: Optional[str] = None
 
 
+class ProjectMethodologyBundleReference(BaseModel):
+    """A methodology bundle directory inside the repository.
+
+    :param path: Bundle directory relative to the repository root.
+    :type path: str
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1)
+
+
 class AiConfiguration(BaseModel):
     """AI provider configuration for wiki summarization.
 
@@ -383,7 +395,7 @@ class RealtimeConfig(BaseModel):
 
     transport: str = "auto"
     broker: str = "auto"
-    autostart: bool = True
+    autostart: bool = False
     keepalive: bool = False
     uds_socket_path: Optional[str] = None
     mqtt_custom_authorizer_name: Optional[str] = None
@@ -704,7 +716,7 @@ class ProjectConfiguration(BaseModel):
     :param project_management_template: Optional template path for CONTRIBUTING_AGENT.md.
     :type project_management_template: Optional[str]
     :param methodologies: Methodology names assembled into CONTRIBUTING_AGENT.md.
-    :type methodologies: Optional[List[str]]
+    :type methodologies: Optional[List[Union[str, ProjectMethodologyBundleReference]]]
     :param hierarchy: Hierarchy ordering.
     :type hierarchy: List[str]
     :param types: Non-hierarchical types.
@@ -743,6 +755,22 @@ class ProjectConfiguration(BaseModel):
     :type hooks: HooksConfiguration
     :param github_security: Optional GitHub security synchronization configuration.
     :type github_security: Optional[GithubSecurityConfiguration]
+    :param console_port: Optional port for the web console server.
+    :type console_port: Optional[int]
+    :param transition_labels: Display label for every workflow transition, keyed by workflow, from-status, then to-status.
+    :type transition_labels: Dict[str, Dict[str, Dict[str, str]]]
+    :param statuses: Status definitions with display names, categories, and colors.
+    :type statuses: List[StatusDefinition]
+    :param categories: Status category definitions with display names and colors.
+    :type categories: List[CategoryDefinition]
+    :param wiki_directory: Optional directory containing wiki pages.
+    :type wiki_directory: Optional[str]
+    :param ai: Optional AI provider and model configuration.
+    :type ai: Optional[AiConfiguration]
+    :param coordination: Multi-agent coordination configuration.
+    :type coordination: CoordinationConfiguration
+    :param router: Optional issue router configuration.
+    :type router: Optional[IssueRouterConfiguration]
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -755,7 +783,7 @@ class ProjectConfiguration(BaseModel):
     project_key: str = Field(min_length=1)
     name: Optional[str] = None
     project_management_template: Optional[str] = None
-    methodologies: Optional[List[str]] = None
+    methodologies: Optional[List[Union[str, ProjectMethodologyBundleReference]]] = None
     hierarchy: List[str]
     types: List[str]
     workflows: Dict[str, Dict[str, List[str]]]

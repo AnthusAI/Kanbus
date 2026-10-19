@@ -243,6 +243,33 @@ def test_opencode_data_home_persists_per_package_when_a_state_dir_is_given(tmp_p
     assert other["XDG_DATA_HOME"] != home
 
 
+def test_opencode_credentials_copy_is_private_and_removed_when_the_run_ends(
+    tmp_path, monkeypatch
+):
+    shared = tmp_path / "shared"
+    (shared / "opencode").mkdir(parents=True)
+    (shared / "opencode" / "auth.json").write_text('{"token": "secret"}')
+    monkeypatch.setenv("XDG_DATA_HOME", str(shared))
+    state = tmp_path / "state"
+    adapter = OpenCodeRunAdapter(
+        RouterAgentProfile(adapter="opencode"), state_dir=state
+    )
+    request = RouterExecutionRequest(
+        package_id="kbs-9",
+        claim_id="c1",
+        revision=1,
+        package_issue_ids=["kbs-9"],
+        worktree_path=str(tmp_path),
+    )
+    adapter._environment(request)
+    private_copy = state / "opencode" / "kbs-9" / "opencode" / "auth.json"
+    assert private_copy.read_text() == '{"token": "secret"}'
+    assert private_copy.stat().st_mode & 0o777 == 0o600
+    adapter._cleanup()
+    assert not private_copy.exists()
+    assert (shared / "opencode" / "auth.json").exists()
+
+
 def test_only_opencode_needs_its_original_directory_to_resume(tmp_path):
     from types import SimpleNamespace
 

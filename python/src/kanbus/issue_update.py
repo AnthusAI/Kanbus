@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from dataclasses import dataclass
 
@@ -53,6 +53,29 @@ class IssueUpdateResult:
 
     issue: IssueData
     changed: bool
+
+
+def merge_labels(
+    current_labels: List[str],
+    set_labels: Optional[List[str]],
+    add_labels: Optional[List[str]],
+    remove_labels: Optional[List[str]],
+) -> List[str]:
+    """Apply label operations: trim, dedupe case-insensitively, keep order."""
+    if set_labels is not None:
+        labels = [label.strip() for label in set_labels if label.strip()]
+    else:
+        labels = list(current_labels)
+    for label in add_labels or []:
+        trimmed = label.strip()
+        if trimmed and not any(
+            existing.lower() == trimmed.lower() for existing in labels
+        ):
+            labels.append(trimmed)
+    removals = [label.strip().lower() for label in remove_labels or []]
+    if removals:
+        labels = [label for label in labels if label.lower() not in removals]
+    return labels
 
 
 def update_issue(
@@ -174,19 +197,12 @@ def update_issue(
     if priority is not None and priority == updated_issue.priority:
         priority = None
 
-    # Handle label operations
     labels = None
-    if set_labels is not None:
-        if sorted(set_labels) != sorted(updated_issue.labels):
-            labels = set_labels
-    elif add_labels is not None or remove_labels is not None:
-        current_labels = set(updated_issue.labels)
-        if add_labels:
-            current_labels.update(add_labels)
-        if remove_labels:
-            current_labels.difference_update(remove_labels)
-        candidate_labels = sorted(current_labels)
-        if candidate_labels != sorted(updated_issue.labels):
+    if set_labels is not None or add_labels is not None or remove_labels is not None:
+        candidate_labels = merge_labels(
+            updated_issue.labels, set_labels, add_labels, remove_labels
+        )
+        if candidate_labels != updated_issue.labels:
             labels = candidate_labels
 
     updated_parent: Optional[str] = None

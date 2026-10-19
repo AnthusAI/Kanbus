@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterator, List, Optional
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows has no fcntl
+    fcntl = None  # type: ignore[assignment]
 
 from kanbus.event_history import (
     EventRecord,
@@ -16,9 +22,13 @@ from kanbus.event_history import (
     now_timestamp,
     write_events_batch,
 )
-from kanbus.issue_files import delete_issue_file, write_issue_to_file
+from kanbus.issue_files import (
+    delete_issue_file,
+    read_issue_from_file,
+    write_issue_to_file,
+)
 from kanbus.models import IssueData
-from kanbus.overlay import replace_overlay_issue_if_present
+from kanbus.overlay import overlay_root, replace_overlay_issue_if_present
 
 
 @dataclass(frozen=True)
@@ -76,7 +86,54 @@ class PersistIssueDeletionResult:
     event: Optional[EventRecord]
 
 
+class ConcurrentIssueModificationError(RuntimeError):
+    """Raised when an issue changed on disk after the caller read it."""
+
+
+@contextmanager
+def _issue_write_lock(project_dir: Path, issue_identifier: str) -> Iterator[None]:
+    if fcntl is None:
+        yield
+        return
+    lock_directory = overlay_root(project_dir) / "locks"
+    lock_directory.mkdir(parents=True, exist_ok=True)
+    with open(lock_directory / f"{issue_identifier}.lock", "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+
+def _refuse_if_issue_changed_since_read(
+    issue_path: Path, before_issue: IssueData
+) -> None:
+    if not issue_path.exists():
+        return
+    on_disk = read_issue_from_file(issue_path)
+    if on_disk.updated_at != before_issue.updated_at:
+        raise ConcurrentIssueModificationError(
+            f"concurrent modification: {before_issue.identifier} changed since it "
+            "was read; retry the command"
+        )
+
+
 def persist_issue_mutation(
+    request: PersistIssueMutationRequest,
+) -> PersistIssueMutationResult:
+    """Persist an issue mutation under an advisory per-issue lock.
+
+    See :func:`_persist_issue_mutation_locked` for the write sequence.
+    """
+    with _issue_write_lock(request.project_dir, request.issue.identifier):
+        if request.before_issue is not None:
+            _refuse_if_issue_changed_since_read(
+                request.issue_path, request.before_issue
+            )
+        return _persist_issue_mutation_locked(request)
+
+
+def _persist_issue_mutation_locked(
     request: PersistIssueMutationRequest,
 ) -> PersistIssueMutationResult:
     """Persist an issue mutation with updated_at and event history.
@@ -104,6 +161,7 @@ def persist_issue_mutation(
             delete_issue_file(final_issue_path)
         if request.before_issue is not None:
             write_issue_to_file(request.before_issue, request.issue_path)
+            replace_overlay_issue_if_present(request.project_dir, request.before_issue)
         elif request.issue_path.exists():
             delete_issue_file(request.issue_path)
         raise RuntimeError(str(error)) from error

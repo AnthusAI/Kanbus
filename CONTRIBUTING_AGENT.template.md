@@ -89,23 +89,126 @@ python -m kanbus.cli <command> [args...]
 
 NOTE: The kbs command is strongly preferred. Only use Python fallback if kbs is unavailable.
 
+## Right-now WIP (`kbs now`)
+
+On demand, agents can read current WIP from the board without waiting for compaction hooks:
+
+```bash
+kbs now                  # whole-project tree (default cap 30 in-progress issues)
+kbs now --list           # flat list with right-now summaries
+kbs now --json --list    # JSON flat list (includes priority and status)
+kbs now kbs-abc          # focused: issue kbs-abc and descendants
+kbs now kbs-abc --no-recursive   # that issue only
+```
+
+Scoped `kbs now <id>` is for self-directed focus. Whole-project reinjection after coding-agent compaction uses the same JSON payload without issue identifiers; see [docs/AGENT_COMPACTION_RIGHT_NOW.md](docs/AGENT_COMPACTION_RIGHT_NOW.md).
+
 ## Agent provenance metadata
 
-Tag `create` and `comment` with Title Case product, model, and session name using `--agent-platform`, `--agent-model`, and `--agent-name` (or `KANBUS_AGENT_PLATFORM`, `KANBUS_AGENT_MODEL`, `KANBUS_AGENT_NAME`, and optional `KANBUS_AGENT_SETTINGS`). Complete provenance is platform + model + name; settings stay optional.
+When you create issues or post comments as an AI agent, tag the write with Title Case **product**, **model**, and **session name** using `--agent-platform`, `--agent-model`, and `--agent-name` (or matching `KANBUS_AGENT_*` defaults). That records which platform, model, and runtime produced the change beyond `author: agent` or `KANBUS_USER=agent`, and helps distinguish Cursor, Codex, Claude Code, Antigravity, and Grok Bot in multi-agent workflows.
 
-If tags are omitted on `create` or `comment`, the write still succeeds and stderr warns with a ready `kbs update` or `kbs comment update` command. Copy that command to fill the same issue or comment. `--no-agent-provenance` silences the warning when tagging does not apply.
+**Complete provenance** is platform + model + name. Settings (`--agent-settings`, `KANBUS_AGENT_SETTINGS`) stay optional.
 
-`update` and `comment update` fill missing provenance; once platform, model, and name are set, they are not replaced. `close` has no agent flags.
+If you omit tags on `create` or `comment`, the command still succeeds. Kanbus prints a warning on stderr with a ready `kbs update` or `kbs comment update` command. Copy that command to fill the same issue or comment. Use `--no-agent-provenance` when tagging does not apply and you want to silence the warning.
 
-**Preferred products** (examples, not an allowlist): Cursor, Codex, Claude Code, Antigravity, Grok Bot.
+`update` and `comment update` accept `--agent-*` to fill missing tags. Once platform, model, and name are all set, they are not replaced. `close` does not take agent flags.
 
-**Model examples** (not exhaustive): Composer 2.5, GPT-5.6, Claude Sonnet 4, Grok 4.
+### Environment variables
 
-Kanbus stores platform lowercased with spaces as underscores (for example `Claude Code` becomes `claude_code`); model is stored as you pass it.
+Set defaults once per session; CLI flags override environment values. Empty or whitespace-only environment values are treated as absent.
 
-In Beads compatibility mode, agent metadata is rejected with `agent metadata requires native Kanbus issue storage`.
+| Variable | Purpose |
+| --- | --- |
+| `KANBUS_AGENT_PLATFORM` | Default agent product name |
+| `KANBUS_AGENT_MODEL` | Default model name |
+| `KANBUS_AGENT_SETTINGS` | Default settings as a JSON object string |
+| `KANBUS_AGENT_NAME` | Session or bot name (required for complete provenance) |
 
-Host identity snippets live in `docs/AGENT_PROVENANCE.md`. Do not put product or model names in `AGENTS.md`.
+Platform and model must both be present or both absent. Partial metadata fails with `agent metadata requires both platform and model`.
+
+### CLI flags
+
+These flags are available on `create`, `comment`, `update`, and `comment update`:
+
+- `--agent-platform <name>` — Coding agent product name
+- `--agent-model <name>` — Model name
+- `--agent-settings <json>` — JSON object string (for example `'{"thinking_level":"high"}'`)
+- `--agent-name <name>` — Session or bot label for this run (required for complete provenance; not the product name)
+
+### Product and model names
+
+Use plain **product names** and **model names** in Title Case. Pass the same names you would use in a handoff note. Do not invent a separate slug or identifier.
+
+- **Platform** (`--agent-platform`, `KANBUS_AGENT_PLATFORM`): the coding agent product (for example Cursor, Codex).
+- **Model** (`--agent-model`, `KANBUS_AGENT_MODEL`): the model the product is running (for example Composer 2.5, GPT-5.6).
+
+Kanbus normalizes platform for storage (lowercase; spaces become underscores). Model is stored as you provide it. Kanbus does not enforce a fixed allowlist; the lists below are for consistency only.
+
+**Preferred products** — use when they match your environment:
+
+- Cursor
+- Codex
+- Claude Code
+- Antigravity
+- Grok Bot
+
+If yours is not listed, use a short Title Case product name anyway.
+
+**Model names** — prefer the official name from your host. When you choose the string yourself, use Title Case and conventional vendor punctuation. Examples (not exhaustive):
+
+- Composer 2.5
+- GPT-5.6
+- Claude Sonnet 4
+- Grok 4
+
+**Session name** (`--agent-name`, `KANBUS_AGENT_NAME`): label for this run or bot (for example `Cloud Agent`, `bugbot`). Required for complete provenance. This identifies the session, not the product.
+
+Host-specific instruction snippets (Cursor, Claude Code, Codex, Antigravity, Grok Bot) live in `docs/AGENT_PROVENANCE.md` and on the Kanb.us Agent Provenance page. Do not put product or model names in shared `AGENTS.md`.
+
+### Settings
+
+`--agent-settings` and `KANBUS_AGENT_SETTINGS` accept a JSON object. Recommended keys:
+
+- `temperature` — model temperature (for example `0.7`)
+- `thinking_level` — reasoning depth (for example `off`, `low`, `medium`, `high`)
+- `max_output_tokens` — positive integer output limit
+
+Other non-secret keys are accepted (for example `speed`, `reasoning_effort`). Kanbus does not enforce a closed allowlist of settings keys.
+
+**No secrets:** Never store API keys, tokens, passwords, or credentials in agent metadata. Keys whose names match `api_key`, `token`, `secret`, `password`, or `credential` (case-insensitive) are rejected with `agent settings must not contain secret-like keys`. Keep credentials in your agent host environment instead.
+
+The serialized `agent` block is limited to 2 KB.
+
+### Beads compatibility
+
+In Beads compatibility mode (`--beads` or `beads_compatibility: true` in `.kanbus.yml`), agent flags and environment defaults that would produce metadata are rejected:
+
+```
+agent metadata requires native Kanbus issue storage
+```
+
+Use native Kanbus issue storage when you need agent provenance.
+
+### Example workflow
+
+```bash
+export KANBUS_AGENT_PLATFORM="Cursor"
+export KANBUS_AGENT_MODEL="Composer 2.5"
+export KANBUS_AGENT_NAME="Cloud Agent"
+
+kbs create "Implement feature X" --type task --parent <epic-id>
+kbs comment <id> "Progress: schema drafted"
+```
+
+Override defaults for a single comment:
+
+```bash
+kbs comment <id> "Deep review done" \
+  --agent-platform "Codex" \
+  --agent-model "GPT-5.6" \
+  --agent-name "Cloud Agent" \
+  --agent-settings '{"thinking_level":"high"}'
+```
 
 ## The Order of Being
 
@@ -179,125 +282,4 @@ Cache behavior:
 {% for command in command_examples %}
 {{ command }}
 {% endfor %}
-
-## Console UI Control: Real-Time Collaboration
-
-When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention and coordinate work in real-time.
-
-### The Focus Command
-
-The `kbs console focus` command immediately highlights an issue on the board, opens it in the detail panel, and filters to show only that issue and its descendants. This happens with sub-100ms latency via Unix socket and SSE notifications.
-
-```bash
-kbs console focus <issue-id>
-```
-
-### When to Use Real-Time Control
-
-Use `kbs console focus` proactively to:
-- **Direct attention after creating important work**: Show new epics or critical tasks immediately
-- **Demonstrate updates**: Let the user see changes as they happen
-- **Coordinate during collaboration**: Show what you're working on in real-time
-- **Provide context**: Help the user understand issue relationships and structure
-
-### Example: Creating and Focusing on an Epic
-
-When you create a new epic with sub-tasks, immediately focus on it to show the user:
-
-```bash
-# Create the epic
-kbs create "Implement authentication system" --type epic --description "Add JWT-based authentication with login, logout, and token refresh"
-
-# The system returns: ID: tskl-auth
-
-# Create sub-tasks
-kbs create "Design authentication flow" --parent tskl-auth --type task
-kbs create "Implement JWT generation" --parent tskl-auth --type task
-kbs create "Add login endpoint" --parent tskl-auth --type task
-kbs create "Add logout endpoint" --parent tskl-auth --type task
-
-# NOW show the user the complete structure
-kbs console focus tskl-auth
-```
-
-The user immediately sees the epic with all 4 sub-tasks on their board, understanding the full scope of what you've planned.
-
-### Example: Tracking Progress in Real-Time
-
-As you work through tasks, keep the user informed by focusing on what you're doing:
-
-```bash
-# Start working on the first task
-kbs update tskl-auth.1 --status in_progress --assignee agent
-kbs console focus tskl-auth.1
-
-# User now sees you're working on "Design authentication flow"
-
-# Complete it and move to the next
-kbs close tskl-auth.1
-kbs update tskl-auth.2 --status in_progress
-kbs console focus tskl-auth.2
-
-# User sees the completion and your shift to JWT generation
-```
-
-### Example: Showing Complex Relationships
-
-When working with nested hierarchies, use focus to show structure:
-
-```bash
-# After creating a deep hierarchy
-kbs create "Frontend overhaul" --type epic
-# Returns: tskl-frontend
-
-kbs create "Redesign dashboard" --parent tskl-frontend --type story
-# Returns: tskl-frontend.1
-
-kbs create "Update header component" --parent tskl-frontend.1 --type task
-kbs create "Add metrics widgets" --parent tskl-frontend.1 --type task
-kbs create "Improve responsive layout" --parent tskl-frontend.1 --type task
-
-# Show the entire tree structure
-kbs console focus tskl-frontend
-
-# Now zoom in to show just the dashboard story and its tasks
-kbs console focus tskl-frontend.1
-```
-
-### Example: Debugging with Focus
-
-When investigating bugs, use focus to show the issue context:
-
-```bash
-# User reports a bug related to authentication
-kbs create "Login fails with expired tokens" --type bug --parent tskl-auth
-
-# Show them you're investigating by focusing on the bug in context
-kbs console focus tskl-auth
-# Now they see the bug alongside the original authentication epic
-
-# After fixing
-kbs close tskl-auth.5
-kbs console focus tskl-auth
-# Show the epic with the bug now closed
-```
-
-### Best Practices for Real-Time Control
-
-1. **Focus after creation**: Always focus on newly created epics so the user sees the structure
-2. **Focus when starting work**: When you update an issue to in_progress, focus on it
-3. **Focus on parents after completion**: When closing a task, focus on its parent to show progress
-4. **Don't over-focus**: Only focus when it genuinely helps the user understand what's happening
-5. **Narrate your focus**: Briefly explain why you're focusing, e.g., "Let me show you the structure I've created"
-
-### Future Commands (Planned in tskl-m59)
-
-Additional UI control commands are being implemented:
-- `kbs console unfocus` - Clear focus and return to full board view
-- `kbs console view <mode>` - Switch between initiatives/epics/issues views
-- `kbs console search <query>` - Set search filter
-- `kbs console maximize` - Maximize the detail panel
-- `kbs console close-detail` - Close the detail panel
-
-Check `kbs show tskl-m59` for current implementation status.
 

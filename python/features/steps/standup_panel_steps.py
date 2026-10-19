@@ -272,7 +272,7 @@ def when_request_standup_from_console_api(context: object, profile: str) -> None
     request = urllib.request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-Kanbus-Console": "1"},
         method="POST",
     )
     try:

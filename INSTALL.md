@@ -13,8 +13,10 @@ This repository contains two implementations of Kanbus: Python and Rust. Both us
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e python
+pip install -e "python[dev]"
 ```
+
+The `dev` extra adds the test and lint tools and the optional `ai` extra (LiteLLM). A plain `pip install kanbus` installs only the core CLI; add `kanbus[ai]` for the AI summary commands.
 
 Run the CLI:
 

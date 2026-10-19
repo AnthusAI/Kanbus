@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
+import re
 from pathlib import Path
 import subprocess
 import stat
@@ -37,6 +38,24 @@ class OverlayTombstone:
     ttl_s: int
 
 
+_OVERLAY_ISSUE_IDENTIFIER_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}")
+
+
+def is_valid_overlay_issue_identifier(identifier: str) -> bool:
+    """Return True when an identifier is safe to use as an overlay file name."""
+    return (
+        _OVERLAY_ISSUE_IDENTIFIER_PATTERN.fullmatch(identifier) is not None
+        and ".." not in identifier
+    )
+
+
+def _require_valid_overlay_issue_identifier(identifier: str) -> None:
+    if not is_valid_overlay_issue_identifier(identifier):
+        raise ValueError(
+            f"refusing overlay path for invalid issue identifier: {identifier!r}"
+        )
+
+
 def overlay_root(project_dir: Path) -> Path:
     """Return the overlay root directory for a project."""
     return project_dir / ".overlay"
@@ -63,6 +82,7 @@ def write_overlay_issue(
         "overrides": None,
         "issue": issue.model_dump(by_alias=True, mode="json"),
     }
+    _require_valid_overlay_issue_identifier(issue.identifier)
     path = overlay_issue_path(project_dir, issue.identifier)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -95,6 +115,7 @@ def write_tombstone(
     tombstone: OverlayTombstone,
 ) -> None:
     """Write an overlay tombstone."""
+    _require_valid_overlay_issue_identifier(tombstone.id)
     path = overlay_tombstone_path(project_dir, tombstone.id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {

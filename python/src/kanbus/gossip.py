@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import socket
@@ -27,6 +28,7 @@ from kanbus.project import (
     get_configuration_path,
     resolve_labeled_projects,
 )
+from kanbus.test_hooks import read_test_hook
 
 _MOSQUITTO_MISSING_WARNED = False
 _MOSQUITTO_MISSING_WARNING_COUNT = 0
@@ -189,7 +191,7 @@ def publish_issue_mutation(
     )
     topic = configuration.realtime.topics.project_events.format(project=project_label)
     try:
-        _publish_envelope(root, configuration, topic, envelope)
+        _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
     except Exception as error:
         print(
             f"warning: realtime publish failed for {issue.identifier}: {error}",
@@ -224,7 +226,7 @@ def publish_issue_deleted(
     )
     topic = configuration.realtime.topics.project_events.format(project=project_label)
     try:
-        _publish_envelope(root, configuration, topic, envelope)
+        _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
     except Exception as error:  # noqa: BLE001
         print(
             f"warning: realtime publish failed for {issue_id}: {error}",
@@ -266,7 +268,7 @@ def run_gossip_bridge(
         project_filter=None,
         transport_override=None,
         broker_override=None,
-        autostart_override=None,
+        autostart_override=True,
         keepalive_override=None,
         print_envelopes=False,
         on_envelope=on_envelope,
@@ -338,23 +340,28 @@ def _run_gossip_consumer(
                 ttl_s=configuration.overlay.ttl_s,
             )
         elif configuration.overlay.enabled:
-            if envelope.type == "issue.mutated" and envelope.issue is not None:
-                write_overlay_issue(
-                    target_project,
-                    envelope.issue,
-                    envelope.ts,
-                    envelope.event_id,
+            try:
+                if envelope.type == "issue.mutated" and envelope.issue is not None:
+                    write_overlay_issue(
+                        target_project,
+                        envelope.issue,
+                        envelope.ts,
+                        envelope.event_id,
+                    )
+                elif envelope.type == "issue.deleted" and envelope.issue_id:
+                    tombstone = OverlayTombstone(
+                        op="delete",
+                        project=envelope.project,
+                        id=envelope.issue_id,
+                        event_id=envelope.event_id,
+                        ts=envelope.ts,
+                        ttl_s=configuration.overlay.ttl_s,
+                    )
+                    write_tombstone(target_project, tombstone)
+            except ValueError as error:
+                logging.getLogger(__name__).warning(
+                    "dropping gossip envelope: %s", error
                 )
-            elif envelope.type == "issue.deleted" and envelope.issue_id:
-                tombstone = OverlayTombstone(
-                    op="delete",
-                    project=envelope.project,
-                    id=envelope.issue_id,
-                    event_id=envelope.event_id,
-                    ts=envelope.ts,
-                    ttl_s=configuration.overlay.ttl_s,
-                )
-                write_tombstone(target_project, tombstone)
         if on_envelope is not None:
             on_envelope(envelope)
 
@@ -442,7 +449,7 @@ def run_gossip_broker(root: Path, socket_override: Optional[Path]) -> None:
 
 def run_uds_broker(socket_path: Path) -> None:
     """Run the Unix domain socket gossip broker."""
-    socket_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_private_directory(socket_path.parent)
     if socket_path.exists():
         socket_path.unlink()
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -459,6 +466,13 @@ def run_uds_broker(socket_path: Path) -> None:
         thread.start()
 
 
+MAXIMUM_UDS_LINE_BYTES = 1024 * 1024
+
+
+def _create_private_directory(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+
 def _handle_uds_connection(
     conn: socket.socket,
     subscribers: list[tuple[str, socket.socket]],
@@ -473,6 +487,11 @@ def _handle_uds_connection(
         if not chunk:
             break
         buffer += chunk
+        if len(buffer) > MAXIMUM_UDS_LINE_BYTES and b"\n" not in buffer:
+            logging.getLogger(__name__).warning(
+                "dropping gossip connection that sent an over-long line"
+            )
+            break
         while b"\n" in buffer:
             line, buffer = buffer.split(b"\n", 1)
             if not line.strip():
@@ -544,6 +563,46 @@ def run_uds_subscription(
                 except (json.JSONDecodeError, ValidationError):
                     continue
                 handler(envelope)
+
+
+REALTIME_PUBLISH_HARD_CAP_SECONDS = 5.0
+
+
+def _publish_envelope_within_hard_cap(
+    root: Path,
+    configuration: ProjectConfiguration,
+    topic: str,
+    envelope: GossipEnvelope,
+) -> None:
+    """Publish on a detached thread and stop waiting after a hard cap.
+
+    Realtime delivery is best effort, so a slow or wedged broker must never
+    hold a command open longer than the cap.
+    """
+    failure: list[BaseException] = []
+
+    def publish_and_record_failure() -> None:
+        try:
+            _publish_envelope(root, configuration, topic, envelope)
+        except Exception as error:  # noqa: BLE001
+            failure.append(error)
+
+    publisher_thread = threading.Thread(
+        target=publish_and_record_failure,
+        name="kanbus-realtime-publish",
+        daemon=True,
+    )
+    publisher_thread.start()
+    publisher_thread.join(REALTIME_PUBLISH_HARD_CAP_SECONDS)
+    if publisher_thread.is_alive():
+        print(
+            "warning: realtime publish abandoned after "
+            f"{REALTIME_PUBLISH_HARD_CAP_SECONDS:g}s",
+            file=sys.stderr,
+        )
+        return
+    if failure:
+        raise failure[0]
 
 
 def _publish_envelope(
@@ -654,7 +713,7 @@ def mqtt_endpoint_for_realtime(
 
 
 def ensure_mosquitto(endpoint: BrokerEndpoint) -> Optional[BrokerStartup]:
-    if os.environ.get("KANBUS_TEST_MOSQUITTO_UNAVAILABLE") == "1":
+    if read_test_hook("KANBUS_TEST_MOSQUITTO_UNAVAILABLE") == "1":
         return None
     if endpoint.scheme != "mqtt":
         return None
@@ -663,7 +722,7 @@ def ensure_mosquitto(endpoint: BrokerEndpoint) -> Optional[BrokerStartup]:
     if not _mosquitto_available():
         return None
     run_dir = _broker_run_dir()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    _create_private_directory(run_dir)
     port = endpoint.port if endpoint.port > 0 else 1883
     port = _find_free_port(port)
     conf_path = run_dir / "mosquitto.conf"
@@ -943,7 +1002,7 @@ def _load_broker_metadata() -> dict | None:
 
 def _write_broker_metadata(metadata: dict) -> None:
     run_dir = _broker_run_dir()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    _create_private_directory(run_dir)
     path = run_dir / "broker.json"
     path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 

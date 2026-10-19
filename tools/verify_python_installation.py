@@ -13,6 +13,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 
+INSTALLED_PACKAGE_COUNT_CEILING = 30
+
+
 @dataclass(frozen=True)
 class CommandResult:
     """Result of a subprocess command."""
@@ -134,6 +137,18 @@ def verify_installation(repo_root: Path, keep_venv: bool, base_python: str) -> N
             ),
             "pip install",
         )
+
+        installed_packages = run_command(
+            [str(venv_python), "-m", "pip", "list", "--format=freeze"]
+        )
+        ensure_success(installed_packages, "pip list")
+        installed_package_count = len(installed_packages.stdout.strip().splitlines())
+        if installed_package_count > INSTALLED_PACKAGE_COUNT_CEILING:
+            raise RuntimeError(
+                f"base install pulled in {installed_package_count} packages; "
+                f"the ceiling is {INSTALLED_PACKAGE_COUNT_CEILING}. "
+                "Heavy dependencies belong in an extra."
+            )
 
         tsk_path = locate_venv_tsk(venv_dir)
         if tsk_path is None:

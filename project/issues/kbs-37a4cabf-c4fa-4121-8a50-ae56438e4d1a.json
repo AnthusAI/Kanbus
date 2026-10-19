@@ -3,17 +3,25 @@
   "title": "Bring this repository's agents template up to date with its generated file",
   "description": "This repository's CONTRIBUTING_AGENT.md has been edited beyond what CONTRIBUTING_AGENT.template.md renders: it has a Right-now WIP (kbs now) section, a longer agent provenance section, wiki commands and agent command examples the template lacks. Running kbs setup agents --force today drops that content, so the methodologies change does not regenerate the file. Fold the extra content into the template (or the built-in core template where it is general), then regenerate CONTRIBUTING_AGENT.md from methodologies. Also note kbs setup agents --force replaces everything under the Kanbus heading in AGENTS.md, which here deletes project-specific console notes.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-b5713619-bcd2-44fd-a75a-eeb405ab9280",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "781c5472-06b7-423f-8e97-b2279c13240a",
+      "author": "unknown",
+      "text": "Folded the Right-now WIP section and the full agent provenance reference into CONTRIBUTING_AGENT.template.md, then regenerated CONTRIBUTING_AGENT.md from the methodologies. The regenerated file also picks up the BDD, Git Flow and Hello World guidance and the event type that the old hand-edited copy lacked. AGENTS.md was deliberately not regenerated: kbs setup agents --force still replaces the Kanbus heading there and would delete project-specific console notes.",
+      "created_at": "2026-10-19T13:16:58.676469735Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T13:36:09.584401079Z",
-  "updated_at": "2026-10-17T13:36:09.665068840Z",
-  "closed_at": null,
+  "updated_at": "2026-10-19T13:16:58.882674303Z",
+  "closed_at": "2026-10-19T13:16:58.817283782Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

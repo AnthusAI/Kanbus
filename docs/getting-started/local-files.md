@@ -128,6 +128,8 @@ kbs setup agents
 
 This writes Kanbus instructions into `AGENTS.md` and `CONTRIBUTING_AGENT.md` and refreshes the guard files that keep agents from editing issue JSON. Agents should use `kbs` for issues and may edit `project/wiki/` directly. Run it again after you change `.kanbus.yml`.
 
+Kanbus's own guidance covers only the board. How your team writes specifications and uses branches comes from methodologies, and `bdd` and `git-flow` are on by default. To change them, list the ones you want under `methodologies` in `.kanbus.yml`, run `kbs methodology list` to see what is active, and read [Methodologies](../METHODOLOGIES.md) to write your own.
+
 ## Optional: a private board next to the shared one
 
 ```bash
@@ -144,3 +146,4 @@ Add a file named `kanbus-version` at the repository root containing one version,
 
 - Share the board with a team or with agents in other sandboxes: [Files in the cloud](cloud-files.md).
 - Change types, workflows, and statuses: [Configuration](../CONFIGURATION.md).
+- Choose or write the process guidance agents follow: [Methodologies](../METHODOLOGIES.md).

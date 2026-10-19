@@ -2,13 +2,27 @@ name: CI
 
 on:
   push:
-    branches: ["main", "dev", "feature/**"]
+    branches: ["main", "develop", "feature/**"]
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  no-git-url-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Reject git URL dependencies in published manifests
+        run: |
+          if grep -nE '(git\s*=\s*"|@\s*git\+|git\+https?://)' python/pyproject.toml rust/Cargo.toml; then
+            echo "Git URL dependencies cannot be published to PyPI or crates.io." >&2
+            exit 1
+          fi
+
   embedded-kanbus:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -43,6 +57,29 @@ jobs:
           cargo test --locked --all-features --all-targets
           cargo clippy --locked --all-features --all-targets -- -D warnings
 
+  cloud-infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node for CDK synthesis
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      - name: Run cloud infrastructure tests
+        working-directory: infra/cloud
+        run: |
+          python -m pip install -r requirements.txt pytest
+          python -m pytest -q tests
+
   python:
     runs-on: ubuntu-latest
     outputs:
@@ -65,13 +102,13 @@ jobs:
       - name: Build kbsc for integration tests
         run: |
           cd rust
-          cargo build --bin kbsc --no-default-features
+          cargo build --bin kbsc --no-default-features --features test-hooks
           echo "KBSC_BINARY=$(pwd)/target/debug/kbsc" >> "$GITHUB_ENV"
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e python
+          python -m pip install -e "python[dev]"
 
       - name: Run Python quality gates
         run: |
@@ -97,9 +134,36 @@ jobs:
           path: coverage-python/coverage.xml
 
       - name: Check spec parity
-        env:
-          KANBUS_PARITY_STRICT: "0"
         run: python tools/check_spec_parity.py
+
+      - name: Check generated CLI reference
+        run: python tools/generate_cli_reference.py --check
+
+      - name: Check generated configuration reference
+        run: python tools/generate_configuration_reference.py --check
+
+  python-versions:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "python[dev]"
+
+      - name: Unit tests
+        working-directory: python
+        run: python -m pytest tests -q
 
   python-install:
     runs-on: ${{ matrix.os }}
@@ -157,6 +221,7 @@ jobs:
       - name: Sync console assets into Rust bundle
         run: |
           rm -rf rust/embedded_assets/console
+          mkdir -p rust/embedded_assets
           cp -R apps/console/dist rust/embedded_assets/console
 
       - name: Verify console assets bundled for crate
@@ -333,18 +398,74 @@ jobs:
       - name: Build kbsc for console parity tests
         run: |
           cd rust
-          cargo build --bin kbsc --no-default-features
+          cargo build --bin kbsc --no-default-features --features test-hooks
           echo "KBSC_BINARY=$(pwd)/target/debug/kbsc" >> "$GITHUB_ENV"
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e python
+          python -m pip install -e "python[dev]"
 
       - name: Run Python @console-server parity scenarios
         run: |
           cd python
           KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --tags "@console-server and not @slow"
+
+  cli-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        with:
+          toolchain: 1.88.0
+
+      - name: Build kbs
+        run: |
+          cd rust
+          cargo build --bin kbs
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "python[dev]"
+
+      - name: Diff kbs and kanbus on the golden commands
+        run: |
+          python tools/parity_lane.py \
+            --rust rust/target/debug/kbs \
+            --python "$(command -v kanbus)"
+
+  implementation-cochange:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Require both implementations to change together
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REFERENCE: origin/${{ github.base_ref }}
+        run: |
+          current_labels=$(gh pr view "$PULL_REQUEST_NUMBER" --json labels --jq '[.labels[].name] | join(",")')
+          python tools/check_implementation_cochange.py \
+            --base "$BASE_REFERENCE" \
+            --labels "$current_labels"
 
   console-ui:
     runs-on: ubuntu-latest
@@ -359,7 +480,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e python
+          python -m pip install -e "python[dev]"
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -406,7 +527,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e python
+          python -m pip install -e "python[dev]"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
@@ -438,12 +559,22 @@ jobs:
       - name: Sync console assets into Rust bundle
         run: |
           rm -rf rust/embedded_assets/console
+          mkdir -p rust/embedded_assets
           cp -R apps/console/dist rust/embedded_assets/console
 
       - name: Build release binaries
         run: |
           cd rust
           cargo build --release --bin kbs --bin kbsc --features embed-assets
+
+      - name: Release binary ignores test hooks
+        run: |
+          scratch="$(mktemp -d)"
+          cd "$scratch"
+          git init -q
+          "$GITHUB_WORKSPACE/rust/target/release/kbs" init
+          KANBUS_NO_DAEMON=1 KANBUS_TEST_INVALID_STATUS=1 \
+            "$GITHUB_WORKSPACE/rust/target/release/kbs" create "release binary ignores test hooks"
 
       - name: Prepare binaries for Docker test
         run: |
@@ -502,7 +633,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e python
+          python -m pip install -e "python[dev]"
 
       - name: Install and build shared UI package
         run: |
@@ -536,6 +667,8 @@ jobs:
     needs: [python, rust]
     if: ${{ always() && github.event_name == 'push' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

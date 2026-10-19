@@ -106,7 +106,7 @@ def list_issues(
             project.project_dir: project.label
             for project in resolve_labeled_projects(root)
         }
-    except (ProjectMarkerError, ConfigurationError):
+    except ProjectMarkerError:
         root_configuration = None
 
     if len(project_dirs) > 1:
@@ -397,10 +397,7 @@ def _overlay_config_for_project(
     config_path = project_dir.parent / ".kanbus.yml"
     if not config_path.is_file():
         return OverlayConfig(enabled=False)
-    try:
-        return load_project_configuration(config_path).overlay
-    except (ConfigurationError, ProjectMarkerError, RuntimeError):
-        return OverlayConfig(enabled=False)
+    return load_project_configuration(config_path).overlay
 
 
 def _resolve_overlay_configs(

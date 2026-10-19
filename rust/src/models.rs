@@ -99,8 +99,11 @@ pub struct IssueData {
     pub assignee: Option<String>,
     pub creator: Option<String>,
     pub parent: Option<String>,
+    #[serde(default)]
     pub labels: Vec<String>,
+    #[serde(default)]
     pub dependencies: Vec<DependencyLink>,
+    #[serde(default)]
     pub comments: Vec<IssueComment>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -111,8 +114,33 @@ pub struct IssueData {
     pub right_now_summary: Option<String>,
     #[serde(default)]
     pub right_now_updated_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub custom: BTreeMap<String, serde_json::Value>,
 }
+
+/// Top-level keys that `IssueData` persists; any other key found on disk belongs to
+/// a newer or foreign writer and must survive a rewrite.
+pub const PERSISTED_ISSUE_KEYS: &[&str] = &[
+    "id",
+    "title",
+    "description",
+    "type",
+    "status",
+    "priority",
+    "assignee",
+    "creator",
+    "parent",
+    "labels",
+    "dependencies",
+    "comments",
+    "created_at",
+    "updated_at",
+    "closed_at",
+    "agent",
+    "right_now_summary",
+    "right_now_updated_at",
+    "custom",
+];
 
 /// Jira synchronization configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -310,7 +338,7 @@ impl Default for RealtimeConfig {
         Self {
             transport: "auto".to_string(),
             broker: "auto".to_string(),
-            autostart: true,
+            autostart: false,
             keepalive: false,
             uds_socket_path: None,
             mqtt_custom_authorizer_name: None,
@@ -599,6 +627,21 @@ impl Default for HooksConfiguration {
     }
 }
 
+/// One entry of the `methodologies` list in .kanbus.yml.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MethodologySelection {
+    BuiltInName(String),
+    ProjectBundle(ProjectMethodologyBundleReference),
+}
+
+/// A methodology bundle directory inside the repository.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectMethodologyBundleReference {
+    pub path: String,
+}
+
 /// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -619,7 +662,7 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub project_management_template: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub methodologies: Option<Vec<String>>,
+    pub methodologies: Option<Vec<MethodologySelection>>,
     pub hierarchy: Vec<String>,
     pub types: Vec<String>,
     pub workflows: BTreeMap<String, BTreeMap<String, Vec<String>>>,
@@ -705,7 +748,7 @@ mod tests {
         let realtime = RealtimeConfig::default();
         assert_eq!(realtime.transport, "auto");
         assert_eq!(realtime.broker, "auto");
-        assert!(realtime.autostart);
+        assert!(!realtime.autostart);
         assert!(!realtime.keepalive);
         assert!(realtime.uds_socket_path.is_none());
         assert!(realtime.mqtt_custom_authorizer_name.is_none());

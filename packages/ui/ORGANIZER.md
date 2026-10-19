@@ -32,3 +32,13 @@ Host playback owns its clock, immutable sample updates, narration and Pause/Repl
 For Papyrus/Markus, inject a trusted publication-owned island mount through the build seam and bundle this package locally. Do not copy board DOM or serve CRM data. A client mount can retain a useful no-JavaScript explanation. If adding hydration later, server and browser must render identical initial data; do not hydrate markup produced by `renderToStaticMarkup`.
 
 Acceptance: `features/organizer_theme.feature`, plus existing `features/issue_collection.feature`; `npm test` in this package runs the Cucumber browser fixtures with no transport.
+
+## Newsprint theme
+
+`import '@kanbus/ui/styles/newsprint.css'` after `kanban.css`, then put `data-kanbus-theme="newsprint"` on any ancestor of the board and detail panel. Columns are separated by one rule, cards by one rule, and every corner is square. The card's id and priority form a tight eyebrow directly above the headline. Selection is a left bar plus a heavier headline, never an inverted background. All text uses the full foreground color; light and dark (`data-color-mode`, a `.dark` ancestor, or the system preference) meet WCAG AA.
+
+Host tokens, all optional: `--kb-newsprint-paper`, `--kb-newsprint-ink`, `--kb-newsprint-line`, `--kb-newsprint-display-font`, `--kb-newsprint-body-font`. The theme needs no `!important` overrides.
+
+`KanbanIssue.excerpt` is an optional blurb. When present, the card shows it clamped to three lines with a More/Less toggle that does not select the card. Whether to pass a blurb or a subtitle is the host's decision.
+
+Acceptance: `features/newsprint_theme.feature`. A Storybook story, "Themes/Newsprint board", shows both modes.

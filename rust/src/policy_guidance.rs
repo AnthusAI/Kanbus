@@ -29,21 +29,25 @@ pub fn guidance_enabled(no_guidance: bool) -> bool {
     !matches!(raw.as_str(), "1" | "true" | "yes" | "on")
 }
 
-/// Evaluate guidance for a single issue and operation.
-pub fn collect_guidance_for_issue(
+struct LoadedGuidanceEnvironment {
+    policy_documents: Vec<(String, gherkin::Feature)>,
+    context_template: PolicyContext,
+}
+
+fn load_guidance_environment(
     root: &Path,
-    issue: &IssueData,
     operation: PolicyOperation,
-) -> Result<PolicyEvaluationReport, KanbusError> {
+    seed_issue: &IssueData,
+) -> Result<Option<LoadedGuidanceEnvironment>, KanbusError> {
     let project_dir = load_project_directory(root)?;
     let policies_dir = project_dir.join("policies");
     if !policies_dir.is_dir() {
-        return Ok(PolicyEvaluationReport::default());
+        return Ok(None);
     }
 
     let policy_documents = load_policies(&policies_dir)?;
     if policy_documents.is_empty() {
-        return Ok(PolicyEvaluationReport::default());
+        return Ok(None);
     }
 
     let config_path = get_configuration_path(&project_dir)?;
@@ -51,23 +55,46 @@ pub fn collect_guidance_for_issue(
     let issues_dir = project_dir.join("issues");
     let all_issues = load_issues_from_directory(&issues_dir)?;
 
-    let context = PolicyContext {
-        current_issue: Some(issue.clone()),
-        proposed_issue: issue.clone(),
+    let context_template = PolicyContext {
+        current_issue: None,
+        proposed_issue: seed_issue.clone(),
         transition: None,
         operation,
         project_configuration: configuration,
         all_issues,
     };
+    Ok(Some(LoadedGuidanceEnvironment {
+        policy_documents,
+        context_template,
+    }))
+}
 
-    Ok(evaluate_policies_report(
-        &context,
-        &policy_documents,
+fn evaluate_guidance_in_environment(
+    environment: &mut LoadedGuidanceEnvironment,
+    issue: &IssueData,
+) -> PolicyEvaluationReport {
+    environment.context_template.current_issue = Some(issue.clone());
+    environment.context_template.proposed_issue = issue.clone();
+    evaluate_policies_report(
+        &environment.context_template,
+        &environment.policy_documents,
         &PolicyEvaluationOptions {
             collect_all_violations: true,
             mode: PolicyEvaluationMode::Guidance,
         },
-    ))
+    )
+}
+
+/// Evaluate guidance for a single issue and operation.
+pub fn collect_guidance_for_issue(
+    root: &Path,
+    issue: &IssueData,
+    operation: PolicyOperation,
+) -> Result<PolicyEvaluationReport, KanbusError> {
+    match load_guidance_environment(root, operation, issue)? {
+        None => Ok(PolicyEvaluationReport::default()),
+        Some(mut environment) => Ok(evaluate_guidance_in_environment(&mut environment, issue)),
+    }
 }
 
 /// Run non-blocking guidance hooks and emit results to stderr.
@@ -82,11 +109,12 @@ pub fn emit_guidance_for_issues(
     }
 
     let mut collected: Vec<GuidanceItem> = Vec::new();
+    let mut environment = match load_guidance_environment(root, operation, &issues[0]) {
+        Ok(Some(environment)) => environment,
+        Ok(None) | Err(_) => return,
+    };
     for issue in issues {
-        let report = match collect_guidance_for_issue(root, issue, operation.clone()) {
-            Ok(report) => report,
-            Err(_) => continue,
-        };
+        let report = evaluate_guidance_in_environment(&mut environment, issue);
 
         collected.extend(report.guidance_items);
         for violation in report.violations {

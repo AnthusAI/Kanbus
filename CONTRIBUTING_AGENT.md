@@ -218,7 +218,7 @@ Project key prefix: kbs.
 
 Hierarchy: initiative -> epic -> task -> sub-task.
 
-Non-hierarchical types: bug, story, chore.
+Non-hierarchical types: bug, story, chore, event.
 
 Only hierarchy types may be parents.
 
@@ -232,10 +232,11 @@ Allowed parent-child relationships:
 
 - sub-task can have parent task.
 
-- bug, story, chore can have parent initiative, epic, task.
+- bug, story, chore, event can have parent initiative, epic, task.
 
 
 Structure is not bureaucracy. Structure is memory.
+
 
 ## The Cognitive Framework
 
@@ -278,17 +279,13 @@ Chores maintain the ground on which behavior stands.
 Every story must contain a Gherkin form.
 
 Minimum structure:
-
+```gherkin
 Feature:
-
-Scenario:
-
-Given
-
-When
-
-Then
-
+  Scenario:
+    Given
+    When
+    Then
+```
 
 This is required.
 
@@ -319,246 +316,6 @@ Every behavior must be specified.
 Every specification must pass.
 
 Green is peace. Red is unfinished.
-
-## Status and Priority
-
-Statuses and workflows are fixed. They exist to maintain order.
-
-Initial status: open.
-Status changes must follow the workflow transitions below.
-Workflow selection: use a workflow named after the issue type when present; otherwise use the default workflow.
-
-
-default workflow:
-
-
-- backlog -> open, closed
-
-- blocked -> in_progress, closed
-
-- closed -> open
-
-- in_progress -> open, blocked, closed
-
-- open -> in_progress, closed, backlog
-
-
-
-
-epic workflow:
-
-
-- closed -> open
-
-- in_progress -> open, closed
-
-- open -> in_progress, closed
-
-
-
-
-Priorities are:
-
-
-- 0 -- critical
-
-- 1 -- high
-
-- 2 -- medium
-
-- 3 -- low
-
-- 4 -- trivial
-
-Default is 2 (medium).
-
-Severity is not emotion. It is signal.
-
-## Wiki Workflow
-
-The wiki lives under project/wiki/. You may edit Markdown files there directly.
-
-Wiki HTML uses **Markus** (Anthus-Flavored Markdown, package `anthus-markus` / `markusmd.convert`). **Do not `pip install markus`** — the PyPI `markus` package is an unrelated metrics library. See [docs/WIKI_GUIDE.md](docs/WIKI_GUIDE.md#markus-renderer-not-pypi-markus) for the correct dependency, install path, and smoke-test commands (`kbs wiki render ... --html`).
-
-When to use the wiki:
-- Add and edit project/wiki/*.md for reports, status pages, and documentation.
-- Use `kbs wiki list` to discover wiki pages.
-- Use `kbs wiki show <path>` to print raw page source without rendering templates.
-- Use `kbs wiki search <query>` to find pages by path, title, or body (prints `0 results` when nothing matches).
-- Use `kbs wiki lint` or `kbs wiki check` to validate wiki-internal markdown links (ignores links inside inline code and fenced code blocks).
-- Use `kbs wiki init` to create project/wiki/ with a stub index page and refresh `project/AGENTS.md` with the wiki edit exception.
-- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, references, ai_summarize). Render warns on broken wiki links but still outputs content.
-- Canonical render path: `project/wiki/<relative-path>.md`. Short wiki-relative paths such as `index`, `index.md`, and `concepts/foo.md` are also accepted.
-- In templates, `issue.key` (alias `issue.short_id`) matches the short identifier shown by `kbs list`; `issue.id` remains the full identifier. Link wiki pages to Papyrus story directories with `issue.key`, not `issue.id` (for example `stories/{{ issue.key }}/references/`).
-- In templates, use `references(status="accepted")` or `references(status="pending")` to list Papyrus story references from `stories/*/references/*.json`.
-- In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
-
-Cache behavior:
-- AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
-- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
-
-## Command examples
-
-
-kanbus create "Plan the roadmap" --type initiative
-
-kanbus create "Release v1" --type epic --parent <initiative-id>
-
-kanbus create "Implement feature" --type task --parent <epic-id>
-
-kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
-
-kanbus update <id> --status in_progress --assignee "you@example.com"
-
-kanbus update <id> --status blocked
-
-kanbus comment <id> "Progress note"
-
-kbs create "Agent task" --type task --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
-
-kbs update <id> --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
-
-kbs comment update <id> <comment-id> --agent-platform "Cursor" --agent-model "Composer 2.5" --agent-name "Cloud Agent"
-
-kanbus list --status open
-
-kanbus close <id> --comment "Summary of the change"
-
-
-## Console UI Control: Real-Time Collaboration
-
-When the user is actively watching the Kanbus console UI (typically at http://localhost:4242), you can programmatically control the interface to guide their attention and coordinate work in real-time.
-
-### The Focus Command
-
-The `kbs console focus` command immediately highlights an issue on the board, opens it in the detail panel, and filters to show only that issue and its descendants. This happens with sub-100ms latency via Unix socket and SSE notifications.
-
-```bash
-kbs console focus <issue-id>
-```
-
-### When to Use Real-Time Control
-
-Use `kbs console focus` proactively to:
-- **Direct attention after creating important work**: Show new epics or critical tasks immediately
-- **Demonstrate updates**: Let the user see changes as they happen
-- **Coordinate during collaboration**: Show what you're working on in real-time
-- **Provide context**: Help the user understand issue relationships and structure
-
-### Example: Creating and Focusing on an Epic
-
-When you create a new epic with sub-tasks, immediately focus on it to show the user:
-
-```bash
-# Create the epic
-kbs create "Implement authentication system" --type epic --description "Add JWT-based authentication with login, logout, and token refresh"
-
-# The system returns: ID: tskl-auth
-
-# Create sub-tasks
-kbs create "Design authentication flow" --parent tskl-auth --type task
-kbs create "Implement JWT generation" --parent tskl-auth --type task
-kbs create "Add login endpoint" --parent tskl-auth --type task
-kbs create "Add logout endpoint" --parent tskl-auth --type task
-
-# NOW show the user the complete structure
-kbs console focus tskl-auth
-```
-
-The user immediately sees the epic with all 4 sub-tasks on their board, understanding the full scope of what you've planned.
-
-### Example: Tracking Progress in Real-Time
-
-As you work through tasks, keep the user informed by focusing on what you're doing:
-
-```bash
-# Start working on the first task
-kbs update tskl-auth.1 --status in_progress --assignee agent
-kbs console focus tskl-auth.1
-
-# User now sees you're working on "Design authentication flow"
-
-# Complete it and move to the next
-kbs close tskl-auth.1
-kbs update tskl-auth.2 --status in_progress
-kbs console focus tskl-auth.2
-
-# User sees the completion and your shift to JWT generation
-```
-
-### Example: Showing Complex Relationships
-
-When working with nested hierarchies, use focus to show structure:
-
-```bash
-# After creating a deep hierarchy
-kbs create "Frontend overhaul" --type epic
-# Returns: tskl-frontend
-
-kbs create "Redesign dashboard" --parent tskl-frontend --type story
-# Returns: tskl-frontend.1
-
-kbs create "Update header component" --parent tskl-frontend.1 --type task
-kbs create "Add metrics widgets" --parent tskl-frontend.1 --type task
-kbs create "Improve responsive layout" --parent tskl-frontend.1 --type task
-
-# Show the entire tree structure
-kbs console focus tskl-frontend
-
-# Now zoom in to show just the dashboard story and its tasks
-kbs console focus tskl-frontend.1
-```
-
-### Example: Debugging with Focus
-
-When investigating bugs, use focus to show the issue context:
-
-```bash
-# User reports a bug related to authentication
-kbs create "Login fails with expired tokens" --type bug --parent tskl-auth
-
-# Show them you're investigating by focusing on the bug in context
-kbs console focus tskl-auth
-# Now they see the bug alongside the original authentication epic
-
-# After fixing
-kbs close tskl-auth.5
-kbs console focus tskl-auth
-# Show the epic with the bug now closed
-```
-
-### Best Practices for Real-Time Control
-
-1. **Focus after creation**: Always focus on newly created epics so the user sees the structure
-2. **Focus when starting work**: When you update an issue to in_progress, focus on it
-3. **Focus on parents after completion**: When closing a task, focus on its parent to show progress
-4. **Don't over-focus**: Only focus when it genuinely helps the user understand what's happening
-5. **Narrate your focus**: Briefly explain why you're focusing, e.g., "Let me show you the structure I've created"
-
-### Future Commands (Planned in tskl-m59)
-
-Additional UI control commands are being implemented:
-- `kbs console unfocus` - Clear focus and return to full board view
-- `kbs console view <mode>` - Switch between initiatives/epics/issues views
-- `kbs console search <query>` - Set search filter
-- `kbs console maximize` - Maximize the detail panel
-- `kbs console close-detail` - Close the detail panel
-
-Check `kbs show tskl-m59` for current implementation status.
-
-## Semantic Release Alignment
-
-Issue types map directly to release categories.
-
-
-- bug -> fix
-
-- story -> feat
-
-- chore -> chore
-
-
-Release notes are a record, not commentary.
 
 ## Example: Hello World
 
@@ -626,3 +383,134 @@ Run the behavior tests in the repo and confirm the new scenario fails for the ri
 6. Implement the minimum code to pass, then refactor
 Write the smallest change that makes the Gherkin scenario pass.
 Refactor only while all specs remain green.
+
+## Git Flow
+
+Branches have fixed roles.
+
+- `develop` is the continuous-integration branch. Merge accepted, green work there as soon as it is ready.
+- `main` is the release branch. Releases, including semantic-release, run only from `main`. A merge to `develop` is not a production release.
+- Feature branches start from `develop` and return to it through a pull request. They are short-lived: do not park completed work on a feature branch waiting for `main`.
+- Promote `develop` to `main` when you intend a release, not as the daily integration path.
+- Hotfix branches start from `main`, fix an urgent defect, and merge to `main` and back to `develop`.
+
+Open pull requests against `develop` for product work. Merge them there as soon as review is addressed and CI is green.
+
+Project management does not need a pull request. Kanbus issues, comments, status changes and `project/wiki` pages are committed on `develop` and pushed, with no feature branch, pull request or review loop. Do not mix board files into a product pull request; land the board on `develop` first.
+
+Never commit product code directly to `main` or `develop`.
+Name the Kanbus issue in the branch name or the pull request description so code stays linked to intent.
+Branch naming, review, release and approval rules in this repository's AGENTS.md take precedence over this section.
+
+## Semantic Release Alignment
+
+Issue types map directly to release categories.
+
+
+- bug -> fix
+
+- story -> feat
+
+- chore -> chore
+
+- event -> chore
+
+
+Release notes are a record, not commentary.
+
+
+## Status and Priority
+
+Statuses and workflows are fixed. They exist to maintain order.
+
+Initial status: open.
+Status changes must follow the workflow transitions below.
+Workflow selection: use a workflow named after the issue type when present; otherwise use the default workflow.
+
+
+default workflow:
+
+
+- Discovery -> open, backlog
+
+- backlog -> open, closed
+
+- blocked -> in_progress, closed, backlog
+
+- closed -> open, backlog
+
+- in_progress -> open, review, blocked, closed, backlog
+
+- open -> in_progress, closed, backlog
+
+- review -> in_progress, closed
+
+
+
+
+epic workflow:
+
+
+- closed -> open
+
+- in_progress -> open, review, closed
+
+- open -> in_progress, closed
+
+- review -> in_progress, closed
+
+
+
+
+Priorities are:
+
+
+- 0 -- critical
+
+- 1 -- high
+
+- 2 -- medium
+
+- 3 -- low
+
+- 4 -- trivial
+
+Default is 2 (medium).
+
+Severity is not emotion. It is signal.
+
+## Wiki Workflow
+
+The wiki lives under project/wiki/. You may edit Markdown files there directly.
+
+When to use the wiki:
+- Add and edit project/wiki/*.md for reports, status pages, and documentation.
+- Use `kbs wiki list` to discover wiki pages.
+- Use `kbs wiki render <path>` to render a Jinja2 template page (queries, counts, ai_summarize).
+- In templates, use `ai_summarize(issue, detail="short")` to get an AI summary of an issue when ai.provider is configured in .kanbus.yml.
+
+Cache behavior:
+- AI summaries are cached in project/.cache/ai_summaries.json (invalidated by issue updated_at and prompt type).
+- Rendered wiki output is cached in project/.cache/wiki_render/ (invalidated when issues or templates change).
+
+## Command examples
+
+
+kanbus create "Plan the roadmap" --type initiative
+
+kanbus create "Release v1" --type epic --parent <initiative-id>
+
+kanbus create "Implement feature" --type task --parent <epic-id>
+
+kanbus create "Fix crash on launch" --type bug --priority 0 --parent <epic-id>
+
+kanbus update <id> --status in_progress --assignee "you@example.com"
+
+kanbus update <id> --status blocked
+
+kanbus comment <id> "Progress note"
+
+kanbus list --status open
+
+kanbus close <id> --comment "Summary of the change"
+

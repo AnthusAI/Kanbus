@@ -10,6 +10,24 @@ Kanbus ships two first-class CLIs—Python and Rust—that execute the same Gher
 
 Kanbus stores each issue as its own JSON file under `project/issues/`, eliminating merge-heavy monoliths and removing any secondary database. Hierarchical types and workflows live in `.kanbus.yml`, keeping schema alongside data. There is exactly one storage path: the JSON files in the repository. No fallbacks, no mirrored SQLite caches, and no daemon-owned state are required to read or list issues.
 
+## Subsystems
+
+Both runtimes keep the same module boundaries. Names below are shared between `rust/src/` and `python/src/kanbus/` unless noted.
+
+| Subsystem | Modules | Responsibility |
+| --- | --- | --- |
+| Storage | `issue_files`, `file_io`, `ids`, `event_history`, `overlay` | Read and write one JSON file per issue, allocate identifiers, append event history. |
+| Configuration | `config`, `config_loader`, `project`, `workflows`, `hierarchy`, `status_semantics` | Load `.kanbus.yml`, validate it, and resolve workflows, hierarchy and status meaning. |
+| Issue operations | `issue_creation`, `issue_update`, `issue_close`, `issue_delete`, `issue_comment`, `issue_transfer`, `issue_mutation`, `dependencies` | The mutating commands behind the CLI. |
+| Queries and display | `issue_listing`, `issue_lookup`, `queries`, `issue_display`, `issue_line`, `dependency_tree`, `right_now`, `standup*` | Listing, search, formatting, and the now and standup views. |
+| Methodologies and policy | `methodology_bundles`, `methodologies`, `policy_*`, `hooks`, `doctor` | Pluggable process rules, Gherkin policy checks, lifecycle hooks and health checks. |
+| Daemon and realtime | `daemon_*`, `gossip`, `coordination*`, `notification_events` | Optional index daemon, realtime gossip and coordination. The CLI works without any of it. |
+| Issue router | `router*`, `agent_assignment`, `agent_metadata` | Leases, assignment and agent conversation for the issue router. |
+| Wiki | `wiki*`, `console_wiki` (Rust) | Jinja plus Markus page rendering. |
+| Integrations | `beads_write`, `migration`, `jira_sync`, `snyk_sync`, `github_security_sync` | Beads interop and external trackers. |
+| AI | `ai_credentials`, `summarize`, `litellm_completion`, `llm_cost` | Optional summaries; never required for core commands. |
+| Console (Rust only) | `console_backend`, `console_snapshot*`, `console_ui_state`, `bin/console_local`, `bin/console_lambda` | The HTTP and SSE server behind the web console, plus the Lambda adapter. |
+
 ## Event History
 
 Kanbus records an append-only event log under `project/events/` (and `project-local/events/` for local issues). Each discrete issue action writes a single JSON file named with an RFC3339 timestamp plus a UUID suffix (e.g., `2026-02-21T06:09:40.180Z__<event_id>.json`). The event payload captures issue identifiers, actor, timestamps, and action-specific fields (state transitions, comment IDs, dependency changes, and field updates). There is no indexing layer; consumers scan and filter the files when event history is requested.

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
-import os
 from pathlib import Path
-from typing import Callable, Set, TypeVar
+from typing import Callable, Optional, Set, TypeVar
 
+from kanbus.test_hooks import read_test_hook
 from kanbus.models import IssueData
 from kanbus.daemon_client import (
     DaemonClientError,
@@ -73,7 +74,7 @@ def _project_root(issues_directory: Path) -> Path:
 
 def _use_service(issues_directory: Path) -> bool:
     """Return whether this directory belongs to a daemon-addressable project."""
-    if "PYTEST_CURRENT_TEST" in os.environ:
+    if read_test_hook("PYTEST_CURRENT_TEST") is not None:
         return False
     root = _project_root(issues_directory)
     return is_daemon_enabled() and (root / ".kanbus.yml").is_file()
@@ -192,6 +193,110 @@ def _ensure_no_skipped_issue_files(issues_directory: Path, records: object) -> N
         raise ValueError(f"invalid issue files: {', '.join(missing)}")
 
 
+PERSISTED_ISSUE_KEYS = frozenset(
+    {
+        "id",
+        "title",
+        "description",
+        "type",
+        "status",
+        "priority",
+        "assignee",
+        "creator",
+        "parent",
+        "labels",
+        "dependencies",
+        "comments",
+        "created_at",
+        "updated_at",
+        "closed_at",
+        "agent",
+        "right_now_summary",
+        "right_now_updated_at",
+        "custom",
+    }
+)
+
+
+def _without_empty_agent_fields(agent: Optional[dict]) -> Optional[dict]:
+    if not agent:
+        return None
+    return {
+        key: value
+        for key, value in agent.items()
+        if not (key == "settings" and not value) and value is not None
+    }
+
+
+def _persisted_issue_record(issue: IssueData, issue_path: Path) -> dict:
+    """Build the JSON record with the same keys the Rust CLI persists."""
+    record = issue.model_dump(by_alias=True, mode="json")
+    record.pop("agent_assignment", None)
+    agent = _without_empty_agent_fields(record.get("agent"))
+    if agent is None:
+        record.pop("agent", None)
+    else:
+        record["agent"] = agent
+    persisted_comments = []
+    for comment in record.get("comments", []):
+        persisted = {
+            key: value
+            for key, value in comment.items()
+            if value is not None and key not in ("data", "agent")
+        }
+        if comment.get("data"):
+            persisted["data"] = comment["data"]
+        comment_agent = _without_empty_agent_fields(comment.get("agent"))
+        if comment_agent is not None:
+            persisted["agent"] = comment_agent
+        persisted_comments.append(persisted)
+    record["comments"] = persisted_comments
+    try:
+        existing = json.loads(issue_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        existing = None
+    if isinstance(existing, dict):
+        for key, value in existing.items():
+            if key not in PERSISTED_ISSUE_KEYS:
+                record.setdefault(key, value)
+        _restore_full_precision_timestamps(record, existing)
+    return record
+
+
+def _microsecond_prefix(timestamp: object) -> Optional[str]:
+    if not isinstance(timestamp, str):
+        return None
+    seconds, _, fraction = timestamp.partition(".")
+    digits = "".join(character for character in fraction if character.isdigit())
+    return f"{seconds.rstrip('Z')}.{digits[:6].ljust(6, '0')}"
+
+
+def _restore_full_precision_timestamps(record: dict, existing: dict) -> None:
+    """Keep nanosecond timestamps Python's datetime cannot represent."""
+    for key in ("created_at", "updated_at", "closed_at", "right_now_updated_at"):
+        previous = existing.get(key)
+        if (
+            isinstance(previous, str)
+            and _microsecond_prefix(previous) == _microsecond_prefix(record.get(key))
+            and _microsecond_prefix(previous) is not None
+        ):
+            record[key] = previous
+    existing_comments = {
+        comment.get("id"): comment
+        for comment in existing.get("comments", [])
+        if isinstance(comment, dict) and comment.get("id")
+    }
+    for comment in record.get("comments", []):
+        previous = existing_comments.get(comment.get("id"), {}).get("created_at")
+        if (
+            isinstance(previous, str)
+            and _microsecond_prefix(previous) is not None
+            and _microsecond_prefix(previous)
+            == _microsecond_prefix(comment.get("created_at"))
+        ):
+            comment["created_at"] = previous
+
+
 def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
     """Write an issue to a JSON file with pretty formatting.
 
@@ -202,7 +307,7 @@ def write_issue_to_file(issue: IssueData, issue_path: Path) -> None:
     """
     if issue_path.is_dir():
         raise IsADirectoryError(issue_path)
-    record = issue.model_dump(by_alias=True, mode="json")
+    record = _persisted_issue_record(issue, issue_path)
 
     def _write_directly() -> None:
         issue_path.parent.mkdir(parents=True, exist_ok=True)

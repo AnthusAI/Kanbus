@@ -1,0 +1,44 @@
+{
+  "id": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "title": "Engineering review 2026-10-17: structural improvements",
+  "description": "Follow-ups from the code-level engineering review of develop at b6dd747 (doc: https://claude.ai/code/artifact/9740d727-91b0-4ed3-a0db-3c6b743e8f20). Yesterday's acceptance review (label acceptance-review) tested the product from the outside; this epic goes underneath it: performance root causes, security gaps in the local and cloud consoles, data-integrity gaps between the Rust and Python runtimes, router process hygiene, CI and release drift, and documentation that disagrees with the code. Each child task is written so a worker can pick it up without the doc. Order: data integrity and security first (tasks marked priority 1), then speed, then process and hygiene.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0efafa13-3be5-4204-b576-b88973c1c390",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Seven of fifteen children are closed (kbs-576d5848, kbs-52f8dbb3, kbs-23218511, kbs-e6aa4c29, kbs-9fe83b63, kbs-73f796e3, kbs-7e29e0da). Merged PRs #452 to #460 delivered README rewrite, repo hygiene, community files, docs regeneration, Python packaging, architecture docs, the console snapshot feed and the StoreSelector. Open PR #470 (branch claude/console-remaining-pairs) is the next console slice. In progress: kbs-eb1788eb. Open and not started: kbs-e47401a8, kbs-7bf31fda, kbs-08a2d17c, kbs-bbf2a6d2. Open but probably delivered and needing an acceptance check before closing: kbs-a0a92814, kbs-76b265f8, kbs-7410f7c6. Next step: merge #470 once CI is green, then do the remaining console pairs (telemetry, realtime, notifications, UI state) under kbs-29c41525. Do the workspace split (kbs-08a2d17c) last. Constraints: Python stays a full independent port; never remove router.workflow.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "1a8f1340-e120-44bf-a868-992dc0346dc1",
+      "author": "unknown",
+      "text": "Status 2026-10-19: merged #452-#456, #458-#460, #470. Remaining work and handoff notes: /mnt/project-files/handoff/engineering-review-handoff.md. kbs-29c415 next step: unify telemetry/realtime/notification/ui-state pairs with per-tenant scoping.",
+      "created_at": "2026-10-19T16:51:55.559228035Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "975a53c2-dc03-4e14-984a-49e24f4535c4",
+      "author": "Claude",
+      "text": "Update 2026-10-19 16:51Z: PR #470 merged. Engineering-review implementation thread stopped before the remaining console pairs; see kbs-29c41525 for the next step.",
+      "created_at": "2026-10-19T16:52:05.869098000Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-17T16:34:12.974124898Z",
+  "updated_at": "2026-10-19T16:52:05.869098000Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

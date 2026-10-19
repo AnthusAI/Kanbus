@@ -10,9 +10,10 @@ use crate::event_history::{
     delete_events_for_issues, events_dir_for_issue_path, issue_deleted_payload, now_timestamp,
     write_events_batch, EventRecord, EventType,
 };
-use crate::issue_files::{delete_issue_file, write_issue_to_file};
+use crate::issue_files::{delete_issue_file, read_issue_from_file, write_issue_to_file};
 use crate::models::IssueData;
-use crate::overlay::replace_overlay_issue_if_present;
+use crate::overlay::{overlay_root, replace_overlay_issue_if_present};
+use fs2::FileExt;
 
 /// Request to persist an issue mutation through the write gate.
 #[derive(Debug, Clone)]
@@ -39,6 +40,44 @@ pub struct PersistIssueDeletionResult {
     pub event: Option<EventRecord>,
 }
 
+struct IssueWriteLock {
+    _file: std::fs::File,
+}
+
+fn acquire_issue_write_lock(
+    project_dir: &Path,
+    issue_identifier: &str,
+) -> Result<IssueWriteLock, KanbusError> {
+    let lock_directory = overlay_root(project_dir).join("locks");
+    std::fs::create_dir_all(&lock_directory).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(lock_directory.join(format!("{issue_identifier}.lock")))
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    file.lock_exclusive()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    Ok(IssueWriteLock { _file: file })
+}
+
+fn refuse_if_issue_changed_since_read(
+    issue_path: &Path,
+    before_issue: &IssueData,
+) -> Result<(), KanbusError> {
+    if !issue_path.exists() {
+        return Ok(());
+    }
+    let on_disk = read_issue_from_file(issue_path)?;
+    if on_disk.updated_at != before_issue.updated_at {
+        return Err(KanbusError::IssueOperation(format!(
+            "concurrent modification: {} changed since it was read; retry the command",
+            before_issue.identifier
+        )));
+    }
+    Ok(())
+}
+
 /// Persist an issue mutation with updated_at and event history.
 ///
 /// When `before_issue` is absent, a failed event write removes the newly
@@ -56,6 +95,10 @@ pub fn persist_issue_mutation(
     let mut persisted_issue = request.issue.clone();
     persisted_issue.updated_at = current_time;
     let target_path = request.relocate_to.as_ref().unwrap_or(&request.issue_path);
+    let _write_lock = acquire_issue_write_lock(&request.project_dir, &persisted_issue.identifier)?;
+    if let Some(before_issue) = &request.before_issue {
+        refuse_if_issue_changed_since_read(&request.issue_path, before_issue)?;
+    }
     write_issue_to_file(&persisted_issue, target_path)?;
     replace_overlay_issue_if_present(&request.project_dir, &persisted_issue)?;
     let final_issue_path = target_path.clone();
@@ -75,6 +118,7 @@ pub fn persist_issue_mutation(
             }
             if let Some(before_issue) = &request.before_issue {
                 write_issue_to_file(before_issue, &request.issue_path)?;
+                let _ = replace_overlay_issue_if_present(&request.project_dir, before_issue);
             } else if request.issue_path.exists() {
                 let _ = delete_issue_file(&request.issue_path);
             }
@@ -202,6 +246,88 @@ mod tests {
             .expect("events")
             .next()
             .is_some());
+    }
+
+    fn mutation_request(
+        project_dir: &Path,
+        issue_path: &Path,
+        before_issue: &IssueData,
+        title: &str,
+    ) -> PersistIssueMutationRequest {
+        let mut updated = before_issue.clone();
+        updated.title = title.to_string();
+        PersistIssueMutationRequest {
+            project_dir: project_dir.to_path_buf(),
+            issue_path: issue_path.to_path_buf(),
+            issue: updated,
+            actor_id: "dev".to_string(),
+            events: vec![event(&before_issue.identifier)],
+            before_issue: Some(before_issue.clone()),
+            relocate_to: None,
+        }
+    }
+
+    #[test]
+    fn second_writer_with_stale_snapshot_is_refused() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let project_dir = temp.path().join("project");
+        let issue_path = project_dir.join("issues/kanbus-1.json");
+        fs::create_dir_all(issue_path.parent().expect("parent")).expect("mkdir");
+        write_issue_to_file(&make_issue("kanbus-1", "Original"), &issue_path).expect("seed");
+        let snapshot_read_by_both = read_issue_from_file(&issue_path).expect("read");
+
+        persist_issue_mutation(&mutation_request(
+            &project_dir,
+            &issue_path,
+            &snapshot_read_by_both,
+            "First writer",
+        ))
+        .expect("first writer wins");
+        let refused = persist_issue_mutation(&mutation_request(
+            &project_dir,
+            &issue_path,
+            &snapshot_read_by_both,
+            "Second writer",
+        ))
+        .expect_err("second writer must be refused");
+
+        assert!(refused.to_string().contains("concurrent modification"));
+        assert_eq!(
+            read_issue_from_file(&issue_path).expect("read").title,
+            "First writer"
+        );
+    }
+
+    #[test]
+    fn concurrent_writers_never_silently_overwrite_each_other() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let project_dir = temp.path().join("project");
+        let issue_path = project_dir.join("issues/kanbus-1.json");
+        fs::create_dir_all(issue_path.parent().expect("parent")).expect("mkdir");
+        write_issue_to_file(&make_issue("kanbus-1", "Original"), &issue_path).expect("seed");
+        let snapshot_read_by_both = read_issue_from_file(&issue_path).expect("read");
+
+        let outcomes: Vec<bool> = (0..2)
+            .map(|writer| {
+                let project_dir = project_dir.clone();
+                let issue_path = issue_path.clone();
+                let snapshot = snapshot_read_by_both.clone();
+                std::thread::spawn(move || {
+                    persist_issue_mutation(&mutation_request(
+                        &project_dir,
+                        &issue_path,
+                        &snapshot,
+                        &format!("Writer {writer}"),
+                    ))
+                    .is_ok()
+                })
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| handle.join().expect("join"))
+            .collect();
+
+        assert_eq!(outcomes.iter().filter(|accepted| **accepted).count(), 1);
     }
 
     #[test]

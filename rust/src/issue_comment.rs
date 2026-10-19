@@ -26,16 +26,26 @@ fn generate_comment_id() -> String {
     Uuid::new_v4().to_string()
 }
 
+fn legacy_comment_id(issue_identifier: &str, index: usize, comment: &IssueComment) -> String {
+    let seed = format!(
+        "{issue_identifier}:{index}:{}:{}",
+        comment.created_at.to_rfc3339(),
+        comment.author
+    );
+    Uuid::new_v5(&Uuid::NAMESPACE_OID, seed.as_bytes()).to_string()
+}
+
 pub fn ensure_comment_ids(issue: &IssueData) -> (IssueData, bool) {
     let mut changed = false;
     let comments = issue
         .comments
         .iter()
-        .map(|comment| {
+        .enumerate()
+        .map(|(index, comment)| {
             if comment.id.as_deref().unwrap_or("").is_empty() {
                 changed = true;
                 IssueComment {
-                    id: Some(generate_comment_id()),
+                    id: Some(legacy_comment_id(&issue.identifier, index, comment)),
                     author: comment.author.clone(),
                     text: comment.text.clone(),
                     created_at: comment.created_at,
@@ -188,6 +198,18 @@ pub fn add_comment(
         issue: persisted,
         comment,
     })
+}
+
+/// Load an issue with comment IDs filled in memory only, without touching the repository.
+///
+/// Legacy comment ids are derived deterministically, so the ids shown here match the ones
+/// persisted by the next real mutation.
+pub fn load_issue_with_display_comment_ids(
+    root: &Path,
+    identifier: &str,
+) -> Result<IssueData, KanbusError> {
+    let lookup = load_issue_from_project(root, identifier)?;
+    Ok(ensure_comment_ids(&lookup.issue).0)
 }
 
 /// Ensure comment IDs exist for an issue and persist any changes.

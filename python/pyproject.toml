@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,6 +9,7 @@ description = "A git-backed project management system."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "click==8.4.2",
     "jinja2",
@@ -17,16 +18,8 @@ dependencies = [
     "pyyaml",
     "pydantic-settings",
     "requests",
-    "litellm",
     "paho-mqtt",
     "virtuus==0.6.1",
-    "behave",
-    "pytest",
-    "gherkin-official",
-    "coverage",
-    "ruff==0.15.5",
-    "black==26.3.1",
-    "sphinx",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -40,6 +33,19 @@ classifiers = [
     "Topic :: Software Development :: Version Control",
 ]
 
+[project.optional-dependencies]
+ai = ["litellm"]
+dev = [
+    "kanbus[ai]",
+    "behave",
+    "pytest",
+    "gherkin-official",
+    "coverage",
+    "ruff==0.15.5",
+    "black==26.3.1",
+    "sphinx",
+]
+
 [project.urls]
 Homepage = "https://kanb.us"
 Repository = "https://github.com/AnthusAI/Kanbus"
@@ -47,8 +53,6 @@ Issues = "https://github.com/AnthusAI/Kanbus/issues"
 
 [project.scripts]
 kanbus = "kanbus.cli:cli"
-# Keep a compatibility alias for users expecting the rust binary name
-kanbusr = "kanbus.cli:cli"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

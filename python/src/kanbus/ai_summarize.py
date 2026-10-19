@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict
 
 from kanbus.models import AiConfiguration
+from kanbus.test_hooks import read_test_hook
 
 AI_SUMMARIES_CACHE = "ai_summaries.json"
 AI_CALLS_LOG = "ai_calls.log"
@@ -68,7 +68,7 @@ def summarize_issue(
     if ai_config is None:
         return "(AI summarization not configured)"
 
-    if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
+    if read_test_hook("KANBUS_TEST_AI_MOCK") == "1":
         identifier = issue.get("id") or issue.get("identifier", "unknown")
         return f"Generated summary for {identifier}"
 
@@ -111,7 +111,7 @@ def make_ai_summarize(
         if cache_dir is not None:
             key = _cache_key(issue, detail)
             _write_cache(cache_dir, key, result)
-            if os.environ.get("KANBUS_TEST_AI_MOCK") == "1":
+            if read_test_hook("KANBUS_TEST_AI_MOCK") == "1":
                 _log_call(cache_dir)
         return result
 

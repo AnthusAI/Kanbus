@@ -60,7 +60,7 @@ const LEGACY_DISCOVERY_IGNORE_DIRS: [&str; 10] = [
 ];
 
 fn should_force_canonicalize_failure() -> bool {
-    std::env::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
+    crate::test_hooks::var_os("KANBUS_TEST_CANONICALIZE_FAILURE").is_some()
 }
 
 pub(crate) fn canonicalize_path(path: &Path) -> Result<PathBuf, std::io::Error> {
@@ -320,19 +320,18 @@ pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
     // Virtual project directories are for reading and lookup only — including
     // them here causes "multiple projects found" errors for write operations.
     if let Ok(config_path) = get_configuration_path(root) {
-        if let Ok(configuration) = load_project_configuration(&config_path) {
-            let base = config_path.parent().unwrap_or_else(|| Path::new(""));
-            let primary = base.join(&configuration.project_directory);
-            if is_path_ignored(&primary, base, &configuration.ignore_paths) {
-                return Err(KanbusError::IssueOperation(
-                    "project not initialized".to_string(),
-                ));
-            }
-            return Ok(match canonicalize_path(&primary) {
-                Ok(p) => p,
-                Err(_) => primary,
-            });
+        let configuration = load_project_configuration(&config_path)?;
+        let base = config_path.parent().unwrap_or_else(|| Path::new(""));
+        let primary = base.join(&configuration.project_directory);
+        if is_path_ignored(&primary, base, &configuration.ignore_paths) {
+            return Err(KanbusError::IssueOperation(
+                "project not initialized".to_string(),
+            ));
         }
+        return Ok(match canonicalize_path(&primary) {
+            Ok(p) => p,
+            Err(_) => primary,
+        });
     }
 
     // No config file — fall back to filesystem scanning.
@@ -485,7 +484,7 @@ pub fn ensure_project_local_directory(project_dir: &Path) -> Result<PathBuf, Kan
 ///
 /// Returns `KanbusError::IssueOperation` if the configuration file is missing.
 pub fn get_configuration_path(root: &Path) -> Result<PathBuf, KanbusError> {
-    if std::env::var_os("KANBUS_TEST_CONFIGURATION_PATH_FAILURE").is_some() {
+    if crate::test_hooks::var_os("KANBUS_TEST_CONFIGURATION_PATH_FAILURE").is_some() {
         return Err(KanbusError::Io(
             "configuration path lookup failed".to_string(),
         ));

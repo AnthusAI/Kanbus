@@ -50,6 +50,16 @@ pub struct WikiRenderRequest {
     pub page_path: PathBuf,
 }
 
+/// Strip exactly one leading parent-directory marker from a configured wiki
+/// directory, returning the repository-relative path it names. Returns `None`
+/// when the directory lives inside the project directory instead.
+pub fn repository_relative_wiki_directory(wiki_subdir: &str) -> Option<String> {
+    wiki_subdir
+        .replace('\\', "/")
+        .strip_prefix("../")
+        .map(str::to_string)
+}
+
 /// Load wiki directory location from project configuration.
 ///
 /// # Arguments
@@ -64,12 +74,7 @@ pub fn load_wiki_location(root: &Path) -> Result<WikiLocation, KanbusError> {
     let store = FileStore::new(root);
     let config = store.load_config()?;
     let wiki_subdir = config.wiki_directory.as_deref().unwrap_or("wiki");
-    if wiki_subdir.starts_with("../") {
-        let normalized = wiki_subdir
-            .replace('\\', "/")
-            .trim_start_matches("../")
-            .trim_start_matches("..\\")
-            .to_string();
+    if let Some(normalized) = repository_relative_wiki_directory(wiki_subdir) {
         Ok(WikiLocation {
             wiki_root: root.join(&normalized),
             list_prefix: normalized,
@@ -777,7 +782,7 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
         if let Some(cached) = ai_summarize_read_cache(&cache_dir, &cache_key) {
             return Ok(Value::from(cached));
         }
-        let result = if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+        let result = if crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
             let identifier =
                 extract_issue_identifier(&value).unwrap_or_else(|| "unknown".to_string());
             format!("Generated summary for {}", identifier)
@@ -790,51 +795,11 @@ pub fn render_wiki_page(request: &WikiRenderRequest) -> Result<String, KanbusErr
             format!("Summary: {}", title)
         };
         ai_summarize_write_cache(&cache_dir, &cache_key, &result);
-        if std::env::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
+        if crate::test_hooks::var("KANBUS_TEST_AI_MOCK").as_deref() == Ok("1") {
             ai_summarize_log_call(&cache_dir);
         }
         Ok(Value::from(result))
     });
-
-    #[cfg(tarpaulin)]
-    {
-        let _ = resolve_wiki_page_path(&request.root, "project/wiki/coverage-missing.md");
-        let _ = env.render_str(
-            "{% for issue in query(sort=\"title\") %}{% endfor %}",
-            context! {},
-        );
-        let _ = env.render_str(
-            "{% for issue in query(sort=\"priority\") %}{% endfor %}",
-            context! {},
-        );
-        let _ = env.render_str(
-            "{% for issue in query(sort=\"invalid\") %}{% endfor %}",
-            context! {},
-        );
-        let dummy_issue = IssueData {
-            identifier: "kanbus-dummy".to_string(),
-            title: "Dummy".to_string(),
-            description: "".to_string(),
-            issue_type: "task".to_string(),
-            status: "open".to_string(),
-            priority: 2,
-            assignee: None,
-            creator: None,
-            parent: None,
-            labels: Vec::new(),
-            dependencies: Vec::new(),
-            comments: Vec::new(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            closed_at: None,
-            agent: None,
-            right_now_summary: None,
-            right_now_updated_at: None,
-            custom: std::collections::BTreeMap::new(),
-        };
-        let mut dummy_list = vec![dummy_issue];
-        apply_issue_type_filter(&mut dummy_list, "task");
-    }
 
     let rendered = env
         .render_str(&template, context! {})

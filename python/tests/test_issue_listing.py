@@ -109,7 +109,8 @@ def test_overlay_config_resolution_paths(
         "load_project_configuration",
         lambda _p: (_ for _ in ()).throw(RuntimeError("bad")),
     )
-    assert issue_listing._overlay_config_for_project(project_dir, None).enabled is False
+    with pytest.raises(RuntimeError, match="bad"):
+        issue_listing._overlay_config_for_project(project_dir, None)
 
     resolved = issue_listing._resolve_overlay_configs([project_dir], config)
     assert resolved[project_dir].enabled is True
