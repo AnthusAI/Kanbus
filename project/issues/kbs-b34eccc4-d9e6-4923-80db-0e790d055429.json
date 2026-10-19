@@ -36,10 +36,22 @@
         "model": "GPT-6.1 Sol",
         "name": "Console Tenant Isolation"
       }
+    },
+    {
+      "id": "e63de6ab-b89a-4e36-93b9-edddb0a7f2d4",
+      "author": "home",
+      "text": "Implementation committed on fix/console-tenant-isolation: code revision 9fb05378e521fb54b19a7b6297373eff3af6011c (implementation 96e2149467498409bc4023b2db4d413c123ee29a plus compile correction). Sessions are keyed by validated route account/project; tenant state loads/persists from its existing project; root state/notification routes return 400 in multi mode; unknown tenant 404; global gossip bridge disabled in multi because envelopes lack trusted tenant identity. Tests exercise separate accounts, sibling projects, spoofed body selectors, live IssueUpdated delivery, focus/search replay, persistence/restart, root rejection and single-tenant behavior. Both runners passed four scenarios before final tidy; final committed-revision rerun in progress. 65 local server tests, 22 cloud handler/auth tests, three state library tests passed. Python format/lint and spec-parity pass. Strict Clippy 1.98.1 is blocked by two pre-existing findings in untouched right_now_command.rs and workflows.rs; scoped Clippy passes with only those lint categories excluded. No full-suite coverage run yet. Auto-review denied git push origin b99079d19b2604bb2623ac61d99d0f2750f18744:develop as an unauthorized shared-branch commitment; did not execute or retry. Board evidence will travel with the review branch/PR. Keep issue open until merge. No deployment or production mutations.",
+      "created_at": "2026-10-19T22:24:42.860993Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T22:17:09.064057Z",
+  "updated_at": "2026-10-19T22:24:42.861060Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
