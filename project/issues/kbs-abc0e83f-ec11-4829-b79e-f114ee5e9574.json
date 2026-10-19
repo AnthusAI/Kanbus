@@ -3,7 +3,7 @@
   "title": "Python package installs development tools as runtime dependencies",
   "description": "pip install kanbus pulls behave, black, coverage, pytest, ruff and sphinx. Move them to an optional dev extra so the CLI install is light, as the getting-started guide promises.",
   "type": "chore",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "acceptance-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "09cebd17-3152-4ffc-ab44-a7db193b9102",
+      "author": "home",
+      "text": "Acceptance check 2026-10-19 on develop 3404202a: wheel built with isolated python -m build installs 24 packages into a fresh venv (no behave, black, coverage, pytest, ruff, sphinx, litellm); dev tools live in the dev extra. Delivered by PR #447. Closing.",
+      "created_at": "2026-10-19T16:53:15.210865Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-16T14:23:47.691408474Z",
-  "updated_at": "2026-10-16T14:23:47.750734580Z",
-  "closed_at": null,
+  "updated_at": "2026-10-19T16:53:18.922778Z",
+  "closed_at": "2026-10-19T16:53:18.852557Z",
   "agent": {
     "platform": "claude-code",
     "model": "Claude",

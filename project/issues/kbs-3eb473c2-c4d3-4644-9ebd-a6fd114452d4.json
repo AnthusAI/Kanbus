@@ -1,0 +1,22 @@
+{
+  "id": "kbs-3eb473c2-c4d3-4644-9ebd-a6fd114452d4",
+  "title": "Finish repo hygiene: ignored tracked files, root layout, npm advisories",
+  "description": "Audit 2026-10-19: git ls-files -i -c --exclude-standard returns 14 paths (public/videoml intro segments, videos/src/videos/intro/env/development, AGENTS.override.md). Root still has INSTALL.md, CONTRIBUTING_AGENT.template.md, package.json, package-lock.json, amplify.yml, amplify/, dev.sh, planning/, public/, src/; python/uv.lock still tracked. npm audit --package-lock-only: root 44 high 5 critical, apps/console 26 high 3 critical, packages/ui 9 high 0 critical (unchanged from the ticket). PR #454 deliberately kept the amplify files until the kanb.us cutover (kbs-c3e738f2). Work now: untrack or un-ignore the 14 paths (decide per path), remove python/uv.lock, fold INSTALL.md into CONTRIBUTING.md, move planning/ and the video folders under videos/, fix the npm advisories in apps/console and packages/ui and add npm audit --audit-level=high to CI for those two. Root amplify/package files move after kbs-c3e738f2. Acceptance: ls-files -i empty; audit zero high/critical in apps/console and packages/ui.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-7410f7c6-f126-4831-ad7c-6ef1f8de2d65",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:53:40.859060Z",
+  "updated_at": "2026-10-19T16:53:40.969899Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

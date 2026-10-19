@@ -3,7 +3,7 @@
   "title": "Python packaging: dev and ai extras, correct build floor, Trusted Publishing",
   "description": "Problem: 'pip install kanbus' resolves to 96 packages and 381 MB, of which the core runtime (click, pydantic, pyyaml, jinja2, requests, paho-mqtt, markus, virtuus, pydantic-settings) is 23 packages and 21 MB. litellm alone adds 37 packages and 248 MB and is already lazily imported (right_now.py:875, summarize.py:29); dev tools (behave, pytest, gherkin-official, coverage, ruff, black, sphinx) add 30 packages and 109 MB and pin formatter versions on users (python/pyproject.toml:12-30; already filed as kbs-abc0e83f, this task is the implementation). pyproject.toml:2 requires setuptools>=68 but line 10 uses the PEP 639 license = 'MIT' field, which fails prepare_metadata_for_build_wheel on setuptools 75 (needs 77). CI tests Python 3.11 only while classifiers claim 3.12 and 3.13. A stale 'kanbusr' entry point remains (pyproject.toml:48-50). release.yml publishes with long-lived PYPI_TOKEN and CARGO_REGISTRY_TOKEN. The published wheel lacks the license file.\n\nWork: move dev tools to [project.optional-dependencies] dev (install -e python[dev] in CI); make litellm an 'ai' extra with a clear error when the AI commands run without it; requires = ['setuptools>=77'] and license-files; drop kanbusr; a small 3.11/3.12/3.13 matrix for the unit-test job; PyPI and crates.io Trusted Publishing where the registries allow it.\n\nAcceptance: a fresh 'pip install kanbus' from the built wheel installs under 30 packages; 'kanbus --help' still under 0.5 s; python -m build succeeds with setuptools 77 in an isolated env; wheel contains LICENSE.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f3f78e02-e693-47cd-a1bd-e1fca453f816",
+      "author": "home",
+      "text": "Acceptance check 2026-10-19 on develop 3404202a: 24 packages from a fresh wheel install (under 30); kanbus --help 0.27-0.29 s warm (1.09 s first cold run); isolated python -m build succeeds, pyproject requires setuptools>=77 (77.0.0 is yanked on PyPI, so the floor itself was not pinned in the test); wheel contains dist-info/licenses/LICENSE; dev and ai extras present; kanbusr removed; 3.11/3.12/3.13 matrix in ci.yml; missing litellm gives a pip install 'kanbus[ai]' hint. Only Trusted Publishing remains, deliberately deferred in PR #447 because the registries need owner setup; split into its own chore. Closing.",
+      "created_at": "2026-10-19T16:53:15.752637Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:37:45.893405484Z",
-  "updated_at": "2026-10-17T16:37:45.968151853Z",
-  "closed_at": null,
+  "updated_at": "2026-10-19T16:53:19.335951Z",
+  "closed_at": "2026-10-19T16:53:19.271631Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
