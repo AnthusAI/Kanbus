@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +37,38 @@ class DoctorResult:
     ai_credential_source: str = CredentialSource.NONE.value
     methodology_names: tuple[str, ...] = ()
     project_management_file_is_current: bool | None = None
+    events_gitignore_warning: str | None = None
+
+
+def describe_gitignore_rule_hiding_events(root: Path, project_dir: Path) -> str | None:
+    """Describe the gitignore rule that hides the project events directory.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param project_dir: Primary project directory.
+    :type project_dir: Path
+    :return: Warning text naming the rule to remove, or None when events are tracked.
+    :rtype: str | None
+    """
+    events_relative_path = (
+        (project_dir / "events").resolve().relative_to(root.resolve()).as_posix()
+    )
+    check_result = subprocess.run(
+        ["git", "check-ignore", "-v", "--", f"{events_relative_path}/probe.json"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if check_result.returncode != 0:
+        return None
+    rule_source = check_result.stdout.split("\t", 1)[0].strip()
+    source_file, line_number, pattern = rule_source.split(":", 2)
+    return (
+        f"events are enabled but {events_relative_path} is gitignored by the rule "
+        f"{pattern} ({source_file}:{line_number}); remove the rule so kbs commit "
+        "includes events"
+    )
 
 
 def run_doctor(root: Path) -> DoctorResult:
@@ -90,9 +123,16 @@ def run_doctor(root: Path) -> DoctorResult:
     except Exception:
         ai_credential_source = CredentialSource.NONE.value
 
+    events_gitignore_warning = (
+        describe_gitignore_rule_hiding_events(root, project_dir)
+        if configuration.events
+        else None
+    )
+
     return DoctorResult(
         project_dir=project_dir,
         ai_credential_source=ai_credential_source,
         methodology_names=methodology_names,
         project_management_file_is_current=project_management_file_is_current,
+        events_gitignore_warning=events_gitignore_warning,
     )

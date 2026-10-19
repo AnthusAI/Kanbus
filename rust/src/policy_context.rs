@@ -170,6 +170,7 @@ mod tests {
             sort_order: BTreeMap::new(),
             type_colors: BTreeMap::new(),
             beads_compatibility: false,
+            events: true,
             wiki_directory: None,
             ai: None,
             jira: None,

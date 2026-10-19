@@ -416,16 +416,26 @@ def test_commit_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(
         cli,
         "commit_project_issues",
-        lambda _root: IssueCommitResult(committed=True),
+        lambda _root: IssueCommitResult(committed=True, includes_events=True),
     )
     result_committed = _run(["commit"])
     assert result_committed.exit_code == 0
-    assert "Committed project/issues" in result_committed.output
+    assert "Committed project/issues and project/events" in result_committed.output
 
     monkeypatch.setattr(
         cli,
         "commit_project_issues",
-        lambda _root: IssueCommitResult(committed=False),
+        lambda _root: IssueCommitResult(committed=True, includes_events=False),
+    )
+    result_issues_only = _run(["commit"])
+    assert result_issues_only.exit_code == 0
+    assert "Committed project/issues" in result_issues_only.output
+    assert "project/events" not in result_issues_only.output
+
+    monkeypatch.setattr(
+        cli,
+        "commit_project_issues",
+        lambda _root: IssueCommitResult(committed=False, includes_events=True),
     )
     result_clean = _run(["commit"])
     assert result_clean.exit_code == 0

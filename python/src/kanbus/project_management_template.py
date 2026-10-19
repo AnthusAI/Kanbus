@@ -50,11 +50,11 @@ kbs commit
 
 Then push to the branch your project uses for shared board state (see **AGENTS.md** in this repository).
 
-`kbs commit` stages and commits `project/issues/` only. It is idempotent when there is nothing to commit. It does not push.
+`kbs commit` stages and commits `project/issues/` and `project/events/` together in one commit. Set `events: false` in `.kanbus.yml` to stop generating events; then only `project/issues/` is committed. It is idempotent when there is nothing to commit. It does not push.
 
 Notes:
 - `project/issues/` is the board state Kanbus writes. Use `kbs commit` after board changes so collaborators see current state.
-- `project/events/` holds event logs. `kbs commit` does not commit events. Commit events manually if your project tracks them in git.
+- `project/events/` holds event logs. `kbs commit` commits them with the issues unless `events: false` is set. Do not gitignore `project/events/`; `kbs doctor` warns when events are enabled but ignored.
 - Never manually edit the JSON content of `project/issues/` or `project/events/` files. `kbs commit` persists Kanbus-written issue state without hand-editing JSON.
 
 ## Git commits and pull requests

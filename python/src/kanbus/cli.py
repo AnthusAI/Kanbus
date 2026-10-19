@@ -1662,7 +1662,7 @@ def close(context: click.Context, identifier: str, comment_text: Optional[str]) 
 
 @cli.command("commit")
 def commit() -> None:
-    """Commit project/issues changes to git.
+    """Commit board state (issues and events) to git.
 
     \b
     Examples:
@@ -1674,7 +1674,11 @@ def commit() -> None:
     except IssueCommitError as error:
         raise click.ClickException(str(error)) from error
     if result.committed:
-        click.echo("Committed project/issues")
+        click.echo(
+            "Committed project/issues and project/events"
+            if result.includes_events
+            else "Committed project/issues"
+        )
     else:
         click.echo("Nothing to commit")
 
@@ -3758,6 +3762,8 @@ def doctor() -> None:
             "methodologies generate; run kbs setup agents --force to regenerate it "
             "(this replaces hand edits)"
         )
+    if result.events_gitignore_warning is not None:
+        click.echo(f"warning: {result.events_gitignore_warning}")
 
 
 @cli.command("migrate")

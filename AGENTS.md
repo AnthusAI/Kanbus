@@ -478,7 +478,7 @@ kbs commit
 git push origin develop
 ```
 
-`kbs commit` only stages `project/issues/`. Do not hand-edit issue JSON. See CONTRIBUTING_AGENT.md for mechanics.
+`kbs commit` stages `project/issues/` and `project/events/` (events only when `events` is not set to false in `.kanbus.yml`). Do not hand-edit issue JSON. See CONTRIBUTING_AGENT.md for mechanics.
 
 ### Product code and pull requests
 

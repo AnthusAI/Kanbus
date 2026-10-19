@@ -737,6 +737,8 @@ class ProjectConfiguration(BaseModel):
     :type type_colors: Dict[str, str]
     :param beads_compatibility: Default Beads compatibility mode.
     :type beads_compatibility: bool
+    :param events: Whether Kanbus generates events under project/events and commits them with kbs commit.
+    :type events: bool
     :param sort_order: Optional status/category sort rules for console columns.
     :type sort_order: Dict[str, object]
     :param right_now: Right-now summary configuration.
@@ -800,6 +802,7 @@ class ProjectConfiguration(BaseModel):
     sort_order: Dict[str, Any] = Field(default_factory=dict)
     type_colors: Dict[str, str] = Field(default_factory=dict)
     beads_compatibility: bool = False
+    events: bool = True
     wiki_directory: Optional[str] = None
     ai: Optional[AiConfiguration] = None
     right_now: RightNowConfiguration = Field(default_factory=RightNowConfiguration)

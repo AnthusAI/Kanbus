@@ -714,7 +714,7 @@ Add a comment to an issue.
 
 ### `kanbus commit`
 
-Commit project/issues changes to git.
+Commit board state (issues and events) to git.
 
 ### `kanbus console`
 
