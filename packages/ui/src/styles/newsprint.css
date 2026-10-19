@@ -89,4 +89,5 @@
 [data-kanbus-theme="newsprint"] .kb-type-filter { height: auto; min-height: 36px; padding: 0; gap: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--np-line); }
 [data-kanbus-theme="newsprint"] .kb-type-filter button[role="tab"] { position: relative; z-index: 1; flex: 0 0 auto; min-height: 32px; padding: 4px 12px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; color: var(--np-ink); font: inherit; white-space: nowrap; cursor: pointer; }
 [data-kanbus-theme="newsprint"] .kb-type-filter button[aria-selected="true"] { background: transparent; font-weight: 800; border-bottom-color: var(--np-ink); }
+[data-kanbus-theme="newsprint"] .kb-type-filter button:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 [data-kanbus-theme="newsprint"] .kb-type-filter button:focus-visible { outline: 2px solid var(--np-ink); outline-offset: -2px; }
