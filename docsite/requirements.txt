@@ -1,0 +1,2 @@
+papyrus-newsroom[markus] @ git+https://github.com/AnthusAI/Papyrus.git@develop
+anthus-markus>=0.7.0,<1.0.0
