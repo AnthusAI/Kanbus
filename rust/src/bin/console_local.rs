@@ -96,14 +96,24 @@ fn single_notification_session(state: &AppState) -> NotificationSession {
     }
 }
 
-fn validate_tenant_state_path(root: &Path, boundary: &Path) -> Result<(), KanbusError> {
-    let path = state_path(root)?;
+fn validate_tenant_state_path(
+    root: &Path,
+    boundary: &Path,
+    trusted_base_root: &Path,
+) -> Result<(), KanbusError> {
     let invalid_path = || {
         KanbusError::IssueOperation(
             "console state path must remain inside selected tenant root".into(),
         )
     };
-    if !path.starts_with(boundary) {
+    let trusted_base_root = trusted_base_root
+        .canonicalize()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !root.starts_with(&trusted_base_root) {
+        return Err(invalid_path());
+    }
+    let path = state_path(root)?;
+    if !path.starts_with(&trusted_base_root) || !path.starts_with(boundary) {
         return Err(invalid_path());
     }
     let mut existing = path.as_path();
@@ -168,9 +178,9 @@ async fn notification_session(
                 "tenant root must not alias another directory",
             ));
         }
-        validate_tenant_state_path(&root, &canonical_root)
+        validate_tenant_state_path(&canonical_root, &canonical_root, &base)
             .map_err(|error| ConsoleApiError::new(StatusCode::FORBIDDEN, error.to_string()))?;
-        let ui_state = load_state(&root)?;
+        let ui_state = load_state(&canonical_root)?;
         Ok((canonical_root, ui_state))
     })
     .await?;
@@ -1293,9 +1303,10 @@ async fn post_notification(
     selection: TenantSelection,
     Json(event): Json<NotificationEvent>,
 ) -> Result<StatusCode, ConsoleApiError> {
+    let trusted_base_root = state.base_root.clone();
     let session = notification_session(&state, selection).await?;
     // Update cached UI state based on the event
-    update_ui_state_from_event(&session, &event).await;
+    update_ui_state_from_event(&session, &event, &trusted_base_root).await;
     // Broadcast the notification to all SSE subscribers
     let _ = session.notification_tx.send(event);
     Ok(StatusCode::OK)
@@ -1312,7 +1323,11 @@ async fn get_ui_state(
 
 /// Update the cached UI state when a relevant notification is received,
 /// then persist to disk.
-async fn update_ui_state_from_event(state: &NotificationSession, event: &NotificationEvent) {
+async fn update_ui_state_from_event(
+    state: &NotificationSession,
+    event: &NotificationEvent,
+    trusted_base_root: &Path,
+) {
     let mut changed = false;
     let mut ui_state = state.ui_state.write().await;
     match event {
@@ -1351,9 +1366,10 @@ async fn update_ui_state_from_event(state: &NotificationSession, event: &Notific
         let root = state.root.clone();
         let snapshot = ui_state.clone();
         let boundary = state.persistence_boundary.clone();
+        let trusted_base_root = trusted_base_root.to_path_buf();
         match tokio::task::spawn_blocking(move || {
             if let Some(boundary) = boundary {
-                validate_tenant_state_path(&root, &boundary)?;
+                validate_tenant_state_path(&root, &boundary, &trusted_base_root)?;
             }
             save_state(&root, &snapshot)
         })
@@ -2967,7 +2983,12 @@ mod tests {
             comment_id: Some("cmt-1".to_string()),
         };
 
-        update_ui_state_from_event(&single_notification_session(&state), &focus).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &focus,
+            &state.base_root,
+        )
+        .await;
         let persisted = load_state(&root).expect("load state");
         assert_eq!(persisted.focused_issue_id.as_deref(), Some("kanbus-123"));
         assert_eq!(persisted.focused_comment_id.as_deref(), Some("cmt-1"));
@@ -2975,7 +2996,12 @@ mod tests {
         let clear = NotificationEvent::UiControl {
             action: UiControlAction::ClearFocus,
         };
-        update_ui_state_from_event(&single_notification_session(&state), &clear).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &clear,
+            &state.base_root,
+        )
+        .await;
         let cleared = load_state(&root).expect("load cleared state");
         assert!(cleared.focused_issue_id.is_none());
         assert!(cleared.focused_comment_id.is_none());
@@ -2993,14 +3019,24 @@ mod tests {
                 mode: "issues".to_string(),
             },
         };
-        update_ui_state_from_event(&single_notification_session(&state), &view_mode).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &view_mode,
+            &state.base_root,
+        )
+        .await;
 
         let search = NotificationEvent::UiControl {
             action: UiControlAction::SetSearch {
                 query: "auth".to_string(),
             },
         };
-        update_ui_state_from_event(&single_notification_session(&state), &search).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &search,
+            &state.base_root,
+        )
+        .await;
         let persisted = load_state(&root).expect("load state");
         assert_eq!(persisted.view_mode.as_deref(), Some("issues"));
         assert_eq!(persisted.search_query.as_deref(), Some("auth"));
@@ -3010,7 +3046,12 @@ mod tests {
                 query: String::new(),
             },
         };
-        update_ui_state_from_event(&single_notification_session(&state), &clear_search).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &clear_search,
+            &state.base_root,
+        )
+        .await;
         let cleared = load_state(&root).expect("load cleared state");
         assert!(cleared.search_query.is_none());
     }
@@ -3027,7 +3068,12 @@ mod tests {
         let no_op = NotificationEvent::UiControl {
             action: UiControlAction::MaximizeDetail,
         };
-        update_ui_state_from_event(&single_notification_session(&state), &no_op).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &no_op,
+            &state.base_root,
+        )
+        .await;
         assert!(!path.exists());
 
         let issue_updated = NotificationEvent::IssueUpdated {
@@ -3055,7 +3101,12 @@ mod tests {
                 custom: std::collections::BTreeMap::new(),
             },
         };
-        update_ui_state_from_event(&single_notification_session(&state), &issue_updated).await;
+        update_ui_state_from_event(
+            &single_notification_session(&state),
+            &issue_updated,
+            &state.base_root,
+        )
+        .await;
         assert!(!path.exists());
     }
 
