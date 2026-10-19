@@ -116,25 +116,38 @@ fn validate_tenant_state_path(
     if !path.starts_with(&trusted_base_root) || !path.starts_with(boundary) {
         return Err(invalid_path());
     }
-    let mut existing = path.as_path();
-    loop {
-        match std::fs::symlink_metadata(existing) {
-            Ok(_) => {
-                let resolved = existing
-                    .canonicalize()
-                    .map_err(|error| KanbusError::Io(error.to_string()))?;
-                return if resolved.starts_with(boundary) {
-                    Ok(())
-                } else {
-                    Err(invalid_path())
-                };
+    let relative = path
+        .strip_prefix(&trusted_base_root)
+        .map_err(|_| invalid_path())?;
+    let mut current = trusted_base_root.clone();
+    for component in relative.components() {
+        let std::path::Component::Normal(name) = component else {
+            return Err(invalid_path());
+        };
+        let mut selected = None;
+        for entry in
+            std::fs::read_dir(&current).map_err(|error| KanbusError::Io(error.to_string()))?
+        {
+            let entry = entry.map_err(|error| KanbusError::Io(error.to_string()))?;
+            if entry.file_name() == name {
+                selected = Some(entry);
+                break;
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                existing = existing.parent().ok_or_else(invalid_path)?;
-            }
-            Err(error) => return Err(KanbusError::Io(error.to_string())),
+        }
+        let Some(entry) = selected else {
+            return Ok(());
+        };
+        current = entry
+            .path()
+            .canonicalize()
+            .map_err(|error| KanbusError::Io(error.to_string()))?;
+        if !current.starts_with(&trusted_base_root)
+            || (!current.starts_with(boundary) && !boundary.starts_with(&current))
+        {
+            return Err(invalid_path());
         }
     }
+    Ok(())
 }
 
 /// Resolve notification state only from validated route parameters. Local

@@ -574,6 +574,12 @@ fn tenant_persistence_boundary_contract(world: &mut KanbusWorld) {
                 server.request("/alpha/project/api/ui-state", None).status(),
                 403
             );
+            std::fs::remove_file(&cache).unwrap();
+            std::os::unix::fs::symlink(root.join("beta/project/missing-cache"), &cache).unwrap();
+            assert_eq!(
+                server.request("/alpha/project/api/ui-state", None).status(),
+                403
+            );
             let alias = root.join("alpha/other");
             std::fs::remove_dir_all(&alias).unwrap();
             std::os::unix::fs::symlink(root.join("beta/project"), alias).unwrap();

@@ -284,6 +284,13 @@ def tenant_persistence_boundary(context: object) -> None:
                 raise AssertionError("redirected tenant cache was readable")
         except urllib.error.HTTPError as error:
             assert error.code == 403
+        cache.unlink()
+        cache.symlink_to(root / "beta/project/missing-cache", target_is_directory=True)
+        try:
+            with _request(base, "/alpha/project/api/ui-state"):
+                raise AssertionError("dangling redirected cache was accepted")
+        except urllib.error.HTTPError as error:
+            assert error.code == 403
         alias = root / "alpha/other"
         shutil.rmtree(alias)
         alias.symlink_to(root / "beta/project", target_is_directory=True)
