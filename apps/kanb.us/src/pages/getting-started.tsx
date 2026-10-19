@@ -18,15 +18,13 @@ const GettingStartedPage = () => {
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Cargo is the recommended installation path. It publishes two crates, <code>kbs</code> (CLI)
-                and <code>kbsc</code> (web console), so you can update them quickly across any Rust toolchain.
+                Cargo is the recommended installation path. The <code>kanbus</code> crate installs
+                three binaries: <code>kbs</code> and <code>kanbus</code> (the CLI) and <code>kbsc</code>{" "}
+                (the web console), so they stay in sync.
               </p>
-              <CodeBlock label="Cargo (CLI)">
-{`cargo install kbs
-kbs --help`}
-              </CodeBlock>
-              <CodeBlock label="Cargo (web console)">
-{`cargo install kbsc
+              <CodeBlock label="Cargo">
+{`cargo install kanbus
+kbs --help
 kbsc --help`}
               </CodeBlock>
             </CardContent>
@@ -41,10 +39,10 @@ kbsc --help`}
           <Card className="p-8 bg-card">
             <CardContent className="p-0 space-y-6 text-muted leading-relaxed">
               <p>
-                Install Kanbus from PyPI and run <code>kbs</code> (a <code>kanbus</code> alias is also available).
+                Install the <code>kanbus</code> package from PyPI. It provides the <code>kbs</code> command, and <code>kanbus</code> works as an alias.
               </p>
               <CodeBlock label="Python">
-{`python -m pip install kbs
+{`python -m pip install kanbus
 kbs --help`}
               </CodeBlock>
             </CardContent>
