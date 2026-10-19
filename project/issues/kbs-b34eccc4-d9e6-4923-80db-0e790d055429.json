@@ -1,0 +1,22 @@
+{
+  "id": "kbs-b34eccc4-d9e6-4923-80db-0e790d055429",
+  "title": "Scope console UI state and notification channels per tenant",
+  "description": "In multi-tenant mode AppState has one ui_state and one notification_tx, and get_realtime_events ignores account/project, so focus/search UI state and IssueUpdated notifications leak across tenants (rust/src/bin/console_local.rs). Behavior change: write a console-server Gherkin scenario first (two tenants, a focus notification on one is not delivered to the other), then key ui_state and notification channels by (account, project) in Rust and match in the Python console server. Acceptance: new scenario passes in both runtimes.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:53:41.342732Z",
+  "updated_at": "2026-10-19T16:53:41.472829Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

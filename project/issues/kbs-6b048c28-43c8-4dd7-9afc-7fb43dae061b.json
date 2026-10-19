@@ -1,0 +1,22 @@
+{
+  "id": "kbs-6b048c28-43c8-4dd7-9afc-7fb43dae061b",
+  "title": "Close the 71 Rust step gaps and fail cucumber on skipped steps",
+  "description": "python3 tools/check_spec_parity.py --known /dev/null exits 1 with 71 Rust gaps (Python 0); they are tolerated through tools/parity/known_unimplemented_steps.txt, and rust/tests/cucumber.rs does not call fail_on_skipped(), so missing Rust steps skip silently. Groups: issue write API steps (~18), routing assignment editor steps (~10, Python-only agent_assignment_editing_steps.py), 'the environment variable KANBUS_* is set to' (~7), daemon diagnostics (4), console now mock summaries (3), .gitignore/project-local steps, 'I request the console now snapshot' (Rust has '... from the API'), and six plain-string Rust steps containing '/' (e.g. commit_steps.rs:15 'project/issues should be committed to git') which cucumber-rs parses as alternation and can never match; convert those to regex. Acceptance: known_unimplemented_steps.txt empty; check_spec_parity.py --known /dev/null exits 0; cucumber.rs uses fail_on_skipped (honouring @skip/@wip tags); cargo test --test cucumber green. Do after kbs-215bc6f0 lands (shared step files).",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:53:39.407430Z",
+  "updated_at": "2026-10-19T16:53:39.578261Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

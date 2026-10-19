@@ -1,0 +1,20 @@
+{
+  "id": "kbs-3c3215cc-2c9d-4409-a2ed-fe87ed69c6e7",
+  "title": "Print the invoked CLI name in hints and drop tool-specific provenance examples",
+  "description": "Hints print 'kbs ...' commands even when the user ran 'kanbus'; generated text says 'Prefer kbs (Rust)', which misleads on machines with a stale kbs (Biblicus Mac had kbs 0.24/0.32 on PATH). Provenance hints cite 'Cursor / Composer 2.5'. Wanted: hints use the name of the running binary (kbs or kanbus), identical wording otherwise across runtimes; provenance examples generic.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T18:01:46.446576Z",
+  "updated_at": "2026-10-19T18:01:46.557324Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

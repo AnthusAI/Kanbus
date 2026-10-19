@@ -1,0 +1,20 @@
+{
+  "id": "kbs-8965cc5f-9a79-49a1-89b9-583d304ea05e",
+  "title": "Render workflow transitions with status keys first in CONTRIBUTING_AGENT.md",
+  "description": "Biblicus on Python 0.35.0 with transition_labels configured renders '- open -> Start work (In Progress), Drop (Done), Back to backlog (Backlog)' and 'closed -> Reopen (Discovery)'. Agents need the key they pass to --status. Rust develop with default config renders keys ('- open -> in_progress, closed, backlog'); reproduce with transition_labels in both runtimes first. Wanted: key first, label after, e.g. 'open -> in_progress (\"Start work\"), closed (\"Drop\"), backlog'. Gherkin scenario with transition_labels; identical output in both runtimes.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T18:01:44.789803Z",
+  "updated_at": "2026-10-19T18:01:44.936367Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

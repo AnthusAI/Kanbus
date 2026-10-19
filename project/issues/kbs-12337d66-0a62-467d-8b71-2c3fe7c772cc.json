@@ -1,0 +1,22 @@
+{
+  "id": "kbs-12337d66-0a62-467d-8b71-2c3fe7c772cc",
+  "title": "Bring AGENTS.md and CONTRIBUTING_AGENT.md under 25 KB and make kbs setup agents a no-op",
+  "description": "Audit 2026-10-19: AGENTS.md 19,664 B plus CONTRIBUTING_AGENT.md 17,359 B = 37,023 B (target under 25 KB). kbs setup agents --force in a clean tree rewrites AGENTS.md (drops the Console ports table, screenshot expand/collapse examples and the Kanbus board state in git section) and project/issues/DO_NOT_EDIT. CONTRIBUTING_AGENT.template.md is still tracked at the root. Work: decide which sections move into the embedded template versus AGENTS.override.md (the port table is personal; move it to the override file), delete or rebase the root template on the embedded default, commit the regenerated output, add CI checks that kbs setup agents produces no diff and that rust/src/methodologies and python/src/kanbus/methodologies are identical, and extend the CLI reference check to the Rust clap tree. Never remove router.workflow content. Acceptance: combined size under 25 KB; setup agents no-op in CI; methodologies diff check in CI.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-76b265f8-3240-4722-9017-d849889ce3c3",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:53:40.414473Z",
+  "updated_at": "2026-10-19T16:53:40.496706Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

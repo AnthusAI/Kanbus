@@ -1,0 +1,20 @@
+{
+  "id": "kbs-622e21e7-39cc-436e-aeac-afa50093bce9",
+  "title": "Git Flow methodology wording for repos whose develop branch requires pull requests",
+  "description": "Biblicus on 0.36.0: the built-in git-flow bundle says board changes go straight to develop without a PR, which contradicts repos where a develop ruleset requires PRs (Biblicus now). Decide between wording that defers to the repo ('board changes go straight to develop unless develop is protected, in which case they ride in the feature PR') and a template variable such as board_changes_via_pull_request. Keep rust/src/methodologies and python/src/kanbus/methodologies identical.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T20:27:51.383766Z",
+  "updated_at": "2026-10-19T20:27:51.440458Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

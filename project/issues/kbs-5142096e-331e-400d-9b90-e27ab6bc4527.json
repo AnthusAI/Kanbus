@@ -3,7 +3,7 @@
   "title": "CONFIGURATION.md schema does not match the configuration kbs init writes",
   "description": "The schema section shows project_key as 2 to 6 uppercase letters, issue_types, workflow_bindings and a priorities list, while init writes a lowercase key, types, a priorities map and many sections the page does not describe. Regenerate the reference from the real model.",
   "type": "chore",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "acceptance-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "8f67c1c9-bb7d-47d0-91ed-d430e3e88187",
+      "author": "home",
+      "text": "Acceptance check 2026-10-19 on develop 3404202a: docs/CONFIGURATION.md lists 35 keys, ProjectConfiguration has 35, diff empty; tools/generate_configuration_reference.py --check exits 0. Delivered by PRs #448/#449. Closing.",
+      "created_at": "2026-10-19T16:53:15.451983Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-16T14:24:11.251301229Z",
-  "updated_at": "2026-10-16T14:24:11.310925201Z",
-  "closed_at": null,
+  "updated_at": "2026-10-19T16:53:19.127159Z",
+  "closed_at": "2026-10-19T16:53:19.054638Z",
   "agent": {
     "platform": "claude-code",
     "model": "Claude",
