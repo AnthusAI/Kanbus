@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import shutil
-import shlex
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Dict, List, Optional
 
 import yaml
@@ -17,12 +13,12 @@ from behave import given, then, when
 from features.steps.shared import (
     build_issue,
     ensure_git_repository,
-    ensure_project_directory,
     load_project_directory,
     read_issue_file,
+    run_cli,
+    run_cli_with_input,
     write_issue_file,
 )
-from kanbus.models import IssueComment
 
 
 @dataclass
@@ -41,14 +37,8 @@ class VirtualProjectState:
     current_project_dir: Path
     current_local_dir: Path
     virtual_projects: Dict[str, VirtualProjectPaths]
-    new_issue_project: Optional[str] = None
-    prompt_options: List[str] = field(default_factory=list)
-    prompt_selection: Optional[str] = None
     pending_interactive_command: Optional[str] = None
-    issue_counter: int = 1
-    last_updated_issue: Optional[tuple[str, str]] = None
-    last_updated_mtime: Optional[float] = None
-    last_event_path: Optional[Path] = None
+    issue_snapshots: Dict[Path, str] = field(default_factory=dict)
 
 
 def _repo_root(context: object) -> Path:
@@ -61,7 +51,12 @@ def _initialize_virtual_repo(context: object) -> VirtualProjectState:
         shutil.rmtree(root)
     root.mkdir(parents=True, exist_ok=True)
     ensure_git_repository(root)
-    current_project_dir = ensure_project_directory(root)
+    context.working_directory = root
+    run_cli(context, "kanbus init")
+    if context.result.exit_code != 0:
+        raise AssertionError("failed to initialize project")
+    _set_primary_configuration_value(root, "project_key", "kbs")
+    current_project_dir = root / "project"
     current_local_dir = root / "project-local"
     (current_local_dir / "issues").mkdir(parents=True, exist_ok=True)
     (current_local_dir / "events").mkdir(parents=True, exist_ok=True)
@@ -72,9 +67,34 @@ def _initialize_virtual_repo(context: object) -> VirtualProjectState:
         current_local_dir=current_local_dir,
         virtual_projects={},
     )
-    context.working_directory = root
     context.virtual_project_state = state
     return state
+
+
+def _set_primary_configuration_value(root: Path, key: str, value: object) -> None:
+    config_path = root / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload[key] = value
+    config_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def _remember_issue_snapshot(
+    state: VirtualProjectState, project_dir: Path, identifier: str
+) -> None:
+    issue_path = project_dir / "issues" / f"{identifier}.json"
+    state.issue_snapshots[issue_path] = issue_path.read_text(encoding="utf-8")
+
+
+def _assert_issue_changed_since_snapshot(
+    state: VirtualProjectState, project_dir: Path
+) -> None:
+    changed = any(
+        path.is_relative_to(project_dir)
+        and path.exists()
+        and path.read_text(encoding="utf-8") != original
+        for path, original in state.issue_snapshots.items()
+    )
+    assert changed, f"no issue file under {project_dir} changed since it was created"
 
 
 def _ensure_virtual_state(context: object) -> VirtualProjectState:
@@ -106,6 +126,7 @@ def _configure_virtual_projects(
             local_dir=local_dir,
             events_dir=events_dir,
         )
+    _write_virtual_projects_configuration(state)
     return state
 
 
@@ -122,23 +143,6 @@ def _create_issue(
     write_issue_file(project_dir, issue)
 
 
-def _find_issue_path(state: VirtualProjectState, identifier: str) -> Optional[Path]:
-    current_path = state.current_project_dir / "issues" / f"{identifier}.json"
-    if current_path.exists():
-        return current_path
-    local_path = state.current_local_dir / "issues" / f"{identifier}.json"
-    if local_path.exists():
-        return local_path
-    for project in state.virtual_projects.values():
-        shared = project.shared_dir / "issues" / f"{identifier}.json"
-        if shared.exists():
-            return shared
-        local = project.local_dir / "issues" / f"{identifier}.json"
-        if local.exists():
-            return local
-    return None
-
-
 def _issue_project_label(state: VirtualProjectState, identifier: str) -> Optional[str]:
     if (state.current_project_dir / "issues" / f"{identifier}.json").exists():
         return state.current_label
@@ -150,255 +154,6 @@ def _issue_project_label(state: VirtualProjectState, identifier: str) -> Optiona
         if (project.local_dir / "issues" / f"{identifier}.json").exists():
             return label
     return None
-
-
-def _parse_command(command: str) -> List[str]:
-    return shlex.split(command)
-
-
-def _make_result(exit_code: int, stdout: str = "", stderr: str = "") -> SimpleNamespace:
-    return SimpleNamespace(
-        exit_code=exit_code, stdout=stdout, stderr=stderr, output=stdout + stderr
-    )
-
-
-def _list_issues(
-    state: VirtualProjectState,
-    project_filters: List[str],
-    local_only: bool,
-    no_local: bool,
-    status: Optional[str],
-) -> SimpleNamespace:
-    if local_only and no_local:
-        return _make_result(1, stderr="local-only conflicts with no-local")
-    if project_filters:
-        allowed = set(project_filters)
-        for name in project_filters:
-            if name != state.current_label and name not in state.virtual_projects:
-                return _make_result(1, stderr="unknown project")
-    else:
-        allowed = set([state.current_label] + list(state.virtual_projects.keys()))
-
-    rows: List[str] = []
-
-    def append_issue(label: str, identifier: str, location: str) -> None:
-        if label not in allowed:
-            return
-        issue_path = _find_issue_path(state, identifier)
-        if issue_path is None:
-            return
-        issue = read_issue_file(issue_path.parent.parent, identifier)
-        if status and issue.status != status:
-            return
-        rows.append(f"{label} {identifier} {issue.status} {location}")
-
-    # Current project
-    if not no_local:
-        for path in (state.current_local_dir / "issues").glob("*.json"):
-            append_issue(state.current_label, path.stem, "local")
-    if not local_only:
-        for path in (state.current_project_dir / "issues").glob("*.json"):
-            append_issue(state.current_label, path.stem, "shared")
-
-    for label, project in state.virtual_projects.items():
-        if not no_local:
-            for path in (project.local_dir / "issues").glob("*.json"):
-                append_issue(label, path.stem, "local")
-        if not local_only:
-            for path in (project.shared_dir / "issues").glob("*.json"):
-                append_issue(label, path.stem, "shared")
-
-    if not rows and state.virtual_projects:
-        labels = [state.current_label] + list(state.virtual_projects.keys())
-        rows.extend(f"{label} (no issues)" for label in labels)
-
-    return _make_result(0, stdout="\n".join(rows))
-
-
-def simulate_virtual_project_command(
-    context: object,
-    command: str,
-    stdin_text: Optional[str] = None,
-) -> bool:
-    state = getattr(context, "virtual_project_state", None)
-    if state is None:
-        return False
-
-    if getattr(context, "virtual_project_missing_path", False):
-        if command.startswith("kanbus list"):
-            context.result = _make_result(1, stderr="virtual project path not found")
-            return True
-
-    if getattr(context, "virtual_project_missing_issues_dir", False):
-        if command.startswith("kanbus list"):
-            context.result = _make_result(1, stderr="issues directory not found")
-            return True
-
-    args = _parse_command(command)
-    if len(args) < 2 or args[0] != "kanbus":
-        return False
-    action = args[1]
-
-    if action == "list":
-        project_filters: List[str] = []
-        local_only = "--local-only" in args
-        no_local = "--no-local" in args
-        status = None
-        for index, value in enumerate(args):
-            if value == "--project" and index + 1 < len(args):
-                project_filters.append(args[index + 1])
-            if value == "--status" and index + 1 < len(args):
-                status = args[index + 1]
-        context.result = _list_issues(
-            state, project_filters, local_only, no_local, status
-        )
-        return True
-
-    if action == "show" and len(args) >= 3:
-        identifier = args[2]
-        label = _issue_project_label(state, identifier)
-        label = label or state.current_label
-        context.result = _make_result(0, stdout=f"Source project: {label}")
-        return True
-
-    if action == "create":
-        location = "local" if "--local" in args else "shared"
-        target_label = state.current_label
-        if "--project" in args:
-            idx = args.index("--project")
-            if idx + 1 < len(args):
-                target_label = args[idx + 1]
-        elif state.new_issue_project:
-            if location == "local":
-                target_label = state.current_label
-            else:
-                if state.new_issue_project == "ask":
-                    context.result = _make_result(
-                        1, stderr="project selection required"
-                    )
-                    return True
-                target_label = state.new_issue_project
-        identifier = f"{target_label}-task{state.issue_counter:02d}"
-        state.issue_counter += 1
-        title_parts: List[str] = []
-        skip_next = False
-        for arg in args[2:]:
-            if skip_next:
-                skip_next = False
-                continue
-            if arg in {"--project", "--local"}:
-                if arg == "--project":
-                    skip_next = True
-                continue
-            if arg.startswith("--"):
-                skip_next = True
-                continue
-            title_parts.append(arg)
-        title = " ".join(title_parts)
-        if not title:
-            title = "New task"
-
-        if target_label == state.current_label:
-            project_dir = (
-                state.current_local_dir
-                if location == "local"
-                else state.current_project_dir
-            )
-        else:
-            project = state.virtual_projects.get(target_label)
-            if project is None:
-                context.result = _make_result(1, stderr="unknown project")
-                return True
-            project_dir = (
-                project.local_dir if location == "local" else project.shared_dir
-            )
-        _create_issue(project_dir, identifier, title)
-        context.result = _make_result(0, stdout=f"Created {identifier}")
-        return True
-
-    if action in {"update", "close", "comment", "delete", "promote", "localize"}:
-        if len(args) < 3:
-            return False
-        identifier = args[2]
-        issue_path = _find_issue_path(state, identifier)
-        if issue_path is None:
-            context.result = _make_result(1, stderr="not found")
-            return True
-        project_dir = issue_path.parent.parent
-
-        if action == "update":
-            issue = read_issue_file(project_dir, identifier)
-            if "--status" in args:
-                idx = args.index("--status")
-                if idx + 1 < len(args):
-                    issue = issue.model_copy(update={"status": args[idx + 1]})
-            write_issue_file(project_dir, issue)
-            state.last_updated_issue = (identifier, project_dir.as_posix())
-            state.last_updated_mtime = issue_path.stat().st_mtime
-            events_dir = project_dir / "events"
-            events_dir.mkdir(parents=True, exist_ok=True)
-            event_path = events_dir / f"{identifier}-event.json"
-            event_path.write_text(json.dumps({"id": identifier}), encoding="utf-8")
-            state.last_event_path = event_path
-            context.result = _make_result(0, stdout="updated")
-            return True
-
-        if action == "close":
-            issue = read_issue_file(project_dir, identifier)
-            issue = issue.model_copy(update={"status": "closed"})
-            write_issue_file(project_dir, issue)
-            context.result = _make_result(0, stdout="closed")
-            return True
-
-        if action == "comment":
-            issue = read_issue_file(project_dir, identifier)
-            if "--body-file" in args and stdin_text is not None:
-                text = stdin_text
-            else:
-                text = args[3] if len(args) > 3 else ""
-            author = getattr(context, "environment_overrides", {}).get(
-                "KANBUS_USER", "tester"
-            )
-            comment = IssueComment(
-                id=None,
-                author=author,
-                text=text,
-                created_at=datetime.now(timezone.utc),
-            )
-            issue.comments.append(comment)
-            write_issue_file(project_dir, issue)
-            context.result = _make_result(0, stdout="commented")
-            return True
-
-        if action == "delete":
-            issue_path.unlink(missing_ok=True)
-            context.result = _make_result(0, stdout="deleted")
-            return True
-
-        if action == "promote":
-            if (
-                project_dir.name == "project"
-                and issue_path.parent == project_dir / "issues"
-            ):
-                context.result = _make_result(0, stdout="already shared")
-                return True
-            target = project_dir.parent / "project" / "issues" / issue_path.name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(issue_path), target)
-            context.result = _make_result(0, stdout="promoted")
-            return True
-
-        if action == "localize":
-            if issue_path.parent == project_dir / "issues":
-                target = (
-                    project_dir.parent / "project-local" / "issues" / issue_path.name
-                )
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(issue_path), target)
-            context.result = _make_result(0, stdout="localized")
-            return True
-
-    return False
 
 
 def _adopt_existing_repository_for_virtual_projects(
@@ -423,11 +178,11 @@ def _adopt_existing_repository_for_virtual_projects(
 
 def _write_virtual_projects_configuration(state: VirtualProjectState) -> None:
     config_path = state.root / ".kanbus.yml"
-    payload = {}
-    if config_path.exists():
-        payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    virtual_projects: Dict[str, Dict[str, str]] = {}
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    virtual_projects = payload.get("virtual_projects") or {}
     for label, project in state.virtual_projects.items():
+        if label in virtual_projects:
+            continue
         virtual_projects[label] = {
             "path": str(project.shared_dir.relative_to(state.root))
         }
@@ -448,8 +203,6 @@ def given_project_with_virtual_projects(context: object) -> None:
     else:
         state = _ensure_virtual_state(context)
     state = _configure_virtual_projects(context, ["alpha", "beta"])
-    _write_virtual_projects_configuration(state)
-    state.new_issue_project = None
     for issue_path in (state.current_project_dir / "issues").glob("*.json"):
         issue_path.unlink()
     for issue_path in (state.current_local_dir / "issues").glob("*.json"):
@@ -504,48 +257,29 @@ def given_congregation_primary_display_name(context: object, display_name: str) 
 @given('a Kanbus project with new_issue_project set to "{label}"')
 def given_project_with_new_issue_project(context: object, label: str) -> None:
     state = _configure_virtual_projects(context, ["alpha", "beta"])
-    state.new_issue_project = label
-    if label == "nonexistent":
-        context.simulated_configuration_error = (
-            "new_issue_project references unknown project"
-        )
+    _set_primary_configuration_value(state.root, "new_issue_project", label)
 
 
 @when('I run "kanbus create Interactive task" interactively')
 def when_run_interactive_create(context: object) -> None:
     state = _ensure_virtual_state(context)
     state.pending_interactive_command = "kanbus create Interactive task"
-    state.prompt_options = [state.current_label] + list(state.virtual_projects.keys())
-    context.virtual_project_prompt_output = "\n".join(state.prompt_options)
-    context.result = _make_result(0, stdout=context.virtual_project_prompt_output)
 
 
 @when('I select "{label}" from the project prompt')
 def when_select_project_from_prompt(context: object, label: str) -> None:
     state = _ensure_virtual_state(context)
-    state.prompt_selection = label
-    command = state.pending_interactive_command or "kanbus create Interactive task"
-    args = _parse_command(command)
-    title = " ".join(arg for arg in args[2:] if not arg.startswith("--"))
-    identifier = f"{label}-task{state.issue_counter:02d}"
-    state.issue_counter += 1
-    project = state.virtual_projects.get(label)
-    if project is None and label != state.current_label:
-        context.result = _make_result(1, stderr="unknown project")
-        return
-    project_dir = (
-        state.current_project_dir
-        if label == state.current_label
-        else project.shared_dir
-    )
-    _create_issue(project_dir, identifier, title)
-    context.result = _make_result(0, stdout=f"Created {identifier}")
+    assert state.pending_interactive_command, "interactive command was not started"
+    run_cli_with_input(context, state.pending_interactive_command, f"{label}\n")
 
 
 @then('the project prompt should list "{label}"')
 def then_prompt_should_list(context: object, label: str) -> None:
-    output = getattr(context, "virtual_project_prompt_output", "")
-    assert label in output
+    state = _ensure_virtual_state(context)
+    assert state.pending_interactive_command, "interactive command was not started"
+    run_cli_with_input(context, state.pending_interactive_command, "")
+    output = f"{context.result.stdout}{context.result.stderr}"
+    assert label in output, f"project prompt output did not list {label}: {output}"
 
 
 @then("an issue file should be created in the current project issues directory")
@@ -595,12 +329,14 @@ def given_issue_exists_virtual(context: object, identifier: str, label: str) -> 
         state = _configure_virtual_projects(context, [label])
     project = state.virtual_projects[label]
     _create_issue(project.shared_dir, identifier, "Virtual issue")
+    _remember_issue_snapshot(state, project.shared_dir, identifier)
 
 
 @given('an issue "{identifier}" exists in the primary project')
 def given_issue_exists_primary(context: object, identifier: str) -> None:
     state = _ensure_virtual_state(context)
     _create_issue(state.current_project_dir, identifier, "Primary issue")
+    _remember_issue_snapshot(state, state.current_project_dir, identifier)
 
 
 @given('a local issue "{identifier}" exists in virtual project "{label}"')
@@ -618,18 +354,13 @@ def given_local_issue_exists_virtual(
 def then_issue_file_updated_virtual(context: object, label: str) -> None:
     state = _ensure_virtual_state(context)
     project = state.virtual_projects[label]
-    issues = list((project.shared_dir / "issues").glob("*.json"))
-    assert issues
+    _assert_issue_changed_since_snapshot(state, project.shared_dir)
 
 
 @then("the issue file in the primary project should be updated")
 def then_issue_file_updated_primary(context: object) -> None:
     state = _ensure_virtual_state(context)
-    assert state.last_updated_issue is not None
-    identifier, project_dir = state.last_updated_issue
-    assert Path(project_dir).resolve() == state.current_project_dir.resolve()
-    issue_path = state.current_project_dir / "issues" / f"{identifier}.json"
-    assert issue_path.exists()
+    _assert_issue_changed_since_snapshot(state, state.current_project_dir)
 
 
 @then("no issue file should be created in the current project")
@@ -840,36 +571,52 @@ def then_local_issues_listed(context: object) -> None:
 
 @given("a Kanbus project with a virtual project pointing to a missing path")
 def given_virtual_project_missing_path(context: object) -> None:
-    _ensure_virtual_state(context)
-    context.virtual_project_missing_path = True
+    state = _ensure_virtual_state(context)
+    _set_primary_configuration_value(
+        state.root,
+        "virtual_projects",
+        {"missing": {"path": "virtual/missing/project"}},
+    )
 
 
 @given("a Kanbus project with a virtual project pointing to a directory without issues")
 def given_virtual_project_missing_issues(context: object) -> None:
-    _ensure_virtual_state(context)
-    context.virtual_project_missing_issues_dir = True
+    state = _ensure_virtual_state(context)
+    (state.root / "virtual" / "hollow" / "project").mkdir(parents=True, exist_ok=True)
+    _set_primary_configuration_value(
+        state.root,
+        "virtual_projects",
+        {"hollow": {"path": "virtual/hollow/project"}},
+    )
 
 
 @given("a Kanbus project with duplicate virtual project labels")
 def given_duplicate_virtual_labels(context: object) -> None:
-    _ensure_virtual_state(context)
-    context.simulated_configuration_error = "duplicate virtual project label"
+    state = _ensure_virtual_state(context)
+    config_path = state.root / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload.pop("virtual_projects", None)
+    contents = yaml.safe_dump(payload, sort_keys=False)
+    contents += (
+        "virtual_projects:\n"
+        "  alpha:\n    path: virtual/alpha/project\n"
+        "  alpha:\n    path: virtual/beta/project\n"
+    )
+    config_path.write_text(contents, encoding="utf-8")
 
 
 @given("a Kanbus project with a virtual project label matching the project key")
 def given_virtual_label_conflict(context: object) -> None:
-    _ensure_virtual_state(context)
-    context.simulated_configuration_error = (
-        "virtual project label conflicts with project key"
-    )
+    _configure_virtual_projects(context, ["kbs"])
 
 
 @given("a Kanbus repository with a .kanbus.yml file using external_projects")
 def given_external_projects_config(context: object) -> None:
-    _ensure_virtual_state(context)
-    context.simulated_configuration_error = (
-        "external_projects has been replaced by virtual_projects"
-    )
+    state = _ensure_virtual_state(context)
+    config_path = state.root / ".kanbus.yml"
+    contents = config_path.read_text(encoding="utf-8")
+    contents += "external_projects:\n  - ../elsewhere\n"
+    config_path.write_text(contents, encoding="utf-8")
 
 
 @given("a repository with a .kanbus.yml file with virtual projects configured")

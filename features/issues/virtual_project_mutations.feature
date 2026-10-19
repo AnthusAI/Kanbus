@@ -37,7 +37,7 @@ Feature: Issue mutations across virtual projects
   Scenario: Delete an issue from a virtual project
     Given a Kanbus project with virtual projects configured
     And an issue "alpha-task01" exists in virtual project "alpha"
-    When I run "kanbus delete alpha-task01"
+    When I run "kanbus delete alpha-task01 --yes"
     Then the command should succeed
     And the issue file should not exist in virtual project "alpha"
 

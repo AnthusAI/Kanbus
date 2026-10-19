@@ -325,9 +325,28 @@ def _validate_type_workflow_bindings(
     return errors
 
 
+def _reject_duplicate_virtual_project_labels(contents: str) -> None:
+    try:
+        document = yaml.compose(contents)
+    except yaml.YAMLError:
+        return
+    if not isinstance(document, yaml.MappingNode):
+        return
+    for key_node, value_node in document.value:
+        if key_node.value != "virtual_projects":
+            continue
+        if not isinstance(value_node, yaml.MappingNode):
+            return
+        labels = [label_node.value for label_node, _ in value_node.value]
+        if len(labels) != len(set(labels)):
+            raise ConfigurationError("duplicate virtual project label")
+
+
 def _load_configuration_data(path: Path) -> dict:
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        contents = path.read_text(encoding="utf-8")
+        _reject_duplicate_virtual_project_labels(contents)
+        data = yaml.safe_load(contents)
     except OSError as error:
         raise ConfigurationError(str(error)) from error
 

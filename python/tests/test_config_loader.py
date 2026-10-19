@@ -98,3 +98,22 @@ def test_load_configuration_rejects_standup_lookback_hours(tmp_path: Path) -> No
         raise AssertionError("expected ConfigurationError")
     except ConfigurationError as error:
         assert str(error) == STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE
+
+
+def test_load_configuration_rejects_duplicate_virtual_project_labels(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".kanbus.yml"
+    config_path.write_text(
+        "project_key: kbs\n"
+        "virtual_projects:\n"
+        "  alpha:\n    path: virtual/alpha/project\n"
+        "  alpha:\n    path: virtual/beta/project\n",
+        encoding="utf-8",
+    )
+    try:
+        load_project_configuration(config_path)
+    except ConfigurationError as error:
+        assert str(error) == "duplicate virtual project label"
+    else:
+        raise AssertionError("expected ConfigurationError")

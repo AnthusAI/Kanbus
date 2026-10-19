@@ -14,7 +14,6 @@ use kanbus::daemon_server::handle_request_for_testing;
 use crate::step_definitions::initialization_steps::{
     apply_environment_overrides, restore_environment, run_from_args_in_blocking_thread, KanbusWorld,
 };
-use crate::step_definitions::virtual_project_steps::maybe_simulate_virtual_project_command;
 
 fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     let normalized = command.replace("\\\"", "\"");
@@ -28,9 +27,6 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     world.stdout = None;
     world.stderr = None;
     world.last_command = Some(normalized.clone());
-    if maybe_simulate_virtual_project_command(world, &normalized) {
-        return;
-    }
     let args = shell_words::split(&normalized).expect("parse command");
     let cwd = world
         .working_directory
@@ -236,12 +232,9 @@ fn build_kbs_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_kbs"))
 }
 
-fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &str) {
+pub(crate) fn run_cli_command_with_stdin(world: &mut KanbusWorld, command: &str, input: &str) {
     let normalized = command.replace("\\\"", "\"");
     world.last_command = Some(normalized.clone());
-    if maybe_simulate_virtual_project_command(world, &normalized) {
-        return;
-    }
     let mut args = shell_words::split(&normalized).expect("parse command");
     if matches!(args.first().map(String::as_str), Some("kanbus")) {
         args.remove(0);

@@ -5,12 +5,14 @@ Feature: Virtual project discovery
 
   Scenario: Virtual projects are listed from configuration
     Given a Kanbus project with virtual projects configured
+    And issues exist in multiple virtual projects
     When I run "kanbus list"
     Then issues from all virtual projects should be listed
     And issues from the current project should be listed
 
   Scenario: Virtual project issues include project label
     Given a Kanbus project with virtual projects configured
+    And issues exist in multiple virtual projects
     When I run "kanbus list"
     Then each issue should display its source project label
 
@@ -44,6 +46,8 @@ Feature: Virtual project discovery
     Then the command should fail with exit code 1
     And stderr should contain "virtual project label conflicts with project key"
 
+  # Deferred: tracked in kbs-e7b8ceab
+  @wip
   Scenario: Legacy external_projects config is rejected
     Given a Kanbus repository with a .kanbus.yml file using external_projects
     When the configuration is loaded

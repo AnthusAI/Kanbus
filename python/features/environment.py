@@ -89,9 +89,6 @@ def before_scenario(context: object, scenario: object) -> None:
         os.environ.pop(name, None)
     context.daemon_core = None
     context.virtual_project_state = None
-    context.virtual_project_missing_path = False
-    context.virtual_project_missing_issues_dir = False
-    context.simulated_configuration_error = None
 
 
 def before_all(context: object) -> None:
