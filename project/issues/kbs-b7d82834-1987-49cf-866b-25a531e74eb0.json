@@ -1,0 +1,20 @@
+{
+  "id": "kbs-b7d82834-1987-49cf-866b-25a531e74eb0",
+  "title": "Stop a root CONTRIBUTING_AGENT.template.md from silently suppressing methodologies",
+  "description": "A repo-root CONTRIBUTING_AGENT.template.md is auto-discovered (agents_management.rs ~175-199 and the Python mirror) and replaces the embedded template; a pre-methodologies copy drops every methodology section while setup agents exits 0. Undefined template variables (e.g. a stale {% for line in gherkin_example %}) render as empty blocks without warning. Per the no-fallback policy, prefer one explicit setting (project_management_template) over auto-discovery; if auto-discovery stays, document it in docs/CONFIGURATION.md. Either way: fail (or at minimum warn) when methodologies are configured but the template lacks the methodologies loop; use strict undefined variables so a missing variable is an error; add the same template-loop check to kbs doctor. Kanbus's own repo has this root template too (see the AGENTS size sub-task under kbs-76b265f8).",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T18:01:45.445449Z",
+  "updated_at": "2026-10-19T18:01:45.536613Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

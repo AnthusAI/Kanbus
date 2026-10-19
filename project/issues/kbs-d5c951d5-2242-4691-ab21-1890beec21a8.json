@@ -1,0 +1,20 @@
+{
+  "id": "kbs-d5c951d5-2242-4691-ab21-1890beec21a8",
+  "title": "Make kbs setup agents explain and report what it rewrites",
+  "description": "Without --force: 'Error: Kanbus section already exists in AGENTS.md. Re-run with --force to overwrite.' exit 1, and CONTRIBUTING_AGENT.md is not regenerated. --help says only 'Ensure AGENTS.md contains Kanbus instructions'. --force rewrites hand-tuned AGENTS.md Kanbus-section wording and creates project/AGENTS.md, DO_NOT_EDIT files and event files without listing them. Wanted: help text that states exactly what each mode writes; a mode that regenerates CONTRIBUTING_AGENT.md only (no AGENTS.md change), so methodology changes do not require --force; print every file created or rewritten.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T18:01:45.941301Z",
+  "updated_at": "2026-10-19T18:01:46.032836Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
