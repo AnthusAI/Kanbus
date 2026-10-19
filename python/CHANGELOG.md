@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.36.0 (2026-10-19)
+
+### Documentation
+
+- Grouped sidebar navigation and site styles for the Papyrus docs site
+  ([`2f3246f`](https://github.com/AnthusAI/Kanbus/commit/2f3246f13b9f9236136d0ccbedbf3d044b1a2e7b))
+
+- Keep cross-page links and add redirects from the old MkDocs URLs
+  ([`2f3246f`](https://github.com/AnthusAI/Kanbus/commit/2f3246f13b9f9236136d0ccbedbf3d044b1a2e7b))
+
+### Refactoring
+
+- **console**: Unify realtime, bootstrap, notification and telemetry routes
+  ([`b231b3e`](https://github.com/AnthusAI/Kanbus/commit/b231b3ef3a73f74945b6abd435ade99ff069a21c))
+
+
 ## v0.35.0 (2026-10-17)
 
 
