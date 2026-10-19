@@ -96,10 +96,22 @@
         "model": "GPT-6.1 Sol",
         "name": "Console Tenant Isolation"
       }
+    },
+    {
+      "id": "9ed59006-4ac0-4a96-950e-275ce683dc62",
+      "author": "home",
+      "text": "Fresh CodeQL analysis at 886005f7 still reports alert 136 on the raw symlink_metadata walk (line 121); that gate remains a recorded failure, not passing validation. Follow-up uses the repository FileStore approach: walk from the independently trusted server root, compare requested/configured component names to filesystem-listed entries, and use only entry-provided paths for filesystem traversal. Selected-tenant containment is retained at every existing prefix; missing suffixes are allowed and dangling symlinks fail closed. Added dangling-cache-link regression in both runners. Local verification passes: server 65/65, Rust and Python five scenarios/10 steps each, scoped Clippy; no dismissal or source suppression. Publishing for fresh CodeQL verification; PR remains draft. No executor or approval blocker, no develop push, merge or deployment.",
+      "created_at": "2026-10-19T23:10:20.904319Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T22:55:28.919341Z",
+  "updated_at": "2026-10-19T23:10:20.904400Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
