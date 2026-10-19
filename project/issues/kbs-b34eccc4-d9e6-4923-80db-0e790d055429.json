@@ -48,10 +48,22 @@
         "model": "GPT-6.1 Sol",
         "name": "Console Tenant Isolation"
       }
+    },
+    {
+      "id": "9eccb3de-297f-4dca-ba6c-93c4bec254f6",
+      "author": "home",
+      "text": "Review ready: draft PR https://github.com/AnthusAI/Kanbus/pull/490 targets develop from fix/console-tenant-isolation. Final code revision 9fb05378e521fb54b19a7b6297373eff3af6011c; subsequent commits are board evidence only. Final rerun PASS: local kbsc 65/65; console_lambda/auth 22/22; UI-state library 3/3; Rust cucumber 4 scenarios/8 steps; Python behave 4 scenarios/8 steps. Rust format, whole-Python Black (272 files), Ruff and spec parity pass (71 existing gaps, no new gaps). Scoped Clippy passes excluding only the two documented pre-existing lint categories; strict Clippy remains failing on those untouched baseline findings. Logs retained under /tmp/kanbus-isolation-* on the M1. Full-suite coverage/ratchet and embedded-assets package checks remain for CI. Human Software Director acceptance, merge, and normal reviewed release/deployment remain; no auto-merge or deployment requested or performed. Issue remains in progress until landing. Direct board push to develop was denied and not retried; all evidence is carried by this PR.",
+      "created_at": "2026-10-19T22:26:37.839111Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T22:24:42.861060Z",
+  "updated_at": "2026-10-19T22:26:37.840217Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
