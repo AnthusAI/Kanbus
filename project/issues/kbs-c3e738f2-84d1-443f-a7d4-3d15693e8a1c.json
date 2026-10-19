@@ -1,0 +1,22 @@
+{
+  "id": "kbs-c3e738f2-84d1-443f-a7d4-3d15693e8a1c",
+  "title": "Cut kanb.us over to the Kanbus-web site in the kanbus-production account",
+  "description": "State 2026-10-19: AnthusAI/Kanbus-web (private) holds the Markus site; main and staging exist. The first CDK deploy into account 494166748521 (kanbus-production) was run manually by Ryan on 2026-10-17, and app-shell changes deploy through a CodePipeline (commit ad8df142) rather than a personal login. The methodologies feature page merged as Kanbus-web PR #1. The old kanb.us site and its DNS are probably in the legacy Anthus account 335163751677.\n\nRemaining: (1) confirm where the kanb.us hosted zone and the current certificate live; (2) cross-account certificate and DNS work so kanb.us and www point at the kanbus-production distribution; (3) Papyrus CMS at newsroom.kanb.us for browser editing; (4) remove the retired apps/kanb.us site from this monorepo once cutover is verified; (5) screenshots of the live site against the plan in the project files (website/kanbus-web-plan.md).\n\nConstraints: AWS work runs only on Ryan's M1 via Remote Control after Ryan signs in (admin profile Endymion); cloud threads get no AWS credentials. Routine updates must go through CI/CD using GitHub OIDC federation, not manual CLI deploys. Kanbus-web is private, so its CI/CD runs in AWS CodePipeline.\n\nAcceptance: kanb.us serves the Kanbus-web site from kanbus-production over TLS, a push to Kanbus-web main deploys without a personal login, and the old DNS records are retired.",
+  "type": "chore",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "website"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:42:44.168809000Z",
+  "updated_at": "2026-10-19T16:42:44.168809000Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

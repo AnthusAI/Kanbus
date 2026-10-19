@@ -47,10 +47,17 @@
       "text": "WIP triage 2026-10-17 (Ryan chose to park): back to open. The foundation is merged (Kanbus #399, Virtuus #33). The remaining acceptance is a fresh EFS deployment trial, and nobody is running it right now.",
       "created_at": "2026-10-17T06:31:08.331833320Z",
       "comment_type": "default"
+    },
+    {
+      "id": "0540a162-0664-4f9b-8182-d14532a9f0af",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Unchanged since parking on 2026-10-17. Foundation merged (Kanbus #399, Virtuus #33). The only remaining acceptance is a fresh EFS deployment trial. It needs AWS, so it must run on Ryan's M1 through Remote Control (cloud threads never get AWS credentials), after Ryan signs in with the AWS CLI; the admin profile is Endymion. Known state of the three modes: local files solid; files in the cloud (EFS) loses console edits because EFS is not pushed back to git; S3/DynamoDB is reachable only through kanbus-api. Next step: run the EFS trial, record evidence here, then close the story.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-14T00:23:16.066399Z",
-  "updated_at": "2026-10-17T06:31:08.548126417Z",
+  "updated_at": "2026-10-19T16:42:31.569399000Z",
   "closed_at": null,
   "agent": {
     "platform": "codex",
