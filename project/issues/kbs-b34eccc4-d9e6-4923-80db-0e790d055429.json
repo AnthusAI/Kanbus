@@ -3,18 +3,43 @@
   "title": "Scope console UI state and notification channels per tenant",
   "description": "In multi-tenant mode AppState has one ui_state and one notification_tx, and get_realtime_events ignores account/project, so focus/search UI state and IssueUpdated notifications leak across tenants (rust/src/bin/console_local.rs). Behavior change: write a console-server Gherkin scenario first (two tenants, a focus notification on one is not delivered to the other), then key ui_state and notification channels by (account, project) in Rust and match in the Python console server. Acceptance: new scenario passes in both runtimes.",
   "type": "sub-task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
-  "assignee": null,
+  "assignee": "Codex",
   "creator": null,
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "e27edd0f-780d-450f-837e-f02062c8282e",
+      "author": "home",
+      "text": "Claimed for the approved narrow tenant-isolation fix. Inspected worktrees and open PRs: no overlapping tenant-isolation owner or open fix found. PR 473 merged as 2134ed4957f36fc2380ba54bf2fdf0e2be2a12bb and explicitly leaves notification selection unused. Worktree fix/console-tenant-isolation starts at cf357f42c. Will specify two-tenant focus/search, notification delivery/replay, root rejection in multi mode, and single-tenant behavior before implementation. Source findings only; no live exposure asserted.",
+      "created_at": "2026-10-19T22:10:58.140039Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "a4488bf1-4b5b-4635-8c84-b86c505e211c",
+      "author": "home",
+      "text": "Baseline regression failed as expected: root /api/events/realtime returns 200 in multi mode, expected 400 (unit test root_notification_stream_requires_tenant_in_multi_mode). Added shared console-server scenarios and Python/Rust steps for focus/search persistence, live IssueUpdated delivery, replay, required tenant route, and single-tenant behavior. Adjacent source findings outside this fix: local kbsc intentionally has no per-user authentication and allows remote reads; telemetry_tx and /api/telemetry/console/events remain global. Cloud console_lambda enforces route tenant against API Gateway verified authorizer claims for config/issues/events/realtime; this does not establish live deployment configuration. No production exposure claimed. Executor disconnect recovered; compatible installed Rust 1.98.1 selected because PATH cargo 1.81 cannot build locked dependencies.",
+      "created_at": "2026-10-19T22:17:09.064021Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    }
+  ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T16:53:41.472829Z",
+  "updated_at": "2026-10-19T22:17:09.064057Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
