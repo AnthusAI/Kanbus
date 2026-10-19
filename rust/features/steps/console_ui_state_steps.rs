@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use chrono::{TimeZone, Utc};
-use cucumber::{given, when};
+use cucumber::{given, then, when};
 use reqwest::blocking::Client;
 use serde_json::json;
 
@@ -279,4 +279,258 @@ fn given_console_search_query(world: &mut KanbusWorld, query: String) {
             "action": {"action": "set_search", "query": query}
         }),
     );
+}
+
+struct TenantConsoleFixture {
+    child: Child,
+    base: String,
+}
+
+impl TenantConsoleFixture {
+    fn start(root: &std::path::Path, multi: bool) -> Self {
+        let port = allocate_port();
+        let child = Command::new(kbsc_binary_path())
+            .env("CONSOLE_PORT", port.to_string())
+            .env("CONSOLE_DATA_ROOT", root)
+            .env(
+                "CONSOLE_TENANT_MODE",
+                if multi { "multi" } else { "single" },
+            )
+            .env("KANBUS_NO_DAEMON", "1")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("start fixture");
+        let fixture = Self {
+            child,
+            base: format!("http://127.0.0.1:{port}"),
+        };
+        for _ in 0..100 {
+            if Client::new()
+                .get(format!("{}/api/auth/bootstrap", fixture.base))
+                .timeout(Duration::from_millis(200))
+                .send()
+                .is_ok()
+            {
+                return fixture;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        panic!("fixture console did not start");
+    }
+
+    fn request(&self, path: &str, event: Option<serde_json::Value>) -> reqwest::blocking::Response {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(3))
+            .build()
+            .unwrap();
+        let url = format!("{}{path}", self.base);
+        match event {
+            Some(event) => client
+                .post(url)
+                .header("X-Kanbus-Console", "1")
+                .json(&event),
+            None => client.get(url),
+        }
+        .send()
+        .expect("fixture request")
+    }
+
+    fn post(&self, tenant: &str, event: serde_json::Value) {
+        assert_eq!(
+            self.request(&format!("/{tenant}/api/notifications"), Some(event))
+                .status(),
+            200
+        );
+    }
+
+    fn state(&self, tenant: &str) -> serde_json::Value {
+        let response = self.request(&format!("/{tenant}/api/ui-state"), None);
+        assert_eq!(response.status(), 200);
+        response.json().expect("UI state JSON")
+    }
+}
+
+impl Drop for TenantConsoleFixture {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+fn tenant_event(reader: &mut impl std::io::BufRead) -> serde_json::Value {
+    let mut line = String::new();
+    loop {
+        line.clear();
+        assert!(reader.read_line(&mut line).expect("SSE read") > 0);
+        if let Some(data) = line.strip_prefix("data: ") {
+            return serde_json::from_str(data.trim()).expect("SSE JSON");
+        }
+    }
+}
+
+fn tenant_contract(world: &KanbusWorld, check: impl FnOnce(PathBuf) + Send + 'static) {
+    let root = world.working_directory.clone().unwrap();
+    for tenant in ["alpha/project", "beta/project", "alpha/other"] {
+        let tenant_root = root.join(tenant);
+        std::fs::create_dir_all(tenant_root.join("project/issues")).unwrap();
+        std::fs::copy(root.join(".kanbus.yml"), tenant_root.join(".kanbus.yml")).unwrap();
+    }
+    thread::spawn(move || check(root))
+        .join()
+        .expect("tenant contract");
+}
+
+#[then("focus and search state stays within its console tenant")]
+fn tenant_state_contract(world: &mut KanbusWorld) {
+    tenant_contract(world, |root| {
+        let tenants = ["alpha/project", "beta/project", "alpha/other"];
+        {
+            let server = TenantConsoleFixture::start(&root, true);
+            for (index, tenant) in tenants.iter().enumerate() {
+                server.post(
+                    tenant,
+                    json!({"type":"issue_focused", "issue_id":index.to_string()}),
+                );
+                server.post(
+                    tenant,
+                    json!({"type":"ui_control", "action":{"action":"set_search", "query":tenant}}),
+                );
+            }
+            for (index, tenant) in tenants.iter().enumerate() {
+                assert_eq!(server.state(tenant)["focused_issue_id"], index.to_string());
+                assert_eq!(server.state(tenant)["search_query"], *tenant);
+            }
+            server.post(
+                tenants[0],
+                json!({"type":"ui_control", "action":{"action":"clear_focus"}}),
+            );
+            assert!(server.state(tenants[0])["focused_issue_id"].is_null());
+            assert_eq!(server.state(tenants[1])["focused_issue_id"], "1");
+        }
+        let server = TenantConsoleFixture::start(&root, true);
+        for (index, tenant) in tenants.iter().enumerate() {
+            let state = server.state(tenant);
+            assert_eq!(
+                state["focused_issue_id"],
+                if index == 0 {
+                    serde_json::Value::Null
+                } else {
+                    json!(index.to_string())
+                }
+            );
+            assert_eq!(state["search_query"], *tenant);
+        }
+    });
+}
+
+#[then("live and replayed notifications stay within their console tenant")]
+fn tenant_delivery_contract(world: &mut KanbusWorld) {
+    tenant_contract(world, |root| {
+        let server = TenantConsoleFixture::start(&root, true);
+        let mut alpha =
+            std::io::BufReader::new(server.request("/alpha/project/api/events/realtime", None));
+        let mut beta =
+            std::io::BufReader::new(server.request("/beta/project/api/events/realtime", None));
+        let mut other =
+            std::io::BufReader::new(server.request("/alpha/other/api/events/realtime", None));
+        let other_marker = json!({"type":"issue_focused", "issue_id":"other-marker"});
+        let focus = json!({"type":"issue_focused", "issue_id":"alpha-focus"});
+        let marker = json!({"type":"issue_focused", "issue_id":"beta-marker"});
+        let mut spoofed = focus.clone();
+        spoofed["account"] = json!("beta");
+        spoofed["project"] = json!("project");
+        server.post("alpha/project", spoofed);
+        server.post("beta/project", marker.clone());
+        server.post("alpha/other", other_marker.clone());
+        assert_eq!(tenant_event(&mut alpha), focus);
+        assert_eq!(tenant_event(&mut beta), marker);
+        assert_eq!(tenant_event(&mut other), other_marker);
+        let update = json!({"type":"issue_updated", "issue_id":"private-alpha", "issue_data":{
+            "id":"private-alpha", "title":"Private alpha issue", "description":"", "type":"task",
+            "status":"open", "priority":2, "labels":[], "dependencies":[], "comments":[],
+            "created_at":"2026-10-19T00:00:00Z", "updated_at":"2026-10-19T00:00:00Z"
+        }});
+        server.post("alpha/project", update);
+        server.post("beta/project", marker.clone());
+        server.post("alpha/other", other_marker.clone());
+        assert_eq!(
+            tenant_event(&mut alpha)["issue_data"]["title"],
+            "Private alpha issue"
+        );
+        assert_eq!(tenant_event(&mut beta), marker);
+        assert_eq!(tenant_event(&mut other), other_marker);
+        for (tenant, expected) in [
+            ("alpha/project", "alpha-focus"),
+            ("beta/project", "beta-marker"),
+            ("alpha/other", "other-marker"),
+        ] {
+            let mut replay = std::io::BufReader::new(
+                server.request(&format!("/{tenant}/api/events/realtime"), None),
+            );
+            assert_eq!(tenant_event(&mut replay)["issue_id"], expected);
+        }
+        server.post(
+            "alpha/project",
+            json!({"type":"ui_control", "action":{"action":"clear_focus"}}),
+        );
+        server.post(
+            "alpha/project",
+            json!({"type":"ui_control", "action":{"action":"set_search", "query":"alpha-private"}}),
+        );
+        let mut replay =
+            std::io::BufReader::new(server.request("/alpha/project/api/events/realtime", None));
+        assert_eq!(
+            tenant_event(&mut replay)["action"]["query"],
+            "alpha-private"
+        );
+        let mut replay =
+            std::io::BufReader::new(server.request("/beta/project/api/events/realtime", None));
+        assert_eq!(tenant_event(&mut replay)["issue_id"], "beta-marker");
+    });
+}
+
+#[then("root console notification routes require a tenant")]
+fn tenant_required_contract(world: &mut KanbusWorld) {
+    tenant_contract(world, |root| {
+        let server = TenantConsoleFixture::start(&root, true);
+        for (path, event, expected) in [
+            ("/api/ui-state?account=alpha&project=project", None, 400),
+            ("/api/events/realtime", None, 400),
+            (
+                "/api/notifications",
+                Some(json!({"type":"issue_deleted", "issue_id":"x"})),
+                400,
+            ),
+            ("/missing/project/api/ui-state", None, 404),
+            ("/..%2Falpha/project/api/ui-state", None, 400),
+        ] {
+            assert_eq!(server.request(path, event).status(), expected, "{path}");
+        }
+    });
+}
+
+#[then("single tenant console notifications retain their state and stream")]
+fn single_tenant_contract(world: &mut KanbusWorld) {
+    tenant_contract(world, |root| {
+        {
+            let server = TenantConsoleFixture::start(&root, false);
+            let mut stream = std::io::BufReader::new(server.request("/api/events/realtime", None));
+            let focus = json!({"type":"issue_focused", "issue_id":"local-focus"});
+            assert_eq!(
+                server
+                    .request("/api/notifications", Some(focus.clone()))
+                    .status(),
+                200
+            );
+            assert_eq!(tenant_event(&mut stream), focus);
+            assert_eq!(
+                server.state("alpha/project")["focused_issue_id"],
+                "local-focus"
+            );
+        }
+        let server = TenantConsoleFixture::start(&root, false);
+        let state: serde_json::Value = server.request("/api/ui-state", None).json().unwrap();
+        assert_eq!(state["focused_issue_id"], "local-focus");
+    });
 }
