@@ -12,9 +12,17 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1a8f1340-e120-44bf-a868-992dc0346dc1",
+      "author": "unknown",
+      "text": "Status 2026-10-19: merged #452-#456, #458-#460, #470. Remaining work and handoff notes: /mnt/project-files/handoff/engineering-review-handoff.md. kbs-29c415 next step: unify telemetry/realtime/notification/ui-state pairs with per-tenant scoping.",
+      "created_at": "2026-10-19T16:51:55.559228035Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:34:12.974124898Z",
-  "updated_at": "2026-10-17T19:41:55.456753821Z",
+  "updated_at": "2026-10-19T16:51:55.559686618Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
