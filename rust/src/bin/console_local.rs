@@ -82,6 +82,7 @@ struct AppState {
 #[derive(Clone)]
 struct NotificationSession {
     root: PathBuf,
+    persistence_boundary: Option<PathBuf>,
     notification_tx: broadcast::Sender<NotificationEvent>,
     ui_state: Arc<tokio::sync::RwLock<ConsoleUiState>>,
 }
@@ -89,8 +90,40 @@ struct NotificationSession {
 fn single_notification_session(state: &AppState) -> NotificationSession {
     NotificationSession {
         root: state.base_root.clone(),
+        persistence_boundary: None,
         notification_tx: state.notification_tx.clone(),
         ui_state: state.ui_state.clone(),
+    }
+}
+
+fn validate_tenant_state_path(root: &Path, boundary: &Path) -> Result<(), KanbusError> {
+    let path = state_path(root)?;
+    let invalid_path = || {
+        KanbusError::IssueOperation(
+            "console state path must remain inside selected tenant root".into(),
+        )
+    };
+    if !path.starts_with(boundary) {
+        return Err(invalid_path());
+    }
+    let mut existing = path.as_path();
+    loop {
+        match std::fs::symlink_metadata(existing) {
+            Ok(_) => {
+                let resolved = existing
+                    .canonicalize()
+                    .map_err(|error| KanbusError::Io(error.to_string()))?;
+                return if resolved.starts_with(boundary) {
+                    Ok(())
+                } else {
+                    Err(invalid_path())
+                };
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                existing = existing.parent().ok_or_else(invalid_path)?;
+            }
+            Err(error) => return Err(KanbusError::Io(error.to_string())),
+        }
     }
 }
 
@@ -121,12 +154,29 @@ async fn notification_session(
             .ok_or_else(|| {
                 ConsoleApiError::new(StatusCode::NOT_FOUND, "tenant project not found")
             })?;
+        let canonical_root = root
+            .canonicalize()
+            .map_err(|error| ConsoleApiError::new(StatusCode::FORBIDDEN, error.to_string()))?;
+        let expected_root = base
+            .canonicalize()
+            .map_err(|error| ConsoleApiError::new(StatusCode::FORBIDDEN, error.to_string()))?
+            .join(account)
+            .join(project);
+        if canonical_root != expected_root {
+            return Err(ConsoleApiError::new(
+                StatusCode::FORBIDDEN,
+                "tenant root must not alias another directory",
+            ));
+        }
+        validate_tenant_state_path(&root, &canonical_root)
+            .map_err(|error| ConsoleApiError::new(StatusCode::FORBIDDEN, error.to_string()))?;
         let ui_state = load_state(&root)?;
-        Ok((root, ui_state))
+        Ok((canonical_root, ui_state))
     })
     .await?;
     let (notification_tx, _) = broadcast::channel(256);
     let session = NotificationSession {
+        persistence_boundary: Some(root.clone()),
         root,
         notification_tx,
         ui_state: Arc::new(tokio::sync::RwLock::new(ui_state)),
@@ -1300,7 +1350,15 @@ async fn update_ui_state_from_event(state: &NotificationSession, event: &Notific
     if changed {
         let root = state.root.clone();
         let snapshot = ui_state.clone();
-        match tokio::task::spawn_blocking(move || save_state(&root, &snapshot)).await {
+        let boundary = state.persistence_boundary.clone();
+        match tokio::task::spawn_blocking(move || {
+            if let Some(boundary) = boundary {
+                validate_tenant_state_path(&root, &boundary)?;
+            }
+            save_state(&root, &snapshot)
+        })
+        .await
+        {
             Ok(Ok(())) => {}
             result => eprintln!("Warning: failed to persist console UI state: {result:?}"),
         }

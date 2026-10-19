@@ -19,3 +19,7 @@ Feature: Tenant isolated console notifications
   Scenario: Single tenant console behavior is retained
     Given a Kanbus project with default configuration
     Then single tenant console notifications retain their state and stream
+
+  Scenario: Tenant console persistence cannot escape its selected root
+    Given a Kanbus project with default configuration
+    Then tenant console persistence rejects redirected project and cache paths

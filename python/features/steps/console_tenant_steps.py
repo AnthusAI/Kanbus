@@ -228,7 +228,84 @@ def single_tenant(context: object) -> None:
             with _request(base, "/api/notifications", focus):
                 pass
             assert _event(stream) == focus
-        assert _state(base, "alpha/project")["focused_issue_id"] == "local-focus"
+            search = {
+                "type": "ui_control",
+                "action": {"action": "set_search", "query": "single-search"},
+            }
+            _post(base, "alpha/project", search)
+            assert _event(stream) == search
+        with _request(base, "/api/ui-state") as response:
+            state = json.load(response)
+            assert state["focused_issue_id"] == "local-focus"
+            assert state["search_query"] == "single-search"
     with _server(context, multi=False) as base:
         with _request(base, "/api/ui-state") as response:
-            assert json.load(response)["focused_issue_id"] == "local-focus"
+            state = json.load(response)
+            assert state["focused_issue_id"] == "local-focus"
+            assert state["search_query"] == "single-search"
+
+
+@then("tenant console persistence rejects redirected project and cache paths")
+def tenant_persistence_boundary(context: object) -> None:
+    """Keep disk state inside the selected tenant despite redirected paths.
+
+    :param context: Behave scenario context with a temporary project.
+    """
+    import shutil
+
+    import yaml
+
+    with _server(context) as base:
+        _post(
+            base,
+            "beta/project",
+            {
+                "type": "ui_control",
+                "action": {"action": "set_search", "query": "beta-private"},
+            },
+        )
+        root = Path(context.working_directory)
+        configuration_path = root / "alpha/project/.kanbus.yml"
+        configuration = yaml.safe_load(configuration_path.read_text())
+        configuration["project_directory"] = "../../beta/project/project"
+        configuration_path.write_text(yaml.safe_dump(configuration))
+        try:
+            with _request(base, "/alpha/project/api/ui-state") as response:
+                state = json.load(response)
+                raise AssertionError(f"redirected tenant state was readable: {state}")
+        except urllib.error.HTTPError as error:
+            assert error.code == 403
+        configuration["project_directory"] = "project"
+        configuration_path.write_text(yaml.safe_dump(configuration))
+        cache = root / "alpha/project/project/.cache"
+        cache.symlink_to(root / "beta/project/project/.cache", target_is_directory=True)
+        try:
+            with _request(base, "/alpha/project/api/ui-state"):
+                raise AssertionError("redirected tenant cache was readable")
+        except urllib.error.HTTPError as error:
+            assert error.code == 403
+        alias = root / "alpha/other"
+        shutil.rmtree(alias)
+        alias.symlink_to(root / "beta/project", target_is_directory=True)
+        try:
+            with _request(base, "/alpha/other/api/ui-state"):
+                raise AssertionError("aliased tenant root was readable")
+        except urllib.error.HTTPError as error:
+            assert error.code == 403
+        cache.unlink()
+        assert _state(base, "alpha/project")["search_query"] is None
+        configuration["project_directory"] = "../../beta/project/project"
+        configuration_path.write_text(yaml.safe_dump(configuration))
+        _post(
+            base,
+            "alpha/project",
+            {
+                "type": "ui_control",
+                "action": {"action": "set_search", "query": "alpha-private"},
+            },
+        )
+        persisted = json.loads(
+            (root / "beta/project/project/.cache/console_state.json").read_text()
+        )
+        assert persisted["search_query"] == "beta-private"
+        assert _state(base, "beta/project")["search_query"] == "beta-private"

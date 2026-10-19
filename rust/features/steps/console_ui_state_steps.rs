@@ -524,13 +524,83 @@ fn single_tenant_contract(world: &mut KanbusWorld) {
                 200
             );
             assert_eq!(tenant_event(&mut stream), focus);
-            assert_eq!(
-                server.state("alpha/project")["focused_issue_id"],
-                "local-focus"
-            );
+            let search = json!({"type":"ui_control", "action":{"action":"set_search", "query":"single-search"}});
+            server.post("alpha/project", search.clone());
+            assert_eq!(tenant_event(&mut stream), search);
+            let state: serde_json::Value = server.request("/api/ui-state", None).json().unwrap();
+            assert_eq!(state["focused_issue_id"], "local-focus");
+            assert_eq!(state["search_query"], "single-search");
         }
         let server = TenantConsoleFixture::start(&root, false);
         let state: serde_json::Value = server.request("/api/ui-state", None).json().unwrap();
         assert_eq!(state["focused_issue_id"], "local-focus");
+        assert_eq!(state["search_query"], "single-search");
+    });
+}
+
+#[then("tenant console persistence rejects redirected project and cache paths")]
+fn tenant_persistence_boundary_contract(world: &mut KanbusWorld) {
+    tenant_contract(world, |root| {
+        let server = TenantConsoleFixture::start(&root, true);
+        server.post(
+            "beta/project",
+            json!({"type":"ui_control", "action":{"action":"set_search", "query":"beta-private"}}),
+        );
+        let configuration_path = root.join("alpha/project/.kanbus.yml");
+        let mut configuration: serde_yaml::Value =
+            serde_yaml::from_str(&std::fs::read_to_string(&configuration_path).unwrap()).unwrap();
+        configuration["project_directory"] =
+            serde_yaml::Value::String("../../beta/project/project".into());
+        std::fs::write(
+            &configuration_path,
+            serde_yaml::to_string(&configuration).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            server.request("/alpha/project/api/ui-state", None).status(),
+            403
+        );
+        configuration["project_directory"] = serde_yaml::Value::String("project".into());
+        std::fs::write(
+            &configuration_path,
+            serde_yaml::to_string(&configuration).unwrap(),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            let cache = root.join("alpha/project/project/.cache");
+            std::os::unix::fs::symlink(root.join("beta/project/project/.cache"), &cache).unwrap();
+            assert_eq!(
+                server.request("/alpha/project/api/ui-state", None).status(),
+                403
+            );
+            let alias = root.join("alpha/other");
+            std::fs::remove_dir_all(&alias).unwrap();
+            std::os::unix::fs::symlink(root.join("beta/project"), alias).unwrap();
+            assert_eq!(
+                server.request("/alpha/other/api/ui-state", None).status(),
+                403
+            );
+            std::fs::remove_file(cache).unwrap();
+        }
+        assert!(server.state("alpha/project")["search_query"].is_null());
+        configuration["project_directory"] =
+            serde_yaml::Value::String("../../beta/project/project".into());
+        std::fs::write(
+            &configuration_path,
+            serde_yaml::to_string(&configuration).unwrap(),
+        )
+        .unwrap();
+        server.post(
+            "alpha/project",
+            json!({"type":"ui_control", "action":{"action":"set_search", "query":"alpha-private"}}),
+        );
+        let persisted: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(root.join("beta/project/project/.cache/console_state.json"))
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(persisted["search_query"], "beta-private");
+        assert_eq!(server.state("beta/project")["search_query"], "beta-private");
     });
 }
