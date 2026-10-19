@@ -97,3 +97,4 @@ src/videos/*/*.timing.xml
 coverage.xml
 python/build/
 .claude/settings.json
+_site/
