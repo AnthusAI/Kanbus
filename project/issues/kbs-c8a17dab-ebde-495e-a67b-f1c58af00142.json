@@ -1,0 +1,22 @@
+{
+  "id": "kbs-c8a17dab-ebde-495e-a67b-f1c58af00142",
+  "title": "Implement create --project and new_issue_project routing for virtual projects",
+  "description": "Found while removing the simulated virtual-project CLI (kbs-215bc6f0). Specs in features/issues/ (virtual-project creation feature, scenarios around lines 13, 19, 26, 40, 52) describe 'kanbus create --project <label>' and routing new issues by the new_issue_project config value, including an 'ask' mode that prompts. Neither runtime implements them: --project is rejected as an unexpected argument and new_issue_project is validated but never used. The scenarios are tagged @wip pointing at this ticket. Work: confirm with docs/ and the configuration reference that this behavior is wanted (if not, delete the scenarios instead and say so), then implement identically in Rust and Python and remove the @wip tags. Acceptance: the scenarios pass in both runtimes without @wip.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T17:03:01.422526Z",
+  "updated_at": "2026-10-19T17:03:01.491968Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

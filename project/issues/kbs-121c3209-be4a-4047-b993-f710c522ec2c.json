@@ -1,0 +1,20 @@
+{
+  "id": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "title": "Methodology adoption fixes from Biblicus dogfooding",
+  "description": "Findings from Biblicus adopting methodologies [bdd, git-flow] on kanbus 0.35.0 (AnthusAI/Biblicus#78), reported by the Biblicus session 2026-10-19. Rust develop reproduction: a root CONTRIBUTING_AGENT.template.md makes setup agents --force exit 0 with no Git Flow section while doctor reports both methodologies active; setup agents without --force exits 1 and regenerates nothing. Spec first for every behavior change; Rust and Python identical.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T18:01:44.193096Z",
+  "updated_at": "2026-10-19T18:01:44.346553Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

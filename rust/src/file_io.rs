@@ -559,7 +559,7 @@ pub fn resolve_labeled_projects(root: &Path) -> Result<Vec<ResolvedProject>, Kan
     )
 }
 
-fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, KanbusError> {
+pub(crate) fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, KanbusError> {
     let mut current = Some(root);
     while let Some(dir) = current {
         let candidate = dir.join(".kanbus.yml");

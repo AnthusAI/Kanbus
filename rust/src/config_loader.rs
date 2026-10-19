@@ -766,6 +766,9 @@ fn map_configuration_error(error: &serde_yaml::Error) -> String {
     if message.contains("lookback_hours") {
         return STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE.to_string();
     }
+    if message.starts_with("virtual_projects: duplicate entry with key") {
+        return "duplicate virtual project label".to_string();
+    }
     if message.contains("unknown field") {
         return "unknown configuration fields".to_string();
     }

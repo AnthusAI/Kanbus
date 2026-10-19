@@ -221,12 +221,13 @@ def _list_with_project_filter(
     except (ProjectMarkerError, ConfigurationError) as error:
         raise IssueListingError(str(error)) from error
     project_labels = {project.project_dir: project.label for project in labeled}
+    overlay_configs = _resolve_overlay_configs(project_dirs, configuration)
     issues = _list_issues_across_projects(
         root,
         project_dirs,
         include_local,
         local_only,
-        configuration,
+        overlay_configs,
         project_labels,
     )
     return _apply_query(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -58,7 +59,11 @@ def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(
         doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
     )
-    monkeypatch.setattr(doctor, "load_project_configuration", lambda _path: object())
+    monkeypatch.setattr(
+        doctor,
+        "load_project_configuration",
+        lambda _path: SimpleNamespace(events=False),
+    )
     monkeypatch.setattr(doctor, "load_selected_methodologies", lambda _root, _cfg: [])
     monkeypatch.setattr(doctor, "build_project_management_text", lambda _root: "")
     monkeypatch.setattr(doctor, "validate_project", lambda _root: None)
@@ -77,7 +82,11 @@ def test_run_doctor_tolerates_credential_resolution_failure(
     monkeypatch.setattr(
         doctor, "get_configuration_path", lambda _root: tmp_path / "config.yaml"
     )
-    monkeypatch.setattr(doctor, "load_project_configuration", lambda _path: object())
+    monkeypatch.setattr(
+        doctor,
+        "load_project_configuration",
+        lambda _path: SimpleNamespace(events=False),
+    )
     monkeypatch.setattr(doctor, "load_selected_methodologies", lambda _root, _cfg: [])
     monkeypatch.setattr(doctor, "build_project_management_text", lambda _root: "")
     monkeypatch.setattr(doctor, "validate_project", lambda _root: None)

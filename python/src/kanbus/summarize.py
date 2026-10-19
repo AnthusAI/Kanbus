@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from kanbus.event_history import events_enabled_for_events_directory
 from kanbus.comment_summary import (
     SUMMARY_ACTIVITY_SUMMARY_KEY,
     SUMMARY_REWRITTEN_DESCRIPTION_KEY,
@@ -314,6 +315,8 @@ def _record_llm_usage(
     total_cost: float | None,
 ) -> None:
     events_dir = root / project_directory / "events"
+    if not events_enabled_for_events_directory(events_dir):
+        return
     events_dir.mkdir(parents=True, exist_ok=True)
     log_path = events_dir / "llm_usage.jsonl"
     log_entry = {

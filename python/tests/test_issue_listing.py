@@ -515,3 +515,33 @@ def test_list_issues_across_projects_skips_missing_local_when_local_only(
         project_labels={},
     )
     assert result == []
+
+
+def test_list_with_project_filter_resolves_overlay_configs_from_configuration(
+    tmp_path: Path,
+) -> None:
+    import yaml
+
+    from kanbus.config_loader import load_project_configuration
+
+    (tmp_path / ".kanbus.yml").write_text(
+        yaml.safe_dump(
+            {
+                "project_key": "kbs",
+                "virtual_projects": {"alpha": {"path": "virtual/alpha/project"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "project" / "issues").mkdir(parents=True)
+    (tmp_path / "virtual" / "alpha" / "project" / "issues").mkdir(parents=True)
+    issue = build_issue("alpha-001", title="Alpha issue")
+    issue_path = (
+        tmp_path / "virtual" / "alpha" / "project" / "issues" / "alpha-001.json"
+    )
+    issue_path.write_text(issue.model_dump_json(by_alias=True), encoding="utf-8")
+    assert load_project_configuration(tmp_path / ".kanbus.yml").project_key == "kbs"
+
+    issues = issue_listing.list_issues(tmp_path, project_filter=["alpha"])
+
+    assert [item.identifier for item in issues] == ["alpha-001"]

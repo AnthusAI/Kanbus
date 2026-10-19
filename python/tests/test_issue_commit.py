@@ -43,10 +43,7 @@ def _init_repo_with_project(tmp_path: Path) -> Path:
     return root
 
 
-def test_commit_project_issues_leaves_events_uncommitted(
-    tmp_path: Path,
-) -> None:
-    root = _init_repo_with_project(tmp_path)
+def _write_issue_and_event(root: Path) -> None:
     (root / "project" / "issues" / "kanbus-test.json").write_text(
         '{"identifier":"kanbus-test","title":"Test"}',
         encoding="utf-8",
@@ -56,23 +53,8 @@ def test_commit_project_issues_leaves_events_uncommitted(
         encoding="utf-8",
     )
 
-    result = commit_project_issues(root)
 
-    assert result.committed
-    issues_status = subprocess.run(
-        ["git", "status", "--porcelain", "--", "project/issues"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    staged_events = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--", "project/events"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+def _committed_paths_of_head(root: Path) -> list[str]:
     committed_files = subprocess.run(
         ["git", "show", "--name-only", "--pretty=format:", "HEAD"],
         cwd=root,
@@ -80,13 +62,47 @@ def test_commit_project_issues_leaves_events_uncommitted(
         text=True,
         check=True,
     )
+    return [path for path in committed_files.stdout.splitlines() if path]
 
-    assert not issues_status.stdout.strip()
-    assert not staged_events.stdout.strip()
+
+def test_commit_project_issues_commits_events_with_issues_by_default(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo_with_project(tmp_path)
+    _write_issue_and_event(root)
+
+    result = commit_project_issues(root)
+
+    assert result.committed
+    assert result.includes_events
+    committed_paths = _committed_paths_of_head(root)
+    assert "project/issues/kanbus-test.json" in committed_paths
+    assert "project/events/event-1.json" in committed_paths
+    project_status = subprocess.run(
+        ["git", "status", "--porcelain", "--", "project"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert not project_status.stdout.strip()
+
+
+def test_commit_project_issues_leaves_events_out_when_events_are_disabled(
+    tmp_path: Path,
+) -> None:
+    root = _init_repo_with_project(tmp_path)
+    (root / ".kanbus.yml").write_text(
+        "project_key: kanbus\nevents: false\n", encoding="utf-8"
+    )
+    _write_issue_and_event(root)
+
+    result = commit_project_issues(root)
+
+    assert result.committed
+    assert not result.includes_events
     assert all(
-        path.startswith("project/issues/")
-        for path in committed_files.stdout.splitlines()
-        if path
+        path.startswith("project/issues/") for path in _committed_paths_of_head(root)
     )
     assert (root / "project" / "events" / "event-1.json").is_file()
 

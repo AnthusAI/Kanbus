@@ -642,6 +642,10 @@ pub struct ProjectMethodologyBundleReference {
     pub path: String,
 }
 
+fn default_events_enabled() -> bool {
+    true
+}
+
 /// Project configuration loaded from .kanbus.yml.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -684,6 +688,9 @@ pub struct ProjectConfiguration {
     pub type_colors: BTreeMap<String, String>,
     #[serde(default)]
     pub beads_compatibility: bool,
+    /// Whether Kanbus generates events under the project events directory and commits them with `kbs commit`.
+    #[serde(default = "default_events_enabled")]
+    pub events: bool,
     #[serde(default)]
     pub wiki_directory: Option<String>,
     #[serde(default)]

@@ -59,6 +59,7 @@ Every key accepted at the top level of `.kanbus.yml`. Unknown keys are errors. T
 | `sort_order` | `Dict[str, Any]` | `{}` | Optional status/category sort rules for console columns. |
 | `type_colors` | `Dict[str, str]` | `{}` | Optional map of issue type to color name. |
 | `beads_compatibility` | `bool` | `False` | Default Beads compatibility mode. |
+| `events` | `bool` | `True` | Whether Kanbus generates events under project/events and commits them with kbs commit. |
 | `wiki_directory` | `Optional[str]` | `None` | Optional directory containing wiki pages. |
 | `ai` | `Optional[AiConfiguration]` | `None` | Optional AI provider and model configuration. |
 | `right_now` | `RightNowConfiguration` | see section | Right-now summary configuration. |

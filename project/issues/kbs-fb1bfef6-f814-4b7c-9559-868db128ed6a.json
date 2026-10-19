@@ -1,0 +1,20 @@
+{
+  "id": "kbs-fb1bfef6-f814-4b7c-9559-868db128ed6a",
+  "title": "Rust and Python built-in CONTRIBUTING_AGENT templates diverge",
+  "description": "Biblicus on 0.36.0: the Rust built-in template includes the running-log paragraph, the machinery-chores-attach-to-epic paragraph and the sub-task paragraph; the Python template does not, so kbs and kanbus generate different CONTRIBUTING_AGENT.md. Make the templates identical (one source of truth copied byte-for-byte like the methodologies directories) and add a CI check that diffs them, plus a parity scenario that generates the agents file with both CLIs and compares output.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T20:27:50.991505Z",
+  "updated_at": "2026-10-19T20:27:51.047401Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

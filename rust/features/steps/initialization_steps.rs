@@ -127,7 +127,6 @@ pub struct KanbusWorld {
     pub original_invalid_status_env: Option<Option<String>>,
     pub original_screenshot_mock_env: Option<Option<String>>,
     pub virtual_project_state: Option<VirtualProjectState>,
-    pub simulated_configuration_error: Option<String>,
     pub realtime_doc: Option<String>,
     pub gossip_issue: Option<kanbus::models::IssueData>,
     pub gossip_envelope: Option<kanbus::gossip::GossipEnvelope>,

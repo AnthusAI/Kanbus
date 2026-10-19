@@ -1,0 +1,22 @@
+{
+  "id": "kbs-e7b8ceab-47a5-4d44-9ba3-2bd4bebea88e",
+  "title": "Reject external_projects in configuration instead of migrating it at load",
+  "description": "Found in kbs-215bc6f0. The virtual-project specs expect a configuration with external_projects to fail with an error, but both runtimes migrate it with a warning and exit 0. That runtime migration also conflicts with the no-backward-compatibility policy in AGENTS.md. Scenarios tagged @wip pointing here. Work: remove the load-time migration in Rust and Python, fail with the spec's error message (identical in both), and if a migration path is needed put it in an explicit migration command, not the loader. Acceptance: the scenarios pass in both runtimes without @wip.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T17:03:01.663800Z",
+  "updated_at": "2026-10-19T17:03:01.728595Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

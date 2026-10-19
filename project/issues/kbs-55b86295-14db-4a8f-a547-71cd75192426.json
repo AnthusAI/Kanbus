@@ -1,0 +1,22 @@
+{
+  "id": "kbs-55b86295-14db-4a8f-a547-71cd75192426",
+  "title": "Inventory KANBUS_* environment variables between Rust and Python",
+  "description": "Work item 6 of kbs-eb1788eb. Add tools/check_environment_variable_parity.py that collects KANBUS_[A-Z_]+ names from rust/src and python/src and fails unless every one-sided name is listed in docs/CONFIGURATION.md under an 'Environment variables' table as ported or intentionally Rust-only (with reason). Port the ones that affect CLI-visible behavior. Wire the script into the python CI job. Acceptance: script exits 0 in CI and lists zero unclassified names.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:53:39.951337Z",
+  "updated_at": "2026-10-19T16:53:40.090222Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

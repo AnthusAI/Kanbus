@@ -59,6 +59,19 @@ pub fn list_issues(
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
     let mut dotfile_projects = discover_kanbus_projects(root)?;
+    for configured_project in &dotfile_projects {
+        let issues_dir = configured_project.join("issues");
+        let issues_directory_missing = matches!(
+            std::fs::metadata(&issues_dir),
+            Err(error) if error.kind() == ErrorKind::NotFound
+        );
+        if configured_project.is_dir() && issues_directory_missing {
+            return Err(KanbusError::IssueOperation(format!(
+                "issues directory not found: {}. Run 'kanbus migrate' if you need to migrate from an older format.",
+                issues_dir.display()
+            )));
+        }
+    }
     projects.append(&mut dotfile_projects);
     let mut normalized = Vec::new();
     for path in projects {

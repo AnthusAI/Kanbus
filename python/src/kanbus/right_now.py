@@ -16,6 +16,7 @@ from kanbus.config_loader import (
     load_project_configuration,
     load_repository_environment,
 )
+from kanbus.event_history import events_enabled_for_events_directory
 from kanbus.issue_files import read_issue_from_file, write_issue_to_file
 from kanbus.issue_listing import IssueListingError, list_issues
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
@@ -943,6 +944,8 @@ def _record_llm_usage(
     mock: bool,
 ) -> None:
     events_dir = root.joinpath(configuration.project_directory, "events")
+    if not events_enabled_for_events_directory(events_dir):
+        return
     events_dir.mkdir(parents=True, exist_ok=True)
     log_path = events_dir / LLM_USAGE_LOG
     entry = {

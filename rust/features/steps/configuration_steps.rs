@@ -589,13 +589,6 @@ fn given_invalid_config_wrong_field_types(world: &mut KanbusWorld) {
 
 #[when("the configuration is loaded")]
 fn when_configuration_loaded(world: &mut KanbusWorld) {
-    if let Some(message) = world.simulated_configuration_error.take() {
-        world.configuration = None;
-        world.exit_code = Some(1);
-        world.stdout = Some(String::new());
-        world.stderr = Some(message);
-        return;
-    }
     let root = world
         .working_directory
         .as_ref()
@@ -1315,6 +1308,25 @@ fn given_kanbus_configuration_has_name(world: &mut KanbusWorld, name: String) {
     mapping.insert(Value::String("name".to_string()), Value::String(name));
     let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
     fs::write(config_path, yaml).expect("write config");
+}
+
+#[given("the Kanbus configuration disables events")]
+fn given_kanbus_configuration_disables_events(world: &mut KanbusWorld) {
+    update_config_file(world, |mapping| {
+        mapping.insert(Value::String("events".to_string()), Value::Bool(false));
+    });
+}
+
+#[then("events should be enabled")]
+fn then_events_should_be_enabled(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(configuration.events);
+}
+
+#[then("events should be disabled")]
+fn then_events_should_be_disabled(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(!configuration.events);
 }
 
 #[then(expr = "the project name should be {string}")]

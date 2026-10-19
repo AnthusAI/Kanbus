@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from kanbus.agent_metadata import agent_metadata_to_event_value
 from kanbus.models import AgentMetadata, IssueData
+from kanbus.project import load_configuration_governing_directory
 
 EVENT_SCHEMA_VERSION = 1
 
@@ -88,9 +89,27 @@ def events_dir_for_issue(project_dir: Path, issue_id: str) -> Path:
     return events_dir_for_project(project_dir)
 
 
+def events_enabled_for_events_directory(events_dir: Path) -> bool:
+    """Report whether the repository owning an events directory generates events.
+
+    This is the single guard every event writer consults. A repository without
+    a configuration file uses the default, which is enabled.
+
+    :param events_dir: Events directory that would receive a write.
+    :type events_dir: Path
+    :return: True when events are generated for this repository.
+    :rtype: bool
+    :raises ConfigurationError: If the configuration file is invalid.
+    """
+    configuration = load_configuration_governing_directory(events_dir.parent)
+    return True if configuration is None else configuration.events
+
+
 def write_events_batch(events_dir: Path, events: Iterable[EventRecord]) -> List[Path]:
     events_list = list(events)
     if not events_list:
+        return []
+    if not events_enabled_for_events_directory(events_dir):
         return []
     events_dir.mkdir(parents=True, exist_ok=True)
     written: List[Path] = []

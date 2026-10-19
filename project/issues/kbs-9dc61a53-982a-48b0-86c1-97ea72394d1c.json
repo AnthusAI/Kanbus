@@ -1,0 +1,22 @@
+{
+  "id": "kbs-9dc61a53-982a-48b0-86c1-97ea72394d1c",
+  "title": "Switch PyPI and crates.io publishing to Trusted Publishing",
+  "description": "Split from kbs-a0a92814. .github/workflows/release.yml still publishes with secrets.PYPI_TOKEN (line ~103) and CARGO_REGISTRY_TOKEN (~533-535) and has no id-token permission. Blocked on Ryan: configure a Trusted Publisher for AnthusAI/Kanbus release.yml on PyPI (project kanbus) and on crates.io (crate kanbus). Then: add permissions id-token: write to the publish jobs, use pypa/gh-action-pypi-publish without a password and rust-lang/crates-io-auth-action for cargo publish, delete both secrets. Acceptance: a release publishes to both registries with no long-lived token in the repo secrets.",
+  "type": "chore",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [
+    "engineering-review"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T16:53:15.556347Z",
+  "updated_at": "2026-10-19T16:53:15.622099Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

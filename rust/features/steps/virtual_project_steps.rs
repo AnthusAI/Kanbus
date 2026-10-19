@@ -7,10 +7,13 @@ use chrono::{TimeZone, Utc};
 use cucumber::{given, then, when};
 
 use kanbus::file_io::load_project_directory;
-use kanbus::models::{IssueComment, IssueData};
+use kanbus::models::IssueData;
 use serde_yaml::{Mapping, Value as YamlValue};
 
-use crate::step_definitions::initialization_steps::KanbusWorld;
+use crate::step_definitions::command_steps::run_cli_command_with_stdin as run_command_with_standard_input;
+use crate::step_definitions::initialization_steps::{
+    run_from_args_in_blocking_thread, KanbusWorld,
+};
 
 #[derive(Debug, Clone)]
 pub struct VirtualProject {
@@ -27,28 +30,9 @@ pub struct VirtualProjectState {
     pub current_label: String,
     pub current_project_dir: PathBuf,
     pub current_local_dir: PathBuf,
-    pub issue_counter: u32,
-    pub new_issue_project: Option<String>,
     pub virtual_projects: BTreeMap<String, VirtualProject>,
     pub pending_interactive_command: Option<String>,
-    pub prompt_output: Option<String>,
-    pub last_updated_issue: Option<PathBuf>,
-    pub last_event_path: Option<PathBuf>,
-    pub missing_path: bool,
-    pub missing_issues_dir: bool,
-}
-
-#[derive(Debug)]
-struct SimulatedResult {
-    exit_code: i32,
-    stdout: String,
-    stderr: String,
-}
-
-fn set_result(world: &mut KanbusWorld, result: SimulatedResult) {
-    world.exit_code = Some(result.exit_code);
-    world.stdout = Some(result.stdout);
-    world.stderr = Some(result.stderr);
+    pub issue_snapshots: BTreeMap<PathBuf, String>,
 }
 
 fn create_repo(world: &mut KanbusWorld) -> PathBuf {
@@ -67,10 +51,23 @@ fn create_repo(world: &mut KanbusWorld) -> PathBuf {
 
 fn initialize_virtual_repo(world: &mut KanbusWorld) -> VirtualProjectState {
     let root = create_repo(world);
+    run_from_args_in_blocking_thread(vec!["kanbus".to_string(), "init".to_string()], &root)
+        .expect("kanbus init");
+    let config_path = root.join(".kanbus.yml");
+    let mut mapping: Mapping =
+        serde_yaml::from_str(&fs::read_to_string(&config_path).expect("read config"))
+            .expect("parse config");
+    mapping.insert(
+        YamlValue::String("project_key".to_string()),
+        YamlValue::String("kbs".to_string()),
+    );
+    fs::write(
+        &config_path,
+        serde_yaml::to_string(&mapping).expect("serialize config"),
+    )
+    .expect("write config");
     let shared_dir = root.join("project");
     let local_dir = root.join("project-local");
-    fs::create_dir_all(shared_dir.join("issues")).expect("create issues dir");
-    fs::create_dir_all(shared_dir.join("events")).expect("create events dir");
     fs::create_dir_all(local_dir.join("issues")).expect("create local issues dir");
     fs::create_dir_all(local_dir.join("events")).expect("create local events dir");
     VirtualProjectState {
@@ -78,15 +75,9 @@ fn initialize_virtual_repo(world: &mut KanbusWorld) -> VirtualProjectState {
         current_label: "kbs".to_string(),
         current_project_dir: shared_dir,
         current_local_dir: local_dir,
-        issue_counter: 1,
-        new_issue_project: None,
         virtual_projects: BTreeMap::new(),
         pending_interactive_command: None,
-        prompt_output: None,
-        last_updated_issue: None,
-        last_event_path: None,
-        missing_path: false,
-        missing_issues_dir: false,
+        issue_snapshots: BTreeMap::new(),
     }
 }
 
@@ -131,6 +122,7 @@ fn configure_virtual_projects<'a>(
     for label in labels {
         add_virtual_project_if_missing(state, label);
     }
+    write_virtual_projects_configuration(state);
     state
 }
 
@@ -147,15 +139,9 @@ fn adopt_existing_repository_for_virtual_projects(
         current_label: "kbs".to_string(),
         current_project_dir,
         current_local_dir,
-        issue_counter: 1,
-        new_issue_project: None,
         virtual_projects: BTreeMap::new(),
         pending_interactive_command: None,
-        prompt_output: None,
-        last_updated_issue: None,
-        last_event_path: None,
-        missing_path: false,
-        missing_issues_dir: false,
+        issue_snapshots: BTreeMap::new(),
     };
     world.virtual_project_state = Some(state);
     world
@@ -164,16 +150,56 @@ fn adopt_existing_repository_for_virtual_projects(
         .expect("virtual project state")
 }
 
+fn set_primary_configuration_value(state: &VirtualProjectState, key: &str, value: YamlValue) {
+    let config_path = state.root.join(".kanbus.yml");
+    let mut mapping: Mapping =
+        serde_yaml::from_str(&fs::read_to_string(&config_path).expect("read config"))
+            .expect("parse config");
+    mapping.insert(YamlValue::String(key.to_string()), value);
+    fs::write(
+        config_path,
+        serde_yaml::to_string(&mapping).expect("serialize config"),
+    )
+    .expect("write config");
+}
+
+fn remember_issue_snapshot(state: &mut VirtualProjectState, project_dir: &Path, identifier: &str) {
+    let issue_path = project_dir
+        .join("issues")
+        .join(format!("{identifier}.json"));
+    let contents = fs::read_to_string(&issue_path).expect("read issue snapshot");
+    state.issue_snapshots.insert(issue_path, contents);
+}
+
+fn assert_issue_changed_since_snapshot(state: &VirtualProjectState, project_dir: &Path) {
+    let changed = state.issue_snapshots.iter().any(|(path, original)| {
+        path.starts_with(project_dir)
+            && fs::read_to_string(path)
+                .map(|current| &current != original)
+                .unwrap_or(false)
+    });
+    assert!(
+        changed,
+        "no issue file under {} changed since it was created",
+        project_dir.display()
+    );
+}
+
 fn write_virtual_projects_configuration(state: &VirtualProjectState) {
     let config_path = state.root.join(".kanbus.yml");
-    let mut mapping: Mapping = if config_path.exists() {
-        let contents = fs::read_to_string(&config_path).expect("read config");
-        serde_yaml::from_str(&contents).expect("parse config")
-    } else {
-        Mapping::new()
+    let mut mapping: Mapping =
+        serde_yaml::from_str(&fs::read_to_string(&config_path).expect("read config"))
+            .expect("parse config");
+    let virtual_projects_key = YamlValue::String("virtual_projects".to_string());
+    let mut virtual_projects = match mapping.get(&virtual_projects_key) {
+        Some(YamlValue::Mapping(existing)) => existing.clone(),
+        _ => Mapping::new(),
     };
-    let mut virtual_projects = Mapping::new();
     for (label, project) in &state.virtual_projects {
+        let label_key = YamlValue::String(label.clone());
+        if virtual_projects.contains_key(&label_key) {
+            continue;
+        }
         let relative_path = project
             .shared_dir
             .strip_prefix(&state.root)
@@ -185,14 +211,14 @@ fn write_virtual_projects_configuration(state: &VirtualProjectState) {
             YamlValue::String("path".to_string()),
             YamlValue::String(relative_path),
         );
-        virtual_projects.insert(YamlValue::String(label.clone()), YamlValue::Mapping(entry));
+        virtual_projects.insert(label_key, YamlValue::Mapping(entry));
     }
-    mapping.insert(
-        YamlValue::String("virtual_projects".to_string()),
-        YamlValue::Mapping(virtual_projects),
-    );
-    let yaml = serde_yaml::to_string(&mapping).expect("serialize config");
-    fs::write(config_path, yaml).expect("write config");
+    mapping.insert(virtual_projects_key, YamlValue::Mapping(virtual_projects));
+    fs::write(
+        config_path,
+        serde_yaml::to_string(&mapping).expect("serialize config"),
+    )
+    .expect("write config");
 }
 
 fn build_issue(identifier: &str, title: &str, status: &str) -> IssueData {
@@ -241,40 +267,6 @@ fn create_issue(project_dir: &Path, identifier: &str, title: &str, status: &str)
     write_issue(project_dir, &issue);
 }
 
-fn find_issue_path(state: &VirtualProjectState, identifier: &str) -> Option<PathBuf> {
-    let current = state
-        .current_project_dir
-        .join("issues")
-        .join(format!("{identifier}.json"));
-    if current.exists() {
-        return Some(current);
-    }
-    let local = state
-        .current_local_dir
-        .join("issues")
-        .join(format!("{identifier}.json"));
-    if local.exists() {
-        return Some(local);
-    }
-    for project in state.virtual_projects.values() {
-        let shared = project
-            .shared_dir
-            .join("issues")
-            .join(format!("{identifier}.json"));
-        if shared.exists() {
-            return Some(shared);
-        }
-        let local = project
-            .local_dir
-            .join("issues")
-            .join(format!("{identifier}.json"));
-        if local.exists() {
-            return Some(local);
-        }
-    }
-    None
-}
-
 fn issue_project_label(state: &VirtualProjectState, identifier: &str) -> Option<String> {
     if state
         .current_project_dir
@@ -313,467 +305,6 @@ fn issue_project_label(state: &VirtualProjectState, identifier: &str) -> Option<
     None
 }
 
-fn list_issues(
-    state: &VirtualProjectState,
-    project_filters: &[String],
-    local_only: bool,
-    no_local: bool,
-    status: Option<&str>,
-) -> SimulatedResult {
-    if local_only && no_local {
-        return SimulatedResult {
-            exit_code: 1,
-            stdout: String::new(),
-            stderr: "local-only conflicts with no-local".to_string(),
-        };
-    }
-    if !project_filters.is_empty() {
-        for name in project_filters {
-            if name != &state.current_label && !state.virtual_projects.contains_key(name) {
-                return SimulatedResult {
-                    exit_code: 1,
-                    stdout: String::new(),
-                    stderr: "unknown project".to_string(),
-                };
-            }
-        }
-    }
-
-    let mut rows = Vec::new();
-    let allowed: Vec<String> = if project_filters.is_empty() {
-        let mut labels = vec![state.current_label.clone()];
-        labels.extend(state.virtual_projects.keys().cloned());
-        labels
-    } else {
-        project_filters.to_vec()
-    };
-
-    let mut append_issue = |label: &str, identifier: &str, location: &str, project_dir: &Path| {
-        if !allowed.contains(&label.to_string()) {
-            return;
-        }
-        let issue = read_issue(project_dir, identifier);
-        if let Some(expected) = status {
-            if issue.status != expected {
-                return;
-            }
-        }
-        rows.push(format!("{label} {identifier} {} {location}", issue.status));
-    };
-
-    if !no_local {
-        let issues_dir = state.current_local_dir.join("issues");
-        if let Ok(entries) = fs::read_dir(&issues_dir) {
-            for entry in entries.filter_map(|entry| entry.ok()) {
-                if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                    append_issue(
-                        &state.current_label,
-                        stem,
-                        "local",
-                        &state.current_local_dir,
-                    );
-                }
-            }
-        }
-    }
-    if !local_only {
-        let issues_dir = state.current_project_dir.join("issues");
-        if let Ok(entries) = fs::read_dir(&issues_dir) {
-            for entry in entries.filter_map(|entry| entry.ok()) {
-                if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                    append_issue(
-                        &state.current_label,
-                        stem,
-                        "shared",
-                        &state.current_project_dir,
-                    );
-                }
-            }
-        }
-    }
-
-    for (label, project) in &state.virtual_projects {
-        if !no_local {
-            let issues_dir = project.local_dir.join("issues");
-            if let Ok(entries) = fs::read_dir(&issues_dir) {
-                for entry in entries.filter_map(|entry| entry.ok()) {
-                    if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                        append_issue(label, stem, "local", &project.local_dir);
-                    }
-                }
-            }
-        }
-        if !local_only {
-            let issues_dir = project.shared_dir.join("issues");
-            if let Ok(entries) = fs::read_dir(&issues_dir) {
-                for entry in entries.filter_map(|entry| entry.ok()) {
-                    if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                        append_issue(label, stem, "shared", &project.shared_dir);
-                    }
-                }
-            }
-        }
-    }
-
-    if rows.is_empty() && !state.virtual_projects.is_empty() {
-        let mut labels = vec![state.current_label.clone()];
-        labels.extend(state.virtual_projects.keys().cloned());
-        for label in labels {
-            rows.push(format!("{label} (no issues)"));
-        }
-    }
-
-    SimulatedResult {
-        exit_code: 0,
-        stdout: rows.join("\n"),
-        stderr: String::new(),
-    }
-}
-
-pub fn maybe_simulate_virtual_project_command(world: &mut KanbusWorld, command: &str) -> bool {
-    let Some(state) = world.virtual_project_state.clone() else {
-        return false;
-    };
-    let mut state = state;
-
-    if state.missing_path && command.starts_with("kanbus list") {
-        set_result(
-            world,
-            SimulatedResult {
-                exit_code: 1,
-                stdout: String::new(),
-                stderr: "virtual project path not found".to_string(),
-            },
-        );
-        world.virtual_project_state = Some(state);
-        return true;
-    }
-    if state.missing_issues_dir && command.starts_with("kanbus list") {
-        set_result(
-            world,
-            SimulatedResult {
-                exit_code: 1,
-                stdout: String::new(),
-                stderr: "issues directory not found".to_string(),
-            },
-        );
-        world.virtual_project_state = Some(state);
-        return true;
-    }
-
-    let args = match shell_words::split(command) {
-        Ok(args) => args,
-        Err(_) => return false,
-    };
-    if args.len() < 2 || args[0] != "kanbus" {
-        return false;
-    }
-    let action = args[1].as_str();
-
-    if action == "list" {
-        let mut project_filters = Vec::new();
-        let mut status: Option<String> = None;
-        let local_only = args.iter().any(|arg| arg == "--local-only");
-        let no_local = args.iter().any(|arg| arg == "--no-local");
-        let mut iter = args.iter().enumerate();
-        for (idx, value) in iter {
-            if value == "--project" {
-                if let Some(next) = args.get(idx + 1) {
-                    project_filters.push(next.clone());
-                }
-            }
-            if value == "--status" {
-                if let Some(next) = args.get(idx + 1) {
-                    status = Some(next.clone());
-                }
-            }
-        }
-        let result = list_issues(
-            &state,
-            &project_filters,
-            local_only,
-            no_local,
-            status.as_deref(),
-        );
-        set_result(world, result);
-        world.virtual_project_state = Some(state);
-        return true;
-    }
-
-    if action == "show" && args.len() >= 3 {
-        let identifier = &args[2];
-        let label =
-            issue_project_label(&state, identifier).unwrap_or_else(|| state.current_label.clone());
-        set_result(
-            world,
-            SimulatedResult {
-                exit_code: 0,
-                stdout: format!("Source project: {label}"),
-                stderr: String::new(),
-            },
-        );
-        world.virtual_project_state = Some(state);
-        return true;
-    }
-
-    if action == "create" {
-        let location = if args.iter().any(|arg| arg == "--local") {
-            "local"
-        } else {
-            "shared"
-        };
-        let mut target_label = state.current_label.clone();
-        if let Some(idx) = args.iter().position(|arg| arg == "--project") {
-            if let Some(value) = args.get(idx + 1) {
-                target_label = value.clone();
-            }
-        } else if let Some(new_issue_project) = state.new_issue_project.clone() {
-            if location == "local" {
-                // --local always routes to the current project
-            } else if new_issue_project == "ask" {
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 1,
-                        stdout: String::new(),
-                        stderr: "project selection required".to_string(),
-                    },
-                );
-                world.virtual_project_state = Some(state);
-                return true;
-            } else {
-                target_label = new_issue_project;
-            }
-        }
-
-        let identifier = format!("{target_label}-task{:02}", state.issue_counter);
-        state.issue_counter += 1;
-        let mut title_parts = Vec::new();
-        let mut skip_next = false;
-        for arg in args.iter().skip(2) {
-            if skip_next {
-                skip_next = false;
-                continue;
-            }
-            if arg == "--project" {
-                skip_next = true;
-                continue;
-            }
-            if arg == "--local" {
-                continue;
-            }
-            if arg.starts_with("--") {
-                skip_next = true;
-                continue;
-            }
-            title_parts.push(arg.clone());
-        }
-        let title = if title_parts.is_empty() {
-            "New task".to_string()
-        } else {
-            title_parts.join(" ")
-        };
-
-        if target_label == state.current_label {
-            if location == "local" {
-                create_issue(&state.current_local_dir, &identifier, &title, "open");
-            } else {
-                create_issue(&state.current_project_dir, &identifier, &title, "open");
-            }
-        } else if let Some(project) = state.virtual_projects.get(&target_label) {
-            if location == "local" {
-                create_issue(&project.local_dir, &identifier, &title, "open");
-            } else {
-                create_issue(&project.shared_dir, &identifier, &title, "open");
-            }
-        } else {
-            set_result(
-                world,
-                SimulatedResult {
-                    exit_code: 1,
-                    stdout: String::new(),
-                    stderr: "unknown project".to_string(),
-                },
-            );
-            world.virtual_project_state = Some(state);
-            return true;
-        }
-
-        set_result(
-            world,
-            SimulatedResult {
-                exit_code: 0,
-                stdout: format!("Created {identifier}"),
-                stderr: String::new(),
-            },
-        );
-        world.virtual_project_state = Some(state);
-        return true;
-    }
-
-    if [
-        "update", "close", "comment", "delete", "promote", "localize",
-    ]
-    .contains(&action)
-    {
-        if args.len() < 3 {
-            return false;
-        }
-        let identifier = &args[2];
-        let issue_path = match find_issue_path(&state, identifier) {
-            Some(path) => path,
-            None => {
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 1,
-                        stdout: String::new(),
-                        stderr: "not found".to_string(),
-                    },
-                );
-                world.virtual_project_state = Some(state);
-                return true;
-            }
-        };
-        let project_dir = issue_path
-            .parent()
-            .and_then(|parent| parent.parent())
-            .expect("project dir");
-
-        match action {
-            "update" => {
-                let mut issue = read_issue(project_dir, identifier);
-                if let Some(idx) = args.iter().position(|arg| arg == "--status") {
-                    if let Some(status) = args.get(idx + 1) {
-                        issue.status = status.clone();
-                    }
-                }
-                write_issue(project_dir, &issue);
-                state.last_updated_issue = Some(issue_path.clone());
-                let events_dir = project_dir.join("events");
-                fs::create_dir_all(&events_dir).expect("create events dir");
-                let event_path = events_dir.join(format!("{identifier}-event.json"));
-                fs::write(&event_path, "{}").expect("write event");
-                state.last_event_path = Some(event_path);
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 0,
-                        stdout: "updated".to_string(),
-                        stderr: String::new(),
-                    },
-                );
-            }
-            "close" => {
-                let mut issue = read_issue(project_dir, identifier);
-                issue.status = "closed".to_string();
-                write_issue(project_dir, &issue);
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 0,
-                        stdout: "closed".to_string(),
-                        stderr: String::new(),
-                    },
-                );
-            }
-            "comment" => {
-                let mut issue = read_issue(project_dir, identifier);
-                let mut comment_parts = Vec::new();
-                for arg in args.iter().skip(3) {
-                    if arg.starts_with("--") {
-                        break;
-                    }
-                    comment_parts.push(arg.clone());
-                }
-                let comment_text = if comment_parts.is_empty() {
-                    "Comment".to_string()
-                } else {
-                    comment_parts.join(" ")
-                };
-                let author = world
-                    .current_user
-                    .clone()
-                    .unwrap_or_else(|| "unknown".to_string());
-                issue.comments.push(IssueComment {
-                    id: None,
-                    author,
-                    text: Some(comment_text),
-                    created_at: Utc.with_ymd_and_hms(2026, 2, 11, 0, 0, 0).unwrap(),
-                    comment_type: "default".to_string(),
-                    data: std::collections::BTreeMap::new(),
-                    agent: None,
-                });
-                write_issue(project_dir, &issue);
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 0,
-                        stdout: "commented".to_string(),
-                        stderr: String::new(),
-                    },
-                );
-            }
-            "delete" => {
-                let _ = fs::remove_file(&issue_path);
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 0,
-                        stdout: "deleted".to_string(),
-                        stderr: String::new(),
-                    },
-                );
-            }
-            "promote" => {
-                if project_dir.ends_with("project-local") {
-                    let target = project_dir
-                        .parent()
-                        .expect("project parent")
-                        .join("project")
-                        .join("issues")
-                        .join(issue_path.file_name().expect("issue filename"));
-                    fs::create_dir_all(target.parent().expect("parent")).expect("create target");
-                    fs::rename(&issue_path, &target).expect("move issue");
-                }
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 0,
-                        stdout: "promoted".to_string(),
-                        stderr: String::new(),
-                    },
-                );
-            }
-            "localize" => {
-                if project_dir.ends_with("project") {
-                    let target = project_dir
-                        .parent()
-                        .expect("project parent")
-                        .join("project-local")
-                        .join("issues")
-                        .join(issue_path.file_name().expect("issue filename"));
-                    fs::create_dir_all(target.parent().expect("parent")).expect("create target");
-                    fs::rename(&issue_path, &target).expect("move issue");
-                }
-                set_result(
-                    world,
-                    SimulatedResult {
-                        exit_code: 0,
-                        stdout: "localized".to_string(),
-                        stderr: String::new(),
-                    },
-                );
-            }
-            _ => {}
-        }
-        world.virtual_project_state = Some(state);
-        return true;
-    }
-
-    false
-}
-
 #[given("a Kanbus project with virtual projects configured")]
 fn given_project_with_virtual_projects(world: &mut KanbusWorld) {
     if world.virtual_project_state.is_none() {
@@ -791,8 +322,6 @@ fn given_project_with_virtual_projects(world: &mut KanbusWorld) {
         .as_mut()
         .expect("virtual project state");
     write_virtual_projects_configuration(state);
-    state.new_issue_project = None;
-    // Clear any leftover issue files so each scenario starts clean.
     for dir in [
         state.current_project_dir.join("issues"),
         state.current_local_dir.join("issues"),
@@ -894,76 +423,40 @@ fn given_congregation_primary_display_name(world: &mut KanbusWorld, display_name
 #[given(expr = "a Kanbus project with new_issue_project set to {string}")]
 fn given_project_with_new_issue_project(world: &mut KanbusWorld, label: String) {
     let state = configure_virtual_projects(world, vec!["alpha", "beta"]);
-    state.new_issue_project = Some(label.clone());
-    if label == "nonexistent" {
-        world.simulated_configuration_error =
-            Some("new_issue_project references unknown project".to_string());
-    }
+    set_primary_configuration_value(state, "new_issue_project", YamlValue::String(label));
 }
 
 #[when("I run \"kanbus create Interactive task\" interactively")]
 fn when_run_interactive_create(world: &mut KanbusWorld) {
     let state = ensure_virtual_state(world);
     state.pending_interactive_command = Some("kanbus create Interactive task".to_string());
-    let mut options = vec![state.current_label.clone()];
-    options.extend(state.virtual_projects.keys().cloned());
-    let prompt_text = options.join("\n");
-    state.prompt_output = Some(prompt_text.clone());
-    let result = SimulatedResult {
-        exit_code: 0,
-        stdout: prompt_text,
-        stderr: String::new(),
-    };
-    set_result(world, result);
 }
 
 #[when(expr = "I select {string} from the project prompt")]
 fn when_select_project_from_prompt(world: &mut KanbusWorld, label: String) {
-    let state = ensure_virtual_state(world);
-    let command = state
+    let command = ensure_virtual_state(world)
         .pending_interactive_command
         .clone()
-        .unwrap_or_else(|| "kanbus create Interactive task".to_string());
-    let args = shell_words::split(&command).expect("parse command");
-    let title = args
-        .iter()
-        .skip(2)
-        .filter(|arg| !arg.starts_with("--"))
-        .cloned()
-        .collect::<Vec<String>>()
-        .join(" ");
-    let identifier = format!("{label}-task{:02}", state.issue_counter);
-    state.issue_counter += 1;
-    if label == state.current_label {
-        create_issue(&state.current_project_dir, &identifier, &title, "open");
-    } else if let Some(project) = state.virtual_projects.get(&label) {
-        create_issue(&project.shared_dir, &identifier, &title, "open");
-    } else {
-        set_result(
-            world,
-            SimulatedResult {
-                exit_code: 1,
-                stdout: String::new(),
-                stderr: "unknown project".to_string(),
-            },
-        );
-        return;
-    }
-    set_result(
-        world,
-        SimulatedResult {
-            exit_code: 0,
-            stdout: format!("Created {identifier}"),
-            stderr: String::new(),
-        },
-    );
+        .expect("interactive command was not started");
+    run_command_with_standard_input(world, &command, &format!("{label}\n"));
 }
 
 #[then(expr = "the project prompt should list {string}")]
 fn then_prompt_should_list(world: &mut KanbusWorld, label: String) {
-    let state = ensure_virtual_state(world);
-    let output = state.prompt_output.clone().unwrap_or_default();
-    assert!(output.contains(&label));
+    let command = ensure_virtual_state(world)
+        .pending_interactive_command
+        .clone()
+        .expect("interactive command was not started");
+    run_command_with_standard_input(world, &command, "");
+    let output = format!(
+        "{}{}",
+        world.stdout.as_deref().unwrap_or(""),
+        world.stderr.as_deref().unwrap_or("")
+    );
+    assert!(
+        output.contains(&label),
+        "project prompt output did not list {label}: {output}"
+    );
 }
 
 #[then("an issue file should be created in the current project issues directory")]
@@ -1036,58 +529,39 @@ fn then_no_issue_created_current(world: &mut KanbusWorld) {
 
 #[given(expr = "an issue {string} exists in virtual project {string}")]
 fn given_issue_exists_virtual(world: &mut KanbusWorld, identifier: String, label: String) {
-    let state = ensure_virtual_state(world);
-    add_virtual_project_if_missing(state, &label);
-    let project = state.virtual_projects.get(&label).expect("virtual project");
-    create_issue(&project.shared_dir, &identifier, "Virtual issue", "open");
+    let state = configure_virtual_projects(world, vec![label.as_str()]);
+    let shared_dir = state.virtual_projects[&label].shared_dir.clone();
+    create_issue(&shared_dir, &identifier, "Virtual issue", "open");
+    remember_issue_snapshot(state, &shared_dir, &identifier);
 }
 
 #[given(expr = "a local issue {string} exists in virtual project {string}")]
 fn given_local_issue_exists_virtual(world: &mut KanbusWorld, identifier: String, label: String) {
-    let state = ensure_virtual_state(world);
-    add_virtual_project_if_missing(state, &label);
-    let project = state.virtual_projects.get(&label).expect("virtual project");
-    create_issue(
-        &project.local_dir,
-        &identifier,
-        "Local virtual issue",
-        "open",
-    );
+    let state = configure_virtual_projects(world, vec![label.as_str()]);
+    let local_dir = state.virtual_projects[&label].local_dir.clone();
+    create_issue(&local_dir, &identifier, "Local virtual issue", "open");
 }
 
 #[given(expr = "an issue {string} exists in the primary project")]
 fn given_issue_exists_primary(world: &mut KanbusWorld, identifier: String) {
     let state = ensure_virtual_state(world);
-    create_issue(
-        &state.current_project_dir,
-        &identifier,
-        "Primary issue",
-        "open",
-    );
+    let project_dir = state.current_project_dir.clone();
+    create_issue(&project_dir, &identifier, "Primary issue", "open");
+    remember_issue_snapshot(state, &project_dir, &identifier);
 }
 
 #[then(expr = "the issue file in virtual project {string} should be updated")]
 fn then_issue_file_updated_virtual(world: &mut KanbusWorld, label: String) {
     let state = ensure_virtual_state(world);
-    let project = state.virtual_projects.get(&label).expect("virtual project");
-    let issues = fs::read_dir(project.shared_dir.join("issues"))
-        .expect("read issues dir")
-        .filter_map(|entry| entry.ok())
-        .collect::<Vec<_>>();
-    assert!(!issues.is_empty());
+    let shared_dir = state.virtual_projects[&label].shared_dir.clone();
+    assert_issue_changed_since_snapshot(state, &shared_dir);
 }
 
 #[then("the issue file in the primary project should be updated")]
 fn then_issue_file_updated_primary(world: &mut KanbusWorld) {
     let state = ensure_virtual_state(world);
-    let updated = state
-        .last_updated_issue
-        .as_ref()
-        .expect("updated issue file");
-    assert!(
-        updated.starts_with(&state.current_project_dir),
-        "expected updated issue in primary project"
-    );
+    let project_dir = state.current_project_dir.clone();
+    assert_issue_changed_since_snapshot(state, &project_dir);
 }
 
 #[then(expr = "the issue file in virtual project {string} should have status {string}")]
@@ -1343,33 +817,72 @@ fn then_local_issues_listed(world: &mut KanbusWorld) {
 #[given("a Kanbus project with a virtual project pointing to a missing path")]
 fn given_virtual_project_missing_path(world: &mut KanbusWorld) {
     let state = ensure_virtual_state(world);
-    state.missing_path = true;
+    let mut entry = Mapping::new();
+    entry.insert(
+        YamlValue::String("path".to_string()),
+        YamlValue::String("virtual/missing/project".to_string()),
+    );
+    let mut virtual_projects = Mapping::new();
+    virtual_projects.insert(
+        YamlValue::String("missing".to_string()),
+        YamlValue::Mapping(entry),
+    );
+    set_primary_configuration_value(
+        state,
+        "virtual_projects",
+        YamlValue::Mapping(virtual_projects),
+    );
 }
 
 #[given("a Kanbus project with a virtual project pointing to a directory without issues")]
 fn given_virtual_project_missing_issues(world: &mut KanbusWorld) {
     let state = ensure_virtual_state(world);
-    state.missing_issues_dir = true;
+    fs::create_dir_all(state.root.join("virtual").join("hollow").join("project"))
+        .expect("create hollow project directory");
+    let mut entry = Mapping::new();
+    entry.insert(
+        YamlValue::String("path".to_string()),
+        YamlValue::String("virtual/hollow/project".to_string()),
+    );
+    let mut virtual_projects = Mapping::new();
+    virtual_projects.insert(
+        YamlValue::String("hollow".to_string()),
+        YamlValue::Mapping(entry),
+    );
+    set_primary_configuration_value(
+        state,
+        "virtual_projects",
+        YamlValue::Mapping(virtual_projects),
+    );
 }
 
 #[given("a Kanbus project with duplicate virtual project labels")]
 fn given_duplicate_virtual_labels(world: &mut KanbusWorld) {
-    ensure_virtual_state(world);
-    world.simulated_configuration_error = Some("duplicate virtual project label".to_string());
+    let state = ensure_virtual_state(world);
+    let config_path = state.root.join(".kanbus.yml");
+    let mut mapping: Mapping =
+        serde_yaml::from_str(&fs::read_to_string(&config_path).expect("read config"))
+            .expect("parse config");
+    mapping.remove(YamlValue::String("virtual_projects".to_string()));
+    let mut contents = serde_yaml::to_string(&mapping).expect("serialize config");
+    contents.push_str(
+        "virtual_projects:\n  alpha:\n    path: virtual/alpha/project\n  alpha:\n    path: virtual/beta/project\n",
+    );
+    fs::write(config_path, contents).expect("write config");
 }
 
 #[given("a Kanbus project with a virtual project label matching the project key")]
 fn given_virtual_label_conflict(world: &mut KanbusWorld) {
-    ensure_virtual_state(world);
-    world.simulated_configuration_error =
-        Some("virtual project label conflicts with project key".to_string());
+    configure_virtual_projects(world, vec!["kbs"]);
 }
 
 #[given("a Kanbus repository with a .kanbus.yml file using external_projects")]
 fn given_external_projects_config(world: &mut KanbusWorld) {
-    ensure_virtual_state(world);
-    world.simulated_configuration_error =
-        Some("external_projects has been replaced by virtual_projects".to_string());
+    let state = ensure_virtual_state(world);
+    let config_path = state.root.join(".kanbus.yml");
+    let mut contents = fs::read_to_string(&config_path).expect("read config");
+    contents.push_str("external_projects:\n  - ../elsewhere\n");
+    fs::write(config_path, contents).expect("write config");
 }
 
 #[given("a repository with a .kanbus.yml file with virtual projects configured")]

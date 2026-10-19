@@ -1,0 +1,20 @@
+{
+  "id": "kbs-b6941e8a-6b86-4745-91c8-05f687a802d2",
+  "title": "Generated CONTRIBUTING_AGENT.md repeats the Agent provenance metadata section",
+  "description": "Biblicus on 0.36.0: the generated file contains '## Agent provenance metadata' twice (around lines 66 and 381). Find where the section is emitted twice (template plus a methodology or a second include), emit it once, and add a scenario asserting each heading appears exactly once.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T20:27:51.183074Z",
+  "updated_at": "2026-10-19T20:27:51.238859Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

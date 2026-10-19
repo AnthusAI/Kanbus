@@ -627,11 +627,6 @@ def given_invalid_config_wrong_field_types(context: object) -> None:
 def when_configuration_loaded(context: object) -> None:
     repository = Path(context.working_directory)
     config_path = repository / ".kanbus.yml"
-    simulated_error = getattr(context, "simulated_configuration_error", None)
-    if simulated_error:
-        context.configuration = None
-        context.result = SimpleNamespace(exit_code=1, stdout="", stderr=simulated_error)
-        return
     try:
         context.configuration = load_project_configuration(config_path)
         context.result = SimpleNamespace(exit_code=0, stdout="", stderr="")
@@ -650,6 +645,28 @@ def given_kanbus_configuration_has_name(context: object, name: str) -> None:
         yaml.safe_dump(payload, sort_keys=False),
         encoding="utf-8",
     )
+
+
+@given("the Kanbus configuration disables events")
+def given_kanbus_configuration_disables_events(context: object) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload["events"] = False
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@then("events should be enabled")
+def then_events_should_be_enabled(context: object) -> None:
+    assert context.configuration.events is True
+
+
+@then("events should be disabled")
+def then_events_should_be_disabled(context: object) -> None:
+    assert context.configuration.events is False
 
 
 @then('the project name should be "{expected}"')

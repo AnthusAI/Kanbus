@@ -1,12 +1,15 @@
-//! Commit project/issues to git.
+//! Commit board state (issues and events) to git.
 
 use std::path::Path;
 use std::process::Command;
 
+use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::{canonicalize_path, ensure_git_repository, load_project_directory};
+use crate::file_io::{
+    canonicalize_path, ensure_git_repository, get_configuration_path, load_project_directory,
+};
 
-const COMMIT_MESSAGE: &str = "chore(kanbus): commit board state (issues)";
+const COMMIT_MESSAGE: &str = "chore(kanbus): commit board state";
 
 /// Ephemeral git identity flags for `kbs commit` subprocess invocations.
 ///
@@ -16,16 +19,19 @@ const COMMIT_MESSAGE: &str = "chore(kanbus): commit board state (issues)";
 const GIT_COMMIT_NAME: &str = "Kanbus";
 const GIT_COMMIT_EMAIL: &str = "kanbus@localhost";
 
-/// Result of a project/issues commit operation.
+/// Result of a board state commit operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IssueCommitResult {
     /// Whether a new commit was created.
     pub committed: bool,
+    /// Whether the events directory was part of the commit scope.
+    pub includes_events: bool,
 }
 
-/// Stage and commit project/issues changes.
+/// Stage and commit board state changes.
 ///
-/// Only `project/issues/` is staged. `project/events/` is never included.
+/// `project/issues/` is always staged. `project/events/` is staged as well, in
+/// the same commit, unless the configuration sets `events: false`.
 /// Git author identity uses ephemeral `-c` flags (see `GIT_COMMIT_EMAIL` and
 /// `GIT_COMMIT_NAME`); nothing is persisted to `git config`.
 ///
@@ -41,15 +47,25 @@ pub fn commit_project_issues(root: &Path) -> Result<IssueCommitResult, KanbusErr
         ));
     }
 
+    let configuration = load_project_configuration(&get_configuration_path(root)?)?;
     let root_path = canonicalize_path(root).unwrap_or_else(|_| root.to_path_buf());
-    let issues_path = issues_dir
-        .strip_prefix(&root_path)
-        .map_err(|error| KanbusError::Io(error.to_string()))?
-        .to_string_lossy()
-        .replace('\\', "/");
+    let relative_to_root = |directory: &Path| -> Result<String, KanbusError> {
+        Ok(directory
+            .strip_prefix(&root_path)
+            .map_err(|error| KanbusError::Io(error.to_string()))?
+            .to_string_lossy()
+            .replace('\\', "/"))
+    };
+    let mut committed_paths = vec![relative_to_root(&issues_dir)?];
+    let events_dir = project_dir.join("events");
+    let includes_events = configuration.events && events_dir.is_dir();
+    if includes_events {
+        committed_paths.push(relative_to_root(&events_dir)?);
+    }
 
     let add_output = Command::new("git")
-        .args(["add", "--", &issues_path])
+        .args(["add", "--"])
+        .args(&committed_paths)
         .current_dir(root)
         .output()
         .map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -72,12 +88,16 @@ pub fn commit_project_issues(root: &Path) -> Result<IssueCommitResult, KanbusErr
     }
 
     let staged_output = Command::new("git")
-        .args(["diff", "--cached", "--quiet", "--", &issues_path])
+        .args(["diff", "--cached", "--quiet", "--"])
+        .args(&committed_paths)
         .current_dir(root)
         .output()
         .map_err(|error| KanbusError::Io(error.to_string()))?;
     if staged_output.status.success() {
-        return Ok(IssueCommitResult { committed: false });
+        return Ok(IssueCommitResult {
+            committed: false,
+            includes_events,
+        });
     }
 
     let commit_output = Command::new("git")
@@ -90,8 +110,8 @@ pub fn commit_project_issues(root: &Path) -> Result<IssueCommitResult, KanbusErr
             "-m",
             COMMIT_MESSAGE,
             "--",
-            &issues_path,
         ])
+        .args(&committed_paths)
         .current_dir(root)
         .output()
         .map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -113,7 +133,10 @@ pub fn commit_project_issues(root: &Path) -> Result<IssueCommitResult, KanbusErr
         }));
     }
 
-    Ok(IssueCommitResult { committed: true })
+    Ok(IssueCommitResult {
+        committed: true,
+        includes_events,
+    })
 }
 
 #[cfg(test)]
@@ -177,10 +200,7 @@ mod tests {
         assert!(result.committed);
     }
 
-    #[test]
-    fn commit_project_issues_does_not_stage_events() {
-        let temp_dir = TempDir::new().expect("tempdir");
-        let root = init_repo_with_project(&temp_dir);
+    fn write_issue_and_event(root: &std::path::Path) {
         std::fs::create_dir_all(root.join("project/events")).expect("create events");
         std::fs::write(
             root.join("project/issues/kanbus-test.json"),
@@ -192,40 +212,59 @@ mod tests {
             r#"{"event_id":"event-1"}"#,
         )
         .expect("write event");
+    }
 
-        let result = commit_project_issues(&root).expect("commit");
-        assert!(result.committed);
-
-        let issues_status = Command::new("git")
-            .args(["status", "--porcelain", "--", "project/issues"])
-            .current_dir(&root)
-            .output()
-            .expect("issues status");
-        assert!(issues_status.status.success());
-        assert!(String::from_utf8_lossy(&issues_status.stdout)
-            .trim()
-            .is_empty());
-
-        let staged_events = Command::new("git")
-            .args(["diff", "--cached", "--name-only", "--", "project/events"])
-            .current_dir(&root)
-            .output()
-            .expect("staged events");
-        assert!(staged_events.status.success());
-        assert!(String::from_utf8_lossy(&staged_events.stdout)
-            .trim()
-            .is_empty());
-
+    fn committed_paths_of_head(root: &std::path::Path) -> Vec<String> {
         let committed_files = Command::new("git")
             .args(["show", "--name-only", "--pretty=format:", "HEAD"])
-            .current_dir(&root)
+            .current_dir(root)
             .output()
             .expect("committed files");
         assert!(committed_files.status.success());
-        for path in String::from_utf8_lossy(&committed_files.stdout).lines() {
-            if path.is_empty() {
-                continue;
-            }
+        String::from_utf8_lossy(&committed_files.stdout)
+            .lines()
+            .filter(|path| !path.is_empty())
+            .map(str::to_string)
+            .collect()
+    }
+
+    #[test]
+    fn commit_project_issues_commits_events_with_issues_by_default() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let root = init_repo_with_project(&temp_dir);
+        write_issue_and_event(&root);
+
+        let result = commit_project_issues(&root).expect("commit");
+        assert!(result.committed);
+        assert!(result.includes_events);
+
+        let committed_paths = committed_paths_of_head(&root);
+        assert!(committed_paths.contains(&"project/issues/kanbus-test.json".to_string()));
+        assert!(committed_paths.contains(&"project/events/event-1.json".to_string()));
+        let status = Command::new("git")
+            .args(["status", "--porcelain", "--", "project"])
+            .current_dir(&root)
+            .output()
+            .expect("status");
+        assert!(String::from_utf8_lossy(&status.stdout).trim().is_empty());
+    }
+
+    #[test]
+    fn commit_project_issues_leaves_events_out_when_events_are_disabled() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let root = init_repo_with_project(&temp_dir);
+        std::fs::write(
+            root.join(".kanbus.yml"),
+            "project_key: kanbus\nevents: false\n",
+        )
+        .expect("write config");
+        write_issue_and_event(&root);
+
+        let result = commit_project_issues(&root).expect("commit");
+        assert!(result.committed);
+        assert!(!result.includes_events);
+
+        for path in committed_paths_of_head(&root) {
             assert!(
                 path.starts_with("project/issues/"),
                 "unexpected commit path: {path}"
