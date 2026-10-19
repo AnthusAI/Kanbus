@@ -554,44 +554,48 @@ async fn named_path_parameters(parts: &mut Parts, state: &AppState) -> HashMap<S
         .unwrap_or_default()
 }
 
-/// The project store a request addresses: the single local store on root
-/// routes, or the tenant store on `/:account/:project` routes.
-struct StoreSelector {
-    store: FileStore,
-}
+/// The tenant a request addresses: `Some((account, project))` on
+/// `/:account/:project` routes and `None` on root routes.
+struct TenantSelection(Option<(String, String)>);
 
 #[axum::async_trait]
-impl FromRequestParts<AppState> for StoreSelector {
+impl FromRequestParts<AppState> for TenantSelection {
     type Rejection = Response;
 
     async fn from_request_parts(
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let parameters = named_path_parameters(parts, state).await;
-        match (parameters.get("account"), parameters.get("project")) {
+        let mut parameters = named_path_parameters(parts, state).await;
+        match (parameters.remove("account"), parameters.remove("project")) {
             (Some(account), Some(project)) => {
-                if !FileStore::is_valid_tenant_segment(account)
-                    || !FileStore::is_valid_tenant_segment(project)
+                if !FileStore::is_valid_tenant_segment(&account)
+                    || !FileStore::is_valid_tenant_segment(&project)
                 {
                     return Err(error_response(
                         "invalid tenant path segment",
                         StatusCode::BAD_REQUEST,
                     ));
                 }
-                Ok(Self {
-                    store: store_for(state, account, project),
-                })
+                Ok(Self(Some((account, project))))
             }
-            _ => store_for_root(state)
-                .map(|store| Self { store })
-                .ok_or_else(|| {
-                    error_response(
-                        "multi-tenant mode requires /:account/:project",
-                        StatusCode::BAD_REQUEST,
-                    )
-                }),
+            _ => Ok(Self(None)),
         }
+    }
+}
+
+fn resolve_store(
+    state: &AppState,
+    TenantSelection(selection): TenantSelection,
+) -> Result<FileStore, ConsoleApiError> {
+    match selection {
+        Some((account, project)) => Ok(store_for(state, &account, &project)),
+        None => store_for_root(state).ok_or_else(|| {
+            ConsoleApiError::new(
+                StatusCode::BAD_REQUEST,
+                "multi-tenant mode requires /:account/:project",
+            )
+        }),
     }
 }
 
@@ -613,18 +617,29 @@ impl FromRequestParts<AppState> for IssueIdentifierPath {
     }
 }
 
-async fn get_config(StoreSelector { store }: StoreSelector) -> Result<Response, ConsoleApiError> {
+async fn get_config(
+    State(state): State<AppState>,
+    selection: TenantSelection,
+) -> Result<Response, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
     let snapshot = build_snapshot_off_runtime(store).await?;
     Ok(Json(snapshot.config).into_response())
 }
 
-async fn get_issues(StoreSelector { store }: StoreSelector) -> Result<Response, ConsoleApiError> {
+async fn get_issues(
+    State(state): State<AppState>,
+    selection: TenantSelection,
+) -> Result<Response, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
     let snapshot = build_snapshot_off_runtime(store).await?;
     Ok(Json(snapshot.issues).into_response())
 }
 
-async fn get_now(StoreSelector { store }: StoreSelector) -> Response {
-    now_snapshot_response(store).await
+async fn get_now(State(state): State<AppState>, selection: TenantSelection) -> Response {
+    match resolve_store(&state, selection) {
+        Ok(store) => now_snapshot_response(store).await,
+        Err(error) => error.into_response(),
+    }
 }
 
 async fn now_snapshot_response(store: FileStore) -> Response {
@@ -641,10 +656,14 @@ async fn now_snapshot_response(store: FileStore) -> Response {
 }
 
 async fn post_standup(
-    StoreSelector { store }: StoreSelector,
+    State(state): State<AppState>,
+    selection: TenantSelection,
     Json(payload): Json<StandupGenerateRequest>,
 ) -> Response {
-    standup_response(store, payload).await
+    match resolve_store(&state, selection) {
+        Ok(store) => standup_response(store, payload).await,
+        Err(error) => error.into_response(),
+    }
 }
 
 async fn standup_response(store: FileStore, payload: StandupGenerateRequest) -> Response {
@@ -658,9 +677,11 @@ async fn standup_response(store: FileStore, payload: StandupGenerateRequest) -> 
 }
 
 async fn get_issue(
-    StoreSelector { store }: StoreSelector,
+    State(state): State<AppState>,
+    selection: TenantSelection,
     IssueIdentifierPath(id): IssueIdentifierPath,
 ) -> Result<Json<IssueData>, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
     let snapshot = build_snapshot_off_runtime(store).await?;
     let issue = resolve_single_issue(&snapshot, &id)?;
     Ok(Json(issue.clone()))
@@ -975,45 +996,62 @@ fn crate_project_dir(root: &Path) -> Result<PathBuf, KanbusError> {
 
 async fn post_issue_comment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    StoreSelector { store }: StoreSelector,
+    State(state): State<AppState>,
+    selection: TenantSelection,
     IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueCommentRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
+    let store = match resolve_store(&state, selection) {
+        Ok(store) => store,
+        Err(error) => return error.into_response(),
+    };
     issue_comment_response(store, id, payload.text).await
 }
 
 async fn post_issue_status(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    StoreSelector { store }: StoreSelector,
+    State(state): State<AppState>,
+    selection: TenantSelection,
     IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueStatusRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
+    let store = match resolve_store(&state, selection) {
+        Ok(store) => store,
+        Err(error) => return error.into_response(),
+    };
     issue_status_response(store, id, payload.status).await
 }
 
 async fn post_issue_assignment(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    StoreSelector { store }: StoreSelector,
+    State(state): State<AppState>,
+    selection: TenantSelection,
     IssueIdentifierPath(id): IssueIdentifierPath,
     Json(payload): Json<IssueAssignmentRequest>,
 ) -> Response {
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
+    let store = match resolve_store(&state, selection) {
+        Ok(store) => store,
+        Err(error) => return error.into_response(),
+    };
     issue_assignment_response(store, id, payload).await
 }
 
 async fn get_issue_events(
-    StoreSelector { store }: StoreSelector,
+    State(state): State<AppState>,
+    selection: TenantSelection,
     IssueIdentifierPath(id): IssueIdentifierPath,
     Query(query): Query<IssueEventsQuery>,
 ) -> Result<Json<IssueEventsResponse>, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
     run_blocking(move || {
         let snapshot = store.build_snapshot()?;
         let issue_id = resolve_single_issue(&snapshot, &id)?.identifier.clone();
@@ -1107,9 +1145,10 @@ fn snapshot_event_stream(
 
 async fn get_events(
     State(state): State<AppState>,
-    StoreSelector { store }: StoreSelector,
-) -> Sse<BoxStream<'static, Result<Event, Infallible>>> {
-    snapshot_event_stream(state.snapshot_feeds.clone(), store)
+    selection: TenantSelection,
+) -> Result<Sse<BoxStream<'static, Result<Event, Infallible>>>, ConsoleApiError> {
+    let store = resolve_store(&state, selection)?;
+    Ok(snapshot_event_stream(state.snapshot_feeds.clone(), store))
 }
 
 async fn post_console_telemetry_root(State(state): State<AppState>, body: Bytes) -> StatusCode {
@@ -2299,9 +2338,8 @@ mod tests {
 
         let response = post_issue_comment(
             ConnectInfo(remote_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-remote".to_string()),
             Json(IssueCommentRequest {
                 text: "should be refused".to_string(),
@@ -2329,9 +2367,8 @@ mod tests {
 
         let response = post_issue_comment(
             ConnectInfo(loopback_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-local".to_string()),
             Json(IssueCommentRequest {
                 text: "hello from localhost".to_string(),
@@ -2352,9 +2389,8 @@ mod tests {
 
         let response = post_issue_assignment(
             ConnectInfo(remote_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Set {
                 kind: "class".to_string(),
@@ -2380,9 +2416,8 @@ mod tests {
 
         let response = post_issue_assignment(
             ConnectInfo(loopback_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Set {
                 kind: "class".to_string(),
@@ -2404,9 +2439,8 @@ mod tests {
 
         let response = post_issue_assignment(
             ConnectInfo(loopback_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-assign".to_string()),
             Json(IssueAssignmentRequest::Clear { clear: false }),
         )
@@ -2439,9 +2473,8 @@ mod tests {
 
         let response = post_issue_status(
             ConnectInfo(loopback_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-status".to_string()),
             Json(IssueStatusRequest {
                 status: "not-a-status".to_string(),
@@ -2482,9 +2515,8 @@ mod tests {
 
         let response = post_issue_comment(
             ConnectInfo(loopback_addr()),
-            StoreSelector {
-                store: store_for_root(&state).expect("root store"),
-            },
+            State(state.clone()),
+            TenantSelection(None),
             IssueIdentifierPath("kbs-blocked".to_string()),
             Json(IssueCommentRequest {
                 text: "please continue".to_string(),
