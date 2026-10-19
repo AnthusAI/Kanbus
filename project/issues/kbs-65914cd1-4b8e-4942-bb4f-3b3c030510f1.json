@@ -1,0 +1,20 @@
+{
+  "id": "kbs-65914cd1-4b8e-4942-bb4f-3b3c030510f1",
+  "title": "kbs commit leaves event files untracked when project/events is not gitignored",
+  "description": "Reported by the Biblicus session 2026-10-19 (kbs 0.35.0 Rust, Papyrus worktree on develop): after kbs comment PPY-c32c35 and kbs close PPY-c32c35, kbs commit printed 'Committed project/issues' and committed only the issue JSON; the two event files the same commands wrote under project/events/ stayed untracked and had to be added by hand. Help says 'Commit project/issues changes to git'. The Kanbus repo itself gitignores project/events/ (so only issues are committed there), while Papyrus does not, so the behavior depends on an undocumented per-repo choice. Decide one way (no-fallback policy): either events are part of board history (kbs commit stages project/issues and project/events, kbs init does not ignore events) or they are local-only (kbs init writes the ignore rule and doctor warns when events are tracked or unignored). Then spec it in features/ and make Rust and Python identical. Related: repo hygiene sub-task under kbs-7410f7c6 also asks whether project/events should be tracked.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T18:46:17.319721Z",
+  "updated_at": "2026-10-19T18:46:17.392262Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
