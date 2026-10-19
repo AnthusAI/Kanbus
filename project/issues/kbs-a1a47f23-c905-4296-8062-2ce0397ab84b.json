@@ -3,7 +3,7 @@
   "title": "Unify remaining paired console routes: realtime, bootstrap, notifications, telemetry",
   "description": "Goal: finish the one-handler-per-route work in rust/src/bin/console_local.rs (follows PR #470, which did the wiki handlers). Pure refactor: no observable behavior change for any route.\n\nPairs still duplicated (root handler plus /:account/:project handler, registered separately in main()):\n- GET /api/events/realtime: get_realtime_events_root, get_realtime_events\n- GET /api/realtime/bootstrap: get_realtime_bootstrap_root, get_realtime_bootstrap\n- GET /api/auth/bootstrap: get_auth_bootstrap_root, get_auth_bootstrap\n- POST /api/notifications: post_notification_root, post_notification\n- POST /api/telemetry/console: post_console_telemetry_root, post_console_telemetry\n- GET /api/telemetry/console/events: get_console_telemetry_events_root, get_console_telemetry_events\n- GET /api/ui-state: root only (get_ui_state_root). Keep it root only; do not add a tenant route.\n\nWork:\n1. Add a fn tenant_api_routes() -> Router<AppState> (sibling of store_api_routes()) holding the six paired routes, and register it the same way store_api_routes is: .merge(tenant_api_routes()) and .nest(\"/:account/:project\", tenant_api_routes()). Remove the twelve separate .route calls from main().\n2. Replace each pair with one handler that takes the existing TenantSelection extractor (do not use resolve_store here: these routes must keep working at root in multi-tenant mode, exactly as today). Telemetry passes the selection tuple into build_telemetry_payload; bootstrap handlers pass account/project as today; notification and realtime handlers ignore the selection as today.\n3. Rename the surviving handlers without the _root suffix. Keep get_ui_state_root's route path unchanged (rename it get_ui_state).\n4. Do not change UI-state or notification tenant scoping (that leak is a separate behavior-change ticket). Do not touch the index/asset routes.\n5. Add tokio tests in the existing mod tests covering, for at least telemetry POST and realtime bootstrap: the root route and the tenant route both respond with the same status as before, and the tenant route's payload carries account/project. Also assert an invalid tenant segment returns 400 (the extractor behavior).\n\nConstraints: Rust only; the PR carries the parity-exempt label (no Python counterpart for console_local). No line comments; rustdoc on new items. cargo fmt --check and cargo clippy --all-targets -- -D warnings clean.\n\nAcceptance:\n- grep -c '_root(' rust/src/bin/console_local.rs counts only get_index_root/get_asset_root style asset handlers and store_for_root, nothing from the list above.\n- main() has no '/:account/:project/api/' route strings.\n- cargo test --bin kbsc passes (or the actual console_local bin name), fmt and clippy clean.\n- PR into develop, labeled parity-exempt, CI green.",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "206d28c8-e97e-4cad-ab23-4335e92d3fb8",
+      "author": "home",
+      "text": "Merged in PR #473: tenant_api_routes() serves realtime events, realtime bootstrap, auth bootstrap, notifications and both telemetry routes with one handler each; tests cover root and tenant paths and the 400 on invalid tenant segments. CI green.",
+      "created_at": "2026-10-19T17:54:56.994678Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-19T16:52:34.038932Z",
-  "updated_at": "2026-10-19T16:52:34.105433Z",
-  "closed_at": null,
+  "updated_at": "2026-10-19T17:54:57.453709Z",
+  "closed_at": "2026-10-19T17:54:57.366763Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
