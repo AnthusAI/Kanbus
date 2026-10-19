@@ -211,18 +211,11 @@ async fn main() {
     let app = Router::new()
         .merge(store_api_routes())
         .nest("/:account/:project", store_api_routes())
+        .merge(tenant_api_routes())
+        .nest("/:account/:project", tenant_api_routes())
         .route("/assets/*path", get(get_public_asset))
-        .route("/api/events/realtime", get(get_realtime_events_root))
-        .route("/api/realtime/bootstrap", get(get_realtime_bootstrap_root))
-        .route("/api/auth/bootstrap", get(get_auth_bootstrap_root))
-        .route("/api/notifications", post(post_notification_root))
-        .route("/api/ui-state", get(get_ui_state_root))
+        .route("/api/ui-state", get(get_ui_state))
         .route("/api/render/d2", post(post_render_d2))
-        .route("/api/telemetry/console", post(post_console_telemetry_root))
-        .route(
-            "/api/telemetry/console/events",
-            get(get_console_telemetry_events_root),
-        )
         .route("/", get(get_index_root))
         .route("/initiatives/", get(get_index_root))
         .route("/epics/", get(get_index_root))
@@ -232,30 +225,6 @@ async fn main() {
         .route("/issues/:parent/:id", get(get_index_root))
         .route("/index.html", get(get_index_root))
         .route("/favicon.ico", get(get_favicon))
-        .route(
-            "/:account/:project/api/events/realtime",
-            get(get_realtime_events),
-        )
-        .route(
-            "/:account/:project/api/realtime/bootstrap",
-            get(get_realtime_bootstrap),
-        )
-        .route(
-            "/:account/:project/api/auth/bootstrap",
-            get(get_auth_bootstrap),
-        )
-        .route(
-            "/:account/:project/api/notifications",
-            post(post_notification),
-        )
-        .route(
-            "/:account/:project/api/telemetry/console",
-            post(post_console_telemetry),
-        )
-        .route(
-            "/:account/:project/api/telemetry/console/events",
-            get(get_console_telemetry_events),
-        )
         .route("/:account/:project/", get(get_index))
         .route("/:account/:project/initiatives/", get(get_index))
         .route("/:account/:project/epics/", get(get_index))
@@ -340,6 +309,23 @@ fn store_api_routes() -> Router<AppState> {
         .route("/api/wiki/pages", get(get_wiki_pages))
         .route("/api/wiki/rename", post(post_wiki_rename))
         .route("/api/wiki/render", post(post_wiki_render))
+}
+
+/// Routes served identically at the root and under `/:account/:project`.
+///
+/// Handlers take a `TenantSelection` and keep working at the root in
+/// multi-tenant mode, unlike store routes which resolve a store.
+fn tenant_api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/events/realtime", get(get_realtime_events))
+        .route("/api/realtime/bootstrap", get(get_realtime_bootstrap))
+        .route("/api/auth/bootstrap", get(get_auth_bootstrap))
+        .route("/api/notifications", post(post_notification))
+        .route("/api/telemetry/console", post(post_console_telemetry))
+        .route(
+            "/api/telemetry/console/events",
+            get(get_console_telemetry_events),
+        )
 }
 
 fn maybe_prompt_project_repair(root: &Path) {
@@ -1141,26 +1127,20 @@ async fn get_events(
     Ok(snapshot_event_stream(state.snapshot_feeds.clone(), store))
 }
 
-async fn post_console_telemetry_root(State(state): State<AppState>, body: Bytes) -> StatusCode {
-    let message = build_telemetry_payload(parse_json_body(&body), None);
-    let _ = state.telemetry_tx.send(message);
-    write_telemetry_log(&state, &body);
-    StatusCode::NO_CONTENT
-}
-
 async fn post_console_telemetry(
     State(state): State<AppState>,
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    TenantSelection(selection): TenantSelection,
     body: Bytes,
 ) -> StatusCode {
-    let message = build_telemetry_payload(parse_json_body(&body), Some((account, project)));
+    let message = build_telemetry_payload(parse_json_body(&body), selection);
     let _ = state.telemetry_tx.send(message);
     write_telemetry_log(&state, &body);
     StatusCode::NO_CONTENT
 }
 
-async fn get_console_telemetry_events_root(
+async fn get_console_telemetry_events(
     State(state): State<AppState>,
+    _selection: TenantSelection,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let receiver = state.telemetry_tx.subscribe();
     let stream = BroadcastStream::new(receiver).filter_map(|payload| async move {
@@ -1174,13 +1154,6 @@ async fn get_console_telemetry_events_root(
             .interval(Duration::from_secs(15))
             .text(": keep-alive"),
     )
-}
-
-async fn get_console_telemetry_events(
-    State(state): State<AppState>,
-    AxumPath((_account, _project)): AxumPath<(String, String)>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    get_console_telemetry_events_root(State(state)).await
 }
 
 fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>) -> String {
@@ -1205,8 +1178,9 @@ fn build_telemetry_payload(payload: JsonValue, tenant: Option<(String, String)>)
 
 // Notification handlers for real-time issue updates
 
-async fn post_notification_root(
+async fn post_notification(
     State(state): State<AppState>,
+    _selection: TenantSelection,
     Json(event): Json<NotificationEvent>,
 ) -> StatusCode {
     // Update cached UI state based on the event
@@ -1216,7 +1190,7 @@ async fn post_notification_root(
     StatusCode::OK
 }
 
-async fn get_ui_state_root(State(state): State<AppState>) -> axum::Json<ConsoleUiState> {
+async fn get_ui_state(State(state): State<AppState>) -> axum::Json<ConsoleUiState> {
     let ui_state = state.ui_state.read().await;
     axum::Json(ui_state.clone())
 }
@@ -1268,8 +1242,9 @@ async fn update_ui_state_from_event(state: &AppState, event: &NotificationEvent)
     }
 }
 
-async fn get_realtime_events_root(
+async fn get_realtime_events(
     State(state): State<AppState>,
+    _selection: TenantSelection,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     // Replay last-known UI state to the new subscriber, if any state has been set
     let replay_events: Vec<Result<Event, Infallible>> = {
@@ -1331,21 +1306,6 @@ async fn get_realtime_events_root(
     )
 }
 
-async fn post_notification(
-    State(state): State<AppState>,
-    AxumPath((_account, _project)): AxumPath<(String, String)>,
-    Json(event): Json<NotificationEvent>,
-) -> StatusCode {
-    post_notification_root(State(state), Json(event)).await
-}
-
-async fn get_realtime_events(
-    State(state): State<AppState>,
-    AxumPath((_account, _project)): AxumPath<(String, String)>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    get_realtime_events_root(State(state)).await
-}
-
 #[derive(Debug, Serialize)]
 struct AuthBootstrapResponse {
     mode: &'static str,
@@ -1375,14 +1335,11 @@ struct RealtimeBootstrapResponse {
     project: String,
 }
 
-async fn get_realtime_bootstrap_root() -> Json<RealtimeBootstrapResponse> {
-    Json(build_local_realtime_bootstrap(None, None))
-}
-
 async fn get_realtime_bootstrap(
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    TenantSelection(selection): TenantSelection,
 ) -> Json<RealtimeBootstrapResponse> {
-    Json(build_local_realtime_bootstrap(Some(account), Some(project)))
+    let (account, project) = selection.unzip();
+    Json(build_local_realtime_bootstrap(account, project))
 }
 
 fn build_local_realtime_bootstrap(
@@ -1401,14 +1358,11 @@ fn build_local_realtime_bootstrap(
     }
 }
 
-async fn get_auth_bootstrap_root() -> Json<AuthBootstrapResponse> {
-    Json(build_local_auth_bootstrap(None, None))
-}
-
 async fn get_auth_bootstrap(
-    AxumPath((account, project)): AxumPath<(String, String)>,
+    TenantSelection(selection): TenantSelection,
 ) -> Json<AuthBootstrapResponse> {
-    Json(build_local_auth_bootstrap(Some(account), Some(project)))
+    let (account, project) = selection.unzip();
+    Json(build_local_auth_bootstrap(account, project))
 }
 
 fn build_local_auth_bootstrap(
@@ -3052,13 +3006,18 @@ mod tests {
             action: UiControlAction::ReloadPage,
         };
         assert_eq!(
-            post_notification_root(State(state.clone()), Json(event.clone())).await,
+            post_notification(
+                State(state.clone()),
+                TenantSelection(None),
+                Json(event.clone())
+            )
+            .await,
             StatusCode::OK
         );
         assert_eq!(
             post_notification(
                 State(state.clone()),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Json(event),
             )
             .await,
@@ -3066,13 +3025,18 @@ mod tests {
         );
 
         assert_eq!(
-            post_console_telemetry_root(State(state.clone()), Bytes::from("{}")).await,
+            post_console_telemetry(
+                State(state.clone()),
+                TenantSelection(None),
+                Bytes::from("{}")
+            )
+            .await,
             StatusCode::NO_CONTENT
         );
         assert_eq!(
             post_console_telemetry(
                 State(state),
-                AxumPath(("acct".to_string(), "proj".to_string())),
+                TenantSelection(Some(("acct".to_string(), "proj".to_string()))),
                 Bytes::from("{}"),
             )
             .await,
@@ -3090,11 +3054,11 @@ mod tests {
             ui_state.focused_comment_id = Some("comment-2".to_string());
         }
 
-        let ui_state = get_ui_state_root(State(state.clone())).await.0;
+        let ui_state = get_ui_state(State(state.clone())).await.0;
         assert_eq!(ui_state.focused_issue_id.as_deref(), Some("kbs-88"));
         assert_eq!(ui_state.focused_comment_id.as_deref(), Some("comment-2"));
 
-        let realtime = get_realtime_events_root(State(state.clone()))
+        let realtime = get_realtime_events(State(state.clone()), TenantSelection(None))
             .await
             .into_response();
         assert_eq!(realtime.status(), StatusCode::OK);
@@ -3106,7 +3070,7 @@ mod tests {
             Some("text/event-stream")
         );
 
-        let telemetry = get_console_telemetry_events_root(State(state))
+        let telemetry = get_console_telemetry_events(State(state), TenantSelection(None))
             .await
             .into_response();
         assert_eq!(telemetry.status(), StatusCode::OK);
@@ -3458,16 +3422,117 @@ mod tests {
         }
     }
 
+    async fn tenant_api_response(
+        state: AppState,
+        method: Method,
+        uri: &str,
+        json_body: &'static str,
+    ) -> (StatusCode, Vec<u8>) {
+        use tower::ServiceExt;
+        let app = Router::new()
+            .merge(tenant_api_routes())
+            .nest("/:account/:project", tenant_api_routes())
+            .with_state(state);
+        let mut request = axum::http::Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(json_body))
+            .expect("request");
+        request
+            .extensions_mut()
+            .insert(ConnectInfo(loopback_addr()));
+        let response = app.oneshot(request).await.expect("response");
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        (status, body.to_vec())
+    }
+
+    #[tokio::test]
+    async fn realtime_bootstrap_serves_root_and_tenant_routes_with_tenant_scope() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+
+        let (root_status, root_body) =
+            tenant_api_response(state.clone(), Method::GET, "/api/realtime/bootstrap", "").await;
+        assert_eq!(root_status, StatusCode::OK);
+        let root_json: JsonValue = serde_json::from_slice(&root_body).expect("json");
+        assert_eq!(root_json["account"], "local");
+        assert_eq!(root_json["project"], "local");
+
+        let (tenant_status, tenant_body) = tenant_api_response(
+            state.clone(),
+            Method::GET,
+            "/acct/proj/api/realtime/bootstrap",
+            "",
+        )
+        .await;
+        assert_eq!(tenant_status, StatusCode::OK);
+        let tenant_json: JsonValue = serde_json::from_slice(&tenant_body).expect("json");
+        assert_eq!(tenant_json["account"], "acct");
+        assert_eq!(tenant_json["project"], "proj");
+
+        let (invalid_status, _) = tenant_api_response(
+            state,
+            Method::GET,
+            "/bad%20segment/proj/api/realtime/bootstrap",
+            "",
+        )
+        .await;
+        assert_eq!(invalid_status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn console_telemetry_post_serves_root_and_tenant_routes_with_tenant_scope() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state = test_state(temp.path().to_path_buf(), temp.path().to_path_buf(), true);
+        let mut receiver = state.telemetry_tx.subscribe();
+
+        let (root_status, _) =
+            tenant_api_response(state.clone(), Method::POST, "/api/telemetry/console", "{}").await;
+        assert_eq!(root_status, StatusCode::NO_CONTENT);
+        let root_message: JsonValue =
+            serde_json::from_str(&receiver.recv().await.expect("message")).expect("json");
+        assert!(root_message.get("account").is_none());
+
+        let (tenant_status, _) = tenant_api_response(
+            state.clone(),
+            Method::POST,
+            "/acct/proj/api/telemetry/console",
+            "{}",
+        )
+        .await;
+        assert_eq!(tenant_status, StatusCode::NO_CONTENT);
+        let tenant_message: JsonValue =
+            serde_json::from_str(&receiver.recv().await.expect("message")).expect("json");
+        assert_eq!(tenant_message["account"], "acct");
+        assert_eq!(tenant_message["project"], "proj");
+
+        let (invalid_status, _) = tenant_api_response(
+            state,
+            Method::POST,
+            "/bad%20segment/proj/api/telemetry/console",
+            "{}",
+        )
+        .await;
+        assert_eq!(invalid_status, StatusCode::BAD_REQUEST);
+    }
+
     #[tokio::test]
     async fn auth_bootstrap_endpoints_expose_expected_account_project_scope() {
-        let root = get_auth_bootstrap_root().await.0;
+        let root = get_auth_bootstrap(TenantSelection(None)).await.0;
         assert!(root.account.is_none());
         assert!(root.project.is_none());
         assert_eq!(root.mode, "none");
 
-        let scoped = get_auth_bootstrap(AxumPath(("acct".to_string(), "proj".to_string())))
-            .await
-            .0;
+        let scoped = get_auth_bootstrap(TenantSelection(Some((
+            "acct".to_string(),
+            "proj".to_string(),
+        ))))
+        .await
+        .0;
         assert_eq!(scoped.account.as_deref(), Some("acct"));
         assert_eq!(scoped.project.as_deref(), Some("proj"));
         assert_eq!(scoped.mode, "none");
