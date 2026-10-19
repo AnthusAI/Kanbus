@@ -12,9 +12,17 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "fd60e58a-e986-4350-a542-194992b0cd00",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: PR #447 (python-packaging) merged under the engineering-review work. Not yet checked against this task's acceptance (dev and ai extras, build floor, Trusted Publishing); kbs-abc0e83f (acceptance-review: Python installs development tools as runtime dependencies) may be the same fix. Next step: check pyproject.toml and the release workflow, then close this task and kbs-abc0e83f together or note what remains.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:37:45.893405484Z",
-  "updated_at": "2026-10-17T16:37:45.968151853Z",
+  "updated_at": "2026-10-19T16:42:31.569399000Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
