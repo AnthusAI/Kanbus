@@ -524,7 +524,7 @@ fn exit_with_port_error(port: u16, message: &str) -> ! {
     std::process::exit(1);
 }
 
-#[derive(Debug, Debug)]
+#[derive(Debug)]
 struct ConsoleApiError {
     status: StatusCode,
     message: String,
