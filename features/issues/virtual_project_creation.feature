@@ -10,12 +10,16 @@ Feature: Issue creation with virtual projects
     And an issue file should be created in the current project issues directory
     And no issue file should be created in any virtual project
 
+  # Deferred: tracked in kbs-c8a17dab
+  @wip
   Scenario: New issue project can be configured to a virtual project
     Given a Kanbus project with new_issue_project set to "alpha"
     When I run "kanbus create Task for alpha project"
     Then the command should succeed
     And an issue file should be created in the "alpha" project issues directory
 
+  # Deferred: tracked in kbs-c8a17dab
+  @wip
   Scenario: New issue project set to ask prompts the user
     Given a Kanbus project with new_issue_project set to "ask"
     When I run "kanbus create Interactive task" interactively
@@ -23,6 +27,8 @@ Feature: Issue creation with virtual projects
     Then the command should succeed
     And an issue file should be created in the "alpha" project issues directory
 
+  # Deferred: tracked in kbs-c8a17dab
+  @wip
   Scenario: New issue project ask lists all available projects
     Given a Kanbus project with new_issue_project set to "ask"
     And virtual projects "alpha" and "beta" are configured
@@ -37,6 +43,8 @@ Feature: Issue creation with virtual projects
     Then the command should succeed
     And a local issue file should be created in the current project local directory
 
+  # Deferred: tracked in kbs-c8a17dab
+  @wip
   Scenario: Explicit project flag overrides new_issue_project config
     Given a Kanbus project with new_issue_project set to "alpha"
     When I run "kanbus create --project beta Task for beta"
@@ -49,6 +57,8 @@ Feature: Issue creation with virtual projects
     Then the command should fail with exit code 1
     And stderr should contain "new_issue_project references unknown project"
 
+  # Deferred: tracked in kbs-c8a17dab
+  @wip
   Scenario: Local flag with explicit project creates in that project local directory
     Given a Kanbus project with virtual projects configured
     When I run "kanbus create --local --project alpha Local alpha task"

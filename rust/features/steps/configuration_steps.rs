@@ -589,13 +589,6 @@ fn given_invalid_config_wrong_field_types(world: &mut KanbusWorld) {
 
 #[when("the configuration is loaded")]
 fn when_configuration_loaded(world: &mut KanbusWorld) {
-    if let Some(message) = world.simulated_configuration_error.take() {
-        world.configuration = None;
-        world.exit_code = Some(1);
-        world.stdout = Some(String::new());
-        world.stderr = Some(message);
-        return;
-    }
     let root = world
         .working_directory
         .as_ref()
