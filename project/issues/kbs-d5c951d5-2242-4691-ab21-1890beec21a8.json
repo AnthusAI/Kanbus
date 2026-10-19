@@ -10,9 +10,17 @@
   "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ca462314-2e21-4321-a164-c475be9e9c6d",
+      "author": "home",
+      "text": "Biblicus on 0.36.0 adds: kbs setup agents --force rewrites the hand-edited AGENTS.md Kanbus section on every run (project wording such as 'sins' is reverted each regeneration). Include a supported way to keep project wording for that section, e.g. a project override template for the AGENTS.md Kanbus section, alongside the CONTRIBUTING_AGENT.md-only regenerate mode.",
+      "created_at": "2026-10-19T20:27:51.747156Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-19T18:01:45.941301Z",
-  "updated_at": "2026-10-19T18:01:46.032836Z",
+  "updated_at": "2026-10-19T20:27:51.747169Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-8827f256-4c84-4b3a-95ab-7fcf18970d53",
+  "title": "Unknown methodology error should suggest the path form for a project bundle",
+  "description": "Biblicus on 0.36.0: methodologies: [biblicus] fails with 'Error: unknown methodology: biblicus (built-in methodologies: bdd, git-flow)' although methodologies/biblicus/METHODOLOGY.md exists; bundles need '- path: methodologies/biblicus'. When methodologies/<name>/METHODOLOGY.md exists, the error should say: did you mean '- path: methodologies/<name>'? Same message in both runtimes; spec it.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T20:27:51.577615Z",
+  "updated_at": "2026-10-19T20:27:51.631577Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

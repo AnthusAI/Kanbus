@@ -1,0 +1,20 @@
+{
+  "id": "kbs-73380807-27c2-48f5-ad52-e5d3871e0ff6",
+  "title": "kbs doctor reports every check instead of aborting on the first board validation error",
+  "description": "Biblicus on 0.36.0: kbs doctor stops at 'Error: validation failed: Biblicus-788.json: closed issues must have closed_at set' (plus 7 'parent ... does not exist') and never prints the methodology checks. Doctor is a diagnostic: it should run every check, report each failure with its section, and exit non-zero at the end if any failed. Consider a way to scope doctor to one area (e.g. kbs doctor --only methodologies). Spec first; Rust and Python identical.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T20:27:50.787770Z",
+  "updated_at": "2026-10-19T20:27:50.849699Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
