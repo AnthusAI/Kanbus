@@ -150,6 +150,7 @@ DEFAULT_CONFIGURATION: Dict[str, Any] = {
         "event": "bright_blue",
     },
     "beads_compatibility": False,
+    "events": True,
     "wiki_directory": None,
     "ai": {
         "provider": "litellm",

@@ -1317,6 +1317,25 @@ fn given_kanbus_configuration_has_name(world: &mut KanbusWorld, name: String) {
     fs::write(config_path, yaml).expect("write config");
 }
 
+#[given("the Kanbus configuration disables events")]
+fn given_kanbus_configuration_disables_events(world: &mut KanbusWorld) {
+    update_config_file(world, |mapping| {
+        mapping.insert(Value::String("events".to_string()), Value::Bool(false));
+    });
+}
+
+#[then("events should be enabled")]
+fn then_events_should_be_enabled(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(configuration.events);
+}
+
+#[then("events should be disabled")]
+fn then_events_should_be_disabled(world: &mut KanbusWorld) {
+    let configuration = world.configuration.as_ref().expect("configuration");
+    assert!(!configuration.events);
+}
+
 #[then(expr = "the project name should be {string}")]
 fn then_project_name_should_be(world: &mut KanbusWorld, expected: String) {
     let configuration = world.configuration.as_ref().expect("configuration");

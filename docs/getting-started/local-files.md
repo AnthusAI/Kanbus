@@ -109,7 +109,7 @@ Kanbus writes files but never commits them. Commit issue changes whenever you co
 kbs commit
 ```
 
-`kbs commit` stages and commits `project/issues/` only. If you track `project/events/`, commit it yourself. Uncommitted board changes are the most common way boards drift, especially when agents do the editing, so make `kbs commit` part of every agent's finishing routine.
+`kbs commit` stages and commits `project/issues/` and `project/events/` together. To stop Kanbus generating events, set `events: false` in `.kanbus.yml`; then only `project/issues/` is committed. Uncommitted board changes are the most common way boards drift, especially when agents do the editing, so make `kbs commit` part of every agent's finishing routine.
 
 ## 7. Open the console
 

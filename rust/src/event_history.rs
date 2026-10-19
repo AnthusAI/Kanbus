@@ -9,8 +9,9 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use crate::agent_metadata::agent_metadata_to_event_value;
+use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::find_project_local_directory;
+use crate::file_io::{find_configuration_file, find_project_local_directory};
 use crate::models::{AgentMetadata, IssueData};
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
@@ -134,11 +135,31 @@ pub fn events_dir_for_issue(project_dir: &Path, issue_id: &str) -> PathBuf {
     events_dir_for_project(project_dir)
 }
 
+/// Report whether the repository owning an events directory generates events.
+///
+/// This is the single guard every event writer consults. A repository without
+/// a configuration file uses the default, which is enabled.
+///
+/// # Arguments
+/// * `events_dir` - Events directory that would receive a write.
+///
+/// # Errors
+/// Returns `KanbusError` if the configuration file is invalid.
+pub fn events_enabled_for_events_directory(events_dir: &Path) -> Result<bool, KanbusError> {
+    let Some(parent) = events_dir.parent() else {
+        return Ok(true);
+    };
+    match find_configuration_file(parent)? {
+        None => Ok(true),
+        Some(configuration_path) => Ok(load_project_configuration(&configuration_path)?.events),
+    }
+}
+
 pub fn write_events_batch(
     events_dir: &Path,
     events: &[EventRecord],
 ) -> Result<Vec<PathBuf>, KanbusError> {
-    if events.is_empty() {
+    if events.is_empty() || !events_enabled_for_events_directory(events_dir)? {
         return Ok(Vec::new());
     }
     fs::create_dir_all(events_dir).map_err(|error| KanbusError::Io(error.to_string()))?;

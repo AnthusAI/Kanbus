@@ -20,6 +20,17 @@ Feature: Configuration loading
     When the configuration is loaded
     Then the project name should be "Chattic.us"
 
+  Scenario: Events are enabled by default
+    Given a Kanbus repository with a .kanbus.yml file containing the default configuration
+    When the configuration is loaded
+    Then events should be enabled
+
+  Scenario: Events can be turned off in configuration
+    Given a Kanbus repository with a .kanbus.yml file containing the default configuration
+    And the Kanbus configuration disables events
+    When the configuration is loaded
+    Then events should be disabled
+
   Scenario: Load configuration from an empty file
     Given a Kanbus repository with an empty .kanbus.yml file
     When the configuration is loaded

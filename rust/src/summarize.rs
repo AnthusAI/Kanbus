@@ -151,6 +151,9 @@ fn record_llm_usage(
     total_cost: f64,
 ) -> Result<(), KanbusError> {
     let events_dir = root.join(project_directory).join("events");
+    if !crate::event_history::events_enabled_for_events_directory(&events_dir)? {
+        return Ok(());
+    }
     std::fs::create_dir_all(&events_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     let log_path = events_dir.join("llm_usage.jsonl");
     let log_entry = serde_json::json!({

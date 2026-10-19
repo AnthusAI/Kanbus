@@ -323,6 +323,23 @@ def load_project_directory(root: Path) -> Path:
     return project_dirs[0]
 
 
+def load_configuration_governing_directory(
+    directory: Path,
+) -> Optional[ProjectConfiguration]:
+    """Load the configuration of the repository that contains a directory.
+
+    :param directory: Directory somewhere inside a Kanbus repository.
+    :type directory: Path
+    :return: Loaded configuration, or None when no configuration file exists.
+    :rtype: Optional[ProjectConfiguration]
+    :raises ConfigurationError: If the configuration file is invalid.
+    """
+    marker = _find_configuration_file(directory)
+    if marker is None:
+        return None
+    return load_project_configuration(marker)
+
+
 def get_configuration_path(root: Path) -> Path:
     """Return the configuration file path.
 

@@ -1006,6 +1006,9 @@ fn record_llm_usage(
     usage: RightNowLlmUsageRecord,
 ) -> Result<(), KanbusError> {
     let events_dir = root.join(&configuration.project_directory).join("events");
+    if !crate::event_history::events_enabled_for_events_directory(&events_dir)? {
+        return Ok(());
+    }
     fs::create_dir_all(&events_dir)
         .map_err(|error| KanbusError::Io(format!("create events directory: {error}")))?;
     let log_path = events_dir.join(LLM_USAGE_LOG);

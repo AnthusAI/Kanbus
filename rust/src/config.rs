@@ -258,6 +258,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
             ("event".to_string(), "bright_blue".to_string()),
         ]),
         beads_compatibility: false,
+        events: true,
         jira: None,
         snyk: None,
         wiki_directory: None,

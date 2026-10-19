@@ -33,3 +33,19 @@ Feature: Doctor diagnostics
     When I run doctor diagnostics directly
     Then the command should fail with exit code 1
     And stderr should contain "configuration path lookup failed"
+
+  Scenario: Doctor warns when events are enabled but gitignored
+    Given a Kanbus project with default configuration
+    And the repository .gitignore contains "project/events/"
+    When I run "kanbus doctor"
+    Then the command should succeed
+    And stdout should contain "warning: events are enabled but project/events is gitignored"
+    And stdout should contain "remove the rule"
+
+  Scenario: Doctor does not warn about gitignored events when events are turned off
+    Given a Kanbus project with default configuration
+    And the Kanbus configuration disables events
+    And the repository .gitignore contains "project/events/"
+    When I run "kanbus doctor"
+    Then the command should succeed
+    And stdout should not contain "gitignored"

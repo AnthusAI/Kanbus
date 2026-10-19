@@ -441,7 +441,7 @@ enum Commands {
         #[arg(long)]
         comment: Option<String>,
     },
-    /// Commit project/issues changes to git.
+    /// Commit board state (issues and events) to git.
     Commit,
     /// Delete an issue.
     Delete {
@@ -2945,7 +2945,14 @@ fn execute_command(
         Commands::Commit => {
             let result = commit_project_issues(root)?;
             if result.committed {
-                Ok(Some("Committed project/issues".to_string()))
+                Ok(Some(
+                    if result.includes_events {
+                        "Committed project/issues and project/events"
+                    } else {
+                        "Committed project/issues"
+                    }
+                    .to_string(),
+                ))
             } else {
                 Ok(Some("Nothing to commit".to_string()))
             }
@@ -3977,6 +3984,9 @@ fn execute_command(
                 doctor_lines.push(
                     "warning: CONTRIBUTING_AGENT.md differs from what the configured methodologies generate; run kbs setup agents --force to regenerate it (this replaces hand edits)".to_string(),
                 );
+            }
+            if let Some(events_warning) = &result.events_gitignore_warning {
+                doctor_lines.push(format!("warning: {events_warning}"));
             }
             Ok(Some(doctor_lines.join("\n")))
         }

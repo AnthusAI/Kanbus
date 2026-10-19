@@ -866,6 +866,7 @@ fn when_lookup_workflow(world: &mut KanbusWorld, issue_type: String) {
         sort_order: BTreeMap::new(),
         type_colors: BTreeMap::new(),
         beads_compatibility: false,
+        events: true,
         jira: None,
         snyk: None,
         github_security: None,
