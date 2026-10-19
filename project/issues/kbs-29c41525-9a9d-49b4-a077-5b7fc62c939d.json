@@ -14,15 +14,29 @@
   "dependencies": [],
   "comments": [
     {
+      "id": "1d8c6e53-28ac-40c8-95c5-bccd6cb2375d",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Done and merged: PR #458 (one snapshot refresher per store root shared by all SSE clients), #459 (ARCHITECTURE subsystem docs), #460 (one handler per store route through StoreSelector, snapshot reads off the async runtime, store lookup moved into handlers to clear CodeQL). In flight: PR #470, branch claude/console-remaining-pairs, unifies the 14 paired wiki handlers and moves D2 rendering to spawn_blocking; CI was green except implementation-cochange at last check. Still paired and not started: telemetry, realtime, notifications, UI state. Next step: fix or exempt the implementation-cochange failure on #470 and merge it, then unify the remaining pairs in a follow-up PR.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    },
+    {
       "id": "b43d03cd-5a30-49c4-98d0-cb067c60d367",
       "author": "unknown",
       "text": "Done: wiki path fix, untracked bundle, shared SSE feed, store selector (#460), wiki handlers + D2 off runtime (#470). Open: telemetry/realtime/notifications/ui-state per-tenant scoping, frontend items, console_lambda duplicates.",
       "created_at": "2026-10-19T16:51:56.623804433Z",
       "comment_type": "default"
+    },
+    {
+      "id": "c183e83d-e30d-4bde-b2ce-8964dc33b24f",
+      "author": "Claude",
+      "text": "Update 2026-10-19 16:51Z: PR #470 merged (wiki handlers unified, D2 rendering on spawn_blocking). The implementing thread was stopped here, so the telemetry, realtime, notification and per-tenant UI-state handler pairs are NOT done. Next concrete step: unify those four pairs the same way as #470 (wiki_response/resolve_store pattern in the console server, one handler per operation through store_api_routes, blocking work on spawn_blocking, tests for root routes in multi-tenant mode), in one or more PRs to develop, then close this task.",
+      "created_at": "2026-10-19T16:52:05.869098000Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T16:37:46.455147316Z",
-  "updated_at": "2026-10-19T16:51:56.623872193Z",
+  "updated_at": "2026-10-19T16:52:05.869098000Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

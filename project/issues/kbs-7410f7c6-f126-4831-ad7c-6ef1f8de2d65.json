@@ -12,9 +12,17 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "d928b630-46c8-46ab-b0d3-bc1b578ab5ea",
+      "author": "Claude",
+      "text": "Handoff status 2026-10-19: Partly delivered: PR #453 and #454 (untracked generated, ignored and personal files; removed stale root docs and moved video guides to videos/docs), #455 (wiki_directory prefix strip), #456 (stopped tracking the built console bundle). Not verified: that git ls-files -i -c --exclude-standard is empty, that .claude/settings.json is generic, that npm audit is clean, and that account ids are gone from infra/cloud/README.md and scripts/run-aws-proof.py. Next step: run the acceptance commands, and do what is left.",
+      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-17T16:37:46.318569503Z",
-  "updated_at": "2026-10-17T16:37:46.391852096Z",
+  "updated_at": "2026-10-19T16:42:31.569399000Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
