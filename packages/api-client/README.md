@@ -5,7 +5,7 @@ Typed TypeScript client for the Kanbus writable application API (`services/kanbu
 Install from the GitHub release tarball of an `api-client-v*` tag:
 
 ```bash
-npm install https://github.com/AnthusAI/Kanbus/releases/download/api-client-v0.1.0/kanbus-api-client-0.1.0.tgz
+npm install https://github.com/AnthusAI/Kanbus/releases/download/api-client-v0.1.1/kanbus-api-client-0.1.1.tgz
 ```
 
 ## Creating a client
@@ -20,7 +20,7 @@ const client = createKanbusApiClient({
 const board = client.board("acme", "crm");
 ```
 
-Options: `baseUrl`, optional `fetch` (injectable for tests or custom transports), optional `headers` (a function returning a header record or a promise of one, called on every request). Authentication and signing are always the host's job through that hook. Headers the client sets itself (`X-Operation-Id`, `If-Match`, `X-Kanbus-Actor`, `content-type`) win over host headers.
+Options: `baseUrl`, optional `fetch` (injectable for tests or custom transports), optional `headers` (a function returning a header record or a promise of one, called on every request). Authentication is the host's job through that hook. The hook takes no arguments and runs before the body is serialized, so it cannot see the method, URL or body: request signing such as SigV4 must happen in the `fetch` option, never in `headers`. Headers the client sets itself (`X-Operation-Id`, `If-Match`, `X-Kanbus-Actor`, `content-type`) win over host headers.
 
 ## Host with a user JWT (Cognito)
 
@@ -82,6 +82,14 @@ The role must be mapped in `KANBUS_SERVICE_PRINCIPALS`. A role with `delegate_ac
 
 All write methods require `operationId`; use `newOperationId()` for a fresh UUID, or reuse the same value to retry safely: the server replays the stored result for an identical request and returns 409 `operation_conflict` if the input changed. The client never retries by itself.
 
+Idempotent replay compares method, path, body, actor and `If-Match`. A retry must resend the original `If-Match`; a different one returns 409 `operation_conflict` even when the body is identical.
+
+`createIssue` has no client-chosen id. The server generates `<project_key>-<uuid v4>` and returns it in `issue.id`.
+
+Issue inputs and patches accept `dependencies`, an array of `{ target, type }` links where `type` is `"blocked-by"` or `"relates-to"`. In a patch the array replaces the existing links.
+
+In a patch, `custom` merges shallowly by key, and a `null` value sets the key to JSON `null`; it does not remove the key.
+
 | Method | Route |
 | --- | --- |
 | `getConfig()` | `GET /{tenant}/{project}/api/config` |
@@ -109,7 +117,7 @@ Every issue read and write returns an opaque `revision`. Pass it as `ifMatch` to
 
 ### Queries
 
-`type` (string or array, sent comma separated), `status`, `assignee`, `label`, `parent`, `search`, `sort` (`priority` or `updated_at`), `limit` (1-100), `cursor`, and `fields`, an array of `{ field: "custom.x", operator: "eq" | "lt" | "lte" | "gt" | "gte", value }` serialized as the JSON the API expects. Pages return `issues`, `next_cursor` and `cost`.
+`type` (string or array, sent comma separated), `status`, `assignee`, `label`, `parent`, `search`, `sort` (`priority` or `updated_at`), `limit` (1-100), `cursor`, and `fields`, an array of `{ field: "custom.x", operator: "eq" | "lt" | "lte" | "gt" | "gte", value }` serialized as the JSON the API expects. Pages return `issues`, `next_cursor` and `cost`. List pages carry no `catalog_pending`; only writes do. Lists are served from the catalog, which may briefly lag a write that reported `catalog_pending: true`.
 
 ### Errors
 
