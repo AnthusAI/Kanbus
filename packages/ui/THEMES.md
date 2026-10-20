@@ -12,12 +12,12 @@ Four opt-in themes style `Board`, `IssueCollection` and the detail panels as fla
 ## Adopting a theme
 
 ```tsx
-import { IssueCollection, KanbusThemeScope, KANBUS_THEME_FONTS } from "@kanbus/ui";
+import { IssueCollection, KanbusThemeScope } from "@kanbus/ui";
 import "@kanbus/ui/styles/tokens.css";
 import "@kanbus/ui/styles/kanban.css";
 import "@kanbus/ui/styles/themes/refined-newsprint.css"; // pulls in editorial-base.css
 
-// Load the fonts once: <link rel="stylesheet" href={KANBUS_THEME_FONTS["refined-newsprint"]} />
+// Bundle the theme fonts yourself (see KANBUS_THEME_FONTS for families and @fontsource packages).
 <KanbusThemeScope theme="refined-newsprint" mode="system">
   <IssueCollection issues={issues} config={config} query={{ type: "article" }} />
 </KanbusThemeScope>
@@ -25,7 +25,7 @@ import "@kanbus/ui/styles/themes/refined-newsprint.css"; // pulls in editorial-b
 
 Without React, set the attributes directly: `data-kanbus-theme="refined-newsprint"` on any ancestor of the board and, to force a mode, `data-color-mode="light" | "dark"`. Omit `data-color-mode` to follow `prefers-color-scheme` (or a `.dark` ancestor). The console puts both attributes on `<html>`.
 
-`KANBUS_THEMES` lists ids, display names, font pairing and face names; `KanbusThemeId` is the id union. `styles/themes/index.css` imports all four themes. The stylesheets make no requests: hosts load fonts from `KANBUS_THEME_FONTS`.
+`KANBUS_THEMES` lists ids, display names, font pairing and face names; `KanbusThemeId` is the id union. `styles/themes/index.css` imports all four themes. The stylesheets make no requests: hosts bundle the fonts; `KANBUS_THEME_FONTS` lists, per theme, the family names, weights and suggested `@fontsource` packages.
 
 ## Public tokens
 

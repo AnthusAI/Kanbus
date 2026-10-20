@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   DEFAULT_KANBUS_THEME,
-  KANBUS_THEME_FONTS,
   isKanbusThemeId,
   type KanbusThemeId
 } from "@kanbus/ui";
@@ -97,17 +96,6 @@ export function useAppearance() {
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [appearance.theme, appearance.mode, appearance.motion]);
-
-  useEffect(() => {
-    const id = "kanbus-theme-fonts";
-    const link = (document.getElementById(id) as HTMLLinkElement | null) ?? document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = KANBUS_THEME_FONTS[appearance.theme];
-    if (!link.isConnected) {
-      document.head.appendChild(link);
-    }
-  }, [appearance.theme]);
 
   return {
     appearance,

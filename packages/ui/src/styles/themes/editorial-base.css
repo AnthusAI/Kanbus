@@ -19,7 +19,7 @@
      --kb-theme-reading-size / -reading-leading                            detail body text
      --kb-theme-label-weight     column header and group label weight
 
-   The stylesheet makes no requests: hosts load the fonts (see KANBUS_THEME_FONTS). */
+   The stylesheet makes no requests: hosts bundle the fonts (see KANBUS_THEME_FONTS for families). */
 
 /* Public tokens mapped onto the base tokens. :root[...] outranks the console's html.dark rules. */
 :root[data-kanbus-theme],

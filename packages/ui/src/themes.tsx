@@ -53,19 +53,32 @@ export const KANBUS_THEMES: readonly KanbusThemeDefinition[] = [
 
 export const DEFAULT_KANBUS_THEME: KanbusThemeId = "newspaper-gothic";
 
-const GOOGLE_FONTS = "https://fonts.googleapis.com/css2?";
+export interface KanbusThemeFontFamily {
+  /** CSS family name used by the theme font stacks. */
+  readonly family: string;
+  /** Suggested npm package that provides the font files. */
+  readonly package: string;
+  /** Weights the theme uses. */
+  readonly weights: readonly number[];
+}
 
-/** Google Fonts stylesheet URL per theme. The theme stylesheets make no requests: a host links
- * the URL for the theme it uses (for example in a `<link rel="stylesheet">`). */
-export const KANBUS_THEME_FONTS: Readonly<Record<KanbusThemeId, string>> = {
-  "refined-newsprint":
-    `${GOOGLE_FONTS}family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap`,
-  "newspaper-gothic":
-    `${GOOGLE_FONTS}family=Libre+Franklin:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap`,
-  "night-desk":
-    `${GOOGLE_FONTS}family=Literata:opsz,wght@7..72,400;7..72,600&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap`,
-  "broadsheet-green":
-    `${GOOGLE_FONTS}family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap`
+const SOURCE_SERIF = { family: "Source Serif 4", package: "@fontsource-variable/source-serif-4", weights: [400, 600] } as const;
+const PLEX_SANS = { family: "IBM Plex Sans", package: "@fontsource/ibm-plex-sans", weights: [400, 500, 600] } as const;
+const PLEX_MONO = { family: "IBM Plex Mono", package: "@fontsource/ibm-plex-mono", weights: [400, 500] } as const;
+const FRANKLIN = { family: "Libre Franklin", package: "@fontsource-variable/libre-franklin", weights: [400, 500, 600, 700] } as const;
+const JETBRAINS = { family: "JetBrains Mono", package: "@fontsource-variable/jetbrains-mono", weights: [400, 500] } as const;
+const LITERATA = { family: "Literata", package: "@fontsource-variable/literata", weights: [400, 600] } as const;
+const PUBLIC_SANS = { family: "Public Sans", package: "@fontsource-variable/public-sans", weights: [400, 500, 600] } as const;
+const NEWSREADER = { family: "Newsreader", package: "@fontsource-variable/newsreader", weights: [400, 600] } as const;
+const HANKEN = { family: "Hanken Grotesk", package: "@fontsource-variable/hanken-grotesk", weights: [400, 500, 600] } as const;
+
+/** Font families each theme expects, with suggested @fontsource packages. This is metadata only:
+ * nothing in @kanbus/ui fetches fonts, so the host bundles or serves them itself. */
+export const KANBUS_THEME_FONTS: Readonly<Record<KanbusThemeId, readonly KanbusThemeFontFamily[]>> = {
+  "refined-newsprint": [SOURCE_SERIF, PLEX_SANS, PLEX_MONO],
+  "newspaper-gothic": [FRANKLIN, JETBRAINS],
+  "night-desk": [LITERATA, PUBLIC_SANS, JETBRAINS],
+  "broadsheet-green": [NEWSREADER, HANKEN, PLEX_MONO]
 };
 
 export function isKanbusThemeId(value: unknown): value is KanbusThemeId {

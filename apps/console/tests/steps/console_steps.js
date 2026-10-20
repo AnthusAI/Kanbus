@@ -923,10 +923,17 @@ Then("the board theme should be {string}", async function (theme) {
   await expect
     .poll(() => this.page.evaluate(() => document.documentElement.dataset.kanbusTheme))
     .toBe(theme);
-  await expect(this.page.locator("#kanbus-theme-fonts")).toHaveAttribute(
-    "href",
-    /^https:\/\/fonts\.googleapis\.com\/css2\?/
+  await expect(this.page.locator("#kanbus-theme-fonts")).toHaveCount(0);
+  const external = await this.page.evaluate(() =>
+    performance
+      .getEntriesByType("resource")
+      .map((entry) => entry.name)
+      .filter((name) => new URL(name).origin !== location.origin && !name.includes("/api/"))
   );
+  expect(external).toEqual([]);
+});
+  await expect(this.page.locator("#kanbus-theme-fonts")).toHaveCount(0);
+  expect(requests.filter((url) => !url.startsWith(new URL(this.page.url()).origin))).toEqual([]);
 });
 
 Then("the console color mode should be {string}", async function (mode) {

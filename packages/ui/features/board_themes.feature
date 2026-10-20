@@ -97,6 +97,6 @@ Feature: Editorial board themes for hosts and the console
     When the host renders the "newspaper-gothic" board with the accent token overridden
     Then the selection bar color is the overridden accent
 
-  Scenario: The package lists the themes and their font stylesheets
+  Scenario: The package lists the themes and the fonts each one needs
     Given a host application with article and task issues
-    Then the package lists four themes with font stylesheets for each
+    Then the package lists four themes with font families for each

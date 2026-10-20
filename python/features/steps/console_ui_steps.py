@@ -212,11 +212,18 @@ class ConsoleComment:
     agent: ConsoleAgentMetadata | None = None
 
 
+CONSOLE_THEME_NAMES = (
+    "Refined Newsprint",
+    "Newspaper Gothic",
+    "Night Desk",
+    "Broadsheet Green",
+)
+
+
 @dataclass
 class ConsoleSettings:
-    theme: str = "default"
+    theme: str = "newspaper-gothic"
     mode: str = "light"
-    typeface: str = "sans"
     motion: str = "on"
 
 
@@ -566,13 +573,6 @@ def when_set_mode(context: object, mode: str) -> None:
     _ensure_console_storage(context).settings.mode = mode
 
 
-@when('I set the typeface to "{typeface}"')
-def when_set_typeface(context: object, typeface: str) -> None:
-    state = _require_console_state(context)
-    state.settings.typeface = typeface
-    _ensure_console_storage(context).settings.typeface = typeface
-
-
 @when('I set motion to "{motion}"')
 def when_set_motion(context: object, motion: str) -> None:
     state = _require_console_state(context)
@@ -653,13 +653,30 @@ def then_mode_should_be(context: object, mode: str) -> None:
         raise AssertionError(f"expected mode {mode} but found {state.settings.mode}")
 
 
-@then('the typeface should be "{typeface}"')
-def then_typeface_should_be(context: object, typeface: str) -> None:
+@then('the board theme should be "{theme}"')
+def then_board_theme_should_be(context: object, theme: str) -> None:
     state = _require_console_state(context)
-    if state.settings.typeface != typeface:
+    if state.settings.theme != theme:
         raise AssertionError(
-            f"expected typeface {typeface} but found {state.settings.typeface}"
+            f"expected board theme {theme} but found {state.settings.theme}"
         )
+
+
+@then('the console color mode should be "{mode}"')
+def then_console_color_mode_should_be(context: object, mode: str) -> None:
+    state = _require_console_state(context)
+    if state.settings.mode != mode:
+        raise AssertionError(
+            f"expected color mode {mode} but found {state.settings.mode}"
+        )
+
+
+@then('the settings panel lists the themes "{names}"')
+def then_settings_panel_lists_themes(context: object, names: str) -> None:
+    _require_console_state(context)
+    listed = ", ".join(CONSOLE_THEME_NAMES)
+    if listed != names:
+        raise AssertionError(f"expected themes {names} but found {listed}")
 
 
 @then('the motion mode should be "{motion}"')
@@ -1015,7 +1032,6 @@ def _open_console(context: object) -> ConsoleState:
     settings = ConsoleSettings(
         theme=storage.settings.theme,
         mode=storage.settings.mode,
-        typeface=storage.settings.typeface,
         motion=storage.settings.motion,
     )
     time_zone = getattr(context, "console_time_zone", None)

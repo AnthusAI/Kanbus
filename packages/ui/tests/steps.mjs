@@ -458,8 +458,11 @@ Then("the selection bar color is the overridden accent", async function () {
   const color = await this.page.locator('[data-issue-id="article-1"]').evaluate((element) => getComputedStyle(element, "::before").backgroundColor);
   expect(color).toBe("rgb(200, 10, 20)");
 });
-Then("the package lists four themes with font stylesheets for each", async function () {
+Then("the package lists four themes with font families for each", async function () {
   const result = await this.page.evaluate(() => ({ ids: window.kanbusThemeIds, fonts: window.kanbusThemeFonts }));
   expect(result.ids).toEqual(["refined-newsprint", "newspaper-gothic", "night-desk", "broadsheet-green"]);
-  for (const id of result.ids) expect(result.fonts[id]).toMatch(/^https:\/\/fonts\.googleapis\.com\/css2\?/);
+  for (const id of result.ids) {
+    expect(result.fonts[id].length).toBeGreaterThanOrEqual(2);
+    for (const font of result.fonts[id]) expect(font.package).toMatch(/^@fontsource(-variable)?\//);
+  }
 });

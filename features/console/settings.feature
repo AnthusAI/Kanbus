@@ -7,7 +7,7 @@ Feature: Console settings
   Scenario: The console starts in the default theme
     Given the console is open
     And local storage is cleared
-    And the console is reloaded
+    When the console is reloaded
     Then the board theme should be "newspaper-gothic"
 
   Scenario Outline: Each board theme can be chosen in light and dark mode
