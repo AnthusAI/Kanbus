@@ -5,7 +5,7 @@ A CDK construct that deploys the Kanbus API service (`services/kanbus-api`) into
 Install the released tarball from the GitHub release `kanbus-cdk-v<version>`:
 
 ```sh
-npm install ./kanbus-cdk-0.2.0.tgz
+npm install ./kanbus-cdk-0.2.1.tgz
 ```
 
 `aws-cdk-lib` (`>=2.215.0 <3`) and `constructs` (`^10.4.0`) are peer dependencies; the package never bundles CDK.
@@ -94,3 +94,7 @@ Both examples are synthesized in `tests/readmeExamples.test.ts`.
 ## Release
 
 Push the tag `kanbus-cdk-v<version>` (matching `package.json`). The release job builds the `x86_64` musl API and sweeper Lambdas with the toolchain pinned in `services/kanbus-api/rust-toolchain.toml`, places them at `assets/kanbus-api-lambda.zip` and `assets/kanbus-api-sweeper.zip`, runs the tests, packs the tarball and creates the GitHub release with the tarball and both zips.
+
+## Changelog
+
+- 0.2.1: Route PUT on board paths so `provision()` reaches the Lambda; one route table now drives both the routes and the service invoke policy.
