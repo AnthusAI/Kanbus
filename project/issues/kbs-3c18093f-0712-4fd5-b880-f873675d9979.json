@@ -1,0 +1,20 @@
+{
+  "id": "kbs-3c18093f-0712-4fd5-b880-f873675d9979",
+  "title": "Publish a compatibility table for @kanbus/ui, @kanbus/api-client and @kanbus/cdk, and a kanbus-api version endpoint",
+  "description": "Asked by the Chatticus session 2026-10-20, which now consumes all three packages. Today they version independently with no published compatibility guidance. Coupling: @kanbus/cdk bundles the kanbus-api server (cdk version = server version), @kanbus/api-client must match the server API, and @kanbus/ui is independent of the server. Work: (1) packages/README.md with a table of cdk version, bundled kanbus-api (Kanbus release), compatible api-client range, and notes, updated in each package release PR (add a CI check that a package version bump also updates the table). (2) GET /{tenant}/{project}/api/version (or an unauthenticated /api/version on the service API) returning the kanbus-api version and API revision, spec'd; api-client exposes getServerVersion() and documents the supported range. (3) Align the api-client issue and config types with @kanbus/ui's exported types, or document the mapping. Spec first; one way only.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T18:44:45.064201Z",
+  "updated_at": "2026-10-20T18:44:45.179713Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

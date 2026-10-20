@@ -43,6 +43,7 @@ class GossipEnvelope(BaseModel):
     id: str = Field(min_length=1)
     ts: str = Field(min_length=1)
     project: str = Field(min_length=1)
+    project_identity: Optional[str] = None
     type: str = Field(min_length=1)
     issue_id: Optional[str] = None
     event_id: Optional[str] = None
@@ -179,17 +180,21 @@ def publish_issue_mutation(
     project_label = _resolve_project_label(root, project_dir, configuration)
     if project_label is None:
         return
+    project_identity = realtime_project_id(configuration)
+    if project_identity is None:
+        return
     envelope = GossipEnvelope(
         id=str(uuid4()),
         ts=_now_iso(),
         project=project_label,
+        project_identity=project_identity,
         type=event_type,
         issue_id=issue.identifier,
         event_id=event_id,
         producer_id=producer_id(),
         issue=issue,
     )
-    topic = configuration.realtime.topics.project_events.format(project=project_label)
+    topic = _project_topic(configuration.realtime, project_identity)
     try:
         _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
     except Exception as error:
@@ -215,16 +220,20 @@ def publish_issue_deleted(
     project_label = _resolve_project_label(root, project_dir, configuration)
     if project_label is None:
         return
+    project_identity = realtime_project_id(configuration)
+    if project_identity is None:
+        return
     envelope = GossipEnvelope(
         id=str(uuid4()),
         ts=_now_iso(),
         project=project_label,
+        project_identity=project_identity,
         type="issue.deleted",
         issue_id=issue_id,
         event_id=event_id,
         producer_id=producer_id(),
     )
-    topic = configuration.realtime.topics.project_events.format(project=project_label)
+    topic = _project_topic(configuration.realtime, project_identity)
     try:
         _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
     except Exception as error:  # noqa: BLE001
@@ -307,16 +316,21 @@ def _run_gossip_consumer(
         if not labeled:
             raise GossipError(f"unknown project label: {project_filter}")
 
-    topics = [
-        realtime.topics.project_events.format(project=project.label)
-        for project in labeled
-    ]
+    project_identity = realtime_project_id(configuration)
+    if project_identity is None:
+        if broker_off_is_error:
+            raise GossipError(MISSING_PROJECT_ID_MESSAGE)
+        return
+    topics = [_project_topic(realtime, project_identity)]
     dedupe = DedupeSet(ttl_s=GOSSIP_DEDUPE_TTL_S)
 
     def handler(envelope: GossipEnvelope) -> None:
         if dedupe.seen(envelope.id):
             return
         if envelope.producer_id == producer_id():
+            return
+        if not envelope_matches_project_identity(envelope, project_identity):
+            _record_foreign_project_drop()
             return
         target_project = _resolve_project_dir(root, envelope.project)
         if target_project is None:
@@ -954,6 +968,86 @@ def _resolve_project_label(
         if project.project_dir == project_dir:
             return project.label
     return configuration.project_key
+
+
+MISSING_PROJECT_ID_MESSAGE = (
+    "realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id"
+)
+_MISSING_PROJECT_ID_WARNED = False
+
+
+def realtime_project_id(configuration: ProjectConfiguration) -> Optional[str]:
+    """Return the project_id that scopes realtime topics and envelopes.
+
+    Prints MISSING_PROJECT_ID_MESSAGE once per process and returns None when
+    the configuration has no project_id.
+
+    :param configuration: Loaded project configuration.
+    :type configuration: ProjectConfiguration
+    :return: The project_id, or None when realtime is disabled.
+    :rtype: Optional[str]
+    """
+    global _MISSING_PROJECT_ID_WARNED
+    if configuration.project_id:
+        return configuration.project_id
+    if not _MISSING_PROJECT_ID_WARNED:
+        _MISSING_PROJECT_ID_WARNED = True
+        print(MISSING_PROJECT_ID_MESSAGE, file=sys.stderr)
+    return None
+
+
+def envelope_matches_project_identity(
+    envelope: GossipEnvelope, expected_identity: str
+) -> bool:
+    """Return True when an envelope carries exactly the expected project_id.
+
+    :param envelope: Received gossip envelope.
+    :type envelope: GossipEnvelope
+    :param expected_identity: project_id of the receiving project.
+    :type expected_identity: str
+    :return: Whether the identities are equal.
+    :rtype: bool
+    """
+    return envelope.project_identity == expected_identity
+
+
+_FOREIGN_PROJECT_DROP_COUNT = 0
+
+
+def _record_foreign_project_drop() -> None:
+    global _FOREIGN_PROJECT_DROP_COUNT
+    _FOREIGN_PROJECT_DROP_COUNT += 1
+    logging.getLogger(__name__).warning(
+        "dropped realtime events for other projects: total=%d",
+        _FOREIGN_PROJECT_DROP_COUNT,
+    )
+
+
+def foreign_project_drop_count() -> int:
+    """Return how many received events were dropped for carrying another project's identity.
+
+    :return: Number of dropped events in this process.
+    :rtype: int
+    """
+    return _FOREIGN_PROJECT_DROP_COUNT
+
+
+def project_event_topic(configuration: ProjectConfiguration) -> Optional[str]:
+    """Resolve the realtime topic of a project.
+
+    :param configuration: Loaded project configuration.
+    :type configuration: ProjectConfiguration
+    :return: The topic, or None when the project has no project_id.
+    :rtype: Optional[str]
+    """
+    project_id = realtime_project_id(configuration)
+    if project_id is None:
+        return None
+    return _project_topic(configuration.realtime, project_id)
+
+
+def _project_topic(realtime: RealtimeConfig, project_id: str) -> str:
+    return realtime.topics.project_events.format(project=project_id)
 
 
 def _resolve_project_dir(root: Path, label: str) -> Optional[Path]:

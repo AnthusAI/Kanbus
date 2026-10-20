@@ -13,6 +13,8 @@ from test_helpers import build_issue
 
 from kanbus import coordination_mqtt, gossip
 
+TEST_PROJECT_ID = "test-project-id"
+
 
 def test_dedupe_set_expires_entries() -> None:
     dedupe = gossip.DedupeSet(ttl_s=1)
@@ -138,12 +140,13 @@ def test_publish_envelope_uses_uds_transport_when_socket_exists(
     )
 
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="auto",
             broker="mqtt://127.0.0.1:1883",
             autostart=True,
             keepalive=False,
-        )
+        ),
     )
     envelope = gossip.GossipEnvelope(
         id="env-1",
@@ -181,12 +184,13 @@ def test_publish_envelope_skips_when_unreachable_and_autostart_disabled(
     monkeypatch.setattr(gossip, "_publish_mqtt", _publish)
 
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="mqtt://127.0.0.1:1883",
             autostart=False,
             keepalive=False,
-        )
+        ),
     )
     envelope = gossip.GossipEnvelope(
         id="env-2",
@@ -239,12 +243,13 @@ def test_publish_envelope_autostarts_and_terminates_when_not_keepalive(
     )
 
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
             autostart=True,
             keepalive=False,
-        )
+        ),
     )
     envelope = gossip.GossipEnvelope(
         id="env-3",
@@ -277,12 +282,13 @@ def test_publish_envelope_returns_when_broker_off(monkeypatch) -> None:
         lambda *_args, **_kwargs: uds_called.__setitem__("value", True),
     )
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="off",
             autostart=True,
             keepalive=False,
-        )
+        ),
     )
     envelope = gossip.GossipEnvelope(
         id="env-off",
@@ -337,12 +343,13 @@ def test_publish_envelope_handles_missing_mosquitto(monkeypatch) -> None:
     )
 
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
             autostart=True,
             keepalive=False,
-        )
+        ),
     )
     envelope = gossip.GossipEnvelope(
         id="env-missing",
@@ -384,10 +391,11 @@ def test_publish_issue_mutation_skips_when_broker_off(
     monkeypatch, tmp_path: Path
 ) -> None:
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="off",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -415,11 +423,14 @@ def test_publish_issue_mutation_skips_when_broker_off(
 def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="auto",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -442,7 +453,7 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
         issue_id="kanbus-3",
         event_id="evt-3",
     )
-    assert captured["topic"] == "projects/alpha/events"
+    assert captured["topic"] == f"projects/{TEST_PROJECT_ID}/events"
     envelope = captured["envelope"]
     assert isinstance(envelope, gossip.GossipEnvelope)
     assert envelope.issue_id == "kanbus-3"
@@ -452,11 +463,14 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
 def test_publish_issue_deleted_prints_warning_on_publish_failure(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="auto",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -484,6 +498,7 @@ def test_run_gossip_consumer_raises_for_unknown_project_filter(
     monkeypatch, tmp_path: Path
 ) -> None:
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -524,7 +539,10 @@ def test_run_gossip_consumer_raises_for_unknown_project_filter(
 
 
 def test_run_gossip_consumer_autostarts_local_uds(monkeypatch, tmp_path: Path) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="auto",
             broker="auto",
@@ -572,13 +590,18 @@ def test_run_gossip_consumer_autostarts_local_uds(monkeypatch, tmp_path: Path) -
         broker_off_is_error=False,
     )
     assert ensured["value"] is True
-    assert captured["topics"] == ["projects/alpha/events"]
+    assert captured["topics"] == [
+        f"projects/{TEST_PROJECT_ID}/events",
+    ]
 
 
 def test_run_gossip_consumer_broker_off_returns_when_not_error(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="off",
@@ -623,7 +646,10 @@ def test_run_gossip_consumer_broker_off_returns_when_not_error(
 def test_run_gossip_consumer_raises_when_broker_unreachable_and_autostart_disabled(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -995,11 +1021,14 @@ def test_run_gossip_watch_and_bridge_forward_expected_flags(
 def test_publish_issue_mutation_success_and_warning_paths(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="auto",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -1026,7 +1055,7 @@ def test_publish_issue_mutation_success_and_warning_paths(
         event_id="evt-11",
         event_type="issue.mutated",
     )
-    assert captured["topic"] == "projects/alpha/events"
+    assert captured["topic"] == f"projects/{TEST_PROJECT_ID}/events"
     assert captured["envelope"].event_id == "evt-11"
 
     monkeypatch.setattr(
@@ -1048,10 +1077,11 @@ def test_publish_issue_mutation_returns_when_project_label_missing(
     monkeypatch, tmp_path: Path
 ) -> None:
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="auto",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -1080,10 +1110,11 @@ def test_publish_issue_deleted_returns_when_project_label_missing(
     monkeypatch, tmp_path: Path
 ) -> None:
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="auto",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -1113,10 +1144,11 @@ def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
     gossip.publish_issue_deleted(tmp_path, tmp_path / "project", "kanbus-13", "evt-13")
 
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             broker="off",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
-        )
+        ),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -1137,9 +1169,12 @@ def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
 def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     project_dir = tmp_path / "alpha"
     labeled = [SimpleNamespace(label="alpha", project_dir=project_dir)]
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -1189,6 +1224,7 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
                 id="dup",
                 ts="2026-01-01T00:00:00Z",
                 project="alpha",
+                project_identity=TEST_PROJECT_ID,
                 type="issue.mutated",
                 issue_id="kanbus-21",
                 producer_id="other",
@@ -1200,6 +1236,7 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
                 id="dup",
                 ts="2026-01-01T00:00:00Z",
                 project="alpha",
+                project_identity=TEST_PROJECT_ID,
                 type="issue.mutated",
                 issue_id="kanbus-21",
                 producer_id="other",
@@ -1211,6 +1248,7 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
                 id="delete",
                 ts="2026-01-01T00:00:01Z",
                 project="alpha",
+                project_identity=TEST_PROJECT_ID,
                 type="issue.deleted",
                 issue_id="kanbus-22",
                 producer_id="other",
@@ -1221,6 +1259,7 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
                 id="self",
                 ts="2026-01-01T00:00:02Z",
                 project="alpha",
+                project_identity=TEST_PROJECT_ID,
                 type="issue.deleted",
                 issue_id="kanbus-23",
                 producer_id="self-producer",
@@ -1249,8 +1288,11 @@ def test_run_gossip_consumer_handler_writes_overlay_and_tombstones(
 def test_run_gossip_consumer_records_coordination_when_issue_overlay_is_disabled(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     project_dir = tmp_path / "alpha"
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -1293,6 +1335,7 @@ def test_run_gossip_consumer_records_coordination_when_issue_overlay_is_disabled
                 id="claim-message",
                 ts="2026-01-01T00:00:00Z",
                 project="alpha",
+                project_identity=TEST_PROJECT_ID,
                 type="coordination.claim",
                 event_id="claim-event",
                 producer_id="other-producer",
@@ -1323,7 +1366,10 @@ def test_run_gossip_consumer_records_coordination_when_issue_overlay_is_disabled
 def test_run_gossip_consumer_returns_when_target_project_missing(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -1388,7 +1434,10 @@ def test_run_gossip_consumer_returns_when_target_project_missing(
 def test_run_gossip_consumer_broker_off_errors_when_requested(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="off",
@@ -1422,7 +1471,10 @@ def test_run_gossip_consumer_broker_off_errors_when_requested(
 def test_run_gossip_consumer_autostarts_mqtt_process_and_terminates(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -1467,7 +1519,10 @@ def test_run_gossip_consumer_autostarts_mqtt_process_and_terminates(
 def test_run_gossip_consumer_prints_missing_mosquitto_when_autostart_fails(
     monkeypatch, tmp_path: Path
 ) -> None:
+    (tmp_path / "alpha").mkdir(exist_ok=True)
+    (tmp_path / "project").mkdir(exist_ok=True)
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="mqtt",
             broker="auto",
@@ -1606,7 +1661,8 @@ def test_run_gossip_broker_uses_configured_realtime_socket(
 ) -> None:
     expected_socket = tmp_path / "configured.sock"
     configuration = SimpleNamespace(
-        realtime=SimpleNamespace(uds_socket_path=str(expected_socket))
+        project_id=TEST_PROJECT_ID,
+        realtime=SimpleNamespace(uds_socket_path=str(expected_socket)),
     )
     monkeypatch.setattr(
         gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
@@ -1672,9 +1728,10 @@ def test_publish_envelope_handles_uds_publish_oserror(monkeypatch) -> None:
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("broken")),
     )
     configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
             transport="uds", broker="auto", autostart=True, keepalive=False
-        )
+        ),
     )
     envelope = gossip.GossipEnvelope(
         id="env-uds-error",
@@ -1969,3 +2026,154 @@ def test_publish_within_hard_cap_reraises_publisher_failure(monkeypatch) -> None
     monkeypatch.setattr(gossip, "_publish_envelope", failing_publish)
     with pytest.raises(OSError, match="broker exploded"):
         gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)
+
+
+def test_event_carrying_another_projects_identity_is_dropped(
+    monkeypatch, tmp_path: Path
+) -> None:
+    project_dir = tmp_path / "alpha"
+    project_dir.mkdir()
+    own_identity = TEST_PROJECT_ID
+    configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
+        realtime=SimpleNamespace(
+            transport="mqtt",
+            broker="auto",
+            autostart=True,
+            keepalive=False,
+            topics=SimpleNamespace(project_events="projects/{project}/events"),
+        ),
+        overlay=SimpleNamespace(enabled=True, ttl_s=60),
+    )
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(
+        gossip,
+        "resolve_labeled_projects",
+        lambda _root: [SimpleNamespace(label="alpha", project_dir=project_dir)],
+    )
+    monkeypatch.setattr(
+        gossip,
+        "resolve_broker_endpoint",
+        lambda _broker: gossip.BrokerEndpoint(
+            scheme="mqtt", host="127.0.0.1", port=1883, url="mqtt://127.0.0.1:1883"
+        ),
+    )
+    monkeypatch.setattr(gossip, "broker_is_reachable", lambda _endpoint: True)
+    monkeypatch.setattr(gossip, "producer_id", lambda: "self-producer")
+    applied: list[str] = []
+    monkeypatch.setattr(
+        gossip,
+        "write_overlay_issue",
+        lambda _project, issue, _ts, _event_id: applied.append(issue.identifier),
+    )
+
+    def _envelope(identifier: str, identity: str | None) -> gossip.GossipEnvelope:
+        return gossip.GossipEnvelope(
+            id=identifier,
+            ts="2026-01-01T00:00:00Z",
+            project="alpha",
+            project_identity=identity,
+            type="issue.mutated",
+            issue_id=identifier,
+            producer_id="other",
+            issue=build_issue(identifier),
+        )
+
+    def _run_mqtt(_endpoint, _topics, handler) -> None:
+        handler(_envelope("kanbus-foreign", "other-project-id"))
+        handler(_envelope("kanbus-unscoped", None))
+        handler(_envelope("kanbus-own", own_identity))
+
+    monkeypatch.setattr(gossip, "run_mqtt_subscription", _run_mqtt)
+    drops_before = gossip.foreign_project_drop_count()
+    gossip._run_gossip_consumer(
+        tmp_path, None, None, None, None, None, False, None, False, True
+    )
+    assert applied == ["kanbus-own"]
+    assert gossip.foreign_project_drop_count() == drops_before + 2
+
+
+def test_publish_issue_mutation_uses_scoped_topic_and_identity(
+    monkeypatch, tmp_path: Path
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    configuration = SimpleNamespace(
+        project_id=TEST_PROJECT_ID,
+        realtime=SimpleNamespace(
+            broker="auto",
+            topics=SimpleNamespace(project_events="projects/{project}/events"),
+        ),
+    )
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        gossip,
+        "_publish_envelope",
+        lambda _root, _config, topic, envelope: captured.update(
+            {"topic": topic, "envelope": envelope}
+        ),
+    )
+    gossip.publish_issue_mutation(
+        tmp_path, project_dir, build_issue("kanbus-31"), "evt-31", "issue.mutated"
+    )
+    identity = TEST_PROJECT_ID
+    assert captured["topic"] == f"projects/{identity}/events"
+    assert captured["envelope"].project_identity == identity
+
+
+def test_publish_without_project_id_publishes_nothing_and_warns_once(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    configuration = SimpleNamespace(
+        project_id=None,
+        realtime=SimpleNamespace(
+            broker="auto",
+            topics=SimpleNamespace(project_events="projects/{project}/events"),
+        ),
+    )
+    monkeypatch.setattr(
+        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+    )
+    monkeypatch.setattr(
+        gossip, "load_project_configuration", lambda _path: configuration
+    )
+    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
+    monkeypatch.setattr(gossip, "_MISSING_PROJECT_ID_WARNED", False)
+    published: list[object] = []
+    monkeypatch.setattr(
+        gossip, "_publish_envelope", lambda *args, **_kwargs: published.append(args)
+    )
+    for identifier in ("kanbus-41", "kanbus-42"):
+        gossip.publish_issue_mutation(
+            tmp_path, project_dir, build_issue(identifier), None, "issue.mutated"
+        )
+    assert published == []
+    assert capsys.readouterr().err.count(gossip.MISSING_PROJECT_ID_MESSAGE) == 1
+
+
+def test_migrate_project_id_appends_once_and_preserves_content(tmp_path: Path) -> None:
+    from kanbus.migration import migrate_project_id
+
+    (tmp_path / "project").mkdir()
+    configuration_path = tmp_path / ".kanbus.yml"
+    configuration_path.write_text("# keep me\nproject_key: tsk", encoding="utf-8")
+    first = migrate_project_id(tmp_path)
+    assert first.startswith("project_id written: ")
+    contents = configuration_path.read_text(encoding="utf-8")
+    assert contents.startswith("# keep me\nproject_key: tsk\nproject_id: ")
+    assert migrate_project_id(tmp_path).startswith("project_id already set: ")
+    assert configuration_path.read_text(encoding="utf-8") == contents

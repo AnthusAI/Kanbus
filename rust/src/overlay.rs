@@ -1021,6 +1021,7 @@ mod tests {
             ts: (Utc::now() - Duration::seconds(10))
                 .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
             project: "kanbus".to_string(),
+            project_identity: None,
             event_type: "coordination.release".to_string(),
             issue_id: None,
             event_id: Some("release-event".to_string()),

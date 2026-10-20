@@ -2062,14 +2062,18 @@ fn then_mqtt_wakeup(world: &mut KanbusWorld) {
     let project = config["project_key"]
         .as_str()
         .expect("configured project key");
+    let project_id = config["project_id"]
+        .as_str()
+        .expect("configured project id");
     let topic = config["realtime"]["topics"]["project_events"]
         .as_str()
         .expect("project event MQTT topic")
-        .replace("{project}", project);
+        .replace("{project}", project_id);
     let envelope = json!({
         "id":"peer-msg-1",
         "ts":"2026-09-17T10:00:00.000Z",
         "project":project,
+        "project_identity":project_id,
         "type":"coordination.claim",
         "event_id":"peer-event-1",
         "producer_id":"peer-test",

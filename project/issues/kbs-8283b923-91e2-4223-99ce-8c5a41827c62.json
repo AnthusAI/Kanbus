@@ -3,17 +3,25 @@
   "title": "Parent and dependency writes through kanbus-api",
   "description": "The API rejects parent changes, dependency writes, hierarchical type changes and deleting issues with children (unsupported_relation_mutation) because the journal only has per-object revisions and no cross-record invariants. Bot boards need parent/child. Design the cross-record write (e.g. a journaled multi-object intent that validates the hierarchy rule and parent existence, with deterministic recovery) and spec it.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "bd2bfecd-482e-4abe-854e-6c3d5c481e21",
+      "author": "home",
+      "text": "Merged in PR #510: relations records in control state with leased attach/delete protocol (RELATION_LEASE 15 min), deterministic interleaving tests for attach vs delete and double reparent, crashed attach and delete recovery. Follow-up: type changes to or from hierarchy types return 409 type_change_unsupported until fenced against concurrent attaches.",
+      "created_at": "2026-10-20T15:50:44.722119Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T03:45:12.996977Z",
-  "updated_at": "2026-10-20T03:45:13.489033Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T15:50:44.845205Z",
+  "closed_at": "2026-10-20T15:50:44.793402Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

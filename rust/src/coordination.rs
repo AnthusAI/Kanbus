@@ -2092,6 +2092,7 @@ mod tests {
             id: "envelope-1".to_string(),
             ts: "2026-01-01T00:00:00.000Z".to_string(),
             project: "KAN".to_string(),
+            project_identity: None,
             event_type: "coordination.claim".to_string(),
             issue_id: None,
             event_id: Some("event-1".to_string()),

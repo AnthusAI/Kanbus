@@ -8,6 +8,7 @@ import subprocess
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 import yaml
 
 from kanbus.config import DEFAULT_CONFIGURATION
@@ -93,7 +94,10 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
     config_path = root / ".kanbus.yml"
     if not config_path.exists():
         config_path.write_text(
-            yaml.safe_dump(DEFAULT_CONFIGURATION, sort_keys=False),
+            yaml.safe_dump(
+                {**DEFAULT_CONFIGURATION, "project_id": str(uuid4())},
+                sort_keys=False,
+            ),
             encoding="utf-8",
         )
     _write_project_guard_files_if_missing(project_dir)

@@ -1,0 +1,20 @@
+{
+  "id": "kbs-43405161-b23f-41d5-996a-8ec30221ff66",
+  "title": "Close an issue with its closing comment in one atomic write",
+  "description": "Chatticus closes a card with a closing comment (evidence or reason) and custom.closing. Today that takes two writes (POST comments, then PATCH status), and a failure between them leaves a closing comment on an open card until the retry. Add an optional comment field on PATCH /{tenant}/{project}/api/issues/{id} that appends a comment in the same journaled write as the field changes (one X-Operation-Id, one revision), with the same author and actor rules as POST comments. Spec first; add the field to @kanbus/api-client. Low priority.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T20:51:14.785158Z",
+  "updated_at": "2026-10-20T20:51:14.840109Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

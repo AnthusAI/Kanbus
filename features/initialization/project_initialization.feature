@@ -12,6 +12,7 @@ Feature: Project initialization
     And the file "project/wiki/whats-next.md" should exist
     And the file "project/wiki/index.md" should contain "whats-next.md"
     And a ".kanbus.yml" file should be created
+    And the file ".kanbus.yml" should contain "project_id:"
     And a "CONTRIBUTING_AGENT.template.md" file should be created
     And CONTRIBUTING_AGENT.template.md should contain "This is The Way."
     And CONTRIBUTING_AGENT.template.md should contain "{% for methodology in methodologies %}"

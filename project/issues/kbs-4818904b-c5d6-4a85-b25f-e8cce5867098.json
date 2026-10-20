@@ -3,7 +3,7 @@
   "title": "Deployable kanbus-api artifact: published Lambda zip and CDK construct with per-environment layout",
   "description": "Chatticus will deploy Kanbus-shipped kanbus-api per environment. Today it is unpublished; consumers pin a Kanbus commit and build kanbus-api-lambda themselves (services/kanbus-api/AMPLIFY.md), and the AWS resources are described as a table, not a construct. Ship: a versioned Lambda zip attached to Kanbus releases (x86_64 musl, PROVIDED_AL2023) and a CDK construct (bucket, catalog table with GSIs, Lambda, HTTP API) parameterized by environment name, with documented per-environment bucket and table naming. Release through CI only.",
   "type": "story",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -17,11 +17,18 @@
       "text": "Chatticus (2026-10-20): the CDK construct should take the service principals as typed props (IAM role references from other stacks, each with tenants, provision and delegate_actor) and render KANBUS_SERVICE_PRINCIPALS itself, rather than a hand-written JSON string. One deployment, bucket, table and principals list per environment; all Chatticus environments share one AWS account, so names must be environment-qualified. Include the second (AWS_IAM) HTTP API, restrict lambda:InvokeFunction to the two APIs, and include the archive sweeper schedule (kbs-791a7373).",
       "created_at": "2026-10-20T10:48:56.196633Z",
       "comment_type": "default"
+    },
+    {
+      "id": "f4db4227-47c9-41e2-9d50-9625b1d12358",
+      "author": "home",
+      "text": "Released as @kanbus/cdk 0.1.1 (PRs #507, #508) and 0.2.0 with the sweeper (PR #513): typed service principals, same-stack use, environment-qualified names, bundled Lambda zips.",
+      "created_at": "2026-10-20T15:50:45.166032Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-20T03:45:07.489601Z",
-  "updated_at": "2026-10-20T10:48:56.196651Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T15:50:45.281538Z",
+  "closed_at": "2026-10-20T15:50:45.229604Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

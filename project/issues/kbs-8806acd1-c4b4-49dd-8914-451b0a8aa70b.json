@@ -1,0 +1,20 @@
+{
+  "id": "kbs-8806acd1-c4b4-49dd-8914-451b0a8aa70b",
+  "title": "Close @kanbus/api-client type gaps found by Chatticus",
+  "description": "Found by the Chatticus session 2026-10-20 while building against @kanbus/api-client 0.1.0. (1) KanbusIssuePatch and the create input lack dependencies (and the dependency link type), although the server accepts dependency writes since PR 510; add them, typed like the server's dependency links. (2) Document that create has no client-chosen id: the server generates <project_key>-<uuid v4>. (3) Document that list pages carry no catalog_pending (only writes do): list results come from the catalog and may briefly lag a write that reported catalog_pending true. (4) Document that idempotent replay compares method, path, body, actor and If-Match: a retry must resend the original If-Match, and a different one returns 409 operation_conflict. (5) Document that custom keys merge shallowly and null sets the key to JSON null (it does not remove it). Add type tests; release as @kanbus/api-client 0.1.1.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T20:51:14.587356Z",
+  "updated_at": "2026-10-20T20:51:14.644645Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
