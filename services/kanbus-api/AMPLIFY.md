@@ -1,5 +1,7 @@
 # Embed a cloud Kanbus board in an Amplify application
 
+For a plain CDK deployment without Amplify, use the released [`@kanbus/cdk` construct](../../packages/cdk/README.md), which bundles the Lambda package and creates every resource below.
+
 Use the existing Amplify Gen 2 backend as the deployment owner. The application
 composes the Kanbus Lambda, private canonical bucket, supplemental catalog and
 authenticated HTTP API in a CDK stack returned by `backend.createStack(...)`.
