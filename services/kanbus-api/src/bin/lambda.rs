@@ -2,7 +2,8 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use kanbus_api::{
-    api_gateway_response as response, authenticate_cloud, Api, ApiRequest, ServicePrincipals,
+    api_gateway_response as response, authenticate_cloud, Api, ApiRequest, BoardLifecycle,
+    ServicePrincipals,
 };
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde_json::{json, Value};
@@ -25,9 +26,14 @@ async fn main() -> Result<(), Error> {
         std::env::var("KANBUS_CATALOG_TABLE")?,
     );
     let objects = Arc::new(objects);
+    let lifecycle = BoardLifecycle::new(
+        BoardLifecycle::retention_days_from_environment()?,
+        objects.clone(),
+    )?;
     let api = Api::new(
         JournaledStore::new(objects.clone(), Arc::new(catalog)),
         objects,
+        lifecycle,
     )
     .map_err(|error| error.message)?;
     let service_principals = Arc::new(ServicePrincipals::from_environment()?);

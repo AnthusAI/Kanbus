@@ -317,3 +317,12 @@ impl ObjectStore for PauseStore {
             .await
     }
 }
+
+/// Archive state in a folder beside a store bound to a single board.
+pub fn lifecycle_beside(directory: &std::path::Path) -> kanbus_api::BoardLifecycle {
+    kanbus_api::BoardLifecycle::new(
+        30,
+        Arc::new(FileStore::new(directory.join("archive-state")).unwrap()),
+    )
+    .unwrap()
+}

@@ -325,3 +325,73 @@ Feature: Authenticated applications share the Kanbus issue model
     Given a provisioning service principal limited to tenant t1
     When it provisions a board in tenant t2
     Then the API returns the same 403 forbidden as for an ungranted board
+
+  Scenario: An archived board is hidden from members and read-only for provisioning services
+    Given a provisioned board with an issue and a provisioning service
+    When the service archives the board
+    Then members and non-provisioning services get 404 not_found on every board route
+    And the provisioning service can still read the configuration, issues and events
+    And every write returns 409 board_archived, including provisioning
+
+  Scenario: Restoring an archived board returns it to normal
+    Given an archived board
+    When the service restores it
+    Then members can read and write the board again and it is no longer indexed for purging
+
+  Scenario: A board cannot be purged or restored before it is archived
+    Given a provisioned board that is not archived
+    When the service purges or restores it
+    Then the API returns 409 board_not_archived and nothing is removed
+
+  Scenario: Archiving twice is rejected
+    Given an archived board
+    When the service archives it again with a new operation ID
+    Then the API returns 409 board_archived
+
+  Scenario: Purging an archived board removes it and leaves other boards untouched
+    Given an archived board and another board with issues
+    When the service purges the archived board
+    Then every canonical object, catalog row and control object of that board is gone except the purge receipt
+    And the keys of the other board and its catalog rows are identical to before
+    And every route of the purged board returns 404 not_found
+
+  Scenario: A purged board can be provisioned again from scratch
+    Given a purged board
+    When the service provisions it again
+    Then the board is empty and a new issue can be created
+
+  Scenario: An interrupted purge resumes with the same operation ID
+    Given a purge that failed part way through
+    When the service repeats the purge with the same operation ID
+    Then the purge completes and the other board is untouched
+
+  Scenario: Archive, restore and purge are idempotent
+    Given completed archive, restore and purge operations
+    When each is repeated with its operation ID
+    Then the original result is returned and a different request under that ID is an operation conflict
+
+  Scenario: Only provisioning services may change a board's lifecycle
+    Given a user and a non-provisioning service with grants to a board
+    When either archives, restores or purges it
+    Then both are refused with 403 forbidden
+
+  Scenario: Tenant names beginning with an underscore are reserved
+    Given any principal
+    When it addresses a tenant whose name begins with an underscore
+    Then the API returns 400 invalid_request before any storage access
+
+  Scenario: The sweeper purges only expired archives
+    Given one board archived 31 days ago, one archived 5 days ago and one never archived
+    When the sweeper runs with the current time
+    Then only the expired board is purged and its index entry is removed
+    And running the sweeper again changes nothing
+
+  Scenario: The sweeper is bounded and removes stale index entries
+    Given more expired archives than one run handles and an index entry whose board was restored
+    When the sweeper runs
+    Then at most the per-run limit is purged and the stale entry is removed without purging
+
+  Scenario: The archive retention setting is required
+    Given KANBUS_ARCHIVE_RETENTION_DAYS is missing, zero or not an integer
+    When the process starts
+    Then startup fails with a clear message

@@ -23,7 +23,9 @@ use virtuus_store::{
     ObjectStore, Scope, StoreError, StoredObject, WriteCondition,
 };
 
+mod lifecycle;
 mod relations;
+pub use lifecycle::{BoardLifecycle, SweepReport, ARCHIVE_RETENTION_VARIABLE, SWEEP_BATCH_LIMIT};
 use relations::RelationPlan;
 pub use relations::RELATION_LEASE;
 
@@ -697,6 +699,7 @@ fn provisioned_configuration_bytes(body: &Value) -> Result<Vec<u8>, ApiError> {
 pub struct Api {
     store: JournaledStore,
     object_store: Arc<dyn ObjectStore>,
+    lifecycle: BoardLifecycle,
     clock: Clock,
 }
 
@@ -766,14 +769,19 @@ impl Api {
     /// Create an API over a journaled store and the object store beneath it; boards are
     /// resolved per request. The object store carries the relations control records and
     /// must be the same backend the journaled store publishes to.
-    pub fn new(store: JournaledStore, objects: Arc<dyn ObjectStore>) -> Result<Self, ApiError> {
-        Self::with_clock(store, objects, Arc::new(Utc::now))
+    pub fn new(
+        store: JournaledStore,
+        objects: Arc<dyn ObjectStore>,
+        lifecycle: BoardLifecycle,
+    ) -> Result<Self, ApiError> {
+        Self::with_clock(store, objects, lifecycle, Arc::new(Utc::now))
     }
 
-    /// Like [`Api::new`] with an explicit clock for relation leases.
+    /// Like [`Api::new`] with an explicit clock for relation leases and archive expiry.
     pub fn with_clock(
         store: JournaledStore,
         objects: Arc<dyn ObjectStore>,
+        lifecycle: BoardLifecycle,
         clock: Clock,
     ) -> Result<Self, ApiError> {
         let store = store
@@ -782,6 +790,7 @@ impl Api {
         Ok(Self {
             store,
             object_store: objects,
+            lifecycle,
             clock,
         })
     }
@@ -808,14 +817,20 @@ impl Api {
         let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
         match segments.as_slice() {
             [tenant, "api", "issues"] if request.method == "GET" => {
+                Self::reject_reserved_tenant(tenant)?;
                 self.list_across_boards(tenant, request).await
             }
             [tenant, project, "api", rest @ ..] => {
+                Self::reject_reserved_tenant(tenant)?;
                 let scope =
                     Scope::new(*tenant, *project).map_err(|error| invalid(error.to_string()))?;
                 if !request.principal.allows(&scope) {
                     return Err(forbidden());
                 }
+                if let Some(response) = self.lifecycle_route(&scope, rest, &request).await? {
+                    return Ok(response);
+                }
+                self.reject_unless_board_is_open(&scope, &request).await?;
                 let mut scoped_request = request;
                 scoped_request.path = format!("/api/{}", rest.join("/"));
                 ScopedApi {
@@ -854,6 +869,9 @@ impl Api {
             .any(|scope| !request.principal.allows(scope))
         {
             return Err(forbidden());
+        }
+        for scope in scopes.values() {
+            self.reject_archived_for_listing(scope, &request).await?;
         }
         let selected: Vec<(String, Scope)> = scopes.into_iter().collect();
         let first = selected[0].1.clone();
@@ -944,13 +962,7 @@ impl ScopedApi {
             .get_bounded(&self.scope, ".kanbus.yml", MAX_CANONICAL_OBJECT_BYTES)
             .await
             .map_err(storage_error)?
-            .ok_or_else(|| {
-                ApiError::new(
-                    503,
-                    "configuration_missing",
-                    "Project configuration is missing.",
-                )
-            })?;
+            .ok_or_else(|| ApiError::new(404, "not_found", "Board not found."))?;
         ReadBudget::default().accept(&stored)?;
         parse_board_configuration(&stored.bytes)
             .map_err(|message| ApiError::new(503, "configuration_invalid", message))

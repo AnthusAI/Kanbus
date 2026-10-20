@@ -46,6 +46,7 @@ fn board() -> Board {
     let api = Api::with_clock(
         store,
         objects.clone(),
+        support::lifecycle_beside(directory.path()),
         Arc::new(move || *reader.lock().unwrap()),
     )
     .unwrap();

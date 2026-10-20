@@ -1,7 +1,8 @@
 //! Executable examples for features/writable_api.feature.
 
 use kanbus_api::{
-    authenticate_cloud, authenticate_local, Grant, Principal, ProjectGrant, ServicePrincipals,
+    authenticate_cloud, authenticate_local, BoardLifecycle, Grant, Principal, ProjectGrant,
+    ServicePrincipals,
 };
 use serde_json::json;
 
@@ -23,7 +24,8 @@ fn setup() -> (TempDir, Api) {
     let scope = Scope::new("tenant", "project").unwrap();
     let objects = Arc::new(FileStore::for_project(directory.path(), scope).unwrap());
     let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
-    (directory, Api::new(store, objects).unwrap())
+    let lifecycle = support::lifecycle_beside(directory.path());
+    (directory, Api::new(store, objects, lifecycle).unwrap())
 }
 
 fn principal_for(tenant: &str, project: &str) -> Principal {
@@ -833,9 +835,10 @@ fn inspected_setup() -> (TempDir, Api, JournaledStore, Arc<support::InspectStore
         FileStore::for_project(directory.path(), Scope::new("tenant", "project").unwrap()).unwrap(),
     );
     let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
+    let lifecycle = support::lifecycle_beside(directory.path());
     (
         directory,
-        Api::new(store.clone(), objects.clone()).unwrap(),
+        Api::new(store.clone(), objects.clone(), lifecycle).unwrap(),
         store,
         objects,
     )
@@ -1356,7 +1359,8 @@ fn multi_board_api(boards: &[(&str, &str)]) -> (TempDir, Api) {
     }
     let objects = Arc::new(FileStore::new(directory.path()).unwrap());
     let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
-    (directory, Api::new(store, objects).unwrap())
+    let lifecycle = BoardLifecycle::new(30, objects.clone()).unwrap();
+    (directory, Api::new(store, objects, lifecycle).unwrap())
 }
 
 fn create_board(root: &std::path::Path, tenant: &str, project: &str) {
@@ -1684,7 +1688,7 @@ async fn invalid_tenant_and_project_names_are_rejected_before_storage_access() {
 }
 
 #[tokio::test]
-async fn granted_board_without_configuration_reports_configuration_missing() {
+async fn granted_board_without_configuration_reports_not_found() {
     let (directory, api) = multi_board_api(&[("acme", "support")]);
     std::fs::create_dir_all(directory.path().join("acme/empty")).unwrap();
     let member = grants_to(&["kanbus:acme/*"]);
@@ -1699,7 +1703,7 @@ async fn granted_board_without_configuration_reports_configuration_missing() {
         .await
         .err()
         .unwrap();
-    assert_eq!((error.status, error.code), (503, "configuration_missing"));
+    assert_eq!((error.status, error.code), (404, "not_found"));
 }
 
 #[tokio::test]
@@ -1717,7 +1721,7 @@ async fn new_board_in_storage_is_usable_without_restarting_the_service() {
         .await
         .err()
         .unwrap();
-    assert_eq!(before.code, "configuration_missing");
+    assert_eq!(before.code, "not_found");
     create_board(directory.path(), "acme", "newbot");
     let created = api
         .handle(request_as(
@@ -2515,7 +2519,7 @@ async fn invalid_configuration_returns_422_and_creates_nothing() {
         .await
         .err()
         .unwrap();
-    assert_eq!(missing.code, "configuration_missing");
+    assert_eq!(missing.code, "not_found");
 }
 
 #[tokio::test]
@@ -2628,7 +2632,7 @@ async fn users_and_non_provisioning_services_cannot_provision() {
             .await
             .err()
             .unwrap();
-        assert_eq!(board.code, "configuration_missing");
+        assert_eq!(board.code, "not_found");
     }
 }
 

@@ -65,6 +65,7 @@ async fn real_s3_api_quoted_revision_crud_and_audit() {
     let api = Api::new(
         JournaledStore::new(objects.clone(), catalog),
         objects.clone(),
+        kanbus_api::BoardLifecycle::new(30, objects.clone()).unwrap(),
     )
     .unwrap();
     let config = api

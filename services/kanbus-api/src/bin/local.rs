@@ -8,7 +8,7 @@ use axum::{
     routing::any,
     Json, Router,
 };
-use kanbus_api::{authenticate_local, Api, ApiRequest, MAX_CANONICAL_OBJECT_BYTES};
+use kanbus_api::{authenticate_local, Api, ApiRequest, BoardLifecycle, MAX_CANONICAL_OBJECT_BYTES};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, sync::Arc};
 use virtuus_store::{FileStore, JournaledStore, MemoryCatalog, Scope};
@@ -33,7 +33,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("KANBUS_TENANT")?,
         std::env::var("KANBUS_PROJECT")?,
     )?;
-    let objects = FileStore::for_project(std::env::var("KANBUS_ROOT")?, scope.clone())?;
+    let root = std::path::PathBuf::from(std::env::var("KANBUS_ROOT")?);
+    let archive_directory = root
+        .parent()
+        .zip(root.file_name())
+        .map(|(parent, name)| parent.join(format!(".{}.archive", name.to_string_lossy())))
+        .ok_or("KANBUS_ROOT must name a folder with a parent")?;
+    let lifecycle = BoardLifecycle::new(
+        BoardLifecycle::retention_days_from_environment()?,
+        Arc::new(FileStore::new(archive_directory)?),
+    )?;
+    let objects = FileStore::for_project(&root, scope.clone())?;
     let objects = Arc::new(objects);
     let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()))
         .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)?;
@@ -49,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &format!("{}/issues/", configuration.project_directory),
         )
         .await?;
-    let api = Api::new(store, objects).map_err(|error| error.message)?;
+    let api = Api::new(store, objects, lifecycle).map_err(|error| error.message)?;
     let port = std::env::var("KANBUS_PORT")
         .unwrap_or_else(|_| "5175".into())
         .parse::<u16>()?;
