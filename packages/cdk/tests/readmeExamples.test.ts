@@ -26,11 +26,12 @@ test("Chatticus example: three environments, two service roles, no user api", ()
     const stack = new Stack(app, `Kanbus-${environmentName}`);
     new KanbusApi(stack, "Kanbus", {
       environmentName,
+      archiveRetentionDays: 30,
       servicePrincipals: [
         { role: controlPlaneRole, tenants: "*", provision: true, delegateActor: true },
         { role: reporterRole, tenants: ["chatticus"] },
       ],
-      lambda: { code: code() },
+      lambda: { code: code(), sweeperCode: code() },
     });
     return stack;
   });
@@ -48,11 +49,12 @@ test("Prospectus example: one board with users only", () => {
   const stack = new Stack(new App(), "ProspectusBackend");
   const kanbus = new KanbusApi(stack, "Kanbus", {
     environmentName: "production",
+    archiveRetentionDays: 30,
     users: {
       issuer: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_example",
       audiences: ["prospectus-browser-client"],
     },
-    lambda: { code: code() },
+    lambda: { code: code(), sweeperCode: code() },
   });
   const template = Template.fromStack(stack);
   template.resourceCountIs("AWS::ApiGatewayV2::Api", 1);

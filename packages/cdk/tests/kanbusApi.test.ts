@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { App, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
+import * as events from "aws-cdk-lib/aws-events";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { KanbusApi, KanbusApiProps } from "../src";
@@ -13,8 +14,9 @@ const placeholderDirectory = mkdtempSync(join(tmpdir(), "kanbus-cdk-"));
 const placeholderZipPath = join(placeholderDirectory, "kanbus-api-lambda.zip");
 writeFileSync(placeholderZipPath, "placeholder");
 
-type PartialProps = Omit<KanbusApiProps, "environmentName" | "lambda"> & {
+type PartialProps = Omit<KanbusApiProps, "environmentName" | "lambda" | "archiveRetentionDays"> & {
   environmentName?: string;
+  archiveRetentionDays?: number;
 };
 
 function placeholderCode(): lambda.Code {
@@ -28,8 +30,9 @@ function buildStack(
   const stack = new Stack(scope ?? new App(), "TestStack");
   const construct = new KanbusApi(stack, "Kanbus", {
     environmentName: "development",
+    archiveRetentionDays: 30,
     ...props,
-    lambda: { code: placeholderCode() },
+    lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
   });
   return { stack, construct, template: Template.fromStack(stack) };
 }
@@ -54,8 +57,9 @@ function buildWithServiceRoles(
   const roles = [serviceRole(stack, "RoleOne"), serviceRole(stack, "RoleTwo")];
   const construct = new KanbusApi(stack, "Kanbus", {
     environmentName: "production",
+    archiveRetentionDays: 30,
     servicePrincipals: entries(roles),
-    lambda: { code: placeholderCode() },
+    lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
   });
   return { app, rolesStack, stack, construct, roles, template: Template.fromStack(stack) };
 }
@@ -148,6 +152,7 @@ test("lambda runs the bundled bootstrap with the required environment", () => {
         KANBUS_BACKEND: "s3",
         KANBUS_OBJECT_BUCKET: Match.anyValue(),
         KANBUS_CATALOG_TABLE: Match.anyValue(),
+        KANBUS_ARCHIVE_RETENTION_DAYS: "30",
       },
     },
   });
@@ -158,9 +163,11 @@ test("lambda settings are bounded and overridable", () => {
   const stack = new Stack(new App(), "Bounded");
   new KanbusApi(stack, "Kanbus", {
     environmentName: "staging",
+    archiveRetentionDays: 30,
     users: userConfiguration,
     lambda: {
       code: placeholderCode(),
+      sweeperCode: placeholderCode(),
       memorySize: 1024,
       timeout: Duration.seconds(25),
     },
@@ -174,6 +181,7 @@ test("lambda settings are bounded and overridable", () => {
       () =>
         new KanbusApi(new Stack(new App(), "Invalid"), "Kanbus", {
           environmentName: "staging",
+          archiveRetentionDays: 30,
           users: userConfiguration,
           lambda: { code: placeholderCode(), ...invalid },
         }),
@@ -184,13 +192,17 @@ test("lambda settings are bounded and overridable", () => {
 
 test("lambda role has least privilege on the bucket, table and log group", () => {
   const { template } = buildStack({ users: userConfiguration });
-  template.resourceCountIs("AWS::IAM::Role", 1);
+  template.resourceCountIs("AWS::IAM::Role", 2);
   template.hasResourceProperties("AWS::IAM::Role", {
     ManagedPolicyArns: Match.absent(),
   });
   const policies = template.findResources("AWS::IAM::Policy");
-  const statements = Object.values(policies).flatMap(
-    (policy) => (policy as any).Properties.PolicyDocument.Statement,
+  const apiPolicies = Object.entries(policies).filter(([logicalId]) =>
+    logicalId.startsWith("KanbusFunctionRole"),
+  );
+  assert.equal(apiPolicies.length, 1);
+  const statements = apiPolicies.flatMap(
+    ([, policy]) => (policy as any).Properties.PolicyDocument.Statement,
   );
   const actionsOf = (statement: any): string[] =>
     [].concat(statement.Action as never);
@@ -299,8 +311,9 @@ test("a role in another stack does not create a dependency cycle", () => {
   const stack = new Stack(app, "KanbusStack");
   new KanbusApi(stack, "Kanbus", {
     environmentName: "production",
+    archiveRetentionDays: 30,
     servicePrincipals: [{ role: serviceRole(rolesStack, "Role"), tenants: ["acme"] }],
-    lambda: { code: placeholderCode() },
+    lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
   });
   const assembly = app.synth();
   assert.ok(assembly.getStackByName(stack.stackName));
@@ -337,12 +350,15 @@ test("lambda invoke permissions reference only the created apis", () => {
   const stack = new Stack(new App(), "BothApis");
   new KanbusApi(stack, "Kanbus", {
     environmentName: "development",
+    archiveRetentionDays: 30,
     users: userConfiguration,
     servicePrincipals: [{ role: serviceRole(stack, "Caller"), tenants: "*" }],
-    lambda: { code: placeholderCode() },
+    lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
   });
   const template = Template.fromStack(stack);
-  const permissions = Object.values(template.findResources("AWS::Lambda::Permission"));
+  const permissions = Object.values(template.findResources("AWS::Lambda::Permission")).filter(
+    (permission) => (permission as any).Properties.Principal === "apigateway.amazonaws.com",
+  );
   assert.equal(permissions.length, 16);
   const apiLogicalIds = Object.keys(template.findResources("AWS::ApiGatewayV2::Api"));
   assert.equal(apiLogicalIds.length, 2);
@@ -368,9 +384,10 @@ test("physical names are generated or environment qualified and distinct", () =>
     const role = serviceRole(stack, `Role-${environmentName}`);
     new KanbusApi(stack, `Kanbus-${environmentName}`, {
       environmentName,
+      archiveRetentionDays: 30,
       users: userConfiguration,
       servicePrincipals: [{ role, tenants: "*" }],
-      lambda: { code: placeholderCode() },
+      lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
     });
   }
   const template = Template.fromStack(stack);
@@ -397,8 +414,9 @@ test("construct inside an existing stack with caller lambda and role synthesizes
   });
   const kanbus = new KanbusApi(stack, "Kanbus", {
     environmentName: "production",
+    archiveRetentionDays: 30,
     servicePrincipals: [{ role: callerRole, tenants: "*", delegateActor: true }],
-    lambda: { code: placeholderCode() },
+    lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
   });
   new lambda.Function(stack, "Caller", {
     runtime: lambda.Runtime.NODEJS_20_X,
@@ -448,7 +466,8 @@ test("omitting both users and servicePrincipals throws", () => {
     () =>
       new KanbusApi(new Stack(new App(), "Empty"), "Kanbus", {
         environmentName: "development",
-        lambda: { code: placeholderCode() },
+        archiveRetentionDays: 30,
+        lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
       }),
     /at least one of users or servicePrincipals/,
   );
@@ -456,8 +475,9 @@ test("omitting both users and servicePrincipals throws", () => {
     () =>
       new KanbusApi(new Stack(new App(), "EmptyList"), "Kanbus", {
         environmentName: "development",
+        archiveRetentionDays: 30,
         servicePrincipals: [],
-        lambda: { code: placeholderCode() },
+        lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
       }),
     /at least one of users or servicePrincipals/,
   );
@@ -487,8 +507,113 @@ test("the default bundled zip is required when no code override is given", () =>
     () =>
       new KanbusApi(new Stack(new App(), "NoZip"), "Kanbus", {
         environmentName: "development",
+        archiveRetentionDays: 30,
         users: userConfiguration,
       }),
     /kanbus-api-lambda\.zip/,
+  );
+});
+
+test("sweeper function runs the bundled bootstrap with the data environment and no service principals", () => {
+  const stack = new Stack(new App(), "Sweeper");
+  new KanbusApi(stack, "Kanbus", {
+    environmentName: "development",
+    archiveRetentionDays: 45,
+    servicePrincipals: [{ role: serviceRole(stack, "Caller"), tenants: "*" }],
+    lambda: { code: placeholderCode(), sweeperCode: placeholderCode() },
+  });
+  const template = Template.fromStack(stack);
+  const functions = Object.values(template.findResources("AWS::Lambda::Function"));
+  assert.equal(functions.length, 2);
+  const sweeper = functions.find((candidate) =>
+    JSON.stringify(candidate).includes("SweeperRole"),
+  ) as any;
+  assert.equal(sweeper.Properties.Runtime, "provided.al2023");
+  assert.equal(sweeper.Properties.Handler, "bootstrap");
+  assert.deepEqual(sweeper.Properties.Architectures, ["x86_64"]);
+  assert.equal(sweeper.Properties.Timeout, 300);
+  assert.equal(sweeper.Properties.ReservedConcurrentExecutions, 1);
+  assert.deepEqual(Object.keys(sweeper.Properties.Environment.Variables).sort(), [
+    "KANBUS_ARCHIVE_RETENTION_DAYS",
+    "KANBUS_BACKEND",
+    "KANBUS_CATALOG_TABLE",
+    "KANBUS_OBJECT_BUCKET",
+  ]);
+  assert.equal(sweeper.Properties.Environment.Variables.KANBUS_BACKEND, "s3");
+  assert.equal(sweeper.Properties.Environment.Variables.KANBUS_ARCHIVE_RETENTION_DAYS, "45");
+  template.hasResourceProperties("AWS::Lambda::Function", {
+    ReservedConcurrentExecutions: Match.absent(),
+    Environment: { Variables: { KANBUS_ARCHIVE_RETENTION_DAYS: "45" } },
+  });
+  template.resourceCountIs("AWS::Logs::LogGroup", 2);
+});
+
+test("sweeper role has the same data grants as the api role and nothing else", () => {
+  const { template } = buildStack({ users: userConfiguration });
+  const policies = Object.entries(template.findResources("AWS::IAM::Policy"));
+  const statementsFor = (prefix: string) =>
+    policies
+      .filter(([logicalId]) => logicalId.startsWith(prefix))
+      .flatMap(([, policy]) => (policy as any).Properties.PolicyDocument.Statement);
+  const sweeperStatements = statementsFor("KanbusSweeperRole");
+  const apiStatements = statementsFor("KanbusFunctionRole");
+  const actionsOf = (statements: any[]): string[] =>
+    statements.flatMap((statement) => [].concat(statement.Action as never) as string[]).sort();
+  assert.deepEqual(actionsOf(sweeperStatements), actionsOf(apiStatements));
+  assert.ok(actionsOf(sweeperStatements).includes("s3:DeleteObject"));
+  assert.ok(actionsOf(sweeperStatements).includes("dynamodb:DeleteItem"));
+  for (const statement of sweeperStatements) {
+    assert.notEqual(JSON.stringify(statement.Resource), '"*"');
+  }
+});
+
+test("an hourly schedule rule targets only the sweeper and no one else can invoke it", () => {
+  const { template, construct } = buildStack({ users: userConfiguration });
+  template.resourceCountIs("AWS::Events::Rule", 1);
+  template.hasResourceProperties("AWS::Events::Rule", {
+    ScheduleExpression: "rate(1 hour)",
+    State: "ENABLED",
+    Targets: [Match.objectLike({ Arn: Match.anyValue() })],
+  });
+  const rule = Object.values(template.findResources("AWS::Events::Rule"))[0] as any;
+  assert.equal(rule.Properties.Targets.length, 1);
+  assert.ok(JSON.stringify(rule.Properties.Targets[0].Arn).includes("Sweeper"));
+  const sweeperPermissions = Object.values(template.findResources("AWS::Lambda::Permission")).filter(
+    (permission) => JSON.stringify((permission as any).Properties.FunctionName).includes("Sweeper"),
+  );
+  assert.equal(sweeperPermissions.length, 1);
+  assert.equal((sweeperPermissions[0] as any).Properties.Principal, "events.amazonaws.com");
+  assert.ok(construct.sweeperFunction);
+});
+
+test("sweepSchedule overrides the default schedule", () => {
+  const { template } = buildStack({
+    users: userConfiguration,
+    sweepSchedule: events.Schedule.rate(Duration.minutes(15)),
+  });
+  template.hasResourceProperties("AWS::Events::Rule", {
+    ScheduleExpression: "rate(15 minutes)",
+  });
+});
+
+test("archiveRetentionDays must be a positive integer", () => {
+  for (const invalid of [0, -1, 1.5, Number.NaN, undefined]) {
+    assert.throws(
+      () => buildStack({ users: userConfiguration, archiveRetentionDays: invalid as never }),
+      /archiveRetentionDays/,
+    );
+  }
+});
+
+test("the bundled sweeper zip is required when no sweeper code override is given", () => {
+  assert.throws(
+    () =>
+      new KanbusApi(new Stack(new App(), "NoSweeperZip"), "Kanbus", {
+        environmentName: "development",
+        archiveRetentionDays: 30,
+        users: userConfiguration,
+        lambda: { code: placeholderCode() },
+      }),
+    /kanbus-api-sweeper\.zip/,
   );
 });

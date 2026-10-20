@@ -5,6 +5,8 @@ import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as authorizers from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as events from "aws-cdk-lib/aws-events";
+import * as eventTargets from "aws-cdk-lib/aws-events-targets";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
@@ -28,10 +30,13 @@ export interface KanbusApiLambdaProps {
   readonly timeout?: Duration;
   readonly logRetention?: logs.RetentionDays;
   readonly code?: lambda.Code;
+  readonly sweeperCode?: lambda.Code;
 }
 
 export interface KanbusApiProps {
   readonly environmentName: string;
+  readonly archiveRetentionDays: number;
+  readonly sweepSchedule?: events.Schedule;
   readonly users?: KanbusUsers;
   readonly servicePrincipals?: KanbusServicePrincipal[];
   readonly lambda?: KanbusApiLambdaProps;
@@ -45,6 +50,8 @@ const MAXIMUM_MEMORY_MEGABYTES = 3008;
 const MAXIMUM_TIMEOUT_SECONDS = 30;
 const DEFAULT_MEMORY_MEGABYTES = 512;
 const DEFAULT_TIMEOUT_SECONDS = 15;
+const SWEEPER_TIMEOUT_MINUTES = 5;
+const SWEEPER_RESERVED_CONCURRENCY = 1;
 const ROUTE_METHODS = [
   apigatewayv2.HttpMethod.GET,
   apigatewayv2.HttpMethod.POST,
@@ -58,18 +65,14 @@ const INDEX_DEFINITIONS = [
   { indexName: "by_type_status", partitionKeyName: "type_status_scope" },
 ];
 
-function bundledLambdaZipPath(): string {
-  return resolve(__dirname, "..", "..", "assets", "kanbus-api-lambda.zip");
-}
-
-function resolveLambdaCode(override: lambda.Code | undefined): lambda.Code {
+function resolveLambdaCode(override: lambda.Code | undefined, zipFileName: string): lambda.Code {
   if (override) {
     return override;
   }
-  const zipPath = bundledLambdaZipPath();
+  const zipPath = resolve(__dirname, "..", "..", "assets", zipFileName);
   if (!existsSync(zipPath)) {
     throw new Error(
-      `The bundled Lambda package kanbus-api-lambda.zip was not found at ${zipPath}. ` +
+      `The bundled Lambda package ${zipFileName} was not found at ${zipPath}. ` +
         "Install @kanbus/cdk from a Kanbus release tarball, which includes it.",
     );
   }
@@ -77,6 +80,9 @@ function resolveLambdaCode(override: lambda.Code | undefined): lambda.Code {
 }
 
 function validateProps(props: KanbusApiProps): void {
+  if (!Number.isInteger(props.archiveRetentionDays) || props.archiveRetentionDays < 1) {
+    throw new Error("archiveRetentionDays is required and must be a positive integer.");
+  }
   if (!ENVIRONMENT_NAME_PATTERN.test(props.environmentName)) {
     throw new Error(
       "environmentName must start with a lowercase letter and contain only lowercase letters, digits and hyphens (maximum 32 characters).",
@@ -130,6 +136,7 @@ export class KanbusApi extends Construct {
   public readonly bucket: s3.IBucket;
   public readonly table: dynamodb.ITable;
   public readonly function: lambda.IFunction;
+  public readonly sweeperFunction: lambda.IFunction;
   public readonly userApi?: apigatewayv2.HttpApi;
   public readonly serviceApi?: apigatewayv2.HttpApi;
   public readonly userApiUrl?: string;
@@ -145,13 +152,15 @@ export class KanbusApi extends Construct {
       retention: props.lambda?.logRetention ?? logs.RetentionDays.THREE_MONTHS,
       removalPolicy: RemovalPolicy.DESTROY,
     });
-    const functionRole = this.createFunctionRole(bucket, table, logGroup);
+    const functionRole = this.createFunctionRole("FunctionRole", bucket, table, logGroup);
     const servicePrincipals = props.servicePrincipals ?? [];
     const environment: Record<string, string> = {
       KANBUS_BACKEND: "s3",
       KANBUS_OBJECT_BUCKET: bucket.bucketName,
       KANBUS_CATALOG_TABLE: table.tableName,
+      KANBUS_ARCHIVE_RETENTION_DAYS: String(props.archiveRetentionDays),
     };
+    const sweeperEnvironment = { ...environment };
     if (servicePrincipals.length > 0) {
       environment.KANBUS_SERVICE_PRINCIPALS = Stack.of(this).toJsonString(
         servicePrincipals.map((principal) => ({
@@ -166,7 +175,7 @@ export class KanbusApi extends Construct {
       runtime: lambda.Runtime.PROVIDED_AL2023,
       architecture: lambda.Architecture.X86_64,
       handler: "bootstrap",
-      code: resolveLambdaCode(props.lambda?.code),
+      code: resolveLambdaCode(props.lambda?.code, "kanbus-api-lambda.zip"),
       memorySize: props.lambda?.memorySize ?? DEFAULT_MEMORY_MEGABYTES,
       timeout: props.lambda?.timeout ?? Duration.seconds(DEFAULT_TIMEOUT_SECONDS),
       role: functionRole,
@@ -176,6 +185,7 @@ export class KanbusApi extends Construct {
     this.bucket = bucket;
     this.table = table;
     this.function = kanbusFunction;
+    this.sweeperFunction = this.createSweeper(props, bucket, table, sweeperEnvironment);
     Tags.of(this).add("kanbus:environment", props.environmentName);
 
     if (props.users) {
@@ -202,6 +212,35 @@ export class KanbusApi extends Construct {
     if (props.createOutputs ?? true) {
       this.createOutputs(props.environmentName);
     }
+  }
+
+  private createSweeper(
+    props: KanbusApiProps,
+    bucket: s3.Bucket,
+    table: dynamodb.Table,
+    environment: Record<string, string>,
+  ): lambda.Function {
+    const logGroup = new logs.LogGroup(this, "SweeperLogGroup", {
+      retention: props.lambda?.logRetention ?? logs.RetentionDays.THREE_MONTHS,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const sweeperFunction = new lambda.Function(this, "SweeperFunction", {
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      architecture: lambda.Architecture.X86_64,
+      handler: "bootstrap",
+      code: resolveLambdaCode(props.lambda?.sweeperCode, "kanbus-api-sweeper.zip"),
+      memorySize: props.lambda?.memorySize ?? DEFAULT_MEMORY_MEGABYTES,
+      timeout: Duration.minutes(SWEEPER_TIMEOUT_MINUTES),
+      reservedConcurrentExecutions: SWEEPER_RESERVED_CONCURRENCY,
+      role: this.createFunctionRole("SweeperRole", bucket, table, logGroup),
+      logGroup,
+      environment,
+    });
+    new events.Rule(this, "SweepScheduleRule", {
+      schedule: props.sweepSchedule ?? events.Schedule.rate(Duration.hours(1)),
+      targets: [new eventTargets.LambdaFunction(sweeperFunction)],
+    });
+    return sweeperFunction;
   }
 
   private createBucket(removalPolicy: RemovalPolicy): s3.Bucket {
@@ -243,11 +282,12 @@ export class KanbusApi extends Construct {
    * having separate buckets and tables.
    */
   private createFunctionRole(
+    id: string,
     bucket: s3.Bucket,
     table: dynamodb.Table,
     logGroup: logs.LogGroup,
   ): iam.Role {
-    const role = new iam.Role(this, "FunctionRole", {
+    const role = new iam.Role(this, id, {
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
     role.addToPolicy(
