@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "88146cca-aaa4-4a72-bb4d-0239dace0533",
+  "issue_id": "kbs-8283b923-91e2-4223-99ce-8c5a41827c62",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T03:45:13.489Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Parent and dependency writes through kanbus-api",
+    "description": "The API rejects parent changes, dependency writes, hierarchical type changes and deleting issues with children (unsupported_relation_mutation) because the journal only has per-object revisions and no cross-record invariants. Bot boards need parent/child. Design the cross-record write (e.g. a journaled multi-object intent that validates the hierarchy rule and parent existence, with deterministic recovery) and spec it.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+    "labels": []
+  }
+}

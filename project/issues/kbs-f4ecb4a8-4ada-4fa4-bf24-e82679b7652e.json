@@ -1,0 +1,20 @@
+{
+  "id": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "title": "Cloud store for Chatticus per-bot boards (kanbus-api as a deployable multi-board service)",
+  "description": "Ryan decided 2026-10-20: Kanbus owns the cloud issue store (virtuus-store + services/kanbus-api); Chatticus deploys Kanbus-shipped kanbus-api in its own AWS account, one per environment (development, staging, production), called from Chatticus's TypeScript control plane, building on Preview starting in development. Mapping under discussion: tenant = Chatticus organization id, project = bot id (one internal board per bot). Today the shipped Lambda (services/kanbus-api/src/bin/lambda.rs) binds one KANBUS_NAMESPACE (one tenant/project) and one Cognito group per deployment; the library's with_projects allowlist caps at MAX_PROJECTS = 8 (lib.rs:25), a Preview query fan-out budget for multi-project list queries. The S3 key layout and the DynamoDB catalog (PK scope = tenant/project) already support any number of scopes.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T03:45:03.978796Z",
+  "updated_at": "2026-10-20T03:45:04.313658Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

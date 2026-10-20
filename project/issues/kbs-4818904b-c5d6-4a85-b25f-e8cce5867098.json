@@ -1,0 +1,20 @@
+{
+  "id": "kbs-4818904b-c5d6-4a85-b25f-e8cce5867098",
+  "title": "Deployable kanbus-api artifact: published Lambda zip and CDK construct with per-environment layout",
+  "description": "Chatticus will deploy Kanbus-shipped kanbus-api per environment. Today it is unpublished; consumers pin a Kanbus commit and build kanbus-api-lambda themselves (services/kanbus-api/AMPLIFY.md), and the AWS resources are described as a table, not a construct. Ship: a versioned Lambda zip attached to Kanbus releases (x86_64 musl, PROVIDED_AL2023) and a CDK construct (bucket, catalog table with GSIs, Lambda, HTTP API) parameterized by environment name, with documented per-environment bucket and table naming. Release through CI only.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T03:45:07.489601Z",
+  "updated_at": "2026-10-20T03:45:07.863504Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
