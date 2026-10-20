@@ -22,6 +22,8 @@ cargo build --manifest-path rust/Cargo.toml
 
 ## Checks
 
+The Rust toolchain files pin only the channel with the minimal profile. Before running the Rust checks, add the components once with `rustup component add rustfmt clippy llvm-tools-preview` (the API service under `services/kanbus-api` needs `rustfmt clippy`).
+
 ```bash
 make check-python    # black, ruff, behave, pytest, coverage
 make check-rust      # cargo fmt, clippy, cargo test, cucumber
