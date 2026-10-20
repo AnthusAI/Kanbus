@@ -10,9 +10,17 @@
   "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "6b0adc79-cba4-483e-9528-2f78564f019e",
+      "author": "home",
+      "text": "Chatticus (2026-10-20): an organization-wide view across all of a tenant's bot boards is wanted later (not now). Keep the design able to list across every board of a tenant without naming each project in the query, e.g. a tenant-level catalog index or projects=* resolved within the budget for principals with a tenant-wide grant.",
+      "created_at": "2026-10-20T10:28:25.185634Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T03:45:06.191765Z",
-  "updated_at": "2026-10-20T03:45:06.598771Z",
+  "updated_at": "2026-10-20T10:28:25.185649Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
