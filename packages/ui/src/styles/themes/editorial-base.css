@@ -88,7 +88,6 @@
   --issue-accent: transparent;
   --issue-accent-muted: transparent;
   --issue-accent-foreground: var(--kb-theme-muted);
-  --issue-priority-bg: transparent;
   background: transparent; border: 0; box-shadow: none; color: var(--kb-theme-ink);
   padding: 11px 0 11px 10px; overflow: visible;
 }
@@ -108,7 +107,7 @@
   font: 400 10px/1 var(--kb-theme-mono-font); letter-spacing: 0; text-transform: none; color: var(--kb-theme-muted);
 }
 [data-kanbus-theme] .issue-accent-priority {
-  padding: 0; background: transparent; border-radius: 0; color: var(--kb-theme-muted);
+  padding: 2px 5px; background: var(--card-muted); border-radius: 0; color: var(--kb-theme-muted);
   font: 400 10px/1 var(--kb-theme-mono-font); letter-spacing: .04em; text-transform: uppercase;
 }
 [data-kanbus-theme] .issue-card .issue-card-content { padding-top: 5px; gap: 4px; }
