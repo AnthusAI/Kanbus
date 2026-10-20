@@ -52,13 +52,21 @@ function writeHeaders(options: KanbusWriteOptions, ifMatch?: string): KanbusHead
   return headers;
 }
 
+function withoutTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 export class KanbusApiTransport {
   private readonly baseUrl: string;
   private readonly fetchImplementation: KanbusFetch;
   private readonly headerProvider?: KanbusHeaderProvider;
 
   constructor(options: KanbusApiClientOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/+$/, "");
+    this.baseUrl = withoutTrailingSlashes(options.baseUrl);
     this.fetchImplementation = options.fetch ?? ((input, init) => fetch(input, init));
     this.headerProvider = options.headers;
   }
