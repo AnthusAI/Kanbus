@@ -172,13 +172,16 @@
 }
 
 /* Type filter: tabs underlined with a 2px accent bar */
+[data-kanbus-theme] .kb-type-filter-scroll { scrollbar-width: thin; scrollbar-color: var(--kb-theme-rule) transparent;
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent); }
 [data-kanbus-theme] .kb-type-filter { height: auto; min-height: 36px; padding: 0; gap: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--kb-theme-rule); }
 [data-kanbus-theme] .kb-type-filter .selector-highlight { display: none; }
 [data-kanbus-theme] .kb-type-filter button[role="tab"] {
-  position: relative; z-index: 1; flex: 0 0 auto; min-height: 32px; padding: 4px 12px; border: 0; border-bottom: 2px solid transparent;
-  border-radius: 0; background: transparent; color: var(--kb-theme-ink); font: inherit; white-space: nowrap; cursor: pointer;
+  position: relative; z-index: 1; flex: 0 0 auto; min-height: 32px; padding: 4px 8px; border: 0; border-bottom: 2px solid transparent;
+  border-radius: 0; background: transparent; color: var(--kb-theme-ink); white-space: nowrap; cursor: pointer;
+  font: 500 11px/1 var(--kb-theme-ui-font); letter-spacing: .08em; text-transform: uppercase;
 }
-[data-kanbus-theme] .kb-type-filter button[aria-selected="true"] { background: transparent; font-weight: 600; border-bottom-color: var(--kb-theme-accent); }
+[data-kanbus-theme] .kb-type-filter button[aria-selected="true"] { background: transparent; font-weight: 700; border-bottom-color: var(--kb-theme-accent); }
 [data-kanbus-theme] .kb-type-filter button:focus-visible { outline: 2px solid var(--kb-theme-accent); outline-offset: -2px; }
 
 /* Segmented choices (Board / List): a 1px ink border marks the active one */
