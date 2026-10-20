@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
+import {
+  DEFAULT_KANBUS_THEME,
+  isKanbusThemeId,
+  type KanbusThemeId
+} from "@kanbus/ui";
 
-export type Theme = "neutral" | "cool" | "warm";
+export type Theme = KanbusThemeId;
 export type Mode = "light" | "dark" | "system";
-export type Font = "sans" | "serif" | "mono";
 export type Motion = "full" | "reduced" | "off" | "debug";
 
 interface AppearanceState {
   theme: Theme;
   mode: Mode;
-  font: Font;
   motion: Motion;
 }
 
@@ -40,28 +43,27 @@ export function useAppearance() {
       }
       return null;
     };
+    const resolveMode = (value?: string): Mode | null =>
+      value === "light" || value === "dark" || value === "system" ? value : null;
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as Partial<AppearanceState>;
         return {
-          theme: parsed.theme ?? "neutral",
-          mode: parsed.mode ?? getSystemMode(),
-          font: parsed.font ?? "sans",
+          theme: isKanbusThemeId(parsed.theme) ? parsed.theme : DEFAULT_KANBUS_THEME,
+          mode: resolveMode(parsed.mode) ?? getSystemMode(),
           motion: resolveMotion(parsed.motion) ?? defaultMotion
         };
       } catch {
         return {
-          theme: "neutral",
+          theme: DEFAULT_KANBUS_THEME,
           mode: getSystemMode(),
-          font: "sans",
           motion: defaultMotion
         };
       }
     }
     return {
-      theme: "neutral",
+      theme: DEFAULT_KANBUS_THEME,
       mode: getSystemMode(),
-      font: "sans",
       motion: defaultMotion
     };
   });
@@ -78,40 +80,29 @@ export function useAppearance() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("theme-neutral", "theme-cool", "theme-warm");
-    root.classList.add(`theme-${appearance.theme}`);
-
-    root.classList.remove("light", "dark");
-    if (appearance.mode === "system") {
-      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.add(systemDark ? "dark" : "light");
-    } else {
-      root.classList.add(appearance.mode);
-    }
-
-    root.dataset.font = appearance.font;
+    root.dataset.kanbusTheme = appearance.theme;
     root.dataset.motion = appearance.motion;
-  }, [appearance.theme, appearance.mode, appearance.font, appearance.motion]);
 
-  useEffect(() => {
+    const applyMode = (dark: boolean) => {
+      root.classList.remove("light", "dark");
+      root.classList.add(dark ? "dark" : "light");
+      root.dataset.colorMode = dark ? "dark" : "light";
+    };
     if (appearance.mode !== "system") {
+      applyMode(appearance.mode === "dark");
       return;
     }
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      const root = document.documentElement;
-      root.classList.remove("light", "dark");
-      root.classList.add(mediaQuery.matches ? "dark" : "light");
-    };
+    applyMode(mediaQuery.matches);
+    const handleChange = () => applyMode(mediaQuery.matches);
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [appearance.mode]);
+  }, [appearance.theme, appearance.mode, appearance.motion]);
 
   return {
     appearance,
     setTheme: (theme: Theme) => updateAppearance({ theme }),
     setMode: (mode: Mode) => updateAppearance({ mode }),
-    setFont: (font: Font) => updateAppearance({ font }),
     setMotion: (motion: Motion) => updateAppearance({ motion })
   };
 }

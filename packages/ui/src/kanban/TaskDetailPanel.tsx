@@ -1172,7 +1172,7 @@ skinparam SequenceDividerFontColor white`
               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                 <div
                   ref={statusFlashRef}
-                  className="text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors min-w-0 max-[420px]:order-1"
+                  className="detail-status text-xs font-semibold uppercase tracking-[0.3em] text-muted rounded px-2 py-1 -mx-2 -my-1 transition-colors min-w-0 max-[420px]:order-1"
                 >
                   {taskToRender.type} · {taskToRender.status}
                 </div>
@@ -1307,7 +1307,8 @@ skinparam SequenceDividerFontColor white`
           <div className="detail-section p-4 grid gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <button
-                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
+                data-active={activeTab === "comments" ? "true" : undefined}
+                className={`detail-tab rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
                   activeTab === "comments"
                     ? "bg-[var(--card-muted)] text-selected"
                     : "text-muted hover:text-foreground"
@@ -1318,7 +1319,8 @@ skinparam SequenceDividerFontColor white`
                 Comments
               </button>
               <button
-                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
+                data-active={activeTab === "events" ? "true" : undefined}
+                className={`detail-tab rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] transition-colors ${
                   activeTab === "events"
                     ? "bg-[var(--card-muted)] text-selected"
                     : "text-muted hover:text-foreground"
