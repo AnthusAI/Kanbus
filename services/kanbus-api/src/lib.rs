@@ -648,6 +648,49 @@ fn forbidden() -> ApiError {
     ApiError::new(403, "forbidden", "Board access is not granted.")
 }
 
+fn board_exists() -> ApiError {
+    ApiError::new(409, "board_exists", "The board is already provisioned.")
+}
+
+fn parse_board_configuration(bytes: &[u8]) -> Result<ProjectConfiguration, String> {
+    let configuration: ProjectConfiguration =
+        serde_yaml::from_slice(bytes).map_err(|error| error.to_string())?;
+    safe_relative_path(&configuration.project_directory).map_err(|error| error.message)?;
+    let errors = kanbus::config_loader::validate_project_configuration(&configuration);
+    if errors.is_empty() {
+        Ok(configuration)
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+fn provisioned_configuration_bytes(body: &Value) -> Result<Vec<u8>, ApiError> {
+    let invalid_configuration =
+        |message: &str| ApiError::new(422, "invalid_configuration", message);
+    if body.is_null() {
+        let defaults = kanbus::config::default_project_configuration();
+        return serde_yaml::to_string(&defaults)
+            .map(String::into_bytes)
+            .map_err(|error| invalid(error.to_string()));
+    }
+    let text = body
+        .as_object()
+        .filter(|fields| fields.len() == 1)
+        .and_then(|fields| fields.get("configuration"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            invalid_configuration(
+                "Send no body for the default configuration or {\"configuration\": \"<.kanbus.yml text>\"}.",
+            )
+        })?;
+    if text.len() > MAX_CANONICAL_OBJECT_BYTES {
+        return Err(invalid_configuration(
+            "Configuration exceeds the size limit.",
+        ));
+    }
+    Ok(text.as_bytes().to_vec())
+}
+
 /// Generic API resolving the addressed board from each request path.
 #[derive(Clone)]
 pub struct Api {
@@ -827,6 +870,9 @@ impl ScopedApi {
                 return ApiResponse::checked(200, body);
             }
         }
+        if request.method == "PUT" && request.path.trim_matches('/') == "api/config" {
+            return self.provision(&request).await;
+        }
         let configuration = self.configuration().await?;
         let segments: Vec<_> = request.path.trim_matches('/').split('/').collect();
         let result = match (request.method.as_str(), segments.as_slice()) {
@@ -879,18 +925,61 @@ impl ScopedApi {
                 )
             })?;
         ReadBudget::default().accept(&stored)?;
-        let configuration: ProjectConfiguration = serde_yaml::from_slice(&stored.bytes)
-            .map_err(|error| ApiError::new(503, "configuration_invalid", error.to_string()))?;
-        safe_relative_path(&configuration.project_directory)?;
-        let errors = kanbus::config_loader::validate_project_configuration(&configuration);
-        if !errors.is_empty() {
-            return Err(ApiError::new(
-                503,
-                "configuration_invalid",
-                errors.join("; "),
-            ));
+        parse_board_configuration(&stored.bytes)
+            .map_err(|message| ApiError::new(503, "configuration_invalid", message))
+    }
+
+    async fn provision(&self, request: &ApiRequest) -> Result<ApiResponse, ApiError> {
+        if !request.principal.provision {
+            return Err(forbidden());
         }
-        Ok(configuration)
+        let operation = operation_id(request)?;
+        let hash = request_hash(request);
+        if let Some(committed) = self
+            .store
+            .operation(&self.scope, &operation, &hash)
+            .await
+            .map_err(storage_error)?
+        {
+            let configuration = parse_board_configuration(&committed.stored.bytes)
+                .map_err(|message| ApiError::new(503, "configuration_invalid", message))?;
+            return ApiResponse::checked(
+                200,
+                browser_configuration(&configuration, &request.principal.actor)?,
+            );
+        }
+        let existing = self
+            .store
+            .get_bounded(&self.scope, ".kanbus.yml", MAX_CANONICAL_OBJECT_BYTES)
+            .await
+            .map_err(storage_error)?;
+        if existing.is_some() {
+            return Err(board_exists());
+        }
+        let bytes = provisioned_configuration_bytes(&request.body)?;
+        let configuration = parse_board_configuration(&bytes)
+            .map_err(|message| ApiError::new(422, "invalid_configuration", message))?;
+        let mutation = Mutation {
+            path: ".kanbus.yml".into(),
+            condition: WriteCondition::Absent,
+            bytes,
+            content_type: "application/yaml".into(),
+            event_objects: Vec::new(),
+            operation_id: operation,
+            request_hash: hash,
+            fields: BTreeMap::new(),
+        };
+        self.store
+            .commit(&self.scope, &mutation)
+            .await
+            .map_err(|error| match error {
+                StoreError::Conflict => board_exists(),
+                other => storage_error(other),
+            })?;
+        ApiResponse::checked(
+            201,
+            browser_configuration(&configuration, &request.principal.actor)?,
+        )
     }
 
     async fn issue(
