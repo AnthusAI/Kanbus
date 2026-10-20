@@ -1,0 +1,28 @@
+{
+  "id": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "title": "Cloud store for Chatticus per-bot boards (kanbus-api as a deployable multi-board service)",
+  "description": "Ryan decided 2026-10-20: Kanbus owns the cloud issue store (virtuus-store + services/kanbus-api); Chatticus deploys Kanbus-shipped kanbus-api in its own AWS account, one per environment (development, staging, production), called from Chatticus's TypeScript control plane, building on Preview starting in development. Mapping under discussion: tenant = Chatticus organization id, project = bot id (one internal board per bot). Today the shipped Lambda (services/kanbus-api/src/bin/lambda.rs) binds one KANBUS_NAMESPACE (one tenant/project) and one Cognito group per deployment; the library's with_projects allowlist caps at MAX_PROJECTS = 8 (lib.rs:25), a Preview query fan-out budget for multi-project list queries. The S3 key layout and the DynamoDB catalog (PK scope = tenant/project) already support any number of scopes.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7fb0e171-0472-4123-9602-e4cdf32b8138",
+      "author": "home",
+      "text": "Decision (Ryan, 2026-10-20, via the Chatticus session): one Kanbus project per bot. tenant = Chatticus organization id, project = bot id, bucket and catalog table per environment (development, staging, production). Chatticus is writing its bot-board Gherkin specs against this model and will not build against kanbus-api until kbs-9cb5cb40, kbs-4818904b, kbs-f222b6ee and kbs-a19d1443 land. Any change to routes, auth or scope naming must be announced to the Chatticus session before it ships.",
+      "created_at": "2026-10-20T03:45:59.570950Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-20T03:45:03.978796Z",
+  "updated_at": "2026-10-20T03:45:59.570960Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -1,0 +1,35 @@
+{
+  "id": "kbs-f222b6ee-541b-46a2-b9e8-9a6c4f4febbb",
+  "title": "Service-to-service authentication for kanbus-api (IAM SigV4) alongside the user JWT authorizer",
+  "description": "Goal: trusted backend services (first: the Chatticus control plane, a TypeScript Lambda in the same AWS account) call kanbus-api without a user JWT. They act for any board their grant covers, and can record the real acting user or bot. Builds on kbs-9cb5cb40 (PR #502, Principal and Grant in services/kanbus-api/src/lib.rs).\n\nDesign (one way only):\n1. Transport: service callers use a second API Gateway HTTP API (or stage) whose routes use AWS_IAM authorization (SigV4), pointing at the same Lambda and the same routes (/{tenant}/{project}/api/..., /{tenant}/api/issues). The Lambda chooses the authenticator from the verified authorizer context in the event:\n   - requestContext.authorizer.jwt: the existing user path (groups to grants);\n   - requestContext.authorizer.iam: the service path;\n   - neither: 401.\n   An event carrying both is 401.\n2. Service principal mapping: a required deployment setting, KANBUS_SERVICE_PRINCIPALS, a JSON array of {\"role_arn\": \"arn:aws:iam::<acct>:role/<name>\", \"tenants\": \"*\" | [\"t1\", ...], \"provision\": bool, \"delegate_actor\": bool}. The caller identity is requestContext.authorizer.iam.userArn. For an assumed role (arn:aws:sts::<acct>:assumed-role/<name>/<session>), normalize to arn:aws:iam::<acct>:role/<name> before matching, and never match on the session name. An unknown role gets 403. An empty or absent array means no service callers (the user path still works). An invalid JSON or entry fails startup with a clear message.\n3. Grants: add Grant coverage for all tenants (used only by service principals with tenants \"*\"). Principal gains capabilities: provision (used by kbs-344f42ca and kbs-791a7373; nothing uses it yet beyond being parsed and exposed) and delegate_actor.\n4. Delegated actor: header X-Kanbus-Actor.\n   - Delegating principal: it must send the header (otherwise 400 invalid_request). The value must match ^[a-z0-9-]+:[a-z0-9-]+:[A-Za-z0-9-_.]{1,128}$ (otherwise 400). It becomes the principal's actor, recorded verbatim as creator, comment author and event actor_id.\n   - Non-delegating principal (including every user): the header is rejected with 403. A user can never set an actor.\n   - A service principal without delegate_actor acts as its role ARN.\n   Examples: chatticus:user:<uuid>, chatticus:bot:<uuid>.\n5. Trust boundary documentation (README and AMPLIFY): the Lambda trusts the authorizer context in its event, so lambda:InvokeFunction must be granted only to the two API Gateway APIs and to explicitly trusted roles. A direct invoker is fully trusted (this is already true today for Prospectus's direct invoke).\n\nSpec first (services/kanbus-api/features, steps in tests/behavior.rs and tests/support). Scenarios:\n- a mapped service role with tenants \"*\" reads and writes boards in two tenants;\n- a role limited to a tenant list is denied another tenant (identical 403);\n- an unknown role gets 403;\n- an assumed-role ARN with any session name matches its role;\n- a delegating service writes with X-Kanbus-Actor and the creator, comment author and event actor_id equal the header;\n- a missing or malformed actor header from a delegating principal gets 400;\n- the header from a user or a non-delegating service gets 403;\n- an event with both or neither authorizer context gets 401.\nAdd unit tests for ARN normalization and for parsing KANBUS_SERVICE_PRINCIPALS.\n\nAcceptance: cargo test, fmt and clippy (CI flags) green in services/kanbus-api; docs updated; no change to user-path behavior.",
+  "type": "story",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a392c5ec-b293-4e68-b9a6-f5957f160275",
+      "author": "home",
+      "text": "Chatticus requirements (2026-10-20): (a) one deployment per Chatticus environment; the Chatticus service principal is granted every tenant of that deployment. (b) Delegated actor: the service principal passes the acting party in header X-Kanbus-Actor, honored ONLY for service principals holding an actor-delegation grant (users cannot set it); Kanbus records it verbatim as creator, comment author and event actor_id. Format: <namespace>:<kind>:<id>, validated against ^[a-z0-9-]+:[a-z0-9-]+:[A-Za-z0-9-_.]{1,128}$, e.g. chatticus:user:<uuid>, chatticus:bot:<uuid>. A missing header on a delegating principal is 400; the header on a non-delegating principal is 403. Spec both.",
+      "created_at": "2026-10-20T10:04:40.435165Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "1f8ae6db-72de-4836-913a-86b9288d22d3",
+      "author": "home",
+      "text": "Merged in PR #503: AWS_IAM service principals via KANBUS_SERVICE_PRINCIPALS (per-role tenants, provision, delegate_actor; strict assumed-role ARN normalization; duplicate or path-qualified roles fail startup), X-Kanbus-Actor for delegating principals only, trust-boundary docs. CodeQL alert 138 (test fixture account id) dismissed as used in tests.",
+      "created_at": "2026-10-20T11:33:21.916769Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-20T03:45:08.774637Z",
+  "updated_at": "2026-10-20T11:33:22.064613Z",
+  "closed_at": "2026-10-20T11:33:22.005573Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

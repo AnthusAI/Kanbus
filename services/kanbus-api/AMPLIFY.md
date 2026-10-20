@@ -1,5 +1,7 @@
 # Embed a cloud Kanbus board in an Amplify application
 
+For a plain CDK deployment without Amplify, use the released [`@kanbus/cdk` construct](../../packages/cdk/README.md), which bundles the Lambda package and creates every resource below.
+
 Use the existing Amplify Gen 2 backend as the deployment owner. The application
 composes the Kanbus Lambda, private canonical bucket, supplemental catalog and
 authenticated HTTP API in a CDK stack returned by `backend.createStack(...)`.
@@ -58,13 +60,14 @@ Create these resources in source, alongside the application's existing auth:
 | `by_status` GSI | String partition key `status_scope`, string sort key `path`, projection ALL. |
 | `by_type_status` GSI | String partition key `type_status_scope`, string sort key `path`, projection ALL. |
 | Lambda | Packaged shared service; bounded timeout/memory and CloudWatch log retention. |
-| HTTP API | JWT authorizer with the intended issuer and browser client audience; authenticated `/api/{proxy+}` GET/POST/PATCH/DELETE integration. |
+| HTTP API | JWT authorizer with the intended issuer and browser client audience; authenticated `/{tenant}/{project}/api/{proxy+}` and `/{tenant}/api/issues` GET/POST/PATCH/DELETE integration. |
 
-Set Lambda environment variables `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`,
-`KANBUS_CATALOG_TABLE`, `KANBUS_NAMESPACE=brand/project`, and
-`KANBUS_REQUIRED_GROUP` to the application's explicit staff group. The JWT gateway
-verifies tokens; Kanbus additionally checks that group in gateway claims. A
-successful Google login alone does not assign board access. Reuse the app's Google
+Set Lambda environment variables `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, and
+`KANBUS_CATALOG_TABLE`. Board access is granted by Cognito groups named
+`kanbus:<tenant>/<project>` (one board) or `kanbus:<tenant>/*` (every board of the
+tenant, to be used sparingly). The JWT gateway verifies tokens; Kanbus derives board
+grants only from those verified group claims. A successful Google login alone does
+not assign board access. Reuse the app's Google
 authentication configuration; Kanbus does not require its own Google OAuth client
 or secret. Shared Cognito across products is an application decision.
 
@@ -77,6 +80,10 @@ uses `brand/project#type#*` for `by_type` and `by_type_status`, and
 exact conditions. Runtime code needs neither IAM administration nor bucket/table
 creation permissions. An existing Amplify service connection still needs its
 normal authority to deploy the declared backend resources.
+
+Service callers (optional): add a second HTTP API (or stage) with `AWS_IAM` authorization on the same two route patterns and the same Lambda, and set `KANBUS_SERVICE_PRINCIPALS` on the Lambda to a JSON array of `{"role_arn","tenants","provision","delegate_actor"}` entries (format and semantics in README.md, "Service callers"). Grant the calling role `execute-api:Invoke` on that API only.
+
+Trust boundary: the Lambda trusts the authorizer context in its event, so `lambda:InvokeFunction` must be granted only to the two API Gateway APIs and to explicitly trusted roles. A direct invoker is fully trusted.
 
 For cross-origin frontend hosting, allow only the app origin and the API methods
 above, with `authorization`, `content-type`, `if-match`, `x-operation-id` request

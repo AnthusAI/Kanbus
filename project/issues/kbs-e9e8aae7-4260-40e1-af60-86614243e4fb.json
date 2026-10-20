@@ -3,17 +3,25 @@
   "title": "CI Set up Rust step intermittently fails installing clippy",
   "description": "Twice on 2026-10-19 the performance job failed in its 'Set up Rust' step before any Kanbus code ran: 'error: failed to install component: clippy-preview-x86_64-unknown-linux-gnu, detected conflict: bin/cargo-clippy' (runs 39264684333 on PR #468 and 39339097268 on the 0.37.0 release push to main). A failed main run blocks semantic-release until someone reruns the job. Likely cause: dtolnay/rust-toolchain installs components while rust-toolchain.toml (channel 1.88.0, components rustfmt, clippy, llvm-tools-preview) triggers a second rustup install of the same components on the runner image's preinstalled toolchain. Fix one way for every job: either rely on rust-toolchain.toml alone (rustup show / rustup toolchain install from the file) or pass the same toolchain and components in the action and nowhere else; then verify across a few runs. Acceptance: no Set up Rust failures over 20 consecutive CI runs.",
   "type": "chore",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "94e70670-8ea5-4a79-a31f-dcc441f0b1dd",
+      "author": "home",
+      "text": "Fixed in PR #499: rust-toolchain.toml files pin only channel and profile minimal; every CI and release job installs Rust through .github/actions/setup-rust, which uninstalls any partially installed copy of the pinned toolchain before a clean install with the job's components. Mechanism confirmed from logs: rustup recovering from a partially installed toolchain on the runner image collided on bin/cargo-clippy. Acceptance (20 clean runs) will be observed over the next runs; reopen if it recurs.",
+      "created_at": "2026-10-20T05:42:20.618322Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-19T23:43:55.528154Z",
-  "updated_at": "2026-10-19T23:43:55.595802Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T05:42:20.729796Z",
+  "closed_at": "2026-10-20T05:42:20.679704Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

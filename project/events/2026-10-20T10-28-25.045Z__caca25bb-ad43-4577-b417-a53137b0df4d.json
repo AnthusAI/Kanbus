@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "caca25bb-ad43-4577-b417-a53137b0df4d",
+  "issue_id": "kbs-791a7373-d2aa-4553-95e3-098f36048c7e",
+  "event_type": "field_updated",
+  "occurred_at": "2026-10-20T10:28:25.045Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "Delete a whole board through kanbus-api",
+        "to": "Archive, restore and purge a whole board through kanbus-api"
+      },
+      "description": {
+        "from": "Chatticus requirement: when a bot is deleted, its board (scope <tenant>/<project>) must be removable. DELETE /{tenant}/{project}/api/board for principals with a provisioning grant: idempotent by X-Operation-Id, removes canonical objects, events, receipts and catalog rows for that scope only (never other scopes), resumable if interrupted (journaled intent), and returns 404 thereafter for every board route. Decide with Ryan whether deletion is hard delete or an archive marker plus later purge; spec first. Sibling of kbs-344f42ca.",
+        "to": "Ryan decided 2026-10-20 (via Chatticus): archive then purge. When a Chatticus bot is deleted, Chatticus archives its board; the board is purged after a retention period (30 days for Chatticus); an owner may ask for immediate removal (archive then purge). Routes, all for principals holding a provisioning grant on the board, all idempotent by X-Operation-Id and journaled (resumable): POST /{tenant}/{project}/api/board/archive (sets an archive marker in control state outside the canonical prefix, with archived_at and purge_after = archived_at + KANBUS_ARCHIVE_RETENTION_DAYS, a required deployment setting); POST /{tenant}/{project}/api/board/restore (clears the marker; 409 if not archived or already purged); DELETE /{tenant}/{project}/api/board (purge: only when archived, else 409 board_not_archived; removes canonical objects, events, receipts and catalog rows of that scope only, never other scopes). While archived: every issue and config route returns 404 not_found for non-provisioning principals (same body as an absent board, revealing nothing); provisioning principals may still GET config, issues and events; all writes return 409 board_archived. A scheduled sweeper (Lambda on a schedule, part of the deployable artifact kbs-4818904b) purges boards whose purge_after has passed, finding them through an archive index in control state, not by listing tenants. Spec first in services/kanbus-api/features."
+      }
+    }
+  }
+}

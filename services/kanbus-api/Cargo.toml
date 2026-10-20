@@ -11,7 +11,7 @@ aws = ["virtuus-store/aws", "dep:aws-config", "dep:aws-sdk-s3", "dep:aws-sdk-dyn
 
 [dependencies]
 kanbus = { path = "../../rust", default-features = false }
-virtuus-store = "=0.1.0"
+virtuus-store = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
 serde_yaml = "0.9"
@@ -29,6 +29,7 @@ aws-sdk-s3 = { version = "1", optional = true, default-features = false, feature
 aws-sdk-dynamodb = { version = "1", optional = true }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["sync"] }
 async-trait = "0.1"
 tempfile = "3"
 
@@ -39,4 +40,9 @@ path = "src/bin/local.rs"
 [[bin]]
 name = "kanbus-api-lambda"
 path = "src/bin/lambda.rs"
+required-features = ["aws"]
+
+[[bin]]
+name = "kanbus-api-sweeper"
+path = "src/bin/sweeper.rs"
 required-features = ["aws"]

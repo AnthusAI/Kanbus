@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   CheckCheck,
@@ -12,14 +12,27 @@ import {
   Layers
 } from "lucide-react";
 import { AppShell } from "./components/AppShell";
-import { Board, useBoardColumnState, TaskDetailPanel, AnimatedSelector, IssueTypeFilter, getConfiguredIssueTypes, issueTypeFromFilter, getStatusColumnsForTypeFilter, getStatusColumnsForIssueTypes, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
+import { Board, useBoardColumnState, AnimatedSelector, IssueTypeFilter, getConfiguredIssueTypes, issueTypeFromFilter, getStatusColumnsForTypeFilter, getStatusColumnsForIssueTypes, type BoardTypeFilter, type SelectorOption } from "@kanbus/ui";
 import { ErrorStatusDisplay } from "./components/ErrorStatusDisplay";
 import { FilterSidebar } from "./components/FilterSidebar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { SearchInput } from "./components/SearchInput";
-import { MetricsPanel } from "./components/MetricsPanel";
-import { CurrentStatusPanel } from "./components/CurrentStatusPanel";
-import { WikiPanel } from "./components/WikiPanel";
+import { reuseUnchangedIssues } from "./utils/reuse-unchanged-issues";
+import { useStructurallyStableValue } from "./hooks/useStructurallyStableValue";
+
+const TaskDetailPanel = lazy(() =>
+  import("@kanbus/ui/task-detail-panel").then((module) => ({ default: module.TaskDetailPanel }))
+);
+const MetricsPanel = lazy(() =>
+  import("./components/MetricsPanel").then((module) => ({ default: module.MetricsPanel }))
+);
+const CurrentStatusPanel = lazy(() =>
+  import("./components/CurrentStatusPanel").then((module) => ({ default: module.CurrentStatusPanel }))
+);
+const WikiPanel = lazy(() =>
+  import("./components/WikiPanel").then((module) => ({ default: module.WikiPanel }))
+);
+const BOARD_MOTION = { mode: "css" } as const;
 import {
   fetchAuthBootstrap,
   fetchSnapshot,
@@ -631,9 +644,11 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode | null>(() =>
     loadStoredViewMode()
   );
+  const visitedPanelModesRef = useRef(new Set<PanelMode>());
   const [panelMode, setPanelMode] = useState<PanelMode>(() =>
     loadStoredPanelMode()
   );
+  visitedPanelModesRef.current.add(panelMode);
   const [wikiDirty, setWikiDirty] = useState(false);
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Issue | null>(null);
@@ -679,20 +694,17 @@ export default function App() {
   const snapshotFallbackTimerRef = React.useRef<number | null>(null);
   const snapshotFallbackRequestRef = React.useRef<Promise<void> | null>(null);
   useAppearance();
-  const config = snapshot?.config;
+  const config = useStructurallyStableValue(snapshot?.config);
   const { collapsedColumns, setCollapsedColumns, toggleColumn } = useBoardColumnState({
     config, storageKey: config ? `kanbus.console.columns.v1.${config.project_key}` : undefined,
   });
+  const previousIssuesByIdRef = useRef<ReadonlyMap<string, Issue>>(new Map());
   const issues = useMemo(() => {
     const list = snapshot?.issues ?? [];
     if (!list.length) return [];
-    const map = new Map<string, Issue>();
-    list.forEach((issue) => {
-      if (issue?.id) {
-        map.set(issue.id, issue);
-      }
-    });
-    return Array.from(map.values());
+    const issuesById = reuseUnchangedIssues(previousIssuesByIdRef.current, list);
+    previousIssuesByIdRef.current = issuesById;
+    return Array.from(issuesById.values());
   }, [snapshot?.issues]);
   const deferredIssues = useDeferredValue(issues);
   const apiBase = route.basePath != null ? `${route.basePath}/api` : "";
@@ -1903,7 +1915,7 @@ export default function App() {
     return result;
   }, [config, issues, routeContext.parentIssue, route.parentId, focusedIssueId, searchQuery, effectiveEnabledProjects, projectLabels.length, showLocal, showShared]);
 
-  const handleSelectIssue = (issue: Issue) => {
+  const handleSelectIssue = useCallback((issue: Issue) => {
     if (route.basePath == null) {
       return;
     }
@@ -1918,7 +1930,7 @@ export default function App() {
       typeFilter: route.typeFilter
     });
     navigate(url, setRoute, navActionRef);
-  };
+  }, [route.basePath, route.parentId, route.typeFilter]);
 
   const motionMode = typeof document !== "undefined" ? document.documentElement.dataset.motion : "full";
   const toggleMotionClass =
@@ -2137,6 +2149,8 @@ export default function App() {
                 <div
                   className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
                 >
+                  {visitedPanelModesRef.current.has("now") ? (
+                  <Suspense fallback={null}>
                   <CurrentStatusPanel
                     issues={issues}
                     config={config}
@@ -2147,6 +2161,8 @@ export default function App() {
                     selectedIssueId={selectedTask?.id ?? null}
                     apiBase={apiBase}
                   />
+                  </Suspense>
+                  ) : null}
                 </div>
               </div>
               <div
@@ -2172,7 +2188,7 @@ export default function App() {
                   transitionKey={transitionKey}
                   detailOpen={isDetailOpen}
                   collapsedColumns={collapsedColumns}
-                  motion={{ mode: "css" }}
+                  motion={BOARD_MOTION}
                   onToggleCollapse={toggleColumn}
                 />
               ) : null}
@@ -2252,6 +2268,7 @@ export default function App() {
                     <span className="h-5 w-1 rounded-full bg-[var(--gray-5)]" />
                   </div>
                 ) : null}
+                <Suspense fallback={null}>
                 <TaskDetailPanel
                   task={selectedTask}
                   allIssues={issues}
@@ -2296,6 +2313,7 @@ export default function App() {
                     } : current);
                   }}
                 />
+                </Suspense>
               </div>
               <div
                 className={`view-panel ${
@@ -2305,7 +2323,8 @@ export default function App() {
                 aria-hidden={panelMode !== "wiki"}
               >
                 <div className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3">
-                  {apiBase ? (
+                  {apiBase && visitedPanelModesRef.current.has("wiki") ? (
+                    <Suspense fallback={null}>
                     <WikiPanel
                       apiBase={apiBase}
                       isActive={panelMode === "wiki"}
@@ -2313,6 +2332,7 @@ export default function App() {
                       initialRoutePath={route.wikiPath ?? ""}
                       onRouteChange={handleWikiRouteChange}
                     />
+                    </Suspense>
                   ) : null}
                 </div>
               </div>
@@ -2326,13 +2346,15 @@ export default function App() {
                 <div
                   className="layout-slot layout-slot-metrics p-0 min-[321px]:p-1 sm:p-2 md:p-3"
                 >
-                  {config ? (
+                  {config && visitedPanelModesRef.current.has("metrics") ? (
+                    <Suspense fallback={null}>
                     <MetricsPanel
                       issues={metricsIssues}
                       config={config}
                       hasLocalIssues={hasLocalIssues}
                       projectLabels={projectLabels}
                     />
+                    </Suspense>
                   ) : null}
                 </div>
               </div>

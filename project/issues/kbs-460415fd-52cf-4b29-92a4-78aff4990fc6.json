@@ -1,0 +1,28 @@
+{
+  "id": "kbs-460415fd-52cf-4b29-92a4-78aff4990fc6",
+  "title": "Supported data interface for @kanbus/ui embedders (issues and KanbanConfig without a fourth parser)",
+  "description": "Requested 2026-10-19 by the Chatticus session, which still carries its own issue-JSON parser and default board config in web/lib/kanbus-board.ts and wants to delete it. Today there is no published JS library that turns a project directory into IssueCollection issues or .kanbus.yml into KanbanConfig. The only JS loader is apps/console/server/index.ts (dev server, unpublished, already flagged by the engineering review kbs-29c41525 as a duplicate). The canonical implementations are Rust and Python. Decide one supported interface and document it in packages/ui/README.md: (a) the console HTTP API (kbsc /api/issues and /api/config, already IssueCollection/KanbanConfig shaped) with a typed client exported from @kanbus/ui, and/or (b) kbs CLI JSON output, and/or (c) a published JS package; adding (c) creates a fourth parser and must justify itself against the parity policy. Spec the chosen contract (payload shape matches the exported KanbusIssue/KanbanConfig types) so Chatticus, Papyrus and the console share it. Related: kbs-3307b32a (embedder support).",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2e1666d1-56d1-4597-a795-152b537d9a27",
+      "author": "home",
+      "text": "Hard requirement from Chatticus (product requirement from Ryan): the embedder must render a board from plain file contents with NO running Kanbus process, because Chatticus shows the saved workspace copy while the user's computer is off. So the HTTP API and kbs CLI cannot be the only path. Required: pure functions over file contents, e.g. parseIssues(files) returning issues shaped for IssueCollection and parseConfig(yamlText) returning KanbanConfig, usable in a browser client component and a Node route. Parity-preserving options to evaluate: (1) compile the Rust parser and config loader to WebAssembly and ship it with @kanbus/ui or a sibling package; (2) a TypeScript implementation held to the same Gherkin specs and fixtures through the parity tooling. A typed HTTP client remains useful for the Kanbus-hosted case as a second path.",
+      "created_at": "2026-10-20T02:26:23.222108Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-20T02:25:48.503729Z",
+  "updated_at": "2026-10-20T02:26:23.222121Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

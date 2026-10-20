@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "80ec9663-6727-4b90-8c74-af099d683110",
+  "issue_id": "kbs-460415fd-52cf-4b29-92a4-78aff4990fc6",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T02:25:48.570Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Supported data interface for @kanbus/ui embedders (issues and KanbanConfig without a fourth parser)",
+    "description": "Requested 2026-10-19 by the Chatticus session, which still carries its own issue-JSON parser and default board config in web/lib/kanbus-board.ts and wants to delete it. Today there is no published JS library that turns a project directory into IssueCollection issues or .kanbus.yml into KanbanConfig. The only JS loader is apps/console/server/index.ts (dev server, unpublished, already flagged by the engineering review kbs-29c41525 as a duplicate). The canonical implementations are Rust and Python. Decide one supported interface and document it in packages/ui/README.md: (a) the console HTTP API (kbsc /api/issues and /api/config, already IssueCollection/KanbanConfig shaped) with a typed client exported from @kanbus/ui, and/or (b) kbs CLI JSON output, and/or (c) a published JS package; adding (c) creates a fourth parser and must justify itself against the parity policy. Spec the chosen contract (payload shape matches the exported KanbusIssue/KanbanConfig types) so Chatticus, Papyrus and the console share it. Related: kbs-3307b32a (embedder support).",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+    "labels": []
+  }
+}

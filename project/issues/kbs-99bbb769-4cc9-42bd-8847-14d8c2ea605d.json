@@ -42,10 +42,22 @@
           "reasoning_effort": "medium"
         }
       }
+    },
+    {
+      "id": "5b64f4ed-dd28-4788-bbb4-dbfeac8d4eec",
+      "author": "home",
+      "text": "2026-10-20: the dynamic short ID implementation is on branch cursor/dynamic-short-ids-70c7, open as PR 388 ('Dynamic short issue IDs: CLI (Rust + Python) and web console formatter'), about 25 commits ahead of develop (rust/src/ids.rs, issue_lookup.rs, issue_display.rs, python equivalents, exit code 3 for ambiguous parents). Two local checkouts of that branch (the main Kanbus checkout and Kanbus-shortids) also hold 2 unpushed board-state commits (61d395cf, 6b7b4943). This issue's acceptance (consistent short id resolution, validate clean) overlaps PR 388; review it against that acceptance before closing.",
+      "created_at": "2026-10-20T13:17:27.843153Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Drift Fix"
+      }
     }
   ],
   "created_at": "2026-10-13T11:18:13.982774Z",
-  "updated_at": "2026-10-16T20:48:13.654724Z",
+  "updated_at": "2026-10-20T13:17:57.189491Z",
   "closed_at": null,
   "agent": {
     "platform": "claude_code",

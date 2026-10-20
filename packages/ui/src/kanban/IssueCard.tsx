@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { buildIssueColorStyle } from "./issue-colors";
 import { formatIssueId } from "./format-issue-id";
+import { useIssueIdPresentation } from "./issue-id-format";
 import { getTypeIcon } from "./issue-icons";
 import {
   getIssueMotionStyle,
@@ -57,7 +58,7 @@ function IssueCardExcerpt({ text }: IssueCardExcerptProps) {
   );
 }
 
-export function IssueCard({
+function IssueCardComponent({
   issue,
   priorityName,
   config,
@@ -84,6 +85,7 @@ export function IssueCard({
     }
   }, [issue.status, issue.id]);
 
+  const issueIdPresentation = useIssueIdPresentation()(issue, formatIssueId);
   const IssueTypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const motionStyle = getIssueMotionStyle(resolvedMotion, motionIndex);
@@ -117,7 +119,7 @@ export function IssueCard({
         <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
           <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
             <IssueTypeIcon className="issue-accent-icon" />
-            <span className="issue-accent-id">{formatIssueId(issue.id)}</span>
+            <span className="issue-accent-id" data-issue-id-format={issueIdPresentation.formatAttribute}>{issueIdPresentation.text}</span>
           </div>
           <div className="issue-accent-priority">{priorityName}</div>
         </div>
@@ -134,3 +136,40 @@ export function IssueCard({
     </div>
   );
 }
+
+function motionConfigurationsMatch(
+  previous: KanbanMotionConfig | undefined,
+  next: KanbanMotionConfig | undefined
+): boolean {
+  return previous?.mode === next?.mode
+    && previous?.frame === next?.frame
+    && previous?.fps === next?.fps
+    && previous?.staggerFrames === next?.staggerFrames
+    && previous?.durationFrames === next?.durationFrames;
+}
+
+function issuesRenderIdentically(previous: KanbanIssue, next: KanbanIssue): boolean {
+  return previous === next || (
+    previous.id === next.id
+    && previous.updated_at === next.updated_at
+    && previous.title === next.title
+    && previous.status === next.status
+    && previous.type === next.type
+    && previous.priority === next.priority
+    && previous.assignee === next.assignee
+    && previous.excerpt === next.excerpt
+  );
+}
+
+function issueCardPropsMatch(previous: IssueCardProps, next: IssueCardProps): boolean {
+  const motionIndexMatters = next.motion?.mode === "frame";
+  return issuesRenderIdentically(previous.issue, next.issue)
+    && previous.priorityName === next.priorityName
+    && previous.config === next.config
+    && previous.onSelect === next.onSelect
+    && previous.isSelected === next.isSelected
+    && motionConfigurationsMatch(previous.motion, next.motion)
+    && (!motionIndexMatters || previous.motionIndex === next.motionIndex);
+}
+
+export const IssueCard = React.memo(IssueCardComponent, issueCardPropsMatch);

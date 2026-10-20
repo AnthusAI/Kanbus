@@ -33,10 +33,22 @@
       "text": "Update 2026-10-19 16:51Z: PR #470 merged (wiki handlers unified, D2 rendering on spawn_blocking). The implementing thread was stopped here, so the telemetry, realtime, notification and per-tenant UI-state handler pairs are NOT done. Next concrete step: unify those four pairs the same way as #470 (wiki_response/resolve_store pattern in the console server, one handler per operation through store_api_routes, blocking work on spawn_blocking, tests for root routes in multi-tenant mode), in one or more PRs to develop, then close this task.",
       "created_at": "2026-10-19T16:52:05.869098Z",
       "comment_type": "default"
+    },
+    {
+      "id": "bb7dfefb-f576-4c88-b844-df66460a6ac4",
+      "author": "home",
+      "text": "2026-10-20 update: PR 473 ('Unify remaining paired console routes', merge 2134ed49, merged 2026-10-19T17:54Z) landed after the 16:51Z handoff comment, so the telemetry, realtime, notification and UI-state handler pairs that comment lists as not done were addressed there, on top of PR 470 (wiki handlers and D2 on spawn_blocking). PR 489 (type selector styling) is merged under child kbs-3614f8. PR 490 (per-tenant UI state and notification isolation, child kbs-b34ecc) is open as a draft. Still open per the description: frontend items (App.tsx split, devDependencies, dynamic imports, vitest and console cucumber in CI) and the console_lambda duplicates.",
+      "created_at": "2026-10-20T13:17:27.731515Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Drift Fix"
+      }
     }
   ],
   "created_at": "2026-10-17T16:37:46.455147316Z",
-  "updated_at": "2026-10-19T18:54:40.525386Z",
+  "updated_at": "2026-10-20T13:17:27.731537Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

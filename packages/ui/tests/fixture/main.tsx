@@ -26,7 +26,12 @@ declare global {
     renderTheme: (theme: Kanbus.KanbusThemeId, mode?: Kanbus.KanbusColorMode, tokens?: Record<`--kb-theme-${string}`, string>, selectedId?: string) => void;
     kanbusThemeIds: string[];
     kanbusThemeFonts: Record<string, string>;
+    renderHostIssueIds: (theme: Kanbus.KanbusThemeId, withHostFormatter: boolean) => void;
     renderOrganizer: (mode?: "light" | "dark", initialScroll?: "start" | "end" | "preserve") => void;
+    renderLargeColumn: (issueCount: number) => void;
+    replaceLargeColumnWithCopies: (retitledIdentifier: string, newTitle: string) => void;
+    resetCardRenderCounts: () => void;
+    cardRenderCounts: () => Record<string, number>;
   }
 }
 
@@ -60,6 +65,35 @@ let issues: HostIssue[] = [
 ];
 
 const root = createRoot(document.getElementById("root")!);
+let largeColumnIssues: HostIssue[] = [];
+let largeColumnSelectedIdentifier: string | null = null;
+const renderCountByIssueIdentifier = new Map<string, number>();
+const countingIssueIdFormatter: Kanbus.IssueIdFormatter = (issue) => {
+  renderCountByIssueIdentifier.set(issue.id, (renderCountByIssueIdentifier.get(issue.id) ?? 0) + 1);
+  return issue.id;
+};
+
+function selectLargeColumnIssue(issue: Kanbus.KanbanIssue) {
+  largeColumnSelectedIdentifier = issue.id;
+  renderLargeColumnBoard();
+}
+
+function renderLargeColumnBoard() {
+  root.render(
+    <div className="fixture-large-column" style={{ height: 700 }}>
+      <Kanbus.Board
+        columns={["open"]}
+        issues={largeColumnIssues}
+        priorityLookup={{ 1: "High", 2: "Normal" }}
+        config={configuration}
+        motion={{ mode: "static" }}
+        formatIssueId={countingIssueIdFormatter}
+        selectedIssueId={largeColumnSelectedIdentifier}
+        onSelectIssue={selectLargeColumnIssue}
+      />
+    </div>
+  );
+}
 let currentQuery: Kanbus.IssueQuery = {};
 let organizer = false;
 let organizerMode: "light" | "dark" = "light";
@@ -67,6 +101,26 @@ let organizerScroll: "start" | "end" | "preserve" = "start";
 let currentView: "board" | "list" = "board";
 
 Object.assign(window, {
+  renderLargeColumn(issueCount: number) {
+    largeColumnSelectedIdentifier = null;
+    largeColumnIssues = Array.from({ length: issueCount }, (_, index) => ({
+      id: `bulk-${index + 1}`,
+      title: `Bulk issue ${index + 1}`,
+      type: "task",
+      status: "open",
+      priority: 2,
+      created_at: new Date(Date.UTC(2026, 0, 1) + index * 60_000).toISOString()
+    }));
+    renderLargeColumnBoard();
+  },
+  replaceLargeColumnWithCopies(retitledIdentifier: string, newTitle: string) {
+    largeColumnIssues = largeColumnIssues.map((issue) =>
+      issue.id === retitledIdentifier ? { ...issue, title: newTitle } : { ...issue }
+    );
+    renderLargeColumnBoard();
+  },
+  resetCardRenderCounts() { renderCountByIssueIdentifier.clear(); },
+  cardRenderCounts() { return Object.fromEntries(renderCountByIssueIdentifier); },
   renderUnselectedTypeFilter() { root.render(<TypeFilterHost mode="light" initialValue={null} />); },
   renderBoardConsumer(kind: "console" | "embedded", key: string) {
     root.render(<BoardConsumer key={`${kind}-${key}`} kind={kind} storageKey={key} />);
@@ -115,6 +169,10 @@ Object.assign(window, {
   renderTheme(theme: Kanbus.KanbusThemeId, mode: Kanbus.KanbusColorMode = "light", tokens?: Record<`--kb-theme-${string}`, string>, selectedId?: string) {
     organizer = false;
     root.render(<ThemeHost theme={theme} mode={mode} tokens={tokens} selectedId={selectedId} />);
+  },
+  renderHostIssueIds(theme: Kanbus.KanbusThemeId, withHostFormatter: boolean) {
+    organizer = false;
+    root.render(<HostIssueIdsHost theme={theme} withHostFormatter={withHostFormatter} />);
   },
   kanbusThemeIds: Kanbus.KANBUS_THEMES.map((entry) => entry.id),
   kanbusThemeFonts: Kanbus.KANBUS_THEME_FONTS,
@@ -170,4 +228,36 @@ function OrganizerHost({ mode, initialScroll }: { mode: "light" | "dark"; initia
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)}
       fields={[{label:"Editorial score",value:String(selected.custom?.score)}]} />}
   </div>;
+}
+
+const hostIssueIdFormatter: Kanbus.IssueIdFormatter = (issue) => `articles/Agent-Software-Factory-${issue.id}`;
+
+const hostDetailTask: Kanbus.TaskDetailIssue = {
+  id: "article-1", title: "First article", type: "article", status: "draft", priority: 1
+};
+
+const hostDetailDescendant: Kanbus.TaskDetailIssue = {
+  id: "article-2", title: "Second article", type: "article", status: "review", priority: 2, parent: "article-1"
+};
+
+function HostIssueIdsHost({ theme, withHostFormatter }: { theme: Kanbus.KanbusThemeId; withHostFormatter: boolean }) {
+  const formatter = withHostFormatter ? hostIssueIdFormatter : undefined;
+  const statusTreeIssues = issues.filter((issue) => issue.type === "article").map((issue) => ({
+    id: issue.id, title: issue.title, type: issue.type, status: issue.status, priority: issue.priority
+  }));
+  return <Kanbus.KanbusThemeScope theme={theme} mode="light">
+    <Kanbus.IssueCollection issues={issues} config={configuration} query={{ type: "article" }}
+      initialScroll="start" motion={{ mode: "static" }} formatIssueId={formatter}
+      columnStateKey="fixture.hostids.columns.v1" />
+    <Kanbus.IssueIdFormatProvider formatIssueId={formatter}>
+      <Kanbus.StatusTree issues={statusTreeIssues} config={configuration} defaultExpanded />
+    </Kanbus.IssueIdFormatProvider>
+    <Kanbus.IssueDetailPanel issue={issues[0]} onClose={() => undefined} formatIssueId={formatter} />
+    <Kanbus.TaskDetailPanel task={hostDetailTask} allIssues={[hostDetailTask, hostDetailDescendant]}
+      columns={["draft", "review", "published"]} priorityLookup={{ 1: "High", 2: "Normal" }}
+      apiBase="/fixture-api" isOpen isVisible navDirection="none" widthPercent={50} layout="auto"
+      onClose={() => undefined} onToggleMaximize={() => undefined} isMaximized={false}
+      onAfterClose={() => undefined} onFocus={() => undefined} focusedIssueId={null}
+      formatIssueId={formatter} />
+  </Kanbus.KanbusThemeScope>;
 }

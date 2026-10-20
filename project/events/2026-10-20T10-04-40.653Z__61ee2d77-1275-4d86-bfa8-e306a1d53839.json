@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "61ee2d77-1275-4d86-bfa8-e306a1d53839",
+  "issue_id": "kbs-791a7373-d2aa-4553-95e3-098f36048c7e",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T10:04:40.653Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Delete a whole board through kanbus-api",
+    "description": "Chatticus requirement: when a bot is deleted, its board (scope <tenant>/<project>) must be removable. DELETE /{tenant}/{project}/api/board for principals with a provisioning grant: idempotent by X-Operation-Id, removes canonical objects, events, receipts and catalog rows for that scope only (never other scopes), resumable if interrupted (journaled intent), and returns 404 thereafter for every board route. Decide with Ryan whether deletion is hard delete or an archive marker plus later purge; spec first. Sibling of kbs-344f42ca.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+    "labels": []
+  }
+}

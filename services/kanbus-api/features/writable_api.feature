@@ -3,11 +3,11 @@ Feature: Authenticated applications share the Kanbus issue model
   I want to read and change configured Kanbus issues
   So that domain-specific applications share workflows and portable storage
 
-  Scenario: Multiple gateway groups preserve exact project membership
-    Given verified gateway claims with an administrator group and the required project group
-    When the gateway represents the groups as an array, JSON string, comma list or space-separated bracketed list
-    Then the authenticated actor retains project access
-    And an administrator group alone or a similar project-group name does not grant access
+  Scenario: Gateway group claims become exact board grants
+    Given verified gateway claims with unrelated groups and kanbus board groups
+    When the gateway represents the groups as an array, bracketed space-separated string or plain string
+    Then only well-formed kanbus tenant and project groups grant boards
+    And a tenant wildcard group grants every board of that tenant only
 
   Scenario: A configured vertical creates and advances an issue
     Given an isolated project with the prospect issue type
@@ -37,7 +37,7 @@ Feature: Authenticated applications share the Kanbus issue model
 
   Scenario: Cloud identity requires verified gateway authorization
     Given a cloud request containing an arbitrary bearer token
-    When verified gateway claims are absent or the required group is missing
+    When verified gateway claims are absent or contain no kanbus group
     Then the API returns no issue data and performs no writes
 
   Scenario: Private local development requires an explicit secret
@@ -50,12 +50,6 @@ Feature: Authenticated applications share the Kanbus issue model
     When the member adds a comment using the current revision
     Then the comment records the authenticated actor
     And the normal event history contains the comment event
-
-  Scenario: Selected authorized projects form one board query
-    Given a member may access two projects in one tenant
-    When the member selects both projects and several issue types
-    Then the API queries each selected project and merges matches deterministically
-    And a project outside the trusted allowlist is rejected before storage access
 
   Scenario: A retried create does not duplicate an issue
     Given a create operation has a durable receipt
@@ -97,12 +91,75 @@ Feature: Authenticated applications share the Kanbus issue model
     And repeating the identical deletion returns the durable result
     And stale deletion or deletion of a referenced issue is rejected
 
-  Scenario: Relationship mutations fail closed without related-record concurrency
+  Scenario: Imported relationships survive status and comment updates
     Given imported issues may already contain hierarchy and dependency links
-    When a member creates or changes a parent link or dependency link
-    Or changes a hierarchical issue type or deletes a hierarchical issue
-    Then the API rejects the unsupported relationship mutation without publication
-    But status and comment updates preserving imported relationships remain allowed
+    When a member changes status, adds a comment or changes an issue type to or from a hierarchy type
+    Then status and comment updates preserve the imported relationships
+    And the hierarchy type change is rejected with type_change_unsupported without publication
+
+  Scenario: A task is created under an epic
+    Given an epic exists
+    When a member creates a task with the epic as parent
+    Then the task is committed with that parent
+    And deleting the epic is rejected with issue_has_children
+
+  Scenario: A missing parent or a forbidden hierarchy is rejected
+    Given a board with the default hierarchy
+    When a member creates a task under a missing parent
+    Or creates an epic under a task
+    Then the API returns relation_target_missing or hierarchy_violation without publication
+
+  Scenario: A task is reparented between epics
+    Given a task under epic A and an epic B
+    When a member changes the task parent to B
+    Then deleting A succeeds and deleting B is rejected with issue_has_children
+
+  Scenario: Dependencies are added and removed
+    Given two issues
+    When a member adds a blocked-by dependency from one to the other
+    Then deleting the target is rejected with issue_has_dependents
+    And after the dependency is removed the target can be deleted
+    And a missing target, a self dependency or an unknown dependency type is rejected
+
+  Scenario: Hierarchical issues without children can be deleted
+    Given a task with no children
+    When a member deletes it
+    Then the task is deleted
+
+  Scenario: Stale relation entries are pruned only after the lease
+    Given an epic whose relations record lists a task that no longer points at it
+    When a member deletes the epic inside the lease
+    Then the delete is rejected with issue_has_children
+    And after the lease expires the delete succeeds
+
+  Scenario: Replayed relation writes are idempotent
+    Given a create with a parent and a reparent each carry an operation ID
+    When each request is repeated with the same operation ID
+    Then the original response is returned and relations are unchanged
+
+  Scenario: An attach racing the deletion of its parent never leaves an orphan
+    Given a task create is held after recording its reference and before its commit
+    When the parent is deleted meanwhile
+    Then the delete is rejected with issue_has_children and the task commits
+    And no live issue has a missing parent or dependency target
+
+  Scenario: A deletion racing an attach rejects the attach
+    Given a delete is held after flagging the parent
+    When a task is created under that parent meanwhile
+    Then the create is rejected with relation_target_missing
+    And no live issue has a missing parent or dependency target
+
+  Scenario: Two reparents of one child leave exactly one parent
+    Given two members reparent the same child from the same revision
+    When one is held between recording its reference and committing
+    Then one succeeds and the other conflicts
+    And the abandoned reference blocks deletion only until the lease expires
+
+  Scenario: A crashed attach or a crashed delete heals after the lease
+    Given an attach or a delete stopped partway
+    When a delete or an attach touches the same issue inside the lease
+    Then it is rejected
+    And after the lease expires it succeeds
 
   Scenario: Native quoted object revisions support cloud writes
     Given the canonical backend returns a quoted opaque revision
@@ -141,3 +198,200 @@ Feature: Authenticated applications share the Kanbus issue model
     Then the API returns response_bytes instead of an oversized response
     And validation diagnostics are bounded without publishing invalid input
     And quote-heavy accepted responses remain below the gateway envelope limit
+
+  Scenario: One deployment serves several tenants and boards
+    Given two tenants with three boards in one deployment
+    When a member granted one board reads and writes that board
+    Then the board's issues are created and returned
+    And a different board of the same tenant and any board of another tenant return an identical forbidden response
+
+  Scenario: A tenant wildcard grants every board of that tenant
+    Given a member granted every board of one tenant
+    When the member reads boards of that tenant and of another tenant
+    Then the tenant's boards are readable and the other tenant is forbidden
+
+  Scenario: A cross-board list requires every named board to be granted
+    Given a member granted two boards of a tenant
+    When the member lists both boards together and then with an ungranted board
+    Then the granted boards merge deterministically
+    And the list with an ungranted board returns the same forbidden response as a missing board
+
+  Scenario: Invalid board names are rejected before storage access
+    Given a member granted every board of a tenant
+    When a request names a tenant or project that violates the scope rules
+    Then the API returns an invalid request error
+
+  Scenario: A new board is usable without restarting the service
+    Given a running service and a board that does not yet exist in storage
+    When the board's configuration is published
+    Then the next request to that board succeeds
+
+  Scenario: Operation receipts are scoped per board
+    Given the same operation identifier is used on two boards
+    When each board creates an issue and one request is repeated
+    Then each board holds one issue and the repeat returns that board's original issue
+
+  Scenario: Direct invocation routes from the raw path only
+    Given a hand-built HTTP API event with only a raw path and string group claim
+    When the event is authenticated and handled
+    Then the board in the raw path is served
+
+  Scenario: Board storage keys are unchanged and requests touch only their board
+    Given an existing board and two unrelated boards
+    When the member creates an issue
+    Then the board's keys follow the tenant and project prefix
+    And the unrelated boards' keys are unchanged
+
+  Scenario: A mapped service role with all tenants reads and writes boards in two tenants
+    Given a service role mapped with tenants "*" and an IAM authorizer event for its assumed role
+    When the service creates and reads issues on boards in two tenants
+    Then both requests succeed and the creator is the role ARN
+
+  Scenario: A service role limited to a tenant list is denied other tenants
+    Given a service role mapped to one tenant
+    When it addresses a board of another tenant, an unknown board or a missing tenant
+    Then every denial is the identical 403
+
+  Scenario: An unknown role is forbidden
+    Given an IAM authorizer event for a role that is not mapped
+    When the event is authenticated
+    Then the response is 403
+
+  Scenario: Assumed-role session names never affect matching
+    Given a mapped role
+    When its assumed-role ARN is presented with different session names
+    Then each matches the role, and lookalike roles, other accounts and uppercase variants do not
+
+  Scenario: A delegating service records the acting user or bot
+    Given a service role mapped with delegate_actor
+    When it writes with X-Kanbus-Actor naming a user, a bot or a system task
+    Then the creator, the comment author and the event actor_id equal the header verbatim
+
+  Scenario: A delegating service must send a well-formed actor header
+    Given a service role mapped with delegate_actor
+    When the header is missing or malformed
+    Then the response is 400 invalid_request
+
+  Scenario: Only delegating services may send an actor header
+    Given a user and a service role without delegate_actor
+    When either sends X-Kanbus-Actor
+    Then the response is 403
+
+  Scenario: Roles are mapped independently
+    Given two mapped roles that differ only in provision and delegate_actor
+    When each request is authenticated
+    Then each principal has exactly its own role's capabilities
+
+  Scenario: The authorizer context selects the authenticator
+    Given events with both, neither, or only one of the JWT and IAM authorizer contexts
+    When they are authenticated
+    Then both and neither are 401 and each single context uses its own path
+
+  Scenario: Service principal configuration is validated at startup
+    Given malformed JSON, invalid entries, a missing tenants field or a repeated role
+    When the configuration is parsed
+    Then each is rejected with a clear message and an empty setting means no service callers
+
+  Scenario: A provisioning service creates a board with the default configuration
+    Given a provisioning service principal and a board that does not exist
+    When the service provisions the board with an empty body and an operation ID
+    Then the response is 201 with the board configuration using the default project key
+    And an issue can be created and read on the new board immediately
+
+  Scenario: A provisioning service creates a board with a custom configuration
+    Given a provisioning service principal and a board that does not exist
+    When the service provisions the board with configuration text
+    Then the board configuration reflects the supplied text
+
+  Scenario: An invalid configuration is rejected
+    Given a provisioning service principal and a board that does not exist
+    When the service provisions the board with configuration that fails validation
+    Then the API returns 422 invalid_configuration with the validation messages
+    And the board still does not exist
+
+  Scenario: A board cannot be provisioned twice
+    Given a provisioning service has provisioned a board
+    When the service provisions the same board with a new operation ID
+    Then the API returns 409 board_exists
+    And repeating the original operation ID returns the original result
+    And reusing the original operation ID with a different body returns an operation conflict
+
+  Scenario: Only provisioning services may provision
+    Given a user principal and a non-provisioning service principal with grants to the board
+    When either provisions the board
+    Then both are refused with 403 forbidden and the board does not exist
+
+  Scenario: A provisioning service is limited to its granted tenants
+    Given a provisioning service principal limited to tenant t1
+    When it provisions a board in tenant t2
+    Then the API returns the same 403 forbidden as for an ungranted board
+
+  Scenario: An archived board is hidden from members and read-only for provisioning services
+    Given a provisioned board with an issue and a provisioning service
+    When the service archives the board
+    Then members and non-provisioning services get 404 not_found on every board route
+    And the provisioning service can still read the configuration, issues and events
+    And every write returns 409 board_archived, including provisioning
+
+  Scenario: Restoring an archived board returns it to normal
+    Given an archived board
+    When the service restores it
+    Then members can read and write the board again and it is no longer indexed for purging
+
+  Scenario: A board cannot be purged or restored before it is archived
+    Given a provisioned board that is not archived
+    When the service purges or restores it
+    Then the API returns 409 board_not_archived and nothing is removed
+
+  Scenario: Archiving twice is rejected
+    Given an archived board
+    When the service archives it again with a new operation ID
+    Then the API returns 409 board_archived
+
+  Scenario: Purging an archived board removes it and leaves other boards untouched
+    Given an archived board and another board with issues
+    When the service purges the archived board
+    Then every canonical object, catalog row and control object of that board is gone except the purge receipt
+    And the keys of the other board and its catalog rows are identical to before
+    And every route of the purged board returns 404 not_found
+
+  Scenario: A purged board can be provisioned again from scratch
+    Given a purged board
+    When the service provisions it again
+    Then the board is empty and a new issue can be created
+
+  Scenario: An interrupted purge resumes with the same operation ID
+    Given a purge that failed part way through
+    When the service repeats the purge with the same operation ID
+    Then the purge completes and the other board is untouched
+
+  Scenario: Archive, restore and purge are idempotent
+    Given completed archive, restore and purge operations
+    When each is repeated with its operation ID
+    Then the original result is returned and a different request under that ID is an operation conflict
+
+  Scenario: Only provisioning services may change a board's lifecycle
+    Given a user and a non-provisioning service with grants to a board
+    When either archives, restores or purges it
+    Then both are refused with 403 forbidden
+
+  Scenario: Tenant names beginning with an underscore are reserved
+    Given any principal
+    When it addresses a tenant whose name begins with an underscore
+    Then the API returns 400 invalid_request before any storage access
+
+  Scenario: The sweeper purges only expired archives
+    Given one board archived 31 days ago, one archived 5 days ago and one never archived
+    When the sweeper runs with the current time
+    Then only the expired board is purged and its index entry is removed
+    And running the sweeper again changes nothing
+
+  Scenario: The sweeper is bounded and removes stale index entries
+    Given more expired archives than one run handles and an index entry whose board was restored
+    When the sweeper runs
+    Then at most the per-run limit is purged and the stale entry is removed without purging
+
+  Scenario: The archive retention setting is required
+    Given KANBUS_ARCHIVE_RETENTION_DAYS is missing, zero or not an integer
+    When the process starts
+    Then startup fails with a clear message

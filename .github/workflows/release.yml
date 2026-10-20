@@ -6,6 +6,8 @@ on:
       - "kanbus-py-*"
       - "kanbus-rust-*"
       - "ui-v*"
+      - "api-client-v*"
+      - "kanbus-cdk-v*"
   workflow_dispatch:
     inputs:
       pypi_only:
@@ -48,6 +50,85 @@ jobs:
           artifact="$RUNNER_TEMP/kanbus-ui-${version}.tgz"
           sha256sum "$artifact"
           gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/ui ${version}" --notes "Shared Kanbus board, configured type filter, organizer theme, four editorial board themes and accessible detail components. Built and behavior-tested from this tag. Consumers own data, authentication and routing." --latest=false
+
+  api-client-package:
+    name: API client package
+    if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'api-client-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: Verify tag and client behavior
+        working-directory: packages/api-client
+        run: |
+          test "api-client-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+          npm ci
+          npm test
+          npm pack --pack-destination "$RUNNER_TEMP"
+      - name: Publish immutable API client artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#api-client-v}"
+          artifact="$RUNNER_TEMP/kanbus-api-client-${version}.tgz"
+          sha256sum "$artifact"
+          gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/api-client ${version}" --notes "Typed TypeScript client for the Kanbus writable application API. Built and tested from this tag. Consumers own authentication and signing." --latest=false
+
+  cdk-package:
+    name: CDK construct package
+    if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'kanbus-cdk-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: Read pinned Rust toolchain
+        id: rust_toolchain
+        run: echo "channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' services/kanbus-api/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-rust
+        with:
+          toolchain: ${{ steps.rust_toolchain.outputs.channel }}
+          targets: x86_64-unknown-linux-musl
+      - name: Install musl toolchain and zip
+        run: sudo apt-get update && sudo apt-get install -y musl-tools zip
+      - name: Verify tag matches package version
+        working-directory: packages/cdk
+        run: test "kanbus-cdk-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - name: Build the x86_64 Lambda packages
+        working-directory: services/kanbus-api
+        run: |
+          cargo build --locked --release --target x86_64-unknown-linux-musl --bin kanbus-api-lambda --bin kanbus-api-sweeper --features aws
+          for binary in kanbus-api-lambda kanbus-api-sweeper; do
+            mkdir -p "$RUNNER_TEMP/$binary"
+            cp "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/release/$binary" "$RUNNER_TEMP/$binary/bootstrap"
+            chmod 755 "$RUNNER_TEMP/$binary/bootstrap"
+            (cd "$RUNNER_TEMP/$binary" && zip -X "$binary.zip" bootstrap)
+          done
+      - name: Test the construct without the bundled package
+        working-directory: packages/cdk
+        run: |
+          npm ci
+          npm test
+      - name: Bundle the Lambda packages and pack the construct
+        working-directory: packages/cdk
+        run: |
+          mkdir -p assets
+          cp "$RUNNER_TEMP/kanbus-api-lambda/kanbus-api-lambda.zip" assets/kanbus-api-lambda.zip
+          cp "$RUNNER_TEMP/kanbus-api-sweeper/kanbus-api-sweeper.zip" assets/kanbus-api-sweeper.zip
+          npm pack --pack-destination "$RUNNER_TEMP"
+      - name: Publish immutable CDK artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#kanbus-cdk-v}"
+          artifact="$RUNNER_TEMP/kanbus-cdk-${version}.tgz"
+          tar -tzf "$artifact" | grep -q "package/assets/kanbus-api-lambda.zip"
+          tar -tzf "$artifact" | grep -q "package/assets/kanbus-api-sweeper.zip"
+          sha256sum "$artifact" packages/cdk/assets/kanbus-api-lambda.zip packages/cdk/assets/kanbus-api-sweeper.zip
+          gh release create "$GITHUB_REF_NAME" "$artifact" packages/cdk/assets/kanbus-api-lambda.zip packages/cdk/assets/kanbus-api-sweeper.zip --title "@kanbus/cdk ${version}" --notes "CDK construct that deploys the Kanbus API service. The tarball bundles the x86_64 API and sweeper Lambda packages built from this tag, so construct and service versions match." --latest=false
 
   pypi-release:
     name: PyPI Release
@@ -179,7 +260,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
           targets: ${{ matrix.target }}
@@ -272,7 +353,7 @@ jobs:
           npm run build
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
           targets: ${{ matrix.target }}
@@ -433,9 +514,10 @@ jobs:
           (cd rust && cargo package --locked --allow-dirty --list) | grep -Eq '^testdata/mock_board_screenshot.png$'
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
+          components: rustfmt, clippy
 
       - name: Cache cargo directories
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4

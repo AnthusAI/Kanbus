@@ -118,6 +118,49 @@ Then("column {string} is expanded", async function (name) {
   await expect(button.locator("..").locator(".kb-column-scroll")).toBeVisible();
 });
 
+When("the host renders a column of {int} issues", async function (count) {
+  await this.page.setViewportSize({ width: 1200, height: 900 });
+  await this.page.emulateMedia({ reducedMotion: "reduce" });
+  await this.page.evaluate((value) => window.renderLargeColumn(value), count);
+  await expect(this.page.locator(".issue-card").first()).toBeVisible();
+});
+Then("the column header shows the count {int}", async function (count) {
+  await expect(this.page.locator(".kb-column-header span").last()).toHaveText(String(count));
+});
+Then("at most {int} issue cards are rendered", async function (limit) {
+  expect(await this.page.locator(".issue-card").count()).toBeLessThanOrEqual(limit);
+});
+When("I scroll the column to its end", async function () {
+  const scroller = this.page.locator(".kb-column-scroll");
+  await expect.poll(async () => {
+    await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    return this.page.locator('[data-issue-id="bulk-500"]').count();
+  }).toBe(1);
+});
+Then("the issue card {string} is displayed", async function (identifier) {
+  await expect(this.page.locator(`.issue-card[data-issue-id="${identifier}"]`)).toBeVisible();
+});
+When("I select the issue card {string} with the keyboard", async function (identifier) {
+  const card = this.page.locator(`.issue-card[data-issue-id="${identifier}"]`);
+  await card.focus();
+  await card.press("Enter");
+});
+When("the host replaces every issue with a copy and retitles issue {string} as {string}", async function (identifier, title) {
+  await this.page.evaluate(() => window.resetCardRenderCounts());
+  await this.page.evaluate(({ identifier, title }) => window.replaceLargeColumnWithCopies(identifier, title), { identifier, title });
+  await expect(this.page.locator(`.issue-card[data-issue-id="${identifier}"] h3`)).toHaveText(title);
+});
+Then("the issue card {string} is rendered again with the title {string}", async function (identifier, title) {
+  const counts = await this.page.evaluate(() => window.cardRenderCounts());
+  expect(counts[identifier]).toBeGreaterThanOrEqual(1);
+  await expect(this.page.locator(`.issue-card[data-issue-id="${identifier}"] h3`)).toHaveText(title);
+});
+Then("no other issue card is rendered again", async function () {
+  const counts = await this.page.evaluate(() => window.cardRenderCounts());
+  const others = Object.keys(counts).filter((identifier) => identifier !== "bulk-2");
+  expect(others).toEqual([]);
+});
+
 setDefaultTimeout(15000);
 
 BeforeAll(async () => {
@@ -473,5 +516,55 @@ Then("the package lists four themes with font families for each", async function
   for (const id of result.ids) {
     expect(result.fonts[id].length).toBeGreaterThanOrEqual(2);
     for (const font of result.fonts[id]) expect(font.package).toMatch(/^@fontsource(-variable)?\//);
+  }
+});
+
+When("the host renders the {string} board with issue ids {string} a host formatter", async function (theme, presence) {
+  await this.page.setViewportSize({ width: 1400, height: 1000 });
+  await this.page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await this.page.evaluate(({ theme, withHostFormatter }) => window.renderHostIssueIds(theme, withHostFormatter), { theme, withHostFormatter: presence === "with" });
+  await expect(this.page.locator(".issue-card").first()).toBeVisible();
+  if (process.env.KANBUS_UI_SCREENSHOT_DIRECTORY) {
+    await this.page.screenshot({ path: `${process.env.KANBUS_UI_SCREENSHOT_DIRECTORY}/${theme}-${presence}-host-formatter.png`, fullPage: true });
+  }
+});
+
+const issueIdSurfaces = {
+  card: ".kb-grid .issue-card .issue-accent-id",
+  "status tree": "[data-testid='status-tree-id']",
+  "detail panel": ".kb-detail-id",
+  "task detail heading": ".detail-column .issue-accent-id"
+};
+
+Then("the {string} ids read {string}", async function (surface, expected) {
+  await expect(this.page.locator(issueIdSurfaces[surface])).toHaveText(expected.split(", "));
+});
+
+Then("the {string} ids carry the host format marker", async function (surface) {
+  const markers = await this.page.locator(issueIdSurfaces[surface]).evaluateAll((elements) => elements.map((element) => element.dataset.issueIdFormat));
+  expect(markers.length).toBeGreaterThan(0);
+  expect(markers.every((marker) => marker === "host")).toBe(true);
+});
+
+Then("the {string} ids carry no host format marker", async function (surface) {
+  const markers = await this.page.locator(issueIdSurfaces[surface]).evaluateAll((elements) => elements.map((element) => element.dataset.issueIdFormat));
+  expect(markers.length).toBeGreaterThan(0);
+  expect(markers.every((marker) => marker === undefined)).toBe(true);
+});
+
+Then("the descendant link is labelled {string}", async function (label) {
+  await expect(this.page.getByRole("button", { name: label })).toBeVisible();
+});
+
+Then("the host formatted card ids are not uppercase, are monospaced and are not truncated", async function () {
+  const styles = await this.page.locator(issueIdSurfaces.card).evaluateAll((elements) => elements.map((element) => {
+    const style = getComputedStyle(element);
+    return { transform: style.textTransform, family: style.fontFamily, size: style.fontSize, clipped: element.scrollWidth > element.clientWidth };
+  }));
+  expect(styles.length).toBeGreaterThan(0);
+  for (const style of styles) {
+    expect(style.transform).toBe("none");
+    expect(style.family).toMatch(/Mono/);
+    expect(style.size).toBe("10px");
   }
 });
