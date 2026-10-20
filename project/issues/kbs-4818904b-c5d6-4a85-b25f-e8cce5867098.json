@@ -10,9 +10,17 @@
   "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "da73163e-4332-42ec-808a-b563908714c0",
+      "author": "home",
+      "text": "Chatticus (2026-10-20): the CDK construct should take the service principals as typed props (IAM role references from other stacks, each with tenants, provision and delegate_actor) and render KANBUS_SERVICE_PRINCIPALS itself, rather than a hand-written JSON string. One deployment, bucket, table and principals list per environment; all Chatticus environments share one AWS account, so names must be environment-qualified. Include the second (AWS_IAM) HTTP API, restrict lambda:InvokeFunction to the two APIs, and include the archive sweeper schedule (kbs-791a7373).",
+      "created_at": "2026-10-20T10:48:56.196633Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T03:45:07.489601Z",
-  "updated_at": "2026-10-20T03:45:07.863504Z",
+  "updated_at": "2026-10-20T10:48:56.196651Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

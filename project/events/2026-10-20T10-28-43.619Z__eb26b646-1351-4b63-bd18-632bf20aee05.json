@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "eb26b646-1351-4b63-bd18-632bf20aee05",
+  "issue_id": "kbs-6cd2b162-f52c-4903-919e-743993488f2b",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T10:28:43.619Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Flaky Rust test: ai_credentials resolve_api_key_source races with tests that load env files into the process",
+    "description": "CI rust job on PR #501 (run 39405341840, 2026-10-20): ai_credentials::tests::resolve_api_key_source_covers_all_outcomes failed at rust/src/ai_credentials.rs:486 (left ProcessEnv, right ProjectFile). The test is #[serial] and sets HOME to a temp dir containing .kanbus.env with KANBUS_TEST_RESOLVE_VAR; a non-serial test running in parallel appears to load that HOME env file into the process environment (or set the variable) during the window, so the process env check wins. Passed on other runs, so it is a race. Fix: find every test that reads HOME env files or calls std::env::set_var/remove_var and put them under the same serial key (or make credential loading never mutate the process environment, which is better if production code does it). Acceptance: the test passes 50 consecutive runs of cargo test --lib ai_credentials with full parallelism.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+    "labels": []
+  }
+}

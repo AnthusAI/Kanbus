@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "af3ce565-c452-4ff7-94f0-79954035d2af",
+  "issue_id": "kbs-344f42ca-6798-44ef-9fa2-e7deee6f34d5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T10:03:00.621Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Provision a new board's .kanbus.yml through kanbus-api",
+    "description": "Follow-up to kbs-9cb5cb40. A new Chatticus bot board needs its .kanbus.yml in scope <tenant>/<project> before issue routes work (otherwise 503 configuration_missing). Add PUT /{tenant}/{project}/api/config that creates the configuration only if absent (WriteCondition::Absent, idempotent by X-Operation-Id), validates it with the Kanbus configuration loader, and is allowed only for principals holding a provisioning grant (designed together with service principals, kbs-f222b6ee). Spec first.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+    "labels": []
+  }
+}
