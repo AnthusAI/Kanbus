@@ -3,7 +3,7 @@
   "title": "Emit integer expiry timestamps from production Google login challenges",
   "description": "Given the production fractional Unix-second clock and an authorized Google challenge, when the central service returns issuedAt and expiresAt, then both public timestamps are integers separated by 300 seconds and the strict console login parser accepts them. Given cryptographic token freshness is checked, when the clock contains a fraction, then existing subsecond security comparisons remain unchanged. Owner fix330713f is integrated as a2d99ba; TypeScript and86 regressions pass; required CI and normal deployment remain gates.",
   "type": "bug",
-  "status": "blocked",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -46,11 +46,18 @@
       "text": "WIP triage 2026-10-17 (Ryan chose to park): blocked on acceptance only. The fix is merged and deployed (Prospectus main 3c90214). Remaining: the console owner signs in with Google in the console and confirms the strict login parser accepts the integer issuedAt/expiresAt. Close after that.",
       "created_at": "2026-10-17T06:31:06.738796301Z",
       "comment_type": "default"
+    },
+    {
+      "id": "ede1b7c4-eaef-4257-8f78-ab2902869b62",
+      "author": "home",
+      "text": "Accepted 2026-10-20: Ryan signed in to the console with Google and confirmed the login works with the integer issuedAt/expiresAt fix (Prospectus main 3c90214). Closing.",
+      "created_at": "2026-10-20T13:46:49.043130Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-16T07:07:32.920614Z",
-  "updated_at": "2026-10-17T06:31:07.100975025Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T13:46:49.247739Z",
+  "closed_at": "2026-10-20T13:46:49.146770Z",
   "agent": {
     "platform": "codex",
     "model": "gpt-6.1-sol",
