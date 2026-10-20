@@ -1,0 +1,20 @@
+{
+  "id": "kbs-0d8b1bab-bb2b-4694-8185-d99ed5a09c85",
+  "title": "Missing project_id warning prints on every kbs command",
+  "description": "Reported by the Biblicus session on 0.40.0 (Biblicus and Papyrus): every kbs command prints 'realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id' on stderr, often twice per command sequence, because the user-level ~/.kanbus.env enables the realtime broker for every repository. It is noise for repositories that never use realtime and does not explain what realtime is or whether migrating is safe. Fix (both runtimes, identical): ordinary CLI commands that would only publish skip realtime silently when project_id is absent; the message appears only where realtime is the point: kbs doctor (as a warning with an explanation), kbsc startup (logged once), and realtime commands such as gossip watch (as an error). Improve the text: what realtime does, that migrate project-id appends one line to .kanbus.yml, that it must be committed once per repository on its integration branch (not per worktree), and that every machine using the repository needs kbs 0.40.0 or later first. Spec it; update docs/REALTIME.md.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T23:01:31.507770Z",
+  "updated_at": "2026-10-20T23:01:31.565573Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
