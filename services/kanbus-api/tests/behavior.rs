@@ -21,9 +21,9 @@ fn setup() -> (TempDir, Api) {
     )
     .unwrap();
     let scope = Scope::new("tenant", "project").unwrap();
-    let objects = FileStore::for_project(directory.path(), scope).unwrap();
-    let store = JournaledStore::new(Arc::new(objects), Arc::new(MemoryCatalog::default()));
-    (directory, Api::new(store).unwrap())
+    let objects = Arc::new(FileStore::for_project(directory.path(), scope).unwrap());
+    let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
+    (directory, Api::new(store, objects).unwrap())
 }
 
 fn principal_for(tenant: &str, project: &str) -> Principal {
@@ -838,7 +838,12 @@ fn inspected_setup() -> (TempDir, Api, JournaledStore, Arc<support::InspectStore
         FileStore::for_project(directory.path(), Scope::new("tenant", "project").unwrap()).unwrap(),
     );
     let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
-    (directory, Api::new(store.clone()).unwrap(), store, objects)
+    (
+        directory,
+        Api::new(store.clone(), objects.clone()).unwrap(),
+        store,
+        objects,
+    )
 }
 
 #[tokio::test]
@@ -1354,11 +1359,9 @@ fn multi_board_api(boards: &[(&str, &str)]) -> (TempDir, Api) {
     for (tenant, project) in boards {
         create_board(directory.path(), tenant, project);
     }
-    let store = JournaledStore::new(
-        Arc::new(FileStore::new(directory.path()).unwrap()),
-        Arc::new(MemoryCatalog::default()),
-    );
-    (directory, Api::new(store).unwrap())
+    let objects = Arc::new(FileStore::new(directory.path()).unwrap());
+    let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
+    (directory, Api::new(store, objects).unwrap())
 }
 
 fn create_board(root: &std::path::Path, tenant: &str, project: &str) {

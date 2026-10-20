@@ -62,7 +62,11 @@ async fn real_s3_api_quoted_revision_crud_and_audit() {
         )
         .await
         .unwrap();
-    let api = Api::new(JournaledStore::new(objects.clone(), catalog)).unwrap();
+    let api = Api::new(
+        JournaledStore::new(objects.clone(), catalog),
+        objects.clone(),
+    )
+    .unwrap();
     let config = api
         .handle(request("GET", "/api/config", json!(null), None))
         .await

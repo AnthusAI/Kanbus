@@ -34,7 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("KANBUS_PROJECT")?,
     )?;
     let objects = FileStore::for_project(std::env::var("KANBUS_ROOT")?, scope.clone())?;
-    let store = JournaledStore::new(Arc::new(objects), Arc::new(MemoryCatalog::default()))
+    let objects = Arc::new(objects);
+    let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()))
         .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)?;
     let configuration_object = store
         .get(&scope, ".kanbus.yml")
@@ -48,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &format!("{}/issues/", configuration.project_directory),
         )
         .await?;
-    let api = Api::new(store).map_err(|error| error.message)?;
+    let api = Api::new(store, objects).map_err(|error| error.message)?;
     let port = std::env::var("KANBUS_PORT")
         .unwrap_or_else(|_| "5175".into())
         .parse::<u16>()?;
