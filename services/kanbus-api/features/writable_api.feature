@@ -228,3 +228,37 @@ Feature: Authenticated applications share the Kanbus issue model
     Given malformed JSON, invalid entries, a missing tenants field or a repeated role
     When the configuration is parsed
     Then each is rejected with a clear message and an empty setting means no service callers
+
+  Scenario: A provisioning service creates a board with the default configuration
+    Given a provisioning service principal and a board that does not exist
+    When the service provisions the board with an empty body and an operation ID
+    Then the response is 201 with the board configuration using the default project key
+    And an issue can be created and read on the new board immediately
+
+  Scenario: A provisioning service creates a board with a custom configuration
+    Given a provisioning service principal and a board that does not exist
+    When the service provisions the board with configuration text
+    Then the board configuration reflects the supplied text
+
+  Scenario: An invalid configuration is rejected
+    Given a provisioning service principal and a board that does not exist
+    When the service provisions the board with configuration that fails validation
+    Then the API returns 422 invalid_configuration with the validation messages
+    And the board still does not exist
+
+  Scenario: A board cannot be provisioned twice
+    Given a provisioning service has provisioned a board
+    When the service provisions the same board with a new operation ID
+    Then the API returns 409 board_exists
+    And repeating the original operation ID returns the original result
+    And reusing the original operation ID with a different body returns an operation conflict
+
+  Scenario: Only provisioning services may provision
+    Given a user principal and a non-provisioning service principal with grants to the board
+    When either provisions the board
+    Then both are refused with 403 forbidden and the board does not exist
+
+  Scenario: A provisioning service is limited to its granted tenants
+    Given a provisioning service principal limited to tenant t1
+    When it provisions a board in tenant t2
+    Then the API returns the same 403 forbidden as for an ungranted board

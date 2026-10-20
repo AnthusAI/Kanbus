@@ -2352,3 +2352,311 @@ fn service_principal_configuration_is_validated() {
         ServicePrincipals::default()
     );
 }
+
+fn provisioning_principal(tenants: &[&str]) -> Principal {
+    Principal {
+        actor: role_arn("provisioner"),
+        grants: tenants
+            .iter()
+            .map(|tenant| Grant {
+                tenant: (*tenant).into(),
+                project: ProjectGrant::AllInTenant,
+            })
+            .collect(),
+        provision: true,
+        delegate_actor: false,
+    }
+}
+
+fn provision_request(
+    principal: Principal,
+    board: &str,
+    body: serde_json::Value,
+    operation: &str,
+) -> ApiRequest {
+    let mut request = request_as(
+        principal,
+        "PUT",
+        &format!("/{board}/api/config"),
+        body,
+        None,
+    );
+    request
+        .headers
+        .insert("x-operation-id".into(), operation.into());
+    request
+}
+
+fn empty_api() -> (TempDir, Api) {
+    multi_board_api(&[])
+}
+
+#[tokio::test]
+async fn provisioning_service_creates_default_board_then_creates_and_reads_an_issue() {
+    let (_directory, api) = empty_api();
+    let service = provisioning_principal(&["acme"]);
+    let operation = uuid::Uuid::new_v4().to_string();
+    let provisioned = api
+        .handle(provision_request(
+            service.clone(),
+            "acme/newbot",
+            json!(null),
+            &operation,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(provisioned.status, 201);
+    assert_eq!(provisioned.body["project_key"], "kanbus");
+    assert_eq!(provisioned.body["actor_id"], role_arn("provisioner"));
+    let read_config = api
+        .handle(request_as(
+            service.clone(),
+            "GET",
+            "/acme/newbot/api/config",
+            json!(null),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(read_config.body, provisioned.body);
+    let created = api
+        .handle(request_as(
+            service.clone(),
+            "POST",
+            "/acme/newbot/api/issues",
+            json!({"type":"task","title":"First"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(created.status, 201);
+    let id = created.body["issue"]["id"].as_str().unwrap();
+    assert!(id.starts_with("kanbus-"));
+    let read = api
+        .handle(request_as(
+            service.clone(),
+            "GET",
+            &format!("/acme/newbot/api/issues/{id}"),
+            json!(null),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(read.status, 200);
+    let listed = api
+        .handle(request_as(
+            service,
+            "GET",
+            "/acme/newbot/api/issues",
+            json!(null),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(listed.body["issues"].as_array().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn provisioning_service_creates_board_with_custom_configuration() {
+    let (_directory, api) = empty_api();
+    let mut configuration = kanbus::config::default_project_configuration();
+    configuration.project_key = "bot".into();
+    configuration.types.push("prospect".into());
+    let text = serde_yaml::to_string(&configuration).unwrap();
+    let provisioned = api
+        .handle(provision_request(
+            provisioning_principal(&["acme"]),
+            "acme/custom",
+            json!({"configuration": text}),
+            &uuid::Uuid::new_v4().to_string(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(provisioned.status, 201);
+    assert_eq!(provisioned.body["project_key"], "bot");
+    assert!(provisioned.body["types"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|value| value == "prospect"));
+}
+
+#[tokio::test]
+async fn invalid_configuration_returns_422_and_creates_nothing() {
+    let (_directory, api) = empty_api();
+    let service = provisioning_principal(&["acme"]);
+    let mut configuration = kanbus::config::default_project_configuration();
+    configuration.initial_status = "nonexistent".into();
+    for body in [
+        json!({"configuration": serde_yaml::to_string(&configuration).unwrap()}),
+        json!({"configuration": "not: [valid"}),
+        json!({"configuration": 7}),
+        json!({"other": 1}),
+    ] {
+        let error = api
+            .handle(provision_request(
+                service.clone(),
+                "acme/bad",
+                body,
+                &uuid::Uuid::new_v4().to_string(),
+            ))
+            .await
+            .err()
+            .unwrap();
+        assert_eq!((error.status, error.code), (422, "invalid_configuration"));
+        assert!(!error.message.is_empty());
+    }
+    let missing = api
+        .handle(request_as(
+            service,
+            "GET",
+            "/acme/bad/api/config",
+            json!(null),
+            None,
+        ))
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(missing.code, "configuration_missing");
+}
+
+#[tokio::test]
+async fn second_provision_conflicts_while_original_operation_replays() {
+    let (_directory, api) = empty_api();
+    let service = provisioning_principal(&["acme"]);
+    let operation = uuid::Uuid::new_v4().to_string();
+    let first = api
+        .handle(provision_request(
+            service.clone(),
+            "acme/twice",
+            json!(null),
+            &operation,
+        ))
+        .await
+        .unwrap();
+    for body in [
+        json!(null),
+        json!({"configuration": "project_key: other\n"}),
+    ] {
+        let error = api
+            .handle(provision_request(
+                service.clone(),
+                "acme/twice",
+                body,
+                &uuid::Uuid::new_v4().to_string(),
+            ))
+            .await
+            .err()
+            .unwrap();
+        assert_eq!((error.status, error.code), (409, "board_exists"));
+    }
+    let replay = api
+        .handle(provision_request(
+            service.clone(),
+            "acme/twice",
+            json!(null),
+            &operation,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(replay.body, first.body);
+    let mismatch = api
+        .handle(provision_request(
+            service,
+            "acme/twice",
+            json!({"configuration": "project_key: other\n"}),
+            &operation,
+        ))
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(
+        (mismatch.status, mismatch.code),
+        (409, "operation_conflict")
+    );
+}
+
+#[tokio::test]
+async fn provision_requires_an_operation_id() {
+    let (_directory, api) = empty_api();
+    let mut request = provision_request(
+        provisioning_principal(&["acme"]),
+        "acme/noop",
+        json!(null),
+        "x",
+    );
+    request.headers.remove("x-operation-id");
+    let error = api.handle(request).await.err().unwrap();
+    assert_eq!(error.status, 400);
+}
+
+#[tokio::test]
+async fn users_and_non_provisioning_services_cannot_provision() {
+    let (_directory, api) = empty_api();
+    let mut non_provisioning = provisioning_principal(&["acme"]);
+    non_provisioning.provision = false;
+    let user = grants_to(&["kanbus:acme/*"]);
+    let ungranted = api
+        .handle(provision_request(
+            provisioning_principal(&["other"]),
+            "acme/newbot",
+            json!(null),
+            &uuid::Uuid::new_v4().to_string(),
+        ))
+        .await
+        .err()
+        .unwrap();
+    for principal in [non_provisioning, user] {
+        let error = api
+            .handle(provision_request(
+                principal.clone(),
+                "acme/newbot",
+                json!(null),
+                &uuid::Uuid::new_v4().to_string(),
+            ))
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(error.status, 403);
+        assert_eq!(error.body(), ungranted.body());
+        let board = api
+            .handle(request_as(
+                principal,
+                "GET",
+                "/acme/newbot/api/config",
+                json!(null),
+                None,
+            ))
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(board.code, "configuration_missing");
+    }
+}
+
+#[tokio::test]
+async fn provisioning_service_is_limited_to_its_granted_tenants() {
+    let (_directory, api) = empty_api();
+    let service = provisioning_principal(&["t1"]);
+    let denied = api
+        .handle(provision_request(
+            service.clone(),
+            "t2/board",
+            json!(null),
+            &uuid::Uuid::new_v4().to_string(),
+        ))
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(denied.status, 403);
+    let allowed = api
+        .handle(provision_request(
+            service,
+            "t1/board",
+            json!(null),
+            &uuid::Uuid::new_v4().to_string(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(allowed.status, 201);
+}
