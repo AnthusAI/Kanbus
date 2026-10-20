@@ -10,9 +10,17 @@
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7fb0e171-0472-4123-9602-e4cdf32b8138",
+      "author": "home",
+      "text": "Decision (Ryan, 2026-10-20, via the Chatticus session): one Kanbus project per bot. tenant = Chatticus organization id, project = bot id, bucket and catalog table per environment (development, staging, production). Chatticus is writing its bot-board Gherkin specs against this model and will not build against kanbus-api until kbs-9cb5cb40, kbs-4818904b, kbs-f222b6ee and kbs-a19d1443 land. Any change to routes, auth or scope naming must be announced to the Chatticus session before it ships.",
+      "created_at": "2026-10-20T03:45:59.570950Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T03:45:03.978796Z",
-  "updated_at": "2026-10-20T03:45:04.313658Z",
+  "updated_at": "2026-10-20T03:45:59.570960Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
