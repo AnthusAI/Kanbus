@@ -17,6 +17,7 @@ import {
   buildStatusBadgeStyle
 } from "./issue-colors";
 import { formatIssueId } from "./format-issue-id";
+import { IssueIdFormatProvider, useIssueIdPresentation, type IssueIdFormatter } from "./issue-id-format";
 import { getTypeIcon } from "./issue-icons";
 import type { KanbanConfig } from "./types";
 import { formatTimestamp } from "./format-timestamp";
@@ -407,6 +408,7 @@ export interface TaskDetailPanelProps {
     issueId: string,
     choice: { kind: "class" | "provider"; name: string } | null
   ) => Promise<void>;
+  formatIssueId?: IssueIdFormatter;
 }
 
 interface DescendantLinkProps {
@@ -424,6 +426,7 @@ const DescendantLink = React.memo(({
   config,
   onClick
 }: DescendantLinkProps) => {
+  const issueIdPresentation = useIssueIdPresentation()(issue, formatIssueId);
   const TypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const statusLabel =
@@ -452,7 +455,7 @@ const DescendantLink = React.memo(({
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
-      aria-label={`Navigate to ${formatIssueId(issue.id)}: ${issue.title}`}
+      aria-label={`Navigate to ${issueIdPresentation.text}: ${issue.title}`}
     >
       <div className="flex flex-wrap items-start gap-2 min-w-0">
         <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -463,8 +466,8 @@ const DescendantLink = React.memo(({
           <TypeIcon className="issue-accent-icon w-4 h-4 shrink-0" aria-hidden="true" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="grid min-w-0 grid-cols-[auto,1fr] items-baseline gap-x-2 gap-y-1">
-              <span className="issue-accent-id text-xs font-medium shrink-0">
-                {formatIssueId(issue.id)}
+              <span className="issue-accent-id text-xs font-medium shrink-0" data-issue-id-format={issueIdPresentation.formatAttribute}>
+                {issueIdPresentation.text}
               </span>
               <span className="text-sm text-foreground min-w-0 flex-1 break-words leading-snug">
                 {issue.title}
@@ -491,7 +494,7 @@ const DescendantLink = React.memo(({
 
 DescendantLink.displayName = "DescendantLink";
 
-export function TaskDetailPanel({
+function TaskDetailPanelContent({
   task,
   allIssues,
   columns,
@@ -514,7 +517,8 @@ export function TaskDetailPanel({
   onAddComment,
   onChangeStatus,
   onChangeAssignment
-}: TaskDetailPanelProps) {
+}: Omit<TaskDetailPanelProps, "formatIssueId">) {
+  const presentIssueId = useIssueIdPresentation();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [displayTask, setDisplayTask] = useState<TaskDetailIssue | null>(task);
@@ -1025,6 +1029,7 @@ skinparam SequenceDividerFontColor white`
   const detailTask = layout === "auto" ? task : displayTask;
 
   const renderDetailContent = (taskToRender: TaskDetailIssue, withRef: boolean) => {
+    const taskIdPresentation = presentIssueId(taskToRender, formatIssueId);
     const priorityName = priorityLookup[taskToRender.priority] ?? "medium";
     
     // Determine summary comment and apply rawMode rules
@@ -1154,7 +1159,7 @@ skinparam SequenceDividerFontColor white`
             <div className="issue-accent-row gap-2 w-full flex items-center justify-between min-w-0">
               <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
                 <DetailTypeIcon className="issue-accent-icon" />
-                <span className="issue-accent-id">{formatIssueId(taskToRender.id)}</span>
+                <span className="issue-accent-id" data-issue-id-format={taskIdPresentation.formatAttribute}>{taskIdPresentation.text}</span>
               </div>
               <div className="issue-accent-priority">{priorityName}</div>
             </div>
@@ -1580,5 +1585,13 @@ skinparam SequenceDividerFontColor white`
         </div>
       )}
     </div>
+  );
+}
+
+export function TaskDetailPanel({ formatIssueId: hostIssueIdFormatter, ...panelProps }: TaskDetailPanelProps) {
+  return (
+    <IssueIdFormatProvider formatIssueId={hostIssueIdFormatter}>
+      <TaskDetailPanelContent {...panelProps} />
+    </IssueIdFormatProvider>
   );
 }

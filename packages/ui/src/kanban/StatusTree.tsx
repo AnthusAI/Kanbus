@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { formatIssueId } from "./format-issue-id";
+import { useIssueIdPresentation } from "./issue-id-format";
 import { getTypeIcon } from "./issue-icons";
 import {
   buildIssueColorStyle,
@@ -157,7 +158,8 @@ function StatusTreeRow({
     : null;
   const statusColorName =
     config && statusKey ? resolveStatusBadgeColorName(config, statusKey) : null;
-  const formattedIssueId = formatIssueId(issue.id);
+  const issueIdPresentation = useIssueIdPresentation()(kanbanIssue, formatIssueId);
+  const formattedIssueId = issueIdPresentation.text;
 
   const handleToggle = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -205,7 +207,7 @@ function StatusTreeRow({
               <div className="status-tree-accent-bar">
                 <div className="status-tree-accent-left">
                   <IssueTypeIcon className="issue-accent-icon status-tree-type-icon" aria-hidden="true" />
-                  <span className="issue-accent-id status-tree-id" data-testid="status-tree-id">
+                  <span className="issue-accent-id status-tree-id" data-testid="status-tree-id" data-issue-id-format={issueIdPresentation.formatAttribute}>
                     {formattedIssueId}
                   </span>
                 </div>

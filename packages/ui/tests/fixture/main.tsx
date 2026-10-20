@@ -26,6 +26,7 @@ declare global {
     renderTheme: (theme: Kanbus.KanbusThemeId, mode?: Kanbus.KanbusColorMode, tokens?: Record<`--kb-theme-${string}`, string>, selectedId?: string) => void;
     kanbusThemeIds: string[];
     kanbusThemeFonts: Record<string, string>;
+    renderHostIssueIds: (theme: Kanbus.KanbusThemeId, withHostFormatter: boolean) => void;
     renderOrganizer: (mode?: "light" | "dark", initialScroll?: "start" | "end" | "preserve") => void;
   }
 }
@@ -116,6 +117,10 @@ Object.assign(window, {
     organizer = false;
     root.render(<ThemeHost theme={theme} mode={mode} tokens={tokens} selectedId={selectedId} />);
   },
+  renderHostIssueIds(theme: Kanbus.KanbusThemeId, withHostFormatter: boolean) {
+    organizer = false;
+    root.render(<HostIssueIdsHost theme={theme} withHostFormatter={withHostFormatter} />);
+  },
   kanbusThemeIds: Kanbus.KANBUS_THEMES.map((entry) => entry.id),
   kanbusThemeFonts: Kanbus.KANBUS_THEME_FONTS,
   hostReady: true
@@ -170,4 +175,36 @@ function OrganizerHost({ mode, initialScroll }: { mode: "light" | "dark"; initia
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)}
       fields={[{label:"Editorial score",value:String(selected.custom?.score)}]} />}
   </div>;
+}
+
+const hostIssueIdFormatter: Kanbus.IssueIdFormatter = (issue) => `articles/Agent-Software-Factory-${issue.id}`;
+
+const hostDetailTask: Kanbus.TaskDetailIssue = {
+  id: "article-1", title: "First article", type: "article", status: "draft", priority: 1
+};
+
+const hostDetailDescendant: Kanbus.TaskDetailIssue = {
+  id: "article-2", title: "Second article", type: "article", status: "review", priority: 2, parent: "article-1"
+};
+
+function HostIssueIdsHost({ theme, withHostFormatter }: { theme: Kanbus.KanbusThemeId; withHostFormatter: boolean }) {
+  const formatter = withHostFormatter ? hostIssueIdFormatter : undefined;
+  const statusTreeIssues = issues.filter((issue) => issue.type === "article").map((issue) => ({
+    id: issue.id, title: issue.title, type: issue.type, status: issue.status, priority: issue.priority
+  }));
+  return <Kanbus.KanbusThemeScope theme={theme} mode="light">
+    <Kanbus.IssueCollection issues={issues} config={configuration} query={{ type: "article" }}
+      initialScroll="start" motion={{ mode: "static" }} formatIssueId={formatter}
+      columnStateKey="fixture.hostids.columns.v1" />
+    <Kanbus.IssueIdFormatProvider formatIssueId={formatter}>
+      <Kanbus.StatusTree issues={statusTreeIssues} config={configuration} defaultExpanded />
+    </Kanbus.IssueIdFormatProvider>
+    <Kanbus.IssueDetailPanel issue={issues[0]} onClose={() => undefined} formatIssueId={formatter} />
+    <Kanbus.TaskDetailPanel task={hostDetailTask} allIssues={[hostDetailTask, hostDetailDescendant]}
+      columns={["draft", "review", "published"]} priorityLookup={{ 1: "High", 2: "Normal" }}
+      apiBase="/fixture-api" isOpen isVisible navDirection="none" widthPercent={50} layout="auto"
+      onClose={() => undefined} onToggleMaximize={() => undefined} isMaximized={false}
+      onAfterClose={() => undefined} onFocus={() => undefined} focusedIssueId={null}
+      formatIssueId={formatter} />
+  </Kanbus.KanbusThemeScope>;
 }

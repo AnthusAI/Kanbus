@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { buildIssueColorStyle } from "./issue-colors";
 import { formatIssueId } from "./format-issue-id";
+import { useIssueIdPresentation } from "./issue-id-format";
 import { getTypeIcon } from "./issue-icons";
 import {
   getIssueMotionStyle,
@@ -84,6 +85,7 @@ export function IssueCard({
     }
   }, [issue.status, issue.id]);
 
+  const issueIdPresentation = useIssueIdPresentation()(issue, formatIssueId);
   const IssueTypeIcon = getTypeIcon(issue.type, issue.status);
   const issueStyle = config ? buildIssueColorStyle(config, issue) : undefined;
   const motionStyle = getIssueMotionStyle(resolvedMotion, motionIndex);
@@ -117,7 +119,7 @@ export function IssueCard({
         <div className="issue-accent-row gap-2 w-full flex items-center justify-between">
           <div className="issue-accent-left gap-1 inline-flex items-center min-w-0">
             <IssueTypeIcon className="issue-accent-icon" />
-            <span className="issue-accent-id">{formatIssueId(issue.id)}</span>
+            <span className="issue-accent-id" data-issue-id-format={issueIdPresentation.formatAttribute}>{issueIdPresentation.text}</span>
           </div>
           <div className="issue-accent-priority">{priorityName}</div>
         </div>
