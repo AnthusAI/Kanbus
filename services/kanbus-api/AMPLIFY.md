@@ -79,6 +79,10 @@ exact conditions. Runtime code needs neither IAM administration nor bucket/table
 creation permissions. An existing Amplify service connection still needs its
 normal authority to deploy the declared backend resources.
 
+Service callers (optional): add a second HTTP API (or stage) with `AWS_IAM` authorization on the same two route patterns and the same Lambda, and set `KANBUS_SERVICE_PRINCIPALS` on the Lambda to a JSON array of `{"role_arn","tenants","provision","delegate_actor"}` entries (format and semantics in README.md, "Service callers"). Grant the calling role `execute-api:Invoke` on that API only.
+
+Trust boundary: the Lambda trusts the authorizer context in its event, so `lambda:InvokeFunction` must be granted only to the two API Gateway APIs and to explicitly trusted roles. A direct invoker is fully trusted.
+
 For cross-origin frontend hosting, allow only the app origin and the API methods
 above, with `authorization`, `content-type`, `if-match`, `x-operation-id` request
 headers and exposed `etag`. Keep the browser's API URL and auth identifiers in

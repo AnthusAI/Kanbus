@@ -178,3 +178,53 @@ Feature: Authenticated applications share the Kanbus issue model
     When the member creates an issue
     Then the board's keys follow the tenant and project prefix
     And the unrelated boards' keys are unchanged
+
+  Scenario: A mapped service role with all tenants reads and writes boards in two tenants
+    Given a service role mapped with tenants "*" and an IAM authorizer event for its assumed role
+    When the service creates and reads issues on boards in two tenants
+    Then both requests succeed and the creator is the role ARN
+
+  Scenario: A service role limited to a tenant list is denied other tenants
+    Given a service role mapped to one tenant
+    When it addresses a board of another tenant, an unknown board or a missing tenant
+    Then every denial is the identical 403
+
+  Scenario: An unknown role is forbidden
+    Given an IAM authorizer event for a role that is not mapped
+    When the event is authenticated
+    Then the response is 403
+
+  Scenario: Assumed-role session names never affect matching
+    Given a mapped role
+    When its assumed-role ARN is presented with different session names
+    Then each matches the role, and lookalike roles, other accounts and uppercase variants do not
+
+  Scenario: A delegating service records the acting user or bot
+    Given a service role mapped with delegate_actor
+    When it writes with X-Kanbus-Actor naming a user, a bot or a system task
+    Then the creator, the comment author and the event actor_id equal the header verbatim
+
+  Scenario: A delegating service must send a well-formed actor header
+    Given a service role mapped with delegate_actor
+    When the header is missing or malformed
+    Then the response is 400 invalid_request
+
+  Scenario: Only delegating services may send an actor header
+    Given a user and a service role without delegate_actor
+    When either sends X-Kanbus-Actor
+    Then the response is 403
+
+  Scenario: Roles are mapped independently
+    Given two mapped roles that differ only in provision and delegate_actor
+    When each request is authenticated
+    Then each principal has exactly its own role's capabilities
+
+  Scenario: The authorizer context selects the authenticator
+    Given events with both, neither, or only one of the JWT and IAM authorizer contexts
+    When they are authenticated
+    Then both and neither are 401 and each single context uses its own path
+
+  Scenario: Service principal configuration is validated at startup
+    Given malformed JSON, invalid entries, a missing tenants field or a repeated role
+    When the configuration is parsed
+    Then each is rejected with a clear message and an empty setting means no service callers

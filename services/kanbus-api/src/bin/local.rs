@@ -74,6 +74,10 @@ async fn handle(State(server): State<Server>, request: Request<Body>) -> impl In
             .and_then(|value| value.to_str().ok()),
         &server.secret,
         &server.served_board,
+        request
+            .headers()
+            .get("x-kanbus-actor")
+            .map(|value| value.to_str().unwrap_or("")),
     ) {
         Ok(principal) => principal,
         Err(error) => {

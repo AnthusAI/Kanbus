@@ -180,6 +180,8 @@ pub enum ProjectGrant {
     One(String),
     /// Every board of the tenant.
     AllInTenant,
+    /// Every board of every tenant; used only by service principals mapped with tenants "*".
+    AllTenants,
 }
 
 /// Permission to use boards of one tenant.
@@ -198,17 +200,21 @@ pub struct Principal {
     pub actor: String,
     /// Boards the caller may use; empty grants nothing.
     pub grants: Vec<Grant>,
+    /// Whether the caller may provision boards; parsed and exposed, not yet consumed.
+    pub provision: bool,
+    /// Whether the caller must name the acting user or bot in `X-Kanbus-Actor`.
+    pub delegate_actor: bool,
 }
 
 impl Principal {
     /// Pure authorization decision for one board.
     pub fn allows(&self, scope: &Scope) -> bool {
-        self.grants.iter().any(|grant| {
-            grant.tenant == scope.tenant()
-                && match &grant.project {
-                    ProjectGrant::One(project) => project == scope.project(),
-                    ProjectGrant::AllInTenant => true,
-                }
+        self.grants.iter().any(|grant| match &grant.project {
+            ProjectGrant::AllTenants => true,
+            ProjectGrant::AllInTenant => grant.tenant == scope.tenant(),
+            ProjectGrant::One(project) => {
+                grant.tenant == scope.tenant() && project == scope.project()
+            }
         })
     }
 }
@@ -256,11 +262,243 @@ pub fn grants_from_groups(groups: &Value) -> Vec<Grant> {
         .collect()
 }
 
-/// Build a principal only from claims supplied by the HTTP API JWT authorizer.
-pub fn authenticate_cloud(event: &Value) -> Result<Principal, ApiError> {
-    let claims = event
-        .pointer("/requestContext/authorizer/jwt/claims")
-        .ok_or_else(|| ApiError::new(401, "unauthorized", "Verified authorization is required."))?;
+const ACTOR_HEADER: &str = "x-kanbus-actor";
+const SERVICE_PRINCIPALS_VARIABLE: &str = "KANBUS_SERVICE_PRINCIPALS";
+
+/// Tenants a mapped service role may act in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ServiceTenants {
+    /// Every tenant.
+    All,
+    /// Exactly these tenants.
+    Listed(Vec<String>),
+}
+
+/// One mapped service role and its capabilities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServicePrincipal {
+    /// Normalized role ARN, `arn:<partition>:iam::<account>:role/<name>`.
+    pub role_arn: String,
+    /// Tenants the role may act in.
+    pub tenants: ServiceTenants,
+    /// Whether the role may provision boards.
+    pub provision: bool,
+    /// Whether the role must name the acting user or bot per request.
+    pub delegate_actor: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ServicePrincipalEntry {
+    role_arn: String,
+    tenants: Value,
+    #[serde(default)]
+    provision: bool,
+    #[serde(default)]
+    delegate_actor: bool,
+}
+
+/// Deployment mapping from IAM roles to service principals.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ServicePrincipals {
+    entries: Vec<ServicePrincipal>,
+}
+
+struct RoleArn<'a> {
+    partition: &'a str,
+    account: &'a str,
+    name: &'a str,
+}
+
+fn role_name_is_valid(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "+=,.@_-".contains(c))
+}
+
+fn arn_fields_are_valid(partition: &str, account: &str) -> bool {
+    !partition.is_empty()
+        && partition
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c == '-')
+        && account.len() == 12
+        && account.chars().all(|c| c.is_ascii_digit())
+}
+
+fn parse_assumed_role_arn(arn: &str) -> Option<RoleArn<'_>> {
+    let parts: Vec<&str> = arn.split(':').collect();
+    let [prefix, partition, "sts", region, account, resource] = parts.as_slice() else {
+        return None;
+    };
+    if *prefix != "arn" || !region.is_empty() || !arn_fields_are_valid(partition, account) {
+        return None;
+    }
+    let segments: Vec<&str> = resource.split('/').collect();
+    let ["assumed-role", name, session] = segments.as_slice() else {
+        return None;
+    };
+    if !role_name_is_valid(name) || session.is_empty() {
+        return None;
+    }
+    Some(RoleArn {
+        partition,
+        account,
+        name,
+    })
+}
+
+fn parse_configured_role_arn(arn: &str) -> Option<RoleArn<'_>> {
+    let parts: Vec<&str> = arn.split(':').collect();
+    let [prefix, partition, "iam", region, account, resource] = parts.as_slice() else {
+        return None;
+    };
+    if *prefix != "arn" || !region.is_empty() || !arn_fields_are_valid(partition, account) {
+        return None;
+    }
+    let name = resource.strip_prefix("role/")?;
+    if !role_name_is_valid(name) {
+        return None;
+    }
+    Some(RoleArn {
+        partition,
+        account,
+        name,
+    })
+}
+
+/// Convert an STS assumed-role ARN to the IAM role ARN it represents; the session
+/// name is discarded. Anything that is not exactly an assumed-role ARN yields `None`.
+pub fn normalize_assumed_role_arn(arn: &str) -> Option<String> {
+    let parsed = parse_assumed_role_arn(arn)?;
+    Some(format!(
+        "arn:{}:iam::{}:role/{}",
+        parsed.partition, parsed.account, parsed.name
+    ))
+}
+
+fn service_principal_from_entry(entry: ServicePrincipalEntry) -> Result<ServicePrincipal, String> {
+    let role = parse_configured_role_arn(&entry.role_arn).ok_or_else(|| {
+        format!(
+            "{SERVICE_PRINCIPALS_VARIABLE}: role_arn \"{}\" must look like arn:aws:iam::<12-digit account>:role/<name> without a path.",
+            entry.role_arn
+        )
+    })?;
+    let tenants = match &entry.tenants {
+        Value::String(star) if star == "*" => ServiceTenants::All,
+        Value::Array(values) if !values.is_empty() => {
+            let mut tenants = Vec::new();
+            for value in values {
+                let tenant = value.as_str().ok_or_else(|| {
+                    format!(
+                        "{SERVICE_PRINCIPALS_VARIABLE}: tenants of \"{}\" must be strings.",
+                        entry.role_arn
+                    )
+                })?;
+                Scope::new(tenant, "board").map_err(|_| {
+                    format!(
+                        "{SERVICE_PRINCIPALS_VARIABLE}: tenant \"{tenant}\" of \"{}\" is not a valid tenant name.",
+                        entry.role_arn
+                    )
+                })?;
+                tenants.push(tenant.to_string());
+            }
+            ServiceTenants::Listed(tenants)
+        }
+        _ => {
+            return Err(format!(
+                "{SERVICE_PRINCIPALS_VARIABLE}: tenants of \"{}\" must be \"*\" or a non-empty list of tenant names.",
+                entry.role_arn
+            ))
+        }
+    };
+    Ok(ServicePrincipal {
+        role_arn: format!(
+            "arn:{}:iam::{}:role/{}",
+            role.partition, role.account, role.name
+        ),
+        tenants,
+        provision: entry.provision,
+        delegate_actor: entry.delegate_actor,
+    })
+}
+
+impl ServicePrincipals {
+    /// Parse the JSON array held in `KANBUS_SERVICE_PRINCIPALS`; an empty string means no
+    /// service callers. Invalid JSON, invalid entries and duplicate roles are errors.
+    pub fn from_json(text: &str) -> Result<Self, String> {
+        if text.trim().is_empty() {
+            return Ok(Self::default());
+        }
+        let entries: Vec<ServicePrincipalEntry> = serde_json::from_str(text)
+            .map_err(|error| format!("{SERVICE_PRINCIPALS_VARIABLE} is invalid: {error}"))?;
+        let mut parsed: Vec<ServicePrincipal> = Vec::new();
+        for entry in entries {
+            let principal = service_principal_from_entry(entry)?;
+            if parsed
+                .iter()
+                .any(|existing| existing.role_arn == principal.role_arn)
+            {
+                return Err(format!(
+                    "{SERVICE_PRINCIPALS_VARIABLE}: role_arn \"{}\" appears more than once.",
+                    principal.role_arn
+                ));
+            }
+            parsed.push(principal);
+        }
+        Ok(Self { entries: parsed })
+    }
+
+    /// Read `KANBUS_SERVICE_PRINCIPALS`; an absent variable means no service callers.
+    pub fn from_environment() -> Result<Self, String> {
+        match std::env::var(SERVICE_PRINCIPALS_VARIABLE) {
+            Ok(text) => Self::from_json(&text),
+            Err(std::env::VarError::NotPresent) => Ok(Self::default()),
+            Err(error) => Err(format!(
+                "{SERVICE_PRINCIPALS_VARIABLE} is unreadable: {error}"
+            )),
+        }
+    }
+
+    fn find(&self, role_arn: &str) -> Option<&ServicePrincipal> {
+        self.entries.iter().find(|entry| entry.role_arn == role_arn)
+    }
+}
+
+fn actor_value_is_valid(value: &str) -> bool {
+    let parts: Vec<&str> = value.split(':').collect();
+    let [kind, scope, subject] = parts.as_slice() else {
+        return false;
+    };
+    let lowercase_segment = |segment: &str| {
+        !segment.is_empty()
+            && segment
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    };
+    lowercase_segment(kind)
+        && lowercase_segment(scope)
+        && (1..=128).contains(&subject.len())
+        && subject
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+}
+
+fn actor_header(event: &Value) -> Option<String> {
+    event
+        .get("headers")
+        .and_then(Value::as_object)?
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(ACTOR_HEADER))
+        .map(|(_, value)| value.as_str().unwrap_or("\u{0}").to_string())
+}
+
+fn actor_forbidden() -> ApiError {
+    ApiError::new(403, "forbidden", "This caller may not set X-Kanbus-Actor.")
+}
+
+fn user_principal(claims: &Value) -> Result<Principal, ApiError> {
     let actor = claims
         .get("sub")
         .and_then(Value::as_str)
@@ -276,7 +514,96 @@ pub fn authenticate_cloud(event: &Value) -> Result<Principal, ApiError> {
     Ok(Principal {
         actor: actor.to_string(),
         grants,
+        provision: false,
+        delegate_actor: false,
     })
+}
+
+fn service_principal(
+    iam: &Value,
+    service_principals: &ServicePrincipals,
+) -> Result<Principal, ApiError> {
+    let caller = iam
+        .get("userArn")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| ApiError::new(401, "unauthorized", "Verified caller is required."))?;
+    let parsed = parse_assumed_role_arn(caller).ok_or_else(forbidden)?;
+    let account_matches = iam
+        .get("accountId")
+        .and_then(Value::as_str)
+        .is_some_and(|account| account == parsed.account);
+    if !account_matches {
+        return Err(forbidden());
+    }
+    let role_arn = format!(
+        "arn:{}:iam::{}:role/{}",
+        parsed.partition, parsed.account, parsed.name
+    );
+    let mapped = service_principals.find(&role_arn).ok_or_else(forbidden)?;
+    let grants = match &mapped.tenants {
+        ServiceTenants::All => vec![Grant {
+            tenant: "*".into(),
+            project: ProjectGrant::AllTenants,
+        }],
+        ServiceTenants::Listed(tenants) => tenants
+            .iter()
+            .map(|tenant| Grant {
+                tenant: tenant.clone(),
+                project: ProjectGrant::AllInTenant,
+            })
+            .collect(),
+    };
+    Ok(Principal {
+        actor: mapped.role_arn.clone(),
+        grants,
+        provision: mapped.provision,
+        delegate_actor: mapped.delegate_actor,
+    })
+}
+
+/// Build a principal only from the authorizer context API Gateway verified: a JWT context
+/// yields a user, an IAM context yields a mapped service role, anything else is rejected.
+/// `X-Kanbus-Actor` is honored only for service principals mapped with `delegate_actor`.
+pub fn authenticate_cloud(
+    event: &Value,
+    service_principals: &ServicePrincipals,
+) -> Result<Principal, ApiError> {
+    let authorizer = event.pointer("/requestContext/authorizer");
+    let present = |key: &str| {
+        authorizer
+            .and_then(|context| context.get(key))
+            .filter(|value| !value.is_null())
+    };
+    let mut principal = match (present("jwt"), present("iam")) {
+        (Some(jwt), None) => {
+            let claims = jwt.get("claims").ok_or_else(|| {
+                ApiError::new(401, "unauthorized", "Verified authorization is required.")
+            })?;
+            user_principal(claims)?
+        }
+        (None, Some(iam)) => service_principal(iam, service_principals)?,
+        _ => {
+            return Err(ApiError::new(
+                401,
+                "unauthorized",
+                "Verified authorization is required.",
+            ))
+        }
+    };
+    let header = actor_header(event);
+    if principal.delegate_actor {
+        let value = header.ok_or_else(|| invalid("X-Kanbus-Actor is required."))?;
+        if !actor_value_is_valid(&value) {
+            return Err(invalid(
+                "X-Kanbus-Actor must look like <kind>:<scope>:<subject>.",
+            ));
+        }
+        principal.actor = value;
+    } else if header.is_some() {
+        return Err(actor_forbidden());
+    }
+    Ok(principal)
 }
 
 /// Authorize an explicitly configured secret for loopback development; the
@@ -285,6 +612,7 @@ pub fn authenticate_local(
     authorization: Option<&str>,
     secret: &str,
     served_board: &Scope,
+    actor_header_value: Option<&str>,
 ) -> Result<Principal, ApiError> {
     let candidate = authorization
         .and_then(|value| value.strip_prefix("Bearer "))
@@ -302,12 +630,17 @@ pub fn authenticate_local(
             "A valid local bearer secret is required.",
         ));
     }
+    if actor_header_value.is_some() {
+        return Err(actor_forbidden());
+    }
     Ok(Principal {
         actor: "local-member".into(),
         grants: vec![Grant {
             tenant: served_board.tenant().into(),
             project: ProjectGrant::One(served_board.project().into()),
         }],
+        provision: false,
+        delegate_actor: false,
     })
 }
 
