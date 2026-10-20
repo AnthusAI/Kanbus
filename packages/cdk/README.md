@@ -5,7 +5,7 @@ A CDK construct that deploys the Kanbus API service (`services/kanbus-api`) into
 Install the released tarball from the GitHub release `kanbus-cdk-v<version>`:
 
 ```sh
-npm install ./kanbus-cdk-0.1.0.tgz
+npm install ./kanbus-cdk-0.2.0.tgz
 ```
 
 `aws-cdk-lib` (`>=2.215.0 <3`) and `constructs` (`^10.4.0`) are peer dependencies; the package never bundles CDK.
@@ -15,15 +15,17 @@ npm install ./kanbus-cdk-0.1.0.tgz
 | Prop | Meaning |
 | --- | --- |
 | `environmentName` | Required. Lowercase letters, digits and hyphens. Qualifies API names, tags and output descriptions. |
+| `archiveRetentionDays` | Required positive integer. Days an archived board is kept before the sweeper purges it. Passed to both functions as `KANBUS_ARCHIVE_RETENTION_DAYS`. Construction throws otherwise. |
+| `sweepSchedule` | Optional `events.Schedule` for the sweeper. Default hourly (`rate(1 hour)`). |
 | `users` | `{ issuer, audiences }`. Creates the JWT HTTP API. Omit for no user API. |
 | `servicePrincipals` | `[{ role, tenants: '*' \| string[], provision?, delegateActor? }]`. Creates the `AWS_IAM` HTTP API, grants `execute-api:Invoke` on it to exactly those roles, and renders `KANBUS_SERVICE_PRINCIPALS`. |
-| `lambda` | `{ memorySize?, timeout?, logRetention?, code? }`. Defaults: 512 MB, 15 s, three months of logs. Memory is 128 to 3008 MB and timeout at most 30 s. `code` overrides the bundled zip (tests, custom builds). |
+| `lambda` | `{ memorySize?, timeout?, logRetention?, code? }`. Defaults: 512 MB, 15 s, three months of logs. Memory is 128 to 3008 MB and timeout at most 30 s. `code` overrides the bundled API zip and `sweeperCode` the bundled sweeper zip (tests, custom builds); memory and log retention apply to both functions. |
 | `removalPolicy` | Applies to the bucket and table. Default `RETAIN`. |
 | `createOutputs` | Create `CfnOutput`s for the API URLs. Default `true`. |
 
 At least one of `users` or `servicePrincipals` is required; otherwise construction throws.
 
-Public properties: `bucket`, `table`, `function`, `userApi?`, `serviceApi?`, `userApiUrl?`, `serviceApiUrl?`.
+Public properties: `bucket`, `table`, `function`, `sweeperFunction`, `userApi?`, `serviceApi?`, `userApiUrl?`, `serviceApiUrl?`.
 
 The construct creates no stacks, nested stacks, exports or imports, so it can be placed inside an existing per-environment stack, next to the roles and Lambdas that call it.
 
@@ -32,8 +34,9 @@ The construct creates no stacks, nested stacks, exports or imports, so it can be
 - Bucket: private, all public access blocked, SSE-S3 encrypted, TLS required, versioned.
 - Table: on-demand, point-in-time recovery, key `scope`/`path`, and the GSIs `by_type`, `by_status` and `by_type_status`, as in [AMPLIFY.md](../../services/kanbus-api/AMPLIFY.md).
 - Lambda: bundled `bootstrap` on `provided.al2023`, `x86_64`, with `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, `KANBUS_CATALOG_TABLE` and `KANBUS_SERVICE_PRINCIPALS`.
+- Sweeper: a second function from the bundled `kanbus-api-sweeper.zip` (`bootstrap`, `provided.al2023`, `x86_64`) with `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, `KANBUS_CATALOG_TABLE` and `KANBUS_ARCHIVE_RETENTION_DAYS`, a 5 minute timeout (enough for a batch of 50 purges), reserved concurrency 1 so sweeps never overlap, its own log group and its own role with the same data grants as the API role. An EventBridge rule (default hourly) is its only trigger and its only invoker.
 - `lambda:InvokeFunction` is granted only to the created HTTP APIs, per route. No other principal can invoke the function.
-- Lambda role (no managed policies): `s3:ListBucket` on the bucket; `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on the bucket's objects; `dynamodb:GetItem`, `PutItem`, `DeleteItem`, `Query` on the table and its three indexes; `logs:CreateLogStream` and `logs:PutLogEvents` on its own log group.
+- API and sweeper roles (no managed policies, identical grants): `s3:ListBucket` on the bucket; `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on the bucket's objects; `dynamodb:GetItem`, `PutItem`, `DeleteItem`, `Query` on the table and its three indexes; `logs:CreateLogStream` and `logs:PutLogEvents` on its own log group.
 
 The store writes `tenant/project/...` and `_virtuus/tenant/project/...`. A multi-tenant deployment cannot list tenants at deploy time, so object access covers the whole bucket (which the construct dedicates to the service) and DynamoDB `LeadingKeys` conditions are not possible. Tenant isolation is enforced by the service from verified identity. Environment isolation comes from each `KanbusApi` owning its own bucket and table, and from the service API invoke grants being scoped to that environment's API, so a staging role cannot reach production boards.
 
@@ -57,6 +60,7 @@ for (const environmentName of ["development", "staging", "production"]) {
   });
   const kanbus = new KanbusApi(stack, "Kanbus", {
     environmentName,
+    archiveRetentionDays: 30,
     servicePrincipals: [
       { role: controlPlaneRole, tenants: "*", provision: true, delegateActor: true },
       { role: reporterRole, tenants: ["chatticus"] },
@@ -77,6 +81,7 @@ import { KanbusApi } from "@kanbus/cdk";
 const stack = new Stack(new App(), "ProspectusBackend");
 const kanbus = new KanbusApi(stack, "Kanbus", {
   environmentName: "production",
+  archiveRetentionDays: 30,
   users: {
     issuer: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_example",
     audiences: ["prospectus-browser-client"],
@@ -88,4 +93,4 @@ Both examples are synthesized in `tests/readmeExamples.test.ts`.
 
 ## Release
 
-Push the tag `kanbus-cdk-v<version>` (matching `package.json`). The release job builds the `x86_64` musl Lambda with the toolchain pinned in `services/kanbus-api/rust-toolchain.toml`, places it at `assets/kanbus-api-lambda.zip`, runs the tests, packs the tarball and creates the GitHub release with the tarball and the zip.
+Push the tag `kanbus-cdk-v<version>` (matching `package.json`). The release job builds the `x86_64` musl API and sweeper Lambdas with the toolchain pinned in `services/kanbus-api/rust-toolchain.toml`, places them at `assets/kanbus-api-lambda.zip` and `assets/kanbus-api-sweeper.zip`, runs the tests, packs the tarball and creates the GitHub release with the tarball and both zips.

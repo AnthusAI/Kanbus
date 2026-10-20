@@ -1,6 +1,6 @@
 {
   "name": "@kanbus/cdk",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": false,
   "description": "AWS CDK construct that deploys the Kanbus API service with its bundled Lambda package",
   "license": "MIT",
@@ -8,7 +8,8 @@
   "types": "dist/src/index.d.ts",
   "files": [
     "dist/src",
-    "assets/kanbus-api-lambda.zip"
+    "assets/kanbus-api-lambda.zip",
+    "assets/kanbus-api-sweeper.zip"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json",
