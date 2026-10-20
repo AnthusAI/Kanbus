@@ -1,6 +1,6 @@
 {
   "name": "@kanbus/cdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "AWS CDK construct that deploys the Kanbus API service with its bundled Lambda package",
   "license": "MIT",
