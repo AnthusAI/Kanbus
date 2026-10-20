@@ -35,7 +35,7 @@
     "@visx/group": "^3.12.0",
     "@visx/scale": "^3.12.0",
     "@visx/shape": "^3.12.0",
-    "chokidar": "^3.6.0",
+    "chokidar": "^4.0.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dompurify": "^3.3.1",
