@@ -91,7 +91,8 @@
   background: transparent; border: 0; box-shadow: none; color: var(--kb-theme-ink);
   padding: 11px 0 11px 10px; overflow: visible;
 }
-[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card + .issue-card { border-top: 1px solid var(--kb-theme-rule); }
+[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card + .issue-card,
+[data-kanbus-theme] .kb-column .kb-column-card-slot:not([data-index="0"]) .issue-card { border-top: 1px solid var(--kb-theme-rule); }
 [data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card:hover { background: var(--card-muted); }
 [data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card[data-selected="true"] { background: transparent; box-shadow: none; }
 [data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card[data-selected="true"]::before {

@@ -57,3 +57,15 @@ views. Papyrus verifies the packed, unmodified export in the running 8899 previe
 Local artifact pins are review checkpoints, not registry versions. A real
 versioned release plus consumer lock update is required before production; never
 ship a /tmp path as a production dependency. Cyclotron worktree is not edited.
+
+## Bounded rendering
+
+Each expanded column is virtualized with @tanstack/react-virtual: only the cards
+near the column scroll position (plus a small overscan, and the selected card) are
+in the DOM, so the card count is bounded by the viewport rather than the issue
+count. Collapsed columns render no cards. IssueCard and BoardColumn are memoized;
+a card re-renders only when a displayed field, its config, handler, selection or
+motion changes, so pass stable `onSelectIssue`, `priorityLookup`, `config` and
+`motion` values. Each card sits in a `.kb-column-card-slot` wrapper that carries
+the absolute position; hosts that style adjacent `.issue-card` siblings should
+target the slot instead. bounded_board_rendering.feature covers this.

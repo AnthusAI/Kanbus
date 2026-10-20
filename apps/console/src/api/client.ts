@@ -1,8 +1,4 @@
 import type { IssuesSnapshot, Issue, IssueEventsResponse } from "../types/issues";
-import { SignatureV4 } from "@aws-sdk/signature-v4";
-import { Sha256 } from "@aws-crypto/sha256-js";
-import { HttpRequest } from "@aws-sdk/protocol-http";
-import { formatUrl } from "@aws-sdk/util-format-url";
 import type {
   WikiCreateRequest,
   WikiCreateResponse,
@@ -68,7 +64,7 @@ export type AuthBootstrap = {
 };
 
 type MqttModule = typeof import("mqtt");
-type SigV4Credentials = {
+export type SigV4Credentials = {
   accessKeyId: string;
   secretAccessKey: string;
   sessionToken: string;
@@ -192,34 +188,6 @@ function openServerSentEventStream(url: string): ServerSentEventStream {
     return openAuthenticatedServerSentEventStream(url);
   }
   return new EventSource(url);
-}
-
-async function buildSignedIotWebsocketUrl(
-  endpoint: string,
-  region: string,
-  credentials: SigV4Credentials
-): Promise<string> {
-  const request = new HttpRequest({
-    protocol: "wss:",
-    hostname: endpoint,
-    method: "GET",
-    path: "/mqtt",
-    headers: {
-      host: endpoint,
-    },
-  });
-  const signer = new SignatureV4({
-    service: "iotdevicegateway",
-    region,
-    sha256: Sha256,
-    credentials: {
-      accessKeyId: credentials.accessKeyId,
-      secretAccessKey: credentials.secretAccessKey,
-      sessionToken: credentials.sessionToken,
-    },
-  });
-  const signed = await signer.presign(request, { expiresIn: 900 });
-  return formatUrl(signed);
 }
 
 function loginProviderKeyFromIssuer(issuer: string): string | null {
@@ -573,7 +541,7 @@ export function subscribeToRealtimeFeed(
       const signedUrl = useCustomAuthorizer
         ? defaultUrl
         : sigv4Credentials
-          ? await buildSignedIotWebsocketUrl(
+          ? await (await import("./signedIotWebsocketUrl")).buildSignedIotWebsocketUrl(
             bootstrap.iot_endpoint,
             bootstrap.region,
             sigv4Credentials
