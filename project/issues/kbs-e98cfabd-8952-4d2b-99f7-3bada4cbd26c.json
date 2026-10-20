@@ -3,17 +3,25 @@
   "title": "Realtime events cross projects on a shared broker: kbsc instances apply other projects' issue updates",
   "description": "Found 2026-10-20 while measuring console performance (PR #511): kbs update runs against a temporary fixture project, with the always-on local Mosquitto broker enabled (KANBUS_REALTIME_BROKER from ~/.kanbus.env), published IssueUpdated events that other kbsc instances on the machine received and applied: they added the foreign issues (ids kanbus-000f3240-..., kanbus-cbb7c731-...) to their snapshots and persisted them in their project/.overlay/issues caches. The realtime topic or the receiver's filter is not scoped by project, so every console on a shared broker sees every project's updates: a correctness bug, and a data-isolation bug for multi-tenant or shared-broker setups. Fix: publish on a topic that includes a stable project identity (for example projects/<account>/<project>/events, as the cloud bootstrap already names it, with the project's canonical root or configured key for local), subscribe only to the console's own project(s), and drop any received event whose project does not match. Spec it with two projects on one broker in both runtimes. Check the gossip bridge (rust/src/bin/console_local.rs start_gossip_bridge) and the Python console server.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "55478695-d9de-49e7-9b2e-ba2a0349d6bb",
+      "author": "home",
+      "text": "Merged in PR 517: realtime issue and coordination events use projects/<project_id>/events with project_id (UUID in .kanbus.yml, written by kbs init, added by kbs migrate project-id); consumers drop foreign events; projects without project_id run with realtime disabled. Specs in features/realtime/project_scope.feature and features/migration/project_id_migration.feature, both runtimes.",
+      "created_at": "2026-10-20T21:23:18.398467Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T14:25:53.221305Z",
-  "updated_at": "2026-10-20T18:43:28.889084Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T21:23:18.546075Z",
+  "closed_at": "2026-10-20T21:23:18.478019Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
