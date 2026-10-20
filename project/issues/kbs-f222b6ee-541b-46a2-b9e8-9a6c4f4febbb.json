@@ -10,9 +10,17 @@
   "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "a392c5ec-b293-4e68-b9a6-f5957f160275",
+      "author": "home",
+      "text": "Chatticus requirements (2026-10-20): (a) one deployment per Chatticus environment; the Chatticus service principal is granted every tenant of that deployment. (b) Delegated actor: the service principal passes the acting party in header X-Kanbus-Actor, honored ONLY for service principals holding an actor-delegation grant (users cannot set it); Kanbus records it verbatim as creator, comment author and event actor_id. Format: <namespace>:<kind>:<id>, validated against ^[a-z0-9-]+:[a-z0-9-]+:[A-Za-z0-9-_.]{1,128}$, e.g. chatticus:user:<uuid>, chatticus:bot:<uuid>. A missing header on a delegating principal is 400; the header on a non-delegating principal is 403. Spec both.",
+      "created_at": "2026-10-20T10:04:40.435165Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T03:45:08.774637Z",
-  "updated_at": "2026-10-20T03:45:09.258510Z",
+  "updated_at": "2026-10-20T10:04:40.435181Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
