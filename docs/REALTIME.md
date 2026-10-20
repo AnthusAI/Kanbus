@@ -180,6 +180,7 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
   "id": "uuid",
   "ts": "2026-03-06T12:34:56.789Z",
   "project": "KAN",
+  "project_identity": "KAN-3fa9c1d2e4b5a678",
   "type": "issue.mutated",
   "issue_id": "KAN-123",
   "event_id": "uuid",
@@ -188,6 +189,28 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
   "issue": { "id": "KAN-123", "type": "task", "title": "..." }
 }
 ```
+
+## Project scope
+
+Issue events are scoped to one project so that many projects can share one
+broker without seeing each other's issues.
+
+- The project scope identity is the project label (the `project_key`, or the
+  virtual project label), a hyphen, and the first 16 lowercase hex characters of
+  the SHA-256 digest of `<canonical project directory path>\n<label>`. The
+  canonical path is the symlink-resolved absolute path of the project directory.
+  Python and Rust derive the identical value.
+- Issue events are published on `realtime.topics.project_events` with
+  `{project}` replaced by the scope identity, for example
+  `projects/KAN-3fa9c1d2e4b5a678/events`, and carry the same value in
+  `project_identity`.
+- Consumers subscribe only to the scope identity of their own projects. They
+  also check `project_identity` on receipt and drop any non-coordination event
+  that does not carry exactly the expected identity, logging only a running
+  count. Events from older instances, which have no `project_identity`, are
+  dropped the same way.
+- Coordination envelopes keep the label-only topic because coordination workers
+  in separate clones or on separate machines must meet on one topic.
 
 ## Dedupe and echo protection
 

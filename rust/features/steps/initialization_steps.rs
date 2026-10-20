@@ -151,6 +151,7 @@ pub struct KanbusWorld {
     pub uds_socket_path: Option<PathBuf>,
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
     pub uds_published_id: Option<String>,
+    pub realtime_scope: crate::step_definitions::realtime_steps::RealtimeScopeState,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
     pub mosquitto_hint_count: Option<usize>,
     pub mosquitto_unavailable: bool,

@@ -8,6 +8,7 @@ use rumqttc::{
 use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 #[cfg(unix)]
@@ -35,6 +36,9 @@ pub struct GossipEnvelope {
     pub id: String,
     pub ts: String,
     pub project: String,
+    /// Stable scope identity of the producing project, see [`project_scope_identity`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_identity: Option<String>,
     #[serde(rename = "type")]
     pub event_type: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -148,6 +152,74 @@ pub fn should_accept_gossip(
 }
 
 #[cfg(test)]
+mod project_scope_tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn sample_envelope(identity: Option<&str>) -> GossipEnvelope {
+        GossipEnvelope {
+            id: "scope-1".to_string(),
+            ts: "2026-01-01T00:00:00Z".to_string(),
+            project: "kanbus".to_string(),
+            project_identity: identity.map(str::to_string),
+            event_type: "issue.mutated".to_string(),
+            issue_id: Some("kanbus-1".to_string()),
+            event_id: None,
+            producer_id: "remote".to_string(),
+            origin_cluster_id: None,
+            issue: None,
+            coordination: CoordinationGossipFields::default(),
+        }
+    }
+
+    #[test]
+    fn scope_identity_differs_for_projects_sharing_a_label() {
+        let first = TempDir::new().expect("tempdir");
+        let second = TempDir::new().expect("tempdir");
+        let first_identity = project_scope_identity(first.path(), "kanbus").expect("identity");
+        let second_identity = project_scope_identity(second.path(), "kanbus").expect("identity");
+        assert_ne!(first_identity, second_identity);
+        assert_eq!(
+            first_identity,
+            project_scope_identity(first.path(), "kanbus").expect("identity")
+        );
+        assert!(first_identity.starts_with("kanbus-"));
+        assert_eq!(first_identity.len(), "kanbus-".len() + 16);
+    }
+
+    #[test]
+    fn scope_identity_is_absent_for_a_missing_directory() {
+        assert!(project_scope_identity(Path::new("/nonexistent/kanbus-scope"), "kanbus").is_none());
+    }
+
+    #[test]
+    fn event_carrying_another_projects_identity_is_dropped() {
+        let expected = "kanbus-0123456789abcdef";
+        assert!(envelope_matches_project_identity(
+            &sample_envelope(Some(expected)),
+            expected
+        ));
+        assert!(!envelope_matches_project_identity(
+            &sample_envelope(Some("kanbus-fedcba9876543210")),
+            expected
+        ));
+        assert!(!envelope_matches_project_identity(
+            &sample_envelope(None),
+            expected
+        ));
+    }
+
+    #[test]
+    fn topic_embeds_the_scope_identity() {
+        let realtime = RealtimeConfig::default();
+        assert_eq!(
+            project_topic(&realtime, "kanbus-0123456789abcdef"),
+            "projects/kanbus-0123456789abcdef/events"
+        );
+    }
+}
+
+#[cfg(test)]
 mod dedupe_tests {
     use super::DedupeSet;
     use std::time::Duration;
@@ -188,10 +260,14 @@ pub fn publish_issue_mutation(
     let Some(project_label) = project_label else {
         return;
     };
+    let Some(project_identity) = project_scope_identity(project_dir, &project_label) else {
+        return;
+    };
     let envelope = GossipEnvelope {
         id: Uuid::new_v4().to_string(),
         ts: now_iso(),
         project: project_label.clone(),
+        project_identity: Some(project_identity.clone()),
         event_type: event_type.to_string(),
         issue_id: Some(issue.identifier.clone()),
         event_id,
@@ -200,7 +276,7 @@ pub fn publish_issue_mutation(
         issue: Some(issue.clone()),
         coordination: CoordinationGossipFields::default(),
     };
-    let topic = project_topic(&configuration.realtime, &project_label);
+    let topic = project_topic(&configuration.realtime, &project_identity);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
         eprintln!("warning: realtime publish failed: {error}");
     }
@@ -228,10 +304,14 @@ pub fn publish_issue_deleted(
     let Some(project_label) = project_label else {
         return;
     };
+    let Some(project_identity) = project_scope_identity(project_dir, &project_label) else {
+        return;
+    };
     let envelope = GossipEnvelope {
         id: Uuid::new_v4().to_string(),
         ts: now_iso(),
         project: project_label.clone(),
+        project_identity: Some(project_identity.clone()),
         event_type: "issue.deleted".to_string(),
         issue_id: Some(issue_id.to_string()),
         event_id,
@@ -240,7 +320,7 @@ pub fn publish_issue_deleted(
         issue: None,
         coordination: CoordinationGossipFields::default(),
     };
-    let topic = project_topic(&configuration.realtime, &project_label);
+    let topic = project_topic(&configuration.realtime, &project_identity);
     if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
         eprintln!("warning: realtime publish failed: {error}");
     }
@@ -314,6 +394,7 @@ pub fn build_coordination_gossip_envelope(
         id: Uuid::new_v4().to_string(),
         ts: now_iso(),
         project: project.to_string(),
+        project_identity: None,
         event_type: event_type.to_string(),
         issue_id: None,
         event_id: Some(event_id.to_string()),
@@ -751,13 +832,22 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
         }
     }
     let mut project_map = HashMap::new();
+    let mut topics: Vec<String> = Vec::new();
     for project in &labeled {
-        project_map.insert(project.label.clone(), project.project_dir.clone());
+        let identity =
+            project_scope_identity(&project.project_dir, &project.label).ok_or_else(|| {
+                KanbusError::IssueOperation(format!(
+                    "cannot resolve project directory for realtime scope: {}",
+                    project.project_dir.display()
+                ))
+            })?;
+        topics.push(project_topic(realtime, &identity));
+        topics.push(project_topic(realtime, &project.label));
+        project_map.insert(
+            project.label.clone(),
+            (project.project_dir.clone(), identity),
+        );
     }
-    let topics: Vec<String> = labeled
-        .iter()
-        .map(|project| project_topic(realtime, &project.label))
-        .collect();
 
     let dedupe = Arc::new(Mutex::new(DedupeSet::new(Duration::from_secs(3600))));
     let local_producer = producer_id();
@@ -774,10 +864,15 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
                 return;
             }
         }
-        let project_dir = match project_map.get(&envelope.project) {
-            Some(path) => path,
+        let (project_dir, expected_identity) = match project_map.get(&envelope.project) {
+            Some(entry) => entry,
             None => return,
         };
+        let is_coordination = envelope.event_type.starts_with("coordination.");
+        if !is_coordination && !envelope_matches_project_identity(&envelope, expected_identity) {
+            record_foreign_project_drop();
+            return;
+        }
         if options.print_envelopes {
             if let Ok(line) = serde_json::to_string(&envelope) {
                 println!("{line}");
@@ -1716,8 +1811,61 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("."))
 }
 
-fn project_topic(realtime: &RealtimeConfig, label: &str) -> String {
-    realtime.topics.project_events.replace("{project}", label)
+/// Compute the stable realtime scope identity of a project.
+///
+/// The identity is the project label followed by the first sixteen lowercase
+/// hexadecimal characters of the SHA-256 digest of the canonical project
+/// directory path, a newline, and the label. Every runtime derives the same
+/// value, so two projects that share a project key but live in different
+/// directories never share a realtime topic. Returns `None` when the project
+/// directory cannot be canonicalized.
+pub fn project_scope_identity(project_dir: &Path, label: &str) -> Option<String> {
+    let canonical = fs::canonicalize(project_dir).ok()?;
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.to_string_lossy().as_bytes());
+    hasher.update(b"\n");
+    hasher.update(label.as_bytes());
+    let digest = hasher.finalize();
+    let hex: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+    Some(format!("{label}-{}", &hex[..16]))
+}
+
+/// Return true when an envelope carries exactly the expected project identity.
+pub fn envelope_matches_project_identity(
+    envelope: &GossipEnvelope,
+    expected_identity: &str,
+) -> bool {
+    envelope.project_identity.as_deref() == Some(expected_identity)
+}
+
+static FOREIGN_PROJECT_DROP_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+fn record_foreign_project_drop() {
+    let total = FOREIGN_PROJECT_DROP_COUNT.fetch_add(1, Ordering::SeqCst) + 1;
+    log::warn!("dropped realtime events for other projects: total={total}");
+}
+
+/// Return how many received events were dropped for carrying another project's identity.
+pub fn foreign_project_drop_count() -> usize {
+    FOREIGN_PROJECT_DROP_COUNT.load(Ordering::SeqCst)
+}
+
+/// Resolve the realtime topic for the project stored in `project_dir`.
+pub fn project_event_topic(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+) -> Option<String> {
+    let label = resolve_project_label(root, project_dir, configuration)?;
+    let identity = project_scope_identity(project_dir, &label)?;
+    Some(project_topic(&configuration.realtime, &identity))
+}
+
+fn project_topic(realtime: &RealtimeConfig, project_scope: &str) -> String {
+    realtime
+        .topics
+        .project_events
+        .replace("{project}", project_scope)
 }
 
 fn resolve_project_label(
@@ -2076,6 +2224,7 @@ mod tests {
             id: Uuid::new_v4().to_string(),
             ts: now_iso(),
             project: "test".to_string(),
+            project_identity: None,
             event_type: "issue.mutated".to_string(),
             issue_id: Some("test-1".to_string()),
             event_id: Some(Uuid::new_v4().to_string()),
@@ -2193,6 +2342,8 @@ mod tests {
         configuration.realtime.transport = transport.to_string();
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
+        std::fs::create_dir_all(root.join(&configuration.project_directory))
+            .expect("create project directory");
     }
 
     #[test]

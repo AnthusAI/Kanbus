@@ -1,17 +1,23 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, TimeZone, Utc};
 use cucumber::{given, then, when};
 use tempfile::TempDir;
 
+use kanbus::config_loader::load_project_configuration;
+use kanbus::file_io::get_configuration_path;
 use kanbus::gossip::{
     attempt_mosquitto_missing_warning, attempt_mqtt_publish_without_broker, autostart_mosquitto,
-    mosquitto_missing_warning_count, reset_mosquitto_missing_warning, DedupeSet, GossipEnvelope,
+    foreign_project_drop_count, mosquitto_missing_warning_count, project_event_topic,
+    project_scope_identity, publish_issue_mutation, reset_mosquitto_missing_warning,
+    run_gossip_bridge, DedupeSet, GossipEnvelope,
 };
 use kanbus::models::{IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig};
 use kanbus::overlay::{
@@ -147,6 +153,7 @@ fn when_build_envelope(world: &mut KanbusWorld) {
             .updated_at
             .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         project: "kanbus".to_string(),
+        project_identity: None,
         event_type: "issue.mutated".to_string(),
         issue_id: Some(issue.identifier.clone()),
         event_id: Some("evt-1".to_string()),
@@ -345,6 +352,7 @@ fn when_publish_uds(world: &mut KanbusWorld, topic: String) {
             .updated_at
             .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         project: "kanbus".to_string(),
+        project_identity: None,
         event_type: "issue.mutated".to_string(),
         issue_id: Some(issue.identifier.clone()),
         event_id: Some("evt-uds".to_string()),
@@ -436,6 +444,7 @@ fn when_publish_two_without_broker(world: &mut KanbusWorld) {
         id: "env-1".to_string(),
         ts: "2026-01-01T00:00:00Z".to_string(),
         project: "kanbus".to_string(),
+        project_identity: None,
         event_type: "issue.mutated".to_string(),
         issue_id: Some("KAN-1".to_string()),
         event_id: None,
@@ -570,4 +579,263 @@ async fn given_config_broker_disabled(world: &mut KanbusWorld) -> Result<(), std
         std::fs::write(&config_path, content)?;
     }
     Ok(())
+}
+
+#[derive(Debug)]
+struct ScopedProject {
+    repository_root: PathBuf,
+    project_directory: PathBuf,
+}
+
+/// State shared by the realtime project scope scenarios.
+#[derive(Debug, Default)]
+pub struct RealtimeScopeState {
+    temp_dir: Option<TempDir>,
+    projects: BTreeMap<String, ScopedProject>,
+    raw_subscribers: BTreeMap<String, UnixStream>,
+    consumers: BTreeMap<String, Vec<Arc<Mutex<Vec<String>>>>>,
+    drop_count_before: usize,
+}
+
+fn scoped_project<'a>(world: &'a KanbusWorld, name: &str) -> &'a ScopedProject {
+    world
+        .realtime_scope
+        .projects
+        .get(name)
+        .unwrap_or_else(|| panic!("unknown scoped project {name}"))
+}
+
+fn scoped_topic(world: &KanbusWorld, name: &str) -> String {
+    let project = scoped_project(world, name);
+    let configuration = load_project_configuration(
+        &get_configuration_path(&project.repository_root).expect("path"),
+    )
+    .expect("configuration");
+    project_event_topic(
+        &project.repository_root,
+        &project.repository_root.join("project"),
+        &configuration,
+    )
+    .expect("topic")
+}
+
+#[given(
+    expr = "two projects {string} and {string} that share the project key {string} and the UDS broker"
+)]
+fn given_two_scoped_projects(
+    world: &mut KanbusWorld,
+    first: String,
+    second: String,
+    project_key: String,
+) {
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    let temp_dir = TempDir::new().expect("tempdir");
+    for name in [first, second] {
+        let repository_root = temp_dir.path().join(&name);
+        let project_directory = repository_root.join("project");
+        fs::create_dir_all(project_directory.join("issues")).expect("issues directory");
+        fs::write(
+            repository_root.join(".kanbus.yml"),
+            format!(
+                "project_directory: project\nproject_key: {project_key}\nrealtime:\n  broker: auto\n  autostart: false\n  keepalive: false\n  topics:\n    project_events: projects/{{project}}/events\n  transport: uds\n  uds_socket_path: {}\n",
+                socket_path.display()
+            ),
+        )
+        .expect("configuration");
+        world.realtime_scope.projects.insert(
+            name,
+            ScopedProject {
+                repository_root,
+                project_directory,
+            },
+        );
+    }
+    world.realtime_scope.temp_dir = Some(temp_dir);
+}
+
+#[given(expr = "a raw subscriber on the realtime topic of project {string}")]
+fn given_raw_subscriber(world: &mut KanbusWorld, name: String) {
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    let topic = scoped_topic(world, &name);
+    let mut stream = UnixStream::connect(socket_path).expect("connect");
+    let line = serde_json::to_string(&serde_json::json!({"op": "sub", "topic": topic}))
+        .expect("serialize")
+        + "\n";
+    stream.write_all(line.as_bytes()).expect("write");
+    world.realtime_scope.raw_subscribers.insert(name, stream);
+    thread::sleep(Duration::from_millis(100));
+}
+
+#[given(expr = "a console realtime consumer for project {string}")]
+fn given_console_consumer(world: &mut KanbusWorld, name: String) {
+    let root = scoped_project(world, &name).repository_root.clone();
+    let applied: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let applied_for_callback = Arc::clone(&applied);
+    let callback = Arc::new(move |envelope: GossipEnvelope| {
+        if let Some(issue_id) = envelope.issue_id {
+            applied_for_callback.lock().expect("lock").push(issue_id);
+        }
+    });
+    thread::spawn(move || {
+        let _ = run_gossip_bridge(&root, callback);
+    });
+    world
+        .realtime_scope
+        .consumers
+        .entry(name)
+        .or_default()
+        .push(applied);
+    thread::sleep(Duration::from_millis(400));
+}
+
+#[when(expr = "project {string} publishes an issue mutation for {string}")]
+fn when_project_publishes_mutation(world: &mut KanbusWorld, name: String, issue_id: String) {
+    let project = scoped_project(world, &name);
+    let issue = issue(&issue_id, Utc::now());
+    publish_issue_mutation(
+        &project.repository_root,
+        &project.project_directory,
+        &issue,
+        None,
+        "issue.mutated",
+    );
+}
+
+fn publish_remote_mutation(
+    world: &mut KanbusWorld,
+    issue_id: &str,
+    topic_project: &str,
+    identity_project: &str,
+) {
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    let topic = scoped_topic(world, topic_project);
+    let identity_source = scoped_project(world, identity_project);
+    let identity = project_scope_identity(&identity_source.project_directory, "kanbus");
+    let issue = issue(issue_id, Utc::now());
+    let envelope = GossipEnvelope {
+        id: format!("remote-{issue_id}"),
+        ts: issue
+            .updated_at
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        project: "kanbus".to_string(),
+        project_identity: identity,
+        event_type: "issue.mutated".to_string(),
+        issue_id: Some(issue.identifier.clone()),
+        event_id: Some(format!("evt-{issue_id}")),
+        producer_id: "remote-producer".to_string(),
+        origin_cluster_id: None,
+        issue: Some(issue),
+        coordination: Default::default(),
+    };
+    let payload = serde_json::json!({"op": "pub", "topic": topic, "msg": envelope});
+    let line = serde_json::to_string(&payload).expect("serialize") + "\n";
+    let mut stream = UnixStream::connect(socket_path).expect("connect");
+    stream.write_all(line.as_bytes()).expect("write");
+}
+
+#[when(expr = "a remote producer publishes an issue mutation for {string} in project {string}")]
+fn when_remote_publishes_in_project(world: &mut KanbusWorld, issue_id: String, name: String) {
+    publish_remote_mutation(world, &issue_id, &name, &name);
+}
+
+#[when(
+    expr = "a remote producer publishes an issue mutation for {string} on the topic of project {string} claiming the identity of project {string}"
+)]
+fn when_remote_publishes_claiming_identity(
+    world: &mut KanbusWorld,
+    issue_id: String,
+    topic_project: String,
+    identity_project: String,
+) {
+    world.realtime_scope.drop_count_before = foreign_project_drop_count();
+    publish_remote_mutation(world, &issue_id, &topic_project, &identity_project);
+}
+
+#[then(expr = "the raw subscriber of project {string} receives an envelope for {string}")]
+fn then_raw_subscriber_receives(world: &mut KanbusWorld, name: String, issue_id: String) {
+    let stream = world
+        .realtime_scope
+        .raw_subscribers
+        .get_mut(&name)
+        .expect("subscriber");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .expect("timeout");
+    let mut reader = BufReader::new(&mut *stream);
+    let mut line = String::new();
+    reader.read_line(&mut line).expect("read");
+    let payload: serde_json::Value = serde_json::from_str(&line).expect("json");
+    assert_eq!(payload["msg"]["issue_id"].as_str(), Some(issue_id.as_str()));
+}
+
+#[then(expr = "the raw subscriber of project {string} receives no envelope")]
+fn then_raw_subscriber_receives_nothing(world: &mut KanbusWorld, name: String) {
+    let stream = world
+        .realtime_scope
+        .raw_subscribers
+        .get_mut(&name)
+        .expect("subscriber");
+    stream
+        .set_read_timeout(Some(Duration::from_millis(500)))
+        .expect("timeout");
+    let mut reader = BufReader::new(&mut *stream);
+    let mut line = String::new();
+    let outcome = reader.read_line(&mut line);
+    assert!(
+        matches!(outcome, Err(_) | Ok(0)),
+        "unexpected envelope: {line}"
+    );
+}
+
+fn consumer_has_applied(applied: &Arc<Mutex<Vec<String>>>, issue_id: &str) -> bool {
+    applied
+        .lock()
+        .expect("lock")
+        .iter()
+        .any(|candidate| candidate == issue_id)
+}
+
+#[then(expr = "every console realtime consumer of project {string} applies the issue {string}")]
+fn then_consumers_apply_issue(world: &mut KanbusWorld, name: String, issue_id: String) {
+    let project_directory = scoped_project(world, &name).project_directory.clone();
+    let consumers = world
+        .realtime_scope
+        .consumers
+        .get(&name)
+        .expect("consumers");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    for applied in consumers {
+        while !consumer_has_applied(applied, &issue_id) {
+            assert!(
+                Instant::now() < deadline,
+                "consumer never applied {issue_id}"
+            );
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+    let overlay_path = overlay_issue_path(&project_directory, &issue_id);
+    while !overlay_path.exists() {
+        assert!(Instant::now() < deadline, "overlay never cached {issue_id}");
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[then(expr = "no console realtime consumer of project {string} applies the issue {string}")]
+fn then_consumers_do_not_apply_issue(world: &mut KanbusWorld, name: String, issue_id: String) {
+    thread::sleep(Duration::from_millis(500));
+    let project_directory = scoped_project(world, &name).project_directory.clone();
+    for applied in world
+        .realtime_scope
+        .consumers
+        .get(&name)
+        .expect("consumers")
+    {
+        assert!(!consumer_has_applied(applied, &issue_id));
+    }
+    assert!(!overlay_issue_path(&project_directory, &issue_id).exists());
+}
+
+#[then("the count of dropped events for other projects has increased")]
+fn then_foreign_drop_count_increased(world: &mut KanbusWorld) {
+    assert!(foreign_project_drop_count() > world.realtime_scope.drop_count_before);
 }
