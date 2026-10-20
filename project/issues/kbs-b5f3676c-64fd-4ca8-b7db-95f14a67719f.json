@@ -1,0 +1,20 @@
+{
+  "id": "kbs-b5f3676c-64fd-4ca8-b7db-95f14a67719f",
+  "title": "Event records carry agent run identifiers that the privacy guard blocks; committing events by default (#487) would publish them",
+  "description": "2026-10-20: committing board changes in the Kanbus repo was blocked by the local pre-commit privacy guard (leftblock with Pudicus gitleaks rules) on the new project/events/*.json files written by kbs comment and kbs close: the event records carry agent run identifiers and actor identifiers. Since PR #487 (kbs-65914cd1), kbs commit stages project/events by default and the repo no longer ignores it, so in a public repository these identifiers would be published unless the guard catches them. Decision needed from Ryan: (a) events never record identifying run values (store a stable, non-identifying actor label such as the configured agent name, or a salted one-way digest), in both runtimes, with a spec; or (b) events stay local by default and only private boards commit them; or (c) both. Also audit project/events files committed on develop since #487 for such identifiers before the next release to main. Until decided, agents commit project/issues only when the guard blocks events.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T13:47:19.151240Z",
+  "updated_at": "2026-10-20T13:47:45.252204Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

@@ -3,7 +3,7 @@
   "title": "Scope console UI state and notification channels per tenant",
   "description": "In multi-tenant mode AppState has one ui_state and one notification_tx, and get_realtime_events ignores account/project, so focus/search UI state and IssueUpdated notifications leak across tenants (rust/src/bin/console_local.rs). Behavior change: write a console-server Gherkin scenario first (two tenants, a focus notification on one is not delivered to the other), then key ui_state and notification channels by (account, project) in Rust and match in the Python console server. Acceptance: new scenario passes in both runtimes.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": "Codex",
   "creator": null,
@@ -120,11 +120,18 @@
         "model": "Claude Opus 5.5",
         "name": "Drift Fix"
       }
+    },
+    {
+      "id": "3e205b49-624c-45ea-ac7d-e8af509b606f",
+      "author": "home",
+      "text": "Merged in PR #490 (Codex implementation, merged with develop after #473's route unification and reviewed 2026-10-20): per-tenant notification sessions (channel, UI state, persistence boundary) behind the unified tenant routes; tenant roots must canonicalize exactly to base/account/project; multi-tenant root notification routes return 400.",
+      "created_at": "2026-10-20T14:37:58.510094Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-20T13:17:27.672214Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T14:37:58.702825Z",
+  "closed_at": "2026-10-20T14:37:58.652130Z",
   "agent": {
     "platform": "claude_code",
     "model": "Claude Opus 5.5",
