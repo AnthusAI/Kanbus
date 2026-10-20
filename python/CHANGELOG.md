@@ -2,6 +2,57 @@
 
 <!-- version list -->
 
+## v0.38.0 (2026-10-20)
+
+### Bug Fixes
+
+- **console**: Escape the font host in the theme step pattern
+  ([`53738f0`](https://github.com/AnthusAI/Kanbus/commit/53738f09ccbab0a1992bc69bf75ea8d49354f669))
+
+- **console**: Repair the board theme step after the font assertion edit
+  ([`0939759`](https://github.com/AnthusAI/Kanbus/commit/09397591d2e40223a34dc9720e38c86fb9c675e1))
+
+- **ui**: Address review findings on themes docs, stored mode validation and hover contrast
+  ([`ae6b6cd`](https://github.com/AnthusAI/Kanbus/commit/ae6b6cd8a1eda2709cea8bda1be98f8a5f981ef0))
+
+- **ui**: Keep the themed priority label a tinted pill
+  ([`9bcd957`](https://github.com/AnthusAI/Kanbus/commit/9bcd95719d5a8bf44ec1f8c67637295dabd52a8f))
+
+- **ui**: Size the themed type filter in the theme UI font at 11px with an accent underline
+  ([`fe9b377`](https://github.com/AnthusAI/Kanbus/commit/fe9b37716f41faa7f1d896fe87abb983b2133aee))
+
+### Chores
+
+- **kanbus**: Close kbs-cb34cc24 as superseded by #494
+  ([`d7ed7a9`](https://github.com/AnthusAI/Kanbus/commit/d7ed7a99194d93319b1a5a6513f6f6dbdd3c4bf9))
+
+- **kanbus**: Commit board state
+  ([`da82d94`](https://github.com/AnthusAI/Kanbus/commit/da82d9444b1e3081dc3a90400913ff1544098caa))
+
+- **kanbus**: Commit board state
+  ([`af06056`](https://github.com/AnthusAI/Kanbus/commit/af0605628af914366dfde2acaf882df23952e929))
+
+- **kanbus**: File @kanbus/ui embedder story from Chatticus
+  ([`37a6616`](https://github.com/AnthusAI/Kanbus/commit/37a66160f0f75d8807149712ad6e0212543fad8e))
+
+- **kanbus**: File audit bugs 2026-10-20 ([#498](https://github.com/AnthusAI/Kanbus/pull/498),
+  [`dcb4f81`](https://github.com/AnthusAI/Kanbus/commit/dcb4f81737ae2b472710e571d2081b7078097dad))
+
+- **kanbus**: File CI Set up Rust flake
+  ([`1bf8db1`](https://github.com/AnthusAI/Kanbus/commit/1bf8db197e2e391a0eb8feddc8e163a9ef98b4aa))
+
+- **kanbus**: File console board style story
+  ([`c8d14da`](https://github.com/AnthusAI/Kanbus/commit/c8d14da2a983780c37447427479b4a5889624ead))
+
+### Features
+
+- **console**: Bundle theme fonts, add matching python and rust settings steps, release ui 0.4.0
+  ([`a9aa089`](https://github.com/AnthusAI/Kanbus/commit/a9aa089f15bd126714ae27b97b65386e518daee4))
+
+- **ui**: Add four editorial board themes with light and dark modes and a console theme picker
+  ([`493be00`](https://github.com/AnthusAI/Kanbus/commit/493be0086e4fcf978dc45067b6fa89fa1d4a512c))
+
+
 ## v0.37.0 (2026-10-20)
 
 ### Bug Fixes
