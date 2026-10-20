@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "12199e3d-2658-44c1-ad64-a1c4bcc7acd7",
+  "issue_id": "kbs-f222b6ee-541b-46a2-b9e8-9a6c4f4febbb",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T03:45:09.258Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Service-to-service authentication for kanbus-api (IAM SigV4) alongside the user JWT authorizer",
+    "description": "A Chatticus control-plane Lambda in the same AWS account must call kanbus-api without a user JWT. Add IAM (SigV4) authorization for service callers on a separate route or stage, with the tenant and allowed projects carried by the verified service identity, not by request parameters. Keep the Cognito JWT path for users. Spec the authorization rules.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+    "labels": []
+  }
+}

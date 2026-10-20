@@ -1,0 +1,20 @@
+{
+  "id": "kbs-9cb5cb40-3ea3-4c2d-97c3-daac5fb16064",
+  "title": "kanbus-api resolves tenant and project per request from verified identity instead of one deploy-time namespace",
+  "description": "Blocking for per-bot boards. The Lambda serves exactly one KANBUS_NAMESPACE. Resolve (tenant, project) per request: the path or query selects the project; the tenant and the set of allowed projects come from verified identity (JWT claims for users, the service identity for service calls), never from the client alone. New projects (a new bot) need no redeploy. Keep single-project routes unbounded by project count; keep a fan-out budget only for cross-project list queries (see the MAX_PROJECTS story). Spec in services/kanbus-api/features first.",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T03:45:05.097428Z",
+  "updated_at": "2026-10-20T03:45:05.340382Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

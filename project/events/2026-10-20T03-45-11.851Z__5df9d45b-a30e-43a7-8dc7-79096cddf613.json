@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "5df9d45b-a30e-43a7-8dc7-79096cddf613",
+  "issue_id": "kbs-a19d1443-7442-4ffe-8349-5b141fc7d7fe",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T03:45:11.851Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Typed TypeScript client for kanbus-api (Node and browser)",
+    "description": "Publish a typed client (with @kanbus/ui or a sibling @kanbus/api-client package) for kanbus-api routes: query, get, create, update, delete, history, with If-Match revisions, X-Operation-Id idempotency, catalog_pending handling and typed errors (409 stale revision, 422 query_budget_exceeded). Types must match the exported KanbanIssue/KanbanConfig types. Release through the same ui-v (or a new) tag flow; see kbs-3307b32a item 5 for the publish channel.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+    "labels": []
+  }
+}
