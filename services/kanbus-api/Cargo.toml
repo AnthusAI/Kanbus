@@ -41,3 +41,8 @@ path = "src/bin/local.rs"
 name = "kanbus-api-lambda"
 path = "src/bin/lambda.rs"
 required-features = ["aws"]
+
+[[bin]]
+name = "kanbus-api-sweeper"
+path = "src/bin/sweeper.rs"
+required-features = ["aws"]

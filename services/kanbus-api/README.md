@@ -9,6 +9,9 @@ The service reuses Kanbus models, configuration and workflow validation. The ini
 
 | Method | Route | Contract |
 | --- | --- | --- |
+| POST | `/{tenant}/{project}/api/board/archive` | Archive a board; see Board lifecycle |
+| POST | `/{tenant}/{project}/api/board/restore` | Restore an archived board |
+| DELETE | `/{tenant}/{project}/api/board` | Purge an archived board |
 | GET | `/{tenant}/{project}/api/config` | Browser-safe board configuration plus authenticated `actor_id` |
 | PUT | `/{tenant}/{project}/api/config` | Provision a board (create-if-absent); see Provisioning a board |
 | GET | `/{tenant}/{project}/api/issues` | `{issues:[{issue,revision}],next_cursor}` |
@@ -86,9 +89,35 @@ Dependency validation failures are 400 `invalid_request`.
 - If the board already has a configuration, the response is 409 `board_exists`, whether or not the body matches. There is no update path.
 - The configuration is written with `WriteCondition::Absent` through the journaled store. No directory objects are needed in S3; issue and event keys are created on first write. Success returns 201 with the same body as `GET /{tenant}/{project}/api/config`.
 
+## Board lifecycle
+
+Chatticus archives a bot's board when the bot is deleted; the archive is purged after `KANBUS_ARCHIVE_RETENTION_DAYS` days, or at once when an owner asks (archive, then purge). All three routes need the `provision` capability with a grant covering the board; other callers get the same 403 `forbidden` body as for an ungranted board. All require `X-Operation-Id` (UUID), take no body, and are idempotent: a replay returns the original result, and a different request under the same ID is 409 `operation_conflict`.
+
+- `POST .../api/board/archive`: the board must exist (404 `not_found`). Returns 200 `{archived_at, purge_after}` with `purge_after = archived_at + KANBUS_ARCHIVE_RETENTION_DAYS`. An archived board returns 409 `board_archived`.
+- `POST .../api/board/restore`: 200 `{restored: true}`; 409 `board_not_archived` if the board is not archived, 409 `purge_in_progress` once a purge has begun.
+- `DELETE .../api/board`: 200 `{purged: true}`; 409 `board_not_archived` unless archived. It calls `JournaledStore::purge_scope`, which removes every canonical object, catalog row and control object of the board (including `relations/`) except its own purge intent and receipt. A purge is resumable: repeat it with the same operation ID. A different ID while one is unfinished is 409 `purge_in_progress`. After a purge every route returns 404 `not_found` and `PUT .../api/config` provisions the board again from scratch.
+
+While a board is archived, members and non-provisioning services get 404 `not_found` on every route (identical to a board that does not exist). Provisioning services may `GET` config, issues and events; every other method returns 409 `board_archived` for everyone, including `PUT config`. The cross-board list answers 404 `not_found` for an explicitly named archived board unless the caller provisions. Tenant names beginning with `_` are reserved and rejected with 400 `invalid_request`.
+
+Settings: `KANBUS_ARCHIVE_RETENTION_DAYS` is required by the Lambda, sweeper and local binaries (a positive integer; Chatticus uses 30) and startup fails with a clear message if it is missing or invalid. Purge must run with writers stopped, which archiving guarantees because every write returns 409 `board_archived`.
+
+### Archive index
+
+Lifecycle state lives in the reserved scope `_kanbus/archives`, as canonical objects, because the object store can list and delete those but not enumerate control state by prefix:
+
+- `markers/<tenant>/<project>.json`: `{archived_at, purge_after, archived_by, ...}` plus the operation that started a purge.
+- `index/<purge_after as YYYYMMDDTHHMMSSZ>/<tenant>/<project>.json`: sorts by expiry, so the sweeper lists only the expired prefix instead of tenants or the bucket.
+- `receipts/<tenant>/<project>/<sha256 of operation>.json`: recorded outcomes that answer replays; a replay that finds its marker still open finishes the cleanup.
+
+Every board request reads one marker. The Lambda role must reach the `_kanbus/archives/` prefix, which the whole-bucket grant already covers. The local binary keeps this state in a folder named `.<root folder>.archive` beside `KANBUS_ROOT`.
+
+### Sweeper
+
+`kanbus-api-sweeper` (feature `aws`) is a Lambda meant to run on a schedule. It calls `Api::sweep_expired_archives(now)`, which lists the index up to `now`, examines at most `SWEEP_BATCH_LIMIT` (50) entries, removes entries whose board was restored or archived again, and purges the rest through the same code path as the API with an operation ID derived from the board and its archive time (or the operation of an interrupted API purge). It logs counts only. Scheduling it (EventBridge) and its environment are deployment work, tracked in kbs-4818904b; `@kanbus/cdk` does not create it yet.
+
 ## Boards and access
 
-One deployment serves every board of an environment. The board a request addresses comes only from the request path (`/{tenant}/{project}/api/...`, parsed from `rawPath` alone, so direct Lambda invocation with a hand-built HTTP API v2 event works). Tenant is the organization id and project is the bot id; both must satisfy the Virtuus scope rules (lowercase letters, digits, `-`, `_`, `.`) or the request is rejected with 400 `invalid_request` before any storage access. A new board needs no redeploy: publishing its `.kanbus.yml` makes it usable immediately, and a granted board without one returns 503 `configuration_missing`.
+One deployment serves every board of an environment. The board a request addresses comes only from the request path (`/{tenant}/{project}/api/...`, parsed from `rawPath` alone, so direct Lambda invocation with a hand-built HTTP API v2 event works). Tenant is the organization id and project is the bot id; both must satisfy the Virtuus scope rules (lowercase letters, digits, `-`, `_`, `.`) or the request is rejected with 400 `invalid_request` before any storage access. A new board needs no redeploy: publishing its `.kanbus.yml` makes it usable immediately, and a granted board without one returns 404 `not_found`, the same body an archived board shows to members.
 
 Access comes only from verified identity. In the cloud, grants come from the verified `cognito:groups` claim (JSON array, API Gateway bracketed space-separated string, or a plain single string). A group named `kanbus:<tenant>/<project>` grants that board; `kanbus:<tenant>/*` grants every board of the tenant and should be used sparingly. Other groups and malformed names are ignored. A verified token with no matching group gets 403; authentication alone grants nothing. A request for a board that is not granted returns the same 403 `forbidden` body whether or not the board exists. The authorization decision is `Principal::allows`, a pure function over the verified grants, so other principal sources can be added without touching routing.
 
