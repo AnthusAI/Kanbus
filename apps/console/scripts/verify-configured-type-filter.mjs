@@ -10,7 +10,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const server = await createServer({ configFile: false, root, logLevel: "error",
   cacheDir: path.join(root, "../../tmp/type-filter-vite"),
   plugins: [react()], resolve: { dedupe: ["react", "react-dom"],
-    alias: { "@kanbus/ui": path.join(root, "../../packages/ui/dist") } },
+    alias: [
+      { find: "@kanbus/ui/task-detail-panel", replacement: path.join(root, "../../packages/ui/dist/kanban/TaskDetailPanel.js") },
+      { find: "@kanbus/ui", replacement: path.join(root, "../../packages/ui/dist") }] },
   server: { host: "127.0.0.1", port: 0 } });
 let browser;
 try {
