@@ -3,17 +3,25 @@
   "title": "Host-formatted issue ids in @kanbus/ui (formatIssueId hook) for Papyrus newsroom boards",
   "description": "Requested 2026-10-20 by the Papyrus session. Papyrus newsroom boards run the 0.4.0 editorial themes on all four sites, but card and detail ids render like \"CONTENTITEM:ITEM-ARTICL...\" because packages/ui formats every id with formatIssueId (packages/ui/src/kanban/format-issue-id.ts) and the editorial themes uppercase the id line (packages/ui/src/styles/themes/editorial-base.css ~line 111). The design wants a quiet mono path such as \"articles/agent-software-factory\".\n\nWork (spec first in packages/ui/features, steps in packages/ui/tests/steps.mjs, fixture in packages/ui/tests/fixture):\n1. Add an optional host hook formatIssueId?: (issue: KanbanIssue) => string, provided once per board through a React context (exported provider, plus a formatIssueId prop on IssueCollection, Board, TaskDetailPanel and IssueDetailPanel that sets the context). Every place that renders an issue id uses it: IssueCard (packages/ui/src/kanban/IssueCard.tsx ~120), StatusTree (~160), TaskDetailPanel (~455 aria-label, ~467, ~1157), IssueDetailPanel, and any other id line found by grep. Without a host formatter the current formatIssueId(issue.id) output is the default, so the console is unchanged.\n2. When a host formatter is supplied, the id element carries data-issue-id-format=\"host\", and the theme CSS does not transform it: in editorial-base.css (and organizer.css if it uppercases ids) set text-transform: none for [data-issue-id-format=\"host\"]. Keep the mono font and size.\n3. Scenarios: default ids unchanged; a host formatter's output appears verbatim (case preserved, not truncated) on the card, in the status tree and in the detail panel, including the aria-label; the editorial theme does not uppercase host-formatted ids.\n4. Bump packages/ui to 0.4.1 (package.json and package-lock.json) in the same PR and document the hook in packages/ui/README.md and THEMES.md.\nAcceptance: packages/ui npm test passes; console typecheck and build pass; the console looks the same as before.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "59c0fd62-047f-4477-bcd9-f7a65c9ad973",
+      "author": "home",
+      "text": "Merged in PR #500 and released as @kanbus/ui 0.4.1 (ui-v0.4.1).",
+      "created_at": "2026-10-20T05:42:20.382013Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T05:03:35.637419Z",
-  "updated_at": "2026-10-20T05:03:38.906454Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T05:42:20.508732Z",
+  "closed_at": "2026-10-20T05:42:20.449598Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
