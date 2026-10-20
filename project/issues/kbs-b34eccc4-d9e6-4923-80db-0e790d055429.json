@@ -5,7 +5,7 @@
   "type": "sub-task",
   "status": "in_progress",
   "priority": 2,
-  "assignee": null,
+  "assignee": "Codex",
   "creator": null,
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [
@@ -13,6 +13,102 @@
   ],
   "dependencies": [],
   "comments": [
+    {
+      "id": "e27edd0f-780d-450f-837e-f02062c8282e",
+      "author": "home",
+      "text": "Claimed for the approved narrow tenant-isolation fix. Inspected worktrees and open PRs: no overlapping tenant-isolation owner or open fix found. PR 473 merged as 2134ed4957f36fc2380ba54bf2fdf0e2be2a12bb and explicitly leaves notification selection unused. Worktree fix/console-tenant-isolation starts at cf357f42c. Will specify two-tenant focus/search, notification delivery/replay, root rejection in multi mode, and single-tenant behavior before implementation. Source findings only; no live exposure asserted.",
+      "created_at": "2026-10-19T22:10:58.140039Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "a4488bf1-4b5b-4635-8c84-b86c505e211c",
+      "author": "home",
+      "text": "Baseline regression failed as expected: root /api/events/realtime returns 200 in multi mode, expected 400 (unit test root_notification_stream_requires_tenant_in_multi_mode). Added shared console-server scenarios and Python/Rust steps for focus/search persistence, live IssueUpdated delivery, replay, required tenant route, and single-tenant behavior. Adjacent source findings outside this fix: local kbsc intentionally has no per-user authentication and allows remote reads; telemetry_tx and /api/telemetry/console/events remain global. Cloud console_lambda enforces route tenant against API Gateway verified authorizer claims for config/issues/events/realtime; this does not establish live deployment configuration. No production exposure claimed. Executor disconnect recovered; compatible installed Rust 1.98.1 selected because PATH cargo 1.81 cannot build locked dependencies.",
+      "created_at": "2026-10-19T22:17:09.064021Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "e63de6ab-b89a-4e36-93b9-edddb0a7f2d4",
+      "author": "home",
+      "text": "Implementation committed on fix/console-tenant-isolation: code revision 9fb05378e521fb54b19a7b6297373eff3af6011c (implementation 96e2149467498409bc4023b2db4d413c123ee29a plus compile correction). Sessions are keyed by validated route account/project; tenant state loads/persists from its existing project; root state/notification routes return 400 in multi mode; unknown tenant 404; global gossip bridge disabled in multi because envelopes lack trusted tenant identity. Tests exercise separate accounts, sibling projects, spoofed body selectors, live IssueUpdated delivery, focus/search replay, persistence/restart, root rejection and single-tenant behavior. Both runners passed four scenarios before final tidy; final committed-revision rerun in progress. 65 local server tests, 22 cloud handler/auth tests, three state library tests passed. Python format/lint and spec-parity pass. Strict Clippy 1.98.1 is blocked by two pre-existing findings in untouched right_now_command.rs and workflows.rs; scoped Clippy passes with only those lint categories excluded. No full-suite coverage run yet. Auto-review denied git push origin b99079d19b2604bb2623ac61d99d0f2750f18744:develop as an unauthorized shared-branch commitment; did not execute or retry. Board evidence will travel with the review branch/PR. Keep issue open until merge. No deployment or production mutations.",
+      "created_at": "2026-10-19T22:24:42.860993Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "9eccb3de-297f-4dca-ba6c-93c4bec254f6",
+      "author": "home",
+      "text": "Review ready: draft PR https://github.com/AnthusAI/Kanbus/pull/490 targets develop from fix/console-tenant-isolation. Final code revision 9fb05378e521fb54b19a7b6297373eff3af6011c; subsequent commits are board evidence only. Final rerun PASS: local kbsc 65/65; console_lambda/auth 22/22; UI-state library 3/3; Rust cucumber 4 scenarios/8 steps; Python behave 4 scenarios/8 steps. Rust format, whole-Python Black (272 files), Ruff and spec parity pass (71 existing gaps, no new gaps). Scoped Clippy passes excluding only the two documented pre-existing lint categories; strict Clippy remains failing on those untouched baseline findings. Logs retained under /tmp/kanbus-isolation-* on the M1. Full-suite coverage/ratchet and embedded-assets package checks remain for CI. Human Software Director acceptance, merge, and normal reviewed release/deployment remain; no auto-merge or deployment requested or performed. Issue remains in progress until landing. Direct board push to develop was denied and not retried; all evidence is carried by this PR.",
+      "created_at": "2026-10-19T22:26:37.839111Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "03593525-8feb-42e0-8156-c576d18f4398",
+      "author": "home",
+      "text": "Focused PR 490 review: route keys derive only from validated Axum path parameters; body/query selectors do not bind tenants; cloud handlers use API Gateway verified claims and local kbsc retains loopback-write trust. Original-server comparison at cf357f42c: all three tenant scenarios fail (live cross-delivery, unscoped routes accepted, missing scoped state), while the corrected legacy single-tenant root getter plus alias notification POST passes. Review found a persistence defect in initial PR code: project_directory can redirect state into another tenant, reproduced by reading beta-private through alpha; regression log /tmp/kanbus-pr490-persistence-red.log. Narrow follow-up validates tenant root identity and cache-path containment on load and before each save, including config/cache symlinks; broader store-path behavior unchanged. Added a fifth shared regression and corrected legacy tests in both runners. Repository parity-exempt label applied for shared kbsc runtime, same as PR 473; initial cochange failure awaiting updated CI. No direct develop push, merge or deployment.",
+      "created_at": "2026-10-19T22:33:44.761172Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "949624d2-7e46-4aee-803d-e11bbb09af25",
+      "author": "home",
+      "text": "Focused-review follow-up passes locally: 65 server unit tests and five shared scenarios/10 steps in both Rust and Python, including redirected project_directory, cache symlinks, aliased tenant roots, and revalidation before saving an already initialized session. Corrected the legacy test to use original root ui-state GET and existing tenant-alias notification POST; original cf357f42c server passes that legacy scenario while failing the three tenant scenarios. Initial PR persistence leak was separately proven by the new regression before guard implementation. Rust format, whole-Python Black/Ruff, spec parity (71 existing gaps) and scoped Clippy pass. Strict Rust 1.98.1 Clippy findings precisely: derivable_impls in rust/src/right_now_command.rs:46 and unnecessary_unwrap in rust/src/workflows.rs:131, both present at cf357f42c and untouched. Broader store/config path trust, local unauthenticated reads and global telemetry remain adjacent limitations. Final PR revision will carry this review evidence; no develop push, merge or deploy.",
+      "created_at": "2026-10-19T22:36:39.362256Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "fc5f694d-c9ca-4db5-8bed-5ae243e2a39a",
+      "author": "home",
+      "text": "CI review found CodeQL alert 136 (rust/path-injection), sink rust/src/bin/console_local.rs:111 symlink_metadata in the new path validator. SARIF traces selection through the returned NotificationSession into its root. Follow-up anchors validation independently to AppState.base_root before state-path/filesystem access, retaining the stricter selected-tenant boundary. No CodeQL dismissal or source suppression is used. Server tests remain 65/65; final five-scenario reruns and scoped Clippy precede the next feature-branch update and scan. Superseded CI runs 39334960024 and 39335005711 were cancelled to conserve runners; current reviewed runs remain active. No develop push, merge, deployment or infrastructure change.",
+      "created_at": "2026-10-19T22:55:28.919040Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
+    {
+      "id": "9ed59006-4ac0-4a96-950e-275ce683dc62",
+      "author": "home",
+      "text": "Fresh CodeQL analysis at 886005f7 still reports alert 136 on the raw symlink_metadata walk (line 121); that gate remains a recorded failure, not passing validation. Follow-up uses the repository FileStore approach: walk from the independently trusted server root, compare requested/configured component names to filesystem-listed entries, and use only entry-provided paths for filesystem traversal. Selected-tenant containment is retained at every existing prefix; missing suffixes are allowed and dangling symlinks fail closed. Added dangling-cache-link regression in both runners. Local verification passes: server 65/65, Rust and Python five scenarios/10 steps each, scoped Clippy; no dismissal or source suppression. Publishing for fresh CodeQL verification; PR remains draft. No executor or approval blocker, no develop push, merge or deployment.",
+      "created_at": "2026-10-19T23:10:20.904319Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "codex",
+        "model": "GPT-6.1 Sol",
+        "name": "Console Tenant Isolation"
+      }
+    },
     {
       "id": "e2259d17-244c-4b33-a805-aa0b6b83b7f7",
       "author": "home",

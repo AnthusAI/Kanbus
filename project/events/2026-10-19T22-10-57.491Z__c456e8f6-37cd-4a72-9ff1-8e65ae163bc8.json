@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "c456e8f6-37cd-4a72-9ff1-8e65ae163bc8",
+  "issue_id": "kbs-b34eccc4-d9e6-4923-80db-0e790d055429",
+  "event_type": "field_updated",
+  "occurred_at": "2026-10-19T22:10:57.491Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "assignee": {
+        "from": null,
+        "to": "Codex"
+      }
+    }
+  }
+}

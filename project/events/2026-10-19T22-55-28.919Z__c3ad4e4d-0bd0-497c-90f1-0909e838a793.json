@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "c3ad4e4d-0bd0-497c-90f1-0909e838a793",
+  "issue_id": "kbs-b34eccc4-d9e6-4923-80db-0e790d055429",
+  "event_type": "comment_added",
+  "occurred_at": "2026-10-19T22:55:28.919Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "fc5f694d-c9ca-4db5-8bed-5ae243e2a39a",
+    "comment_author": "home",
+    "agent": {
+      "platform": "codex",
+      "model": "GPT-6.1 Sol",
+      "name": "Console Tenant Isolation"
+    }
+  }
+}
