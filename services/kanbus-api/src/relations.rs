@@ -8,6 +8,16 @@
 
 use super::*;
 
+/// Age after which a relations entry that does not yet point at its target, or a deletion
+/// flag on an issue that still exists, is treated as abandoned by a crashed request.
+///
+/// It must exceed the longest time one request can run between adding its entry and
+/// committing the issue, which is bounded by the function timeout: `@kanbus/cdk` defaults
+/// it to 15 seconds and refuses more than 30 seconds (`packages/cdk/src/kanbusApi.ts`).
+/// Fifteen minutes is thirty times that maximum. Shortening it below the real request
+/// duration reopens the orphan race that the lease exists to close.
+pub const RELATION_LEASE: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
 const RELATION_ATTEMPTS: usize = 16;
 const LISTED_BLOCKING_IDENTIFIERS: usize = 10;
 const RELATIONS_PREFIX: &str = "relations/";
@@ -30,9 +40,7 @@ pub(crate) struct RelationPlan {
 impl RelationPlan {
     pub(crate) fn between(before: Option<&IssueData>, after: &IssueData) -> Self {
         let previous_parent = before.and_then(|issue| issue.parent.clone());
-        let previous_targets: Vec<String> = before
-            .map(|issue| unique_targets(issue))
-            .unwrap_or_default();
+        let previous_targets: Vec<String> = before.map(unique_targets).unwrap_or_default();
         let next_targets = unique_targets(after);
         let parent_changed = previous_parent != after.parent;
         Self {
@@ -70,38 +78,45 @@ fn unique_targets(issue: &IssueData) -> Vec<String> {
     targets
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RelationEntry {
+    id: String,
+    added_at: String,
+    operation_id: String,
+}
+
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RelationsRecord {
     #[serde(default)]
-    children: Vec<String>,
+    children: Vec<RelationEntry>,
     #[serde(default)]
-    dependents: Vec<String>,
+    dependents: Vec<RelationEntry>,
     #[serde(default)]
     deleted: bool,
+    #[serde(default)]
+    deleted_at: Option<String>,
 }
 
 impl RelationsRecord {
-    fn members_mut(&mut self, kind: RelationKind) -> &mut Vec<String> {
+    fn members_mut(&mut self, kind: RelationKind) -> &mut Vec<RelationEntry> {
         match kind {
             RelationKind::Child => &mut self.children,
             RelationKind::Dependent => &mut self.dependents,
         }
     }
 
-    fn insert(&mut self, kind: RelationKind, source: &str) -> bool {
+    fn upsert(&mut self, kind: RelationKind, entry: RelationEntry) {
         let members = self.members_mut(kind);
-        if members.iter().any(|member| member == source) {
-            return false;
-        }
-        members.push(source.to_string());
-        true
+        members.retain(|member| member.id != entry.id);
+        members.push(entry);
     }
 
     fn remove(&mut self, kind: RelationKind, source: &str) -> bool {
         let members = self.members_mut(kind);
         let before = members.len();
-        members.retain(|member| member != source);
+        members.retain(|member| member.id != source);
         members.len() != before
     }
 }
@@ -147,6 +162,22 @@ fn blocking_identifiers_error(code: &'static str, noun: &str, identifiers: &[Str
 }
 
 impl ScopedApi {
+    fn clock_timestamp(&self) -> String {
+        (self.clock)().to_rfc3339()
+    }
+
+    fn lease_expired(&self, since: &str) -> Result<bool, ApiError> {
+        let since = chrono::DateTime::parse_from_rfc3339(since).map_err(|_| {
+            ApiError::new(
+                503,
+                "invalid_relations",
+                "Relations record holds an invalid timestamp.",
+            )
+        })?;
+        let lease = chrono::Duration::from_std(RELATION_LEASE).expect("lease fits a duration");
+        Ok((self.clock)().signed_duration_since(since) >= lease)
+    }
+
     async fn load_relations(
         &self,
         identifier: &str,
@@ -201,15 +232,20 @@ impl ScopedApi {
         {
             let other: IssueData = serde_json::from_slice(&object.bytes)
                 .map_err(|error| invalid(error.to_string()))?;
+            let imported_entry = || RelationEntry {
+                id: other.identifier.clone(),
+                added_at: self.clock_timestamp(),
+                operation_id: "seeded-from-canonical-issues".into(),
+            };
             if other.parent.as_deref() == Some(identifier) {
-                record.insert(RelationKind::Child, &other.identifier);
+                record.upsert(RelationKind::Child, imported_entry());
             }
             if other
                 .dependencies
                 .iter()
                 .any(|link| link.target == identifier)
             {
-                record.insert(RelationKind::Dependent, &other.identifier);
+                record.upsert(RelationKind::Dependent, imported_entry());
             }
         }
         Ok(record)
@@ -248,6 +284,7 @@ impl ScopedApi {
         configuration: &ProjectConfiguration,
         issue: &IssueData,
         plan: &RelationPlan,
+        operation_id: &str,
     ) -> Result<(), ApiError> {
         if let Some(parent) = &plan.parent_added {
             self.attach_relation(
@@ -256,6 +293,7 @@ impl ScopedApi {
                 &issue.identifier,
                 RelationKind::Child,
                 &issue.issue_type,
+                operation_id,
             )
             .await?;
         }
@@ -266,6 +304,7 @@ impl ScopedApi {
                 &issue.identifier,
                 RelationKind::Dependent,
                 &issue.issue_type,
+                operation_id,
             )
             .await?;
         }
@@ -279,6 +318,7 @@ impl ScopedApi {
         source: &str,
         kind: RelationKind,
         source_type: &str,
+        operation_id: &str,
     ) -> Result<(), ApiError> {
         for _ in 0..RELATION_ATTEMPTS {
             let target_issue = self.relation_target(configuration, target).await?;
@@ -292,11 +332,24 @@ impl ScopedApi {
             }
             let (mut record, condition) = self.relations_for_update(configuration, target).await?;
             if record.deleted {
-                return Err(relation_target_missing());
+                let abandoned = match &record.deleted_at {
+                    Some(deleted_at) => self.lease_expired(deleted_at)?,
+                    None => true,
+                };
+                if !abandoned {
+                    return Err(relation_target_missing());
+                }
+                record.deleted = false;
+                record.deleted_at = None;
             }
-            if !record.insert(kind, source) {
-                return Ok(());
-            }
+            record.upsert(
+                kind,
+                RelationEntry {
+                    id: source.to_string(),
+                    added_at: self.clock_timestamp(),
+                    operation_id: operation_id.to_string(),
+                },
+            );
             match self.store_relations(target, &record, condition).await {
                 Ok(()) => {
                     return self
@@ -363,10 +416,8 @@ impl ScopedApi {
         for _ in 0..RELATION_ATTEMPTS {
             let (mut record, condition) =
                 self.relations_for_update(configuration, identifier).await?;
-            if record.deleted {
-                return Ok(());
-            }
             record.deleted = true;
+            record.deleted_at = Some(self.clock_timestamp());
             match self.store_relations(identifier, &record, condition).await {
                 Ok(()) => return Ok(()),
                 Err(StoreError::Conflict) => continue,
@@ -385,6 +436,7 @@ impl ScopedApi {
                 return;
             }
             record.deleted = false;
+            record.deleted_at = None;
             match self
                 .store_relations(identifier, &record, WriteCondition::Revision(revision))
                 .await
@@ -403,41 +455,52 @@ impl ScopedApi {
         let Some((mut record, revision)) = self.load_relations(identifier).await? else {
             return Ok(());
         };
-        let mut live_children = Vec::new();
-        for child in &record.children {
-            if let Some(issue) = self.live_issue(configuration, child).await? {
-                if issue.parent.as_deref() == Some(identifier) {
-                    live_children.push(child.clone());
-                }
+        let mut blocking_children = Vec::new();
+        let mut abandoned_children = Vec::new();
+        for entry in &record.children {
+            let points_here = self
+                .live_issue(configuration, &entry.id)
+                .await?
+                .is_some_and(|issue| issue.parent.as_deref() == Some(identifier));
+            if points_here || !self.lease_expired(&entry.added_at)? {
+                blocking_children.push(entry.id.clone());
+            } else {
+                abandoned_children.push(entry.id.clone());
             }
         }
-        let mut live_dependents = Vec::new();
-        for dependent in &record.dependents {
-            if let Some(issue) = self.live_issue(configuration, dependent).await? {
-                if issue
-                    .dependencies
-                    .iter()
-                    .any(|link| link.target == identifier)
-                {
-                    live_dependents.push(dependent.clone());
-                }
+        let mut blocking_dependents = Vec::new();
+        let mut abandoned_dependents = Vec::new();
+        for entry in &record.dependents {
+            let points_here = self
+                .live_issue(configuration, &entry.id)
+                .await?
+                .is_some_and(|issue| {
+                    issue
+                        .dependencies
+                        .iter()
+                        .any(|link| link.target == identifier)
+                });
+            if points_here || !self.lease_expired(&entry.added_at)? {
+                blocking_dependents.push(entry.id.clone());
+            } else {
+                abandoned_dependents.push(entry.id.clone());
             }
         }
-        if !live_children.is_empty() {
+        if !blocking_children.is_empty() {
             return Err(blocking_identifiers_error(
                 "issue_has_children",
                 "children",
-                &live_children,
+                &blocking_children,
             ));
         }
-        if !live_dependents.is_empty() {
+        if !blocking_dependents.is_empty() {
             return Err(blocking_identifiers_error(
                 "issue_has_dependents",
                 "dependents",
-                &live_dependents,
+                &blocking_dependents,
             ));
         }
-        if !record.children.is_empty() || !record.dependents.is_empty() {
+        if !abandoned_children.is_empty() || !abandoned_dependents.is_empty() {
             record.children.clear();
             record.dependents.clear();
             let _ = self
@@ -446,7 +509,6 @@ impl ScopedApi {
         }
         Ok(())
     }
-
     async fn live_issue(
         &self,
         configuration: &ProjectConfiguration,

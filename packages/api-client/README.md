@@ -113,7 +113,7 @@ Every issue read and write returns an opaque `revision`. Pass it as `ifMatch` to
 
 ### Errors
 
-Non-2xx responses throw `KanbusApiError` with `status`, `code`, `message` and, for `query_budget_exceeded`, `cost`. Codes as emitted by the server include `forbidden`, `unauthorized`, `not_found`, `invalid_request`, `invalid_issue`, `invalid_configuration`, `configuration_missing`, `revision_required`, `revision_conflict`, `operation_conflict`, `unsupported_relation_mutation`, `query_budget_exceeded`, `board_exists`, and (planned) `board_archived` and `board_not_archived`. A response that does not carry the Kanbus error body (for example a gateway 403) is reported with code `unrecognized_error`.
+Non-2xx responses throw `KanbusApiError` with `status`, `code`, `message` and, for `query_budget_exceeded`, `cost`. Codes as emitted by the server include `forbidden`, `unauthorized`, `not_found`, `invalid_request`, `invalid_issue`, `invalid_configuration`, `configuration_missing`, `revision_required`, `revision_conflict`, `operation_conflict`, `relation_target_missing`, `hierarchy_violation`, `issue_has_children`, `issue_has_dependents`, `type_change_unsupported`, `query_budget_exceeded`, `board_exists`, and (planned) `board_archived` and `board_not_archived`. A response that does not carry the Kanbus error body (for example a gateway 403) is reported with code `unrecognized_error`.
 
 ### Types
 

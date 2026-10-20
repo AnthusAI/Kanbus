@@ -91,12 +91,75 @@ Feature: Authenticated applications share the Kanbus issue model
     And repeating the identical deletion returns the durable result
     And stale deletion or deletion of a referenced issue is rejected
 
-  Scenario: Relationship mutations fail closed without related-record concurrency
+  Scenario: Imported relationships survive status and comment updates
     Given imported issues may already contain hierarchy and dependency links
-    When a member creates or changes a parent link or dependency link
-    Or changes a hierarchical issue type or deletes a hierarchical issue
-    Then the API rejects the unsupported relationship mutation without publication
-    But status and comment updates preserving imported relationships remain allowed
+    When a member changes status, adds a comment or changes an issue type to or from a hierarchy type
+    Then status and comment updates preserve the imported relationships
+    And the hierarchy type change is rejected with type_change_unsupported without publication
+
+  Scenario: A task is created under an epic
+    Given an epic exists
+    When a member creates a task with the epic as parent
+    Then the task is committed with that parent
+    And deleting the epic is rejected with issue_has_children
+
+  Scenario: A missing parent or a forbidden hierarchy is rejected
+    Given a board with the default hierarchy
+    When a member creates a task under a missing parent
+    Or creates an epic under a task
+    Then the API returns relation_target_missing or hierarchy_violation without publication
+
+  Scenario: A task is reparented between epics
+    Given a task under epic A and an epic B
+    When a member changes the task parent to B
+    Then deleting A succeeds and deleting B is rejected with issue_has_children
+
+  Scenario: Dependencies are added and removed
+    Given two issues
+    When a member adds a blocked-by dependency from one to the other
+    Then deleting the target is rejected with issue_has_dependents
+    And after the dependency is removed the target can be deleted
+    And a missing target, a self dependency or an unknown dependency type is rejected
+
+  Scenario: Hierarchical issues without children can be deleted
+    Given a task with no children
+    When a member deletes it
+    Then the task is deleted
+
+  Scenario: Stale relation entries are pruned only after the lease
+    Given an epic whose relations record lists a task that no longer points at it
+    When a member deletes the epic inside the lease
+    Then the delete is rejected with issue_has_children
+    And after the lease expires the delete succeeds
+
+  Scenario: Replayed relation writes are idempotent
+    Given a create with a parent and a reparent each carry an operation ID
+    When each request is repeated with the same operation ID
+    Then the original response is returned and relations are unchanged
+
+  Scenario: An attach racing the deletion of its parent never leaves an orphan
+    Given a task create is held after recording its reference and before its commit
+    When the parent is deleted meanwhile
+    Then the delete is rejected with issue_has_children and the task commits
+    And no live issue has a missing parent or dependency target
+
+  Scenario: A deletion racing an attach rejects the attach
+    Given a delete is held after flagging the parent
+    When a task is created under that parent meanwhile
+    Then the create is rejected with relation_target_missing
+    And no live issue has a missing parent or dependency target
+
+  Scenario: Two reparents of one child leave exactly one parent
+    Given two members reparent the same child from the same revision
+    When one is held between recording its reference and committing
+    Then one succeeds and the other conflicts
+    And the abandoned reference blocks deletion only until the lease expires
+
+  Scenario: A crashed attach or a crashed delete heals after the lease
+    Given an attach or a delete stopped partway
+    When a delete or an attach touches the same issue inside the lease
+    Then it is rejected
+    And after the lease expires it succeeds
 
   Scenario: Native quoted object revisions support cloud writes
     Given the canonical backend returns a quoted opaque revision

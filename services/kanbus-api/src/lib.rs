@@ -25,6 +25,7 @@ use virtuus_store::{
 
 mod relations;
 use relations::RelationPlan;
+pub use relations::RELATION_LEASE;
 
 const MAX_PROJECTS_PER_QUERY: usize = 8;
 const GROUP_PREFIX: &str = "kanbus:";
@@ -696,12 +697,17 @@ fn provisioned_configuration_bytes(body: &Value) -> Result<Vec<u8>, ApiError> {
 pub struct Api {
     store: JournaledStore,
     object_store: Arc<dyn ObjectStore>,
+    clock: Clock,
 }
+
+/// Source of the current time for relation leases; injectable so tests never sleep.
+pub type Clock = Arc<dyn Fn() -> chrono::DateTime<Utc> + Send + Sync>;
 
 #[derive(Clone)]
 struct ScopedApi {
     store: JournaledStore,
     object_store: Arc<dyn ObjectStore>,
+    clock: Clock,
     scope: Scope,
     namespace: String,
 }
@@ -761,12 +767,22 @@ impl Api {
     /// resolved per request. The object store carries the relations control records and
     /// must be the same backend the journaled store publishes to.
     pub fn new(store: JournaledStore, objects: Arc<dyn ObjectStore>) -> Result<Self, ApiError> {
+        Self::with_clock(store, objects, Arc::new(Utc::now))
+    }
+
+    /// Like [`Api::new`] with an explicit clock for relation leases.
+    pub fn with_clock(
+        store: JournaledStore,
+        objects: Arc<dyn ObjectStore>,
+        clock: Clock,
+    ) -> Result<Self, ApiError> {
         let store = store
             .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)
             .map_err(storage_error)?;
         Ok(Self {
             store,
             object_store: objects,
+            clock,
         })
     }
 
@@ -805,6 +821,7 @@ impl Api {
                 ScopedApi {
                     store: self.store.clone(),
                     object_store: self.object_store.clone(),
+                    clock: self.clock.clone(),
                     namespace: scope.namespace(),
                     scope,
                 }
@@ -843,6 +860,7 @@ impl Api {
         let scoped = ScopedApi {
             store: self.store.clone(),
             object_store: self.object_store.clone(),
+            clock: self.clock.clone(),
             namespace: first.namespace(),
             scope: first,
         };
@@ -1317,7 +1335,7 @@ impl ScopedApi {
             issue_created_payload(&issue),
             timestamp,
         );
-        self.attach_planned_relations(configuration, &issue, &relation_plan)
+        self.attach_planned_relations(configuration, &issue, &relation_plan, &operation_id)
             .await?;
         let committed = self
             .commit(
@@ -1443,7 +1461,7 @@ impl ScopedApi {
                 ));
             }
         }
-        self.attach_planned_relations(configuration, &after, &relation_plan)
+        self.attach_planned_relations(configuration, &after, &relation_plan, &operation_id)
             .await?;
         let committed = self
             .commit(
@@ -1533,7 +1551,19 @@ impl ScopedApi {
                 ));
             }
         }
-        validate_dependency_links(&issue)?;
+        let dependencies_changed = before.is_none_or(|previous| {
+            previous
+                .dependencies
+                .iter()
+                .map(|link| (&link.target, &link.dependency_type))
+                .ne(issue
+                    .dependencies
+                    .iter()
+                    .map(|link| (&link.target, &link.dependency_type)))
+        });
+        if dependencies_changed {
+            validate_dependency_links(&issue)?;
+        }
         if issue.title.trim().is_empty() {
             return Err(invalid("A nonempty title is required."));
         }

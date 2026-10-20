@@ -5,7 +5,7 @@ and deployment guide](AMPLIFY.md). It reuses the app's existing Amplify backend.
 
 Tracking: kbs-972765; the shared storage initiative records the wider milestone.
 
-The service reuses Kanbus models, configuration and workflow validation. The initial service fails closed for projects with `.policy` files or configured hooks, whose execution is not yet integrated. It never returns runtime credentials or hook commands in browser configuration. Domain apps configure types, statuses and custom values; the API has no CRM-specific routes. The service-specific behavior specification is `features/writable_api.feature`, exercised by Rust integration tests. This milestone rejects parent-link creation/changes, dependency-link writes, changes involving hierarchical issue types, and hierarchical deletion with `unsupported_relation_mutation`. Per-object revisions cannot protect cross-record invariants; a future related-record concurrency mechanism is required. Imported relations remain readable and survive status/comment edits. Imports must run while API writers are quiesced. Parentless nonhierarchical CRUD and workflow changes remain available. Existing CLI implementations are unchanged.
+The service reuses Kanbus models, configuration and workflow validation. The initial service fails closed for projects with `.policy` files or configured hooks, whose execution is not yet integrated. It never returns runtime credentials or hook commands in browser configuration. Domain apps configure types, statuses and custom values; the API has no CRM-specific routes. The service-specific behavior specification is `features/writable_api.feature`, exercised by Rust integration tests. Parent and dependency writes and deletion of hierarchical issues are supported; see [Relation writes](#relation-writes). Imports must run while API writers are quiesced. Existing CLI implementations are unchanged.
 
 | Method | Route | Contract |
 | --- | --- | --- |
@@ -23,6 +23,59 @@ The service reuses Kanbus models, configuration and workflow validation. The ini
 All routes require authentication. All writes require `X-Operation-Id` containing a UUID. PATCH, DELETE and comment writes additionally require `If-Match` with the last opaque revision. A stale revision returns 409. Repeating an identical request with the same operation ID replays its durable receipt; changed input conflicts. Successful writes return `{issue,revision,catalog_pending}`; pending means canonical publication succeeded but supplemental indexing/history repair still requires attention, not that S3 and DynamoDB committed atomically. Error responses have `{error,message}`.
 
 Issue query parameters on a board route are `type` or comma-separated `types`, `status`, `assignee`, `label`, `parent`, `search`, `sort` (`priority` or `updated_at`), `limit`, `cursor`, and `fields`. `fields` is a JSON array of `{field,operator,value}` scalar predicates; operators are `eq`, `lt`, `lte`, `gt`, `gte`. Custom paths begin with `custom.`. Existing Kanbus filters and search semantics are reused. Targeted per-board catalog queries select type/status candidates; current canonical objects are hydrated and residual filters applied. Filtering and deterministic ordering precede paging. The tenant route additionally requires `projects` (explicit names only, no wildcard). Cursors bind to the selected boards and the query; pagination does not promise a snapshot across concurrent writes. The per-query budget is `MAX_PROJECTS_PER_QUERY` (8) boards.
+
+## Relation writes
+
+`parent` and `dependencies` (an array of `{"target", "type"}` with type `blocked-by` or
+`relates-to`) are writable on create and `PATCH`; a `PATCH` value replaces the whole field.
+The service guarantees, per board:
+
+1. A committed issue's parent exists and satisfies the hierarchy rule.
+2. An issue with live children cannot be deleted.
+3. Dependency targets exist and dependency types are allowed.
+4. An issue that is the target of live dependencies cannot be deleted.
+
+Per-object revisions cannot protect these across records, so the service keeps one control
+object per referenced issue, `relations/<issue id>.json`, in the board's control area (not
+in the canonical issue tree; the issue JSON format is unchanged). It holds
+`children` and `dependents` (entries with `id`, `added_at`, `operation_id`) and
+`deleted` with `deleted_at`. Every read-modify-write is conditional on its revision.
+
+Attach (create with a parent or dependency, reparent, add a dependency):
+
+1. Read the target issue; a missing target is `relation_target_missing`. For a parent, check the hierarchy rule (`hierarchy_violation`).
+2. Conditionally add the source to the target's record, stamped with the time and the `X-Operation-Id`. A record flagged `deleted` yields `relation_target_missing`.
+3. Re-read the target; if it vanished, remove the entry and return `relation_target_missing`.
+4. Commit the source issue through the journal.
+5. After the commit, conditionally remove the source from the old target's record (best effort).
+
+Delete an issue:
+
+1. Conditionally flag its record `deleted` (creating it, seeded from the canonical issues, if absent). From now on attaches to it fail.
+2. For every entry: if the entry's issue still points here, or the entry is younger than `RELATION_LEASE`, abort and unflag with `issue_has_children` or `issue_has_dependents` (up to 10 identifiers listed). Older entries that do not point here are pruned.
+3. Delete through the journal, then remove the record. If the journal delete fails the flag is cleared.
+
+An entry without a committed issue behind it is either an in-flight attach or one whose
+request crashed, and the two cannot be told apart. `RELATION_LEASE` (15 minutes) is the age
+after which it is treated as abandoned. It must exceed the longest request: `@kanbus/cdk`
+defaults the function timeout to 15 seconds and refuses more than 30. Consequences: a delete
+within the lease after a crashed attach returns `409 issue_has_children`, and retrying after
+the lease succeeds; likewise a crashed delete leaves the flag set, and an attach that finds
+a flag older than the lease on an existing issue clears it and proceeds. Lease tests inject
+the clock through `Api::with_clock`.
+
+A missing record is seeded from one scan of the canonical issues, so relations written by an
+offline import are honored the first time the target is touched. An import after a record
+exists is not seen; imports must run while API writers are quiesced.
+
+Replays with the same `X-Operation-Id` re-run the idempotent attach and return the
+original response. Changing the type of an issue to or from a hierarchy type returns
+`409 type_change_unsupported` (a follow-up: it needs the same fencing as attach).
+
+New error codes (all 409 except where noted): `relation_target_missing`,
+`hierarchy_violation`, `issue_has_children`, `issue_has_dependents`,
+`type_change_unsupported`. `unsupported_relation_mutation` and `issue_referenced` no longer exist.
+Dependency validation failures are 400 `invalid_request`.
 
 ## Provisioning a board
 

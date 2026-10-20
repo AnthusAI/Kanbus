@@ -454,7 +454,7 @@ async fn changing_parent_type_rejects_invalid_existing_child() {
         .err()
         .unwrap();
     assert_eq!(error.status, 409);
-    assert_eq!(error.code, "unsupported_relation_mutation");
+    assert_eq!(error.code, "type_change_unsupported");
     assert_eq!(std::fs::read(file).unwrap(), before);
 }
 
@@ -632,7 +632,7 @@ async fn deleting_parent_with_child_is_rejected() {
         .err()
         .unwrap();
     assert_eq!(error.status, 409);
-    assert_eq!(error.code, "unsupported_relation_mutation");
+    assert_eq!(error.code, "issue_has_children");
     assert!(directory
         .path()
         .join(format!("project/issues/{id}.json"))
@@ -701,11 +701,11 @@ async fn deleting_issue_with_imported_incoming_dependency_is_rejected() {
         .err()
         .unwrap();
     assert_eq!(error.status, 409);
-    assert_eq!(error.code, "issue_referenced");
+    assert_eq!(error.code, "issue_has_dependents");
 }
 
 #[tokio::test]
-async fn relationship_mutations_fail_closed_but_imported_links_survive_status_and_comments() {
+async fn relationship_writes_succeed_and_imported_links_survive_status_and_comments() {
     let (directory, api) = setup();
     let parent = api
         .handle(request(
@@ -724,10 +724,9 @@ async fn relationship_mutations_fail_closed_but_imported_links_survive_status_an
         assert_eq!(
             api.handle(request("POST", "/api/issues", body, None))
                 .await
-                .err()
                 .unwrap()
-                .code,
-            "unsupported_relation_mutation"
+                .status,
+            201
         );
     }
     let mut imported = parent.body["issue"].clone();
@@ -746,11 +745,7 @@ async fn relationship_mutations_fail_closed_but_imported_links_survive_status_an
         .await
         .unwrap();
     let original_bytes = std::fs::read(&file).unwrap();
-    for body in [
-        json!({"parent":null}),
-        json!({"dependencies":[]}),
-        json!({"type":"bug"}),
-    ] {
+    for body in [json!({"type":"bug"})] {
         assert_eq!(
             api.handle(request(
                 "PATCH",
@@ -762,7 +757,7 @@ async fn relationship_mutations_fail_closed_but_imported_links_survive_status_an
             .err()
             .unwrap()
             .code,
-            "unsupported_relation_mutation"
+            "type_change_unsupported"
         );
         assert_eq!(std::fs::read(&file).unwrap(), original_bytes);
     }
