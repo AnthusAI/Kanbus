@@ -925,7 +925,7 @@ Then("the board theme should be {string}", async function (theme) {
     .toBe(theme);
   await expect(this.page.locator("#kanbus-theme-fonts")).toHaveAttribute(
     "href",
-    new RegExp("^https://fonts.googleapis.com/css2\\?")
+    /^https:\/\/fonts\.googleapis\.com\/css2\?/
   );
 });
 
