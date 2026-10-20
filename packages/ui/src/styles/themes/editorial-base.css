@@ -1,0 +1,187 @@
+/* Shared structure for the editorial board themes (refined-newsprint, newspaper-gothic,
+   night-desk, broadsheet-green). Every rule here is driven by the public token surface; a theme
+   file supplies only palette, fonts and type scale.
+
+   Public tokens (set by the theme on [data-kanbus-theme], overridable by a host):
+     --kb-theme-paper            board and page background
+     --kb-theme-panel            detail panel background
+     --kb-theme-sidebar          navigation and chrome background
+     --kb-theme-ink              body text, column header rules, active borders
+     --kb-theme-muted            secondary text: ids, counts, labels
+     --kb-theme-rule             hairlines between cards, columns and fields
+     --kb-theme-accent           selection bar, primary fill, active tab, links
+     --kb-theme-on-accent        text and icons placed on an accent fill
+     --kb-theme-title-font       card titles, detail heading, reading text
+     --kb-theme-ui-font          navigation, column headers, controls
+     --kb-theme-mono-font        ids and counts
+     --kb-theme-title-size / -title-leading / -title-tracking              card titles
+     --kb-theme-heading-size / -heading-leading / -heading-tracking / -heading-weight   detail heading
+     --kb-theme-reading-size / -reading-leading                            detail body text
+     --kb-theme-label-weight     column header and group label weight
+
+   The stylesheet makes no requests: hosts load the fonts (see KANBUS_THEME_FONTS). */
+
+/* Public tokens mapped onto the base tokens. :root[...] outranks the console's html.dark rules. */
+:root[data-kanbus-theme],
+[data-kanbus-theme] {
+  --background: var(--kb-theme-paper);
+  --frame: var(--kb-theme-paper);
+  --column: var(--kb-theme-paper);
+  --card: var(--kb-theme-paper);
+  --card-muted: color-mix(in oklab, var(--kb-theme-paper) 92%, var(--kb-theme-ink));
+  --card-outline: var(--kb-theme-rule);
+  --border: var(--kb-theme-rule);
+  --text-foreground: var(--kb-theme-ink);
+  --text-muted: var(--kb-theme-muted);
+  --text-selected: var(--kb-theme-accent);
+  --region-alt: var(--kb-theme-sidebar);
+  --footer-bg: var(--kb-theme-sidebar);
+  --accent-9: var(--kb-theme-accent);
+  --font-body: var(--kb-theme-ui-font);
+  --font-serif: var(--kb-theme-title-font);
+  --font-mono: var(--kb-theme-mono-font);
+  --kb-column-radius: 0px;
+  --kb-card-radius: 0px;
+  --kb-card-border: 0 solid transparent;
+  --kb-card-shadow: none;
+  --kb-card-selected-shadow: none;
+  --kb-board-gap: 14px;
+  --kb-card-gap: 0px;
+  --kb-column-width: 240px;
+  --glow-center: transparent;
+  --glow-edge: transparent;
+  color: var(--kb-theme-ink);
+  font-family: var(--kb-theme-ui-font);
+  min-width: 0;
+}
+[data-kanbus-theme]:not(:root) { background: var(--kb-theme-paper); }
+
+[data-kanbus-theme] :is(.kb-grid, .kb-column, .issue-card, .kb-issue-detail, .detail-column, .detail-card, .detail-comment, .detail-accent-bar, .layout-frame, .layout-slot, .status-badge, .kb-detail-close) { border-radius: 0; }
+
+/* Board */
+[data-kanbus-theme] .kb-grid { height: 100%; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--kb-theme-rule) transparent; }
+[data-kanbus-theme] .layout-slot { background: var(--kb-theme-paper); }
+[data-kanbus-theme] .kb-column { background: transparent; }
+[data-kanbus-theme] .kb-column + .kb-column { border-left: 1px solid var(--kb-theme-rule); padding-left: 12px; }
+[data-kanbus-theme] .kb-column-header {
+  height: auto; min-height: 0; padding: 0 0 8px; align-items: baseline;
+  border-bottom: 2px solid var(--kb-theme-ink); color: var(--kb-theme-ink);
+  font: var(--kb-theme-label-weight, 600) 11px/1 var(--kb-theme-ui-font); letter-spacing: .1em; text-transform: uppercase;
+}
+[data-kanbus-theme] .kb-column-header > :last-child { color: var(--kb-theme-muted); }
+[data-kanbus-theme] .kb-collapse-icon { width: 12px; height: 12px; margin-left: 4px; color: var(--kb-theme-muted); }
+[data-kanbus-theme] .kb-column-scroll { margin-top: 0; }
+
+/* Collapsed column: a 30px strip with vertical text and the count beneath */
+[data-kanbus-theme] .kb-column-collapsed { flex: 0 0 30px; min-width: 30px; max-width: 30px; padding-left: 0; }
+[data-kanbus-theme] .kb-column + .kb-column-collapsed { padding-left: 0; }
+[data-kanbus-theme] .kb-column-collapsed .kb-column-header {
+  height: auto; min-height: 0; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 8px; padding: 2px 0 0; border-bottom: 0;
+}
+[data-kanbus-theme] .kb-column-collapsed .kb-column-title { writing-mode: vertical-rl; transform: none; }
+[data-kanbus-theme] .kb-column-collapsed .kb-collapse-icon { margin: 6px 0 0; }
+[data-kanbus-theme] .kb-column-collapsed .kb-column-header > :last-child { font: 400 11px/1 var(--kb-theme-mono-font); letter-spacing: 0; }
+
+/* Cards: flat ruled rows. A quiet mono id line sits above the title. */
+[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card {
+  --issue-accent: transparent;
+  --issue-accent-muted: transparent;
+  --issue-accent-foreground: var(--kb-theme-muted);
+  --issue-priority-bg: transparent;
+  background: transparent; border: 0; box-shadow: none; color: var(--kb-theme-ink);
+  padding: 11px 0 11px 10px; overflow: visible;
+}
+[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card + .issue-card { border-top: 1px solid var(--kb-theme-rule); }
+[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card:hover { background: var(--card-muted); }
+[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card[data-selected="true"] { background: transparent; box-shadow: none; }
+[data-kanbus-theme] :is(.kb-column, .kb-issue-list) .issue-card[data-selected="true"]::before {
+  content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; background: var(--kb-theme-accent);
+}
+[data-kanbus-theme] .issue-card:focus-visible { outline: 2px solid var(--kb-theme-accent); outline-offset: -2px; }
+[data-kanbus-theme] .issue-card .issue-accent-bar { height: auto; min-height: 0; margin: 0; width: 100%; padding: 0; background: transparent; }
+[data-kanbus-theme] .issue-accent-row { gap: 8px; }
+[data-kanbus-theme] .issue-accent-left { flex: 1; min-width: 0; }
+[data-kanbus-theme] .issue-accent-icon { display: none; }
+[data-kanbus-theme] .issue-accent-id {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 400 10px/1 var(--kb-theme-mono-font); letter-spacing: 0; text-transform: none; color: var(--kb-theme-muted);
+}
+[data-kanbus-theme] .issue-accent-priority {
+  padding: 0; background: transparent; border-radius: 0; color: var(--kb-theme-muted);
+  font: 400 10px/1 var(--kb-theme-mono-font); letter-spacing: .04em; text-transform: uppercase;
+}
+[data-kanbus-theme] .issue-card .issue-card-content { padding-top: 5px; gap: 4px; }
+[data-kanbus-theme] .issue-card h3 {
+  margin: 0; color: var(--kb-theme-ink); text-wrap: pretty; font-weight: 600;
+  font-family: var(--kb-theme-title-font); font-size: var(--kb-theme-title-size, 16px);
+  line-height: var(--kb-theme-title-leading, 1.28); letter-spacing: var(--kb-theme-title-tracking, 0);
+}
+[data-kanbus-theme] .issue-card[data-selected="true"] h3 { color: var(--kb-theme-ink); }
+[data-kanbus-theme] .issue-card-owner, [data-kanbus-theme] .text-muted { color: var(--kb-theme-muted); }
+[data-kanbus-theme] .issue-card-owner:empty { display: none; }
+[data-kanbus-theme] .issue-card-excerpt p { font: 400 13px/1.4 var(--kb-theme-title-font); color: var(--kb-theme-ink); }
+[data-kanbus-theme] .issue-card-excerpt-toggle { color: var(--kb-theme-accent); }
+
+/* Detail panel */
+[data-kanbus-theme] .kb-issue-detail {
+  padding: 22px 24px; background: var(--kb-theme-panel); color: var(--kb-theme-ink);
+  border: 0; border-left: 1px solid var(--kb-theme-rule); box-shadow: none;
+}
+[data-kanbus-theme] .kb-detail-heading h2 {
+  font: var(--kb-theme-heading-weight, 600) var(--kb-theme-heading-size, 28px)/var(--kb-theme-heading-leading, 1.15) var(--kb-theme-title-font);
+  letter-spacing: var(--kb-theme-heading-tracking, 0); text-wrap: pretty;
+  padding-bottom: 12px; border-bottom: 2px solid var(--kb-theme-ink);
+}
+[data-kanbus-theme] .kb-detail-id { color: var(--kb-theme-muted); font: 400 10px/1.3 var(--kb-theme-mono-font); }
+[data-kanbus-theme] .kb-detail-description { font: 400 var(--kb-theme-reading-size, 15px)/var(--kb-theme-reading-leading, 1.55) var(--kb-theme-title-font); }
+[data-kanbus-theme] .kb-detail-fields { font-size: 12px; }
+[data-kanbus-theme] .kb-detail-fields dt { color: var(--kb-theme-muted); }
+[data-kanbus-theme] .kb-detail-fields dd { border: 1px solid var(--kb-theme-rule); padding: 6px 8px; }
+[data-kanbus-theme] .kb-detail-close { background: transparent; color: var(--kb-theme-ink); border: 1px solid var(--kb-theme-ink); font-size: 12px; box-shadow: none; }
+[data-kanbus-theme] .kb-detail-close:hover { background: var(--card-muted); }
+[data-kanbus-theme] .kb-issue-detail :is(a, .descendant-link) { color: var(--kb-theme-accent); text-decoration: underline; }
+[data-kanbus-theme] :is(.detail-column, .detail-card, .detail-comment, .detail-accent-bar) { background: var(--kb-theme-panel); color: var(--kb-theme-ink); box-shadow: none; }
+[data-kanbus-theme] .detail-column { border-left: 1px solid var(--kb-theme-rule); }
+[data-kanbus-theme] :is(.detail-card, .detail-accent-bar).issue-card { border: 0; padding: 22px 24px 0; }
+[data-kanbus-theme] .detail-accent-bar .issue-accent-bar { margin: 0; width: 100%; }
+[data-kanbus-theme] .detail-comment { border-top: 1px solid var(--kb-theme-rule); }
+[data-kanbus-theme] .issue-description-markdown { font-family: var(--kb-theme-title-font); font-size: var(--kb-theme-reading-size, 15px); line-height: var(--kb-theme-reading-leading, 1.55); }
+
+/* Console detail panel (TaskDetailPanel): flat, ruled, with an accent-filled status chip and underlined tabs */
+[data-kanbus-theme] .detail-column [class*="rounded"] { border-radius: 0; }
+[data-kanbus-theme] .detail-card h2 {
+  font: var(--kb-theme-heading-weight, 600) var(--kb-theme-heading-size, 28px)/var(--kb-theme-heading-leading, 1.15) var(--kb-theme-title-font);
+  letter-spacing: var(--kb-theme-heading-tracking, 0); color: var(--kb-theme-ink); text-wrap: pretty;
+  padding-bottom: 12px; border-bottom: 2px solid var(--kb-theme-ink);
+}
+[data-kanbus-theme] .detail-card .issue-description-markdown { color: var(--kb-theme-ink); }
+[data-kanbus-theme] .detail-card .issue-description-markdown a { color: var(--kb-theme-accent); }
+[data-kanbus-theme] .detail-status { background: var(--kb-theme-accent); color: var(--kb-theme-on-accent); font: 500 12px/1.4 var(--kb-theme-ui-font); letter-spacing: 0; text-transform: none; }
+[data-kanbus-theme] .detail-tab { background: transparent; color: var(--kb-theme-ink); letter-spacing: .06em; padding: 0 0 7px; border-bottom: 2px solid transparent; }
+[data-kanbus-theme] .detail-tab[data-active="true"] { background: transparent; color: var(--kb-theme-ink); border-bottom-color: var(--kb-theme-accent); }
+[data-kanbus-theme] .detail-tab:not([data-active="true"]) { color: var(--kb-theme-muted); }
+[data-kanbus-theme] .detail-section > div:first-child { gap: 18px; border-bottom: 1px solid var(--kb-theme-rule); }
+
+[data-kanbus-theme] [data-testid="issue-agent-assignment-editor"] button { color: var(--kb-theme-on-accent); }
+
+/* Status chips take the accent fill */
+[data-kanbus-theme] .status-badge {
+  background: var(--kb-theme-accent); color: var(--kb-theme-on-accent); border: 0;
+  font: 500 12px/1.4 var(--kb-theme-ui-font); letter-spacing: 0; text-transform: none; padding: 3px 8px;
+}
+
+/* Type filter: tabs underlined with a 2px accent bar */
+[data-kanbus-theme] .kb-type-filter { height: auto; min-height: 36px; padding: 0; gap: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--kb-theme-rule); }
+[data-kanbus-theme] .kb-type-filter .selector-highlight { display: none; }
+[data-kanbus-theme] .kb-type-filter button[role="tab"] {
+  position: relative; z-index: 1; flex: 0 0 auto; min-height: 32px; padding: 4px 12px; border: 0; border-bottom: 2px solid transparent;
+  border-radius: 0; background: transparent; color: var(--kb-theme-ink); font: inherit; white-space: nowrap; cursor: pointer;
+}
+[data-kanbus-theme] .kb-type-filter button[aria-selected="true"] { background: transparent; font-weight: 600; border-bottom-color: var(--kb-theme-accent); }
+[data-kanbus-theme] .kb-type-filter button:focus-visible { outline: 2px solid var(--kb-theme-accent); outline-offset: -2px; }
+
+/* Segmented choices (Board / List): a 1px ink border marks the active one */
+[data-kanbus-theme] [role="tablist"]:not(.kb-type-filter) { border-radius: 0; background: transparent; }
+[data-kanbus-theme] [role="tablist"]:not(.kb-type-filter) .selector-highlight { background: transparent; border: 1px solid var(--kb-theme-ink); border-radius: 0; box-shadow: none; }
+[data-kanbus-theme] [role="tablist"]:not(.kb-type-filter) button[role="tab"] { border-radius: 0; color: var(--kb-theme-ink); }

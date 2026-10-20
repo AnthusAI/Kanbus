@@ -4,18 +4,45 @@ Feature: Console settings
   I want appearance settings
   So that the console matches my preferences
 
-  Scenario: Settings persist in local storage
+  Scenario: The console starts in the default theme
+    Given the console is open
+    And local storage is cleared
+    And the console is reloaded
+    Then the board theme should be "newspaper-gothic"
+
+  Scenario Outline: Each board theme can be chosen in light and dark mode
     Given the console is open
     And local storage is cleared
     When I open settings
-    And I set the theme to "warm"
+    And I set the theme to "<theme>"
+    And I set the mode to "<mode>"
+    Then the board theme should be "<theme>"
+    And the console color mode should be "<mode>"
+    And the settings panel lists the themes "Refined Newsprint, Newspaper Gothic, Night Desk, Broadsheet Green"
+
+    Examples:
+      | theme             | mode  |
+      | refined-newsprint | light |
+      | refined-newsprint | dark  |
+      | newspaper-gothic  | light |
+      | newspaper-gothic  | dark  |
+      | night-desk        | light |
+      | night-desk        | dark  |
+      | broadsheet-green  | light |
+      | broadsheet-green  | dark  |
+
+  Scenario: Theme and mode persist across a reload
+    Given the console is open
+    And local storage is cleared
+    When I open settings
+    And I set the theme to "broadsheet-green"
     And I set the mode to "dark"
-    And I set the typeface to "mono"
     And I set motion to "off"
     And the console is reloaded
-    Then the theme should be "warm"
+    Then the theme should be "broadsheet-green"
+    And the board theme should be "broadsheet-green"
     And the mode should be "dark"
-    And the typeface should be "mono"
+    And the console color mode should be "dark"
     And the motion mode should be "off"
 
   Scenario: Motion off disables selector animation

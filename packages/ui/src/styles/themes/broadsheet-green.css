@@ -1,0 +1,54 @@
+@import "./editorial-base.css";
+
+/* Broadsheet Green: Newsreader titles, Hanken Grotesk interface, IBM Plex Mono ids; cream stock and deep green.
+   Light is the design palette. Dark is a deep green-black paper in hue 160 with cream ink from the 95 hue, and the green lifted from L 0.45 to 0.76.
+   Override any --kb-theme-* token on the scope element (inline or a more specific rule). */
+[data-kanbus-theme="broadsheet-green"] {
+  --kb-theme-paper: oklch(0.97 0.012 95);
+  --kb-theme-panel: oklch(0.97 0.012 95);
+  --kb-theme-sidebar: oklch(0.97 0.012 95);
+  --kb-theme-ink: oklch(0.23 0.02 160);
+  --kb-theme-muted: oklch(0.47 0.02 160);
+  --kb-theme-rule: oklch(0.87 0.015 95);
+  --kb-theme-accent: oklch(0.45 0.09 160);
+  --kb-theme-on-accent: oklch(1 0 0);
+  --kb-theme-title-font: Newsreader, "Iowan Old Style", Georgia, serif;
+  --kb-theme-ui-font: "Hanken Grotesk", system-ui, sans-serif;
+  --kb-theme-mono-font: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --kb-theme-title-size: 17px;
+  --kb-theme-title-leading: 1.24;
+  --kb-theme-title-tracking: 0;
+  --kb-theme-heading-size: 30px;
+  --kb-theme-heading-leading: 1.12;
+  --kb-theme-heading-tracking: 0;
+  --kb-theme-heading-weight: 600;
+  --kb-theme-label-weight: 600;
+  --kb-theme-reading-size: 16px;
+  --kb-theme-reading-leading: 1.5;
+  color-scheme: light;
+}
+[data-kanbus-theme="broadsheet-green"][data-color-mode="dark"],
+.dark [data-kanbus-theme="broadsheet-green"]:not([data-color-mode="light"]) {
+  --kb-theme-paper: oklch(0.2 0.012 160);
+  --kb-theme-panel: oklch(0.23 0.012 160);
+  --kb-theme-sidebar: oklch(0.2 0.012 160);
+  --kb-theme-ink: oklch(0.94 0.012 95);
+  --kb-theme-muted: oklch(0.72 0.016 120);
+  --kb-theme-rule: oklch(0.33 0.015 160);
+  --kb-theme-accent: oklch(0.76 0.1 160);
+  --kb-theme-on-accent: oklch(0.2 0.012 160);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  [data-kanbus-theme="broadsheet-green"]:not([data-color-mode="light"]) {
+    --kb-theme-paper: oklch(0.2 0.012 160);
+    --kb-theme-panel: oklch(0.23 0.012 160);
+    --kb-theme-sidebar: oklch(0.2 0.012 160);
+    --kb-theme-ink: oklch(0.94 0.012 95);
+    --kb-theme-muted: oklch(0.72 0.016 120);
+    --kb-theme-rule: oklch(0.33 0.015 160);
+    --kb-theme-accent: oklch(0.76 0.1 160);
+    --kb-theme-on-accent: oklch(0.2 0.012 160);
+    color-scheme: dark;
+  }
+}
