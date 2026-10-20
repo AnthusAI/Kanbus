@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import App from "./App";
 import "./styles/globals.css";
+import "./styles/board-fonts.css";
 
 gsap.registerPlugin(useGSAP);
 

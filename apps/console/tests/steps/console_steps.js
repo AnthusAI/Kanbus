@@ -897,6 +897,10 @@ When("I set the theme to {string}", async function (theme) {
   await this.page.locator(`[data-selector=\"theme\"][data-option=\"${theme}\"]`).click();
 });
 
+When("I set the board style to {string}", async function (boardStyle) {
+  await this.page.locator(`[data-selector=\"board-style\"][data-option=\"${boardStyle}\"]`).click();
+});
+
 When("I set the mode to {string}", async function (mode) {
   await this.page.locator(`[data-selector=\"mode\"][data-option=\"${mode}\"]`).click();
 });
@@ -914,6 +918,23 @@ Then("the theme should be {string}", async function (theme) {
   expect(stored).not.toBeNull();
   const parsed = JSON.parse(stored);
   expect(parsed.theme).toBe(theme);
+});
+
+Then("the board style should be {string}", async function (boardStyle) {
+  const stored = await this.page.evaluate(() => window.localStorage.getItem("kanbus.console.appearance"));
+  expect(stored).not.toBeNull();
+  expect(JSON.parse(stored).boardStyle).toBe(boardStyle);
+});
+
+Then("the page should carry the {string} board style scope", async function (boardStyle) {
+  const scope = await this.page.evaluate(() => ({
+    newsprint: document.documentElement.dataset.kanbusTheme === "newsprint",
+    organizer: document.documentElement.classList.contains("kb-theme-organizer")
+  }));
+  expect(scope).toEqual({
+    newsprint: boardStyle === "newsprint",
+    organizer: boardStyle === "organizer"
+  });
 });
 
 Then("the mode should be {string}", async function (mode) {

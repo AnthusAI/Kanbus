@@ -1,5 +1,8 @@
 @import "@kanbus/ui/styles/index.css";
 @import "@kanbus/ui/styles/kanban.css";
+@import "@kanbus/ui/styles/newsprint.css";
+@import "@kanbus/ui/styles/organizer.css";
+@import "./board-style-chrome.css";
 
 @tailwind base;
 @tailwind components;

@@ -3,12 +3,14 @@ import { useEffect, useState } from "react";
 export type Theme = "neutral" | "cool" | "warm";
 export type Mode = "light" | "dark" | "system";
 export type Font = "sans" | "serif" | "mono";
+export type BoardStyle = "default" | "newsprint" | "organizer";
 export type Motion = "full" | "reduced" | "off" | "debug";
 
 interface AppearanceState {
   theme: Theme;
   mode: Mode;
   font: Font;
+  boardStyle: BoardStyle;
   motion: Motion;
 }
 
@@ -19,6 +21,13 @@ function getSystemReduceMotion(): boolean {
     return false;
   }
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function resolveBoardStyle(value?: string): BoardStyle {
+  if (value === "newsprint" || value === "organizer") {
+    return value;
+  }
+  return "default";
 }
 
 function getSystemMode(): Mode {
@@ -47,6 +56,7 @@ export function useAppearance() {
           theme: parsed.theme ?? "neutral",
           mode: parsed.mode ?? getSystemMode(),
           font: parsed.font ?? "sans",
+          boardStyle: resolveBoardStyle(parsed.boardStyle),
           motion: resolveMotion(parsed.motion) ?? defaultMotion
         };
       } catch {
@@ -54,6 +64,7 @@ export function useAppearance() {
           theme: "neutral",
           mode: getSystemMode(),
           font: "sans",
+          boardStyle: "default",
           motion: defaultMotion
         };
       }
@@ -62,6 +73,7 @@ export function useAppearance() {
       theme: "neutral",
       mode: getSystemMode(),
       font: "sans",
+      boardStyle: "default",
       motion: defaultMotion
     };
   });
@@ -81,17 +93,26 @@ export function useAppearance() {
     root.classList.remove("theme-neutral", "theme-cool", "theme-warm");
     root.classList.add(`theme-${appearance.theme}`);
 
-    root.classList.remove("light", "dark");
-    if (appearance.mode === "system") {
-      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.add(systemDark ? "dark" : "light");
+    root.classList.toggle("kb-theme-organizer", appearance.boardStyle === "organizer");
+    if (appearance.boardStyle === "newsprint") {
+      root.dataset.kanbusTheme = "newsprint";
     } else {
-      root.classList.add(appearance.mode);
+      delete root.dataset.kanbusTheme;
     }
+
+    const resolvedMode =
+      appearance.mode === "system"
+        ? window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light"
+        : appearance.mode;
+    root.classList.remove("light", "dark");
+    root.classList.add(resolvedMode);
+    root.dataset.colorMode = resolvedMode;
 
     root.dataset.font = appearance.font;
     root.dataset.motion = appearance.motion;
-  }, [appearance.theme, appearance.mode, appearance.font, appearance.motion]);
+  }, [appearance.theme, appearance.mode, appearance.boardStyle, appearance.font, appearance.motion]);
 
   useEffect(() => {
     if (appearance.mode !== "system") {
@@ -101,7 +122,9 @@ export function useAppearance() {
     const handleChange = () => {
       const root = document.documentElement;
       root.classList.remove("light", "dark");
-      root.classList.add(mediaQuery.matches ? "dark" : "light");
+      const resolvedMode = mediaQuery.matches ? "dark" : "light";
+      root.classList.add(resolvedMode);
+      root.dataset.colorMode = resolvedMode;
     };
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
@@ -111,6 +134,7 @@ export function useAppearance() {
     appearance,
     setTheme: (theme: Theme) => updateAppearance({ theme }),
     setMode: (mode: Mode) => updateAppearance({ mode }),
+    setBoardStyle: (boardStyle: BoardStyle) => updateAppearance({ boardStyle }),
     setFont: (font: Font) => updateAppearance({ font }),
     setMotion: (motion: Motion) => updateAppearance({ motion })
   };

@@ -18,6 +18,37 @@ Feature: Console settings
     And the typeface should be "mono"
     And the motion mode should be "off"
 
+  Scenario: Newsprint board style persists and scopes the page
+    Given the console is open
+    And local storage is cleared
+    When I open settings
+    And I set the board style to "newsprint"
+    Then the board style should be "newsprint"
+    And the page should carry the "newsprint" board style scope
+    When the console is reloaded
+    Then the board style should be "newsprint"
+    And the page should carry the "newsprint" board style scope
+
+  Scenario: Organizer board style persists and scopes the page
+    Given the console is open
+    And local storage is cleared
+    When I open settings
+    And I set the board style to "organizer"
+    Then the board style should be "organizer"
+    And the page should carry the "organizer" board style scope
+    When the console is reloaded
+    Then the board style should be "organizer"
+    And the page should carry the "organizer" board style scope
+
+  Scenario: Returning to the default board style removes the scope
+    Given the console is open
+    And local storage is cleared
+    When I open settings
+    And I set the board style to "organizer"
+    And I set the board style to "default"
+    Then the board style should be "default"
+    And the page should carry the "default" board style scope
+
   Scenario: Motion off disables selector animation
     Given the console is open
     When I open settings

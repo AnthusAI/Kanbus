@@ -1,0 +1,6 @@
+[data-kanbus-theme="newsprint"] .kb-type-filter button[role="tab"] {
+  font: 600 11px/1.2 var(--np-body-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+}

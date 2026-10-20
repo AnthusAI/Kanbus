@@ -63,7 +63,7 @@ export function SettingsPanel({
   onToggleShowInitiativesInTypeFilter,
   onTransitionEnd
 }: SettingsPanelProps) {
-  const { appearance, setMode, setTheme, setFont, setMotion } = useAppearance();
+  const { appearance, setMode, setTheme, setBoardStyle, setFont, setMotion } = useAppearance();
   return (
     <RightSidebar
       isOpen={isOpen}
@@ -163,6 +163,23 @@ export function SettingsPanel({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="grid gap-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
+          Board style
+        </div>
+        <AnimatedSelector
+          name="board-style"
+          value={appearance.boardStyle}
+          onChange={(value) => setBoardStyle(value as any)}
+          className="w-full"
+          options={[
+            { id: "default", label: "Default" },
+            { id: "newsprint", label: "Newsprint" },
+            { id: "organizer", label: "Organizer" }
+          ]}
+        />
       </div>
 
       <div className="grid gap-3">
