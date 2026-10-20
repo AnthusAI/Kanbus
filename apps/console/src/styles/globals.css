@@ -1,5 +1,7 @@
+@import "./theme-fonts.css";
 @import "@kanbus/ui/styles/index.css";
 @import "@kanbus/ui/styles/kanban.css";
+@import "@kanbus/ui/styles/themes/index.css";
 
 @tailwind base;
 @tailwind components;
@@ -122,52 +124,23 @@ button:focus-visible {
   will-change: gap;
 }
 
-.selector-swatches {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .theme-swatch {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
+  display: inline-flex;
+  flex: none;
+  width: 2.25rem;
+  height: 1.5rem;
+  overflow: hidden;
+  border: 1px solid var(--kb-theme-rule);
 }
 
-.swatch-neutral-1 {
-  background: var(--gray-3);
+.theme-swatch-paper {
+  flex: 1;
+  background: var(--kb-theme-paper);
 }
 
-.swatch-neutral-2 {
-  background: var(--gray-6);
-}
-
-.swatch-neutral-3 {
-  background: var(--gray-9);
-}
-
-.swatch-cool-1 {
-  background: var(--blue-3);
-}
-
-.swatch-cool-2 {
-  background: var(--blue-6);
-}
-
-.swatch-cool-3 {
-  background: var(--blue-9);
-}
-
-.swatch-warm-1 {
-  background: var(--sand-3);
-}
-
-.swatch-warm-2 {
-  background: var(--sand-6);
-}
-
-.swatch-warm-3 {
-  background: var(--sand-9);
+.theme-swatch-accent {
+  flex: 0 0 35%;
+  background: var(--kb-theme-accent);
 }
 
 .selector-label {

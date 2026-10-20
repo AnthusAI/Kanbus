@@ -97,7 +97,7 @@ colors: {
 ```
 
 Give the board container a bounded height and `min-height: 0`. Import
-`styles/kanban.css` for component styles. `styles/tokens.css` supplies optional
+`styles/kanban.css` for component styles. Editorial board themes (four palettes, each light and dark) live under `styles/themes/`; see [THEMES.md](THEMES.md). `styles/tokens.css` supplies optional
 global defaults and theme selectors; hosts may provide their own variables
 instead. `styles/index.css` includes body typography and page defaults, so it is
 intended for a full Kanbus page rather than an embedded region.

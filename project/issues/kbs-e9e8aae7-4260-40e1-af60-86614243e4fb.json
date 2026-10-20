@@ -1,0 +1,20 @@
+{
+  "id": "kbs-e9e8aae7-4260-40e1-af60-86614243e4fb",
+  "title": "CI Set up Rust step intermittently fails installing clippy",
+  "description": "Twice on 2026-10-19 the performance job failed in its 'Set up Rust' step before any Kanbus code ran: 'error: failed to install component: clippy-preview-x86_64-unknown-linux-gnu, detected conflict: bin/cargo-clippy' (runs 39264684333 on PR #468 and 39339097268 on the 0.37.0 release push to main). A failed main run blocks semantic-release until someone reruns the job. Likely cause: dtolnay/rust-toolchain installs components while rust-toolchain.toml (channel 1.88.0, components rustfmt, clippy, llvm-tools-preview) triggers a second rustup install of the same components on the runner image's preinstalled toolchain. Fix one way for every job: either rely on rust-toolchain.toml alone (rustup show / rustup toolchain install from the file) or pass the same toolchain and components in the action and nowhere else; then verify across a few runs. Acceptance: no Set up Rust failures over 20 consecutive CI runs.",
+  "type": "chore",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-19T23:43:55.528154Z",
+  "updated_at": "2026-10-19T23:43:55.595802Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

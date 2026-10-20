@@ -7,3 +7,4 @@ export * from "./kanban";
 export * from "./utils/cn";
 export { IssueTypeFilter, getConfiguredIssueTypes, getIssueTypeFilterOptions, issueTypeFromFilter } from "./components/IssueTypeFilter";
 export type { IssueTypeFilterProps, IssueTypeConfiguration } from "./components/IssueTypeFilter";
+export * from "./themes";

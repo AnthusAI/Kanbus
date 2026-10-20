@@ -4,7 +4,7 @@ import * as Kanbus from "@kanbus/ui";
 import "@kanbus/ui/styles/tokens.css";
 import "@kanbus/ui/styles/kanban.css";
 import "@kanbus/ui/styles/organizer.css";
-import "@kanbus/ui/styles/newsprint.css";
+import "@kanbus/ui/styles/themes/index.css";
 import "./host-utilities.css";
 
 interface HostIssue extends Kanbus.KanbanIssue {
@@ -23,7 +23,9 @@ declare global {
     selectedIssue?: HostIssue;
     selectedOriginal?: boolean;
     hostReady: boolean;
-    renderNewsprint: (mode?: "light" | "dark") => void;
+    renderTheme: (theme: Kanbus.KanbusThemeId, mode?: Kanbus.KanbusColorMode, tokens?: Record<`--kb-theme-${string}`, string>, selectedId?: string) => void;
+    kanbusThemeIds: string[];
+    kanbusThemeFonts: Record<string, string>;
     renderOrganizer: (mode?: "light" | "dark", initialScroll?: "start" | "end" | "preserve") => void;
   }
 }
@@ -110,22 +112,24 @@ Object.assign(window, {
     organizer = true; organizerMode = mode; organizerScroll = initialScroll;
     root.render(<OrganizerHost mode={mode} initialScroll={initialScroll} />);
   },
-  renderNewsprint(mode: "light" | "dark" = "light") {
+  renderTheme(theme: Kanbus.KanbusThemeId, mode: Kanbus.KanbusColorMode = "light", tokens?: Record<`--kb-theme-${string}`, string>, selectedId?: string) {
     organizer = false;
-    root.render(<NewsprintHost mode={mode} />);
+    root.render(<ThemeHost theme={theme} mode={mode} tokens={tokens} selectedId={selectedId} />);
   },
+  kanbusThemeIds: Kanbus.KANBUS_THEMES.map((entry) => entry.id),
+  kanbusThemeFonts: Kanbus.KANBUS_THEME_FONTS,
   hostReady: true
 });
 
-function NewsprintHost({ mode }: { mode: "light" | "dark" }) {
-  const [selected, setSelected] = useState<HostIssue | null>(null);
-  return <div data-kanbus-theme="newsprint" data-color-mode={mode} style={{ background: "var(--np-paper)" }}>
+function ThemeHost({ theme, mode, tokens, selectedId }: { theme: Kanbus.KanbusThemeId; mode: Kanbus.KanbusColorMode; tokens?: Record<`--kb-theme-${string}`, string>; selectedId?: string }) {
+  const [selected, setSelected] = useState<HostIssue | null>(issues.find((issue) => issue.id === selectedId) ?? null);
+  return <Kanbus.KanbusThemeScope theme={theme} mode={mode} tokens={tokens}>
     <Kanbus.IssueCollection issues={issues} config={configuration} query={{ type: "article" }}
       initialScroll="start" motion={{ mode: "static" }} onSelectIssue={setSelected}
-      selectedIssueId={selected?.id} />
+      selectedIssueId={selected?.id} columnStateKey="fixture.theme.columns.v1" />
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)}
       fields={[{ label: "Editorial score", value: String(selected.custom?.score) }]} />}
-  </div>;
+  </Kanbus.KanbusThemeScope>;
 }
 
 function BoardConsumer({ kind, storageKey }: { kind: "console" | "embedded"; storageKey: string }) {
