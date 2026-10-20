@@ -386,11 +386,20 @@ async function expectContrast(page, pairs) {
   const ratios = await page.evaluate((pairs) => pairs.map(([foreground, background]) => [foreground, background, window.contrastBetween(window.themeToken(foreground), window.themeToken(background))]), pairs);
   expect(ratios.filter(([, , ratio]) => ratio < 4.5)).toEqual([]);
 }
-Then("ink text has at least 4.5 to 1 contrast against the paper, panel and sidebar", async function () {
+async function expectHoverContrast(page, token) {
+  const ratio = await page.evaluate((token) => {
+    const hover = getComputedStyle(document.querySelector("[data-kanbus-theme]")).getPropertyValue("--card-muted").trim();
+    return window.contrastBetween(window.themeToken(token), hover);
+  }, token);
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
+}
+Then("ink text has at least 4.5 to 1 contrast against the paper, panel, sidebar and hovered card", async function () {
   await expectContrast(this.page, [["ink", "paper"], ["ink", "panel"], ["ink", "sidebar"]]);
+  await expectHoverContrast(this.page, "ink");
 });
-Then("muted text has at least 4.5 to 1 contrast against the paper, panel and sidebar", async function () {
+Then("muted text has at least 4.5 to 1 contrast against the paper, panel, sidebar and hovered card", async function () {
   await expectContrast(this.page, [["muted", "paper"], ["muted", "panel"], ["muted", "sidebar"]]);
+  await expectHoverContrast(this.page, "muted");
 });
 Then("the accent has at least 4.5 to 1 contrast against the paper and panel", async function () {
   await expectContrast(this.page, [["accent", "paper"], ["accent", "panel"]]);

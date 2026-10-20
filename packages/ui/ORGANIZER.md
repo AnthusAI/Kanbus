@@ -33,12 +33,10 @@ For Papyrus/Markus, inject a trusted publication-owned island mount through the 
 
 Acceptance: `features/organizer_theme.feature`, plus existing `features/issue_collection.feature`; `npm test` in this package runs the Cucumber browser fixtures with no transport.
 
-## Newsprint theme
+## Editorial board themes
 
-`import '@kanbus/ui/styles/newsprint.css'` after `kanban.css`, then put `data-kanbus-theme="newsprint"` on any ancestor of the board and detail panel. Columns are separated by one rule, cards by one rule, and every corner is square. The card's id and priority form a tight eyebrow directly above the headline. Selection is a left bar plus a heavier headline, never an inverted background. All text uses the full foreground color; light and dark (`data-color-mode`, a `.dark` ancestor, or the system preference) meet WCAG AA.
-
-Host tokens, all optional: `--kb-newsprint-paper`, `--kb-newsprint-ink`, `--kb-newsprint-line`, `--kb-newsprint-display-font`, `--kb-newsprint-body-font`. The theme needs no `!important` overrides.
+The four editorial themes (Refined Newsprint, Newspaper Gothic, Night Desk, Broadsheet Green) replace the former newsprint theme; see [THEMES.md](THEMES.md).
 
 `KanbanIssue.excerpt` is an optional blurb. When present, the card shows it clamped to three lines with a More/Less toggle that does not select the card. Whether to pass a blurb or a subtitle is the host's decision.
 
-Acceptance: `features/newsprint_theme.feature`. A Storybook story, "Themes/Newsprint board", shows both modes.
+Acceptance: `features/board_themes.feature`. A Storybook story, "Themes/Board themes", shows all four themes in both modes.

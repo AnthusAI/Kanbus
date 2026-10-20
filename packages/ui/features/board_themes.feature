@@ -29,8 +29,8 @@ Feature: Editorial board themes for hosts and the console
   Scenario Outline: Text, muted text, accent and accent fills meet WCAG AA in every theme and mode
     Given a host application with article and task issues
     When the host renders the "<theme>" board at width 1024 in <mode> mode
-    Then ink text has at least 4.5 to 1 contrast against the paper, panel and sidebar
-    And muted text has at least 4.5 to 1 contrast against the paper, panel and sidebar
+    Then ink text has at least 4.5 to 1 contrast against the paper, panel, sidebar and hovered card
+    And muted text has at least 4.5 to 1 contrast against the paper, panel, sidebar and hovered card
     And the accent has at least 4.5 to 1 contrast against the paper and panel
     And text on the accent fill has at least 4.5 to 1 contrast against the accent
     And every rendered board text color has at least 4.5 to 1 contrast against the paper

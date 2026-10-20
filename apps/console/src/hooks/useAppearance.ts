@@ -43,12 +43,14 @@ export function useAppearance() {
       }
       return null;
     };
+    const resolveMode = (value?: string): Mode | null =>
+      value === "light" || value === "dark" || value === "system" ? value : null;
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as Partial<AppearanceState>;
         return {
           theme: isKanbusThemeId(parsed.theme) ? parsed.theme : DEFAULT_KANBUS_THEME,
-          mode: parsed.mode ?? getSystemMode(),
+          mode: resolveMode(parsed.mode) ?? getSystemMode(),
           motion: resolveMotion(parsed.motion) ?? defaultMotion
         };
       } catch {
