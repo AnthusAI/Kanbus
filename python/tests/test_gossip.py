@@ -2152,7 +2152,6 @@ def test_publish_without_project_id_publishes_nothing_and_warns_once(
         gossip, "load_project_configuration", lambda _path: configuration
     )
     monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
-    monkeypatch.setattr(gossip, "_MISSING_PROJECT_ID_WARNED", False)
     published: list[object] = []
     monkeypatch.setattr(
         gossip, "_publish_envelope", lambda *args, **_kwargs: published.append(args)
@@ -2162,7 +2161,7 @@ def test_publish_without_project_id_publishes_nothing_and_warns_once(
             tmp_path, project_dir, build_issue(identifier), None, "issue.mutated"
         )
     assert published == []
-    assert capsys.readouterr().err.count(gossip.MISSING_PROJECT_ID_MESSAGE) == 1
+    assert capsys.readouterr().err == ""
 
 
 def test_migrate_project_id_appends_once_and_preserves_content(tmp_path: Path) -> None:

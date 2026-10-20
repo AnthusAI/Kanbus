@@ -1317,6 +1317,13 @@ fn given_kanbus_configuration_disables_events(world: &mut KanbusWorld) {
     });
 }
 
+#[given("the Kanbus configuration has no project_id")]
+fn given_kanbus_configuration_has_no_project_id(world: &mut KanbusWorld) {
+    update_config_file(world, |mapping| {
+        mapping.remove(Value::String("project_id".to_string()));
+    });
+}
+
 #[then("events should be enabled")]
 fn then_events_should_be_enabled(world: &mut KanbusWorld) {
     let configuration = world.configuration.as_ref().expect("configuration");

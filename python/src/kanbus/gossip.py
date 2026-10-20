@@ -970,29 +970,21 @@ def _resolve_project_label(
     return configuration.project_key
 
 
-MISSING_PROJECT_ID_MESSAGE = (
-    "realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id"
-)
-_MISSING_PROJECT_ID_WARNED = False
+MISSING_PROJECT_ID_MESSAGE = "Realtime updates are off for this project because .kanbus.yml has no project_id. Run 'kbs migrate project-id' once on the repository's integration branch and commit .kanbus.yml; every clone and worktree then shares live updates. Every machine using this repository needs kbs 0.40.0 or later first."
 
 
 def realtime_project_id(configuration: ProjectConfiguration) -> Optional[str]:
     """Return the project_id that scopes realtime topics and envelopes.
 
-    Prints MISSING_PROJECT_ID_MESSAGE once per process and returns None when
-    the configuration has no project_id.
+    Returns None silently when the configuration has no project_id.
 
     :param configuration: Loaded project configuration.
     :type configuration: ProjectConfiguration
     :return: The project_id, or None when realtime is disabled.
     :rtype: Optional[str]
     """
-    global _MISSING_PROJECT_ID_WARNED
     if configuration.project_id:
         return configuration.project_id
-    if not _MISSING_PROJECT_ID_WARNED:
-        _MISSING_PROJECT_ID_WARNED = True
-        print(MISSING_PROJECT_ID_MESSAGE, file=sys.stderr)
     return None
 
 

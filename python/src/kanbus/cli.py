@@ -3765,6 +3765,8 @@ def doctor() -> None:
         )
     if result.events_gitignore_warning is not None:
         click.echo(f"warning: {result.events_gitignore_warning}")
+    if result.realtime_project_id_warning is not None:
+        click.echo(f"warning: {result.realtime_project_id_warning}")
 
 
 @cli.command("migrate")

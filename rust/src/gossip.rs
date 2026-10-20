@@ -1809,25 +1809,31 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("."))
 }
 
-/// Message shown once when realtime is disabled because `.kanbus.yml` has no `project_id`.
-pub const MISSING_PROJECT_ID_MESSAGE: &str =
-    "realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id";
-
-static MISSING_PROJECT_ID_WARNED: AtomicBool = AtomicBool::new(false);
+/// Explanation shown by doctor, kbsc startup and realtime commands when `.kanbus.yml` has no `project_id`.
+pub const MISSING_PROJECT_ID_MESSAGE: &str = "Realtime updates are off for this project because .kanbus.yml has no project_id. Run 'kbs migrate project-id' once on the repository's integration branch and commit .kanbus.yml; every clone and worktree then shares live updates. Every machine using this repository needs kbs 0.40.0 or later first.";
 
 /// Return the `project_id` that scopes realtime topics and envelopes.
 ///
-/// Returns `None`, after printing [`MISSING_PROJECT_ID_MESSAGE`] once per
-/// process, when the configuration has no `project_id`.
+/// Returns `None` silently when the configuration has no `project_id`.
 pub fn realtime_project_id(configuration: &ProjectConfiguration) -> Option<String> {
     match configuration.project_id.as_deref() {
         Some(project_id) if !project_id.is_empty() => Some(project_id.to_string()),
-        _ => {
-            if !MISSING_PROJECT_ID_WARNED.swap(true, Ordering::SeqCst) {
-                eprintln!("{MISSING_PROJECT_ID_MESSAGE}");
-            }
-            None
-        }
+        _ => None,
+    }
+}
+
+/// Return [`MISSING_PROJECT_ID_MESSAGE`] when a broker is configured but the project has no `project_id`.
+///
+/// Used by kbsc startup so the explanation is logged once instead of on every command.
+pub fn missing_project_id_startup_warning(root: &Path) -> Option<String> {
+    let configuration_path = get_configuration_path(root).ok()?;
+    let configuration = load_project_configuration(&configuration_path).ok()?;
+    if configuration.realtime.broker == "off" {
+        return None;
+    }
+    match realtime_project_id(&configuration) {
+        Some(_) => None,
+        None => Some(MISSING_PROJECT_ID_MESSAGE.to_string()),
     }
 }
 

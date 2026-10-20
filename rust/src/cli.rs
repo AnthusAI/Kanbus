@@ -3999,6 +3999,9 @@ fn execute_command(
             if let Some(events_warning) = &result.events_gitignore_warning {
                 doctor_lines.push(format!("warning: {events_warning}"));
             }
+            if let Some(realtime_warning) = &result.realtime_project_id_warning {
+                doctor_lines.push(format!("warning: {realtime_warning}"));
+            }
             Ok(Some(doctor_lines.join("\n")))
         }
         Commands::Daemon { root } => {

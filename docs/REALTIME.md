@@ -208,12 +208,22 @@ can share one broker without seeing each other's events.
   `project_identity` on receipt and drop anything that does not match exactly,
   including events with no identity, logging only a running count.
 - A project whose `.kanbus.yml` has no `project_id` has realtime publishing and
-  consuming disabled and prints one message:
-  `realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id`.
-  Everything else keeps working.
+  consuming turned off. Ordinary commands (create, update, comment, close, list,
+  show, commit and the rest) skip realtime silently and print nothing about it,
+  even when a broker is configured for every repository through
+  `~/.kanbus.env`. The explanation appears only where realtime is the point:
+  `kbs doctor` reports it as a warning, `kbsc` logs it once at startup, and
+  realtime commands such as `gossip watch` fail with it as an error:
+  `Realtime updates are off for this project because .kanbus.yml has no project_id. Run 'kbs migrate project-id' once on the repository's integration branch and commit .kanbus.yml; every clone and worktree then shares live updates. Every machine using this repository needs kbs 0.40.0 or later first.`
+- What realtime does: when a project mutates an issue, the change is published to
+  a broker and every other clone, worktree, console and agent of the same
+  project applies it live, without waiting for a git pull.
 - Migration: run `kbs migrate project-id` (or `kanbus migrate project-id`) once
-  per existing project and commit `.kanbus.yml`. The command appends a fresh
-  UUID `project_id` when absent and leaves an existing one untouched.
+  per repository on its integration branch and commit `.kanbus.yml`. The command
+  appends one line, a fresh UUID `project_id`, when absent and leaves an existing
+  one untouched. Commit it once per repository, not per worktree: every clone and
+  worktree then inherits the same `project_id`. Every machine using the
+  repository needs kbs 0.40.0 or later before the line is committed.
 - Instances older than this change publish on `projects/<project_key>/events`
   without `project_identity`, so they do not exchange events with upgraded ones.
 

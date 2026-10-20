@@ -659,6 +659,18 @@ def given_kanbus_configuration_disables_events(context: object) -> None:
     )
 
 
+@given("the Kanbus configuration has no project_id")
+def given_kanbus_configuration_has_no_project_id(context: object) -> None:
+    repository = Path(context.working_directory)
+    config_path = repository / ".kanbus.yml"
+    payload = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    payload.pop("project_id", None)
+    config_path.write_text(
+        yaml.safe_dump(payload, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 @then("events should be enabled")
 def then_events_should_be_enabled(context: object) -> None:
     assert context.configuration.events is True
