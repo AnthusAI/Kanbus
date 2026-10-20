@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import gsap from "gsap";
 import { Flip } from "gsap/Flip";
 
@@ -252,6 +252,14 @@ function isDoneColumn(column: string, config?: KanbanConfig): boolean {
   return DONE_NAMES.has(column.trim().toLowerCase());
 }
 
+function motionConfigurationsMatch(previous: KanbanMotionConfig, next: KanbanMotionConfig): boolean {
+  return previous.mode === next.mode
+    && previous.frame === next.frame
+    && previous.fps === next.fps
+    && previous.staggerFrames === next.staggerFrames
+    && previous.durationFrames === next.durationFrames;
+}
+
 function BoardComponent({
   columns,
   issues,
@@ -278,8 +286,13 @@ function BoardComponent({
   const boardRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
 
-  const [renderedIssues, setRenderedIssues] = useState(issues);
   const flipStateRef = useRef<any>(null);
+  const previousIssuesRef = useRef(issues);
+  const stableMotionRef = useRef(resolvedMotion);
+  if (!motionConfigurationsMatch(stableMotionRef.current, resolvedMotion)) {
+    stableMotionRef.current = resolvedMotion;
+  }
+  const stableMotion = stableMotionRef.current;
 
   const setBoardRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -289,45 +302,39 @@ function BoardComponent({
     [scope]
   );
 
-  useIsomorphicLayoutEffect(() => {
-    if (issues !== renderedIssues) {
-      if (boardRef.current && resolvedMotion.mode === "css" && typeof window !== "undefined") {
-        const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
-        if (cards.length > 0) {
-          console.log("[Board] Capturing Flip state for", cards.length, "cards");
-          flipStateRef.current = Flip.getState(cards, { props: "opacity" });
-        }
+  if (previousIssuesRef.current !== issues) {
+    previousIssuesRef.current = issues;
+    if (boardRef.current && stableMotion.mode === "css" && typeof window !== "undefined") {
+      const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
+      if (cards.length > 0) {
+        flipStateRef.current = Flip.getState(cards, { props: "opacity" });
       }
-      setRenderedIssues(issues);
     }
-  }, [issues, renderedIssues, resolvedMotion.mode]);
+  }
 
   useIsomorphicLayoutEffect(() => {
     if (flipStateRef.current && boardRef.current && typeof window !== "undefined") {
       const state = flipStateRef.current;
       flipStateRef.current = null;
-      
+
       const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
-      console.log("[Board] Running Flip from state to", cards.length, "cards", state);
       if (cards.length > 0) {
-        // Freeze container dimensions to prevent layout shifts when overflow: visible removes scrollbars
         const scrollContainers = boardRef.current?.querySelectorAll('.kb-column-scroll') || [];
         scrollContainers.forEach(col => {
           const el = col as HTMLElement;
           el.style.width = `${el.clientWidth}px`;
           el.style.height = `${el.clientHeight}px`;
-          el.style.flex = 'none'; // Prevent flex resizing
+          el.style.flex = 'none';
         });
 
         if (boardRef.current) {
           boardRef.current.classList.add("is-flipping");
         }
 
-        // Remove animation classes from all cards before flipping
         cards.forEach((card) => {
           card.classList.remove("issue-animate-in-up", "issue-animate-in-down");
-          card.style.animation = "none"; // Temporarily suppress CSS animations
-          card.style.transition = "none"; // Ensure transition doesn't interfere
+          card.style.animation = "none";
+          card.style.transition = "none";
         });
 
         Flip.from(state, {
@@ -337,18 +344,15 @@ function BoardComponent({
           nested: true,
           clearProps: "transform,opacity",
           onComplete: () => {
-            console.log("[Board] Flip complete");
             if (boardRef.current) {
               boardRef.current.classList.remove("is-flipping");
             }
-            // Unfreeze container dimensions
             scrollContainers.forEach(col => {
               const el = col as HTMLElement;
               el.style.width = '';
               el.style.height = '';
               el.style.flex = '';
             });
-            // Restore animation styling just in case
             cards.forEach((card) => {
               card.style.animation = "";
               card.style.transition = "";
@@ -358,7 +362,7 @@ function BoardComponent({
         });
       }
     }
-  }, [renderedIssues]);
+  }, [issues]);
 
   useIsomorphicLayoutEffect(() => {
     if (initialScroll === "preserve" || didInitialScroll.current) {
@@ -385,12 +389,46 @@ function BoardComponent({
     node.scrollTo({ left: maxScrollLeft, behavior: reducedMotion ? "auto" : "smooth" });
   }, [detailOpen, reducedMotion]);
 
+  const orderedIssuesByColumn = useMemo(() => {
+    const issuesByStatus = new Map<string, KanbanIssue[]>();
+    for (const issue of issues) {
+      const bucket = issuesByStatus.get(issue.status);
+      if (bucket) {
+        bucket.push(issue);
+      } else {
+        issuesByStatus.set(issue.status, [issue]);
+      }
+    }
+    return new Map(
+      columns.map((column) => [
+        column,
+        [...(issuesByStatus.get(column) ?? [])].sort(resolveColumnComparator(column, config))
+      ])
+    );
+  }, [columns, issues, config]);
+
+  const previousColumnIssuesRef = useRef(new Map<string, KanbanIssue[]>());
+  const stableOrderedIssuesByColumn = useMemo(() => {
+    const stable = new Map<string, KanbanIssue[]>();
+    for (const [column, orderedIssues] of orderedIssuesByColumn) {
+      const previous = previousColumnIssuesRef.current.get(column);
+      const unchanged = previous !== undefined
+        && previous.length === orderedIssues.length
+        && previous.every((issue, index) => issue === orderedIssues[index]);
+      stable.set(column, unchanged ? previous : orderedIssues);
+    }
+    previousColumnIssuesRef.current = stable;
+    return stable;
+  }, [orderedIssuesByColumn]);
+
+  const columnToggleHandlers = useMemo(
+    () => new Map(columns.map((column) => [column, toggleColumn ? () => toggleColumn(column) : undefined])),
+    [columns, toggleColumn]
+  );
+
   return (
-    <div ref={setBoardRef} className="kb-grid gap-2" data-motion={resolvedMotion.mode}>
+    <div ref={setBoardRef} className="kb-grid gap-2" data-motion={stableMotion.mode}>
       {columns.map((column) => {
-        const columnIssues = renderedIssues.filter((issue) => issue.status === column);
-        const comparator = resolveColumnComparator(column, config);
-        const orderedIssues = [...columnIssues].sort(comparator);
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;
         return (
@@ -398,14 +436,14 @@ function BoardComponent({
             key={column}
             columnKey={column}
             title={displayTitle}
-            issues={orderedIssues}
+            issues={stableOrderedIssuesByColumn.get(column) ?? []}
             priorityLookup={priorityLookup}
             config={config}
             onSelectIssue={onSelectIssue}
             selectedIssueId={selectedIssueId}
             collapsed={visibleCollapsedColumns.has(column)}
-            onToggleCollapse={toggleColumn ? () => toggleColumn(column) : undefined}
-            motion={resolvedMotion}
+            onToggleCollapse={columnToggleHandlers.get(column)}
+            motion={stableMotion}
           />
         );
       })}

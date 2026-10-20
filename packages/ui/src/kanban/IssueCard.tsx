@@ -58,7 +58,7 @@ function IssueCardExcerpt({ text }: IssueCardExcerptProps) {
   );
 }
 
-export function IssueCard({
+function IssueCardComponent({
   issue,
   priorityName,
   config,
@@ -136,3 +136,40 @@ export function IssueCard({
     </div>
   );
 }
+
+function motionConfigurationsMatch(
+  previous: KanbanMotionConfig | undefined,
+  next: KanbanMotionConfig | undefined
+): boolean {
+  return previous?.mode === next?.mode
+    && previous?.frame === next?.frame
+    && previous?.fps === next?.fps
+    && previous?.staggerFrames === next?.staggerFrames
+    && previous?.durationFrames === next?.durationFrames;
+}
+
+function issuesRenderIdentically(previous: KanbanIssue, next: KanbanIssue): boolean {
+  return previous === next || (
+    previous.id === next.id
+    && previous.updated_at === next.updated_at
+    && previous.title === next.title
+    && previous.status === next.status
+    && previous.type === next.type
+    && previous.priority === next.priority
+    && previous.assignee === next.assignee
+    && previous.excerpt === next.excerpt
+  );
+}
+
+function issueCardPropsMatch(previous: IssueCardProps, next: IssueCardProps): boolean {
+  const motionIndexMatters = next.motion?.mode === "frame";
+  return issuesRenderIdentically(previous.issue, next.issue)
+    && previous.priorityName === next.priorityName
+    && previous.config === next.config
+    && previous.onSelect === next.onSelect
+    && previous.isSelected === next.isSelected
+    && motionConfigurationsMatch(previous.motion, next.motion)
+    && (!motionIndexMatters || previous.motionIndex === next.motionIndex);
+}
+
+export const IssueCard = React.memo(IssueCardComponent, issueCardPropsMatch);

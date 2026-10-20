@@ -28,6 +28,10 @@ declare global {
     kanbusThemeFonts: Record<string, string>;
     renderHostIssueIds: (theme: Kanbus.KanbusThemeId, withHostFormatter: boolean) => void;
     renderOrganizer: (mode?: "light" | "dark", initialScroll?: "start" | "end" | "preserve") => void;
+    renderLargeColumn: (issueCount: number) => void;
+    replaceLargeColumnWithCopies: (retitledIdentifier: string, newTitle: string) => void;
+    resetCardRenderCounts: () => void;
+    cardRenderCounts: () => Record<string, number>;
   }
 }
 
@@ -61,6 +65,35 @@ let issues: HostIssue[] = [
 ];
 
 const root = createRoot(document.getElementById("root")!);
+let largeColumnIssues: HostIssue[] = [];
+let largeColumnSelectedIdentifier: string | null = null;
+const renderCountByIssueIdentifier = new Map<string, number>();
+const countingIssueIdFormatter: Kanbus.IssueIdFormatter = (issue) => {
+  renderCountByIssueIdentifier.set(issue.id, (renderCountByIssueIdentifier.get(issue.id) ?? 0) + 1);
+  return issue.id;
+};
+
+function selectLargeColumnIssue(issue: Kanbus.KanbanIssue) {
+  largeColumnSelectedIdentifier = issue.id;
+  renderLargeColumnBoard();
+}
+
+function renderLargeColumnBoard() {
+  root.render(
+    <div className="fixture-large-column" style={{ height: 700 }}>
+      <Kanbus.Board
+        columns={["open"]}
+        issues={largeColumnIssues}
+        priorityLookup={{ 1: "High", 2: "Normal" }}
+        config={configuration}
+        motion={{ mode: "static" }}
+        formatIssueId={countingIssueIdFormatter}
+        selectedIssueId={largeColumnSelectedIdentifier}
+        onSelectIssue={selectLargeColumnIssue}
+      />
+    </div>
+  );
+}
 let currentQuery: Kanbus.IssueQuery = {};
 let organizer = false;
 let organizerMode: "light" | "dark" = "light";
@@ -68,6 +101,26 @@ let organizerScroll: "start" | "end" | "preserve" = "start";
 let currentView: "board" | "list" = "board";
 
 Object.assign(window, {
+  renderLargeColumn(issueCount: number) {
+    largeColumnSelectedIdentifier = null;
+    largeColumnIssues = Array.from({ length: issueCount }, (_, index) => ({
+      id: `bulk-${index + 1}`,
+      title: `Bulk issue ${index + 1}`,
+      type: "task",
+      status: "open",
+      priority: 2,
+      created_at: new Date(Date.UTC(2026, 0, 1) + index * 60_000).toISOString()
+    }));
+    renderLargeColumnBoard();
+  },
+  replaceLargeColumnWithCopies(retitledIdentifier: string, newTitle: string) {
+    largeColumnIssues = largeColumnIssues.map((issue) =>
+      issue.id === retitledIdentifier ? { ...issue, title: newTitle } : { ...issue }
+    );
+    renderLargeColumnBoard();
+  },
+  resetCardRenderCounts() { renderCountByIssueIdentifier.clear(); },
+  cardRenderCounts() { return Object.fromEntries(renderCountByIssueIdentifier); },
   renderUnselectedTypeFilter() { root.render(<TypeFilterHost mode="light" initialValue={null} />); },
   renderBoardConsumer(kind: "console" | "embedded", key: string) {
     root.render(<BoardConsumer key={`${kind}-${key}`} kind={kind} storageKey={key} />);
