@@ -17,7 +17,7 @@
     {
       "id": "ab0ca988-cb04-4938-98a5-9bf7f43c30b1",
       "author": "home",
-      "text": "2026-10-16 reconciliation: Unmerged Kanbus-shortids PR388 and staged changes remain preserved in /Users/home/Projects/Kanbus-shortids. No cleanup or deletion performed; separate cleanup task owns worktree disposition. Reconcile/review unmerged source and staged state before any future integration; do not infer merged from cleanup.",
+      "text": "2026-10-16 reconciliation: Unmerged Kanbus-shortids PR388 and staged changes remain preserved in ~/Projects/Kanbus-shortids. No cleanup or deletion performed; separate cleanup task owns worktree disposition. Reconcile/review unmerged source and staged state before any future integration; do not infer merged from cleanup.",
       "created_at": "2026-10-16T20:46:56.794038Z",
       "comment_type": "default",
       "agent": {
