@@ -10,9 +10,17 @@
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2e1666d1-56d1-4597-a795-152b537d9a27",
+      "author": "home",
+      "text": "Hard requirement from Chatticus (product requirement from Ryan): the embedder must render a board from plain file contents with NO running Kanbus process, because Chatticus shows the saved workspace copy while the user's computer is off. So the HTTP API and kbs CLI cannot be the only path. Required: pure functions over file contents, e.g. parseIssues(files) returning issues shaped for IssueCollection and parseConfig(yamlText) returning KanbanConfig, usable in a browser client component and a Node route. Parity-preserving options to evaluate: (1) compile the Rust parser and config loader to WebAssembly and ship it with @kanbus/ui or a sibling package; (2) a TypeScript implementation held to the same Gherkin specs and fixtures through the parity tooling. A typed HTTP client remains useful for the Kanbus-hosted case as a second path.",
+      "created_at": "2026-10-20T02:26:23.222108Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T02:25:48.503729Z",
-  "updated_at": "2026-10-20T02:25:48.570635Z",
+  "updated_at": "2026-10-20T02:26:23.222121Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
