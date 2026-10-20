@@ -1125,8 +1125,9 @@ Show the rendered guidance of a methodology.
 
 ### `kanbus migrate`
 
-Migrate Beads issues into Kanbus.
+Migrate Beads issues into Kanbus, or write a project_id with ``project-id``.
 
+- `[project-id]` (argument)
 - `--into-existing`: Import Beads issues into an already initialized project. Repeatable: re-runs and overwrites matching issue JSON files.
 
 ### `kanbus move`
