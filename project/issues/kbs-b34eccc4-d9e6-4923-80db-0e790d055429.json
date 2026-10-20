@@ -3,7 +3,7 @@
   "title": "Scope console UI state and notification channels per tenant",
   "description": "In multi-tenant mode AppState has one ui_state and one notification_tx, and get_realtime_events ignores account/project, so focus/search UI state and IssueUpdated notifications leak across tenants (rust/src/bin/console_local.rs). Behavior change: write a console-server Gherkin scenario first (two tenants, a focus notification on one is not delivered to the other), then key ui_state and notification channels by (account, project) in Rust and match in the Python console server. Acceptance: new scenario passes in both runtimes.",
   "type": "sub-task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,28 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "e2259d17-244c-4b33-a805-aa0b6b83b7f7",
+      "author": "home",
+      "text": "2026-10-20: work is under way on PR 490 (branch fix/console-tenant-isolation, 'fix(console): isolate tenant UI state and notification delivery'). The PR is open as a draft with no review decision. Status moved from open to in_progress to match.",
+      "created_at": "2026-10-20T13:17:27.672193Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Drift Fix"
+      }
+    }
+  ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T16:53:41.472829Z",
+  "updated_at": "2026-10-20T13:17:27.672214Z",
   "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "Claude Opus 5.5",
+    "name": "Drift Fix"
+  },
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

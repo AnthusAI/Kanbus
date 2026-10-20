@@ -62,10 +62,22 @@
       "text": "WIP triage 2026-10-16: acceptance met. Prospectus renders the shared exported Board through IssueCollection from released Kanbus UI 0.2.0 with host-owned routing, auth and data access, and the standalone console release passed all gates. Broader cross-app acceptance is tracked by the shared UI work, so closing.",
       "created_at": "2026-10-16T23:49:14.194337627Z",
       "comment_type": "default"
+    },
+    {
+      "id": "c3c65b0e-66b6-4728-8e83-0c97fd29bd0b",
+      "author": "home",
+      "text": "2026-10-20 branch note: local branch feature/prospectus-embedded-kanbus (a Codex task worktree dated 2026-10-13, last commit fe67ef8e) has only board-state commits beyond its merge base and no pushed code. Its uncommitted changes (packages/ui/src/kanban/*, IssueCollection.tsx, issue-query.ts, services/, ci.yml) predate the embedded work that merged in PR 399 and PR 403 (kbs-c309d8). Whether they hold anything not already on develop is not verified; review before discarding that worktree.",
+      "created_at": "2026-10-20T13:17:27.899820Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Drift Fix"
+      }
     }
   ],
   "created_at": "2026-10-13T23:46:21.470723Z",
-  "updated_at": "2026-10-16T23:49:14.194382473Z",
+  "updated_at": "2026-10-20T13:17:57.236946Z",
   "closed_at": "2026-10-16T23:48:56.852463336Z",
   "agent": {
     "platform": "codex",
