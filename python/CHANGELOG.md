@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## v0.40.0 (2026-10-20)
+
+### Bug Fixes
+
+- **realtime**: Scope events by project_id stored in .kanbus.yml
+  ([`261ecbb`](https://github.com/AnthusAI/Kanbus/commit/261ecbbab8a0279702e250be6d9240c35947e666))
+
+- **realtime**: Scope issue events by project identity on shared brokers
+  ([`9d93bea`](https://github.com/AnthusAI/Kanbus/commit/9d93bea40bdeb767e7d1ec2814b3074e999b063b))
+
+### Chores
+
+- **kanbus**: Close Chatticus blocker stories; file hierarchy type-change follow-up
+  ([`19f1afc`](https://github.com/AnthusAI/Kanbus/commit/19f1afc184c076436e7aa055139e566bf2acdf62))
+
+- **kanbus**: File api-client type gaps and atomic close-with-comment story
+  ([`74cf69b`](https://github.com/AnthusAI/Kanbus/commit/74cf69bf65347c3bf201b5c1fd2437aec9ace156))
+
+- **kanbus**: File package compatibility table task
+  ([`eb188d6`](https://github.com/AnthusAI/Kanbus/commit/eb188d65233e870f7125a5596b715f17ef6f6dea))
+
+- **kanbus**: Start kbs-e98cfabd
+  ([`ab27d95`](https://github.com/AnthusAI/Kanbus/commit/ab27d95b5c5574ad59a984ab80d58525b6e6f5eb))
+
+### Documentation
+
+- Regenerate CLI reference for kbs migrate project-id
+  ([`54b07fc`](https://github.com/AnthusAI/Kanbus/commit/54b07fc7475368abff3e26941543e9846d894d64))
+
+### Features
+
+- **api-client**: Type dependencies, document server semantics, release 0.1.1
+  ([`4b0713a`](https://github.com/AnthusAI/Kanbus/commit/4b0713a421ddb1a4051b923a9f4319f2bb6eee8b))
+
+
 ## v0.39.0 (2026-10-20)
 
 ### Bug Fixes
