@@ -932,9 +932,6 @@ Then("the board theme should be {string}", async function (theme) {
   );
   expect(external).toEqual([]);
 });
-  await expect(this.page.locator("#kanbus-theme-fonts")).toHaveCount(0);
-  expect(requests.filter((url) => !url.startsWith(new URL(this.page.url()).origin))).toEqual([]);
-});
 
 Then("the console color mode should be {string}", async function (mode) {
   await expect
