@@ -1,0 +1,20 @@
+{
+  "id": "kbs-1a88cdf5-7004-4d23-95b1-27083aeb0603",
+  "title": "Fence type changes to and from hierarchy types against concurrent attaches in kanbus-api",
+  "description": "Follow-up from PR #510: changing an issue's type to or from a hierarchy type returns 409 type_change_unsupported because a concurrent attach could otherwise leave a child that violates the hierarchy. Fence it with the relations record (mark the record during a type change the way deletes do, leased), then allow type changes that keep the hierarchy valid with the parent and every live child. Spec with interleaving tests like tests/relations.rs.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T15:50:45.625361Z",
+  "updated_at": "2026-10-20T15:50:45.673579Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
