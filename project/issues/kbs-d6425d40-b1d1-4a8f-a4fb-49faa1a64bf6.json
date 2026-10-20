@@ -1,0 +1,33 @@
+{
+  "id": "kbs-d6425d40-b1d1-4a8f-a4fb-49faa1a64bf6",
+  "title": "Rust README, INSTALL.md and ARCHITECTURE.md say `kanbusr`, which is not the crate or binary name",
+  "description": "**Problem**\nThe Rust docs refer to a `kanbusr` crate/binary. The crate is `kanbus` and the binaries are `kbs`, `kanbus` and `kbsc`. The crates.io page for `kanbusr` returns 404, so install instructions copied from these docs fail.\n\n**Evidence**\n- rust/README.md:8,12,25,35-38 use `kanbusr`\n- INSTALL.md:67,68,90,111 use `kanbusr`\n- docs/ARCHITECTURE.md:40 uses `kanbusr`\n- `curl -s -o /dev/null -w '%{http_code}' https://crates.io/crates/kanbusr` shows no such crate (404)\n\n**Fix**\nReplace `kanbusr` with the real crate name (`kanbus`) and binary names (`kbs`/`kanbus`/`kbsc`) in those files. Keep historical mentions only where explicitly marked as the old name.\n\n**How to verify**\n`git grep -n kanbusr -- rust/README.md INSTALL.md docs/ARCHITECTURE.md` returns nothing, and the install command shown in rust/README.md works in a clean environment.\n\nSource: Anthus repo audit, 2026-10-20.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d43e4895-0f3a-46d6-97f5-cee397bbf950",
+      "author": "home",
+      "text": "Verification note: the exact check is curl -s -o /dev/null -w '%{http_code}' -A audit https://crates.io/api/v1/crates/kanbusr (404), whereas .../crates/kanbus returns 200.",
+      "created_at": "2026-10-20T04:28:14.481911Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-20T04:27:29.662953Z",
+  "updated_at": "2026-10-20T04:28:14.481928Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "audit-filing"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
