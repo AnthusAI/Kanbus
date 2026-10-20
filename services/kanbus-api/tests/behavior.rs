@@ -1,66 +1,9 @@
 //! Executable examples for features/writable_api.feature.
 
-use kanbus_api::{authenticate_cloud, authenticate_local};
+use kanbus_api::{authenticate_cloud, authenticate_local, Grant, Principal, ProjectGrant};
 use serde_json::json;
 
-#[test]
-fn cloud_requires_verified_gateway_group_membership() {
-    assert!(authenticate_cloud(
-        &json!({"headers":{"authorization":"Bearer forged"}}),
-        "members"
-    )
-    .is_err());
-    let claims = |groups| json!({"requestContext":{"authorizer":{"jwt":{"claims":{"sub":"member-1","cognito:groups":groups}}}}});
-    assert!(authenticate_cloud(&claims("other-members"), "members").is_err());
-    assert_eq!(
-        authenticate_cloud(&claims("[members]"), "members").unwrap(),
-        "member-1"
-    );
-}
-
-#[test]
-fn multiple_gateway_groups_preserve_exact_membership() {
-    let event = |groups| json!({"requestContext":{"authorizer":{"jwt":{"claims":{"sub":"member-1","cognito:groups":groups}}}}});
-    for groups in [
-        json!(["admin", "prospectus-members"]),
-        json!("[\"admin\",\"prospectus-members\"]"),
-        json!("[admin, prospectus-members]"),
-        json!("[admin prospectus-members]"),
-        json!("admin prospectus-members"),
-    ] {
-        assert_eq!(
-            authenticate_cloud(&event(groups), "prospectus-members").unwrap(),
-            "member-1"
-        );
-    }
-    for groups in [
-        json!(["admin"]),
-        json!("[admin other-prospectus-members prospectus-members-extra]"),
-        json!("[admin]"),
-        json!(null),
-        json!(42),
-    ] {
-        assert_eq!(
-            authenticate_cloud(&event(groups), "prospectus-members")
-                .unwrap_err()
-                .status,
-            403
-        );
-    }
-}
-
-#[test]
-fn local_requires_explicit_secret() {
-    assert!(authenticate_local(None, "secret").is_err());
-    assert!(authenticate_local(Some("Bearer wrong"), "secret").is_err());
-    assert!(authenticate_local(Some("Bearer "), "").is_err());
-    assert_eq!(
-        authenticate_local(Some("Bearer secret"), "secret").unwrap(),
-        "local-member"
-    );
-}
-
-use kanbus_api::{Api, ApiRequest};
+use kanbus_api::{grants_from_groups, Api, ApiRequest};
 use std::{collections::BTreeMap, sync::Arc};
 use tempfile::TempDir;
 use virtuus_store::{FileStore, JournaledStore, MemoryCatalog, Scope};
@@ -78,10 +21,21 @@ fn setup() -> (TempDir, Api) {
     let scope = Scope::new("tenant", "project").unwrap();
     let objects = FileStore::for_project(directory.path(), scope).unwrap();
     let store = JournaledStore::new(Arc::new(objects), Arc::new(MemoryCatalog::default()));
-    (directory, Api::new(store, "tenant/project").unwrap())
+    (directory, Api::new(store).unwrap())
 }
 
-fn request(
+fn principal_for(tenant: &str, project: &str) -> Principal {
+    Principal {
+        actor: "member-1".into(),
+        grants: vec![Grant {
+            tenant: tenant.into(),
+            project: ProjectGrant::One(project.into()),
+        }],
+    }
+}
+
+fn request_as(
+    principal: Principal,
     method: &str,
     path: &str,
     body: serde_json::Value,
@@ -97,8 +51,27 @@ fn request(
         query: BTreeMap::new(),
         headers,
         body,
-        actor: "member-1".into(),
+        principal,
     }
+}
+
+fn request(
+    method: &str,
+    path: &str,
+    body: serde_json::Value,
+    revision: Option<&str>,
+) -> ApiRequest {
+    let board_path = match path.strip_prefix("/api/") {
+        Some(rest) => format!("/tenant/project/api/{rest}"),
+        None => path.to_string(),
+    };
+    request_as(
+        principal_for("tenant", "project"),
+        method,
+        &board_path,
+        body,
+        revision,
+    )
 }
 
 #[tokio::test]
@@ -293,55 +266,6 @@ async fn generic_filters_and_paging_are_scope_and_query_bound() {
     changed.query.insert("cursor".into(), cursor.into());
     changed.query.insert("assignee".into(), "member-2".into());
     assert_eq!(api.handle(changed).await.err().unwrap().status, 400);
-}
-
-#[tokio::test]
-async fn trusted_project_allowlist_merges_selected_boards_and_rejects_unknown_scopes() {
-    let directory = tempfile::tempdir().unwrap();
-    for project in ["one", "two"] {
-        let root = directory.path().join("tenant").join(project);
-        std::fs::create_dir_all(&root).unwrap();
-        let mut configuration = kanbus::config::default_project_configuration();
-        configuration.project_key = project.into();
-        std::fs::write(
-            root.join(".kanbus.yml"),
-            serde_yaml::to_string(&configuration).unwrap(),
-        )
-        .unwrap();
-    }
-    let store = JournaledStore::new(
-        Arc::new(FileStore::new(directory.path()).unwrap()),
-        Arc::new(MemoryCatalog::default()),
-    );
-    let api = Api::with_projects(store, "tenant", "one", &["one".into(), "two".into()]).unwrap();
-    for project in ["one", "two"] {
-        let mut create = request(
-            "POST",
-            "/api/issues",
-            json!({"type":"task","title":project}),
-            None,
-        );
-        create.query.insert("project".into(), project.into());
-        api.handle(create).await.unwrap();
-    }
-    let mut list = request("GET", "/api/issues", json!(null), None);
-    list.query.insert("projects".into(), "one,two".into());
-    list.query.insert("types".into(), "task,bug".into());
-    let response = api.handle(list).await.unwrap();
-    let issues = response.body["issues"].as_array().unwrap();
-    assert_eq!(issues.len(), 2);
-    assert!(issues.iter().any(|entry| entry["project"] == "one"));
-    assert!(issues.iter().any(|entry| entry["project"] == "two"));
-    for method in ["GET", "POST"] {
-        let mut denied = request(
-            method,
-            "/api/issues",
-            json!({"type":"task","title":"denied"}),
-            None,
-        );
-        denied.query.insert("project".into(), "other-tenant".into());
-        assert_eq!(api.handle(denied).await.err().unwrap().status, 403);
-    }
 }
 
 #[tokio::test]
@@ -910,12 +834,7 @@ fn inspected_setup() -> (TempDir, Api, JournaledStore, Arc<support::InspectStore
         FileStore::for_project(directory.path(), Scope::new("tenant", "project").unwrap()).unwrap(),
     );
     let store = JournaledStore::new(objects.clone(), Arc::new(MemoryCatalog::default()));
-    (
-        directory,
-        Api::new(store.clone(), "tenant/project").unwrap(),
-        store,
-        objects,
-    )
+    (directory, Api::new(store.clone()).unwrap(), store, objects)
 }
 
 #[tokio::test]
@@ -1114,19 +1033,42 @@ async fn accepted_queries_expose_cost_and_reject_excess_streams_and_predicates()
         api.handle(excessive).await.err().unwrap().code,
         "query_budget_exceeded"
     );
-    let directory = tempfile::tempdir().unwrap();
-    let store = JournaledStore::new(
-        Arc::new(FileStore::new(directory.path()).unwrap()),
-        Arc::new(MemoryCatalog::default()),
-    );
-    let projects: Vec<String> = (0..9).map(|index| format!("p{index}")).collect();
-    assert!(Api::with_projects(store.clone(), "tenant", "p0", &projects).is_err());
-    let api = Api::with_projects(store, "tenant", "p0", &projects[..8]).unwrap();
-    let mut excessive = request("GET", "/api/issues", json!(null), None);
-    excessive.query.insert("projects".into(), "*".into());
-    excessive.query.insert("types".into(), "a,b,c,d,e".into());
+    let tenant_principal = Principal {
+        actor: "member-1".into(),
+        grants: vec![Grant {
+            tenant: "tenant".into(),
+            project: ProjectGrant::AllInTenant,
+        }],
+    };
+    let tenant_list = |projects: String, types: Option<&str>| {
+        let mut list = request_as(
+            tenant_principal.clone(),
+            "GET",
+            "/tenant/api/issues",
+            json!(null),
+            None,
+        );
+        list.query.insert("projects".into(), projects);
+        if let Some(types) = types {
+            list.query.insert("types".into(), types.into());
+        }
+        list
+    };
+    let nine: Vec<String> = (0..9).map(|index| format!("p{index}")).collect();
     assert_eq!(
-        api.handle(excessive).await.err().unwrap().code,
+        api.handle(tenant_list(nine.join(","), None))
+            .await
+            .err()
+            .unwrap()
+            .code,
+        "query_budget_exceeded"
+    );
+    assert_eq!(
+        api.handle(tenant_list(nine[..8].join(","), Some("a,b,c,d,e")))
+            .await
+            .err()
+            .unwrap()
+            .code,
         "query_budget_exceeded"
     );
 }
@@ -1399,4 +1341,528 @@ async fn huge_invalid_priority_diagnostic_is_bounded_and_publishes_nothing() {
     assert!(serde_json::to_vec(&envelope).unwrap().len() < 4096);
     assert!(!directory.path().join("project/issues").exists());
     assert!(!directory.path().join("project/events").exists());
+}
+
+fn multi_board_api(boards: &[(&str, &str)]) -> (TempDir, Api) {
+    let directory = tempfile::tempdir().unwrap();
+    for (tenant, project) in boards {
+        create_board(directory.path(), tenant, project);
+    }
+    let store = JournaledStore::new(
+        Arc::new(FileStore::new(directory.path()).unwrap()),
+        Arc::new(MemoryCatalog::default()),
+    );
+    (directory, Api::new(store).unwrap())
+}
+
+fn create_board(root: &std::path::Path, tenant: &str, project: &str) {
+    let board_root = root.join(tenant).join(project);
+    std::fs::create_dir_all(&board_root).unwrap();
+    let mut configuration = kanbus::config::default_project_configuration();
+    configuration.project_key = project.into();
+    std::fs::write(
+        board_root.join(".kanbus.yml"),
+        serde_yaml::to_string(&configuration).unwrap(),
+    )
+    .unwrap();
+}
+
+fn grants_to(groups: &[&str]) -> Principal {
+    Principal {
+        actor: "member-1".into(),
+        grants: grants_from_groups(&json!(groups)),
+    }
+}
+
+#[test]
+fn group_claims_parse_into_board_grants() {
+    let one = |tenant: &str, project: &str| Grant {
+        tenant: tenant.into(),
+        project: ProjectGrant::One(project.into()),
+    };
+    let wildcard = |tenant: &str| Grant {
+        tenant: tenant.into(),
+        project: ProjectGrant::AllInTenant,
+    };
+    assert_eq!(
+        grants_from_groups(&json!(["kanbus:acme/support", "kanbus:acme/*"])),
+        vec![one("acme", "support"), wildcard("acme")]
+    );
+    assert_eq!(
+        grants_from_groups(&json!("[kanbus:a/b kanbus:a/*]")),
+        vec![one("a", "b"), wildcard("a")]
+    );
+    assert_eq!(
+        grants_from_groups(&json!("kanbus:cyclotron/prospectus")),
+        vec![one("cyclotron", "prospectus")]
+    );
+    assert_eq!(
+        grants_from_groups(&json!("admin kanbus:a/b,editors")),
+        vec![one("a", "b")]
+    );
+    assert!(grants_from_groups(&json!(["admins", "kanbus", "other:a/b"])).is_empty());
+    for malformed in [
+        "kanbus:",
+        "kanbus:acme",
+        "kanbus:/project",
+        "kanbus:acme/",
+        "kanbus:Acme/support",
+        "kanbus:acme/sup port/x",
+        "kanbus:acme/../x",
+        "kanbus:../x",
+        "kanbus:_virtuus/*",
+        "kanbus:acme/a/b",
+        "kanbus:*/support",
+        "kanbus:acme/**",
+    ] {
+        assert!(
+            grants_from_groups(&json!([malformed])).is_empty(),
+            "{malformed} must grant nothing"
+        );
+    }
+    assert!(grants_from_groups(&json!(42)).is_empty());
+    assert!(grants_from_groups(&json!(null)).is_empty());
+}
+
+#[test]
+fn cloud_authentication_grants_only_from_verified_group_claims() {
+    let event = |groups: serde_json::Value| json!({"requestContext":{"authorizer":{"jwt":{"claims":{"sub":"member-1","cognito:groups":groups}}}}});
+    assert_eq!(
+        authenticate_cloud(&json!({"headers":{"authorization":"Bearer forged"}}))
+            .unwrap_err()
+            .status,
+        401
+    );
+    for groups in [json!(["admin"]), json!("other"), json!(null), json!(42)] {
+        assert_eq!(authenticate_cloud(&event(groups)).unwrap_err().status, 403);
+    }
+    let principal = authenticate_cloud(&event(json!("kanbus:a/b"))).unwrap();
+    assert_eq!(principal.actor, "member-1");
+    assert!(principal.allows(&Scope::new("a", "b").unwrap()));
+    assert!(!principal.allows(&Scope::new("a", "c").unwrap()));
+    assert!(!principal.allows(&Scope::new("x", "b").unwrap()));
+}
+
+#[test]
+fn local_requires_explicit_secret_and_grants_only_the_served_board() {
+    let board = Scope::new("tenant", "project").unwrap();
+    assert!(authenticate_local(None, "secret", &board).is_err());
+    assert!(authenticate_local(Some("Bearer wrong"), "secret", &board).is_err());
+    assert!(authenticate_local(Some("Bearer "), "", &board).is_err());
+    let principal = authenticate_local(Some("Bearer secret"), "secret", &board).unwrap();
+    assert_eq!(principal.actor, "local-member");
+    assert!(principal.allows(&board));
+    assert!(!principal.allows(&Scope::new("tenant", "other").unwrap()));
+}
+
+#[tokio::test]
+async fn direct_invoke_event_routes_from_raw_path_only() {
+    let (_directory, api) = multi_board_api(&[("cyclotron", "prospectus")]);
+    let event = json!({
+        "version":"2.0",
+        "rawPath":"/cyclotron/prospectus/api/issues",
+        "rawQueryString":"",
+        "requestContext":{"http":{"method":"GET"},"authorizer":{"jwt":{"claims":{"sub":"prospectus-intake-evaluation","cognito:groups":"kanbus:cyclotron/prospectus"}}}}
+    });
+    let principal = authenticate_cloud(&event).unwrap();
+    assert_eq!(principal.actor, "prospectus-intake-evaluation");
+    let mut direct = request_as(
+        principal,
+        "GET",
+        event["rawPath"].as_str().unwrap(),
+        json!(null),
+        None,
+    );
+    direct.query.insert("limit".into(), "5".into());
+    let response = api.handle(direct).await.unwrap();
+    assert_eq!(response.status, 200);
+    assert_eq!(response.body["issues"].as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn one_deployment_serves_many_boards_with_per_board_grants() {
+    let (_directory, api) = multi_board_api(&[
+        ("acme", "support"),
+        ("acme", "sales"),
+        ("globex", "support"),
+    ]);
+    let member = grants_to(&["kanbus:acme/support"]);
+    let created = api
+        .handle(request_as(
+            member.clone(),
+            "POST",
+            "/acme/support/api/issues",
+            json!({"type":"task","title":"Mine"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let id = created.body["issue"]["id"].as_str().unwrap().to_string();
+    let read = api
+        .handle(request_as(
+            member.clone(),
+            "GET",
+            &format!("/acme/support/api/issues/{id}"),
+            json!(null),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(read.body["issue"]["title"], "Mine");
+
+    let mut denials = Vec::new();
+    for board in [
+        "acme/sales",
+        "globex/support",
+        "globex/missing",
+        "nobody/nothing",
+    ] {
+        for (method, suffix) in [
+            ("GET", "api/issues"),
+            ("POST", "api/issues"),
+            ("GET", "api/config"),
+        ] {
+            let error = api
+                .handle(request_as(
+                    member.clone(),
+                    method,
+                    &format!("/{board}/{suffix}"),
+                    json!({"type":"task","title":"Nope"}),
+                    None,
+                ))
+                .await
+                .err()
+                .unwrap();
+            assert_eq!(error.status, 403);
+            denials.push(error.body());
+        }
+    }
+    assert!(denials.windows(2).all(|pair| pair[0] == pair[1]));
+}
+
+#[tokio::test]
+async fn tenant_wildcard_grants_every_board_of_that_tenant_only() {
+    let (_directory, api) = multi_board_api(&[
+        ("acme", "support"),
+        ("acme", "sales"),
+        ("globex", "support"),
+    ]);
+    let member = grants_to(&["kanbus:acme/*"]);
+    for board in ["acme/support", "acme/sales"] {
+        let response = api
+            .handle(request_as(
+                member.clone(),
+                "GET",
+                &format!("/{board}/api/config"),
+                json!(null),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status, 200);
+    }
+    let error = api
+        .handle(request_as(
+            member,
+            "GET",
+            "/globex/support/api/config",
+            json!(null),
+            None,
+        ))
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(error.status, 403);
+}
+
+#[tokio::test]
+async fn cross_board_list_merges_granted_boards_and_rejects_any_ungranted_board() {
+    let (_directory, api) =
+        multi_board_api(&[("acme", "support"), ("acme", "sales"), ("acme", "hr")]);
+    let member = grants_to(&["kanbus:acme/support", "kanbus:acme/sales"]);
+    for board in ["acme/support", "acme/sales"] {
+        api.handle(request_as(
+            member.clone(),
+            "POST",
+            &format!("/{board}/api/issues"),
+            json!({"type":"task","title":board}),
+            None,
+        ))
+        .await
+        .unwrap();
+    }
+    let list = |projects: &str| {
+        let mut list = request_as(member.clone(), "GET", "/acme/api/issues", json!(null), None);
+        list.query.insert("projects".into(), projects.into());
+        list
+    };
+    let response = api.handle(list("support,sales")).await.unwrap();
+    let issues = response.body["issues"].as_array().unwrap();
+    assert_eq!(issues.len(), 2);
+    assert!(issues.iter().any(|entry| entry["project"] == "support"));
+    assert!(issues.iter().any(|entry| entry["project"] == "sales"));
+    let denied = api.handle(list("support,hr")).await.err().unwrap();
+    assert_eq!(denied.status, 403);
+    let missing = api.handle(list("support,ghost")).await.err().unwrap();
+    assert_eq!(denied.body(), missing.body());
+    assert_eq!(api.handle(list("*")).await.err().unwrap().status, 400);
+    let mut without_names = list("support");
+    without_names.query.clear();
+    assert_eq!(api.handle(without_names).await.err().unwrap().status, 400);
+    let mut single_board_with_projects = request_as(
+        member.clone(),
+        "GET",
+        "/acme/support/api/issues",
+        json!(null),
+        None,
+    );
+    single_board_with_projects
+        .query
+        .insert("projects".into(), "support".into());
+    assert_eq!(
+        api.handle(single_board_with_projects)
+            .await
+            .err()
+            .unwrap()
+            .status,
+        400
+    );
+}
+
+#[tokio::test]
+async fn invalid_tenant_and_project_names_are_rejected_before_storage_access() {
+    let (_directory, api) = multi_board_api(&[("acme", "support")]);
+    let everything = Principal {
+        actor: "member-1".into(),
+        grants: grants_from_groups(&json!("kanbus:acme/*")),
+    };
+    for path in [
+        "/Acme/support/api/config",
+        "/acme/Support/api/config",
+        "/acme/sup%20port/api/config",
+        "/acme/../api/config",
+        "/../support/api/config",
+        "/_virtuus/support/api/config",
+        "/acme/a%2Fb/api/config",
+    ] {
+        let error = api
+            .handle(request_as(
+                everything.clone(),
+                "GET",
+                path,
+                json!(null),
+                None,
+            ))
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(error.status, 400, "{path}");
+        assert_eq!(error.code, "invalid_request");
+    }
+    let mut bad_list = request_as(everything, "GET", "/acme/api/issues", json!(null), None);
+    bad_list
+        .query
+        .insert("projects".into(), "support,Bad Name".into());
+    assert_eq!(api.handle(bad_list).await.err().unwrap().status, 400);
+}
+
+#[tokio::test]
+async fn granted_board_without_configuration_reports_configuration_missing() {
+    let (directory, api) = multi_board_api(&[("acme", "support")]);
+    std::fs::create_dir_all(directory.path().join("acme/empty")).unwrap();
+    let member = grants_to(&["kanbus:acme/*"]);
+    let error = api
+        .handle(request_as(
+            member,
+            "GET",
+            "/acme/empty/api/config",
+            json!(null),
+            None,
+        ))
+        .await
+        .err()
+        .unwrap();
+    assert_eq!((error.status, error.code), (503, "configuration_missing"));
+}
+
+#[tokio::test]
+async fn new_board_in_storage_is_usable_without_restarting_the_service() {
+    let (directory, api) = multi_board_api(&[("acme", "support")]);
+    let member = grants_to(&["kanbus:acme/*"]);
+    let before = api
+        .handle(request_as(
+            member.clone(),
+            "GET",
+            "/acme/newbot/api/config",
+            json!(null),
+            None,
+        ))
+        .await
+        .err()
+        .unwrap();
+    assert_eq!(before.code, "configuration_missing");
+    create_board(directory.path(), "acme", "newbot");
+    let created = api
+        .handle(request_as(
+            member,
+            "POST",
+            "/acme/newbot/api/issues",
+            json!({"type":"task","title":"First"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(created.status, 201);
+}
+
+#[tokio::test]
+async fn operation_replay_is_scoped_per_board() {
+    let (_directory, api) = multi_board_api(&[("acme", "support"), ("acme", "sales")]);
+    let member = grants_to(&["kanbus:acme/*"]);
+    let operation = uuid::Uuid::new_v4().to_string();
+    let mut ids = Vec::new();
+    for board in ["acme/support", "acme/sales"] {
+        let mut create = request_as(
+            member.clone(),
+            "POST",
+            &format!("/{board}/api/issues"),
+            json!({"type":"task","title":"Same"}),
+            None,
+        );
+        create
+            .headers
+            .insert("x-operation-id".into(), operation.clone());
+        ids.push(api.handle(create).await.unwrap().body["issue"]["id"].clone());
+    }
+    let mut repeat = request_as(
+        member.clone(),
+        "POST",
+        "/acme/support/api/issues",
+        json!({"type":"task","title":"Same"}),
+        None,
+    );
+    repeat.headers.insert("x-operation-id".into(), operation);
+    let replayed = api.handle(repeat).await.unwrap();
+    assert_eq!(replayed.body["issue"]["id"], ids[0]);
+    for board in ["acme/support", "acme/sales"] {
+        let mut list = request_as(
+            member.clone(),
+            "GET",
+            &format!("/{board}/api/issues"),
+            json!(null),
+            None,
+        );
+        list.query.insert("limit".into(), "10".into());
+        let response = api.handle(list).await.unwrap();
+        assert_eq!(response.body["issues"].as_array().unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn board_storage_keys_are_unchanged_and_requests_touch_only_their_board() {
+    let (directory, api) = multi_board_api(&[
+        ("acme", "support"),
+        ("acme", "sales"),
+        ("globex", "support"),
+    ]);
+    let member = grants_to(&["kanbus:acme/support"]);
+    let snapshot = |board: &str| -> Vec<String> {
+        let root = directory.path().join(board);
+        let mut keys = Vec::new();
+        let mut pending = vec![root.clone()];
+        while let Some(current) = pending.pop() {
+            for entry in std::fs::read_dir(current).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    pending.push(path);
+                } else {
+                    keys.push(path.strip_prefix(&root).unwrap().to_string_lossy().into());
+                }
+            }
+        }
+        keys.sort();
+        keys
+    };
+    let others_before = (snapshot("acme/sales"), snapshot("globex/support"));
+    let created = api
+        .handle(request_as(
+            member.clone(),
+            "POST",
+            "/acme/support/api/issues",
+            json!({"type":"task","title":"Keys"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let id = created.body["issue"]["id"].as_str().unwrap();
+    assert_eq!(
+        Scope::new("acme", "support").unwrap().namespace(),
+        "acme/support"
+    );
+    let keys = snapshot("acme/support");
+    assert!(keys.contains(&".kanbus.yml".to_string()));
+    assert!(keys.contains(&format!("project/issues/{id}.json")));
+    assert_eq!(
+        keys.iter()
+            .filter(|key| key.starts_with("project/events/"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        others_before,
+        (snapshot("acme/sales"), snapshot("globex/support"))
+    );
+}
+
+#[tokio::test]
+async fn per_board_query_semantics_match_the_single_board_contract() {
+    let (_directory, api) = multi_board_api(&[("acme", "support")]);
+    let member = grants_to(&["kanbus:acme/support"]);
+    for (title, date, priority) in [
+        ("a", "2026-10-13", 1),
+        ("b", "2026-10-14", 2),
+        ("c", "2026-11-01", 0),
+    ] {
+        api.handle(request_as(
+            member.clone(),
+            "POST",
+            "/acme/support/api/issues",
+            json!({"type":"task","title":title,"priority":priority,"custom":{"next_follow_up_at":date}}),
+            None,
+        ))
+        .await
+        .unwrap();
+    }
+    let mut query = request_as(
+        member.clone(),
+        "GET",
+        "/acme/support/api/issues",
+        json!(null),
+        None,
+    );
+    query.query = BTreeMap::from([
+        ("type".into(), "task".into()),
+        (
+            "fields".into(),
+            json!([{"field":"custom.next_follow_up_at","operator":"lte","value":"2026-10-14"}])
+                .to_string(),
+        ),
+        ("sort".into(), "priority".into()),
+        ("limit".into(), "1".into()),
+    ]);
+    let parameters = query.query.clone();
+    let page = api.handle(query).await.unwrap();
+    assert_eq!(page.body["issues"][0]["issue"]["title"], "a");
+    assert_eq!(
+        page.body["issues"][0]["issue"]["custom"]["next_follow_up_at"],
+        "2026-10-13"
+    );
+    let mut next = request_as(member, "GET", "/acme/support/api/issues", json!(null), None);
+    next.query = parameters;
+    next.query.insert(
+        "cursor".into(),
+        page.body["next_cursor"].as_str().unwrap().into(),
+    );
+    let second = api.handle(next).await.unwrap();
+    assert_eq!(second.body["issues"][0]["issue"]["title"], "b");
 }

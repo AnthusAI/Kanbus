@@ -3,11 +3,11 @@ Feature: Authenticated applications share the Kanbus issue model
   I want to read and change configured Kanbus issues
   So that domain-specific applications share workflows and portable storage
 
-  Scenario: Multiple gateway groups preserve exact project membership
-    Given verified gateway claims with an administrator group and the required project group
-    When the gateway represents the groups as an array, JSON string, comma list or space-separated bracketed list
-    Then the authenticated actor retains project access
-    And an administrator group alone or a similar project-group name does not grant access
+  Scenario: Gateway group claims become exact board grants
+    Given verified gateway claims with unrelated groups and kanbus board groups
+    When the gateway represents the groups as an array, bracketed space-separated string or plain string
+    Then only well-formed kanbus tenant and project groups grant boards
+    And a tenant wildcard group grants every board of that tenant only
 
   Scenario: A configured vertical creates and advances an issue
     Given an isolated project with the prospect issue type
@@ -37,7 +37,7 @@ Feature: Authenticated applications share the Kanbus issue model
 
   Scenario: Cloud identity requires verified gateway authorization
     Given a cloud request containing an arbitrary bearer token
-    When verified gateway claims are absent or the required group is missing
+    When verified gateway claims are absent or contain no kanbus group
     Then the API returns no issue data and performs no writes
 
   Scenario: Private local development requires an explicit secret
@@ -50,12 +50,6 @@ Feature: Authenticated applications share the Kanbus issue model
     When the member adds a comment using the current revision
     Then the comment records the authenticated actor
     And the normal event history contains the comment event
-
-  Scenario: Selected authorized projects form one board query
-    Given a member may access two projects in one tenant
-    When the member selects both projects and several issue types
-    Then the API queries each selected project and merges matches deterministically
-    And a project outside the trusted allowlist is rejected before storage access
 
   Scenario: A retried create does not duplicate an issue
     Given a create operation has a durable receipt
@@ -141,3 +135,46 @@ Feature: Authenticated applications share the Kanbus issue model
     Then the API returns response_bytes instead of an oversized response
     And validation diagnostics are bounded without publishing invalid input
     And quote-heavy accepted responses remain below the gateway envelope limit
+
+  Scenario: One deployment serves several tenants and boards
+    Given two tenants with three boards in one deployment
+    When a member granted one board reads and writes that board
+    Then the board's issues are created and returned
+    And a different board of the same tenant and any board of another tenant return an identical forbidden response
+
+  Scenario: A tenant wildcard grants every board of that tenant
+    Given a member granted every board of one tenant
+    When the member reads boards of that tenant and of another tenant
+    Then the tenant's boards are readable and the other tenant is forbidden
+
+  Scenario: A cross-board list requires every named board to be granted
+    Given a member granted two boards of a tenant
+    When the member lists both boards together and then with an ungranted board
+    Then the granted boards merge deterministically
+    And the list with an ungranted board returns the same forbidden response as a missing board
+
+  Scenario: Invalid board names are rejected before storage access
+    Given a member granted every board of a tenant
+    When a request names a tenant or project that violates the scope rules
+    Then the API returns an invalid request error
+
+  Scenario: A new board is usable without restarting the service
+    Given a running service and a board that does not yet exist in storage
+    When the board's configuration is published
+    Then the next request to that board succeeds
+
+  Scenario: Operation receipts are scoped per board
+    Given the same operation identifier is used on two boards
+    When each board creates an issue and one request is repeated
+    Then each board holds one issue and the repeat returns that board's original issue
+
+  Scenario: Direct invocation routes from the raw path only
+    Given a hand-built HTTP API event with only a raw path and string group claim
+    When the event is authenticated and handled
+    Then the board in the raw path is served
+
+  Scenario: Board storage keys are unchanged and requests touch only their board
+    Given an existing board and two unrelated boards
+    When the member creates an issue
+    Then the board's keys follow the tenant and project prefix
+    And the unrelated boards' keys are unchanged

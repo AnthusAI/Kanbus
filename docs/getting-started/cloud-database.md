@@ -43,7 +43,8 @@ Start it, pointing `KANBUS_ROOT` at the folder that contains `.kanbus.yml`:
 ```bash
 export KANBUS_BACKEND=file
 export KANBUS_ROOT=/path/to/your/repository
-export KANBUS_NAMESPACE=acme/website
+export KANBUS_TENANT=acme
+export KANBUS_PROJECT=website
 export KANBUS_LOCAL_TOKEN=choose-a-secret-of-16-or-more-characters
 target/debug/kanbus-api-local
 # Kanbus API listening at http://127.0.0.1:5175
@@ -58,10 +59,10 @@ API=http://127.0.0.1:5175
 AUTH="Authorization: Bearer choose-a-secret-of-16-or-more-characters"
 JSON="Content-Type: application/json"
 
-curl -s $API/api/config -H "$AUTH"
-curl -s "$API/api/issues?status=open" -H "$AUTH"
+curl -s $API/acme/website/api/config -H "$AUTH"
+curl -s "$API/acme/website/api/issues?status=open" -H "$AUTH"
 
-curl -s -X POST $API/api/issues -H "$AUTH" -H "$JSON" \
+curl -s -X POST $API/acme/website/api/issues -H "$AUTH" -H "$JSON" \
   -H "X-Operation-Id: $(uuidgen)" \
   -d '{"title":"Created through the API","type":"bug"}'
 # {"issue":{"id":"acme-6b3a9b94-...", ...},"revision":"a5cd...","catalog_pending":false}
@@ -70,11 +71,11 @@ curl -s -X POST $API/api/issues -H "$AUTH" -H "$JSON" \
 Edits, comments, and deletes also need the revision from the last read, in `If-Match`:
 
 ```bash
-curl -s -X PATCH $API/api/issues/acme-6b3a9b94-b9ef-41ff-a083-315278fd8cd4 \
+curl -s -X PATCH $API/acme/website/api/issues/acme-6b3a9b94-b9ef-41ff-a083-315278fd8cd4 \
   -H "$AUTH" -H "$JSON" -H "X-Operation-Id: $(uuidgen)" -H "If-Match: a5cd..." \
   -d '{"status":"in_progress"}'
 
-curl -s -X POST $API/api/issues/acme-6b3a9b94-b9ef-41ff-a083-315278fd8cd4/comments \
+curl -s -X POST $API/acme/website/api/issues/acme-6b3a9b94-b9ef-41ff-a083-315278fd8cd4/comments \
   -H "$AUTH" -H "$JSON" -H "X-Operation-Id: $(uuidgen)" -H "If-Match: <new revision>" \
   -d '{"text":"Seen in production."}'
 ```
@@ -92,18 +93,16 @@ The API is not a separate product to sign up for. You add it to an existing Ampl
    - a private, versioned S3 bucket that blocks public access, requires TLS, and is retained on removal;
    - a DynamoDB table with partition key `scope` and sort key `path` (both strings), on-demand capacity, point-in-time recovery, and the `by_type`, `by_status`, and `by_type_status` indexes;
    - the Lambda (`PROVIDED_AL2023`, handler `bootstrap`, `X86_64`);
-   - an HTTP API with a JWT authorizer for your app's user pool, routing `/api/{proxy+}` for GET, POST, PATCH, and DELETE.
+   - an HTTP API with a JWT authorizer for your app's user pool, routing `/{tenant}/{project}/api/{proxy+}` and `/{tenant}/api/issues` for GET, POST, PATCH, and DELETE.
 3. **Configure the Lambda:**
 
    ```
    KANBUS_BACKEND=s3
    KANBUS_OBJECT_BUCKET=<bucket name>
    KANBUS_CATALOG_TABLE=<table name>
-   KANBUS_NAMESPACE=acme/website
-   KANBUS_REQUIRED_GROUP=<the user group allowed to use the board>
    ```
 
-   Signing in is not enough to see the board; users must also be in `KANBUS_REQUIRED_GROUP`.
+   Signing in is not enough to see a board; users must be in a Cognito group named `kanbus:acme/website` (one board) or `kanbus:acme/*` (every board of the tenant). One deployment serves every board; a new board needs no redeploy.
 4. **Scope permissions** to the namespace: S3 access to `acme/website/*` and `_virtuus/acme/website/*`, and DynamoDB access with `LeadingKeys` set to `acme/website`. The reference guide lists the exact conditions.
 5. **Publish `.kanbus.yml`** to `acme/website/.kanbus.yml` in the bucket, from a reviewed file in your app's source, for example with a `BucketDeployment` that has `prune: false`.
 6. **Allow your app's origin** in CORS, with the `authorization`, `content-type`, `if-match`, and `x-operation-id` headers, and expose `etag`.
@@ -116,13 +115,13 @@ To move a board from git into S3, stop all writers, copy `.kanbus.yml` and the p
 
 ## 4. Render the board
 
-Install `@kanbus/ui` from the tarball attached to the Kanbus GitHub release (it is not on npm) and render `IssueCollection` with the configuration from `GET /api/config` and the issues from `GET /api/issues`. Your app handles sign-in, sends the user's token on each request, generates a new operation id for each user action, and keeps each card's revision for edits. Show revision conflicts to the user rather than retrying silently. See the [UI package README](https://github.com/AnthusAI/Kanbus/blob/main/packages/ui/README.md).
+Install `@kanbus/ui` from the tarball attached to the Kanbus GitHub release (it is not on npm) and render `IssueCollection` with the configuration from `GET /{tenant}/{project}/api/config` and the issues from `GET /{tenant}/{project}/api/issues`. Your app handles sign-in, sends the user's token on each request, generates a new operation id for each user action, and keeps each card's revision for edits. Show revision conflicts to the user rather than retrying silently. See the [UI package README](https://github.com/AnthusAI/Kanbus/blob/main/packages/ui/README.md).
 
 ## 5. Check the deployment
 
 Before you let staff write to it, check in a test namespace that:
 
-- requests without a token, and from signed-in users outside the group, are refused;
+- requests without a token, and from signed-in users without a `kanbus:` group for the board, are refused;
 - a group member can create, reload, edit, and comment on an issue;
 - an edit with an old revision returns a conflict;
 - retrying a write with the same operation id does not add a second event;

@@ -22,7 +22,8 @@ use virtuus_store::{
     StoreError, StoredObject, WriteCondition,
 };
 
-const MAX_PROJECTS: usize = 8;
+const MAX_PROJECTS_PER_QUERY: usize = 8;
+const GROUP_PREFIX: &str = "kanbus:";
 const MAX_STREAMS: usize = 32;
 const MAX_PREDICATES: usize = 16;
 const MAX_CANDIDATES: usize = 1000;
@@ -47,7 +48,7 @@ impl ReadBudget {
     fn exceeded(&self, limit: &'static str) -> ApiError {
         let message = match limit {
             "event_bytes" | "mutation_bytes" | "object_bytes" => "Canonical content or generated audit history exceeds the API's 2 MiB object limit. Reduce the content size.",
-            _ => "Request exceeds bounded query work; narrow the project/type/status selection or reduce the imported dataset.",
+            _ => "Request exceeds bounded query work; narrow the board/type/status selection or reduce the imported dataset.",
         };
         let mut error = ApiError::new(422, "query_budget_exceeded", message);
         error.cost = Some(json!({"limit":limit,"consumed":self}));
@@ -172,15 +173,91 @@ fn storage_error(error: StoreError) -> ApiError {
     }
 }
 
-/// Authorize only claims supplied by the configured HTTP API JWT authorizer.
-pub fn authenticate_cloud(event: &Value, required_group: &str) -> Result<String, ApiError> {
-    if required_group.trim().is_empty() {
-        return Err(ApiError::new(
-            503,
-            "auth_configuration",
-            "Member authorization is not configured.",
-        ));
+/// Which boards of a tenant a grant covers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProjectGrant {
+    /// Exactly one named board.
+    One(String),
+    /// Every board of the tenant.
+    AllInTenant,
+}
+
+/// Permission to use boards of one tenant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Grant {
+    /// Tenant (organization) identifier.
+    pub tenant: String,
+    /// Boards of the tenant that the grant covers.
+    pub project: ProjectGrant,
+}
+
+/// Verified caller identity and the boards it may use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Principal {
+    /// Verified subject recorded on mutations.
+    pub actor: String,
+    /// Boards the caller may use; empty grants nothing.
+    pub grants: Vec<Grant>,
+}
+
+impl Principal {
+    /// Pure authorization decision for one board.
+    pub fn allows(&self, scope: &Scope) -> bool {
+        self.grants.iter().any(|grant| {
+            grant.tenant == scope.tenant()
+                && match &grant.project {
+                    ProjectGrant::One(project) => project == scope.project(),
+                    ProjectGrant::AllInTenant => true,
+                }
+        })
     }
+}
+
+fn group_names(groups: &Value) -> Vec<String> {
+    match groups {
+        Value::Array(values) => values
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect(),
+        Value::String(value) => value
+            .trim_matches(['[', ']'])
+            .split(|character: char| character == ',' || character.is_ascii_whitespace())
+            .map(|part| part.trim().trim_matches('"'))
+            .filter(|part| !part.is_empty())
+            .map(str::to_string)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Derive board grants from verified group claims named `kanbus:<tenant>/<project>`
+/// or `kanbus:<tenant>/*`; unrelated groups and malformed names grant nothing.
+pub fn grants_from_groups(groups: &Value) -> Vec<Grant> {
+    group_names(groups)
+        .iter()
+        .filter_map(|name| name.strip_prefix(GROUP_PREFIX))
+        .filter_map(|board| board.split_once('/'))
+        .filter_map(|(tenant, project)| {
+            if project == "*" {
+                Scope::new(tenant, "board").ok()?;
+                Some(Grant {
+                    tenant: tenant.into(),
+                    project: ProjectGrant::AllInTenant,
+                })
+            } else {
+                Scope::new(tenant, project).ok()?;
+                Some(Grant {
+                    tenant: tenant.into(),
+                    project: ProjectGrant::One(project.into()),
+                })
+            }
+        })
+        .collect()
+}
+
+/// Build a principal only from claims supplied by the HTTP API JWT authorizer.
+pub fn authenticate_cloud(event: &Value) -> Result<Principal, ApiError> {
     let claims = event
         .pointer("/requestContext/authorizer/jwt/claims")
         .ok_or_else(|| ApiError::new(401, "unauthorized", "Verified authorization is required."))?;
@@ -189,30 +266,26 @@ pub fn authenticate_cloud(event: &Value, required_group: &str) -> Result<String,
         .and_then(Value::as_str)
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| ApiError::new(401, "unauthorized", "Verified subject is required."))?;
-    let groups = claims.get("cognito:groups");
-    let allowed = match groups {
-        Some(Value::Array(values)) => values
-            .iter()
-            .any(|value| value.as_str() == Some(required_group)),
-        Some(Value::String(value)) => value
-            .trim_matches(['[', ']'])
-            .split(|character: char| character == ',' || character.is_ascii_whitespace())
-            .map(|part| part.trim().trim_matches('"'))
-            .any(|part| part == required_group),
-        _ => false,
-    };
-    if !allowed {
-        return Err(ApiError::new(
-            403,
-            "forbidden",
-            "Project membership is required.",
-        ));
+    let grants = claims
+        .get("cognito:groups")
+        .map(grants_from_groups)
+        .unwrap_or_default();
+    if grants.is_empty() {
+        return Err(forbidden());
     }
-    Ok(actor.to_string())
+    Ok(Principal {
+        actor: actor.to_string(),
+        grants,
+    })
 }
 
-/// Authorize an explicitly configured secret for loopback development.
-pub fn authenticate_local(authorization: Option<&str>, secret: &str) -> Result<String, ApiError> {
+/// Authorize an explicitly configured secret for loopback development; the
+/// principal is granted exactly the one board the local store serves.
+pub fn authenticate_local(
+    authorization: Option<&str>,
+    secret: &str,
+    served_board: &Scope,
+) -> Result<Principal, ApiError> {
     let candidate = authorization
         .and_then(|value| value.strip_prefix("Bearer "))
         .unwrap_or("");
@@ -229,23 +302,37 @@ pub fn authenticate_local(authorization: Option<&str>, secret: &str) -> Result<S
             "A valid local bearer secret is required.",
         ));
     }
-    Ok("local-member".into())
+    Ok(Principal {
+        actor: "local-member".into(),
+        grants: vec![Grant {
+            tenant: served_board.tenant().into(),
+            project: ProjectGrant::One(served_board.project().into()),
+        }],
+    })
 }
 
-/// Generic API with a fixed, trusted deployment scope.
+fn forbidden() -> ApiError {
+    ApiError::new(403, "forbidden", "Board access is not granted.")
+}
+
+/// Generic API resolving the addressed board from each request path.
 #[derive(Clone)]
 pub struct Api {
     store: JournaledStore,
-    scope: Scope,
-    namespace: String,
-    authorized: BTreeMap<String, Scope>,
 }
 
-/// Transport-independent request; actor has already passed authorization.
+#[derive(Clone)]
+struct ScopedApi {
+    store: JournaledStore,
+    scope: Scope,
+    namespace: String,
+}
+
+/// Transport-independent request carrying a verified principal.
 pub struct ApiRequest {
     /// HTTP verb.
     pub method: String,
-    /// Absolute route path.
+    /// Absolute route path including the board prefix.
     pub path: String,
     /// Decoded URL parameters.
     pub query: BTreeMap<String, String>,
@@ -253,8 +340,8 @@ pub struct ApiRequest {
     pub headers: BTreeMap<String, String>,
     /// Parsed JSON body.
     pub body: Value,
-    /// Verified member subject.
-    pub actor: String,
+    /// Verified caller identity and board grants.
+    pub principal: Principal,
 }
 
 /// JSON HTTP response.
@@ -292,51 +379,15 @@ pub fn api_gateway_response(status: u16, body: Value) -> Value {
 }
 
 impl Api {
-    /// Bind an API to one authorized tenant/project namespace.
-    pub fn new(store: JournaledStore, namespace: &str) -> Result<Self, ApiError> {
+    /// Create an API over a store; boards are resolved per request.
+    pub fn new(store: JournaledStore) -> Result<Self, ApiError> {
         let store = store
             .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)
             .map_err(storage_error)?;
-        let (tenant, project) = namespace
-            .split_once('/')
-            .ok_or_else(|| invalid("Namespace must be tenant/project."))?;
-        let scope = Scope::new(tenant, project).map_err(|error| invalid(error.to_string()))?;
-        Ok(Self {
-            store,
-            scope: scope.clone(),
-            authorized: BTreeMap::from([(project.into(), scope)]),
-            namespace: namespace.into(),
-        })
+        Ok(Self { store })
     }
 
-    /// Bind a service to an explicit trusted allowlist within one tenant.
-    pub fn with_projects(
-        store: JournaledStore,
-        tenant: &str,
-        default_project: &str,
-        projects: &[String],
-    ) -> Result<Self, ApiError> {
-        if projects.len() > MAX_PROJECTS {
-            return Err(ReadBudget::default().exceeded("selected_projects"));
-        }
-        let mut api = Self::new(store, &format!("{tenant}/{default_project}"))?;
-        api.authorized.clear();
-        for project in projects {
-            api.authorized.insert(
-                project.clone(),
-                Scope::new(tenant, project).map_err(|error| invalid(error.to_string()))?,
-            );
-        }
-        if !api.authorized.contains_key(default_project) {
-            return Err(invalid("Default project must be authorized."));
-        }
-        if api.authorized.len() > MAX_PROJECTS {
-            return Err(ReadBudget::default().exceeded("selected_projects"));
-        }
-        Ok(api)
-    }
-
-    /// Route an authenticated request through shared Kanbus behavior.
+    /// Route an authenticated request to the board named in its path.
     pub async fn handle(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
         if request
             .query
@@ -347,57 +398,75 @@ impl Api {
         {
             return Err(ReadBudget::default().exceeded("query_bytes"));
         }
-        let projects = self.selected_projects(&request.query)?;
-        let list = request.method == "GET" && request.path.trim_end_matches('/') == "/api/issues";
-        if !list && projects.len() != 1 {
-            return Err(invalid("This route requires one project."));
-        }
-        let mut selected = self.clone();
-        if !list {
-            selected.scope = projects[0].1.clone();
-            selected.namespace = selected.scope.namespace();
-        }
-        selected.route(request).await
-    }
-
-    fn selected_projects(
-        &self,
-        query: &BTreeMap<String, String>,
-    ) -> Result<Vec<(String, Scope)>, ApiError> {
-        if query.contains_key("project") && query.contains_key("projects") {
-            return Err(invalid("Use project or projects, not both."));
-        }
-        let selected = query
-            .get("project")
-            .or_else(|| query.get("projects"))
-            .map(String::as_str);
-        let names: Vec<String> = match selected {
-            Some("*") => self.authorized.keys().cloned().collect(),
-            Some(value) => value.split(',').map(str::to_string).collect(),
-            None => vec![self.namespace.split_once('/').unwrap().1.into()],
-        };
-        let mut projects = BTreeMap::new();
-        for name in names {
-            let scope = self
-                .authorized
-                .get(&name)
-                .ok_or_else(|| ApiError::new(403, "forbidden", "Project is not authorized."))?;
-            projects.insert(name, scope.clone());
-        }
-        if projects.len() > MAX_PROJECTS {
-            return Err(ReadBudget::default().exceeded("selected_projects"));
-        }
-        Ok(projects.into_iter().collect())
-    }
-
-    async fn route(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
-        if request.actor.trim().is_empty() {
+        if request.principal.actor.trim().is_empty() {
             return Err(ApiError::new(
                 401,
                 "unauthorized",
                 "A verified member is required.",
             ));
         }
+        let path = request.path.clone();
+        let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
+        match segments.as_slice() {
+            [tenant, "api", "issues"] if request.method == "GET" => {
+                self.list_across_boards(tenant, request).await
+            }
+            [tenant, project, "api", rest @ ..] => {
+                let scope =
+                    Scope::new(*tenant, *project).map_err(|error| invalid(error.to_string()))?;
+                if !request.principal.allows(&scope) {
+                    return Err(forbidden());
+                }
+                let mut scoped_request = request;
+                scoped_request.path = format!("/api/{}", rest.join("/"));
+                ScopedApi {
+                    store: self.store.clone(),
+                    namespace: scope.namespace(),
+                    scope,
+                }
+                .route(scoped_request)
+                .await
+            }
+            _ => Err(ApiError::new(404, "not_found", "Route not found.")),
+        }
+    }
+
+    async fn list_across_boards(
+        &self,
+        tenant: &str,
+        request: ApiRequest,
+    ) -> Result<ApiResponse, ApiError> {
+        let names = request
+            .query
+            .get("projects")
+            .ok_or_else(|| invalid("Name the boards to list with projects=a,b."))?;
+        let mut scopes = BTreeMap::new();
+        for name in names.split(',') {
+            let scope = Scope::new(tenant, name).map_err(|error| invalid(error.to_string()))?;
+            scopes.insert(name.to_string(), scope);
+        }
+        if scopes.len() > MAX_PROJECTS_PER_QUERY {
+            return Err(ReadBudget::default().exceeded("selected_projects"));
+        }
+        if scopes
+            .values()
+            .any(|scope| !request.principal.allows(scope))
+        {
+            return Err(forbidden());
+        }
+        let selected: Vec<(String, Scope)> = scopes.into_iter().collect();
+        let first = selected[0].1.clone();
+        let scoped = ScopedApi {
+            store: self.store.clone(),
+            namespace: first.namespace(),
+            scope: first,
+        };
+        ApiResponse::checked(200, scoped.list_issues(&request.query, selected).await?)
+    }
+}
+
+impl ScopedApi {
+    async fn route(&self, request: ApiRequest) -> Result<ApiResponse, ApiError> {
         if request.method == "DELETE" {
             let operation = operation_id(&request)?;
             if let Some(deleted) = self
@@ -425,14 +494,20 @@ impl Api {
                 return ApiResponse::checked(200, body);
             }
         }
-        if request.method == "GET" && request.path.trim_end_matches('/') == "/api/issues" {
-            return ApiResponse::checked(200, self.list_issues(&request.query).await?);
-        }
         let configuration = self.configuration().await?;
         let segments: Vec<_> = request.path.trim_matches('/').split('/').collect();
         let result = match (request.method.as_str(), segments.as_slice()) {
-            ("GET", ["api", "config"]) => browser_configuration(&configuration, &request.actor)?,
-            ("GET", ["api", "issues"]) => self.list_issues(&request.query).await?,
+            ("GET", ["api", "config"]) => {
+                browser_configuration(&configuration, &request.principal.actor)?
+            }
+            ("GET", ["api", "issues"]) => {
+                if request.query.contains_key("projects") {
+                    return Err(invalid("Unknown query parameter."));
+                }
+                let project = self.scope.project().to_string();
+                self.list_issues(&request.query, vec![(project, self.scope.clone())])
+                    .await?
+            }
             ("POST", ["api", "issues"]) => self.create(&configuration, &request).await?,
             ("GET", ["api", "issues", identifier]) => {
                 let stored = self.issue(&configuration, identifier).await?;
@@ -551,10 +626,14 @@ impl Api {
         Ok(result)
     }
 
-    async fn list_issues(&self, query: &BTreeMap<String, String>) -> Result<Value, ApiError> {
+    async fn list_issues(
+        &self,
+        query: &BTreeMap<String, String>,
+        selected_projects: Vec<(String, Scope)>,
+    ) -> Result<Value, ApiError> {
         let allowed = [
             "type", "status", "assignee", "label", "parent", "search", "sort", "limit", "cursor",
-            "fields", "project", "projects", "types",
+            "fields", "projects", "types",
         ];
         if query.keys().any(|key| !allowed.contains(&key.as_str())) {
             return Err(invalid("Unknown query parameter."));
@@ -587,7 +666,11 @@ impl Api {
             Sha256::digest(
                 format!(
                     "{}:{}",
-                    self.namespace,
+                    selected_projects
+                        .iter()
+                        .map(|(_, scope)| scope.namespace())
+                        .collect::<Vec<_>>()
+                        .join(","),
                     serde_json::to_string(&bound_query).unwrap()
                 )
                 .as_bytes()
@@ -625,7 +708,6 @@ impl Api {
                 .map(|value| vec![value.clone()])
                 .unwrap_or_default(),
         };
-        let selected_projects = self.selected_projects(query)?;
         let mut distinct_types = types.clone();
         distinct_types.sort();
         distinct_types.dedup();
@@ -789,7 +871,7 @@ impl Api {
         .map_err(|error| invalid(error.to_string()))?
         .identifier;
         let timestamp = now_timestamp();
-        let mut raw = json!({"id":identifier,"title":title,"description":"","type":issue_type,"status":configuration.initial_status,"priority":configuration.default_priority,"assignee":configuration.assignee,"creator":request.actor,"parent":null,"labels":[],"dependencies":[],"comments":[],"created_at":timestamp,"updated_at":timestamp,"closed_at":null,"custom":{}});
+        let mut raw = json!({"id":identifier,"title":title,"description":"","type":issue_type,"status":configuration.initial_status,"priority":configuration.default_priority,"assignee":configuration.assignee,"creator":request.principal.actor,"parent":null,"labels":[],"dependencies":[],"comments":[],"created_at":timestamp,"updated_at":timestamp,"closed_at":null,"custom":{}});
         for (key, value) in fields {
             raw[key] = value.clone();
         }
@@ -799,7 +881,7 @@ impl Api {
         let event = EventRecord::new(
             &issue.identifier,
             EventType::IssueCreated,
-            &request.actor,
+            &request.principal.actor,
             issue_created_payload(&issue),
             timestamp,
         );
@@ -861,12 +943,12 @@ impl Api {
                 .get_mut("comments")
                 .and_then(Value::as_array_mut)
                 .ok_or_else(|| invalid("Issue comments are invalid."))?;
-            comments.push(json!({"id":comment_id,"author":request.actor,"text":text,"created_at":timestamp,"comment_type":"default"}));
+            comments.push(json!({"id":comment_id,"author":request.principal.actor,"text":text,"created_at":timestamp,"comment_type":"default"}));
             events.push(EventRecord::new(
                 identifier,
                 EventType::CommentAdded,
-                &request.actor,
-                json!({"comment_id":comment_id,"comment_author":request.actor}),
+                &request.principal.actor,
+                json!({"comment_id":comment_id,"comment_author":request.principal.actor}),
                 timestamp.clone(),
             ));
         } else {
@@ -895,7 +977,7 @@ impl Api {
             events.push(EventRecord::new(
                 identifier,
                 EventType::StateTransition,
-                &request.actor,
+                &request.principal.actor,
                 json!({"from_status":before.status,"to_status":after.status}),
                 timestamp.clone(),
             ));
@@ -916,7 +998,7 @@ impl Api {
                 events.push(EventRecord::new(
                     identifier,
                     EventType::FieldUpdated,
-                    &request.actor,
+                    &request.principal.actor,
                     json!({"changes":changes}),
                     timestamp,
                 ));
@@ -1142,7 +1224,7 @@ impl Api {
         let event = EventRecord::new(
             identifier,
             EventType::IssueDeleted,
-            &request.actor,
+            &request.principal.actor,
             issue_deleted_payload(&issue),
             now_timestamp(),
         );
@@ -1414,7 +1496,7 @@ impl FieldPredicate {
 }
 
 fn request_hash(request: &ApiRequest) -> String {
-    format!("{:x}", Sha256::digest(json!({"method":request.method,"path":request.path,"body":request.body,"actor":request.actor,"revision":request.headers.get("if-match")}).to_string().as_bytes()))
+    format!("{:x}", Sha256::digest(json!({"method":request.method,"path":request.path,"body":request.body,"actor":request.principal.actor,"revision":request.headers.get("if-match")}).to_string().as_bytes()))
 }
 
 fn browser_configuration(
