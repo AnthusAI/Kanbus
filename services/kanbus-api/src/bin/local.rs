@@ -17,6 +17,7 @@ use virtuus_store::{FileStore, JournaledStore, MemoryCatalog, Scope};
 struct Server {
     api: Api,
     secret: String,
+    served_board: Scope,
 }
 
 #[tokio::main]
@@ -28,11 +29,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if secret.len() < 16 {
         return Err("KANBUS_LOCAL_TOKEN must contain at least 16 characters".into());
     }
-    let namespace = std::env::var("KANBUS_NAMESPACE")?;
-    let (tenant, project) = namespace
-        .split_once('/')
-        .ok_or("Namespace must be tenant/project")?;
-    let scope = Scope::new(tenant, project)?;
+    let scope = Scope::new(
+        std::env::var("KANBUS_TENANT")?,
+        std::env::var("KANBUS_PROJECT")?,
+    )?;
     let objects = FileStore::for_project(std::env::var("KANBUS_ROOT")?, scope.clone())?;
     let store = JournaledStore::new(Arc::new(objects), Arc::new(MemoryCatalog::default()))
         .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)?;
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &format!("{}/issues/", configuration.project_directory),
         )
         .await?;
-    let api = Api::new(store, &namespace).map_err(|error| error.message)?;
+    let api = Api::new(store).map_err(|error| error.message)?;
     let port = std::env::var("KANBUS_PORT")
         .unwrap_or_else(|_| "5175".into())
         .parse::<u16>()?;
@@ -56,23 +56,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("Kanbus API listening at http://{}", listener.local_addr()?);
     axum::serve(
         listener,
-        Router::new()
-            .fallback(any(handle))
-            .with_state(Server { api, secret }),
+        Router::new().fallback(any(handle)).with_state(Server {
+            api,
+            secret,
+            served_board: scope,
+        }),
     )
     .await?;
     Ok(())
 }
 
 async fn handle(State(server): State<Server>, request: Request<Body>) -> impl IntoResponse {
-    let actor = match authenticate_local(
+    let principal = match authenticate_local(
         request
             .headers()
             .get("authorization")
             .and_then(|value| value.to_str().ok()),
         &server.secret,
+        &server.served_board,
     ) {
-        Ok(actor) => actor,
+        Ok(principal) => principal,
         Err(error) => {
             return (
                 StatusCode::from_u16(error.status).unwrap(),
@@ -125,7 +128,7 @@ async fn handle(State(server): State<Server>, request: Request<Body>) -> impl In
             query,
             headers,
             body,
-            actor,
+            principal,
         })
         .await
     {

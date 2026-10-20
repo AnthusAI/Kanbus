@@ -1,7 +1,7 @@
 //! Explicit ignored proof of API CRUD against the authorized real AWS fixture.
 #![cfg(feature = "aws")]
 
-use kanbus_api::{Api, ApiRequest};
+use kanbus_api::{grants_from_groups, Api, ApiRequest, Principal};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, sync::Arc};
 use virtuus_store::{
@@ -14,13 +14,21 @@ fn request(method: &str, path: &str, body: Value, revision: Option<&str>) -> Api
     if let Some(revision) = revision {
         headers.insert("if-match".into(), revision.into());
     }
+    let run = std::env::var("VIRTUUS_TEST_RUN").expect("unique run required");
+    let board_path = match path.strip_prefix("/api/") {
+        Some(rest) => format!("/proof-api/{run}/api/{rest}"),
+        None => path.to_string(),
+    };
     ApiRequest {
         method: method.into(),
-        path: path.into(),
+        path: board_path,
         query: BTreeMap::new(),
         headers,
         body,
-        actor: "proof-api-member".into(),
+        principal: Principal {
+            actor: "proof-api-member".into(),
+            grants: grants_from_groups(&json!("kanbus:proof-api/*")),
+        },
     }
 }
 
@@ -39,7 +47,6 @@ async fn real_s3_api_quoted_revision_crud_and_audit() {
         std::env::var("VIRTUUS_TEST_TABLE").unwrap(),
     ));
     let scope = Scope::new("proof-api", &run).unwrap();
-    let namespace = scope.namespace();
     let mut configuration = kanbus::config::default_project_configuration();
     configuration.types.push("prospect".into());
     objects
@@ -53,7 +60,7 @@ async fn real_s3_api_quoted_revision_crud_and_audit() {
         )
         .await
         .unwrap();
-    let api = Api::new(JournaledStore::new(objects.clone(), catalog), &namespace).unwrap();
+    let api = Api::new(JournaledStore::new(objects.clone(), catalog)).unwrap();
     let config = api
         .handle(request("GET", "/api/config", json!(null), None))
         .await
@@ -343,6 +350,6 @@ async fn real_s3_api_quoted_revision_crud_and_audit() {
         .len();
     println!(
         "API_PROOF {}",
-        json!({"namespace":namespace,"issue_id":id,"create_patch_comment_delete":true,"quoted_native_revisions":true,"stale_conflict":true,"durable_retries":true,"canonical_deleted":true,"retained_events":retained,"base_audit_events":paths.paths.len(),"matching_history_response_bounded":true,"invalid_diagnostic_response_bounded":true,"oversized_import_rejected":true,"oversized_restore_replay_bounded":true,"restored_fixture_issue_id":restored_id,"history_cost":history.body["cost"]})
+        json!({"namespace":scope.namespace(),"issue_id":id,"create_patch_comment_delete":true,"quoted_native_revisions":true,"stale_conflict":true,"durable_retries":true,"canonical_deleted":true,"retained_events":retained,"base_audit_events":paths.paths.len(),"matching_history_response_bounded":true,"invalid_diagnostic_response_bounded":true,"oversized_import_rejected":true,"oversized_restore_replay_bounded":true,"restored_fixture_issue_id":restored_id,"history_cost":history.body["cost"]})
     );
 }

@@ -58,13 +58,14 @@ Create these resources in source, alongside the application's existing auth:
 | `by_status` GSI | String partition key `status_scope`, string sort key `path`, projection ALL. |
 | `by_type_status` GSI | String partition key `type_status_scope`, string sort key `path`, projection ALL. |
 | Lambda | Packaged shared service; bounded timeout/memory and CloudWatch log retention. |
-| HTTP API | JWT authorizer with the intended issuer and browser client audience; authenticated `/api/{proxy+}` GET/POST/PATCH/DELETE integration. |
+| HTTP API | JWT authorizer with the intended issuer and browser client audience; authenticated `/{tenant}/{project}/api/{proxy+}` and `/{tenant}/api/issues` GET/POST/PATCH/DELETE integration. |
 
-Set Lambda environment variables `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`,
-`KANBUS_CATALOG_TABLE`, `KANBUS_NAMESPACE=brand/project`, and
-`KANBUS_REQUIRED_GROUP` to the application's explicit staff group. The JWT gateway
-verifies tokens; Kanbus additionally checks that group in gateway claims. A
-successful Google login alone does not assign board access. Reuse the app's Google
+Set Lambda environment variables `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, and
+`KANBUS_CATALOG_TABLE`. Board access is granted by Cognito groups named
+`kanbus:<tenant>/<project>` (one board) or `kanbus:<tenant>/*` (every board of the
+tenant, to be used sparingly). The JWT gateway verifies tokens; Kanbus derives board
+grants only from those verified group claims. A successful Google login alone does
+not assign board access. Reuse the app's Google
 authentication configuration; Kanbus does not require its own Google OAuth client
 or secret. Shared Cognito across products is an application decision.
 
