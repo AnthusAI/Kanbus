@@ -1,0 +1,20 @@
+{
+  "id": "kbs-cb34cc24-81b6-4cd3-9f6a-65dd39fb65f0",
+  "title": "Offer the newsroom board themes (Newsprint, Organizer) as a Board style setting in the console",
+  "description": "Problem: the board themes built for Papyrus newsrooms (Newsprint and Organizer, in packages/ui) cannot be used in the Kanbus console. The console Settings panel (apps/console/src/components/SettingsPanel.tsx) offers only the color themes Neutral, Cool and Warm (useAppearance.ts adds theme-neutral/cool/warm to <html>), and the console never imports packages/ui/src/styles/newsprint.css or organizer.css. Ryan expects to pick these themes in the local console.\n\nHow the themes are scoped today (packages/ui/ORGANIZER.md):\n- Newsprint: import newsprint.css after kanban.css; put data-kanbus-theme=\"newsprint\" on any ancestor of the board and detail panel. Light/dark follows data-color-mode, a .dark ancestor, or the system.\n- Organizer: import organizer.css; wrap in class kb-theme-organizer. Fonts Geist, Jersey 10, Jersey 25 are host-loaded (the stylesheet makes no requests); typography uses --font-body, --kb-label-font, --kb-display-font.\n\nWork (spec first):\n1. Extend features/console/settings.feature: scenarios to set the board style to \"newsprint\" and to \"organizer\", and back to \"default\", asserting the setting persists across reload and that the board root carries the theme scope. Implement the steps in apps/console/tests/steps (follow how the existing theme scenarios are implemented). Confirm they fail first.\n2. Add a \"Board style\" setting to SettingsPanel below Theme with options Default, Newsprint, Organizer (same visual pattern as the other settings). Store it in the existing kanbus.console.appearance object (new field boardStyle, default \"default\"; an unknown stored value resolves to default). useAppearance applies it on <html>: data-kanbus-theme=\"newsprint\" for newsprint, class kb-theme-organizer for organizer, nothing for default. Board style is independent of the color theme and of light/dark mode.\n3. Import newsprint.css and organizer.css in the console's style entry so the embedded build includes them.\n4. Organizer fonts: the console is a local app with embedded assets and must not fetch fonts from the internet. Bundle Geist and Jersey 10/25 from npm font packages (e.g. @fontsource or the geist package; both families are OFL) and set --kb-label-font / --kb-display-font under .kb-theme-organizer in the console. If a font package is not available, use the theme's fallback stacks and say so in the PR.\n5. Check that the console chrome (top bar, settings, detail panel) still looks right under each board style, light and dark. The themes are meant to style the board and detail panel; fix only real breakage, scoped under the theme selector.\n\nVerification: headless Chrome screenshots of the console board for Default, Newsprint and Organizer in light and dark (6 images), reviewed by you before finishing. Run the console against the always-on API at http://localhost:4242 rather than building kbsc: use the Vite dev server with its API proxy pointed at 4242 (check apps/console vite config / env), on another port. Do not restart or modify the 4242 service. Run apps/console tests (npm test or the cucumber script), typecheck and build, and packages/ui tests if you touch packages/ui.\n\nAcceptance: the three board styles are selectable in Settings, persist, and render as the newsprint and organizer themes do in packages/ui; light and dark both meet the existing contrast; new settings scenarios pass; console build passes.",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T00:36:12.377154Z",
+  "updated_at": "2026-10-20T00:36:15.773212Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
