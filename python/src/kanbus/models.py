@@ -711,6 +711,8 @@ class ProjectConfiguration(BaseModel):
     :type ignore_paths: List[str]
     :param project_key: Issue ID project key (prefix).
     :type project_key: str
+    :param project_id: Stable UUID identifying the project across clones and worktrees; scopes realtime topics.
+    :type project_id: Optional[str]
     :param name: Optional human-readable board title.
     :type name: Optional[str]
     :param project_management_template: Optional template path for CONTRIBUTING_AGENT.md.
@@ -783,6 +785,7 @@ class ProjectConfiguration(BaseModel):
     ignore_paths: List[str] = Field(default_factory=list)
     console_port: Optional[int] = None
     project_key: str = Field(min_length=1)
+    project_id: Optional[str] = None
     name: Optional[str] = None
     project_management_template: Optional[str] = None
     methodologies: Optional[List[Union[str, ProjectMethodologyBundleReference]]] = None

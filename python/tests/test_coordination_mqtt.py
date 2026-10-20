@@ -33,6 +33,7 @@ def _configuration(*, providers: list[str] | None = None) -> ProjectConfiguratio
             "mqtt_api_token": None,
         }
     )
+    data["project_id"] = "test-project-id"
     return ProjectConfiguration.model_validate(data)
 
 
@@ -121,6 +122,7 @@ def test_coordination_envelopes_have_type_specific_top_level_fields(
         "id",
         "ts",
         "project",
+        "project_identity",
         "type",
         "event_id",
         "producer_id",
@@ -146,6 +148,7 @@ def test_coordination_envelopes_have_type_specific_top_level_fields(
         "id",
         "ts",
         "project",
+        "project_identity",
         "type",
         "event_id",
         "producer_id",
@@ -170,6 +173,7 @@ def test_coordination_envelopes_have_type_specific_top_level_fields(
         "id",
         "ts",
         "project",
+        "project_identity",
         "type",
         "event_id",
         "producer_id",
@@ -761,7 +765,7 @@ def test_publish_uses_configured_project_topic_and_records_overlay(
     assert coordination_mqtt.publish_envelope(root, project_dir, config, envelope)
     assert calls == [
         (
-            "projects/kanbus/events",
+            "projects/test-project-id/events",
             "coordination.claim",
             "evt-publish",
             config.realtime,

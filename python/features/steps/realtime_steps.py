@@ -489,3 +489,245 @@ def given_config_broker_disabled(context: object) -> None:
         else:
             content = content.replace("broker: auto", "broker: off")
         config_path.write_text(content)
+
+
+def _scoped_project(context: object, name: str) -> dict:
+    return context.scope_projects[name]
+
+
+def _scoped_topic(context: object, name: str) -> str:
+    from kanbus.config_loader import load_project_configuration
+    from kanbus.gossip import project_event_topic
+    from kanbus.project import get_configuration_path
+
+    project = _scoped_project(context, name)
+    configuration = load_project_configuration(
+        get_configuration_path(project["repository_root"])
+    )
+    topic = project_event_topic(configuration)
+    assert topic is not None
+    return topic
+
+
+def _write_scoped_project(
+    context: object, name: str, project_key: str, project_id: str | None
+) -> None:
+    if not hasattr(context, "scope_temp_dir"):
+        context.scope_temp_dir = tempfile.TemporaryDirectory()
+        context.scope_projects = {}
+        context.scope_raw_subscribers = {}
+        context.scope_consumers = {}
+    repository_root = Path(context.scope_temp_dir.name) / name
+    project_directory = repository_root / "project"
+    (project_directory / "issues").mkdir(parents=True)
+    project_id_line = f"project_id: {project_id}\n" if project_id else ""
+    (repository_root / ".kanbus.yml").write_text(
+        "project_directory: project\n"
+        f"project_key: {project_key}\n"
+        f"{project_id_line}"
+        "realtime:\n"
+        "  broker: auto\n"
+        "  autostart: false\n"
+        "  keepalive: false\n"
+        "  topics:\n"
+        "    project_events: projects/{project}/events\n"
+        "  transport: uds\n"
+        f"  uds_socket_path: {context.uds_socket_path}\n",
+        encoding="utf-8",
+    )
+    context.scope_projects[name] = {
+        "repository_root": repository_root,
+        "project_directory": project_directory,
+        "project_key": project_key,
+        "project_id": project_id,
+    }
+
+
+@given(
+    'two projects "{first}" and "{second}" that share the project key "{project_key}" '
+    "and the UDS broker"
+)
+def given_two_scoped_projects(
+    context: object, first: str, second: str, project_key: str
+) -> None:
+    from uuid import uuid4
+
+    for name in (first, second):
+        _write_scoped_project(context, name, project_key, str(uuid4()))
+
+
+@given('a clone "{clone}" of project "{original}" in another directory')
+def given_clone_of_project(context: object, clone: str, original: str) -> None:
+    source = _scoped_project(context, original)
+    _write_scoped_project(context, clone, source["project_key"], source["project_id"])
+
+
+@given(
+    'a project "{name}" with the project key "{project_key}" and no project id '
+    "on the UDS broker"
+)
+def given_project_without_project_id(
+    context: object, name: str, project_key: str
+) -> None:
+    _write_scoped_project(context, name, project_key, None)
+
+
+@then('the realtime watch of project "{name}" fails with "{message}"')
+def then_watch_fails_with_message(context: object, name: str, message: str) -> None:
+    from kanbus.gossip import GossipError, run_gossip_watch
+
+    root = _scoped_project(context, name)["repository_root"]
+    try:
+        run_gossip_watch(root, None, None, None, None, None, False)
+    except GossipError as error:
+        assert message in str(error)
+        return
+    raise AssertionError("watch should fail without a project id")
+
+
+@given('a raw subscriber on the realtime topic of project "{name}"')
+def given_raw_subscriber(context: object, name: str) -> None:
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.connect(str(context.uds_socket_path))
+    payload = json.dumps({"op": "sub", "topic": _scoped_topic(context, name)}) + "\n"
+    sock.sendall(payload.encode())
+    context.scope_raw_subscribers[name] = sock
+    time.sleep(0.1)
+
+
+@given('a console realtime consumer for project "{name}"')
+def given_console_consumer(context: object, name: str) -> None:
+    from kanbus.gossip import run_gossip_bridge
+
+    root = _scoped_project(context, name)["repository_root"]
+    applied: list[str] = []
+
+    def _on_envelope(envelope: GossipEnvelope) -> None:
+        if envelope.issue_id:
+            applied.append(envelope.issue_id)
+
+    thread = threading.Thread(
+        target=run_gossip_bridge, args=(root, _on_envelope), daemon=True
+    )
+    thread.start()
+    context.scope_consumers.setdefault(name, []).append(applied)
+    time.sleep(0.4)
+
+
+@when('project "{name}" publishes an issue mutation for "{issue_id}"')
+def when_project_publishes_mutation(context: object, name: str, issue_id: str) -> None:
+    from kanbus.gossip import publish_issue_mutation
+
+    project = _scoped_project(context, name)
+    publish_issue_mutation(
+        project["repository_root"],
+        project["repository_root"] / "project",
+        _issue(issue_id, datetime.now(timezone.utc)),
+        None,
+        "issue.mutated",
+    )
+
+
+def _publish_remote_mutation(
+    context: object, issue_id: str, topic_project: str, identity_project: str
+) -> None:
+    identity_source = _scoped_project(context, identity_project)
+    identity = identity_source["project_id"]
+    issue = _issue(issue_id, datetime.now(timezone.utc))
+    envelope = GossipEnvelope(
+        id=f"remote-{issue_id}",
+        ts=issue.updated_at.isoformat().replace("+00:00", "Z"),
+        project=identity_source["project_key"],
+        project_identity=identity,
+        type="issue.mutated",
+        issue_id=issue.identifier,
+        event_id=f"evt-{issue_id}",
+        producer_id="remote-producer",
+        issue=issue,
+    )
+    payload = json.dumps(
+        {
+            "op": "pub",
+            "topic": _scoped_topic(context, topic_project),
+            "msg": envelope.model_dump(by_alias=True, mode="json"),
+        }
+    )
+    pub_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    pub_sock.connect(str(context.uds_socket_path))
+    pub_sock.sendall((payload + "\n").encode())
+    pub_sock.close()
+
+
+@when(
+    'a remote producer publishes an issue mutation for "{issue_id}" in project "{name}"'
+)
+def when_remote_publishes_in_project(context: object, issue_id: str, name: str) -> None:
+    _publish_remote_mutation(context, issue_id, name, name)
+
+
+@when(
+    'a remote producer publishes an issue mutation for "{issue_id}" on the topic of '
+    'project "{topic_project}" claiming the identity of project "{identity_project}"'
+)
+def when_remote_publishes_claiming_identity(
+    context: object, issue_id: str, topic_project: str, identity_project: str
+) -> None:
+    from kanbus.gossip import foreign_project_drop_count
+
+    context.scope_drop_count_before = foreign_project_drop_count()
+    _publish_remote_mutation(context, issue_id, topic_project, identity_project)
+
+
+@then('the raw subscriber of project "{name}" receives an envelope for "{issue_id}"')
+def then_raw_subscriber_receives(context: object, name: str, issue_id: str) -> None:
+    sock = context.scope_raw_subscribers[name]
+    sock.settimeout(3.0)
+    line = sock.makefile("rb").readline()
+    assert json.loads(line.decode())["msg"]["issue_id"] == issue_id
+
+
+@then('the raw subscriber of project "{name}" receives no envelope')
+def then_raw_subscriber_receives_nothing(context: object, name: str) -> None:
+    sock = context.scope_raw_subscribers[name]
+    sock.settimeout(0.5)
+    try:
+        received = sock.recv(4096)
+    except socket.timeout:
+        return
+    raise AssertionError(f"unexpected envelope: {received!r}")
+
+
+@then(
+    'every console realtime consumer of project "{name}" applies the issue "{issue_id}"'
+)
+def then_consumers_apply_issue(context: object, name: str, issue_id: str) -> None:
+    deadline = time.monotonic() + 5.0
+    overlay_path = overlay_issue_path(
+        _scoped_project(context, name)["project_directory"], issue_id
+    )
+    for applied in context.scope_consumers[name]:
+        while issue_id not in applied:
+            assert time.monotonic() < deadline, f"consumer never applied {issue_id}"
+            time.sleep(0.05)
+    while not overlay_path.exists():
+        assert time.monotonic() < deadline, f"overlay never cached {issue_id}"
+        time.sleep(0.05)
+
+
+@then('no console realtime consumer of project "{name}" applies the issue "{issue_id}"')
+def then_consumers_do_not_apply_issue(
+    context: object, name: str, issue_id: str
+) -> None:
+    time.sleep(0.5)
+    for applied in context.scope_consumers[name]:
+        assert issue_id not in applied
+    assert not overlay_issue_path(
+        _scoped_project(context, name)["project_directory"], issue_id
+    ).exists()
+
+
+@then("the count of dropped events for other projects has increased")
+def then_foreign_drop_count_increased(context: object) -> None:
+    from kanbus.gossip import foreign_project_drop_count
+
+    assert foreign_project_drop_count() > context.scope_drop_count_before

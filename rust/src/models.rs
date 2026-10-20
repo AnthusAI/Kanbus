@@ -660,6 +660,9 @@ pub struct ProjectConfiguration {
     #[serde(default)]
     pub console_port: Option<u16>,
     pub project_key: String,
+    /// Stable UUID identifying the project across clones and worktrees; scopes realtime topics.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
     /// Human-readable board title. When unset, the console uses the repository folder.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,

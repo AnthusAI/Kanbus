@@ -702,6 +702,10 @@ kbs standup kbs-abc --json               machine-readable JSON")]
     },
     /// Migrate Beads issues into Kanbus.
     Migrate {
+        /// Migration target. `project-id` writes a fresh project_id into
+        /// .kanbus.yml when it is absent. Omit to migrate Beads issues.
+        #[arg(value_parser = ["project-id"])]
+        target: Option<String>,
         /// Import Beads issues into an already initialized project.
         /// Repeatable: safely re-runs and overwrites matching issue JSON files.
         #[arg(long = "into-existing")]
@@ -3948,7 +3952,14 @@ fn execute_command(
                 }
             },
         },
-        Commands::Migrate { into_existing } => {
+        Commands::Migrate {
+            target: Some(_),
+            into_existing: _,
+        } => crate::migration::migrate_project_id(&root_for_beads).map(Some),
+        Commands::Migrate {
+            target: None,
+            into_existing,
+        } => {
             let result = if into_existing {
                 migrate_from_beads_into_project(&root_for_beads)?
             } else {

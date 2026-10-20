@@ -180,6 +180,7 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
   "id": "uuid",
   "ts": "2026-03-06T12:34:56.789Z",
   "project": "KAN",
+  "project_identity": "test-project-id",
   "type": "issue.mutated",
   "issue_id": "KAN-123",
   "event_id": "uuid",
@@ -188,6 +189,33 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
   "issue": { "id": "KAN-123", "type": "task", "title": "..." }
 }
 ```
+
+## Project scope
+
+Events are scoped by the `project_id` stored in `.kanbus.yml`, so many projects
+can share one broker without seeing each other's events.
+
+- `project_id` is a UUID v4 written by `kbs init` and `kanbus init`. It is
+  committed with the project, so every clone, worktree, agent session and
+  machine working on the same project shares it, while different projects (even
+  with the same `project_key`) never collide.
+- Issue and coordination events are published on `realtime.topics.project_events`
+  with `{project}` replaced by the `project_id`, for example
+  `projects/<project_id>/events`, and carry the same
+  value in `project_identity`. The `project` field keeps the label and routes the
+  event to a project directory.
+- Consumers subscribe only to their own `project_id` topic. They also check
+  `project_identity` on receipt and drop anything that does not match exactly,
+  including events with no identity, logging only a running count.
+- A project whose `.kanbus.yml` has no `project_id` has realtime publishing and
+  consuming disabled and prints one message:
+  `realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id`.
+  Everything else keeps working.
+- Migration: run `kbs migrate project-id` (or `kanbus migrate project-id`) once
+  per existing project and commit `.kanbus.yml`. The command appends a fresh
+  UUID `project_id` when absent and leaves an existing one untouched.
+- Instances older than this change publish on `projects/<project_key>/events`
+  without `project_identity`, so they do not exchange events with upgraded ones.
 
 ## Dedupe and echo protection
 
@@ -199,7 +227,7 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
 
 Level 2 coordination uses the configured `realtime.topics.project_events`
 topic, which defaults to `projects/{project}/events` with `{project}` replaced
-by the project label. MQTT publishes use QoS 0 and `retain=false`; messages are
+by the `project_id`. MQTT publishes use QoS 0 and `retain=false`; messages are
 best-effort hints, while Git event history remains durable. Coordination fields
 are top-level envelope fields, not a nested payload.
 

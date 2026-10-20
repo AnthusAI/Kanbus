@@ -186,6 +186,7 @@ pub fn default_project_configuration() -> ProjectConfiguration {
         realtime: RealtimeConfig::default(),
         overlay: OverlayConfig::default(),
         project_key: "kanbus".to_string(),
+        project_id: None,
         name: None,
         project_management_template: None,
         methodologies: None,

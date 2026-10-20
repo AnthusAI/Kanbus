@@ -57,6 +57,9 @@ def provider_available(root: Path, configuration: ProjectConfiguration) -> bool:
     if "mqtt" not in configuration.coordination.providers:
         _update_transport_diagnostics("listener", provider_status="not_configured")
         return False
+    if gossip.realtime_project_id(configuration) is None:
+        _update_transport_diagnostics("listener", provider_status="disabled")
+        return False
     if realtime.transport not in {"auto", "mqtt"} or realtime.broker == "off":
         _update_transport_diagnostics("listener", provider_status="disabled")
         return False
@@ -171,6 +174,7 @@ def start_listener(
     project_label = gossip._resolve_project_label(root, project_dir, configuration)
     if project_label is None:
         project_label = configuration.project_key
+    project_identity = configuration.project_id
 
     def on_connect(connected_client, _userdata, _flags, reason_code, *_extra):
         code = gossip._mqtt_reason_value(reason_code)
@@ -219,7 +223,10 @@ def start_listener(
                 rejected_messages=int(state.get("rejected_messages", 0)) + 1,
             )
             return
-        if envelope.project != project_label:
+        if (
+            envelope.project != project_label
+            or envelope.project_identity != project_identity
+        ):
             state = transport_diagnostics()["listener"]
             _update_transport_diagnostics(
                 "listener",
@@ -293,10 +300,10 @@ def topic_for_project(
     root: Path, project_dir: Path, configuration: ProjectConfiguration
 ) -> str:
     """Resolve the configured project event topic for coordination gossip."""
-    project_label = gossip._resolve_project_label(root, project_dir, configuration)
-    if project_label is None:
-        project_label = configuration.project_key
-    return configuration.realtime.topics.project_events.format(project=project_label)
+    topic = gossip.project_event_topic(configuration)
+    if topic is None:
+        raise ValueError(gossip.MISSING_PROJECT_ID_MESSAGE)
+    return topic
 
 
 def make_claim_envelope(
@@ -408,6 +415,7 @@ def _make_envelope(
         "id": str(uuid4()),
         "ts": coordination.format_timestamp(occurred_at),
         "project": project_label,
+        "project_identity": configuration.project_id,
         "type": event_type,
         "event_id": event_id,
         "producer_id": gossip.producer_id(),
