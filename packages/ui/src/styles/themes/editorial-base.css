@@ -106,6 +106,7 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: 400 10px/1 var(--kb-theme-mono-font); letter-spacing: 0; text-transform: none; color: var(--kb-theme-muted);
 }
+[data-kanbus-theme] [data-issue-id-format="host"] { text-transform: none; letter-spacing: 0; font-family: var(--kb-theme-mono-font); }
 [data-kanbus-theme] .issue-accent-priority {
   padding: 2px 5px; background: var(--card-muted); border-radius: 0; color: var(--kb-theme-muted);
   font: 400 10px/1 var(--kb-theme-mono-font); letter-spacing: .04em; text-transform: uppercase;

@@ -27,6 +27,15 @@ Without React, set the attributes directly: `data-kanbus-theme="refined-newsprin
 
 `KANBUS_THEMES` lists ids, display names, font pairing and face names; `KanbusThemeId` is the id union. `styles/themes/index.css` imports all four themes. The stylesheets make no requests: hosts bundle the fonts; `KANBUS_THEME_FONTS` lists, per theme, the family names, weights and suggested `@fontsource` packages.
 
+## Host formatted ids
+
+Cards and detail panels show Kanbus short ids such as `ARTICLE-1`. Hosts that want
+a quieter path such as `articles/agent-software-factory` pass
+`formatIssueId={(issue) => ...}` to `IssueCollection`, `Board`, `TaskDetailPanel`
+or `IssueDetailPanel` (or wrap the board in `IssueIdFormatProvider`). The text is
+shown verbatim in the theme mono face: elements carry
+`data-issue-id-format="host"` and the themes apply `text-transform: none` to them.
+
 ## Public tokens
 
 Each theme sets these on `[data-kanbus-theme="<id>"]` (dark values under `data-color-mode="dark"`). Override any of them on the scope element, inline or with `tokens` on `KanbusThemeScope`.

@@ -109,6 +109,19 @@ mutation callbacks, but its existing history transport requests
 that panel must provide those routes. The new controlled collection does not
 depend on the panel or either route.
 
+## Host issue identifier formatting
+
+By default every surface shows the Kanbus short form (`formatIssueId`), and the
+detail panel shows the raw id. A host may supply
+`formatIssueId?: (issue: KanbanIssue) => string` to decide the exact text, for
+example `"articles/agent-software-factory"`. Pass it as a prop to
+`IssueCollection`, `Board`, `TaskDetailPanel` or `IssueDetailPanel`, or provide
+it once with `IssueIdFormatProvider`, which also covers `StatusTree`. The
+returned text is rendered verbatim, never truncated or uppercased, in the
+card, status tree, detail panels and descendant link labels. Elements showing a
+host formatted id carry `data-issue-id-format="host"`, and the editorial themes
+keep them in the mono face without text transformation.
+
 ## Browser acceptance tests
 
 The package-local Gherkin specifications describe React behavior rather than
