@@ -1,0 +1,54 @@
+@import "./editorial-base.css";
+
+/* Refined Newsprint: Source Serif 4 titles, IBM Plex Sans interface, IBM Plex Mono ids; warm paper and press red.
+   Light is the design palette. Dark keeps the warm 70 to 85 hue family on a dark paper, with the press red lifted from L 0.52 to 0.72 so it holds AA on dark.
+   Override any --kb-theme-* token on the scope element (inline or a more specific rule). */
+[data-kanbus-theme="refined-newsprint"] {
+  --kb-theme-paper: oklch(0.975 0.006 85);
+  --kb-theme-panel: oklch(0.975 0.006 85);
+  --kb-theme-sidebar: oklch(0.975 0.006 85);
+  --kb-theme-ink: oklch(0.22 0.01 60);
+  --kb-theme-muted: oklch(0.48 0.01 60);
+  --kb-theme-rule: oklch(0.88 0.008 85);
+  --kb-theme-accent: oklch(0.52 0.16 28);
+  --kb-theme-on-accent: oklch(1 0 0);
+  --kb-theme-title-font: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --kb-theme-ui-font: "IBM Plex Sans", system-ui, sans-serif;
+  --kb-theme-mono-font: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --kb-theme-title-size: 16px;
+  --kb-theme-title-leading: 1.28;
+  --kb-theme-title-tracking: 0;
+  --kb-theme-heading-size: 28px;
+  --kb-theme-heading-leading: 1.15;
+  --kb-theme-heading-tracking: 0;
+  --kb-theme-heading-weight: 600;
+  --kb-theme-label-weight: 600;
+  --kb-theme-reading-size: 15px;
+  --kb-theme-reading-leading: 1.55;
+  color-scheme: light;
+}
+[data-kanbus-theme="refined-newsprint"][data-color-mode="dark"],
+.dark [data-kanbus-theme="refined-newsprint"]:not([data-color-mode="light"]) {
+  --kb-theme-paper: oklch(0.2 0.008 70);
+  --kb-theme-panel: oklch(0.23 0.008 70);
+  --kb-theme-sidebar: oklch(0.2 0.008 70);
+  --kb-theme-ink: oklch(0.94 0.01 85);
+  --kb-theme-muted: oklch(0.72 0.012 80);
+  --kb-theme-rule: oklch(0.33 0.01 70);
+  --kb-theme-accent: oklch(0.72 0.14 28);
+  --kb-theme-on-accent: oklch(0.2 0.008 70);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  [data-kanbus-theme="refined-newsprint"]:not([data-color-mode="light"]) {
+    --kb-theme-paper: oklch(0.2 0.008 70);
+    --kb-theme-panel: oklch(0.23 0.008 70);
+    --kb-theme-sidebar: oklch(0.2 0.008 70);
+    --kb-theme-ink: oklch(0.94 0.01 85);
+    --kb-theme-muted: oklch(0.72 0.012 80);
+    --kb-theme-rule: oklch(0.33 0.01 70);
+    --kb-theme-accent: oklch(0.72 0.14 28);
+    --kb-theme-on-accent: oklch(0.2 0.008 70);
+    color-scheme: dark;
+  }
+}

@@ -1,0 +1,54 @@
+@import "./editorial-base.css";
+
+/* Newspaper Gothic: Libre Franklin throughout, JetBrains Mono ids; cool paper and ink blue.
+   Light is the design palette. Dark is a cool slate paper in the same 250 hue, with the ink blue lifted from L 0.50 to 0.74.
+   Override any --kb-theme-* token on the scope element (inline or a more specific rule). */
+[data-kanbus-theme="newspaper-gothic"] {
+  --kb-theme-paper: oklch(0.965 0.008 240);
+  --kb-theme-panel: oklch(0.965 0.008 240);
+  --kb-theme-sidebar: oklch(0.965 0.008 240);
+  --kb-theme-ink: oklch(0.24 0.02 250);
+  --kb-theme-muted: oklch(0.48 0.02 250);
+  --kb-theme-rule: oklch(0.87 0.01 240);
+  --kb-theme-accent: oklch(0.5 0.14 255);
+  --kb-theme-on-accent: oklch(1 0 0);
+  --kb-theme-title-font: "Libre Franklin", system-ui, sans-serif;
+  --kb-theme-ui-font: "Libre Franklin", system-ui, sans-serif;
+  --kb-theme-mono-font: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --kb-theme-title-size: 15px;
+  --kb-theme-title-leading: 1.3;
+  --kb-theme-title-tracking: -.005em;
+  --kb-theme-heading-size: 27px;
+  --kb-theme-heading-leading: 1.15;
+  --kb-theme-heading-tracking: -.015em;
+  --kb-theme-heading-weight: 700;
+  --kb-theme-label-weight: 700;
+  --kb-theme-reading-size: 14px;
+  --kb-theme-reading-leading: 1.6;
+  color-scheme: light;
+}
+[data-kanbus-theme="newspaper-gothic"][data-color-mode="dark"],
+.dark [data-kanbus-theme="newspaper-gothic"]:not([data-color-mode="light"]) {
+  --kb-theme-paper: oklch(0.2 0.014 250);
+  --kb-theme-panel: oklch(0.23 0.014 250);
+  --kb-theme-sidebar: oklch(0.2 0.014 250);
+  --kb-theme-ink: oklch(0.94 0.01 240);
+  --kb-theme-muted: oklch(0.72 0.02 250);
+  --kb-theme-rule: oklch(0.33 0.015 250);
+  --kb-theme-accent: oklch(0.74 0.12 255);
+  --kb-theme-on-accent: oklch(0.2 0.014 250);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  [data-kanbus-theme="newspaper-gothic"]:not([data-color-mode="light"]) {
+    --kb-theme-paper: oklch(0.2 0.014 250);
+    --kb-theme-panel: oklch(0.23 0.014 250);
+    --kb-theme-sidebar: oklch(0.2 0.014 250);
+    --kb-theme-ink: oklch(0.94 0.01 240);
+    --kb-theme-muted: oklch(0.72 0.02 250);
+    --kb-theme-rule: oklch(0.33 0.015 250);
+    --kb-theme-accent: oklch(0.74 0.12 255);
+    --kb-theme-on-accent: oklch(0.2 0.014 250);
+    color-scheme: dark;
+  }
+}

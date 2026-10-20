@@ -47,7 +47,7 @@ jobs:
           version="${GITHUB_REF_NAME#ui-v}"
           artifact="$RUNNER_TEMP/kanbus-ui-${version}.tgz"
           sha256sum "$artifact"
-          gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/ui ${version}" --notes "Shared Kanbus board, configured type filter, organizer theme and accessible detail components. Built and behavior-tested from this tag. Consumers own data, authentication and routing." --latest=false
+          gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/ui ${version}" --notes "Shared Kanbus board, configured type filter, organizer theme, four editorial board themes and accessible detail components. Built and behavior-tested from this tag. Consumers own data, authentication and routing." --latest=false
 
   pypi-release:
     name: PyPI Release

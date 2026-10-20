@@ -901,10 +901,6 @@ When("I set the mode to {string}", async function (mode) {
   await this.page.locator(`[data-selector=\"mode\"][data-option=\"${mode}\"]`).click();
 });
 
-When("I set the typeface to {string}", async function (font) {
-  await this.page.locator(`[data-selector=\"font\"][data-option=\"${font}\"]`).click();
-});
-
 When("I set motion to {string}", async function (motion) {
   await this.page.locator(`[data-selector=\"motion\"][data-option=\"${motion}\"]`).click();
 });
@@ -923,11 +919,36 @@ Then("the mode should be {string}", async function (mode) {
   expect(parsed.mode).toBe(mode);
 });
 
-Then("the typeface should be {string}", async function (font) {
-  const stored = await this.page.evaluate(() => window.localStorage.getItem("kanbus.console.appearance"));
-  expect(stored).not.toBeNull();
-  const parsed = JSON.parse(stored);
-  expect(parsed.font).toBe(font);
+Then("the board theme should be {string}", async function (theme) {
+  await expect
+    .poll(() => this.page.evaluate(() => document.documentElement.dataset.kanbusTheme))
+    .toBe(theme);
+  await expect(this.page.locator("#kanbus-theme-fonts")).toHaveCount(0);
+  const external = await this.page.evaluate(() =>
+    performance
+      .getEntriesByType("resource")
+      .map((entry) => entry.name)
+      .filter((name) => new URL(name).origin !== location.origin && !name.includes("/api/"))
+  );
+  expect(external).toEqual([]);
+});
+
+Then("the console color mode should be {string}", async function (mode) {
+  await expect
+    .poll(() => this.page.evaluate(() => document.documentElement.dataset.colorMode))
+    .toBe(mode);
+  const hasClass = await this.page.evaluate(
+    (name) => document.documentElement.classList.contains(name),
+    mode
+  );
+  expect(hasClass).toBe(true);
+});
+
+Then("the settings panel lists the themes {string}", async function (names) {
+  const labels = await this.page
+    .locator('[data-selector="theme"] .font-semibold')
+    .allTextContents();
+  expect(labels).toEqual(names.split(", "));
 });
 
 Then("the motion mode should be {string}", async function (motion) {

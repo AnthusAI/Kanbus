@@ -5,10 +5,9 @@ import {
   Moon,
   Sun,
   Settings,
-  Type,
 } from "lucide-react";
 import { useAppearance } from "../hooks/useAppearance";
-import { AnimatedSelector } from "@kanbus/ui";
+import { AnimatedSelector, KANBUS_THEMES } from "@kanbus/ui";
 import { RightSidebar } from "./RightSidebar";
 
 interface SettingsPanelProps {
@@ -63,7 +62,13 @@ export function SettingsPanel({
   onToggleShowInitiativesInTypeFilter,
   onTransitionEnd
 }: SettingsPanelProps) {
-  const { appearance, setMode, setTheme, setFont, setMotion } = useAppearance();
+  const { appearance, setMode, setTheme, setMotion } = useAppearance();
+  const resolvedMode =
+    appearance.mode === "system"
+      ? typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+      : appearance.mode;
   return (
     <RightSidebar
       isOpen={isOpen}
@@ -123,45 +128,39 @@ export function SettingsPanel({
         <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
           Theme
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            {
-              id: "neutral",
-              label: "Neutral",
-              swatches: ["swatch-neutral-1", "swatch-neutral-2", "swatch-neutral-3"]
-            },
-            {
-              id: "cool",
-              label: "Cool",
-              swatches: ["swatch-cool-1", "swatch-cool-2", "swatch-cool-3"]
-            },
-            {
-              id: "warm",
-              label: "Warm",
-              swatches: ["swatch-warm-1", "swatch-warm-2", "swatch-warm-3"]
-            }
-          ].map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setTheme(option.id as any)}
-              data-selector="theme"
-              data-option={option.id}
-              className={`rounded-full h-10 px-3 flex flex-col items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
-                appearance.theme === option.id ? "text-foreground bg-card-muted" : "text-muted bg-card"
-              }`}
-            >
-              <span className="selector-swatches">
-                {option.swatches.map((color) => (
-                  <span
-                    key={color}
-                    className={`theme-swatch ${color}`}
-                  />
-                ))}
-              </span>
-              <span className="selector-label">{option.label}</span>
-            </button>
-          ))}
+        <div className="grid gap-2" role="radiogroup" aria-label="Theme">
+          {KANBUS_THEMES.map((option) => {
+            const selected = appearance.theme === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setTheme(option.id)}
+                data-selector="theme"
+                data-option={option.id}
+                title={option.pairing}
+                className={`flex items-center gap-3 rounded-2xl border px-3 py-2 text-left ${
+                  selected ? "border-[var(--text-foreground)] bg-card-muted" : "border-transparent bg-card"
+                }`}
+              >
+                <span
+                  className="theme-swatch"
+                  data-kanbus-theme={option.id}
+                  data-color-mode={resolvedMode}
+                  aria-hidden="true"
+                >
+                  <span className="theme-swatch-paper" />
+                  <span className="theme-swatch-accent" />
+                </span>
+                <span className="grid min-w-0 gap-0.5">
+                  <span className="text-sm font-semibold text-foreground">{option.name}</span>
+                  <span className="text-xs text-muted">{option.titleFace} titles</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -179,54 +178,6 @@ export function SettingsPanel({
             { id: "reduced", label: "Reduced" },
             { id: "off", label: "Off" },
             { id: "debug", label: "Debug" }
-          ]}
-        />
-      </div>
-
-      <div className="grid gap-3">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted">
-          Typeface
-        </div>
-        <AnimatedSelector
-          name="font"
-          value={appearance.font}
-          onChange={(value) => setFont(value as any)}
-          className="w-full"
-          options={[
-            {
-              id: "sans",
-              label: "Sans",
-              content: (
-                <span className="selector-option">
-                  <Type className="h-4 w-4" />
-                  <span className="selector-label font-sans">Sans</span>
-                </span>
-              )
-            },
-            {
-              id: "serif",
-              label: "Serif",
-              content: (
-                <span className="selector-option">
-                  <Type className="h-4 w-4" />
-                  <span className="selector-label font-[var(--font-serif)]">
-                    Serif
-                  </span>
-                </span>
-              )
-            },
-            {
-              id: "mono",
-              label: "Mono",
-              content: (
-                <span className="selector-option">
-                  <Type className="h-4 w-4" />
-                  <span className="selector-label font-[var(--font-mono)]">
-                    Mono
-                  </span>
-                </span>
-              )
-            }
           ]}
         />
       </div>
