@@ -6,6 +6,7 @@ on:
       - "kanbus-py-*"
       - "kanbus-rust-*"
       - "ui-v*"
+      - "api-client-v*"
   workflow_dispatch:
     inputs:
       pypi_only:
@@ -48,6 +49,31 @@ jobs:
           artifact="$RUNNER_TEMP/kanbus-ui-${version}.tgz"
           sha256sum "$artifact"
           gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/ui ${version}" --notes "Shared Kanbus board, configured type filter, organizer theme, four editorial board themes and accessible detail components. Built and behavior-tested from this tag. Consumers own data, authentication and routing." --latest=false
+
+  api-client-package:
+    name: API client package
+    if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'api-client-v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+      - name: Verify tag and client behavior
+        working-directory: packages/api-client
+        run: |
+          test "api-client-v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+          npm ci
+          npm test
+          npm pack --pack-destination "$RUNNER_TEMP"
+      - name: Publish immutable API client artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#api-client-v}"
+          artifact="$RUNNER_TEMP/kanbus-api-client-${version}.tgz"
+          sha256sum "$artifact"
+          gh release create "$GITHUB_REF_NAME" "$artifact" --title "@kanbus/api-client ${version}" --notes "Typed TypeScript client for the Kanbus writable application API. Built and tested from this tag. Consumers own authentication and signing." --latest=false
 
   pypi-release:
     name: PyPI Release
