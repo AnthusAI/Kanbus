@@ -24,8 +24,12 @@ async fn main() -> Result<(), Error> {
         aws_sdk_dynamodb::Client::new(&credentials),
         std::env::var("KANBUS_CATALOG_TABLE")?,
     );
-    let api = Api::new(JournaledStore::new(Arc::new(objects), Arc::new(catalog)))
-        .map_err(|error| error.message)?;
+    let objects = Arc::new(objects);
+    let api = Api::new(
+        JournaledStore::new(objects.clone(), Arc::new(catalog)),
+        objects,
+    )
+    .map_err(|error| error.message)?;
     let service_principals = Arc::new(ServicePrincipals::from_environment()?);
     run(service_fn(move |event: LambdaEvent<Value>| {
         let api = api.clone();

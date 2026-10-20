@@ -1837,7 +1837,7 @@ dependencies = [
  "tokio-stream",
  "tower-http",
  "uuid",
- "virtuus",
+ "virtuus 0.6.1",
 ]
 
 [[package]]
@@ -3464,10 +3464,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "virtuus-store"
-version = "0.1.0"
+name = "virtuus"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee57fc8ff1fbd600411abd14e0092e56484c1de2ec1cf9517bc8bdea12040917"
+checksum = "8f8b5523531887139e383dc67c565eddcd344bb8d08c00ff26683c666aa1920d"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+]
+
+[[package]]
+name = "virtuus-store"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da6e15e2ab0db9c22a196ea85605baf088668f713bd575185a8540b5a226e44d"
 dependencies = [
  "async-trait",
  "aws-sdk-dynamodb",
@@ -3479,7 +3491,7 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "thiserror 1.0.69",
- "virtuus",
+ "virtuus 0.7.0",
 ]
 
 [[package]]

@@ -17,10 +17,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 use virtuus_store::{
-    compare_numbers, CatalogQuery, DeleteMutation, EventObject, JournaledStore, Mutation, Scope,
-    StoreError, StoredObject, WriteCondition,
+    compare_numbers, CatalogQuery, DeleteMutation, EventObject, JournaledStore, Mutation,
+    ObjectStore, Scope, StoreError, StoredObject, WriteCondition,
 };
+
+mod relations;
+use relations::RelationPlan;
+pub use relations::RELATION_LEASE;
 
 const MAX_PROJECTS_PER_QUERY: usize = 8;
 const GROUP_PREFIX: &str = "kanbus:";
@@ -142,10 +147,6 @@ impl ApiError {
 
 fn invalid(message: impl Into<String>) -> ApiError {
     ApiError::new(400, "invalid_request", message)
-}
-
-fn unsupported_relation_mutation() -> ApiError {
-    ApiError::new(409, "unsupported_relation_mutation", "Relationship changes and hierarchical deletion require related-record concurrency support, which this API does not yet provide.")
 }
 
 fn storage_error(error: StoreError) -> ApiError {
@@ -695,11 +696,18 @@ fn provisioned_configuration_bytes(body: &Value) -> Result<Vec<u8>, ApiError> {
 #[derive(Clone)]
 pub struct Api {
     store: JournaledStore,
+    object_store: Arc<dyn ObjectStore>,
+    clock: Clock,
 }
+
+/// Source of the current time for relation leases; injectable so tests never sleep.
+pub type Clock = Arc<dyn Fn() -> chrono::DateTime<Utc> + Send + Sync>;
 
 #[derive(Clone)]
 struct ScopedApi {
     store: JournaledStore,
+    object_store: Arc<dyn ObjectStore>,
+    clock: Clock,
     scope: Scope,
     namespace: String,
 }
@@ -755,12 +763,27 @@ pub fn api_gateway_response(status: u16, body: Value) -> Value {
 }
 
 impl Api {
-    /// Create an API over a store; boards are resolved per request.
-    pub fn new(store: JournaledStore) -> Result<Self, ApiError> {
+    /// Create an API over a journaled store and the object store beneath it; boards are
+    /// resolved per request. The object store carries the relations control records and
+    /// must be the same backend the journaled store publishes to.
+    pub fn new(store: JournaledStore, objects: Arc<dyn ObjectStore>) -> Result<Self, ApiError> {
+        Self::with_clock(store, objects, Arc::new(Utc::now))
+    }
+
+    /// Like [`Api::new`] with an explicit clock for relation leases.
+    pub fn with_clock(
+        store: JournaledStore,
+        objects: Arc<dyn ObjectStore>,
+        clock: Clock,
+    ) -> Result<Self, ApiError> {
         let store = store
             .with_canonical_read_limit(MAX_CANONICAL_OBJECT_BYTES)
             .map_err(storage_error)?;
-        Ok(Self { store })
+        Ok(Self {
+            store,
+            object_store: objects,
+            clock,
+        })
     }
 
     /// Route an authenticated request to the board named in its path.
@@ -797,6 +820,8 @@ impl Api {
                 scoped_request.path = format!("/api/{}", rest.join("/"));
                 ScopedApi {
                     store: self.store.clone(),
+                    object_store: self.object_store.clone(),
+                    clock: self.clock.clone(),
                     namespace: scope.namespace(),
                     scope,
                 }
@@ -834,6 +859,8 @@ impl Api {
         let first = selected[0].1.clone();
         let scoped = ScopedApi {
             store: self.store.clone(),
+            object_store: self.object_store.clone(),
+            clock: self.clock.clone(),
             namespace: first.namespace(),
             scope: first,
         };
@@ -1298,6 +1325,7 @@ impl ScopedApi {
             raw[key] = value.clone();
         }
         let issue = self.validate(configuration, &raw, None).await?;
+        let relation_plan = RelationPlan::between(None, &issue);
         let effect = apply_transition_side_effects(&issue, &issue.status, issue.created_at);
         raw["closed_at"] = serde_json::to_value(effect.closed_at).unwrap();
         let event = EventRecord::new(
@@ -1307,15 +1335,21 @@ impl ScopedApi {
             issue_created_payload(&issue),
             timestamp,
         );
-        self.commit(
-            configuration,
-            raw,
-            WriteCondition::Absent,
-            operation_id,
-            request_hash(request),
-            vec![event],
-        )
-        .await
+        self.attach_planned_relations(configuration, &issue, &relation_plan, &operation_id)
+            .await?;
+        let committed = self
+            .commit(
+                configuration,
+                raw,
+                WriteCondition::Absent,
+                operation_id,
+                request_hash(request),
+                vec![event],
+            )
+            .await?;
+        self.detach_planned_relations(&issue.identifier, &relation_plan)
+            .await;
+        Ok(committed)
     }
 
     async fn update(
@@ -1393,6 +1427,7 @@ impl ScopedApi {
         }
         raw["updated_at"] = json!(timestamp);
         let after = self.validate(configuration, &raw, Some(&before)).await?;
+        let relation_plan = RelationPlan::between(Some(&before), &after);
         if after.status != before.status {
             let effect = apply_transition_side_effects(&before, &after.status, Utc::now());
             raw["closed_at"] = serde_json::to_value(effect.closed_at).unwrap();
@@ -1426,15 +1461,21 @@ impl ScopedApi {
                 ));
             }
         }
-        self.commit(
-            configuration,
-            raw,
-            WriteCondition::Revision(stored.revision.clone()),
-            operation_id,
-            request_hash(request),
-            events,
-        )
-        .await
+        self.attach_planned_relations(configuration, &after, &relation_plan, &operation_id)
+            .await?;
+        let committed = self
+            .commit(
+                configuration,
+                raw,
+                WriteCondition::Revision(stored.revision.clone()),
+                operation_id,
+                request_hash(request),
+                events,
+            )
+            .await?;
+        self.detach_planned_relations(&after.identifier, &relation_plan)
+            .await;
+        Ok(committed)
     }
 
     async fn validate(
@@ -1498,31 +1539,30 @@ impl ScopedApi {
     ) -> Result<IssueData, ApiError> {
         let issue: IssueData =
             serde_json::from_value(raw.clone()).map_err(|error| invalid(error.to_string()))?;
-        match before {
-            None if issue.parent.is_some() => return Err(unsupported_relation_mutation()),
-            Some(previous)
-                if previous.parent != issue.parent
-                    || previous
-                        .dependencies
-                        .iter()
-                        .map(|link| (&link.target, &link.dependency_type))
-                        .collect::<Vec<_>>()
-                        != issue
-                            .dependencies
-                            .iter()
-                            .map(|link| (&link.target, &link.dependency_type))
-                            .collect::<Vec<_>>() =>
+        if let Some(previous) = before {
+            if previous.issue_type != issue.issue_type
+                && (configuration.hierarchy.contains(&previous.issue_type)
+                    || configuration.hierarchy.contains(&issue.issue_type))
             {
-                return Err(unsupported_relation_mutation())
+                return Err(ApiError::new(
+                    409,
+                    "type_change_unsupported",
+                    "Changing an issue to or from a hierarchy type is not supported by this API.",
+                ));
             }
-            Some(previous)
-                if previous.issue_type != issue.issue_type
-                    && (configuration.hierarchy.contains(&previous.issue_type)
-                        || configuration.hierarchy.contains(&issue.issue_type)) =>
-            {
-                return Err(unsupported_relation_mutation())
-            }
-            _ => {}
+        }
+        let dependencies_changed = before.is_none_or(|previous| {
+            previous
+                .dependencies
+                .iter()
+                .map(|link| (&link.target, &link.dependency_type))
+                .ne(issue
+                    .dependencies
+                    .iter()
+                    .map(|link| (&link.target, &link.dependency_type)))
+        });
+        if dependencies_changed {
+            validate_dependency_links(&issue)?;
         }
         if issue.title.trim().is_empty() {
             return Err(invalid("A nonempty title is required."));
@@ -1558,39 +1598,8 @@ impl ScopedApi {
                 .map_err(|error| invalid(error.to_string()))?;
             }
         }
-        if let Some(parent) = &issue.parent {
-            if parent == &issue.identifier {
-                return Err(invalid("An issue cannot parent itself."));
-            }
-            let parent_object = self.issue(configuration, parent).await?;
-            let parent_issue: IssueData = serde_json::from_slice(&parent_object.bytes)
-                .map_err(|error| invalid(error.to_string()))?;
-            validate_parent_child_relationship(
-                configuration,
-                &parent_issue.issue_type,
-                &issue.issue_type,
-            )
-            .map_err(|error| invalid(error.to_string()))?;
-        }
-        if before.is_some_and(|before| before.issue_type != issue.issue_type) {
-            for (_, object) in self
-                .objects(
-                    &format!("{}/issues/", configuration.project_directory),
-                    &mut ReadBudget::default(),
-                )
-                .await?
-            {
-                let child: IssueData = serde_json::from_slice(&object.bytes)
-                    .map_err(|error| invalid(error.to_string()))?;
-                if child.parent.as_deref() == Some(issue.identifier.as_str()) {
-                    validate_parent_child_relationship(
-                        configuration,
-                        &issue.issue_type,
-                        &child.issue_type,
-                    )
-                    .map_err(|error| invalid(error.to_string()))?;
-                }
-            }
+        if issue.parent.as_deref() == Some(issue.identifier.as_str()) {
+            return Err(invalid("An issue cannot parent itself."));
         }
         Ok(issue)
     }
@@ -1618,30 +1627,14 @@ impl ScopedApi {
         }
         let issue: IssueData =
             serde_json::from_slice(&stored.bytes).map_err(|error| invalid(error.to_string()))?;
-        if configuration.hierarchy.contains(&issue.issue_type) {
-            return Err(unsupported_relation_mutation());
-        }
-        for (_, object) in self
-            .objects(
-                &format!("{}/issues/", configuration.project_directory),
-                &mut ReadBudget::default(),
-            )
-            .await?
+        self.mark_relations_deleted(configuration, identifier)
+            .await?;
+        if let Err(error) = self
+            .ensure_no_live_references(configuration, identifier)
+            .await
         {
-            let other: IssueData = serde_json::from_slice(&object.bytes)
-                .map_err(|error| invalid(error.to_string()))?;
-            if other.parent.as_deref() == Some(identifier)
-                || other
-                    .dependencies
-                    .iter()
-                    .any(|dependency| dependency.target == identifier)
-            {
-                return Err(ApiError::new(
-                    409,
-                    "issue_referenced",
-                    "Remove child and dependency references before deleting this issue.",
-                ));
-            }
+            self.clear_relations_deleted(identifier).await;
+            return Err(error);
         }
         let event = EventRecord::new(
             identifier,
@@ -1650,20 +1643,21 @@ impl ScopedApi {
             issue_deleted_payload(&issue),
             now_timestamp(),
         );
-        let result = self
-            .store
-            .delete(
-                &self.scope,
-                &DeleteMutation {
-                    path: issue_path(configuration, identifier)?,
-                    expected_revision: stored.revision.clone(),
-                    event_objects: vec![event_object(configuration, &event)?],
-                    operation_id: operation_id(request)?,
-                    request_hash: request_hash(request),
-                },
-            )
-            .await
-            .map_err(storage_error)?;
+        let deletion = DeleteMutation {
+            path: issue_path(configuration, identifier)?,
+            expected_revision: stored.revision.clone(),
+            event_objects: vec![event_object(configuration, &event)?],
+            operation_id: operation_id(request)?,
+            request_hash: request_hash(request),
+        };
+        let result = match self.store.delete(&self.scope, &deletion).await {
+            Ok(result) => result,
+            Err(error) => {
+                self.clear_relations_deleted(identifier).await;
+                return Err(storage_error(error));
+            }
+        };
+        self.remove_relations_record(identifier).await;
         Ok(json!({"deleted":true,"issue_id":identifier,"catalog_pending":result.repair_pending}))
     }
 
@@ -1824,9 +1818,6 @@ fn mutable_fields(body: &Value) -> Result<&Map<String, Value>, ApiError> {
     let fields = body
         .as_object()
         .ok_or_else(|| invalid("Expected a JSON object."))?;
-    if fields.contains_key("dependencies") {
-        return Err(unsupported_relation_mutation());
-    }
     let allowed = [
         "title",
         "description",
@@ -1835,6 +1826,7 @@ fn mutable_fields(body: &Value) -> Result<&Map<String, Value>, ApiError> {
         "priority",
         "assignee",
         "parent",
+        "dependencies",
         "labels",
         "custom",
     ];
@@ -1842,6 +1834,24 @@ fn mutable_fields(body: &Value) -> Result<&Map<String, Value>, ApiError> {
         return Err(invalid("Request contains a protected or unknown field."));
     }
     Ok(fields)
+}
+
+const ALLOWED_DEPENDENCY_TYPES: [&str; 2] = ["blocked-by", "relates-to"];
+
+fn validate_dependency_links(issue: &IssueData) -> Result<(), ApiError> {
+    for link in &issue.dependencies {
+        if !ALLOWED_DEPENDENCY_TYPES.contains(&link.dependency_type.as_str()) {
+            return Err(invalid("Invalid dependency type."));
+        }
+        if link.target == issue.identifier {
+            return Err(invalid("An issue cannot depend on itself."));
+        }
+        validate_issue_identifier(&link.target)?;
+        if link.dependency_type == "blocked-by" && issue.parent.as_deref() == Some(&link.target) {
+            return Err(invalid("An issue cannot be blocked by its parent."));
+        }
+    }
+    Ok(())
 }
 
 fn operation_id(request: &ApiRequest) -> Result<String, ApiError> {
