@@ -1,5 +1,12 @@
 import type { QueryBudgetCost } from "./errors.js";
 
+export type KanbusDependencyType = "blocked-by" | "relates-to";
+
+export interface KanbusDependencyLink {
+  target: string;
+  type: KanbusDependencyType;
+}
+
 export interface KanbusComment {
   id?: string;
   author: string;
@@ -20,7 +27,7 @@ export interface KanbusIssue {
   creator?: string;
   parent?: string | null;
   labels?: string[];
-  dependencies?: unknown[];
+  dependencies?: KanbusDependencyLink[];
   comments?: KanbusComment[];
   custom?: Record<string, unknown>;
   created_at?: string;
@@ -117,6 +124,7 @@ export interface KanbusIssueFields {
   priority?: number;
   assignee?: string | null;
   parent?: string | null;
+  dependencies?: KanbusDependencyLink[];
   labels?: string[];
   custom?: Record<string, unknown>;
 }

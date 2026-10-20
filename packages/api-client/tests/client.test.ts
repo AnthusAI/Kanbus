@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createKanbusApiClient, KanbusApiError, newOperationId } from "../src/index.js";
 import { createFakeFetch } from "./fakeFetch.js";
+import type { KanbusDependencyLink, KanbusIssueFields, KanbusIssuePatch } from "../src/index.js";
 
 const operationId = "11111111-1111-4111-8111-111111111111";
 
@@ -217,4 +218,48 @@ test("requests are never retried", async () => {
   const { fake, board } = clientFor(503, { error: "storage_unavailable", message: "m" });
   await assert.rejects(board.getConfig());
   assert.equal(fake.requests.length, 1);
+});
+
+test("createIssue serializes dependencies and parent", async () => {
+  const { fake, board } = clientFor(201, { issue: {}, revision: "r", catalog_pending: false });
+  await board.createIssue(
+    {
+      title: "T",
+      type: "task",
+      parent: "p-1",
+      dependencies: [
+        { target: "a-1", type: "blocked-by" },
+        { target: "b-2", type: "relates-to" },
+      ],
+    },
+    { operationId },
+  );
+  assert.deepEqual(fake.requests[0].body, {
+    title: "T",
+    type: "task",
+    parent: "p-1",
+    dependencies: [
+      { target: "a-1", type: "blocked-by" },
+      { target: "b-2", type: "relates-to" },
+    ],
+  });
+});
+
+test("updateIssue serializes dependencies in a patch", async () => {
+  const { fake, board } = clientFor(200, { issue: {}, revision: "r2", catalog_pending: false });
+  await board.updateIssue("i-1", { dependencies: [{ target: "a-1", type: "blocked-by" }] }, { operationId, ifMatch: "r1" });
+  assert.deepEqual(fake.requests[0].body, { dependencies: [{ target: "a-1", type: "blocked-by" }] });
+});
+
+test("dependency types are checked at compile time", () => {
+  const link: KanbusDependencyLink = { target: "a-1", type: "blocked-by" };
+  const patch: KanbusIssuePatch = { dependencies: [link] };
+  const fields: KanbusIssueFields = { title: "T", type: "task", dependencies: [link] };
+  // @ts-expect-error unknown dependency type
+  const invalidLink: KanbusDependencyLink = { target: "a-1", type: "duplicates" };
+  // @ts-expect-error target is required
+  const missingTarget: KanbusDependencyLink = { type: "relates-to" };
+  assert.equal(patch.dependencies?.length, 1);
+  assert.equal(fields.dependencies?.length, 1);
+  assert.ok(invalidLink && missingTarget);
 });
