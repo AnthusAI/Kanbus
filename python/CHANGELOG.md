@@ -2,6 +2,56 @@
 
 <!-- version list -->
 
+## v0.37.0 (2026-10-20)
+
+### Bug Fixes
+
+- **ui**: Keep the keyboard focus ring on newsprint type filter tabs
+  ([`bf0c0c6`](https://github.com/AnthusAI/Kanbus/commit/bf0c0c6d72cca993e67a8127110480a567fa9bf6))
+
+- **ui**: Restore console issue type selector styling
+  ([`2729b9e`](https://github.com/AnthusAI/Kanbus/commit/2729b9ead560b7facbd4eef2718b27b04456bf4c))
+
+### Chores
+
+- **kanbus**: Close kbs-a1a47f23 after PR #473
+  ([`083eadf`](https://github.com/AnthusAI/Kanbus/commit/083eadf7b82102c42d1283cb8d3ec7833831f1c2))
+
+- **kanbus**: File Biblicus 0.36.0 methodology findings
+  ([`3585dac`](https://github.com/AnthusAI/Kanbus/commit/3585dacfbff9e13399ddb96c88539d1d58499d1d))
+
+- **kanbus**: File Biblicus methodology dogfood findings
+  ([`0b4e647`](https://github.com/AnthusAI/Kanbus/commit/0b4e64717cf5f88398e37ce53530ba2c2748190a))
+
+- **kanbus**: File console selector styling bug; close kbs-65914cd1 after PR #487
+  ([`a648f89`](https://github.com/AnthusAI/Kanbus/commit/a648f89316719559b3163de942be3afae708133f))
+
+- **kanbus**: File kbs commit event-file bug from Biblicus
+  ([`539449b`](https://github.com/AnthusAI/Kanbus/commit/539449b8ef51dcb68ffe08f744f5e05827a6a27b))
+
+- **kanbus**: Re-apply kbs-a0a92814 acceptance comment and close after merging develop
+  ([`a1a3b78`](https://github.com/AnthusAI/Kanbus/commit/a1a3b78a767406237b585edf1b609e78f2e3c2f6))
+
+- **kanbus**: Record 2026-10-19 acceptance audits and worker tickets
+  ([`f948d69`](https://github.com/AnthusAI/Kanbus/commit/f948d6990f3ece15825ce03612cdce84a2f2f814))
+
+- **kanbus**: Record events decision on kbs-65914cd1; mark active work in progress
+  ([`3228177`](https://github.com/AnthusAI/Kanbus/commit/3228177a2322edc5e47c2a00b7976a0e0fc5823e))
+
+- **ui**: Release @kanbus/ui 0.3.1 with the console type selector fix
+  ([`d410fe1`](https://github.com/AnthusAI/Kanbus/commit/d410fe12ccf43325e81db5d6974441dd86ab67e5))
+
+### Features
+
+- **commit**: Commit events with issues by default; events config key turns generation off
+  ([`c16c9b9`](https://github.com/AnthusAI/Kanbus/commit/c16c9b911ae1fec990dd1f2e434cbe08e789dbb7))
+
+### Testing
+
+- **virtual-projects**: Run scenarios against the real CLI and fix exposed gaps
+  ([`203f2ae`](https://github.com/AnthusAI/Kanbus/commit/203f2ae604af159a6c18436464b3e890a188ef8e))
+
+
 ## v0.36.0 (2026-10-19)
 
 ### Documentation
