@@ -39,10 +39,12 @@ Earlier deployments bound one board with the removed variables `KANBUS_NAMESPACE
 
 1. Create the Cognito group `kanbus:<tenant>/<project>` and add the members who were in the old required group. This can be done before deploying, so groups and routes change in one deploy with no gap.
 2. Remove `KANBUS_NAMESPACE` and `KANBUS_REQUIRED_GROUP` from the Lambda environment.
-3. Prefix client routes with `/<tenant>/<project>` (for example `/api/issues` becomes `/<tenant>/<project>/api/issues`), and route `/{tenant}/{project}/api/{proxy+}` at the gateway.
+3. Prefix client routes with `/<tenant>/<project>` (for example `/api/issues` becomes `/<tenant>/<project>/api/issues`), and route `/{tenant}/{project}/api/{proxy+}` at the gateway, plus `GET /{tenant}/api/issues` if clients use the cross-board list. Other routes on the same gateway are unaffected; only the kanbus-api route moves.
 4. Local and CI runs replace `KANBUS_NAMESPACE=tenant/project` with `KANBUS_TENANT=tenant` and `KANBUS_PROJECT=project`.
 
 Use `kanbus:<tenant>/*` only for operators who need every board of a tenant.
+
+Query budgets (1,000 catalog candidates, 422 `query_budget_exceeded`, the 2.5 MiB response cap) are unchanged by this migration; they have applied since the service was introduced.
 
 The canonical scope contains `.kanbus.yml` and the configured `project_directory` exactly as a local checkout does. Issues and events retain their normal paths. Raw unknown fields survive edits; unmodified imported objects retain their original bytes. Storage metadata and recovery records live outside the canonical project prefix. DynamoDB contains a supplemental catalog only. Folder import/export and catalog repair belong to the Virtuus storage package.
 
