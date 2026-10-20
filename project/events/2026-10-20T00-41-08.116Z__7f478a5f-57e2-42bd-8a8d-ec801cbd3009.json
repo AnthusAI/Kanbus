@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "7f478a5f-57e2-42bd-8a8d-ec801cbd3009",
+  "issue_id": "kbs-141bf21b-a1b0-4fd5-99a0-1ea6b797f675",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T00:41:08.116Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Editorial board themes in @kanbus/ui with console theme picker",
+    "description": "Add four editorial board themes (refined-newsprint, newspaper-gothic, night-desk, broadsheet-green), each light and dark, as token-driven CSS in @kanbus/ui with KANBUS_THEMES and KanbusThemeScope exports; retire the newsprint theme; console Settings picks the theme. Release @kanbus/ui 0.4.0.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}
