@@ -1,0 +1,23 @@
+{
+  "id": "kbs-141bf21b-a1b0-4fd5-99a0-1ea6b797f675",
+  "title": "Editorial board themes in @kanbus/ui with console theme picker",
+  "description": "Add four editorial board themes (refined-newsprint, newspaper-gothic, night-desk, broadsheet-green), each light and dark, as token-driven CSS in @kanbus/ui with KANBUS_THEMES and KanbusThemeScope exports; retire the newsprint theme; console Settings picks the theme. Release @kanbus/ui 0.4.0.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T00:41:08.052016Z",
+  "updated_at": "2026-10-20T00:41:09.911607Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {
+    "project_label": "kbs",
+    "source": "shared"
+  }
+}
