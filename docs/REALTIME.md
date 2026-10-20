@@ -180,7 +180,7 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
   "id": "uuid",
   "ts": "2026-03-06T12:34:56.789Z",
   "project": "KAN",
-  "project_identity": "KAN-3fa9c1d2e4b5a678",
+  "project_identity": "test-project-id",
   "type": "issue.mutated",
   "issue_id": "KAN-123",
   "event_id": "uuid",
@@ -192,25 +192,30 @@ All transports use the same JSON envelope. `issue.mutated` includes the full iss
 
 ## Project scope
 
-Issue events are scoped to one project so that many projects can share one
-broker without seeing each other's issues.
+Events are scoped by the `project_id` stored in `.kanbus.yml`, so many projects
+can share one broker without seeing each other's events.
 
-- The project scope identity is the project label (the `project_key`, or the
-  virtual project label), a hyphen, and the first 16 lowercase hex characters of
-  the SHA-256 digest of `<canonical project directory path>\n<label>`. The
-  canonical path is the symlink-resolved absolute path of the project directory.
-  Python and Rust derive the identical value.
-- Issue events are published on `realtime.topics.project_events` with
-  `{project}` replaced by the scope identity, for example
-  `projects/KAN-3fa9c1d2e4b5a678/events`, and carry the same value in
-  `project_identity`.
-- Consumers subscribe only to the scope identity of their own projects. They
-  also check `project_identity` on receipt and drop any non-coordination event
-  that does not carry exactly the expected identity, logging only a running
-  count. Events from older instances, which have no `project_identity`, are
-  dropped the same way.
-- Coordination envelopes keep the label-only topic because coordination workers
-  in separate clones or on separate machines must meet on one topic.
+- `project_id` is a UUID v4 written by `kbs init` and `kanbus init`. It is
+  committed with the project, so every clone, worktree, agent session and
+  machine working on the same project shares it, while different projects (even
+  with the same `project_key`) never collide.
+- Issue and coordination events are published on `realtime.topics.project_events`
+  with `{project}` replaced by the `project_id`, for example
+  `projects/<project_id>/events`, and carry the same
+  value in `project_identity`. The `project` field keeps the label and routes the
+  event to a project directory.
+- Consumers subscribe only to their own `project_id` topic. They also check
+  `project_identity` on receipt and drop anything that does not match exactly,
+  including events with no identity, logging only a running count.
+- A project whose `.kanbus.yml` has no `project_id` has realtime publishing and
+  consuming disabled and prints one message:
+  `realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id`.
+  Everything else keeps working.
+- Migration: run `kbs migrate project-id` (or `kanbus migrate project-id`) once
+  per existing project and commit `.kanbus.yml`. The command appends a fresh
+  UUID `project_id` when absent and leaves an existing one untouched.
+- Instances older than this change publish on `projects/<project_key>/events`
+  without `project_identity`, so they do not exchange events with upgraded ones.
 
 ## Dedupe and echo protection
 
@@ -222,7 +227,7 @@ broker without seeing each other's issues.
 
 Level 2 coordination uses the configured `realtime.topics.project_events`
 topic, which defaults to `projects/{project}/events` with `{project}` replaced
-by the project label. MQTT publishes use QoS 0 and `retain=false`; messages are
+by the `project_id`. MQTT publishes use QoS 0 and `retain=false`; messages are
 best-effort hints, while Git event history remains durable. Coordination fields
 are top-level envelope fields, not a nested payload.
 

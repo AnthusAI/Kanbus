@@ -879,6 +879,7 @@ fn build_beads_configuration(records: &[Value]) -> ProjectConfiguration {
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "BD".to_string(),
+        project_id: None,
         name: None,
         project_management_template: None,
         methodologies: None,
@@ -927,4 +928,36 @@ fn map_status(raw: &str) -> String {
         }
     }
     raw.to_string()
+}
+
+/// Write a fresh UUID `project_id` into `.kanbus.yml` when it has none.
+///
+/// The key is appended to the file text so every existing setting, comment and
+/// ordering is preserved.
+///
+/// # Arguments
+/// * `root` - Repository root or any directory below it
+///
+/// # Returns
+/// A message naming the written or already present `project_id`
+///
+/// # Errors
+/// Returns `KanbusError` if the configuration cannot be located, loaded or written
+pub fn migrate_project_id(root: &Path) -> Result<String, KanbusError> {
+    let configuration_path = crate::file_io::get_configuration_path(root)?;
+    let configuration = load_project_configuration(&configuration_path)?;
+    if let Some(existing) = configuration.project_id.as_deref() {
+        if !existing.is_empty() {
+            return Ok(format!("project_id already set: {existing}"));
+        }
+    }
+    let project_id = Uuid::new_v4().to_string();
+    let mut contents = fs::read_to_string(&configuration_path)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !contents.is_empty() && !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(&format!("project_id: {project_id}\n"));
+    fs::write(&configuration_path, contents).map_err(|error| KanbusError::Io(error.to_string()))?;
+    Ok(format!("project_id written: {project_id}"))
 }

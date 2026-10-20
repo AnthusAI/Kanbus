@@ -8,7 +8,6 @@ use rumqttc::{
 use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 #[cfg(unix)]
@@ -36,7 +35,7 @@ pub struct GossipEnvelope {
     pub id: String,
     pub ts: String,
     pub project: String,
-    /// Stable scope identity of the producing project, see [`project_scope_identity`].
+    /// The `project_id` from `.kanbus.yml` of the producing project.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_identity: Option<String>,
     #[serde(rename = "type")]
@@ -154,7 +153,6 @@ pub fn should_accept_gossip(
 #[cfg(test)]
 mod project_scope_tests {
     use super::*;
-    use tempfile::TempDir;
 
     fn sample_envelope(identity: Option<&str>) -> GossipEnvelope {
         GossipEnvelope {
@@ -173,34 +171,14 @@ mod project_scope_tests {
     }
 
     #[test]
-    fn scope_identity_differs_for_projects_sharing_a_label() {
-        let first = TempDir::new().expect("tempdir");
-        let second = TempDir::new().expect("tempdir");
-        let first_identity = project_scope_identity(first.path(), "kanbus").expect("identity");
-        let second_identity = project_scope_identity(second.path(), "kanbus").expect("identity");
-        assert_ne!(first_identity, second_identity);
-        assert_eq!(
-            first_identity,
-            project_scope_identity(first.path(), "kanbus").expect("identity")
-        );
-        assert!(first_identity.starts_with("kanbus-"));
-        assert_eq!(first_identity.len(), "kanbus-".len() + 16);
-    }
-
-    #[test]
-    fn scope_identity_is_absent_for_a_missing_directory() {
-        assert!(project_scope_identity(Path::new("/nonexistent/kanbus-scope"), "kanbus").is_none());
-    }
-
-    #[test]
     fn event_carrying_another_projects_identity_is_dropped() {
-        let expected = "kanbus-0123456789abcdef";
+        let expected = "test-project-id";
         assert!(envelope_matches_project_identity(
             &sample_envelope(Some(expected)),
             expected
         ));
         assert!(!envelope_matches_project_identity(
-            &sample_envelope(Some("kanbus-fedcba9876543210")),
+            &sample_envelope(Some("other-project-id")),
             expected
         ));
         assert!(!envelope_matches_project_identity(
@@ -210,11 +188,25 @@ mod project_scope_tests {
     }
 
     #[test]
-    fn topic_embeds_the_scope_identity() {
+    fn topic_embeds_the_project_id() {
         let realtime = RealtimeConfig::default();
         assert_eq!(
-            project_topic(&realtime, "kanbus-0123456789abcdef"),
-            "projects/kanbus-0123456789abcdef/events"
+            project_topic(&realtime, "test-project-id"),
+            "projects/test-project-id/events"
+        );
+    }
+
+    #[test]
+    fn realtime_project_id_is_absent_without_configuration_value() {
+        let mut configuration = crate::config::default_project_configuration();
+        configuration.project_id = None;
+        assert!(realtime_project_id(&configuration).is_none());
+        assert!(project_event_topic(&configuration).is_none());
+        configuration.project_id = Some("abc".to_string());
+        assert_eq!(realtime_project_id(&configuration).as_deref(), Some("abc"));
+        assert_eq!(
+            project_event_topic(&configuration).as_deref(),
+            Some("projects/abc/events")
         );
     }
 }
@@ -260,7 +252,7 @@ pub fn publish_issue_mutation(
     let Some(project_label) = project_label else {
         return;
     };
-    let Some(project_identity) = project_scope_identity(project_dir, &project_label) else {
+    let Some(project_identity) = realtime_project_id(&configuration) else {
         return;
     };
     let envelope = GossipEnvelope {
@@ -304,7 +296,7 @@ pub fn publish_issue_deleted(
     let Some(project_label) = project_label else {
         return;
     };
-    let Some(project_identity) = project_scope_identity(project_dir, &project_label) else {
+    let Some(project_identity) = realtime_project_id(&configuration) else {
         return;
     };
     let envelope = GossipEnvelope {
@@ -350,6 +342,9 @@ pub fn publish_coordination_gossip(
     let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
         return false;
     };
+    let Some(project_identity) = realtime_project_id(&configuration) else {
+        return false;
+    };
     let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
         return false;
     };
@@ -360,13 +355,14 @@ pub fn publish_coordination_gossip(
 
     let mut envelope =
         build_coordination_gossip_envelope(&project_label, event_type, event_id, fields);
+    envelope.project_identity = Some(project_identity.clone());
     if let Some(message_ts) = message_ts {
         envelope.ts = message_ts.to_string();
     }
     if !coordination_gossip_envelope_is_valid(&envelope) {
         return false;
     }
-    let topic = project_topic(&configuration.realtime, &project_label);
+    let topic = project_topic(&configuration.realtime, &project_identity);
     if let Err(error) = publish_mqtt(&endpoint, &topic, &envelope, &configuration.realtime) {
         let effective_endpoint = effective_broker_endpoint(&endpoint, &configuration.realtime);
         eprintln!(
@@ -510,10 +506,13 @@ where
     let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
         return (0, false);
     };
+    let Some(project_identity) = realtime_project_id(&configuration) else {
+        return (0, false);
+    };
     let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
         return (0, false);
     };
-    let topic = project_topic(&configuration.realtime, &project_label);
+    let topic = project_topic(&configuration.realtime, &project_identity);
     let options = mqtt_options(&endpoint, &configuration.realtime);
     let (client, mut eventloop) = AsyncClient::new(options, 16);
     let mut network_options = eventloop.network_options();
@@ -642,10 +641,13 @@ pub fn wait_for_coordination_gossip_notification(
     let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
         return false;
     };
+    let Some(project_identity) = realtime_project_id(&configuration) else {
+        return false;
+    };
     let Ok(endpoint) = resolve_broker_endpoint(&realtime.broker) else {
         return false;
     };
-    let topic = project_topic(&realtime, &project_label);
+    let topic = project_topic(&realtime, &project_identity);
     let options = mqtt_options(&endpoint, &realtime);
     let ttl = overlay_ttl_s;
     let project_directory = project_dir.to_path_buf();
@@ -682,6 +684,7 @@ pub fn wait_for_coordination_gossip_notification(
                             continue;
                         };
                         if envelope.project != project_label
+                            || !envelope_matches_project_identity(&envelope, &project_identity)
                             || envelope.producer_id == producer_id()
                             || !coordination_gossip_envelope_is_valid(&envelope)
                         {
@@ -831,23 +834,19 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
             )));
         }
     }
+    let Some(project_identity) = realtime_project_id(&configuration) else {
+        if options.broker_off_is_error {
+            return Err(KanbusError::IssueOperation(
+                MISSING_PROJECT_ID_MESSAGE.to_string(),
+            ));
+        }
+        return Ok(());
+    };
     let mut project_map = HashMap::new();
-    let mut topics: Vec<String> = Vec::new();
     for project in &labeled {
-        let identity =
-            project_scope_identity(&project.project_dir, &project.label).ok_or_else(|| {
-                KanbusError::IssueOperation(format!(
-                    "cannot resolve project directory for realtime scope: {}",
-                    project.project_dir.display()
-                ))
-            })?;
-        topics.push(project_topic(realtime, &identity));
-        topics.push(project_topic(realtime, &project.label));
-        project_map.insert(
-            project.label.clone(),
-            (project.project_dir.clone(), identity),
-        );
+        project_map.insert(project.label.clone(), project.project_dir.clone());
     }
+    let topics: Vec<String> = vec![project_topic(realtime, &project_identity)];
 
     let dedupe = Arc::new(Mutex::new(DedupeSet::new(Duration::from_secs(3600))));
     let local_producer = producer_id();
@@ -864,15 +863,14 @@ fn run_gossip_consumer(root: &Path, options: GossipConsumerOptions) -> Result<()
                 return;
             }
         }
-        let (project_dir, expected_identity) = match project_map.get(&envelope.project) {
-            Some(entry) => entry,
-            None => return,
-        };
-        let is_coordination = envelope.event_type.starts_with("coordination.");
-        if !is_coordination && !envelope_matches_project_identity(&envelope, expected_identity) {
+        if !envelope_matches_project_identity(&envelope, &project_identity) {
             record_foreign_project_drop();
             return;
         }
+        let project_dir = match project_map.get(&envelope.project) {
+            Some(path) => path,
+            None => return,
+        };
         if options.print_envelopes {
             if let Ok(line) = serde_json::to_string(&envelope) {
                 println!("{line}");
@@ -1811,23 +1809,26 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("."))
 }
 
-/// Compute the stable realtime scope identity of a project.
+/// Message shown once when realtime is disabled because `.kanbus.yml` has no `project_id`.
+pub const MISSING_PROJECT_ID_MESSAGE: &str =
+    "realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id";
+
+static MISSING_PROJECT_ID_WARNED: AtomicBool = AtomicBool::new(false);
+
+/// Return the `project_id` that scopes realtime topics and envelopes.
 ///
-/// The identity is the project label followed by the first sixteen lowercase
-/// hexadecimal characters of the SHA-256 digest of the canonical project
-/// directory path, a newline, and the label. Every runtime derives the same
-/// value, so two projects that share a project key but live in different
-/// directories never share a realtime topic. Returns `None` when the project
-/// directory cannot be canonicalized.
-pub fn project_scope_identity(project_dir: &Path, label: &str) -> Option<String> {
-    let canonical = fs::canonicalize(project_dir).ok()?;
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.to_string_lossy().as_bytes());
-    hasher.update(b"\n");
-    hasher.update(label.as_bytes());
-    let digest = hasher.finalize();
-    let hex: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
-    Some(format!("{label}-{}", &hex[..16]))
+/// Returns `None`, after printing [`MISSING_PROJECT_ID_MESSAGE`] once per
+/// process, when the configuration has no `project_id`.
+pub fn realtime_project_id(configuration: &ProjectConfiguration) -> Option<String> {
+    match configuration.project_id.as_deref() {
+        Some(project_id) if !project_id.is_empty() => Some(project_id.to_string()),
+        _ => {
+            if !MISSING_PROJECT_ID_WARNED.swap(true, Ordering::SeqCst) {
+                eprintln!("{MISSING_PROJECT_ID_MESSAGE}");
+            }
+            None
+        }
+    }
 }
 
 /// Return true when an envelope carries exactly the expected project identity.
@@ -1850,22 +1851,17 @@ pub fn foreign_project_drop_count() -> usize {
     FOREIGN_PROJECT_DROP_COUNT.load(Ordering::SeqCst)
 }
 
-/// Resolve the realtime topic for the project stored in `project_dir`.
-pub fn project_event_topic(
-    root: &Path,
-    project_dir: &Path,
-    configuration: &ProjectConfiguration,
-) -> Option<String> {
-    let label = resolve_project_label(root, project_dir, configuration)?;
-    let identity = project_scope_identity(project_dir, &label)?;
-    Some(project_topic(&configuration.realtime, &identity))
+/// Resolve the realtime topic of a project, or `None` when it has no `project_id`.
+pub fn project_event_topic(configuration: &ProjectConfiguration) -> Option<String> {
+    let project_id = realtime_project_id(configuration)?;
+    Some(project_topic(&configuration.realtime, &project_id))
 }
 
-fn project_topic(realtime: &RealtimeConfig, project_scope: &str) -> String {
+fn project_topic(realtime: &RealtimeConfig, project_id: &str) -> String {
     realtime
         .topics
         .project_events
-        .replace("{project}", project_scope)
+        .replace("{project}", project_id)
 }
 
 fn resolve_project_label(
@@ -2340,6 +2336,7 @@ mod tests {
         let mut configuration = default_project_configuration();
         configuration.realtime.broker = broker.to_string();
         configuration.realtime.transport = transport.to_string();
+        configuration.project_id = Some("test-project-id".to_string());
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
         std::fs::create_dir_all(root.join(&configuration.project_directory))

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import click
 
@@ -528,3 +528,31 @@ def _validate_status(
         statuses.update(values)
     if status not in statuses:
         raise MigrationError("invalid status")
+
+
+def migrate_project_id(root: Path) -> str:
+    """Write a fresh UUID project_id into .kanbus.yml when it has none.
+
+    The key is appended to the file text so every existing setting, comment and
+    ordering is preserved.
+
+    :param root: Repository root or any directory below it.
+    :type root: Path
+    :return: Message naming the written or already present project_id.
+    :rtype: str
+    :raises MigrationError: If the configuration cannot be written.
+    """
+    configuration_path = get_configuration_path(root)
+    configuration = load_project_configuration(configuration_path)
+    if configuration.project_id:
+        return f"project_id already set: {configuration.project_id}"
+    project_id = str(uuid4())
+    contents = configuration_path.read_text(encoding="utf-8")
+    if contents and not contents.endswith("\n"):
+        contents += "\n"
+    contents += f"project_id: {project_id}\n"
+    try:
+        configuration_path.write_text(contents, encoding="utf-8")
+    except OSError as error:
+        raise MigrationError(str(error)) from error
+    return f"project_id written: {project_id}"

@@ -146,6 +146,7 @@ mod tests {
             ignore_paths: Vec::new(),
             console_port: None,
             project_key: "kanbus".to_string(),
+            project_id: None,
             name: None,
             project_management_template: None,
             methodologies: None,

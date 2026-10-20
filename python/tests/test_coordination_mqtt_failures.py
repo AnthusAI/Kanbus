@@ -44,6 +44,7 @@ def _configuration(*, providers: list[str] | None = None) -> ProjectConfiguratio
         mqtt_custom_authorizer_name=None,
         mqtt_api_token=None,
     )
+    values["project_id"] = "test-project-id"
     return ProjectConfiguration.model_validate(values)
 
 
@@ -60,11 +61,17 @@ def _install_fake_paho(monkeypatch, client_class) -> None:
     monkeypatch.setitem(sys.modules, "paho.mqtt.client", client_module)
 
 
-def _envelope(*, project: str = "kanbus", producer_id: str = "peer"):
+def _envelope(
+    *,
+    project: str = "kanbus",
+    producer_id: str = "peer",
+    project_identity: str | None = "test-project-id",
+):
     return CoordinationGossipEnvelope(
         id=f"envelope-{project}-{producer_id}",
         ts=coordination.format_timestamp(datetime.now(UTC)),
         project=project,
+        project_identity=project_identity,
         type="coordination.claim",
         event_id=f"event-{project}-{producer_id}",
         producer_id=producer_id,
@@ -175,6 +182,18 @@ def test_listener_rejects_malformed_and_foreign_messages_and_ignores_echo(
         None,
         SimpleNamespace(payload=foreign.model_dump_json().encode("utf-8")),
     )
+    wrong_identity = _envelope(project_identity="another-project-id")
+    client.on_message(
+        client,
+        None,
+        SimpleNamespace(payload=wrong_identity.model_dump_json().encode("utf-8")),
+    )
+    no_identity = _envelope(project_identity=None)
+    client.on_message(
+        client,
+        None,
+        SimpleNamespace(payload=no_identity.model_dump_json().encode("utf-8")),
+    )
     echo = _envelope(producer_id="local-producer")
     client.on_message(
         client,
@@ -189,7 +208,7 @@ def test_listener_rejects_malformed_and_foreign_messages_and_ignores_echo(
     )
 
     diagnostics = coordination_mqtt.transport_diagnostics()["listener"]
-    assert diagnostics["rejected_messages"] == 2
+    assert diagnostics["rejected_messages"] == 4
     assert diagnostics["peer_messages"] == 1
     assert listener.received.is_set()
     stored = coordination_mqtt.load_envelopes(project_dir)

@@ -504,13 +504,43 @@ def _scoped_topic(context: object, name: str) -> str:
     configuration = load_project_configuration(
         get_configuration_path(project["repository_root"])
     )
-    topic = project_event_topic(
-        project["repository_root"],
-        project["repository_root"] / "project",
-        configuration,
-    )
+    topic = project_event_topic(configuration)
     assert topic is not None
     return topic
+
+
+def _write_scoped_project(
+    context: object, name: str, project_key: str, project_id: str | None
+) -> None:
+    if not hasattr(context, "scope_temp_dir"):
+        context.scope_temp_dir = tempfile.TemporaryDirectory()
+        context.scope_projects = {}
+        context.scope_raw_subscribers = {}
+        context.scope_consumers = {}
+    repository_root = Path(context.scope_temp_dir.name) / name
+    project_directory = repository_root / "project"
+    (project_directory / "issues").mkdir(parents=True)
+    project_id_line = f"project_id: {project_id}\n" if project_id else ""
+    (repository_root / ".kanbus.yml").write_text(
+        "project_directory: project\n"
+        f"project_key: {project_key}\n"
+        f"{project_id_line}"
+        "realtime:\n"
+        "  broker: auto\n"
+        "  autostart: false\n"
+        "  keepalive: false\n"
+        "  topics:\n"
+        "    project_events: projects/{project}/events\n"
+        "  transport: uds\n"
+        f"  uds_socket_path: {context.uds_socket_path}\n",
+        encoding="utf-8",
+    )
+    context.scope_projects[name] = {
+        "repository_root": repository_root,
+        "project_directory": project_directory,
+        "project_key": project_key,
+        "project_id": project_id,
+    }
 
 
 @given(
@@ -520,32 +550,39 @@ def _scoped_topic(context: object, name: str) -> str:
 def given_two_scoped_projects(
     context: object, first: str, second: str, project_key: str
 ) -> None:
-    temp_dir = tempfile.TemporaryDirectory()
-    context.scope_temp_dir = temp_dir
-    context.scope_projects = {}
-    context.scope_raw_subscribers = {}
-    context.scope_consumers = {}
+    from uuid import uuid4
+
     for name in (first, second):
-        repository_root = Path(temp_dir.name) / name
-        project_directory = repository_root / "project"
-        (project_directory / "issues").mkdir(parents=True)
-        (repository_root / ".kanbus.yml").write_text(
-            "project_directory: project\n"
-            f"project_key: {project_key}\n"
-            "realtime:\n"
-            "  broker: auto\n"
-            "  autostart: false\n"
-            "  keepalive: false\n"
-            "  topics:\n"
-            "    project_events: projects/{project}/events\n"
-            "  transport: uds\n"
-            f"  uds_socket_path: {context.uds_socket_path}\n",
-            encoding="utf-8",
-        )
-        context.scope_projects[name] = {
-            "repository_root": repository_root,
-            "project_directory": project_directory,
-        }
+        _write_scoped_project(context, name, project_key, str(uuid4()))
+
+
+@given('a clone "{clone}" of project "{original}" in another directory')
+def given_clone_of_project(context: object, clone: str, original: str) -> None:
+    source = _scoped_project(context, original)
+    _write_scoped_project(context, clone, source["project_key"], source["project_id"])
+
+
+@given(
+    'a project "{name}" with the project key "{project_key}" and no project id '
+    "on the UDS broker"
+)
+def given_project_without_project_id(
+    context: object, name: str, project_key: str
+) -> None:
+    _write_scoped_project(context, name, project_key, None)
+
+
+@then('the realtime watch of project "{name}" fails with "{message}"')
+def then_watch_fails_with_message(context: object, name: str, message: str) -> None:
+    from kanbus.gossip import GossipError, run_gossip_watch
+
+    root = _scoped_project(context, name)["repository_root"]
+    try:
+        run_gossip_watch(root, None, None, None, None, None, False)
+    except GossipError as error:
+        assert message in str(error)
+        return
+    raise AssertionError("watch should fail without a project id")
 
 
 @given('a raw subscriber on the realtime topic of project "{name}"')
@@ -594,16 +631,13 @@ def when_project_publishes_mutation(context: object, name: str, issue_id: str) -
 def _publish_remote_mutation(
     context: object, issue_id: str, topic_project: str, identity_project: str
 ) -> None:
-    from kanbus.gossip import project_scope_identity
-
-    identity = project_scope_identity(
-        _scoped_project(context, identity_project)["project_directory"], "kanbus"
-    )
+    identity_source = _scoped_project(context, identity_project)
+    identity = identity_source["project_id"]
     issue = _issue(issue_id, datetime.now(timezone.utc))
     envelope = GossipEnvelope(
         id=f"remote-{issue_id}",
         ts=issue.updated_at.isoformat().replace("+00:00", "Z"),
-        project="kanbus",
+        project=identity_source["project_key"],
         project_identity=identity,
         type="issue.mutated",
         issue_id=issue.identifier,

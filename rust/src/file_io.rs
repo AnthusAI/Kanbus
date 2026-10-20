@@ -128,7 +128,8 @@ pub fn initialize_project(root: &Path, create_local: bool) -> Result<(), KanbusE
     std::fs::create_dir(&events_dir).map_err(|error| KanbusError::Io(error.to_string()))?;
     let config_path = root.join(".kanbus.yml");
     if !config_path.exists() {
-        let default_configuration = default_project_configuration();
+        let mut default_configuration = default_project_configuration();
+        default_configuration.project_id = Some(uuid::Uuid::new_v4().to_string());
         let contents = serde_yaml::to_string(&default_configuration)
             .map_err(|error| KanbusError::Io(error.to_string()))?;
         std::fs::write(&config_path, contents)

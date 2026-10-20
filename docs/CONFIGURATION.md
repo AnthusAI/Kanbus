@@ -42,6 +42,7 @@ Every key accepted at the top level of `.kanbus.yml`. Unknown keys are errors. T
 | `ignore_paths` | `List[str]` | `[]` | Paths to exclude from project discovery. |
 | `console_port` | `Optional[int]` | `None` | Optional port for the web console server. |
 | `project_key` | `str` | required | Issue ID project key (prefix). |
+| `project_id` | `Optional[str]` | `None` | Stable UUID identifying the project across clones and worktrees; scopes realtime topics. |
 | `name` | `Optional[str]` | `None` | Optional human-readable board title. |
 | `project_management_template` | `Optional[str]` | `None` | Optional template path for CONTRIBUTING_AGENT.md. |
 | `methodologies` | `Optional[List[Union[str, ProjectMethodologyBundleReference]]]` | `None` | Methodology names assembled into CONTRIBUTING_AGENT.md. |

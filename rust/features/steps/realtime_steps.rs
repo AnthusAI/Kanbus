@@ -16,8 +16,8 @@ use kanbus::file_io::get_configuration_path;
 use kanbus::gossip::{
     attempt_mosquitto_missing_warning, attempt_mqtt_publish_without_broker, autostart_mosquitto,
     foreign_project_drop_count, mosquitto_missing_warning_count, project_event_topic,
-    project_scope_identity, publish_issue_mutation, reset_mosquitto_missing_warning,
-    run_gossip_bridge, DedupeSet, GossipEnvelope,
+    publish_issue_mutation, reset_mosquitto_missing_warning, run_gossip_bridge, run_gossip_watch,
+    DedupeSet, GossipEnvelope,
 };
 use kanbus::models::{IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig};
 use kanbus::overlay::{
@@ -400,6 +400,7 @@ fn when_publish_two_without_broker(world: &mut KanbusWorld) {
         ignore_paths: Vec::new(),
         console_port: None,
         project_key: "kanbus".to_string(),
+        project_id: None,
         name: None,
         project_management_template: None,
         methodologies: None,
@@ -585,6 +586,8 @@ async fn given_config_broker_disabled(world: &mut KanbusWorld) -> Result<(), std
 struct ScopedProject {
     repository_root: PathBuf,
     project_directory: PathBuf,
+    project_key: String,
+    project_id: Option<String>,
 }
 
 /// State shared by the realtime project scope scenarios.
@@ -611,12 +614,50 @@ fn scoped_topic(world: &KanbusWorld, name: &str) -> String {
         &get_configuration_path(&project.repository_root).expect("path"),
     )
     .expect("configuration");
-    project_event_topic(
-        &project.repository_root,
-        &project.repository_root.join("project"),
-        &configuration,
+    project_event_topic(&configuration).expect("topic")
+}
+
+fn write_scoped_project(
+    world: &mut KanbusWorld,
+    name: &str,
+    project_key: &str,
+    project_id: Option<String>,
+) {
+    let socket_path = world.uds_socket_path.clone().expect("socket");
+    if world.realtime_scope.temp_dir.is_none() {
+        world.realtime_scope.temp_dir = Some(TempDir::new().expect("tempdir"));
+    }
+    let base = world
+        .realtime_scope
+        .temp_dir
+        .as_ref()
+        .expect("temp dir")
+        .path()
+        .to_path_buf();
+    let repository_root = base.join(name);
+    let project_directory = repository_root.join("project");
+    fs::create_dir_all(project_directory.join("issues")).expect("issues directory");
+    let project_id_line = project_id
+        .as_ref()
+        .map(|id| format!("project_id: {id}\n"))
+        .unwrap_or_default();
+    fs::write(
+        repository_root.join(".kanbus.yml"),
+        format!(
+            "project_directory: project\nproject_key: {project_key}\n{project_id_line}realtime:\n  broker: auto\n  autostart: false\n  keepalive: false\n  topics:\n    project_events: projects/{{project}}/events\n  transport: uds\n  uds_socket_path: {}\n",
+            socket_path.display()
+        ),
     )
-    .expect("topic")
+    .expect("configuration");
+    world.realtime_scope.projects.insert(
+        name.to_string(),
+        ScopedProject {
+            repository_root,
+            project_directory,
+            project_key: project_key.to_string(),
+            project_id,
+        },
+    );
 }
 
 #[given(
@@ -628,29 +669,29 @@ fn given_two_scoped_projects(
     second: String,
     project_key: String,
 ) {
-    let socket_path = world.uds_socket_path.clone().expect("socket");
-    let temp_dir = TempDir::new().expect("tempdir");
     for name in [first, second] {
-        let repository_root = temp_dir.path().join(&name);
-        let project_directory = repository_root.join("project");
-        fs::create_dir_all(project_directory.join("issues")).expect("issues directory");
-        fs::write(
-            repository_root.join(".kanbus.yml"),
-            format!(
-                "project_directory: project\nproject_key: {project_key}\nrealtime:\n  broker: auto\n  autostart: false\n  keepalive: false\n  topics:\n    project_events: projects/{{project}}/events\n  transport: uds\n  uds_socket_path: {}\n",
-                socket_path.display()
-            ),
-        )
-        .expect("configuration");
-        world.realtime_scope.projects.insert(
-            name,
-            ScopedProject {
-                repository_root,
-                project_directory,
-            },
+        write_scoped_project(
+            world,
+            &name,
+            &project_key,
+            Some(uuid::Uuid::new_v4().to_string()),
         );
     }
-    world.realtime_scope.temp_dir = Some(temp_dir);
+}
+
+#[given(expr = "a clone {string} of project {string} in another directory")]
+fn given_clone_of_project(world: &mut KanbusWorld, clone: String, original: String) {
+    let source = scoped_project(world, &original);
+    let project_key = source.project_key.clone();
+    let project_id = source.project_id.clone();
+    write_scoped_project(world, &clone, &project_key, project_id);
+}
+
+#[given(
+    expr = "a project {string} with the project key {string} and no project id on the UDS broker"
+)]
+fn given_project_without_project_id(world: &mut KanbusWorld, name: String, project_key: String) {
+    write_scoped_project(world, &name, &project_key, None);
 }
 
 #[given(expr = "a raw subscriber on the realtime topic of project {string}")]
@@ -710,14 +751,15 @@ fn publish_remote_mutation(
     let socket_path = world.uds_socket_path.clone().expect("socket");
     let topic = scoped_topic(world, topic_project);
     let identity_source = scoped_project(world, identity_project);
-    let identity = project_scope_identity(&identity_source.project_directory, "kanbus");
+    let identity = identity_source.project_id.clone();
+    let label = identity_source.project_key.clone();
     let issue = issue(issue_id, Utc::now());
     let envelope = GossipEnvelope {
         id: format!("remote-{issue_id}"),
         ts: issue
             .updated_at
             .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        project: "kanbus".to_string(),
+        project: label,
         project_identity: identity,
         event_type: "issue.mutated".to_string(),
         issue_id: Some(issue.identifier.clone()),
@@ -838,4 +880,12 @@ fn then_consumers_do_not_apply_issue(world: &mut KanbusWorld, name: String, issu
 #[then("the count of dropped events for other projects has increased")]
 fn then_foreign_drop_count_increased(world: &mut KanbusWorld) {
     assert!(foreign_project_drop_count() > world.realtime_scope.drop_count_before);
+}
+
+#[then(expr = "the realtime watch of project {string} fails with {string}")]
+fn then_watch_fails_with_message(world: &mut KanbusWorld, name: String, message: String) {
+    let root = scoped_project(world, &name).repository_root.clone();
+    let error = run_gossip_watch(&root, None, None, None, None, None, false)
+        .expect_err("watch should fail without a project id");
+    assert!(error.to_string().contains(&message));
 }

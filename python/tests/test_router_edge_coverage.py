@@ -53,6 +53,7 @@ def _configuration(*, providers: list[str] | None = None) -> ProjectConfiguratio
         mqtt_custom_authorizer_name=None,
         mqtt_api_token=None,
     )
+    values["project_id"] = "test-project-id"
     return ProjectConfiguration.model_validate(values)
 
 

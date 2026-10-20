@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -181,7 +180,7 @@ def publish_issue_mutation(
     project_label = _resolve_project_label(root, project_dir, configuration)
     if project_label is None:
         return
-    project_identity = project_scope_identity(project_dir, project_label)
+    project_identity = realtime_project_id(configuration)
     if project_identity is None:
         return
     envelope = GossipEnvelope(
@@ -221,7 +220,7 @@ def publish_issue_deleted(
     project_label = _resolve_project_label(root, project_dir, configuration)
     if project_label is None:
         return
-    project_identity = project_scope_identity(project_dir, project_label)
+    project_identity = realtime_project_id(configuration)
     if project_identity is None:
         return
     envelope = GossipEnvelope(
@@ -317,19 +316,12 @@ def _run_gossip_consumer(
         if not labeled:
             raise GossipError(f"unknown project label: {project_filter}")
 
-    scope_by_label: dict[str, str] = {}
-    for project in labeled:
-        identity = project_scope_identity(project.project_dir, project.label)
-        if identity is None:
-            raise GossipError(
-                "cannot resolve project directory for realtime scope: "
-                f"{project.project_dir}"
-            )
-        scope_by_label[project.label] = identity
-    topics = []
-    for project in labeled:
-        topics.append(_project_topic(realtime, scope_by_label[project.label]))
-        topics.append(_project_topic(realtime, project.label))
+    project_identity = realtime_project_id(configuration)
+    if project_identity is None:
+        if broker_off_is_error:
+            raise GossipError(MISSING_PROJECT_ID_MESSAGE)
+        return
+    topics = [_project_topic(realtime, project_identity)]
     dedupe = DedupeSet(ttl_s=GOSSIP_DEDUPE_TTL_S)
 
     def handler(envelope: GossipEnvelope) -> None:
@@ -337,15 +329,11 @@ def _run_gossip_consumer(
             return
         if envelope.producer_id == producer_id():
             return
+        if not envelope_matches_project_identity(envelope, project_identity):
+            _record_foreign_project_drop()
+            return
         target_project = _resolve_project_dir(root, envelope.project)
         if target_project is None:
-            return
-        if not isinstance(
-            envelope, CoordinationGossipEnvelope
-        ) and not envelope_matches_project_identity(
-            envelope, scope_by_label[envelope.project]
-        ):
-            _record_foreign_project_drop()
             return
         if print_envelopes:
             # `gossip watch --print` is also consumed by unattended workers.
@@ -982,38 +970,40 @@ def _resolve_project_label(
     return configuration.project_key
 
 
-def project_scope_identity(project_dir: Path, label: str) -> Optional[str]:
-    """Compute the stable realtime scope identity of a project.
+MISSING_PROJECT_ID_MESSAGE = (
+    "realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id"
+)
+_MISSING_PROJECT_ID_WARNED = False
 
-    The identity is the project label followed by the first sixteen lowercase
-    hexadecimal characters of the SHA-256 digest of the canonical project
-    directory path, a newline, and the label. Every runtime derives the same
-    value, so two projects that share a project key but live in different
-    directories never share a realtime topic.
 
-    :param project_dir: Project directory containing the issues folder.
-    :type project_dir: Path
-    :param label: Project label used in envelopes.
-    :type label: str
-    :return: The scope identity, or None when the directory cannot be resolved.
+def realtime_project_id(configuration: ProjectConfiguration) -> Optional[str]:
+    """Return the project_id that scopes realtime topics and envelopes.
+
+    Prints MISSING_PROJECT_ID_MESSAGE once per process and returns None when
+    the configuration has no project_id.
+
+    :param configuration: Loaded project configuration.
+    :type configuration: ProjectConfiguration
+    :return: The project_id, or None when realtime is disabled.
     :rtype: Optional[str]
     """
-    try:
-        canonical = project_dir.resolve(strict=True)
-    except (OSError, RuntimeError):
-        return None
-    digest = hashlib.sha256(f"{canonical}\n{label}".encode("utf-8")).hexdigest()
-    return f"{label}-{digest[:16]}"
+    global _MISSING_PROJECT_ID_WARNED
+    if configuration.project_id:
+        return configuration.project_id
+    if not _MISSING_PROJECT_ID_WARNED:
+        _MISSING_PROJECT_ID_WARNED = True
+        print(MISSING_PROJECT_ID_MESSAGE, file=sys.stderr)
+    return None
 
 
 def envelope_matches_project_identity(
     envelope: GossipEnvelope, expected_identity: str
 ) -> bool:
-    """Return True when an envelope carries exactly the expected project identity.
+    """Return True when an envelope carries exactly the expected project_id.
 
     :param envelope: Received gossip envelope.
     :type envelope: GossipEnvelope
-    :param expected_identity: Scope identity of the receiving project.
+    :param expected_identity: project_id of the receiving project.
     :type expected_identity: str
     :return: Whether the identities are equal.
     :rtype: bool
@@ -1042,29 +1032,22 @@ def foreign_project_drop_count() -> int:
     return _FOREIGN_PROJECT_DROP_COUNT
 
 
-def project_event_topic(
-    root: Path, project_dir: Path, configuration: ProjectConfiguration
-) -> Optional[str]:
-    """Resolve the realtime topic for the project stored in ``project_dir``.
+def project_event_topic(configuration: ProjectConfiguration) -> Optional[str]:
+    """Resolve the realtime topic of a project.
 
-    :param root: Repository root.
-    :type root: Path
-    :param project_dir: Project directory.
-    :type project_dir: Path
     :param configuration: Loaded project configuration.
     :type configuration: ProjectConfiguration
-    :return: The scoped topic, or None when the directory cannot be resolved.
+    :return: The topic, or None when the project has no project_id.
     :rtype: Optional[str]
     """
-    label = _resolve_project_label(root, project_dir, configuration)
-    identity = project_scope_identity(project_dir, label)
-    if identity is None:
+    project_id = realtime_project_id(configuration)
+    if project_id is None:
         return None
-    return _project_topic(configuration.realtime, identity)
+    return _project_topic(configuration.realtime, project_id)
 
 
-def _project_topic(realtime: RealtimeConfig, project_scope: str) -> str:
-    return realtime.topics.project_events.format(project=project_scope)
+def _project_topic(realtime: RealtimeConfig, project_id: str) -> str:
+    return realtime.topics.project_events.format(project=project_id)
 
 
 def _resolve_project_dir(root: Path, label: str) -> Optional[Path]:
