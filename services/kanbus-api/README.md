@@ -33,6 +33,37 @@ Storage access is narrow: a request touches only the requested boards' object pr
 
 Runtime selects exactly one backend. Local: `KANBUS_BACKEND=file`, `KANBUS_ROOT`, `KANBUS_TENANT`, `KANBUS_PROJECT`, `KANBUS_LOCAL_TOKEN`, optional `KANBUS_PORT` (5175); the local token is granted exactly that one board. The local binary binds `127.0.0.1` only. Cloud: `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, `KANBUS_CATALOG_TABLE`. The Lambda consumes API Gateway HTTP API JWT authorizer context; it never decodes bearer tokens itself. Gateway invocation permissions and JWT issuer/audience configuration remain infrastructure responsibilities. No public intake route is provided.
 
+## Service callers
+
+Trusted backend services (for example a control plane in the same AWS account) call the API without a user JWT. They use a second API Gateway HTTP API (or stage) whose routes use `AWS_IAM` authorization (SigV4), pointing at the same Lambda and the same routes. The Lambda picks the authenticator from the verified authorizer context in the event:
+
+- `requestContext.authorizer.jwt`: the user path (Cognito groups to grants).
+- `requestContext.authorizer.iam`: the service path.
+- Neither, or both: 401.
+
+Configuration is the required deployment setting `KANBUS_SERVICE_PRINCIPALS`, a JSON array with one entry per role:
+
+```json
+[
+  {"role_arn": "arn:aws:iam::111122223333:role/ControlPlane", "tenants": "*", "provision": false, "delegate_actor": true},
+  {"role_arn": "arn:aws:iam::111122223333:role/Reporter", "tenants": ["acme", "globex"]}
+]
+```
+
+`role_arn` is an IAM role ARN without a path (assumed-role ARNs never carry the path). `tenants` is mandatory: `"*"` for every tenant or a non-empty list of tenant names. `provision` and `delegate_actor` default to false. Unknown fields, invalid JSON, invalid entries and a repeated `role_arn` fail startup with a message naming the problem. An empty or absent variable means no service callers; the user path is unaffected.
+
+The caller identity is `requestContext.authorizer.iam.userArn`. The Lambda accepts only `arn:<partition>:sts::<account>:assumed-role/<name>/<session>`, requires `accountId` to equal the account in the ARN, normalizes it to `arn:<partition>:iam::<account>:role/<name>` (the session name is discarded) and compares it with the configured `role_arn` by exact, case-sensitive equality. Prefix matches, other accounts, other role names and anything not shaped like an assumed-role ARN get 403 `forbidden`, the same body as an ungranted board.
+
+A role mapped with tenants `"*"` is granted every board of every tenant; a tenant list grants every board of those tenants. A service principal's actor is its normalized role ARN, unless it delegates.
+
+### Delegated actor
+
+A role with `delegate_actor` must send `X-Kanbus-Actor` on every request (missing or malformed: 400 `invalid_request`). The value must match `^[a-z0-9-]+:[a-z0-9-]+:[A-Za-z0-9-_.]{1,128}$`, for example `chatticus:user:<uuid>`, `chatticus:bot:<uuid>` or `chatticus:system:task-migration`. It is recorded verbatim as the creator, comment author and event `actor_id`. Any other caller that sends the header, including every user and the local binary, gets 403 `forbidden`: a user can never set an actor.
+
+### Trust boundary
+
+The Lambda trusts the authorizer context in its event. `lambda:InvokeFunction` must therefore be granted only to the two API Gateway APIs and to explicitly trusted roles. A direct invoker is fully trusted: it can hand-build any event, including any identity and actor.
+
 ## Migration for single-board deployments
 
 Earlier deployments bound one board with the removed variables `KANBUS_NAMESPACE` and `KANBUS_REQUIRED_GROUP` and served `/api/...`. To migrate (for example Prospectus):

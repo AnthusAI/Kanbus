@@ -28,6 +28,8 @@ fn request(method: &str, path: &str, body: Value, revision: Option<&str>) -> Api
         principal: Principal {
             actor: "proof-api-member".into(),
             grants: grants_from_groups(&json!("kanbus:proof-api/*")),
+            provision: false,
+            delegate_actor: false,
         },
     }
 }

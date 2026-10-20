@@ -1,6 +1,8 @@
 //! Executable examples for features/writable_api.feature.
 
-use kanbus_api::{authenticate_cloud, authenticate_local, Grant, Principal, ProjectGrant};
+use kanbus_api::{
+    authenticate_cloud, authenticate_local, Grant, Principal, ProjectGrant, ServicePrincipals,
+};
 use serde_json::json;
 
 use kanbus_api::{grants_from_groups, Api, ApiRequest};
@@ -26,6 +28,8 @@ fn setup() -> (TempDir, Api) {
 
 fn principal_for(tenant: &str, project: &str) -> Principal {
     Principal {
+        provision: false,
+        delegate_actor: false,
         actor: "member-1".into(),
         grants: vec![Grant {
             tenant: tenant.into(),
@@ -1034,6 +1038,8 @@ async fn accepted_queries_expose_cost_and_reject_excess_streams_and_predicates()
         "query_budget_exceeded"
     );
     let tenant_principal = Principal {
+        provision: false,
+        delegate_actor: false,
         actor: "member-1".into(),
         grants: vec![Grant {
             tenant: "tenant".into(),
@@ -1369,6 +1375,8 @@ fn create_board(root: &std::path::Path, tenant: &str, project: &str) {
 
 fn grants_to(groups: &[&str]) -> Principal {
     Principal {
+        provision: false,
+        delegate_actor: false,
         actor: "member-1".into(),
         grants: grants_from_groups(&json!(groups)),
     }
@@ -1428,15 +1436,24 @@ fn group_claims_parse_into_board_grants() {
 fn cloud_authentication_grants_only_from_verified_group_claims() {
     let event = |groups: serde_json::Value| json!({"requestContext":{"authorizer":{"jwt":{"claims":{"sub":"member-1","cognito:groups":groups}}}}});
     assert_eq!(
-        authenticate_cloud(&json!({"headers":{"authorization":"Bearer forged"}}))
-            .unwrap_err()
-            .status,
+        authenticate_cloud(
+            &json!({"headers":{"authorization":"Bearer forged"}}),
+            &ServicePrincipals::default()
+        )
+        .unwrap_err()
+        .status,
         401
     );
     for groups in [json!(["admin"]), json!("other"), json!(null), json!(42)] {
-        assert_eq!(authenticate_cloud(&event(groups)).unwrap_err().status, 403);
+        assert_eq!(
+            authenticate_cloud(&event(groups), &ServicePrincipals::default())
+                .unwrap_err()
+                .status,
+            403
+        );
     }
-    let principal = authenticate_cloud(&event(json!("kanbus:a/b"))).unwrap();
+    let principal =
+        authenticate_cloud(&event(json!("kanbus:a/b")), &ServicePrincipals::default()).unwrap();
     assert_eq!(principal.actor, "member-1");
     assert!(principal.allows(&Scope::new("a", "b").unwrap()));
     assert!(!principal.allows(&Scope::new("a", "c").unwrap()));
@@ -1446,10 +1463,10 @@ fn cloud_authentication_grants_only_from_verified_group_claims() {
 #[test]
 fn local_requires_explicit_secret_and_grants_only_the_served_board() {
     let board = Scope::new("tenant", "project").unwrap();
-    assert!(authenticate_local(None, "secret", &board).is_err());
-    assert!(authenticate_local(Some("Bearer wrong"), "secret", &board).is_err());
-    assert!(authenticate_local(Some("Bearer "), "", &board).is_err());
-    let principal = authenticate_local(Some("Bearer secret"), "secret", &board).unwrap();
+    assert!(authenticate_local(None, "secret", &board, None).is_err());
+    assert!(authenticate_local(Some("Bearer wrong"), "secret", &board, None).is_err());
+    assert!(authenticate_local(Some("Bearer "), "", &board, None).is_err());
+    let principal = authenticate_local(Some("Bearer secret"), "secret", &board, None).unwrap();
     assert_eq!(principal.actor, "local-member");
     assert!(principal.allows(&board));
     assert!(!principal.allows(&Scope::new("tenant", "other").unwrap()));
@@ -1464,7 +1481,7 @@ async fn direct_invoke_event_routes_from_raw_path_only() {
         "rawQueryString":"",
         "requestContext":{"http":{"method":"GET"},"authorizer":{"jwt":{"claims":{"sub":"prospectus-intake-evaluation","cognito:groups":"kanbus:cyclotron/prospectus"}}}}
     });
-    let principal = authenticate_cloud(&event).unwrap();
+    let principal = authenticate_cloud(&event, &ServicePrincipals::default()).unwrap();
     assert_eq!(principal.actor, "prospectus-intake-evaluation");
     let mut direct = request_as(
         principal,
@@ -1633,6 +1650,8 @@ async fn cross_board_list_merges_granted_boards_and_rejects_any_ungranted_board(
 async fn invalid_tenant_and_project_names_are_rejected_before_storage_access() {
     let (_directory, api) = multi_board_api(&[("acme", "support")]);
     let everything = Principal {
+        provision: false,
+        delegate_actor: false,
         actor: "member-1".into(),
         grants: grants_from_groups(&json!("kanbus:acme/*")),
     };
@@ -1865,4 +1884,471 @@ async fn per_board_query_semantics_match_the_single_board_contract() {
     );
     let second = api.handle(next).await.unwrap();
     assert_eq!(second.body["issues"][0]["issue"]["title"], "b");
+}
+
+const ACCOUNT: &str = "111122223333";
+
+fn mapping(entries: serde_json::Value) -> ServicePrincipals {
+    ServicePrincipals::from_json(&entries.to_string()).unwrap()
+}
+
+fn role_event(user_arn: &str, account: &str, actor: Option<&str>) -> serde_json::Value {
+    let mut headers = serde_json::Map::new();
+    if let Some(actor) = actor {
+        headers.insert("x-kanbus-actor".into(), json!(actor));
+    }
+    json!({"headers":headers,"requestContext":{"authorizer":{"iam":{
+        "accessKey":"ASIAEXAMPLE","accountId":account,"callerId":"AROAEXAMPLE:session",
+        "userArn":user_arn,"userId":"AROAEXAMPLE:session"}}}})
+}
+
+fn assumed(name: &str, session: &str) -> String {
+    format!("arn:aws:sts::{ACCOUNT}:assumed-role/{name}/{session}")
+}
+
+fn role_arn(name: &str) -> String {
+    format!("arn:aws:iam::{ACCOUNT}:role/{name}")
+}
+
+fn authenticate_role(
+    mapped: &ServicePrincipals,
+    name: &str,
+    actor: Option<&str>,
+) -> Result<Principal, kanbus_api::ApiError> {
+    authenticate_cloud(&role_event(&assumed(name, "s1"), ACCOUNT, actor), mapped)
+}
+
+#[tokio::test]
+async fn service_role_with_all_tenants_reads_and_writes_two_tenants() {
+    let (_directory, api) = multi_board_api(&[("acme", "support"), ("globex", "sales")]);
+    let mapped = mapping(json!([{"role_arn":role_arn("control"),"tenants":"*"}]));
+    let principal = authenticate_role(&mapped, "control", None).unwrap();
+    assert_eq!(principal.actor, role_arn("control"));
+    for board in ["acme/support", "globex/sales"] {
+        let created = api
+            .handle(request_as(
+                principal.clone(),
+                "POST",
+                &format!("/{board}/api/issues"),
+                json!({"type":"task","title":"From service"}),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(created.body["issue"]["creator"], role_arn("control"));
+        let id = created.body["issue"]["id"].as_str().unwrap();
+        let read = api
+            .handle(request_as(
+                principal.clone(),
+                "GET",
+                &format!("/{board}/api/issues/{id}"),
+                json!(null),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(read.status, 200);
+    }
+}
+
+#[tokio::test]
+async fn tenant_limited_service_role_is_denied_with_identical_403() {
+    let (_directory, api) = multi_board_api(&[("acme", "support"), ("globex", "sales")]);
+    let mapped = mapping(json!([{"role_arn":role_arn("control"),"tenants":["acme"]}]));
+    let principal = authenticate_role(&mapped, "control", None).unwrap();
+    let allowed = api
+        .handle(request_as(
+            principal.clone(),
+            "GET",
+            "/acme/support/api/issues",
+            json!(null),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(allowed.status, 200);
+    let mut denials = Vec::new();
+    for board in ["globex/sales", "globex/missing", "nobody/nothing"] {
+        let error = api
+            .handle(request_as(
+                principal.clone(),
+                "GET",
+                &format!("/{board}/api/issues"),
+                json!(null),
+                None,
+            ))
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(error.status, 403);
+        denials.push(error.body());
+    }
+    assert!(denials.windows(2).all(|pair| pair[0] == pair[1]));
+}
+
+#[test]
+fn unknown_role_is_forbidden_and_empty_mapping_allows_no_service_callers() {
+    let mapped = mapping(json!([{"role_arn":role_arn("control"),"tenants":"*"}]));
+    assert_eq!(
+        authenticate_role(&mapped, "other", None)
+            .unwrap_err()
+            .status,
+        403
+    );
+    let none = ServicePrincipals::from_json("").unwrap();
+    assert_eq!(
+        authenticate_role(&none, "control", None)
+            .unwrap_err()
+            .status,
+        403
+    );
+    assert_eq!(ServicePrincipals::from_json("[]").unwrap(), none);
+}
+
+#[test]
+fn assumed_role_session_names_never_affect_matching() {
+    let mapped = mapping(json!([{"role_arn":role_arn("control"),"tenants":"*"}]));
+    for session in ["s1", "i-0abc", "a.b@c=d,e+f", "control", "Control"] {
+        let event = role_event(&assumed("control", session), ACCOUNT, None);
+        let principal = authenticate_cloud(&event, &mapped).unwrap();
+        assert_eq!(principal.actor, role_arn("control"));
+    }
+    assert_eq!(
+        kanbus_api::normalize_assumed_role_arn(&assumed("control", "x")),
+        Some(role_arn("control"))
+    );
+}
+
+#[test]
+fn arn_normalization_rejects_lookalikes_other_accounts_and_malformed_arns() {
+    let mapped = mapping(json!([{"role_arn":role_arn("control"),"tenants":"*"}]));
+    let forbidden_arns = [
+        assumed("control-admin", "s"),
+        assumed("contro", "s"),
+        assumed("Control", "s"),
+        assumed("CONTROL", "s"),
+        assumed("control ", "s"),
+        assumed("control", ""),
+        format!("arn:aws:sts::{ACCOUNT}:assumed-role/path/control/s"),
+        format!("arn:aws:sts::{ACCOUNT}:assumed-role/control/s/extra"),
+        "arn:aws:sts::999988887777:assumed-role/control/s".to_string(),
+        format!("arn:aws:sts::{ACCOUNT}:federated-user/control"),
+        format!("arn:aws:sts::{ACCOUNT}:assumed-role/control"),
+        format!("arn:aws:iam::{ACCOUNT}:role/control"),
+        format!("arn:aws:iam::{ACCOUNT}:user/control"),
+        format!("arn:aws:iam::{ACCOUNT}:root"),
+        format!("arn:aws:sts:us-east-1:{ACCOUNT}:assumed-role/control/s"),
+        format!("arn:aws:sts::{ACCOUNT}:assumed-role/control/s:more"),
+        format!("xarn:aws:sts::{ACCOUNT}:assumed-role/control/s"),
+        format!("arn:aws:sts::{ACCOUNT}9:assumed-role/control/s"),
+        String::new(),
+    ];
+    for arn in &forbidden_arns {
+        let result = authenticate_cloud(&role_event(arn, ACCOUNT, None), &mapped);
+        assert!(
+            matches!(&result, Err(error) if error.status == 403 || error.status == 401),
+            "{arn} must not authenticate"
+        );
+    }
+    let mismatched_account = role_event(&assumed("control", "s"), "999988887777", None);
+    assert_eq!(
+        authenticate_cloud(&mismatched_account, &mapped)
+            .unwrap_err()
+            .status,
+        403
+    );
+    let other_account_mapping =
+        mapping(json!([{"role_arn":"arn:aws:iam::999988887777:role/control","tenants":"*"}]));
+    assert_eq!(
+        authenticate_role(&other_account_mapping, "control", None)
+            .unwrap_err()
+            .status,
+        403
+    );
+    let mut missing_account = role_event(&assumed("control", "s"), ACCOUNT, None);
+    missing_account["requestContext"]["authorizer"]["iam"]
+        .as_object_mut()
+        .unwrap()
+        .remove("accountId");
+    assert_eq!(
+        authenticate_cloud(&missing_account, &mapped)
+            .unwrap_err()
+            .status,
+        403
+    );
+    let mut missing_arn = role_event(&assumed("control", "s"), ACCOUNT, None);
+    missing_arn["requestContext"]["authorizer"]["iam"]
+        .as_object_mut()
+        .unwrap()
+        .remove("userArn");
+    assert_eq!(
+        authenticate_cloud(&missing_arn, &mapped)
+            .unwrap_err()
+            .status,
+        401
+    );
+    assert_eq!(
+        kanbus_api::normalize_assumed_role_arn("arn:aws:sts::1:assumed-role/a/b"),
+        None
+    );
+}
+
+#[tokio::test]
+async fn delegating_service_records_header_actor_everywhere() {
+    let (_directory, api) = multi_board_api(&[("acme", "support")]);
+    let mapped =
+        mapping(json!([{"role_arn":role_arn("control"),"tenants":"*","delegate_actor":true}]));
+    for actor in [
+        "chatticus:user:0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d",
+        "chatticus:bot:0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d",
+        "chatticus:system:task-migration",
+    ] {
+        let principal = authenticate_role(&mapped, "control", Some(actor)).unwrap();
+        assert_eq!(principal.actor, actor);
+        let created = api
+            .handle(request_as(
+                principal.clone(),
+                "POST",
+                "/acme/support/api/issues",
+                json!({"type":"task","title":"Delegated"}),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(created.body["issue"]["creator"], actor);
+        let id = created.body["issue"]["id"].as_str().unwrap().to_string();
+        let commented = api
+            .handle(request_as(
+                principal.clone(),
+                "POST",
+                &format!("/acme/support/api/issues/{id}/comments"),
+                json!({"text":"Noted"}),
+                created.body["revision"].as_str(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(commented.body["issue"]["comments"][0]["author"], actor);
+        let history = api
+            .handle(request_as(
+                principal,
+                "GET",
+                &format!("/acme/support/api/issues/{id}/events"),
+                json!(null),
+                None,
+            ))
+            .await
+            .unwrap();
+        let events = history.body["events"].as_array().unwrap();
+        assert!(!events.is_empty());
+        assert!(events.iter().all(|event| event["actor_id"] == actor));
+    }
+}
+
+#[test]
+fn delegating_service_requires_a_well_formed_actor_header() {
+    let mapped =
+        mapping(json!([{"role_arn":role_arn("control"),"tenants":"*","delegate_actor":true}]));
+    assert_eq!(
+        authenticate_role(&mapped, "control", None)
+            .unwrap_err()
+            .status,
+        400
+    );
+    let too_long = format!("chatticus:user:{}", "a".repeat(129));
+    for malformed in [
+        "",
+        "chatticus",
+        "chatticus:user",
+        "chatticus:user:",
+        "chatticus:user:a:b",
+        "Chatticus:user:a",
+        "chatticus:User:a",
+        "chat_ticus:user:a",
+        ":user:a",
+        "chatticus::a",
+        "chatticus:user:has space",
+        "chatticus:user:a/b",
+        "chatticus:user:a\nb",
+        "chatticus:user:a,b",
+        too_long.as_str(),
+    ] {
+        let error = authenticate_role(&mapped, "control", Some(malformed)).unwrap_err();
+        assert_eq!(error.status, 400, "{malformed:?}");
+        assert_eq!(error.code, "invalid_request");
+    }
+    let longest = format!("chatticus:user:{}", "a".repeat(128));
+    assert!(authenticate_role(&mapped, "control", Some(&longest)).is_ok());
+    assert!(authenticate_role(&mapped, "control", Some("a1:b-2:C_d.e-9")).is_ok());
+}
+
+#[test]
+fn actor_header_is_forbidden_for_users_and_non_delegating_services() {
+    let mapped = mapping(json!([{"role_arn":role_arn("plain"),"tenants":"*"}]));
+    let service = authenticate_role(&mapped, "plain", Some("chatticus:user:x")).unwrap_err();
+    assert_eq!(service.status, 403);
+    let mut user = json!({"headers":{"X-Kanbus-Actor":"chatticus:user:x"},"requestContext":{"authorizer":{"jwt":{"claims":{"sub":"member-1","cognito:groups":"kanbus:a/b"}}}}});
+    assert_eq!(authenticate_cloud(&user, &mapped).unwrap_err().status, 403);
+    user["headers"] = json!({"x-kanbus-actor":""});
+    assert_eq!(authenticate_cloud(&user, &mapped).unwrap_err().status, 403);
+    user["headers"] = json!({});
+    assert_eq!(
+        authenticate_cloud(&user, &mapped).unwrap().actor,
+        "member-1"
+    );
+    let board = Scope::new("tenant", "project").unwrap();
+    assert_eq!(
+        authenticate_local(
+            Some("Bearer secret"),
+            "secret",
+            &board,
+            Some("chatticus:user:x")
+        )
+        .unwrap_err()
+        .status,
+        403
+    );
+}
+
+#[test]
+fn two_roles_differing_only_in_capabilities_get_their_own_capabilities() {
+    let mapped = mapping(json!([
+        {"role_arn":role_arn("alpha"),"tenants":"*","provision":false,"delegate_actor":false},
+        {"role_arn":role_arn("beta"),"tenants":"*","provision":true,"delegate_actor":true},
+        {"role_arn":role_arn("gamma"),"tenants":"*","provision":true,"delegate_actor":false}
+    ]));
+    let alpha = authenticate_role(&mapped, "alpha", None).unwrap();
+    assert!(!alpha.provision && !alpha.delegate_actor);
+    assert_eq!(alpha.actor, role_arn("alpha"));
+    let beta = authenticate_role(&mapped, "beta", Some("chatticus:user:u1")).unwrap();
+    assert!(beta.provision && beta.delegate_actor);
+    assert_eq!(beta.actor, "chatticus:user:u1");
+    let gamma = authenticate_role(&mapped, "gamma", None).unwrap();
+    assert!(gamma.provision && !gamma.delegate_actor);
+    assert_eq!(
+        authenticate_role(&mapped, "beta", None).unwrap_err().status,
+        400
+    );
+    assert_eq!(
+        authenticate_role(&mapped, "alpha", Some("chatticus:user:u1"))
+            .unwrap_err()
+            .status,
+        403
+    );
+}
+
+#[test]
+fn authorizer_context_selects_exactly_one_authenticator() {
+    let mapped = mapping(json!([{"role_arn":role_arn("control"),"tenants":"*"}]));
+    let jwt = json!({"claims":{"sub":"member-1","cognito:groups":"kanbus:a/b"}});
+    let iam = role_event(&assumed("control", "s"), ACCOUNT, None)["requestContext"]["authorizer"]
+        ["iam"]
+        .clone();
+    let both = json!({"requestContext":{"authorizer":{"jwt":jwt,"iam":iam}}});
+    assert_eq!(authenticate_cloud(&both, &mapped).unwrap_err().status, 401);
+    for neither in [
+        json!({}),
+        json!({"requestContext":{}}),
+        json!({"requestContext":{"authorizer":{}}}),
+        json!({"requestContext":{"authorizer":{"lambda":{"sub":"x"}}}}),
+        json!({"requestContext":{"authorizer":{"jwt":null,"iam":null}}}),
+        json!({"headers":{"x-kanbus-actor":"a:b:c"}}),
+    ] {
+        assert_eq!(
+            authenticate_cloud(&neither, &mapped).unwrap_err().status,
+            401
+        );
+    }
+    let only_jwt = json!({"requestContext":{"authorizer":{"jwt":jwt}}});
+    assert_eq!(
+        authenticate_cloud(&only_jwt, &mapped).unwrap().actor,
+        "member-1"
+    );
+    let only_iam = json!({"requestContext":{"authorizer":{"iam":iam}}});
+    assert_eq!(
+        authenticate_cloud(&only_iam, &mapped).unwrap().actor,
+        role_arn("control")
+    );
+    let forged_user_arn_in_jwt = json!({"requestContext":{"authorizer":{"jwt":{"claims":{"sub":assumed("control","s"),"cognito:groups":"admin"}}}}});
+    assert_eq!(
+        authenticate_cloud(&forged_user_arn_in_jwt, &mapped)
+            .unwrap_err()
+            .status,
+        403
+    );
+}
+
+#[test]
+fn service_principal_configuration_is_validated() {
+    let valid = |tenants: &str| {
+        format!(
+            r#"[{{"role_arn":"{}","tenants":{tenants}}}]"#,
+            role_arn("control")
+        )
+    };
+    assert!(ServicePrincipals::from_json(&valid(r#""*""#)).is_ok());
+    assert!(ServicePrincipals::from_json(&valid(r#"["acme","globex-1"]"#)).is_ok());
+    for invalid_tenants in [
+        "[]",
+        r#""acme""#,
+        r#""**""#,
+        r#"["Acme"]"#,
+        r#"["a/b"]"#,
+        "[1]",
+        "null",
+        r#"["_virtuus"]"#,
+        "true",
+    ] {
+        assert!(
+            ServicePrincipals::from_json(&valid(invalid_tenants)).is_err(),
+            "{invalid_tenants}"
+        );
+    }
+    let missing_tenants = format!(r#"[{{"role_arn":"{}"}}]"#, role_arn("control"));
+    let error = ServicePrincipals::from_json(&missing_tenants).unwrap_err();
+    assert!(error.contains("KANBUS_SERVICE_PRINCIPALS"), "{error}");
+    let duplicated = format!(
+        r#"[{{"role_arn":"{0}","tenants":"*"}},{{"role_arn":"{0}","tenants":["a"],"delegate_actor":true}}]"#,
+        role_arn("control")
+    );
+    assert!(ServicePrincipals::from_json(&duplicated)
+        .unwrap_err()
+        .contains("more than once"));
+    for bad_arn in [
+        "arn:aws:iam::111122223333:role/path/name",
+        "arn:aws:iam::111122223333:role/",
+        "arn:aws:iam::111122223333:role/name/",
+        "arn:aws:iam::111122223333:user/name",
+        "arn:aws:iam::111122223333:role/na me",
+        "arn:aws:iam::11112222333:role/name",
+        "arn:aws:iam::111122223333:role/*",
+        "arn:aws:sts::111122223333:assumed-role/name/s",
+        "role/name",
+        "*",
+        "",
+    ] {
+        let text = format!(r#"[{{"role_arn":"{bad_arn}","tenants":"*"}}]"#);
+        assert!(ServicePrincipals::from_json(&text).is_err(), "{bad_arn}");
+    }
+    for broken in [
+        "{",
+        "not json",
+        r#"{"role_arn":"x"}"#,
+        r#"[{"role_arn":1}]"#,
+        r#"[1]"#,
+    ] {
+        assert!(ServicePrincipals::from_json(broken).is_err(), "{broken}");
+    }
+    let unknown_field = format!(
+        r#"[{{"role_arn":"{}","tenants":"*","admin":true}}]"#,
+        role_arn("control")
+    );
+    assert!(ServicePrincipals::from_json(&unknown_field).is_err());
+    let parsed = ServicePrincipals::from_json(&valid(r#"["acme"]"#)).unwrap();
+    let principal = authenticate_role(&parsed, "control", None).unwrap();
+    assert!(principal.allows(&Scope::new("acme", "any").unwrap()));
+    assert!(!principal.allows(&Scope::new("globex", "any").unwrap()));
+    assert_eq!(
+        ServicePrincipals::from_json("  ").unwrap(),
+        ServicePrincipals::default()
+    );
 }
