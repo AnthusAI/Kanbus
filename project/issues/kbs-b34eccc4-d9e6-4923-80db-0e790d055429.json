@@ -108,11 +108,28 @@
         "model": "GPT-6.1 Sol",
         "name": "Console Tenant Isolation"
       }
+    },
+    {
+      "id": "e2259d17-244c-4b33-a805-aa0b6b83b7f7",
+      "author": "home",
+      "text": "2026-10-20: work is under way on PR 490 (branch fix/console-tenant-isolation, 'fix(console): isolate tenant UI state and notification delivery'). The PR is open as a draft with no review decision. Status moved from open to in_progress to match.",
+      "created_at": "2026-10-20T13:17:27.672193Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Drift Fix"
+      }
     }
   ],
   "created_at": "2026-10-19T16:53:41.342732Z",
-  "updated_at": "2026-10-19T23:10:20.904400Z",
+  "updated_at": "2026-10-20T13:17:27.672214Z",
   "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "Claude Opus 5.5",
+    "name": "Drift Fix"
+  },
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

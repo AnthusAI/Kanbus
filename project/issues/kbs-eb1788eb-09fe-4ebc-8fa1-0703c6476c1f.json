@@ -17,12 +17,24 @@
       "id": "a22401fc-310b-4e29-a1ac-9eabf3a0c786",
       "author": "Claude",
       "text": "Handoff status 2026-10-19: Merged so far: PR #428 (parity lane), #429 (strict parity), #430 (honest stderr). CI now has cli-parity, python-console-parity, rust-console-parity and implementation-cochange jobs, and a parity-exempt PR label exists. Not verified: whether KANBUS_PARITY_STRICT is on for every step group, and whether the roughly 25 Rust-only KANBUS_* environment variables are now honoured by Python. Note that implementation-cochange failed on PR #470 (a Rust-only console change that carries the parity-exempt label), so check that the exemption is honoured. Next step: re-run tools/check_spec_parity.py strictly, list what still diverges, and close the task or file the remainder as children.",
-      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "created_at": "2026-10-19T16:42:31.569399Z",
       "comment_type": "default"
+    },
+    {
+      "id": "4d71af2a-5922-43fc-892c-bcafadcc4064",
+      "author": "home",
+      "text": "2026-10-20 update: child kbs-215bc6 is closed. PR 474 (merge 120e8156, merged 2026-10-19T19:42Z) runs the virtual-project scenarios against the real CLI, and git grep simulate_virtual_project in rust/features and python/features is empty on origin/develop, so work item 3 and the 'no simulated CLI code under features/steps' acceptance line are met. Still unverified from the 2026-10-19 handoff: whether strict spec parity is on for every step group, and the Rust-only KANBUS_* environment variables (items 4 and 6).",
+      "created_at": "2026-10-20T13:17:27.786508Z",
+      "comment_type": "default",
+      "agent": {
+        "platform": "claude_code",
+        "model": "Claude Opus 5.5",
+        "name": "Drift Fix"
+      }
     }
   ],
   "created_at": "2026-10-17T16:37:46.028515447Z",
-  "updated_at": "2026-10-19T16:42:31.569399000Z",
+  "updated_at": "2026-10-20T13:17:27.786529Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

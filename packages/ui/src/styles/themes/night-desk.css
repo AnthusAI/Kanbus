@@ -1,0 +1,54 @@
+@import "./editorial-base.css";
+
+/* Night Desk: Literata titles, Public Sans interface, JetBrains Mono ids; dark slate and amber.
+   Dark is the design palette. Light keeps the slate hue 250 as a pale tinted paper (sidebar a step darker, panel a step lighter), with the amber darkened from L 0.80 to 0.50 so it holds AA on light and takes white text.
+   Override any --kb-theme-* token on the scope element (inline or a more specific rule). */
+[data-kanbus-theme="night-desk"] {
+  --kb-theme-paper: oklch(0.972 0.005 250);
+  --kb-theme-panel: oklch(0.99 0.003 250);
+  --kb-theme-sidebar: oklch(0.945 0.007 250);
+  --kb-theme-ink: oklch(0.22 0.012 250);
+  --kb-theme-muted: oklch(0.46 0.012 250);
+  --kb-theme-rule: oklch(0.87 0.008 250);
+  --kb-theme-accent: oklch(0.5 0.1 70);
+  --kb-theme-on-accent: oklch(1 0 0);
+  --kb-theme-title-font: Literata, "Iowan Old Style", Georgia, serif;
+  --kb-theme-ui-font: "Public Sans", system-ui, sans-serif;
+  --kb-theme-mono-font: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --kb-theme-title-size: 15px;
+  --kb-theme-title-leading: 1.32;
+  --kb-theme-title-tracking: 0;
+  --kb-theme-heading-size: 27px;
+  --kb-theme-heading-leading: 1.18;
+  --kb-theme-heading-tracking: 0;
+  --kb-theme-heading-weight: 600;
+  --kb-theme-label-weight: 600;
+  --kb-theme-reading-size: 15px;
+  --kb-theme-reading-leading: 1.6;
+  color-scheme: light;
+}
+[data-kanbus-theme="night-desk"][data-color-mode="dark"],
+.dark [data-kanbus-theme="night-desk"]:not([data-color-mode="light"]) {
+  --kb-theme-paper: oklch(0.2 0.008 250);
+  --kb-theme-panel: oklch(0.23 0.008 250);
+  --kb-theme-sidebar: oklch(0.17 0.008 250);
+  --kb-theme-ink: oklch(0.94 0.008 85);
+  --kb-theme-muted: oklch(0.72 0.01 85);
+  --kb-theme-rule: oklch(0.32 0.01 250);
+  --kb-theme-accent: oklch(0.8 0.12 75);
+  --kb-theme-on-accent: oklch(0.2 0.008 250);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  [data-kanbus-theme="night-desk"]:not([data-color-mode="light"]) {
+    --kb-theme-paper: oklch(0.2 0.008 250);
+    --kb-theme-panel: oklch(0.23 0.008 250);
+    --kb-theme-sidebar: oklch(0.17 0.008 250);
+    --kb-theme-ink: oklch(0.94 0.008 85);
+    --kb-theme-muted: oklch(0.72 0.01 85);
+    --kb-theme-rule: oklch(0.32 0.01 250);
+    --kb-theme-accent: oklch(0.8 0.12 75);
+    --kb-theme-on-accent: oklch(0.2 0.008 250);
+    color-scheme: dark;
+  }
+}

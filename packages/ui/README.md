@@ -97,7 +97,7 @@ colors: {
 ```
 
 Give the board container a bounded height and `min-height: 0`. Import
-`styles/kanban.css` for component styles. `styles/tokens.css` supplies optional
+`styles/kanban.css` for component styles. Editorial board themes (four palettes, each light and dark) live under `styles/themes/`; see [THEMES.md](THEMES.md). `styles/tokens.css` supplies optional
 global defaults and theme selectors; hosts may provide their own variables
 instead. `styles/index.css` includes body typography and page defaults, so it is
 intended for a full Kanbus page rather than an embedded region.
@@ -108,6 +108,19 @@ mutation callbacks, but its existing history transport requests
 `${apiBase}/issues/:id/events`; D2 rendering uses `/api/render/d2`. Hosts using
 that panel must provide those routes. The new controlled collection does not
 depend on the panel or either route.
+
+## Host issue identifier formatting
+
+By default every surface shows the Kanbus short form (`formatIssueId`), and the
+detail panel shows the raw id. A host may supply
+`formatIssueId?: (issue: KanbanIssue) => string` to decide the exact text, for
+example `"articles/agent-software-factory"`. Pass it as a prop to
+`IssueCollection`, `Board`, `TaskDetailPanel` or `IssueDetailPanel`, or provide
+it once with `IssueIdFormatProvider`, which also covers `StatusTree`. The
+returned text is rendered verbatim, never truncated or uppercased, in the
+card, status tree, detail panels and descendant link labels. Elements showing a
+host formatted id carry `data-issue-id-format="host"`, and the editorial themes
+keep them in the mono face without text transformation.
 
 ## Browser acceptance tests
 

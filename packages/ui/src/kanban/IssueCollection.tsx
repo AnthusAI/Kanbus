@@ -5,6 +5,7 @@ import { filterIssues, type IssueQuery } from "./issue-query";
 import { getStatusColumnsForIssueTypes } from "./workflow-columns";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import type { KanbanMotionConfig } from "./motion";
+import { IssueIdFormatProvider, type IssueIdFormatter } from "./issue-id-format";
 
 /** A host-controlled collection with no transport, authentication, or routing. */
 export interface IssueCollectionProps<Issue extends KanbanIssue = KanbanIssue> {
@@ -23,6 +24,7 @@ export interface IssueCollectionProps<Issue extends KanbanIssue = KanbanIssue> {
   ariaLabel?: string;
   className?: string;
   initialScroll?: "start" | "end" | "preserve";
+  formatIssueId?: IssueIdFormatter;
 }
 
 const EMPTY_QUERY: IssueQuery = {};
@@ -43,7 +45,8 @@ export function IssueCollection<Issue extends KanbanIssue>({
   emptyMessage = "No matching issues",
   ariaLabel = "Issues",
   className,
-  initialScroll
+  initialScroll,
+  formatIssueId
 }: IssueCollectionProps<Issue>) {
   const visibleIssues = useMemo(() => filterIssues(issues, query), [issues, query]);
   const columns = useMemo(() => getStatusColumnsForIssueTypes(config, query.type === undefined ? [] : [query.type])
@@ -58,6 +61,7 @@ export function IssueCollection<Issue extends KanbanIssue>({
   };
 
   return (
+    <IssueIdFormatProvider formatIssueId={formatIssueId}>
     <section className={`kb-issue-collection ${className ?? ""}`} aria-label={ariaLabel}>
       {visibleIssues.length === 0 ? <p role="status">{emptyMessage}</p> : null}
       {view === "board" ? (
@@ -94,5 +98,6 @@ export function IssueCollection<Issue extends KanbanIssue>({
         </ul>
       )}
     </section>
+    </IssueIdFormatProvider>
   );
 }

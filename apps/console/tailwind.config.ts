@@ -22,8 +22,8 @@ const config: Config = {
         border: "var(--border)"
       },
       fontFamily: {
-        sans: ["Inter", "SF Pro Text", "Helvetica Neue", "Arial", "sans-serif"],
-        display: ["Inter", "SF Pro Text", "Helvetica Neue", "Arial", "sans-serif"]
+        sans: ["var(--font-body)", "system-ui", "sans-serif"],
+        display: ["var(--font-body)", "system-ui", "sans-serif"]
       },
       boxShadow: {
         card: "0 10px 40px -18px rgba(0, 0, 0, 0.2)"

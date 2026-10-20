@@ -45,7 +45,7 @@ jobs:
           npm test
 
       - name: Set up API Rust toolchain
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy
@@ -95,7 +95,7 @@ jobs:
           python-version: "3.11"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
 
@@ -231,7 +231,7 @@ jobs:
           (cd rust && cargo package --locked --allow-dirty --list) | grep -Eq '^testdata/mock_board_screenshot.png$'
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
           components: rustfmt, clippy, llvm-tools-preview
@@ -367,7 +367,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
 
@@ -391,7 +391,7 @@ jobs:
           python-version: "3.11"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
 
@@ -424,7 +424,7 @@ jobs:
           python-version: "3.11"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
 
@@ -530,7 +530,7 @@ jobs:
           python -m pip install -e "python[dev]"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
           components: rustfmt, clippy, llvm-tools-preview
@@ -546,7 +546,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
 
@@ -615,7 +615,7 @@ jobs:
           python-version: "3.11"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        uses: ./.github/actions/setup-rust
         with:
           toolchain: 1.88.0
           components: rustfmt, clippy, llvm-tools-preview

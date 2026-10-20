@@ -410,8 +410,10 @@ Before any PR can merge:
 ## Rust Coverage (Local)
 
 **Required toolchain:**
+
+`rust-toolchain.toml` pins only the channel and the minimal profile, so CI and release tooling never install optional components implicitly. CI jobs request components through the `components:` input of the Rust setup action. Locally, add what you need once:
 ```bash
-rustup component add llvm-tools-preview
+rustup component add rustfmt clippy llvm-tools-preview
 cargo install cargo-llvm-cov --locked
 ```
 

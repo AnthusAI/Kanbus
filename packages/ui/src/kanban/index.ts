@@ -32,6 +32,8 @@ export type {
   WorkflowDefinition
 } from "./workflow-columns";
 export { formatIssueId } from "./format-issue-id";
+export { IssueIdFormatProvider } from "./issue-id-format";
+export type { IssueIdFormatter, IssueIdFormatProviderProps } from "./issue-id-format";
 export { getTypeIcon } from "./issue-icons";
 export { getIssueMotionStyle, normalizeMotionConfig } from "./motion";
 export { useFlashEffect } from "./useFlashEffect";

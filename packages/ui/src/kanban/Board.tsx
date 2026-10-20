@@ -14,6 +14,7 @@ import type {
   KanbanSortRule
 } from "./types";
 import { BoardColumn } from "./BoardColumn";
+import { IssueIdFormatProvider, type IssueIdFormatter } from "./issue-id-format";
 import { useBoardColumnState } from "./useBoardColumnState";
 import { useBoardTransitions } from "./useBoardTransitions";
 import {
@@ -37,6 +38,7 @@ export interface BoardProps {
   columnStateKey?: string;
   motion?: KanbanMotionConfig;
   initialScroll?: "start" | "end" | "preserve";
+  formatIssueId?: IssueIdFormatter;
 }
 
 type IssueComparator = (a: KanbanIssue, b: KanbanIssue) => number;
@@ -264,7 +266,7 @@ function BoardComponent({
   columnStateKey,
   motion,
   initialScroll = "end"
-}: BoardProps) {
+}: Omit<BoardProps, "formatIssueId">) {
   const columnState = useBoardColumnState({ config, columns, storageKey: collapsedColumns === undefined ? columnStateKey : undefined });
   const visibleCollapsedColumns = collapsedColumns ?? columnState.collapsedColumns;
   const toggleColumn = onToggleCollapse ?? (collapsedColumns === undefined ? columnState.toggleColumn : undefined);
@@ -411,4 +413,10 @@ function BoardComponent({
   );
 }
 
-export const Board = React.memo(BoardComponent);
+export const Board = React.memo(function Board({ formatIssueId, ...boardProps }: BoardProps) {
+  return (
+    <IssueIdFormatProvider formatIssueId={formatIssueId}>
+      <BoardComponent {...boardProps} />
+    </IssueIdFormatProvider>
+  );
+});

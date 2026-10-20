@@ -51,3 +51,7 @@ The final regressions verify mismatched imported identities cannot redirect GET/
 Observed success: create/read/PATCH/comment/DELETE using original quoted S3 ETags, stale conflict, durable create/deletion replay, catalog convergence, retained normal event filenames, oversized direct import rejection, oversized-restoration receipt recovery, bounded response rejection for large matching history, and bounded invalid-priority diagnostics with unchanged canonical issue paths. Base CRUD history cost remained 5 listed/read objects and 2,175 accepted bytes. The public gateway helper emitted small errors beneath the envelope quota.
 
 All fixture configurations, audit files, oversized imports, recovery records and object versions remain isolated and inventoried. No resources or IAM grants were created or removed by these API proof runs. The previously recorded run02 setup failure remains disclosed rather than being counted as a successful proof.
+
+## Board-scoped routes
+
+The recorded AWS runs above predate board-scoped routing. The ignored live test `real_s3_api_quoted_revision_crud_and_audit` now addresses its fixture namespace through `/proof-api/<run>/api/...` with a `kanbus:proof-api/*` grant; canonical object keys and bytes are unchanged (`<tenant>/<project>/...`). Re-run it against the fixture stack before relying on the earlier evidence for the new routes.

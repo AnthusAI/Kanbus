@@ -9,20 +9,83 @@ The service reuses Kanbus models, configuration and workflow validation. The ini
 
 | Method | Route | Contract |
 | --- | --- | --- |
-| GET | `/api/config` | Browser-safe board configuration plus authenticated `actor_id` |
-| GET | `/api/issues` | `{issues:[{issue,revision}],next_cursor}` |
-| POST | `/api/issues` | Plain create fields, including `title`, `type`, optional `status`, `description`, `priority`, `assignee`, `parent`, `labels`, `custom` |
-| GET | `/api/issues/{id}` | `{issue,revision}` |
-| PATCH | `/api/issues/{id}` | Plain changed mutable fields; custom values merge by key |
-| DELETE | `/api/issues/{id}` | Revision checked deletion, `{deleted,issue_id,catalog_pending}`; rejects incoming child/dependency references |
-| POST | `/api/issues/{id}/comments` | `{text}` |
-| GET | `/api/issues/{id}/events` | `{issue_id,events:[...],next_before:null}`; retained audit history remains readable after deletion |
+| GET | `/{tenant}/{project}/api/config` | Browser-safe board configuration plus authenticated `actor_id` |
+| PUT | `/{tenant}/{project}/api/config` | Provision a board (create-if-absent); see Provisioning a board |
+| GET | `/{tenant}/{project}/api/issues` | `{issues:[{issue,revision}],next_cursor}` |
+| GET | `/{tenant}/api/issues?projects=a,b` | Cross-board list within one tenant; names are explicit, at most 8, and every board must be granted; each entry also carries `project` |
+| POST | `/{tenant}/{project}/api/issues` | Plain create fields, including `title`, `type`, optional `status`, `description`, `priority`, `assignee`, `parent`, `labels`, `custom` |
+| GET | `/{tenant}/{project}/api/issues/{id}` | `{issue,revision}` |
+| PATCH | `/{tenant}/{project}/api/issues/{id}` | Plain changed mutable fields; custom values merge by key |
+| DELETE | `/{tenant}/{project}/api/issues/{id}` | Revision checked deletion, `{deleted,issue_id,catalog_pending}`; rejects incoming child/dependency references |
+| POST | `/{tenant}/{project}/api/issues/{id}/comments` | `{text}` |
+| GET | `/{tenant}/{project}/api/issues/{id}/events` | `{issue_id,events:[...],next_before:null}`; retained audit history remains readable after deletion |
 
 All routes require authentication. All writes require `X-Operation-Id` containing a UUID. PATCH, DELETE and comment writes additionally require `If-Match` with the last opaque revision. A stale revision returns 409. Repeating an identical request with the same operation ID replays its durable receipt; changed input conflicts. Successful writes return `{issue,revision,catalog_pending}`; pending means canonical publication succeeded but supplemental indexing/history repair still requires attention, not that S3 and DynamoDB committed atomically. Error responses have `{error,message}`.
 
-Issue query parameters are `project` or comma-separated `projects` (`*` means every project in the trusted allowlist), `type` or comma-separated `types`, `status`, `assignee`, `label`, `parent`, `search`, `sort` (`priority` or `updated_at`), `limit`, `cursor`, and `fields`. `fields` is a JSON array of `{field,operator,value}` scalar predicates; operators are `eq`, `lt`, `lte`, `gt`, `gte`. Custom paths begin with `custom.`. Existing Kanbus filters and search semantics are reused. Targeted per-project catalog queries select type/status candidates; current canonical objects are hydrated and residual filters applied. Filtering and deterministic ordering precede paging. Multi-project responses include `project` on each entry. Single-record and mutation routes require one selected project. The deployment supplies the allowlist; clients cannot expand it. Cursors bind to deployment scope and the query; pagination does not promise a snapshot across concurrent writes.
+Issue query parameters on a board route are `type` or comma-separated `types`, `status`, `assignee`, `label`, `parent`, `search`, `sort` (`priority` or `updated_at`), `limit`, `cursor`, and `fields`. `fields` is a JSON array of `{field,operator,value}` scalar predicates; operators are `eq`, `lt`, `lte`, `gt`, `gte`. Custom paths begin with `custom.`. Existing Kanbus filters and search semantics are reused. Targeted per-board catalog queries select type/status candidates; current canonical objects are hydrated and residual filters applied. Filtering and deterministic ordering precede paging. The tenant route additionally requires `projects` (explicit names only, no wildcard). Cursors bind to the selected boards and the query; pagination does not promise a snapshot across concurrent writes. The per-query budget is `MAX_PROJECTS_PER_QUERY` (8) boards.
 
-Runtime selects exactly one backend. Local: `KANBUS_BACKEND=file`, `KANBUS_ROOT`, `KANBUS_NAMESPACE=tenant/project`, `KANBUS_LOCAL_TOKEN`, optional `KANBUS_PORT` (5175). The local binary binds `127.0.0.1` only. Cloud: `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, `KANBUS_CATALOG_TABLE`, `KANBUS_NAMESPACE=tenant/project`, `KANBUS_REQUIRED_GROUP`. The Lambda consumes API Gateway HTTP API JWT authorizer context and requires the configured group; it never decodes bearer tokens itself. Gateway invocation permissions and JWT issuer/audience configuration remain infrastructure responsibilities. No public intake route is provided.
+## Provisioning a board
+
+`PUT /{tenant}/{project}/api/config` creates a board. Only principals with the `provision` capability whose grants cover the board are allowed; everyone else gets the same 403 `forbidden` body as for an ungranted board. `X-Operation-Id` (UUID) is required and idempotent: repeating the same operation and body returns the stored result (200), and a different body under the same operation ID returns 409 `operation_conflict`.
+
+- No body: provisions Kanbus's default configuration, generated by `kanbus::config::default_project_configuration()` serialized exactly as `kbs init` writes `.kanbus.yml`. Its `project_key` is `kanbus` for every board created this way.
+- Body `{"configuration": "<.kanbus.yml text>"}`: the text is stored verbatim after it parses and passes `validate_project_configuration`, the same checks the read path applies. Anything else returns 422 `invalid_configuration` with the validation messages.
+- If the board already has a configuration, the response is 409 `board_exists`, whether or not the body matches. There is no update path.
+- The configuration is written with `WriteCondition::Absent` through the journaled store. No directory objects are needed in S3; issue and event keys are created on first write. Success returns 201 with the same body as `GET /{tenant}/{project}/api/config`.
+
+## Boards and access
+
+One deployment serves every board of an environment. The board a request addresses comes only from the request path (`/{tenant}/{project}/api/...`, parsed from `rawPath` alone, so direct Lambda invocation with a hand-built HTTP API v2 event works). Tenant is the organization id and project is the bot id; both must satisfy the Virtuus scope rules (lowercase letters, digits, `-`, `_`, `.`) or the request is rejected with 400 `invalid_request` before any storage access. A new board needs no redeploy: publishing its `.kanbus.yml` makes it usable immediately, and a granted board without one returns 503 `configuration_missing`.
+
+Access comes only from verified identity. In the cloud, grants come from the verified `cognito:groups` claim (JSON array, API Gateway bracketed space-separated string, or a plain single string). A group named `kanbus:<tenant>/<project>` grants that board; `kanbus:<tenant>/*` grants every board of the tenant and should be used sparingly. Other groups and malformed names are ignored. A verified token with no matching group gets 403; authentication alone grants nothing. A request for a board that is not granted returns the same 403 `forbidden` body whether or not the board exists. The authorization decision is `Principal::allows`, a pure function over the verified grants, so other principal sources can be added without touching routing.
+
+Storage access is narrow: a request touches only the requested boards' object prefixes and catalog keys, and the cross-board list queries each named board's own catalog keys. Canonical keys are unchanged (`<tenant>/<project>/...`), so a role limited to one board's prefixes keeps working.
+
+Runtime selects exactly one backend. Local: `KANBUS_BACKEND=file`, `KANBUS_ROOT`, `KANBUS_TENANT`, `KANBUS_PROJECT`, `KANBUS_LOCAL_TOKEN`, optional `KANBUS_PORT` (5175); the local token is granted exactly that one board. The local binary binds `127.0.0.1` only. Cloud: `KANBUS_BACKEND=s3`, `KANBUS_OBJECT_BUCKET`, `KANBUS_CATALOG_TABLE`. The Lambda consumes API Gateway HTTP API JWT authorizer context; it never decodes bearer tokens itself. Gateway invocation permissions and JWT issuer/audience configuration remain infrastructure responsibilities. No public intake route is provided.
+
+## Service callers
+
+Trusted backend services (for example a control plane in the same AWS account) call the API without a user JWT. They use a second API Gateway HTTP API (or stage) whose routes use `AWS_IAM` authorization (SigV4), pointing at the same Lambda and the same routes. The Lambda picks the authenticator from the verified authorizer context in the event:
+
+- `requestContext.authorizer.jwt`: the user path (Cognito groups to grants).
+- `requestContext.authorizer.iam`: the service path.
+- Neither, or both: 401.
+
+Configuration is the required deployment setting `KANBUS_SERVICE_PRINCIPALS`, a JSON array with one entry per role:
+
+```json
+[
+  {"role_arn": "arn:aws:iam::111122223333:role/ControlPlane", "tenants": "*", "provision": false, "delegate_actor": true},
+  {"role_arn": "arn:aws:iam::111122223333:role/Reporter", "tenants": ["acme", "globex"]}
+]
+```
+
+`role_arn` is an IAM role ARN without a path (assumed-role ARNs never carry the path). `tenants` is mandatory: `"*"` for every tenant or a non-empty list of tenant names. `provision` and `delegate_actor` default to false. Unknown fields, invalid JSON, invalid entries and a repeated `role_arn` fail startup with a message naming the problem. An empty or absent variable means no service callers; the user path is unaffected.
+
+The caller identity is `requestContext.authorizer.iam.userArn`. The Lambda accepts only `arn:<partition>:sts::<account>:assumed-role/<name>/<session>`, requires `accountId` to equal the account in the ARN, normalizes it to `arn:<partition>:iam::<account>:role/<name>` (the session name is discarded) and compares it with the configured `role_arn` by exact, case-sensitive equality. Prefix matches, other accounts, other role names and anything not shaped like an assumed-role ARN get 403 `forbidden`, the same body as an ungranted board.
+
+A role mapped with tenants `"*"` is granted every board of every tenant; a tenant list grants every board of those tenants. A service principal's actor is its normalized role ARN, unless it delegates.
+
+### Delegated actor
+
+A role with `delegate_actor` must send `X-Kanbus-Actor` on every request (missing or malformed: 400 `invalid_request`). The value must match `^[a-z0-9-]+:[a-z0-9-]+:[A-Za-z0-9-_.]{1,128}$`, for example `chatticus:user:<uuid>`, `chatticus:bot:<uuid>` or `chatticus:system:task-migration`. It is recorded verbatim as the creator, comment author and event `actor_id`. Any other caller that sends the header, including every user and the local binary, gets 403 `forbidden`: a user can never set an actor.
+
+### Trust boundary
+
+The Lambda trusts the authorizer context in its event. `lambda:InvokeFunction` must therefore be granted only to the two API Gateway APIs and to explicitly trusted roles. A direct invoker is fully trusted: it can hand-build any event, including any identity and actor.
+
+## Migration for single-board deployments
+
+Earlier deployments bound one board with the removed variables `KANBUS_NAMESPACE` and `KANBUS_REQUIRED_GROUP` and served `/api/...`. To migrate (for example Prospectus):
+
+1. Create the Cognito group `kanbus:<tenant>/<project>` and add the members who were in the old required group. This can be done before deploying, so groups and routes change in one deploy with no gap.
+2. Remove `KANBUS_NAMESPACE` and `KANBUS_REQUIRED_GROUP` from the Lambda environment.
+3. Prefix client routes with `/<tenant>/<project>` (for example `/api/issues` becomes `/<tenant>/<project>/api/issues`), and route `/{tenant}/{project}/api/{proxy+}` at the gateway, plus `GET /{tenant}/api/issues` if clients use the cross-board list. Other routes on the same gateway are unaffected; only the kanbus-api route moves.
+4. Local and CI runs replace `KANBUS_NAMESPACE=tenant/project` with `KANBUS_TENANT=tenant` and `KANBUS_PROJECT=project`.
+
+Use `kanbus:<tenant>/*` only for operators who need every board of a tenant.
+
+Query budgets (1,000 catalog candidates, 422 `query_budget_exceeded`, the 2.5 MiB response cap) are unchanged by this migration; they have applied since the service was introduced.
 
 The canonical scope contains `.kanbus.yml` and the configured `project_directory` exactly as a local checkout does. Issues and events retain their normal paths. Raw unknown fields survive edits; unmodified imported objects retain their original bytes. Storage metadata and recovery records live outside the canonical project prefix. DynamoDB contains a supplemental catalog only. Folder import/export and catalog repair belong to the Virtuus storage package.
 

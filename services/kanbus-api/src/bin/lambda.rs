@@ -1,7 +1,9 @@
-//! API Gateway HTTP API transport. Authentication relies on verified JWT context.
+//! API Gateway HTTP API transport. Authentication relies on verified JWT or IAM authorizer context.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use kanbus_api::{api_gateway_response as response, authenticate_cloud, Api, ApiRequest};
+use kanbus_api::{
+    api_gateway_response as response, authenticate_cloud, Api, ApiRequest, ServicePrincipals,
+};
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, sync::Arc};
@@ -22,23 +24,20 @@ async fn main() -> Result<(), Error> {
         aws_sdk_dynamodb::Client::new(&credentials),
         std::env::var("KANBUS_CATALOG_TABLE")?,
     );
-    let api = Api::new(
-        JournaledStore::new(Arc::new(objects), Arc::new(catalog)),
-        &std::env::var("KANBUS_NAMESPACE")?,
-    )
-    .map_err(|error| error.message)?;
-    let group = std::env::var("KANBUS_REQUIRED_GROUP")?;
+    let api = Api::new(JournaledStore::new(Arc::new(objects), Arc::new(catalog)))
+        .map_err(|error| error.message)?;
+    let service_principals = Arc::new(ServicePrincipals::from_environment()?);
     run(service_fn(move |event: LambdaEvent<Value>| {
         let api = api.clone();
-        let group = group.clone();
-        async move { Ok::<_, Error>(handle(&api, &group, event.payload).await) }
+        let service_principals = service_principals.clone();
+        async move { Ok::<_, Error>(handle(&api, &service_principals, event.payload).await) }
     }))
     .await
 }
 
-async fn handle(api: &Api, group: &str, event: Value) -> Value {
-    let actor = match authenticate_cloud(&event, group) {
-        Ok(actor) => actor,
+async fn handle(api: &Api, service_principals: &ServicePrincipals, event: Value) -> Value {
+    let principal = match authenticate_cloud(&event, service_principals) {
+        Ok(principal) => principal,
         Err(error) => {
             if error.status == 403 {
                 let groups = event.pointer("/requestContext/authorizer/jwt/claims/cognito:groups");
@@ -123,7 +122,7 @@ async fn handle(api: &Api, group: &str, event: Value) -> Value {
         query,
         headers,
         body,
-        actor,
+        principal,
     };
     match api.handle(request).await {
         Ok(result) => response(result.status, result.body),

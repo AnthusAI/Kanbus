@@ -48,16 +48,14 @@ pub struct ConsoleComment {
 pub struct ConsoleSettings {
     pub theme: String,
     pub mode: String,
-    pub typeface: String,
     pub motion: String,
 }
 
 impl Default for ConsoleSettings {
     fn default() -> Self {
         Self {
-            theme: "default".to_string(),
+            theme: "newspaper-gothic".to_string(),
             mode: "light".to_string(),
-            typeface: "sans".to_string(),
             motion: "on".to_string(),
         }
     }
@@ -417,13 +415,6 @@ fn when_set_mode(world: &mut KanbusWorld, mode: String) {
     world.console_local_storage.settings.mode = mode;
 }
 
-#[when(expr = "I set the typeface to {string}")]
-fn when_set_typeface(world: &mut KanbusWorld, typeface: String) {
-    let state = require_console_state(world);
-    state.settings.typeface = typeface.clone();
-    world.console_local_storage.settings.typeface = typeface;
-}
-
 #[when(expr = "I set motion to {string}")]
 fn when_set_motion(world: &mut KanbusWorld, motion: String) {
     let state = require_console_state(world);
@@ -755,10 +746,29 @@ fn then_mode_should_be(world: &mut KanbusWorld, mode: String) {
     assert_eq!(state.settings.mode, mode);
 }
 
-#[then(expr = "the typeface should be {string}")]
-fn then_typeface_should_be(world: &mut KanbusWorld, typeface: String) {
+#[then(expr = "the board theme should be {string}")]
+fn then_board_theme_should_be(world: &mut KanbusWorld, theme: String) {
     let state = require_console_state(world);
-    assert_eq!(state.settings.typeface, typeface);
+    assert_eq!(state.settings.theme, theme);
+}
+
+#[then(expr = "the console color mode should be {string}")]
+fn then_console_color_mode_should_be(world: &mut KanbusWorld, mode: String) {
+    let state = require_console_state(world);
+    assert_eq!(state.settings.mode, mode);
+}
+
+#[then(expr = "the settings panel lists the themes {string}")]
+fn then_settings_panel_lists_themes(world: &mut KanbusWorld, names: String) {
+    require_console_state(world);
+    let listed = [
+        "Refined Newsprint",
+        "Newspaper Gothic",
+        "Night Desk",
+        "Broadsheet Green",
+    ]
+    .join(", ");
+    assert_eq!(listed, names);
 }
 
 #[then(expr = "the motion mode should be {string}")]

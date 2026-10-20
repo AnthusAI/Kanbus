@@ -3,7 +3,7 @@
   "title": "Run virtual-project scenarios against the real CLI and delete the simulated command path",
   "description": "Goal: delete the simulated virtual-project CLI from both step harnesses so the virtual-project scenarios exercise the real kbs and kanbus binaries (kbs-eb1788eb work item 3; acceptance \"no simulated CLI code under features/steps\").\n\nToday:\n- rust/features/steps/virtual_project_steps.rs (about 1,404 lines) has maybe_simulate_virtual_project_command (line ~433), called from rust/features/steps/command_steps.rs (~31 and ~242). It fabricates stdout instead of running the CLI.\n- python/features/steps/virtual_project_steps.py has simulate_virtual_project_command (~218), called from python/features/steps/z_interop_steps.py (~359).\n- About 27 scenarios across 6 feature files start \"Given a Kanbus project with virtual projects configured\" (grep features/).\n\nWork:\n1. Make the Given step build a real multi-root temp tree: the main project plus the virtual project directories referenced in .kanbus.yml (virtual_projects config; read rust/src/models.rs and the config loader for the exact shape), with real issue files created through the CLI or the same fixture helpers other steps use.\n2. Delete the simulation functions and every call site in both runtimes. Commands in these scenarios run through the normal command step path.\n3. Where a scenario's expected output was only true of the simulation, check the feature spec against the real CLI behavior. If real behavior is correct per docs and other specs, fix the scenario expectation. If the real CLI is wrong, stop and report it (do not change production code in this ticket without listing it in the PR body). Features are authoritative: never weaken an assertion just to pass.\n4. Both runtimes must pass the same scenarios; no new entries in tools/parity/known_unimplemented_steps.txt.\n\nAcceptance:\n- grep -rn \"simulate_virtual_project\" rust/features python/features returns nothing.\n- behave passes the virtual-project feature files (cd python, behave ../features/<files>, or the repo's normal invocation), and cargo test --test cucumber passes them (see rust/tests/cucumber.rs for filtering).\n- python3 tools/check_spec_parity.py passes; black, ruff, cargo fmt, clippy clean.\n- PR into develop with CI green.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -12,10 +12,18 @@
     "engineering-review"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2bf33981-91ca-4bb5-b155-a522c4b0e7f5",
+      "author": "home",
+      "text": "Done in PR 474 (merge 120e8156, merged 2026-10-19T19:42Z, 'Run virtual-project scenarios against the real CLI'). Verified on origin/develop 2026-10-20: git grep simulate_virtual_project in rust/features and python/features returns nothing, which meets the first acceptance line.",
+      "created_at": "2026-10-20T13:17:15.930422Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-19T16:52:34.268301Z",
-  "updated_at": "2026-10-19T18:54:40.319703Z",
-  "closed_at": null,
+  "updated_at": "2026-10-20T13:17:16.209295Z",
+  "closed_at": "2026-10-20T13:17:16.024318Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

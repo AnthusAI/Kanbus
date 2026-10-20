@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "157f1504-7cf3-4122-a55f-6507cc5363c9",
+  "issue_id": "kbs-494ecd64-8806-457e-b73a-5786eb923a9f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T03:45:06.598Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Replace the 8-project cap with a cross-project query budget that does not limit how many boards a tenant has",
+    "description": "MAX_PROJECTS = 8 (services/kanbus-api/src/lib.rs:25) limits both the allowlist size (with_projects) and multi-project query selection. It exists as a Preview bound on exhaustive query fan-out (32 project/type streams, 1,000 catalog candidates), not as a storage constraint. Separate the two: the number of projects a tenant may own is unbounded; only a single cross-project query is bounded (and returns query_budget_exceeded with cost). Consider a tenant-level catalog index if org-wide cross-board views (all bots' cards) are needed.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-f4ecb4a8-4ada-4fa4-bf24-e82679b7652e",
+    "labels": []
+  }
+}

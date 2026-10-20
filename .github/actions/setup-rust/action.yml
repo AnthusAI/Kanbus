@@ -1,0 +1,27 @@
+name: Set up Rust
+description: Removes any pre-existing copy of the pinned Rust toolchain, then installs it fresh with exactly the requested components and targets.
+inputs:
+  toolchain:
+    description: Rust toolchain version to install.
+    required: true
+  components:
+    description: Comma-separated rustup components to install.
+    required: false
+    default: ""
+  targets:
+    description: Comma-separated compilation targets to install.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Remove pre-existing toolchain
+      shell: bash
+      run: rustup toolchain uninstall "${{ inputs.toolchain }}"
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        components: ${{ inputs.components }}
+        targets: ${{ inputs.targets }}
