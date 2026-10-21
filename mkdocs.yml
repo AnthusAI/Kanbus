@@ -27,6 +27,4 @@ nav:
   - Kanbus vs. Beads: VS_BEADS.md
   - Cloud Operations:
       - Console runtime: CLOUD_CONSOLE_RUNTIME.md
-      - Operations runbook: CLOUD_OPS_RUNBOOK.md
-      - Launch checklist: CLOUD_LAUNCH_CHECKLIST.md
   - Code Quality: dev/code-quality.md
