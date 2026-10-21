@@ -134,10 +134,9 @@ project, so use the topic in the `mosquitto_sub -v` output to tell them apart.
 - `kbs gossip watch --print` — follows the projects known to the current checkout (including `virtual_projects`). Do not add `--broker auto` when verifying: `auto` runs Kanbus's own discovery/autostart, ignores the configured broker, and can start a second Mosquitto (observed on port 1884) that writes a stale `~/.kanbus/run/broker.json`. Plain `kbs gossip watch --print` (no `--broker`) uses the configured broker correctly.
 - `kbsc` — the board UI for one checkout.
 
-**Next step up:** for a shared broker across a team instead of one machine, see
-[CLOUD_CONSOLE_RUNTIME.md](CLOUD_CONSOLE_RUNTIME.md) for a shared AWS IoT broker
-(`mqtts://` plus `KANBUS_REALTIME_MQTT_API_TOKEN`) — the same `~/.kanbus.env` settings are all
-that change on each developer's machine.
+**Next step up:** a shared broker across a team, instead of one machine, is configured with an
+`mqtts://` broker URL plus `KANBUS_REALTIME_MQTT_API_TOKEN` in `~/.kanbus.env`. Those settings are
+all that change on each developer's machine.
 
 ## Transport selection
 
