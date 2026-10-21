@@ -10,9 +10,17 @@
   "parent": null,
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "4c5914cc-48a7-4e03-94c2-5b08adfe3520",
+      "author": "home",
+      "text": "Read-only check of 335163751677 (2026-10-21). Recommendation: migrate nothing, retire all three.\n- kanbus/github-webhook/dev (stack KanbusCloudFoundation): read by GithubWebhookIngress about 25 times a day, fed by the push webhook 673694740 on AnthusAI/Kanbus to the legacy dev API. Downstream is failing: EfsWriter 771 errors in 1562 runs over 30 days, GitSync 80 of 1007, 11 messages in kanbus-sync-dlq-dev. ConsoleLambda had no invocations in 30 days, and no repo or client config references the legacy API or user pools.\n- kanbus/mqtt-token-pepper/dev (KanbusCloudFoundation): its authorizer last ran 2026-09-02; the token admin API never ran in 90 days.\n- kanbus/mqtt-token-pepper/prod (KanbusCoordinationProduction): last used 2026-09-22/23, no use since, no client config points at it.\nRetained data on stack deletion: KanbusCloudFoundation keeps EFS fs-09fcbd58a2e2d2c98 (75 GB, the main cost), S3 kanbus-sync-dev-335163751677 (27 GB), Cognito us-east-1_mPUGMCuS6 (21 users) and the token table; its two secrets have DeletionPolicy Delete. KanbusCoordinationProduction keeps Cognito us-east-1_ytWCFJZy3 (1 user), two DynamoDB tables and the prod pepper secret (DeletionPolicy Retain, so it needs its own delete).\nProposed steps, each awaiting Ryan's approval: 1) deactivate the Kanbus repo webhook; 2) delete stack KanbusCloudFoundation; 3) delete stack KanbusCoordinationProduction and then the retained prod pepper; 4) decide keep or delete for the retained EFS, S3, Cognito and table data; 5) remove infra/cloud and its CI job.",
+      "created_at": "2026-10-21T18:44:26.034862Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-21T15:49:43.550319Z",
-  "updated_at": "2026-10-21T15:49:43.585962Z",
+  "updated_at": "2026-10-21T18:44:26.034892Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
