@@ -1,6 +1,6 @@
 {
   "name": "@kanbus/cdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "description": "AWS CDK construct that deploys the Kanbus API service with its bundled Lambda package",
   "license": "MIT",
@@ -12,9 +12,9 @@
     "assets/kanbus-api-sweeper.zip"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && npm run typecheck && node --test dist/tests/*.test.js"
+    "build": "rm -rf dist dist-test && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run build && npm run typecheck && tsc -p tsconfig.test.json && node --test dist-test/cdk/tests/*.test.js"
   },
   "peerDependencies": {
     "aws-cdk-lib": ">=2.215.0 <3",

@@ -260,10 +260,10 @@ test("users only creates the JWT api with the contract routes", () => {
 });
 
 function expectedRouteKeys(): string[] {
-  const methods = ["DELETE", "GET", "PATCH", "POST"];
+  const methods = ["DELETE", "GET", "PATCH", "POST", "PUT"];
   return [
     ...methods.map((method) => `${method} /{tenant}/{project}/api/{proxy+}`),
-    ...methods.map((method) => `${method} /{tenant}/api/issues`),
+    "GET /{tenant}/api/issues",
   ].sort();
 }
 
@@ -359,7 +359,7 @@ test("lambda invoke permissions reference only the created apis", () => {
   const permissions = Object.values(template.findResources("AWS::Lambda::Permission")).filter(
     (permission) => (permission as any).Properties.Principal === "apigateway.amazonaws.com",
   );
-  assert.equal(permissions.length, 16);
+  assert.equal(permissions.length, 12);
   const apiLogicalIds = Object.keys(template.findResources("AWS::ApiGatewayV2::Api"));
   assert.equal(apiLogicalIds.length, 2);
   for (const permission of permissions) {

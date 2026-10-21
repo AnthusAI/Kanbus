@@ -47,4 +47,4 @@ Feature: Realtime project scope
   Scenario: Realtime is disabled with a clear message when the project has no project_id
     Given a running UDS gossip broker
     And a project "legacy" with the project key "kanbus" and no project id on the UDS broker
-    Then the realtime watch of project "legacy" fails with "realtime disabled: .kanbus.yml has no project_id; run kbs migrate project-id"
+    Then the realtime watch of project "legacy" fails with "Realtime updates are off for this project because .kanbus.yml has no project_id. Run 'kbs migrate project-id' once on the repository's integration branch and commit .kanbus.yml; every clone and worktree then shares live updates. Every machine using this repository needs kbs 0.40.0 or later first."

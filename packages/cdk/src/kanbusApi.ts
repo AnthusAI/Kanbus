@@ -52,13 +52,19 @@ const DEFAULT_MEMORY_MEGABYTES = 512;
 const DEFAULT_TIMEOUT_SECONDS = 15;
 const SWEEPER_TIMEOUT_MINUTES = 5;
 const SWEEPER_RESERVED_CONCURRENCY = 1;
-const ROUTE_METHODS = [
-  apigatewayv2.HttpMethod.GET,
-  apigatewayv2.HttpMethod.POST,
-  apigatewayv2.HttpMethod.PATCH,
-  apigatewayv2.HttpMethod.DELETE,
+const API_ROUTES: ReadonlyArray<{ path: string; methods: apigatewayv2.HttpMethod[] }> = [
+  {
+    path: "/{tenant}/{project}/api/{proxy+}",
+    methods: [
+      apigatewayv2.HttpMethod.GET,
+      apigatewayv2.HttpMethod.PUT,
+      apigatewayv2.HttpMethod.POST,
+      apigatewayv2.HttpMethod.PATCH,
+      apigatewayv2.HttpMethod.DELETE,
+    ],
+  },
+  { path: "/{tenant}/api/issues", methods: [apigatewayv2.HttpMethod.GET] },
 ];
-const ROUTE_PATHS = ["/{tenant}/{project}/api/{proxy+}", "/{tenant}/api/issues"];
 const INDEX_DEFINITIONS = [
   { indexName: "by_type", partitionKeyName: "type_scope" },
   { indexName: "by_status", partitionKeyName: "status_scope" },
@@ -328,8 +334,8 @@ export class KanbusApi extends Construct {
   ): apigatewayv2.HttpApi {
     const api = new apigatewayv2.HttpApi(this, id, { apiName });
     const integration = new integrations.HttpLambdaIntegration(`${id}Integration`, handler);
-    for (const path of ROUTE_PATHS) {
-      for (const method of ROUTE_METHODS) {
+    for (const { path, methods } of API_ROUTES) {
+      for (const method of methods) {
         new apigatewayv2.HttpRoute(api, `${method}${path.replace(/[^A-Za-z0-9]/g, "")}`, {
           httpApi: api,
           routeKey: apigatewayv2.HttpRouteKey.with(path, method),
@@ -345,8 +351,8 @@ export class KanbusApi extends Construct {
     api: apigatewayv2.HttpApi,
     servicePrincipals: KanbusServicePrincipal[],
   ): void {
-    const resources = ROUTE_PATHS.flatMap((path) =>
-      ROUTE_METHODS.map((method) =>
+    const resources = API_ROUTES.flatMap(({ path, methods }) =>
+      methods.map((method) =>
         api.arnForExecuteApi(method, path.replace("{proxy+}", "*").replace(/\{[a-z]+\}/g, "*")),
       ),
     );

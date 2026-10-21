@@ -7,6 +7,7 @@ use crate::ai_credentials::{resolve_api_key_source, DEFAULT_API_KEY_VARIABLE};
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{ensure_git_repository, get_configuration_path, load_project_directory};
+use crate::gossip::MISSING_PROJECT_ID_MESSAGE;
 use crate::maintenance::validate_project;
 use crate::methodology_bundles::load_selected_methodologies;
 
@@ -22,6 +23,8 @@ pub struct DoctorResult {
     pub project_management_file_is_current: Option<bool>,
     /// Warning text naming the gitignore rule that hides project events while events are enabled.
     pub events_gitignore_warning: Option<String>,
+    /// Explanation that realtime is off because `project_id` is absent while a broker is configured.
+    pub realtime_project_id_warning: Option<String>,
 }
 
 fn describe_gitignore_rule_hiding_events(
@@ -87,11 +90,22 @@ pub fn run_doctor(root: &Path) -> Result<DoctorResult, KanbusError> {
     } else {
         None
     };
+    let realtime_project_id_missing = configuration
+        .project_id
+        .as_deref()
+        .is_none_or(str::is_empty);
+    let realtime_project_id_warning =
+        if realtime_project_id_missing && configuration.realtime.broker != "off" {
+            Some(MISSING_PROJECT_ID_MESSAGE.to_string())
+        } else {
+            None
+        };
     Ok(DoctorResult {
         project_dir,
         ai_credential_source,
         methodology_names,
         project_management_file_is_current,
         events_gitignore_warning,
+        realtime_project_id_warning,
     })
 }
