@@ -24,10 +24,17 @@
       "text": "Step 1 done 2026-10-21: webhook 673694740 on AnthusAI/Kanbus deactivated (not deleted). Retirement plan: 2) delete stack KanbusCoordinationProduction (50 resources, idle since 2026-09-23); 3) delete stack KanbusCloudFoundation (100 resources) after 24 hours of zero ingress invocations confirms nothing else feeds it; neither stack has exports or termination protection; 4) delete the retained data: EFS fs-09fcbd58a2e2d2c98 (75 GB), S3 kanbus-sync-dev-335163751677 (27 GB), Cognito us-east-1_mPUGMCuS6 (21 users) and us-east-1_ytWCFJZy3 (1 user), the three DynamoDB tables, and secret kanbus/mqtt-token-pepper/prod with the default 30-day recovery window; the synced board data is a mirror of the git repository and is recoverable from it; 5) PR removing infra/cloud, its CI job and docs, then delete the webhook. Execution: no CI role for AnthusAI/Kanbus exists in 335163751677, and creating one only for teardown would itself be manual configuration, so steps 2 to 4 are proposed as approved one-time CLI deletions from Ryan's Mac.",
       "created_at": "2026-10-21T20:49:49.899390Z",
       "comment_type": "default"
+    },
+    {
+      "id": "f57306b4-4860-4ca4-a78c-3f674a2f878b",
+      "author": "home",
+      "text": "Ryan approved the plan 2026-10-21. Step 2 done: stack KanbusCoordinationProduction deleted; its retained tables kanbus-coordination-leases-prod and kanbus-coordination-mqtt-tokens-prod, Cognito us-east-1_ytWCFJZy3 and secret kanbus/mqtt-token-pepper/prod remain until step 4. A 24-hour invocation check of KanbusCloudFoundation started before step 3; the infra/cloud removal PR is being drafted and will not merge before step 3.",
+      "created_at": "2026-10-21T20:56:16.444323Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-21T15:49:43.550319Z",
-  "updated_at": "2026-10-21T20:49:49.899433Z",
+  "updated_at": "2026-10-21T20:56:16.444356Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
