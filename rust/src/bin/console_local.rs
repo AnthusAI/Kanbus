@@ -1544,6 +1544,9 @@ fn start_gossip_bridge(state: AppState) {
         return;
     }
     let root = state.base_root.clone();
+    if let Some(warning) = kanbus::gossip::missing_project_id_startup_warning(&root) {
+        eprintln!("warning: {warning}");
+    }
     let notification_tx = state.notification_tx.clone();
     std::thread::spawn(move || {
         let callback = Arc::new(move |envelope: GossipEnvelope| {

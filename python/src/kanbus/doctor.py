@@ -16,6 +16,7 @@ from kanbus.ai_credentials import (
 )
 from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.file_io import InitializationError, ensure_git_repository
+from kanbus.gossip import MISSING_PROJECT_ID_MESSAGE
 from kanbus.maintenance import ProjectValidationError, validate_project
 from kanbus.methodology_bundles import MethodologyError, load_selected_methodologies
 from kanbus.project import (
@@ -38,6 +39,7 @@ class DoctorResult:
     methodology_names: tuple[str, ...] = ()
     project_management_file_is_current: bool | None = None
     events_gitignore_warning: str | None = None
+    realtime_project_id_warning: str | None = None
 
 
 def describe_gitignore_rule_hiding_events(root: Path, project_dir: Path) -> str | None:
@@ -129,10 +131,17 @@ def run_doctor(root: Path) -> DoctorResult:
         else None
     )
 
+    realtime_project_id_warning = (
+        MISSING_PROJECT_ID_MESSAGE
+        if not configuration.project_id and configuration.realtime.broker != "off"
+        else None
+    )
+
     return DoctorResult(
         project_dir=project_dir,
         ai_credential_source=ai_credential_source,
         methodology_names=methodology_names,
         project_management_file_is_current=project_management_file_is_current,
         events_gitignore_warning=events_gitignore_warning,
+        realtime_project_id_warning=realtime_project_id_warning,
     )

@@ -62,7 +62,9 @@ def test_run_doctor_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(
         doctor,
         "load_project_configuration",
-        lambda _path: SimpleNamespace(events=False),
+        lambda _path: SimpleNamespace(
+            events=False, project_id="00000000-0000-4000-8000-000000000000"
+        ),
     )
     monkeypatch.setattr(doctor, "load_selected_methodologies", lambda _root, _cfg: [])
     monkeypatch.setattr(doctor, "build_project_management_text", lambda _root: "")
@@ -85,7 +87,9 @@ def test_run_doctor_tolerates_credential_resolution_failure(
     monkeypatch.setattr(
         doctor,
         "load_project_configuration",
-        lambda _path: SimpleNamespace(events=False),
+        lambda _path: SimpleNamespace(
+            events=False, project_id="00000000-0000-4000-8000-000000000000"
+        ),
     )
     monkeypatch.setattr(doctor, "load_selected_methodologies", lambda _root, _cfg: [])
     monkeypatch.setattr(doctor, "build_project_management_text", lambda _root: "")
