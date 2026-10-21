@@ -1,2 +1,2 @@
-papyrus-newsroom[markus]==5.1.0
+papyrus-newsroom[markus]==5.8.0
 anthus-markus>=0.13.0,<0.14
