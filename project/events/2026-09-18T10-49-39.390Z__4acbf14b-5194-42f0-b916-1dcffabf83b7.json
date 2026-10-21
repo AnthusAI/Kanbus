@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "4acbf14b-5194-42f0-b916-1dcffabf83b7",
+  "issue_id": "tskl-eo2.5.4",
+  "event_type": "comment_added",
+  "occurred_at": "2026-09-18T10:49:39.390Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "9f1eeb42-8505-46e6-82ea-5ff39174af78",
+    "comment_author": "home"
+  }
+}

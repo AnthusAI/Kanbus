@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "c530fcc4-230b-4d45-8770-3c27925039b0",
+  "issue_id": "kbs-f7e04f88-a52a-46bf-ab7b-f0113cb8fc4c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-08-30T18:05:16.962Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "publish_issue_mutation / publish_envelope skip silently if Mosquitto is missing. Explicit gossip watch/broker still print the install hint. Gherkin: create does not contain Mosquitto not found.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+    "priority": 2,
+    "status": "open",
+    "title": "Mute Mosquitto-missing on issue mutations"
+  }
+}

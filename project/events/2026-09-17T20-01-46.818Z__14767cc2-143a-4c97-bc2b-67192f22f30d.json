@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "event_id": "14767cc2-143a-4c97-bc2b-67192f22f30d",
+  "issue_id": "kbs-d481c7f9-59b3-4cfd-af6d-ffeca14438f5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-17T20:01:46.818Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Generate and comment three lorem ipsum paragraphs",
+    "description": "Generate exactly three distinct paragraphs of lorem ipsum. When complete, post those exact three paragraphs as a comment on this issue using the router result issue_comments field. Do not modify issue files directly. Return a concise completion summary; make no source-code changes.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-d3973c07-13a1-4598-8f32-85e010278121",
+    "labels": [
+      "agent-class:implementation"
+    ],
+    "agent": {
+      "platform": "codex",
+      "model": "gpt-5.6-luna",
+      "name": "issue-router-production-smoke"
+    }
+  }
+}

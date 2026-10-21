@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "f597f002-c214-4446-a8f0-d8c5fa47d8f5",
+  "issue_id": "kbs-87b6cede-720a-401e-8ae6-772a1039c7e3",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-02T18:37:48.176Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "assignee": {
+        "from": null,
+        "to": "agent"
+      }
+    }
+  }
+}

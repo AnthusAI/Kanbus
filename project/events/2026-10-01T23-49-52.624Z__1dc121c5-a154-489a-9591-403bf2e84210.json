@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "1dc121c5-a154-489a-9591-403bf2e84210",
+  "issue_id": "kbs-c3899e30-ddbb-4ebc-a711-c46b22c40c35",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-01T23:49:52.624Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Salvage release fixes from stale PR #290 onto develop",
+    "description": "PR #290 (release: promote develop to main, 2026-09-17) was never merged; later promotions (#374, #379) bypassed it. Its six fixes never reached main: d05fa793 remove duplicate console board steps; f6713bc7 right-now test avoid writing credential literals; dabe88b3 restore console active tree helpers; 80bc3691 stabilize coordination and console parity tests; 00c45ef4 initialize MQTT scenario messages; 8dd5a9f3 coverage rebaseline. Port all six onto a branch off develop, update the two that no longer apply cleanly, get tests passing, PR into develop, then close #290 referencing the new PR.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

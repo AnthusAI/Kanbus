@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "df048370-3900-4f40-9a1a-0a52c3f4dfba",
+  "issue_id": "kbs-8d8aaeab-89f1-47bc-8c55-fffc0f41b209",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-03T01:54:43.957Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": "agent",
+    "description": "The Now toolbar needs a left-aligned board title to the left of the Status filter so operators can tell which project they are looking at.\n\n`.kanbus.yml` gains an optional `name` field for the human-readable board title. When `name` is unset or blank, Now uses the repository directory name, then `project_key`.\n\n```mermaid\nflowchart LR\n  nameYaml[\".kanbus.yml name\"] --> resolve[\"resolve_board_name\"]\n  folder[\"repository folder\"] --> resolve\n  key[\"project_key\"] --> resolve\n  resolve --> header[\"Now toolbar title\"]\n```",
+    "issue_type": "story",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Now panel shows the board name"
+  }
+}

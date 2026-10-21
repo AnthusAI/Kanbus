@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "e0f10a33-bd95-4358-ac61-2872e2dc48ac",
+  "issue_id": "kbs-d3973c07-13a1-4598-8f32-85e010278121",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-18T11:19:12.300Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "description": {
+        "from": "Validate single-worker production issue routing with the production MQTT transport and hard coordination mutex.",
+        "to": "Validate that the Issue Router can dispatch actual Kanbus issues from the shared kbs board, starting with clearly marked, disposable test tasks and progressing toward safe real work. Use separate containers as independent router machines, each with its own checkout and no shared UDS socket, connected to the same Git remote, MQTT broker, and Mutex API. First verify hard mutual exclusion so exactly one worker starts an opted-in test issue and the loser makes no lifecycle transition. Then validate lease expiry/takeover and, only with a harmless test task, document soft-provider duplicate behavior. Capture worker logs, claim IDs, issue comments/status, and Git/router-state evidence. Never route unrelated production issues during these tests; keep each test issue under this epic and close it after reviewing the result."
+      },
+      "parent": {
+        "from": null,
+        "to": "kbs-753e71c7-3af8-47a2-bfa5-a6678c81697d"
+      }
+    }
+  }
+}

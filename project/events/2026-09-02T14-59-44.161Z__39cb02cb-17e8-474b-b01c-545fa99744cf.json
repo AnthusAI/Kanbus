@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "39cb02cb-17e8-474b-b01c-545fa99744cf",
+  "issue_id": "kbs-25f87124-76b0-429b-a3c7-0f094836a180",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-02T14:59:44.161Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "assignee": {
+        "from": null,
+        "to": "grok-manager"
+      }
+    }
+  }
+}

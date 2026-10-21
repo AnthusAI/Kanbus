@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "17f9fcbd-dc23-40f6-8850-7220531195fb",
+  "issue_id": "kbs-43c4041b-d98d-4854-8124-8ad500e569b1",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T14:59:32.930Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "As a CLI user, I want updating an issue to a field value it already has to succeed without writing, so that scripts and agents can be idempotent.\n\nFeature: Idempotent issue update\n  Scenario: Updating an issue to its current status succeeds without writing\n    Given a Kanbus project with default configuration\n    And an issue \"kanbus-aaa\" exists with status \"closed\"\n    When I run \"kanbus update kanbus-aaa --status closed\"\n    Then the command should succeed\n    And issue \"kanbus-aaa\" should have status \"closed\"\n\n  Scenario: Update with no flags still fails\n    Given a Kanbus project with default configuration\n    And an issue \"kanbus-aaa\" exists\n    When I run \"kanbus update kanbus-aaa\"\n    Then the command should fail with exit code 1\n    And stderr should contain \"no updates requested\"",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+    "priority": 1,
+    "status": "open",
+    "title": "Idempotent no-op issue updates"
+  }
+}

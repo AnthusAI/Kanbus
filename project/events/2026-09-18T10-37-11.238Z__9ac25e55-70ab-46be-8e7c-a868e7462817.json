@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "9ac25e55-70ab-46be-8e7c-a868e7462817",
+  "issue_id": "kbs-992d0906-5700-47ed-8f3a-f8f423ec5c5e",
+  "event_type": "state_transition",
+  "occurred_at": "2026-09-18T10:37:11.238Z",
+  "actor_id": "home",
+  "payload": {
+    "from_status": "in_progress",
+    "to_status": "closed"
+  }
+}

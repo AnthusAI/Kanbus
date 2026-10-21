@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f7fea913-e5d7-4b2b-8d31-6a281883c1a8",
+  "issue_id": "kbs-01002499-7b06-4309-bb52-47a553a8843f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-08T15:08:11.586Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "I removed the Plexus project in the current list of project filters and it removed the Plexus issues from the board but it did not remove them from the 'now' view. This fix needs to work for the CLI also.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Plexus project issues persist in 'now' view after filter removal"
+  }
+}

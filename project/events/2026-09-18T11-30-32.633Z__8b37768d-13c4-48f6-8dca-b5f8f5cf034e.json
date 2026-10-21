@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8b37768d-13c4-48f6-8dca-b5f8f5cf034e",
+  "issue_id": "kbs-993f2c48-1be9-41eb-a3ec-56073f990217",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-18T11:30:32.633Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Implement reusable containerized integration runner for real board dispatch",
+    "description": "Implement a repeatable opt-in suite that targets the fixed Issue Router Testing epic kbs-d3973c07-13a1-4598-8f32-85e010278121. If the epic is absent, create it just-in-time with that exact ID and identity; if the ID exists but is not the expected epic, fail before mutation. Create unique disposable routed issues beneath it, run separate router containers with independent checkouts and no shared UDS, and assert actual board status/comment effects, hard-lease winner/loser behavior, expiry/takeover, evidence capture, and cleanup. Require an explicit live flag and validate service inputs before creating issues or starting workers. Keep CI-safe offline coverage independent of live cloud credentials. Never mount broad host credential directories into workers; document narrowly scoped credential injection. Use bounded timeouts, redact secrets from logs, and close generated issues on success or failure without deleting their history.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-2730ccba-8e44-4449-8496-c490fc5926c5",
+    "labels": []
+  }
+}

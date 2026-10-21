@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "event_id": "cbc765ef-5b03-4ee8-925c-c3b54e2d7c01",
+  "issue_id": "kbs-14781c38-6266-4961-b65c-51ebd7fe0809",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T11:17:23.475Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Enable editorial checks in the newsroom",
+    "description": "Turn on the Papyrus editorial-checks plugin (Limatus policies, Jev judgment checks, Luna rewrites) for Threat Intelligence: pin @anthusai/papyrus to the develop prerelease that ships it (2.0.0-next.7: 3.1.0 plus editorial checks) in package.json and infra/site.json, and add backend.plugins: [\"editorial-checks\"]. TYPESAFE_API_KEY and OPENAI_API_KEY are already Amplify shared secrets on dzefa11i80jyq. Papyrus: PPY-ed678d, AnthusAI/Papyrus#378, #385.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": [
+      "editorial"
+    ],
+    "agent": {
+      "platform": "claude-code",
+      "model": "claude-opus-5-5",
+      "name": "Claude"
+    }
+  }
+}

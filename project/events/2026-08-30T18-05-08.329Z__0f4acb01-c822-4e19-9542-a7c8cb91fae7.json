@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "0f4acb01-c822-4e19-9542-a7c8cb91fae7",
+  "issue_id": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-08-30T18:05:08.329Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "## Why\n\n0.23.1 shipped the four CLI/wiki bugs, but a clean `pip install kanbus` still feels rough: no `kbs` script, cargo-only upgrade text, a heavy runtime wheel, and Mosquitto warnings on ordinary `create`.\n\n## Scope\n\n1. Install a `kbs` console script from the Python package (keep `kanbus` and `kanbusr`).\n2. Identical Python/Rust `kanbus-version` upgrade text that includes both pip and cargo.\n3. Move test/lint/docs tools to `kanbus[dev]`; keep the CLI wheel slim. Update CI to install the extra where tests run.\n4. Do not print Mosquitto-missing on issue mutations; keep the warning on explicit gossip subscribe/broker paths.\n\n## Proof\n\nGherkin for the version-gate upgrade lines and for create without Mosquitto noise. Dual Python/Rust. Docs: INSTALL, CLI_REFERENCE, GETTING_STARTED.",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Polish PyPI install UX"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "0655f44d-3884-4581-8758-1fae241a65e1",
+  "issue_id": "kbs-25f87124-76b0-429b-a3c7-0f094836a180",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T14:59:33.218Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "As a CLI user, I want kanbus list --all as a shorthand for --limit 0, so that showing every issue is obvious.\n\nPython and Rust must both accept --all. Combining --all with --limit must fail (one way, no dual path).\n\nFeature: List all issues flag\n  Scenario: List --all shows every issue\n    Given a Kanbus project with default configuration\n    And issues \"kanbus-limit-a\" and \"kanbus-limit-b\" exist\n    And an issue \"kanbus-limit-c\" exists\n    When I run \"kanbus list --all\"\n    Then stdout should list issue \"limita\"\n    And stdout should list issue \"limitb\"\n    And stdout should list issue \"limitc\"\n\n  Scenario: List rejects combining --all with --limit\n    Given a Kanbus project with default configuration\n    When I run \"kanbus list --all --limit 2\"\n    Then the command should fail with exit code 1\n    And stderr should contain \"cannot combine --all with --limit\"",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+    "priority": 2,
+    "status": "open",
+    "title": "list --all shorthand for --limit 0"
+  }
+}

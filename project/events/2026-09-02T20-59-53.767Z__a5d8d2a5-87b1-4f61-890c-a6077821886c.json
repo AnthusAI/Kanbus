@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a5d8d2a5-87b1-4f61-890c-a6077821886c",
+  "issue_id": "kbs-e1452db7-bfe5-4b13-aefd-1a2a5fa1d33c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T20:59:53.767Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "The console panel selector still labels the right-now view Current Status and places it last. It should say Now and sit leftmost: Now, Board, Wiki, Metrics.\n\nThe Now panel also opens on the flat recency feed. Tree view is the default, matching kbs now. The Tree checkbox remains so a user can switch to the flat feed.\n\n## Gherkin\n\n```gherkin\nFeature: Console now panel\n  Scenario: Now is the first panel mode\n    Given the console is open\n    Then the panel mode selector labels should be \"Now, Board, Wiki, Metrics\"\n    When I switch to the \"Now\" view\n    Then the current status view should be active\n    And the board view should be inactive\n\n  Scenario: Now panel defaults to tree view\n    Given the console is open\n    And no issues exist in the console\n    And a status hierarchy root \"Initiative Alpha\" of type \"initiative\" updated at \"2026-01-01T10:00:00.000Z\"\n    When I switch to the \"Now\" view\n    Then the status tree view should be enabled\n    And the status tree should list issues in order \"Initiative Alpha\"\n```",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Now tab is first and defaults to tree"
+  }
+}

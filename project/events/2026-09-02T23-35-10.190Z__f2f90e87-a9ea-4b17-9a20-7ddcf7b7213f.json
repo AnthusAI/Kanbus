@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f2f90e87-a9ea-4b17-9a20-7ddcf7b7213f",
+  "issue_id": "kbs-d6edd7b7-8b92-4a01-93b8-3ca46d7584da",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T23:35:10.190Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": "agent",
+    "description": "Looking at Now generates summaries for the issues in the current view. It does not first generate every closed descendant of an in-progress parent.\n\nPhase 4 on Chattic.us stayed on the placeholder because JIT walked the whole initiative tree (closed epics and tasks) before the parent. Generation of the parent itself succeeds in one call.\n\nNamed recursive `kbs now <id>` still backfills children that are in that selection before the parent.\n\nGET /api/now must ensure the default Now set (in_progress), not every issue in the store.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 0,
+    "status": "open",
+    "title": "Now generation must not wait on closed descendants"
+  }
+}

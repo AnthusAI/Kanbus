@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d87a6e09-441c-4c93-adf0-35b059a06fef",
+  "issue_id": "kbs-d178f0fc-6f7a-403e-8b29-c0e55d83794c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-08T15:09:13.535Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "The sort ordering of the 'now' view is not defined? It should be ordered in terms of what issue trees contain the most-recently updated issue. Any update in any issue in a tree should raise it to the top.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Sort 'now' view by most recently updated issue tree"
+  }
+}

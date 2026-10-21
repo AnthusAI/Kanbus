@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "event_id": "1ce14550-ba48-4f06-beb3-5b2d7d78da20",
+  "issue_id": "kbs-5e1e52b9-6248-4acf-9631-b20601490fa9",
+  "event_type": "issue_deleted",
+  "occurred_at": "2026-09-17T09:21:04.502Z",
+  "actor_id": "home",
+  "payload": {
+    "issue_type": "epic",
+    "status": "open",
+    "title": "Codex-first Issue Router vertical slice specifications"
+  }
+}

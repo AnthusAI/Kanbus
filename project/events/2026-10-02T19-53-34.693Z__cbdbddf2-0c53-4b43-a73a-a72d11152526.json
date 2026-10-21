@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "cbdbddf2-0c53-4b43-a73a-a72d11152526",
+  "issue_id": "kbs-429fa3fd-cde5-44ee-811e-79f43b3730a4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-02T19:53:34.693Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Shorten the standard issue-ID hash prefix from 6 to 5 characters",
+    "description": "Change the standard way Kanbus abbreviates an issue's hash prefix in the Kanbus interface (CLI and console). Short IDs currently show 6 characters of the hash (for example kbs-60bf38). Make the standard 5 characters instead (for example kbs-60bf3).\n\nWhy 5:\n- 4 characters carries a remote but real chance of collisions, which could confuse two different issues.\n- 5 balances that collision risk against cognitive load for people reading the UI, and against token cost for agents doing the work. Every character removed cuts noise and token usage.\n\nScope: Kanbus's own issue-ID display and abbreviation (CLI output, console, and anywhere a short ID is generated or shown), plus unique-prefix lookups, which keep working. This is not about GitHub's commit-hash display.\n\nOpen considerations for planning: how existing 6-character references in comments, commits and docs keep resolving, and what to do when a 5-character prefix is ambiguous (fall back to a longer prefix).",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "aa4c048f-07a2-4953-81b1-5190e24a566f",
+  "issue_id": "kbs-60bf3853-045d-4553-892a-e3c0fb49aae5",
+  "event_type": "comment_added",
+  "occurred_at": "2026-10-02T20:14:27.068Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "f6ee2451-c675-4689-9051-ee308f85baf2",
+    "comment_author": "home",
+    "agent": {
+      "platform": "cursor",
+      "model": "GLM 5.3",
+      "name": "Cloud Agent"
+    }
+  }
+}

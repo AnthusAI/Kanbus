@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "a6cb4e8b-a8df-4884-804e-2434b311d385",
+  "issue_id": "kbs-72e13b3f-2927-437b-aa95-8a9a4417a6ca",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-02T20:42:53.388Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Named Git branching strategies at kbs init",
+    "description": "Not every team that uses Kanbus uses GitFlow; GitFlow is one specific branching strategy (\"religion\") among several. Today CONTRIBUTING_AGENT.md ships as one fixed file with one workflow baked in.\n\nGoal: at kbs init time the user can pick a named branching strategy, with GitFlow as the default and others supported (for example trunk-based development, GitHub Flow, GitLab Flow, release branching). The agent contributing instructions (CONTRIBUTING_AGENT.md, and the branching guidance in AGENTS.md) are constructed from those init parameters instead of being a single fixed file.\n\nScope to explore:\n- A catalog of named strategies, each defining its integration branch, release branch, where feature branches start and target, merge cadence, and where board-state commits land.\n- kbs init options to choose a strategy and set its parameters (branch names such as develop and main), defaulting to GitFlow.\n- Generating the contributing agent instructions from the chosen strategy, and regenerating them when the strategy changes.\n- Strategy guidance for multiple agents working in parallel (worktrees, short-lived branches, frequent integration).\n\nOrigin: Ryan, 2026-10-02, after copying Chattic.us GitFlow rules into BotSpy by hand.",
+    "issue_type": "initiative",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "grok_bot",
+      "model": "Grok",
+      "name": "Project Manager"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "4093e205-a8fe-4529-93b2-36c3ed6be3a5",
+  "issue_id": "kbs-14f057f4-d526-4723-9a8d-777147d59df5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-03T02:20:40.130Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": "agent",
+    "description": "Now tree view must let operators expand and collapse nodes that have descendants, including children that do not match the current Status filter.\n\nDefault Status is in_progress. An in-progress epic must still show an expand control when it has open, blocked, or closed children. Expanding drills into the full descendant tree; collapsing hides those children again.\n\nFlat feed (Tree off) stays status-filtered. Generation still does not backfill closed descendants; this is display only.\n\n```mermaid\nflowchart TD\n  filter[\"Status filter\"] --> roots[\"matching issues as roots\"]\n  roots --> expand[\"expand control if descendants exist\"]\n  expand --> children[\"all descendants any status\"]\n```",
+    "issue_type": "story",
+    "labels": [],
+    "parent": null,
+    "priority": 0,
+    "status": "open",
+    "title": "Now tree expands the full descendant hierarchy"
+  }
+}

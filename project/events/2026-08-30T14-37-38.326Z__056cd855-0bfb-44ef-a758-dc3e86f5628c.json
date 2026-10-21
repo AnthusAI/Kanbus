@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "056cd855-0bfb-44ef-a758-dc3e86f5628c",
+  "issue_id": "kbs-6db7d9c7-2571-405c-9ec1-14aec07e7cf5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-08-30T14:37:38.326Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "## Problem\n\nA repository can declare a required Kanbus release in `kanbus-version`, but `kbs` does not compare that declaration with its own version before executing commands.\n\n## Observed reproduction\n\nIn the Anth.us newsroom repository:\n\n- `kanbus-version` declares `0.19.1`.\n- The installed CLI reports `kbs 0.18.3-29-g36a5204`.\n- `kbs doctor` reports success.\n- `kbs list` and `kbs daemon-status` fail only with `No such file or directory (os error 2)`.\n- Mutation commands can succeed while warning that Mosquitto is unavailable.\n\nThe operator receives no indication that the CLI is older than the project contract, making product defects and installation drift difficult to distinguish.\n\n## Expected behavior\n\nBefore project commands execute, Kanbus should compare the running CLI version with `kanbus-version`. An incompatible version should fail immediately with the required version, running version, and documented upgrade command. Development builds should be handled explicitly rather than silently accepted.\n\n## Acceptance criteria\n\n- A BDD scenario covers an older CLI opening a newer project.\n- The command exits nonzero before project or realtime initialization.\n- The error names both versions and gives one supported upgrade path.\n- A compatible CLI continues normally.\n- Python and Rust CLIs behave consistently.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Warn when installed CLI does not satisfy kanbus-version"
+  }
+}

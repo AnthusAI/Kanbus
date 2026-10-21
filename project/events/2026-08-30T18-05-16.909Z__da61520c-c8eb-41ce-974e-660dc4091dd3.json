@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "da61520c-c8eb-41ce-974e-660dc4091dd3",
+  "issue_id": "kbs-93a9cc93-476b-4bd7-9328-5a89739f873a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-08-30T18:05:16.909Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "Runtime deps stay click/jinja2/pydantic/pyyaml/pydantic-settings/requests/paho-mqtt. extra [dev] for behave pytest gherkin-official coverage ruff black sphinx. CI jobs that run black/ruff/pytest/behave install python[dev]. python-install stays a slim pip install.",
+    "issue_type": "chore",
+    "labels": [],
+    "parent": "kbs-7dac7680-eaf8-451a-bd5f-1e899fba657a",
+    "priority": 2,
+    "status": "open",
+    "title": "Move Python test and lint tools to optional extras"
+  }
+}

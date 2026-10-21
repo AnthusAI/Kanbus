@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "953bf0d1-d75a-483e-b350-ff0090ab1608",
+  "issue_id": "kbs-0373b418-298e-4345-9736-c20c90c2b44c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-19T22:41:00.374Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Resilience: one malformed issue file must not make every board command fail",
+    "description": "One issue file with a bad dependencies entry (a bare string where a DependencyLink object is expected) makes every command that loads all issues fail (kbs list, show, update, create) on a real board (AnthusAI/Chatticus, kbs 0.36.0).\n\nExact error from kbs list/show/update/create:\nError: invalid type: string \"chatticus-0d9b9f84-6940-4e36-ad37-13b0e9bf0850\", expected struct DependencyLink\n(this text does not name the offending file or field).\n\nkbs validate does name it: \"chatticus-602a25a2-9332-493e-8589-14520853d1fa.json: invalid issue data: invalid type: string ..., expected struct DependencyLink\".\n\nGaps: (1) the loader is all-or-nothing, so one bad record bricks the board; (2) kbs repair only recreates missing directories and guard files (rust/src/file_io.rs repair_project_structure), it cannot fix or quarantine a bad record; (3) kbs doctor is environment diagnostics only; (4) docs/TROUBLESHOOTING.md \"Malformed JSON in an issue file\" tells users to open and edit the file by hand, which contradicts the rule never to hand-edit project/issues.\n\nProposed: loaders skip-and-report malformed records (warning naming file and field) for read and write commands, with a strict flag for CI; add kbs doctor --fix or kbs repair --issues that quarantines or normalizes bad records (for example a bare string dependency to {target, type: blocked-by}); include the filename in the load error.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude-code",
+      "model": "claude-sonnet-5-5",
+      "name": "sonnet-diagnose"
+    }
+  }
+}

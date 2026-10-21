@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "4ef4f694-5737-4bce-8ef2-7d93775dd024",
+  "issue_id": "kbs-a1201bce-346d-4fe4-84fd-a342776265f0",
+  "event_type": "comment_added",
+  "occurred_at": "2026-09-24T10:49:10.211Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "0456779e-3ad8-49f6-8f40-a787f002efdd",
+    "comment_author": "home",
+    "agent": {
+      "platform": "claude_code",
+      "model": "Claude Opus 5.5",
+      "name": "apricity-lead"
+    }
+  }
+}
