@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v0.40.1 (2026-10-21)
+
+### Bug Fixes
+
+- Report missing project_id only in doctor, kbsc startup and realtime commands
+  ([`8000eef`](https://github.com/AnthusAI/Kanbus/commit/8000eefdc264386c030f32eec3e35bb9b0553cd1))
+
+- **cdk**: Route PUT for board provisioning; client-route contract test
+  ([`547d41e`](https://github.com/AnthusAI/Kanbus/commit/547d41e7336158d30f28a38d4eb3c23fa6e7f49b))
+
+### Chores
+
+- **board**: Write local home paths as ~/ in board issues
+  ([`8acd2cb`](https://github.com/AnthusAI/Kanbus/commit/8acd2cbf051d59552bf368b2dd3f231f1d7869a7))
+
+- **kanbus**: Add project_id for project-scoped realtime events
+  ([`f5ab762`](https://github.com/AnthusAI/Kanbus/commit/f5ab762f5bba600ea1320288ad4a486568a15ceb))
+
+- **kanbus**: Close realtime scoping bug and api-client gaps
+  ([`578239b`](https://github.com/AnthusAI/Kanbus/commit/578239bcd979b4b18978503eabfda2dc05b7372a))
+
+### Testing
+
+- Give doctor configuration stubs a project_id
+  ([`f7de22c`](https://github.com/AnthusAI/Kanbus/commit/f7de22c5b9348d9054fceddfe666f05cab850307))
+
+
 ## v0.40.0 (2026-10-20)
 
 ### Bug Fixes
