@@ -31,10 +31,17 @@
       "text": "Ryan approved the plan 2026-10-21. Step 2 done: stack KanbusCoordinationProduction deleted; its retained tables kanbus-coordination-leases-prod and kanbus-coordination-mqtt-tokens-prod, Cognito us-east-1_ytWCFJZy3 and secret kanbus/mqtt-token-pepper/prod remain until step 4. A 24-hour invocation check of KanbusCloudFoundation started before step 3; the infra/cloud removal PR is being drafted and will not merge before step 3.",
       "created_at": "2026-10-21T20:56:16.444323Z",
       "comment_type": "default"
+    },
+    {
+      "id": "2e903281-5759-481e-a923-c850b7bdbb59",
+      "author": "home",
+      "text": "Done 2026-10-22. 24-hour check showed zero invocations, so KanbusCloudFoundation was deleted (retry after removing four detached Lambda ENIs and clearing the IoT default authorizer, which pointed at the retired kanbus-mqtt-token-dev). Deleted the retained data: EFS fs-09fcbd58a2e2d2c98, S3 kanbus-sync-dev-335163751677, Cognito us-east-1_mPUGMCuS6 and us-east-1_ytWCFJZy3, tables KanbusCloudFoundation-MqttApiTokenTable27CEB026-ZQUN0NAAJO1L, kanbus-coordination-leases-prod and kanbus-coordination-mqtt-tokens-prod, the orphaned IoT authorizer kanbus-mqtt-token-prod, and secret kanbus/mqtt-token-pepper/prod (30-day recovery window, removed 2026-11-21). infra/cloud removed in PR #532. Left for Ryan's decision: two empty tables from the first deploy (KanbusCloudFoundation-MqttApiTokenTable27CEB026-NSVTBSFQANZ2, kanbus-mqtt-tokens-dev) and 20 /aws/lambda/Kanbus* log groups (124 MB).",
+      "created_at": "2026-10-22T21:42:07.582883Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-21T15:49:43.550319Z",
-  "updated_at": "2026-10-21T20:56:16.444356Z",
+  "updated_at": "2026-10-22T21:42:07.582916Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
