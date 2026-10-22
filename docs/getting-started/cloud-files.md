@@ -106,28 +106,6 @@ kbs gossip watch --print
 
 and in another run `kbs create "Hello from the other clone"`. The watcher prints an `issue.mutated` event right away, and `kbs list` in the first clone shows the new issue before any `git pull`. That comes from the overlay cache in `project/.overlay/`, which is why it is gitignored. `kbs overlay reconcile --all --prune` clears entries that git has caught up with.
 
-To use AWS IoT Core as the broker, with per-project API tokens instead of an open broker, deploy the cloud foundation described in the next step and follow "Grant CLI MQTT access" in the [cloud console runbook](../CLOUD_CONSOLE_RUNTIME.md#operator-runbook-v1).
-
-## 5. Optional: a hosted console
-
-`kbsc` on a laptop serves that laptop's clone. To give the team a browser view of the repository's pushed board, Kanbus includes an AWS CDK stack in `infra/cloud`. It runs the console as a Lambda function behind API Gateway with Cognito sign-in, keeps a copy of each repository on EFS, refreshes it from a GitHub push webhook, and pushes live updates to browsers over AWS IoT.
-
-This is an operator task that needs an AWS account and CDK. The outline is:
-
-1. Deploy the stack: see [infra/cloud/README.md](https://github.com/AnthusAI/Kanbus/blob/main/infra/cloud/README.md).
-2. Choose tenant coordinates `<account>/<project>` for the board, for example `acme/website`.
-3. Add a GitHub webhook for push events with payload URL `{ApiBaseUrl}internal/webhooks/github/acme/website` and the stack's webhook secret.
-4. Give each user the Cognito attributes `custom:account=acme` and `custom:project=website`.
-5. Push to the repository, then open `{ApiBaseUrl}acme/website/`.
-
-Known limits of the hosted console today:
-
-- **Treat it as read-only.** The console's copy on EFS is refreshed from git, but edits made in the hosted console are written only to that copy and are never pushed back to the repository. The next sync can overwrite them, and nobody with a clone ever sees them. Make changes with `kbs` in a clone and push.
-- **Use a unique project key per repository.** Repositories that share a project key can show each other's issues in the hosted console, as well as each other's live updates.
-- One user maps to one board.
-
-Details are in the [cloud console runbook](../CLOUD_CONSOLE_RUNTIME.md).
-
 ## Next
 
 - Tune live updates and the overlay cache: [Realtime collaboration](../REALTIME.md).

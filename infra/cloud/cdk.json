@@ -1,7 +1,0 @@
-{
-  "app": "python app.py",
-  "context": {
-    "env_name": "dev",
-    "@aws-cdk/customresources:installLatestAwsSdkDefault": false
-  }
-}
