@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "904118a3-72a3-4e0d-945c-69927f6ab0d2",
+  "issue_id": "kbs-2696c35c-32cc-4259-8701-d21eace129e5",
+  "event_type": "comment_added",
+  "occurred_at": "2026-10-22T02:22:20.586Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "0111e117-3c85-4352-bc25-4d6f8cf89a75",
+    "comment_author": "home",
+    "agent": {
+      "platform": "claude_code",
+      "model": "Claude Opus 5.5",
+      "name": "Papyrus card subtitle"
+    }
+  }
+}
