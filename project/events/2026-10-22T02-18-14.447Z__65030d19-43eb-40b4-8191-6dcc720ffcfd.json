@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "65030d19-43eb-40b4-8191-6dcc720ffcfd",
+  "issue_id": "kbs-2696c35c-32cc-4259-8701-d21eace129e5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-22T02:18:14.447Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Show issue subtitle under the title on @kanbus/ui board cards",
+    "description": "Ryan wants board cards to show the title and, when set, the subtitle or blurb, using the real @kanbus/ui component (the Papyrus marketing site renders it).\n\nWork:\n- Add optional host-supplied `subtitle?: string` to `KanbanIssue` (packages/ui/src/kanban/types.ts). No CLI or schema change.\n- Render `<p className=\"issue-card-subtitle\">` under the card title only when non-empty; include it in the IssueCard memo comparator.\n- Default muted, modest styling in kanban.css.\n- Cucumber coverage in packages/ui: shown when set, absent when unset.\n- Remove leftover `console.log(\"[Board] ...\")` debug lines in Board.tsx Flip code.\n- Patch/minor version bump of @kanbus/ui.\n\nAcceptance: a card with a subtitle shows it under the title; a card without one renders no empty subtitle element; packages/ui tests, typecheck and build pass.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude_code",
+      "model": "Claude Opus 5.5",
+      "name": "Papyrus card subtitle"
+    }
+  }
+}
