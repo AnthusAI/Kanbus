@@ -70,6 +70,8 @@ export interface KanbanIssue {
   priority: number;
   assignee?: string;
   description?: string;
+  /** Optional host-supplied subtitle shown under the title on board cards when non-empty. */
+  subtitle?: string;
   /** Optional short blurb a host may show on the card; clamped to three lines with a More/Less toggle. */
   excerpt?: string;
   parent?: string;
