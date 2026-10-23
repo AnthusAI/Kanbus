@@ -2,6 +2,343 @@
 
 <!-- version list -->
 
+## v0.40.1 (2026-10-21)
+
+### Bug Fixes
+
+- Report missing project_id only in doctor, kbsc startup and realtime commands
+  ([`8000eef`](https://github.com/AnthusAI/Kanbus/commit/8000eefdc264386c030f32eec3e35bb9b0553cd1))
+
+- **cdk**: Route PUT for board provisioning; client-route contract test
+  ([`547d41e`](https://github.com/AnthusAI/Kanbus/commit/547d41e7336158d30f28a38d4eb3c23fa6e7f49b))
+
+### Chores
+
+- **board**: Write local home paths as ~/ in board issues
+  ([`8acd2cb`](https://github.com/AnthusAI/Kanbus/commit/8acd2cbf051d59552bf368b2dd3f231f1d7869a7))
+
+- **kanbus**: Add project_id for project-scoped realtime events
+  ([`f5ab762`](https://github.com/AnthusAI/Kanbus/commit/f5ab762f5bba600ea1320288ad4a486568a15ceb))
+
+- **kanbus**: Close realtime scoping bug and api-client gaps
+  ([`578239b`](https://github.com/AnthusAI/Kanbus/commit/578239bcd979b4b18978503eabfda2dc05b7372a))
+
+### Testing
+
+- Give doctor configuration stubs a project_id
+  ([`f7de22c`](https://github.com/AnthusAI/Kanbus/commit/f7de22c5b9348d9054fceddfe666f05cab850307))
+
+
+## v0.40.0 (2026-10-20)
+
+### Bug Fixes
+
+- **realtime**: Scope events by project_id stored in .kanbus.yml
+  ([`261ecbb`](https://github.com/AnthusAI/Kanbus/commit/261ecbbab8a0279702e250be6d9240c35947e666))
+
+- **realtime**: Scope issue events by project identity on shared brokers
+  ([`9d93bea`](https://github.com/AnthusAI/Kanbus/commit/9d93bea40bdeb767e7d1ec2814b3074e999b063b))
+
+### Chores
+
+- **kanbus**: Close Chatticus blocker stories; file hierarchy type-change follow-up
+  ([`19f1afc`](https://github.com/AnthusAI/Kanbus/commit/19f1afc184c076436e7aa055139e566bf2acdf62))
+
+- **kanbus**: File api-client type gaps and atomic close-with-comment story
+  ([`74cf69b`](https://github.com/AnthusAI/Kanbus/commit/74cf69bf65347c3bf201b5c1fd2437aec9ace156))
+
+- **kanbus**: File package compatibility table task
+  ([`eb188d6`](https://github.com/AnthusAI/Kanbus/commit/eb188d65233e870f7125a5596b715f17ef6f6dea))
+
+- **kanbus**: Start kbs-e98cfabd
+  ([`ab27d95`](https://github.com/AnthusAI/Kanbus/commit/ab27d95b5c5574ad59a984ab80d58525b6e6f5eb))
+
+### Documentation
+
+- Regenerate CLI reference for kbs migrate project-id
+  ([`54b07fc`](https://github.com/AnthusAI/Kanbus/commit/54b07fc7475368abff3e26941543e9846d894d64))
+
+### Features
+
+- **api-client**: Type dependencies, document server semantics, release 0.1.1
+  ([`4b0713a`](https://github.com/AnthusAI/Kanbus/commit/4b0713a421ddb1a4051b923a9f4319f2bb6eee8b))
+
+
+## v0.39.0 (2026-10-20)
+
+### Bug Fixes
+
+- **api-client**: Trim trailing slashes without a backtracking regex
+  ([`4f4c77f`](https://github.com/AnthusAI/Kanbus/commit/4f4c77fd0de1242e7484071c515ea8965ad35c12))
+
+- **cdk**: Test the construct before bundling the Lambda package; release 0.1.1
+  ([`2e9d625`](https://github.com/AnthusAI/Kanbus/commit/2e9d625dc7dc880bd60066495dbcaa732da562a7))
+
+- **console**: Anchor tenant state validation to server data root
+  ([`886005f`](https://github.com/AnthusAI/Kanbus/commit/886005f79238830d12b79cd704095137ca04ab0c))
+
+- **console**: Constrain tenant notification persistence paths
+  ([`b1a9a5d`](https://github.com/AnthusAI/Kanbus/commit/b1a9a5d54f2d00b991577f9788f960412f743672))
+
+- **console**: Isolate tenant UI state and notification channels
+  ([`96e2149`](https://github.com/AnthusAI/Kanbus/commit/96e2149467498409bc4023b2db4d413c123ee29a))
+
+- **console**: Resolve tenant state prefixes from directory entries
+  ([`66dfd69`](https://github.com/AnthusAI/Kanbus/commit/66dfd69771c8fb017acbb651a1b3154a2ff86dc2))
+
+- **console**: Resolve the task-detail-panel subpath in the type filter verifier
+  ([`adad271`](https://github.com/AnthusAI/Kanbus/commit/adad271f158f665db0c9650aa173e23e03e2fb06))
+
+- **console**: Retain the existing error debug derive
+  ([`9fb0537`](https://github.com/AnthusAI/Kanbus/commit/9fb05378e521fb54b19a7b6297373eff3af6011c))
+
+### Chores
+
+- **kanbus**: Board archive/restore/purge design; tenant-wide view requirement
+  ([`b9b0c25`](https://github.com/AnthusAI/Kanbus/commit/b9b0c25684ca9db34a849b5409a10ed7025d8e88))
+
+- **kanbus**: CDK construct requirements from Chatticus
+  ([`44dfcd3`](https://github.com/AnthusAI/Kanbus/commit/44dfcd316b0f8a300171dc1e9ee8770dc8c66b77))
+
+- **kanbus**: Close kbs-0b5297d1 and kbs-e9e8aae7
+  ([`a1fb7aa`](https://github.com/AnthusAI/Kanbus/commit/a1fb7aa30b0579cdfc3cf6c27c5e05b0410a8827))
+
+- **kanbus**: Close kbs-344f42ca; start kbs-791a7373
+  ([`d81bfae`](https://github.com/AnthusAI/Kanbus/commit/d81bfae090d9d6f22d4dbd93f1a8ed3b52c6bff9))
+
+- **kanbus**: Close kbs-555319 and kbs-56b118 after Ryan's acceptance
+  ([`590ad61`](https://github.com/AnthusAI/Kanbus/commit/590ad612e93f4009322e12ec01992d33f8f200de))
+
+- **kanbus**: Close kbs-9cb5cb40 after PR #502
+  ([`07fad45`](https://github.com/AnthusAI/Kanbus/commit/07fad45b7b31676f0060b41a7e4e570707dc7091))
+
+- **kanbus**: Close kbs-b34ecc after PR #490
+  ([`b10b9fd`](https://github.com/AnthusAI/Kanbus/commit/b10b9fd45f5333b67ae52066d23e270899bfe55b))
+
+- **kanbus**: Close kbs-f222b6ee; start kbs-344f42ca
+  ([`a4ea266`](https://github.com/AnthusAI/Kanbus/commit/a4ea2663ec1638ce6a7cf02aa0121ca080f4e96a))
+
+- **kanbus**: Commit board state
+  ([`08af9cd`](https://github.com/AnthusAI/Kanbus/commit/08af9cd634ffe4fa383db9df34b0ec5dc9a64e06))
+
+- **kanbus**: Commit board state
+  ([`4970809`](https://github.com/AnthusAI/Kanbus/commit/4970809e644905aa7ebc947f110cb784422e4ae7))
+
+- **kanbus**: Commit board state
+  ([`2320b6a`](https://github.com/AnthusAI/Kanbus/commit/2320b6a046fe56debb3e77f2ddcdd5d02de0bb00))
+
+- **kanbus**: Commit board state
+  ([`356da6d`](https://github.com/AnthusAI/Kanbus/commit/356da6de0da4bd2839ec8aa6a852c59b926ab258))
+
+- **kanbus**: Commit board state
+  ([`72bc558`](https://github.com/AnthusAI/Kanbus/commit/72bc5584ebdd7776b11da70b743acc2eadcb4d2b))
+
+- **kanbus**: Commit board state (issues)
+  ([`b99079d`](https://github.com/AnthusAI/Kanbus/commit/b99079d19b2604bb2623ac61d99d0f2750f18744))
+
+- **kanbus**: File Chatticus cloud board epic and stories
+  ([`eed896a`](https://github.com/AnthusAI/Kanbus/commit/eed896acb079d831e884c8b61ff2103309f83ffe))
+
+- **kanbus**: File cross-project realtime leak bug
+  ([`f399c3f`](https://github.com/AnthusAI/Kanbus/commit/f399c3f96207be36345d5b8d2f7c57022935989c))
+
+- **kanbus**: File embedder data interface story from Chatticus
+  ([`fa04392`](https://github.com/AnthusAI/Kanbus/commit/fa04392432c95e7f1784260b265e3787741a60f9))
+
+- **kanbus**: File event identifier privacy bug
+  ([`534ecd1`](https://github.com/AnthusAI/Kanbus/commit/534ecd1c1a5bfa43a66155a1c426f6e36a16dcca))
+
+- **kanbus**: File flaky ai_credentials test race
+  ([`fb20b69`](https://github.com/AnthusAI/Kanbus/commit/fb20b698841628522e8cb78ae108787bfd3d3d4c))
+
+- **kanbus**: File formatIssueId hook story for Papyrus
+  ([`01dfd6c`](https://github.com/AnthusAI/Kanbus/commit/01dfd6ce38cdf3c41f8457d778a822ae03c69619))
+
+- **kanbus**: Reconcile board with merged work (close kbs-3614f8, kbs-215bc6; start kbs-b34ecc;
+  comments)
+  ([`cf2c77d`](https://github.com/AnthusAI/Kanbus/commit/cf2c77d7ec896211e423d6de78e945ac35d571e5))
+
+- **kanbus**: Record Chatticus actor/default-config requirements; file board deletion story
+  ([`91ec11e`](https://github.com/AnthusAI/Kanbus/commit/91ec11e1b1710afa37b29f15e1eed1b1d5e732fc))
+
+- **kanbus**: Record offline-parsing requirement on kbs-460415fd
+  ([`c71b2b3`](https://github.com/AnthusAI/Kanbus/commit/c71b2b3dbdec695b815e732333e62c68f9ff06fe))
+
+- **kanbus**: Record per-bot board mapping decision
+  ([`d41a628`](https://github.com/AnthusAI/Kanbus/commit/d41a628b7b7367ac885c82bb082ceb9c6a65c63a))
+
+- **kanbus**: Spec kbs-9cb5cb40 per-request board scope; file board provisioning story
+  ([`a362d0e`](https://github.com/AnthusAI/Kanbus/commit/a362d0e3af25c9148e6a4f6e7304319cf8b0a736))
+
+- **kanbus**: Spec kbs-f222b6ee service principals
+  ([`5c940e0`](https://github.com/AnthusAI/Kanbus/commit/5c940e0029cb4ed0ca84d7e8d9f78a0becba80d9))
+
+### Continuous Integration
+
+- Make Rust toolchain install deterministic
+  ([`85bbc6c`](https://github.com/AnthusAI/Kanbus/commit/85bbc6cf45a4d12b1466ee57c993f3ec5bc6ee2f))
+
+- Set up Rust from a clean toolchain via a local composite action
+  ([`a838e21`](https://github.com/AnthusAI/Kanbus/commit/a838e21f5e1c907a4fca1fc7e46ac26f620ad868))
+
+### Documentation
+
+- **kanbus-api**: Cross-board gateway route and unchanged budgets in the migration note
+  ([`7511c0c`](https://github.com/AnthusAI/Kanbus/commit/7511c0c9b4fb255a6fb41ffcffadf7e6f4881f0c))
+
+### Features
+
+- **api-client**: Add typed @kanbus/api-client package and release job
+  ([`d9277f5`](https://github.com/AnthusAI/Kanbus/commit/d9277f5e24f244b4a91b4c26f0d1895e5b828020))
+
+- **cdk**: Add @kanbus/cdk construct and release job
+  ([`c1202ed`](https://github.com/AnthusAI/Kanbus/commit/c1202edbe982a625cec59aa3cba2cebf3035c99b))
+
+- **cdk**: Deploy the archive sweeper on a schedule (0.2.0)
+  ([`0fac2f2`](https://github.com/AnthusAI/Kanbus/commit/0fac2f29667a1d5cc90f4d08db20815fef3e38a1))
+
+- **kanbus-api**: Archive, restore and purge a board, with a sweeper for expired archives
+  ([`3741ee0`](https://github.com/AnthusAI/Kanbus/commit/3741ee0eb65858e80810800e49d936ee30922abe))
+
+- **kanbus-api**: Authenticate trusted service callers by IAM role with delegated actor
+  ([`eba0d16`](https://github.com/AnthusAI/Kanbus/commit/eba0d164721dc231d010390b5281b5c1e1e76c64))
+
+- **kanbus-api**: Parent and dependency writes and hierarchical deletes with leased relations
+  records
+  ([`68bca34`](https://github.com/AnthusAI/Kanbus/commit/68bca3431448e05d410fd3c16e655408cdc10437))
+
+- **kanbus-api**: Provision a board with PUT /{tenant}/{project}/api/config
+  ([`32ca738`](https://github.com/AnthusAI/Kanbus/commit/32ca73844c31387efe11c3cb1a99127488712bd8))
+
+- **kanbus-api**: Resolve boards from the request path with group-claim grants
+  ([`2c6e8a5`](https://github.com/AnthusAI/Kanbus/commit/2c6e8a527753d61ab03180fea6a16885aa66d701))
+
+- **ui**: Host formatIssueId hook for issue id display (0.4.1)
+  ([`d3caa1b`](https://github.com/AnthusAI/Kanbus/commit/d3caa1b8b960fac7ec02847b9f73e9c87413fea8))
+
+### Performance Improvements
+
+- **console**: Virtualize board columns, memoize cards, lazy-load heavy panels
+  ([`098f2a9`](https://github.com/AnthusAI/Kanbus/commit/098f2a9931aec50226ab0f4b10ba76f85d024f68))
+
+
+## v0.38.0 (2026-10-20)
+
+### Bug Fixes
+
+- **console**: Escape the font host in the theme step pattern
+  ([`53738f0`](https://github.com/AnthusAI/Kanbus/commit/53738f09ccbab0a1992bc69bf75ea8d49354f669))
+
+- **console**: Repair the board theme step after the font assertion edit
+  ([`0939759`](https://github.com/AnthusAI/Kanbus/commit/09397591d2e40223a34dc9720e38c86fb9c675e1))
+
+- **ui**: Address review findings on themes docs, stored mode validation and hover contrast
+  ([`ae6b6cd`](https://github.com/AnthusAI/Kanbus/commit/ae6b6cd8a1eda2709cea8bda1be98f8a5f981ef0))
+
+- **ui**: Keep the themed priority label a tinted pill
+  ([`9bcd957`](https://github.com/AnthusAI/Kanbus/commit/9bcd95719d5a8bf44ec1f8c67637295dabd52a8f))
+
+- **ui**: Size the themed type filter in the theme UI font at 11px with an accent underline
+  ([`fe9b377`](https://github.com/AnthusAI/Kanbus/commit/fe9b37716f41faa7f1d896fe87abb983b2133aee))
+
+### Chores
+
+- **kanbus**: Close kbs-cb34cc24 as superseded by #494
+  ([`d7ed7a9`](https://github.com/AnthusAI/Kanbus/commit/d7ed7a99194d93319b1a5a6513f6f6dbdd3c4bf9))
+
+- **kanbus**: Commit board state
+  ([`da82d94`](https://github.com/AnthusAI/Kanbus/commit/da82d9444b1e3081dc3a90400913ff1544098caa))
+
+- **kanbus**: Commit board state
+  ([`af06056`](https://github.com/AnthusAI/Kanbus/commit/af0605628af914366dfde2acaf882df23952e929))
+
+- **kanbus**: File @kanbus/ui embedder story from Chatticus
+  ([`37a6616`](https://github.com/AnthusAI/Kanbus/commit/37a66160f0f75d8807149712ad6e0212543fad8e))
+
+- **kanbus**: File audit bugs 2026-10-20 ([#498](https://github.com/AnthusAI/Kanbus/pull/498),
+  [`dcb4f81`](https://github.com/AnthusAI/Kanbus/commit/dcb4f81737ae2b472710e571d2081b7078097dad))
+
+- **kanbus**: File CI Set up Rust flake
+  ([`1bf8db1`](https://github.com/AnthusAI/Kanbus/commit/1bf8db197e2e391a0eb8feddc8e163a9ef98b4aa))
+
+- **kanbus**: File console board style story
+  ([`c8d14da`](https://github.com/AnthusAI/Kanbus/commit/c8d14da2a983780c37447427479b4a5889624ead))
+
+### Features
+
+- **console**: Bundle theme fonts, add matching python and rust settings steps, release ui 0.4.0
+  ([`a9aa089`](https://github.com/AnthusAI/Kanbus/commit/a9aa089f15bd126714ae27b97b65386e518daee4))
+
+- **ui**: Add four editorial board themes with light and dark modes and a console theme picker
+  ([`493be00`](https://github.com/AnthusAI/Kanbus/commit/493be0086e4fcf978dc45067b6fa89fa1d4a512c))
+
+
+## v0.37.0 (2026-10-20)
+
+### Bug Fixes
+
+- **ui**: Keep the keyboard focus ring on newsprint type filter tabs
+  ([`bf0c0c6`](https://github.com/AnthusAI/Kanbus/commit/bf0c0c6d72cca993e67a8127110480a567fa9bf6))
+
+- **ui**: Restore console issue type selector styling
+  ([`2729b9e`](https://github.com/AnthusAI/Kanbus/commit/2729b9ead560b7facbd4eef2718b27b04456bf4c))
+
+### Chores
+
+- **kanbus**: Close kbs-a1a47f23 after PR #473
+  ([`083eadf`](https://github.com/AnthusAI/Kanbus/commit/083eadf7b82102c42d1283cb8d3ec7833831f1c2))
+
+- **kanbus**: File Biblicus 0.36.0 methodology findings
+  ([`3585dac`](https://github.com/AnthusAI/Kanbus/commit/3585dacfbff9e13399ddb96c88539d1d58499d1d))
+
+- **kanbus**: File Biblicus methodology dogfood findings
+  ([`0b4e647`](https://github.com/AnthusAI/Kanbus/commit/0b4e64717cf5f88398e37ce53530ba2c2748190a))
+
+- **kanbus**: File console selector styling bug; close kbs-65914cd1 after PR #487
+  ([`a648f89`](https://github.com/AnthusAI/Kanbus/commit/a648f89316719559b3163de942be3afae708133f))
+
+- **kanbus**: File kbs commit event-file bug from Biblicus
+  ([`539449b`](https://github.com/AnthusAI/Kanbus/commit/539449b8ef51dcb68ffe08f744f5e05827a6a27b))
+
+- **kanbus**: Re-apply kbs-a0a92814 acceptance comment and close after merging develop
+  ([`a1a3b78`](https://github.com/AnthusAI/Kanbus/commit/a1a3b78a767406237b585edf1b609e78f2e3c2f6))
+
+- **kanbus**: Record 2026-10-19 acceptance audits and worker tickets
+  ([`f948d69`](https://github.com/AnthusAI/Kanbus/commit/f948d6990f3ece15825ce03612cdce84a2f2f814))
+
+- **kanbus**: Record events decision on kbs-65914cd1; mark active work in progress
+  ([`3228177`](https://github.com/AnthusAI/Kanbus/commit/3228177a2322edc5e47c2a00b7976a0e0fc5823e))
+
+- **ui**: Release @kanbus/ui 0.3.1 with the console type selector fix
+  ([`d410fe1`](https://github.com/AnthusAI/Kanbus/commit/d410fe12ccf43325e81db5d6974441dd86ab67e5))
+
+### Features
+
+- **commit**: Commit events with issues by default; events config key turns generation off
+  ([`c16c9b9`](https://github.com/AnthusAI/Kanbus/commit/c16c9b911ae1fec990dd1f2e434cbe08e789dbb7))
+
+### Testing
+
+- **virtual-projects**: Run scenarios against the real CLI and fix exposed gaps
+  ([`203f2ae`](https://github.com/AnthusAI/Kanbus/commit/203f2ae604af159a6c18436464b3e890a188ef8e))
+
+
+## v0.36.0 (2026-10-19)
+
+### Documentation
+
+- Grouped sidebar navigation and site styles for the Papyrus docs site
+  ([`2f3246f`](https://github.com/AnthusAI/Kanbus/commit/2f3246f13b9f9236136d0ccbedbf3d044b1a2e7b))
+
+- Keep cross-page links and add redirects from the old MkDocs URLs
+  ([`2f3246f`](https://github.com/AnthusAI/Kanbus/commit/2f3246f13b9f9236136d0ccbedbf3d044b1a2e7b))
+
+### Refactoring
+
+- **console**: Unify realtime, bootstrap, notification and telemetry routes
+  ([`b231b3e`](https://github.com/AnthusAI/Kanbus/commit/b231b3ef3a73f74945b6abd435ade99ff069a21c))
+
+
 ## v0.35.0 (2026-10-17)
 
 

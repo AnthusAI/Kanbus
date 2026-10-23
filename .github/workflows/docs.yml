@@ -39,6 +39,7 @@ jobs:
           --docs docs --out _site --name Kanbus
           --tagline "Git-backed project management for people and AI agents."
           --source-url https://github.com/AnthusAI/Kanbus
+          --site-url https://anthusai.github.io/Kanbus/
           --redirect-former-urls
 
       - name: Upload Pages artifact

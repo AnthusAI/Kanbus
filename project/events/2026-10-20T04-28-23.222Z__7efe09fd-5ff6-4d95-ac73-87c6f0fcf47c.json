@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "7efe09fd-5ff6-4d95-ac73-87c6f0fcf47c",
+  "issue_id": "kbs-50e5b137-bc32-4e6f-b480-3de8a820d6b5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T04:28:23.222Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Audit cleanup (low priority): Kanbus",
+    "description": "**Problem**\nLow-severity findings from the 2026-10-20 audit of Kanbus and Kanbus-web.\n\n**Evidence / Fix** (one checklist line per finding)\n- [ ] [Kanbus-web] https://kanb.us/docs/features/integrated-wiki/ and https://kanb.us/docs/features/git-native-storage/ return 404; fix or remove the links that point to them.\n- [ ] [Kanbus-web] README says papyrus version X while the repo uses another (version mismatch), and says the site is live at kanb.us though the cutover is pending (see c3e738); correct both.\n- [ ] [Kanbus-web] Content links could not be verified until a Markus build exists; run a link check after the first build.\n- [ ] docs/GITHUB_SYNC.md:12,31 contain the placeholder `<blob-url>` (template text left in); replace with the real URL or explain it.\n- [ ] videos/docs/VIDEOS_* docs reference stale paths; update to current paths.\n\n**How to verify**\n`curl -s -o /dev/null -w '%{http_code}' https://kanb.us/docs/features/integrated-wiki/` returns 200 (or no page links to it); `grep -n '<blob-url>' docs/GITHUB_SYNC.md` returns nothing; every path named in videos/docs/VIDEOS_* exists.\n\nSource: Anthus repo audit, 2026-10-20.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 3,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude-code",
+      "model": "claude-sonnet-5-5",
+      "name": "audit-filing"
+    }
+  }
+}
