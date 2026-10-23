@@ -31,10 +31,17 @@
         "model": "Claude Opus 5.5",
         "name": "Drift Fix"
       }
+    },
+    {
+      "id": "f0836e0e-1844-4996-b0c4-bd7cbaf3da47",
+      "author": "home",
+      "text": "Paused 2026-10-23 for the usage throttle; nothing uncommitted. Done: parity lane, strict spec parity, honest stderr, cochange check with parity-exempt label, real-CLI virtual-project scenarios. Left: the Rust step gaps reported by the parity checker and item 6, the KANBUS_* environment variable inventory. Next step on resume: run tools/check_spec_parity.py on develop and take the step gaps in batches.",
+      "created_at": "2026-10-23T13:26:27.737164Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T16:37:46.028515447Z",
-  "updated_at": "2026-10-20T13:17:27.786529Z",
+  "updated_at": "2026-10-23T13:26:27.737196Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

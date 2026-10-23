@@ -45,10 +45,17 @@
         "model": "Claude Opus 5.5",
         "name": "Drift Fix"
       }
+    },
+    {
+      "id": "2a7340c7-f164-4d6e-9aad-a00219b49d23",
+      "author": "home",
+      "text": "Paused 2026-10-23 for the usage throttle; nothing uncommitted. Done per the 2026-10-19/20 comments: shared snapshot refresher, StoreSelector, wiki and D2 off the runtime, paired routes unified (PR 473). Left: the App.tsx split and remaining frontend items, and re-checking each acceptance line. Next step on resume: walk the acceptance list against develop and file sub-tasks for what is still open.",
+      "created_at": "2026-10-23T13:26:27.691806Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T16:37:46.455147316Z",
-  "updated_at": "2026-10-20T13:17:27.731537Z",
+  "updated_at": "2026-10-23T13:26:27.691835Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
