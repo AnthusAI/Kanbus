@@ -59,3 +59,40 @@ def test_write_issue_to_file_rejects_directory(tmp_path: Path) -> None:
     target.mkdir()
     with pytest.raises(IsADirectoryError):
         issue_files.write_issue_to_file(build_issue("kanbus-1"), target)
+
+
+def test_read_issue_from_file_does_not_load_the_issue_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    issues_directory = tmp_path / "issues"
+    issues_directory.mkdir()
+    for index in range(5):
+        issue_files.write_issue_to_file(
+            build_issue(f"kanbus-{index}"), issues_directory / f"kanbus-{index}.json"
+        )
+
+    def fail_on_table_load(_directory: Path) -> None:
+        raise AssertionError("reading one issue must not load the whole directory")
+
+    monkeypatch.setattr(issue_files, "_issue_table", fail_on_table_load)
+
+    for index in range(5):
+        loaded = issue_files.read_issue_from_file(
+            issues_directory / f"kanbus-{index}.json"
+        )
+        assert loaded.identifier == f"kanbus-{index}"
+
+
+def test_read_issue_from_file_reports_missing_and_unreadable_files(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(FileNotFoundError):
+        issue_files.read_issue_from_file(tmp_path / "missing.json")
+
+    (tmp_path / "broken.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(FileNotFoundError):
+        issue_files.read_issue_from_file(tmp_path / "broken.json")
+
+    (tmp_path / "list.json").write_text("[]", encoding="utf-8")
+    with pytest.raises(FileNotFoundError):
+        issue_files.read_issue_from_file(tmp_path / "list.json")
