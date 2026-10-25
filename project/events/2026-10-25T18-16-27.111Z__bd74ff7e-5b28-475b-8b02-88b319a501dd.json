@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "bd74ff7e-5b28-475b-8b02-88b319a501dd",
+  "issue_id": "kbs-cca62a5e-6175-42db-b9fc-be8ce721b438",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T18:16:27.111Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Inventory KANBUS_* environment variables and close the Python/Rust gaps",
+    "description": "Item 6 of kbs-eb1788. Rust reads 70 KANBUS_* names, Python 47. Rust-only: console and cloud auth settings (KANBUS_AUTH_MODE, KANBUS_API_STAGE, KANBUS_CLOUD_*, KANBUS_COGNITO_*, KANBUS_IDENTITY_POOL_ID, KANBUS_IOT_DATA_ENDPOINT, KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME, KANBUS_TENANT_*_CLAIM_KEY), KANBUS_SNYK_DEBUG, the prefixes KANBUS_REALTIME_ and KANBUS_COORDINATION_, and KANBUS_TEST_* hooks. Python-only: KANBUS_NON_INTERACTIVE, KANBUS_ROUTER_MQTT_DIAGNOSTICS, KANBUS_ENABLE_TEST_HOOKS. Work: document every variable in one table (name, purpose, runtimes, intentional or gap); port user-facing gaps spec-first; list console/server-only and test-hook variables as intentional Rust-only or Python-only; identify variables that only served the retired legacy cloud console (kbs-14a848) for a separate removal task.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+    "labels": []
+  }
+}
