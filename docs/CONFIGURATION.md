@@ -277,6 +277,8 @@ lookup order.
 
 #### Machine-wide settings
 
+The full list of `KANBUS_*` variables, with the runtime that reads each, is in [Environment variables](ENVIRONMENT_VARIABLES.md).
+
 Any `KANBUS_*` environment override can also live in `~/.kanbus.env`, so every clone and
 worktree on the machine shares it, using the same `kbs setup env NAME --value ...` (or
 `--from-stdin`) command used for credentials. Environment overrides always beat `.kanbus.yml`.

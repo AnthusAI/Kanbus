@@ -44,6 +44,24 @@ Feature: Manage AGENTS.md Kanbus instructions
     Then the command should fail
     And stderr should contain "Kanbus section already exists in AGENTS.md. Re-run with --force to overwrite."
 
+  Scenario: Non-interactive mode ignores a piped confirmation
+    Given a Kanbus repository with AGENTS.md containing a Kanbus section
+    When I run "kanbus setup agents" with stdin "y\n" in non-interactive mode
+    Then the command should fail
+    And stderr should contain "Kanbus section already exists in AGENTS.md. Re-run with --force to overwrite."
+
+  Scenario: Piped stdin without forced interactivity refuses to prompt
+    Given a Kanbus repository with AGENTS.md containing a Kanbus section
+    When I run "kanbus setup agents" with stdin "y\n" without forced interactivity
+    Then the command should fail
+    And stderr should contain "Kanbus section already exists in AGENTS.md. Re-run with --force to overwrite."
+
+  Scenario: Forced interactivity accepts a piped confirmation
+    Given a Kanbus repository with AGENTS.md containing a Kanbus section
+    When I run "kanbus setup agents" with stdin "y\n" with forced interactivity
+    Then AGENTS.md should contain the Kanbus section
+    And CONTRIBUTING_AGENT.md should exist
+
   Scenario: Force overwrite without prompt
     Given a Kanbus repository with AGENTS.md containing a Kanbus section
     When I run "kanbus setup agents --force"
