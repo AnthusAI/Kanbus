@@ -32,6 +32,7 @@ pub mod issue_key_steps;
 pub mod issue_mutation_steps;
 pub mod issue_show_steps;
 pub mod issue_update_steps;
+pub mod issue_write_controls_steps;
 pub mod jira_sync_steps;
 pub mod kanbus_version_steps;
 pub mod lifecycle_steps;
