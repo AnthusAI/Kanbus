@@ -3,7 +3,7 @@
   "title": "Show issue subtitle under the title on @kanbus/ui board cards",
   "description": "Ryan wants board cards to show the title and, when set, the subtitle or blurb, using the real @kanbus/ui component (the Papyrus marketing site renders it).\n\nWork:\n- Add optional host-supplied `subtitle?: string` to `KanbanIssue` (packages/ui/src/kanban/types.ts). No CLI or schema change.\n- Render `<p className=\"issue-card-subtitle\">` under the card title only when non-empty; include it in the IssueCard memo comparator.\n- Default muted, modest styling in kanban.css.\n- Cucumber coverage in packages/ui: shown when set, absent when unset.\n- Remove leftover `console.log(\"[Board] ...\")` debug lines in Board.tsx Flip code.\n- Patch/minor version bump of @kanbus/ui.\n\nAcceptance: a card with a subtitle shows it under the title; a card without one renders no empty subtitle element; packages/ui tests, typecheck and build pass.",
   "type": "story",
-  "status": "review",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -22,11 +22,18 @@
         "model": "Claude Opus 5.5",
         "name": "Papyrus card subtitle"
       }
+    },
+    {
+      "id": "2b051d9b-2fe9-493f-9f08-db72241655a0",
+      "author": "home",
+      "text": "Reviewed and merged as PR #533 (merge 2ceba35c); released as @kanbus/ui 0.4.2 (tag ui-v0.4.2, release workflow green, artifact kanbus-ui-0.4.2.tgz on the GitHub release).",
+      "created_at": "2026-10-25T16:02:51.796088Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-22T02:18:14.375628Z",
-  "updated_at": "2026-10-22T02:22:25.740012Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T16:02:51.909749Z",
+  "closed_at": "2026-10-25T16:02:51.866021Z",
   "agent": {
     "platform": "claude_code",
     "model": "Claude Opus 5.5",
