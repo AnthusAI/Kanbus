@@ -42,6 +42,19 @@ fn write_issue_file(project_dir: &PathBuf, issue: &IssueData) {
 
 #[given(expr = "{int} issues exist with identifier prefix {string}")]
 fn given_issues_with_identifier_prefix(world: &mut KanbusWorld, count: i32, prefix: String) {
+    write_prefixed_issues(world, count, &prefix, "open");
+}
+
+#[given(expr = "{int} in-progress issues exist with identifier prefix {string}")]
+fn given_in_progress_issues_with_identifier_prefix(
+    world: &mut KanbusWorld,
+    count: i32,
+    prefix: String,
+) {
+    write_prefixed_issues(world, count, &prefix, "in_progress");
+}
+
+fn write_prefixed_issues(world: &KanbusWorld, count: i32, prefix: &str, status: &str) {
     let project_dir = load_project_dir(world);
     let newest = Utc.with_ymd_and_hms(2026, 3, 1, 12, 0, 0).unwrap();
     for index in 1..=count {
@@ -52,7 +65,7 @@ fn given_issues_with_identifier_prefix(world: &mut KanbusWorld, count: i32, pref
             title: format!("Many issue {index}"),
             description: String::new(),
             issue_type: "task".to_string(),
-            status: "open".to_string(),
+            status: status.to_string(),
             priority: 2,
             assignee: None,
             creator: None,
