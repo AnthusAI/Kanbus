@@ -23,6 +23,7 @@ from kanbus.wiki_templates import (
     DEFAULT_WIKI_WHATS_NEXT_FILENAME,
 )
 from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.models import ProjectConfiguration
 from kanbus.project import (
     ProjectMarkerError,
     ensure_project_local_directory,
@@ -72,6 +73,88 @@ def ensure_git_repository(root: Path) -> None:
         raise InitializationError("not a git repository")
 
 
+CONFIGURATION_FIELD_ORDER = (
+    "project_directory",
+    "virtual_projects",
+    "new_issue_project",
+    "ignore_paths",
+    "console_port",
+    "project_key",
+    "project_id",
+    "name",
+    "project_management_template",
+    "methodologies",
+    "hierarchy",
+    "types",
+    "workflows",
+    "transition_labels",
+    "initial_status",
+    "priorities",
+    "default_priority",
+    "assignee",
+    "time_zone",
+    "statuses",
+    "categories",
+    "sort_order",
+    "type_colors",
+    "beads_compatibility",
+    "events",
+    "wiki_directory",
+    "ai",
+    "right_now",
+    "standup",
+    "jira",
+    "snyk",
+    "realtime",
+    "overlay",
+    "hooks",
+    "github_security",
+    "coordination",
+    "router",
+)
+OMITTED_WHEN_UNSET_FIELDS = ("project_id", "name", "methodologies", "router")
+RECURSIVELY_KEY_SORTED_FIELDS = ("workflows", "transition_labels", "type_colors")
+TOP_LEVEL_KEY_SORTED_FIELDS = ("virtual_projects", "priorities", "sort_order")
+
+
+def _sort_mapping_keys_recursively(value: object) -> object:
+    """Return a copy of nested mappings with every mapping ordered by key."""
+    if isinstance(value, dict):
+        return {
+            key: _sort_mapping_keys_recursively(value[key]) for key in sorted(value)
+        }
+    return value
+
+
+def render_initial_configuration_yaml(project_identifier: str) -> str:
+    """Render the default ``.kanbus.yml`` exactly as the Rust implementation does.
+
+    Fields follow the declaration order of the Rust configuration struct, map
+    fields are ordered by key, and optional fields that are unset and skipped
+    during Rust serialization are omitted.
+
+    :param project_identifier: UUID written as ``project_id``.
+    :type project_identifier: str
+    :return: YAML document text.
+    :rtype: str
+    """
+    configuration = ProjectConfiguration.model_validate(
+        {**DEFAULT_CONFIGURATION, "project_id": project_identifier}
+    )
+    dumped = configuration.model_dump(mode="python")
+    ordered = {}
+    for field_name in CONFIGURATION_FIELD_ORDER:
+        value = dumped[field_name]
+        if field_name in OMITTED_WHEN_UNSET_FIELDS and value is None:
+            continue
+        if field_name in RECURSIVELY_KEY_SORTED_FIELDS:
+            value = _sort_mapping_keys_recursively(value)
+        elif field_name in TOP_LEVEL_KEY_SORTED_FIELDS:
+            value = {key: value[key] for key in sorted(value)}
+        ordered[field_name] = value
+    return yaml.safe_dump(ordered, sort_keys=False)
+
+
 def initialize_project(root: Path, create_local: bool = False) -> None:
     """Initialize the Kanbus project directory structure.
 
@@ -94,10 +177,7 @@ def initialize_project(root: Path, create_local: bool = False) -> None:
     config_path = root / ".kanbus.yml"
     if not config_path.exists():
         config_path.write_text(
-            yaml.safe_dump(
-                {**DEFAULT_CONFIGURATION, "project_id": str(uuid4())},
-                sort_keys=False,
-            ),
+            render_initial_configuration_yaml(str(uuid4())),
             encoding="utf-8",
         )
     _write_project_guard_files_if_missing(project_dir)
