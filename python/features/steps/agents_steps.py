@@ -125,6 +125,44 @@ def when_run_command_with_stdin_non_interactive(
     run_cli_with_input(context, command, stdin_text.replace("\\n", "\n"))
 
 
+@when('I run "{command}" with stdin "{stdin_text}" without forced interactivity')
+def when_run_command_with_stdin_unforced(
+    context: object, command: str, stdin_text: str
+) -> None:
+    """Run a command with piped stdin and KANBUS_FORCE_INTERACTIVE disabled.
+
+    :param context: Behave context object.
+    :type context: object
+    :param command: Full command string.
+    :type command: str
+    :param stdin_text: Stdin content, with escaped newlines.
+    :type stdin_text: str
+    """
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_FORCE_INTERACTIVE"] = "0"
+    context.environment_overrides = overrides
+    run_cli_with_input(context, command, stdin_text.replace("\\n", "\n"))
+
+
+@when('I run "{command}" with stdin "{stdin_text}" with forced interactivity')
+def when_run_command_with_stdin_forced(
+    context: object, command: str, stdin_text: str
+) -> None:
+    """Run a command with piped stdin and KANBUS_FORCE_INTERACTIVE enabled.
+
+    :param context: Behave context object.
+    :type context: object
+    :param command: Full command string.
+    :type command: str
+    :param stdin_text: Stdin content, with escaped newlines.
+    :type stdin_text: str
+    """
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_FORCE_INTERACTIVE"] = "1"
+    context.environment_overrides = overrides
+    run_cli_with_input(context, command, stdin_text.replace("\\n", "\n"))
+
+
 @then("AGENTS.md should exist")
 def then_agents_exists(context: object) -> None:
     repo_path = Path(context.working_directory)
