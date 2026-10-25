@@ -32,7 +32,7 @@ permissions:
 jobs:
   check:
     if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'check') }}
-    uses: AnthusAI/platform-ci/.github/workflows/ruleset-sync-reusable.yml@main
+    uses: AnthusAI/platform-ci/.github/workflows/ruleset-sync-reusable.yml@e2a513570c81b93f21a0407009b4a0d30803c87d # main 2026-08-27
     with:
       mode: check
       ruleset_glob: infra/github-rulesets/*.json
@@ -41,7 +41,7 @@ jobs:
 
   apply:
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'apply') }}
-    uses: AnthusAI/platform-ci/.github/workflows/ruleset-sync-reusable.yml@main
+    uses: AnthusAI/platform-ci/.github/workflows/ruleset-sync-reusable.yml@e2a513570c81b93f21a0407009b4a0d30803c87d # main 2026-08-27
     with:
       mode: apply
       ruleset_glob: infra/github-rulesets/*.json
