@@ -1174,9 +1174,15 @@ fn then_metrics_toggle_selected(world: &mut KanbusWorld, view: String) {
 #[then("the metrics toggle should include a board icon")]
 fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
-    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
+    let selector_options = std::fs::read_to_string(
+        root.join("src")
+            .join("components")
+            .join("selectorOptions.tsx"),
+    )
+    .expect("read selectorOptions.tsx");
     assert!(
-        app_tsx.contains("LayoutGrid") && app_tsx.contains("buildOption(\"board\","),
+        selector_options.contains("LayoutGrid")
+            && selector_options.contains("buildSelectorOption(\"board\","),
         "expected LayoutGrid icon for board toggle"
     );
 }
@@ -1184,9 +1190,15 @@ fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
 #[then("the metrics toggle should include a chart icon")]
 fn then_metrics_toggle_has_chart_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
-    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
+    let selector_options = std::fs::read_to_string(
+        root.join("src")
+            .join("components")
+            .join("selectorOptions.tsx"),
+    )
+    .expect("read selectorOptions.tsx");
     assert!(
-        app_tsx.contains("BarChart3") && app_tsx.contains("buildOption(\"metrics\","),
+        selector_options.contains("BarChart3")
+            && selector_options.contains("buildSelectorOption(\"metrics\","),
         "expected BarChart3 icon for metrics toggle"
     );
 }
