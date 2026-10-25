@@ -337,6 +337,18 @@ fn when_run_command_with_stdin(world: &mut KanbusWorld, command: String, stdin_t
     run_cli_command_with_stdin(world, &command, &input);
 }
 
+#[when(expr = "I run {string} with stdin {string} in non-interactive mode")]
+fn when_run_command_with_stdin_non_interactive(
+    world: &mut KanbusWorld,
+    command: String,
+    stdin_text: String,
+) {
+    let input = stdin_text.replace("\\n", "\n");
+    std::env::set_var("KANBUS_NON_INTERACTIVE", "1");
+    run_cli_command_with_stdin(world, &command, &input);
+    std::env::remove_var("KANBUS_NON_INTERACTIVE");
+}
+
 #[when(expr = "I run {string} and respond {string}")]
 fn when_run_command_with_response(world: &mut KanbusWorld, command: String, response: String) {
     run_cli_command_with_stdin(world, &command, &format!("{response}\n"));

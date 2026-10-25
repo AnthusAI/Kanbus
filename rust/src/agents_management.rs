@@ -482,6 +482,12 @@ fn ensure_project_guard_files(root: &Path) -> Result<(), KanbusError> {
 }
 
 fn confirm_overwrite() -> Result<bool, KanbusError> {
+    if std::env::var("KANBUS_NON_INTERACTIVE").ok().as_deref() == Some("1") {
+        return Err(KanbusError::IssueOperation(
+            "Kanbus section already exists in AGENTS.md. Re-run with --force to overwrite."
+                .to_string(),
+        ));
+    }
     print!("Kanbus section already exists in AGENTS.md. Overwrite it? [y/N] ");
     io::stdout()
         .flush()

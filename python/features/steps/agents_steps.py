@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 from behave import given, then, when
 
-from features.steps.shared import ensure_git_repository, run_cli
+from features.steps.shared import ensure_git_repository, run_cli, run_cli_with_input
 from kanbus.agents_management import (
     build_project_management_text,
     KANBUS_SECTION_TEXT,
@@ -104,6 +104,25 @@ def when_run_setup_agents_non_interactive(context: object) -> None:
     overrides["KANBUS_NON_INTERACTIVE"] = "1"
     context.environment_overrides = overrides
     run_cli(context, "kanbus setup agents")
+
+
+@when('I run "{command}" with stdin "{stdin_text}" in non-interactive mode')
+def when_run_command_with_stdin_non_interactive(
+    context: object, command: str, stdin_text: str
+) -> None:
+    """Run a command with piped stdin while KANBUS_NON_INTERACTIVE is set.
+
+    :param context: Behave context object.
+    :type context: object
+    :param command: Full command string.
+    :type command: str
+    :param stdin_text: Stdin content, with escaped newlines.
+    :type stdin_text: str
+    """
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides["KANBUS_NON_INTERACTIVE"] = "1"
+    context.environment_overrides = overrides
+    run_cli_with_input(context, command, stdin_text.replace("\\n", "\n"))
 
 
 @then("AGENTS.md should exist")
