@@ -3,17 +3,25 @@
   "title": "Port the 22 CLI and harness parity gaps to the Rust step definitions",
   "description": "First batch of the Rust gaps in tools/parity/known_unimplemented_steps.txt: the gitignore, project-local, guard-file, environment-variable, daemon-error, created-issue-id and standup-parity steps (22 lines). Implement each in rust/features/steps mirroring the Python step's behaviour, make the owning scenarios pass under cargo test, and remove the lines from the ratchet. Acceptance: tools/check_spec_parity.py passes with the ratchet reduced by these 22 lines, cargo test passes, cargo fmt and clippy clean. The console-server issue-write API, routing assignment and console now steps are a later batch.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "538e3c0d-d1d6-4943-8194-a1d74f285c1d",
+      "author": "home",
+      "text": "Done: PR #534 merged (parity-exempt for the one-sided daemon spawn message fix that matches Python). Ratchet 71 to 49; 10 of the 22 were checker false positives fixed in tools/check_spec_parity.py with a test, 12 implemented in rust/features/steps; CI green after the cochange re-run.",
+      "created_at": "2026-10-25T17:18:53.501646Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-25T16:03:58.395079Z",
-  "updated_at": "2026-10-25T16:03:58.594945Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T17:18:53.584715Z",
+  "closed_at": "2026-10-25T17:18:53.546474Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

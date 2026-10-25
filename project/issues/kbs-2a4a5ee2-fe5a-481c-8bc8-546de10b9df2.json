@@ -1,0 +1,20 @@
+{
+  "id": "kbs-2a4a5ee2-fe5a-481c-8bc8-546de10b9df2",
+  "title": "Port the remaining 49 console parity gaps to the Rust step definitions",
+  "description": "Second and last batch of tools/parity/known_unimplemented_steps.txt: the issue write API, routing assignment editor, console now snapshot, browser viewport, page reload and in-progress issue fixture steps from features/console (issue_write_controls, agent_assignment_editing, agent_assignment_editor, agent_assignment, current_status_panel, board_horizontal_scroll, standup_panel) and the 31 in-progress issue fixtures in features/standup/standup_shared_stack.feature and features/agent/compaction_right_now_payload.feature. Implement them in rust/features/steps mirroring the Python steps, so the scenarios run under KANBUS_CUCUMBER_ONLY_CONSOLE=1 cargo test --test cucumber (and the default run for non-console ones), and empty the ratchet. Acceptance: tools/check_spec_parity.py exits 0 with zero tolerated steps; rust and rust-console-parity CI jobs green.",
+  "type": "sub-task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-25T17:19:16.349221Z",
+  "updated_at": "2026-10-25T17:19:16.481553Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
