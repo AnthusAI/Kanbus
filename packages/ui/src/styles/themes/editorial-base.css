@@ -121,6 +121,7 @@
 [data-kanbus-theme] .issue-card[data-selected="true"] h3 { color: var(--kb-theme-ink); }
 [data-kanbus-theme] .issue-card-owner, [data-kanbus-theme] .text-muted { color: var(--kb-theme-muted); }
 [data-kanbus-theme] .issue-card-owner:empty { display: none; }
+[data-kanbus-theme] .issue-card-subtitle { font: 400 13px/1.4 var(--kb-theme-title-font); color: var(--kb-theme-muted); }
 [data-kanbus-theme] .issue-card-excerpt p { font: 400 13px/1.4 var(--kb-theme-title-font); color: var(--kb-theme-ink); }
 [data-kanbus-theme] .issue-card-excerpt-toggle { color: var(--kb-theme-accent); }
 

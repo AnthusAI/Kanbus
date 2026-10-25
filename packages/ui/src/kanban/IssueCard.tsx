@@ -128,6 +128,7 @@ function IssueCardComponent({
         <h3 className={`text-base font-medium ${isSelected ? "text-selected" : "text-foreground"}`}>
           {issue.title}
         </h3>
+        {issue.subtitle ? <p className="issue-card-subtitle text-sm text-muted">{issue.subtitle}</p> : null}
         {issue.excerpt ? <IssueCardExcerpt text={issue.excerpt} /> : null}
         <div className="issue-card-owner flex items-center justify-end text-xs text-muted">
           {issue.assignee ? <span>{issue.assignee}</span> : null}
@@ -157,6 +158,7 @@ function issuesRenderIdentically(previous: KanbanIssue, next: KanbanIssue): bool
     && previous.type === next.type
     && previous.priority === next.priority
     && previous.assignee === next.assignee
+    && previous.subtitle === next.subtitle
     && previous.excerpt === next.excerpt
   );
 }

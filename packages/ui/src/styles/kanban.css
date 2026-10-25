@@ -715,6 +715,7 @@ html[data-motion="reduced"] .detail-page {
   white-space: nowrap;
 }
 
+.issue-card-subtitle { margin: 0; font-size: 13px; line-height: 1.4; color: var(--text-muted); overflow-wrap: anywhere; }
 .issue-card-excerpt { display: grid; gap: 2px; justify-items: start; }
 .issue-card-excerpt p { margin: 0; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .issue-card-excerpt[data-expanded="true"] p { display: block; -webkit-line-clamp: unset; overflow: visible; }

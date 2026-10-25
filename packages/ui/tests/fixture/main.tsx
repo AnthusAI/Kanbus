@@ -16,6 +16,7 @@ declare global {
     renderCollection: (query?: Kanbus.IssueQuery, view?: "board" | "list") => void;
     filterArticles: (query: Kanbus.IssueQuery) => string[];
     updateIssue: (identifier: string, status: string) => void;
+    updateIssueSubtitle: (identifier: string, subtitle: string) => void;
     renderStandalone: () => void;
     renderTypeFilter: (mode: "light" | "dark") => void;
     renderUnselectedTypeFilter: () => void;
@@ -58,7 +59,7 @@ let issues: HostIssue[] = [
     assignee: "alex", labels: ["newsletter"], parent: "series-1", custom: { score: 8, ready: true },
     comments: [{ author: "alex", created_at: "2026-10-14T00:00:00Z", text: "Hidden text", comment_type: "summary", data: { activity_summary: "Arrange the interview" } }] },
   { id: "article-2", title: "Second article", type: "article", status: "review", priority: 2,
-    assignee: "ben", custom: { score: "8" } },
+    subtitle: "Why the harbor vote slipped a week", assignee: "ben", custom: { score: "8" } },
   { id: "article-3", title: "Third article", type: "article", status: "draft", priority: 2,
     assignee: "alex", custom: { score: 12 } },
   { id: "task-1", title: "Other work", type: "task", status: "open", priority: 2 }
@@ -157,6 +158,10 @@ Object.assign(window, {
     issues = issues.map((issue) => issue.id === id ? { ...issue, status } : issue);
     if (organizer) window.renderOrganizer(organizerMode, organizerScroll);
     else window.renderCollection(currentQuery, currentView);
+  },
+  updateIssueSubtitle(id: string, subtitle: string) {
+    issues = issues.map((issue) => issue.id === id ? { ...issue, subtitle } : issue);
+    window.renderCollection(currentQuery, currentView);
   },
   renderStandalone() {
     root.render(<Kanbus.Board columns={["open"]} issues={issues.filter((issue) => issue.type === "task")}
