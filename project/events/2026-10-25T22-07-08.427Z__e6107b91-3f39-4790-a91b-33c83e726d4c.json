@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "e6107b91-3f39-4790-a91b-33c83e726d4c",
+  "issue_id": "kbs-8b6424a3-7504-4a49-bc7f-8a8807682e4c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T22:07:08.427Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Remove the remaining quadratic board-load callers (ready, dep add, dep tree, update --type)",
+    "description": "Board load remainder of kbs-73f796e3: kbs ready, kbs dep add, kbs dep tree and kbs update --type still load or scan the board per issue. Make each load the board once per command in both runtimes, with identical output, and add a performance regression check alongside the existing performance CI job.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-e47401a8-0f04-4ae5-b5f3-afb203ded46e",
+    "labels": []
+  }
+}

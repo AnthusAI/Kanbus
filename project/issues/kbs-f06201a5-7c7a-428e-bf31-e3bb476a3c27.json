@@ -1,0 +1,20 @@
+{
+  "id": "kbs-f06201a5-7c7a-428e-bf31-e3bb476a3c27",
+  "title": "Fix the four known file divergences in the parity lane",
+  "description": "tools/parity/known_divergences.txt still lists four file-level differences between kbs and kanbus: dependencies::file::project/issues/kbs-aa0002.json, init::file::.kanbus.yml, init::file::CONTRIBUTING_AGENT.template.md and update_comment_close::file::project/issues/kbs-aa0001.json. Make both runtimes write byte-identical files for these cases and empty the list; the lane then guards file fidelity (the golden cross-runtime test kbs-232185 asked for).",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-e47401a8-0f04-4ae5-b5f3-afb203ded46e",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-25T22:07:15.076448Z",
+  "updated_at": "2026-10-25T22:07:15.107166Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
