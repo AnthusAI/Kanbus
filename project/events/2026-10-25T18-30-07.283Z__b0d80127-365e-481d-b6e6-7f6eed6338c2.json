@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "b0d80127-365e-481d-b6e6-7f6eed6338c2",
+  "issue_id": "kbs-10953815-1fb0-4370-9c6c-b492ad132ad9",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T18:30:07.283Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Remove the legacy cloud console code paths (console_lambda and kbs cloud token)",
+    "description": "The legacy cloud console stacks were deleted under kbs-14a848 and infra/cloud was removed in PR #532, but Rust still carries the code that served them. Readers of the 14 legacy-cloud KANBUS_* variables documented in docs/ENVIRONMENT_VARIABLES.md: rust/src/bin/console_lambda.rs (KANBUS_API_STAGE, KANBUS_AUTH_MODE, KANBUS_COGNITO_DOMAIN_URL, KANBUS_COGNITO_CLIENT_ID, KANBUS_COGNITO_REDIRECT_URI, KANBUS_COGNITO_LOGOUT_URI, KANBUS_COGNITO_ISSUER, KANBUS_IDENTITY_POOL_ID, KANBUS_TENANT_ACCOUNT_CLAIM_KEY, KANBUS_TENANT_PROJECT_CLAIM_KEY, KANBUS_IOT_DATA_ENDPOINT, KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME) and rust/src/cli.rs (KANBUS_CLOUD_API_BASE_URL, KANBUS_CLOUD_ID_TOKEN for the kbs cloud token commands). Confirm nothing in the current kanbus-api or @kanbus/cdk path uses them, remove the binary, commands, their specs and docs, and update the inventory. Spec-first: remove the scenarios together with the code.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 3,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}
