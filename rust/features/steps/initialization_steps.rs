@@ -335,6 +335,7 @@ impl Drop for KanbusWorld {
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS");
         daemon_client::set_test_daemon_response(None);
         daemon_client::set_test_daemon_spawn_disabled(false);
+        daemon_client::set_test_daemon_spawn_failure(false);
         daemon_client::reset_daemon_restart_recorded_for_testing();
         daemon_client::reset_daemon_unavailable_roots_for_testing();
         std::env::remove_var("KANBUS_TEST_SIMULATE_LITELLM_MISSING");

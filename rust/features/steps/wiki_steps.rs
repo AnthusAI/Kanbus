@@ -657,7 +657,7 @@ fn given_project_issues_agents_baseline_saved(world: &mut KanbusWorld) {
     world.project_issues_agents_baseline = Some(baseline);
 }
 
-#[then(expr = "project/AGENTS.md should contain {string}")]
+#[then(expr = "project\\/AGENTS.md should contain {string}")]
 fn then_project_agents_contains(world: &mut KanbusWorld, text: String) {
     let project_dir = load_project_dir(world);
     let content = fs::read_to_string(project_dir.join("AGENTS.md")).expect("read agents");
