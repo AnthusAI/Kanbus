@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "cf6694d2-36a4-49e3-b5de-2bafc7bb4e80",
+  "issue_id": "kbs-dd3e6feb-b7bc-4fe5-a678-978d8d517eef",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T19:07:28.974Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Split apps/console App.tsx below 600 lines",
+    "description": "Acceptance line of kbs-29c415: App.tsx is 2,406 lines. Extract useConsoleRoute, useSnapshotFeed, usePersistedUiPrefs and useCloudAuth (and further components as needed) into apps/console/src so App.tsx is under 600 lines, with no behaviour change: npm run typecheck, npm run build and the console cucumber suites (Python console parity and Rust console mode) pass.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+    "labels": []
+  }
+}

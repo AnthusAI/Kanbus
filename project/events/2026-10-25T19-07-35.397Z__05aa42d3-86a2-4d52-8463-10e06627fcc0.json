@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "05aa42d3-86a2-4d52-8463-10e06627fcc0",
+  "issue_id": "kbs-dcad0f5c-53fc-4eb1-aa71-be8c9ea3be2a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T19:07:35.397Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Console frontend hygiene: devDependencies, dynamic imports, duplicate modules, helper tests",
+    "description": "From kbs-29c415: move express, cors, chokidar, express-rate-limit and js-yaml (dev-server only) to devDependencies; dynamic-import mermaid and the MQTT/SigV4 path so the local console bundle does not load them; delete the pre-extraction copies of @kanbus/ui modules (IssueCard.tsx, useBoardTransitions.ts, diverged issue-colors.ts) in favour of the package; add vitest for pure helpers and run it in CI.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 3,
+    "assignee": null,
+    "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+    "labels": []
+  }
+}
