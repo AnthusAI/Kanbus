@@ -1,5 +1,22 @@
 {
   "allowed_regression_pct": 30,
+  "board_load": {
+    "issue_count": 2000,
+    "max_seconds": {
+      "python": {
+        "ready": 30.0,
+        "dep tree": 30.0,
+        "dep add": 30.0,
+        "move (update --type)": 30.0
+      },
+      "rust": {
+        "ready": 10.0,
+        "dep tree": 10.0,
+        "dep add": 10.0,
+        "move (update --type)": 10.0
+      }
+    }
+  },
   "python": {
     "build_ms": 100.0,
     "cache_load_ms": 20.0
