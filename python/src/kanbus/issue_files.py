@@ -250,6 +250,7 @@ def _persisted_issue_record(issue: IssueData, issue_path: Path) -> dict:
     """Build the JSON record with the same keys the Rust CLI persists."""
     record = issue.model_dump(by_alias=True, mode="json")
     record.pop("agent_assignment", None)
+    record["custom"] = {key: record["custom"][key] for key in sorted(record["custom"])}
     agent = _without_empty_agent_fields(record.get("agent"))
     if agent is None:
         record.pop("agent", None)

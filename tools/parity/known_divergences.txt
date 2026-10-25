@@ -1,7 +1,3 @@
 # Observable differences between kbs (Rust) and kanbus (Python) that exist
 # today. Fix the implementation, then delete the line. The parity lane fails
 # on new differences and on lines here that no longer differ.
-dependencies::file::project/issues/kbs-aa0002.json
-init::file::.kanbus.yml
-init::file::CONTRIBUTING_AGENT.template.md
-update_comment_close::file::project/issues/kbs-aa0001.json
