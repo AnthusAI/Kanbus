@@ -801,6 +801,16 @@ fn given_env_var_set(world: &mut KanbusWorld, var_name: String, value: String) {
     std::env::set_var(var_name, value);
 }
 
+#[given(regex = r#"^the environment variable ([A-Za-z_][A-Za-z0-9_]*) is not set$"#)]
+fn given_env_var_not_set_unquoted(world: &mut KanbusWorld, var_name: String) {
+    given_env_var_not_set(world, var_name);
+}
+
+#[given(regex = r#"^the environment variable ([A-Za-z_][A-Za-z0-9_]*) is set to "([^"]*)"$"#)]
+fn given_env_var_set_unquoted(world: &mut KanbusWorld, var_name: String, value: String) {
+    given_env_var_set(world, var_name, value);
+}
+
 #[given(expr = "no {string} file exists")]
 fn given_no_file_exists(world: &mut KanbusWorld, filename: String) {
     let temp_dir = TempDir::new().expect("tempdir");

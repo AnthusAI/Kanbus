@@ -32,6 +32,7 @@ pub enum TestDaemonResponse {
 
 static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
 static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
+static TEST_DAEMON_SPAWN_FAILURE: OnceLock<Mutex<bool>> = OnceLock::new();
 static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
 static DAEMON_UNAVAILABLE_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
@@ -93,6 +94,25 @@ pub fn set_test_daemon_spawn_disabled(disabled: bool) {
     let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
     let mut guard = cell.lock().expect("lock test spawn flag");
     *guard = disabled;
+}
+
+/// Force daemon spawning to fail with a missing-executable error when set to true.
+pub fn set_test_daemon_spawn_failure(enabled: bool) {
+    let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
+    let mut guard = cell.lock().expect("lock test spawn failure flag");
+    *guard = enabled;
+}
+
+fn is_test_spawn_failure_enabled() -> bool {
+    let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
+    let guard = cell.lock().expect("lock test spawn failure flag");
+    *guard
+}
+
+fn daemon_spawn_failed_error(error: &std::io::Error) -> KanbusError {
+    KanbusError::Io(format!(
+        "daemon spawn failed: {error}. Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+    ))
 }
 
 fn take_test_daemon_response() -> Option<TestDaemonResponse> {
@@ -293,7 +313,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
     if let Err(error) = spawn_daemon(root) {
         mark_daemon_unavailable(root);
         log::debug!("daemon spawn failed; using direct storage access");
-        return Err(KanbusError::Io(format!("daemon spawn failed: {error}")));
+        return Err(error);
     }
     let deadline = std::time::Instant::now() + DAEMON_SOCKET_WAIT;
     loop {
@@ -500,6 +520,11 @@ fn send_request(
 
 #[cfg(unix)]
 fn spawn_daemon(root: &Path) -> Result<(), KanbusError> {
+    if is_test_spawn_failure_enabled() {
+        return Err(daemon_spawn_failed_error(
+            &std::io::Error::from_raw_os_error(2),
+        ));
+    }
     if is_test_spawn_disabled() {
         return Ok(());
     }
@@ -528,7 +553,7 @@ fn spawn_daemon(root: &Path) -> Result<(), KanbusError> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+        .map_err(|error| daemon_spawn_failed_error(&error))?;
     Ok(())
 }
 

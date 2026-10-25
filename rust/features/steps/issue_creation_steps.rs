@@ -250,6 +250,15 @@ fn then_issues_directory_contains_count(world: &mut KanbusWorld, count: i32) {
     assert_eq!(actual as i32, count);
 }
 
+#[then(expr = "the created issue should have id {string}")]
+fn then_created_issue_id(world: &mut KanbusWorld, issue_id: String) {
+    let identifier = capture_issue_identifier(world);
+    assert_eq!(identifier, issue_id);
+    let project_dir = load_project_dir(world);
+    let payload = load_issue_json(&project_dir, &identifier);
+    assert_eq!(payload["id"], issue_id.as_str());
+}
+
 #[then("the created issue should have title \"Implement OAuth2 flow\"")]
 fn then_created_issue_title(world: &mut KanbusWorld) {
     let identifier = capture_issue_identifier(world);

@@ -159,6 +159,11 @@ fn given_daemon_connection_failure(_world: &mut KanbusWorld) {
     set_test_daemon_spawn_disabled(true);
 }
 
+#[given("daemon spawning will fail")]
+fn given_daemon_spawning_will_fail(_world: &mut KanbusWorld) {
+    daemon_client::set_test_daemon_spawn_failure(true);
+}
+
 #[given("the daemon connection fails then returns an empty response")]
 fn given_daemon_connection_fails_then_empty(_world: &mut KanbusWorld) {
     set_test_daemon_responses(vec![TestDaemonResponse::IoError, TestDaemonResponse::Empty]);
@@ -927,8 +932,38 @@ fn given_stale_daemon_socket_exists(world: &mut KanbusWorld) {
 #[when("the daemon is spawned for the project")]
 fn when_daemon_spawned(world: &mut KanbusWorld) {
     std::env::set_var("KANBUS_NO_DAEMON", "0");
-    let _ = daemon_client::request_index_list(&daemon_root(world));
+    let result = daemon_client::request_index_list(&daemon_root(world));
+    world.daemon_error_message = result.err().map(|error| error.to_string());
     world.daemon_spawn_called = true;
+}
+
+#[then("the daemon request should fail with a daemon connection diagnostic")]
+fn then_daemon_connection_diagnostic(world: &mut KanbusWorld) {
+    let error = world.daemon_error_message.clone().unwrap_or_default();
+    assert!(
+        error.starts_with("daemon connection failed after retries: "),
+        "{error}"
+    );
+    assert!(
+        error.contains("Set KANBUS_NO_DAEMON=1 to bypass the daemon."),
+        "{error}"
+    );
+    let socket_path = daemon_socket_path(world);
+    assert!(
+        error.contains(&socket_path.display().to_string()),
+        "{error}"
+    );
+}
+
+#[then("the daemon request should fail with a daemon spawn diagnostic")]
+fn then_daemon_spawn_diagnostic(world: &mut KanbusWorld) {
+    let error = world.daemon_error_message.clone().unwrap_or_default();
+    assert!(error.starts_with("daemon spawn failed: "), "{error}");
+    assert!(error.contains("No such file or directory"), "{error}");
+    assert!(
+        error.contains("Set KANBUS_NO_DAEMON=1 to bypass the daemon."),
+        "{error}"
+    );
 }
 
 #[then("the daemon spawn should be recorded")]

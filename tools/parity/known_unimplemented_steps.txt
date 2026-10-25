@@ -1,6 +1,3 @@
-rust|.gitignore already includes "project-local/"
-rust|.gitignore should include "project-local/"
-rust|.gitignore should include "project-local/" only once
 rust|31 in-progress issues exist with identifier prefix "kanbus-cmp-cap"
 rust|31 in-progress issues exist with identifier prefix "kanbus-def-cap"
 rust|I add a comment through the issue write API for "kbs-write-block" with text "Please continue"
@@ -18,15 +15,6 @@ rust|I set the routing assignment through the issue write API for "kbs-assign" t
 rust|I set the routing assignment through the issue write API for "kbs-assign" to class "missing"
 rust|I set the routing assignment through the issue write API for "kbs-assign" to provider "codex-default"
 rust|I set the routing assignment through the issue write API for "kbs-assign" to provider "missing"
-rust|a "project-local/issues" directory should exist
-rust|a "project/issues" directory should exist and contain only guard files
-rust|daemon spawning will fail
-rust|project/AGENTS.md has legacy guard content without wiki exception
-rust|project/AGENTS.md should contain "project/wiki/*.md"
-rust|project/issues should be committed to git
-rust|project/issues/ and project/events/ should contain AGENTS.md with the warning
-rust|project/issues/ and project/events/ should contain DO_NOT_EDIT with the warning
-rust|standup parity is tracked by tools/check_spec_parity.py
 rust|the Kanbus configuration has a router with class "implementation" using provider "codex-default"
 rust|the browser viewport is 1280 by 800
 rust|the console has a task "Add structured logging" without agent assignment
@@ -34,16 +22,6 @@ rust|the console now response should include issue "kanbus-now-active" with righ
 rust|the console now response should include issue "kanbus-now-discovery" with right-now summary "Mock right-now summary for kanbus-now-discovery."
 rust|the console now response should include issue "kanbus-now-parent" with right-now summary "Mock right-now summary for kanbus-now-parent."
 rust|the console page is reloaded
-rust|the created issue should have id "kanbus-custom-123"
-rust|the daemon request should fail with a daemon connection diagnostic
-rust|the daemon request should fail with a daemon spawn diagnostic
-rust|the environment variable KANBUS_NO_HOOKS is set to "1"
-rust|the environment variable KANBUS_OVERLAY_ENABLED is set to "false"
-rust|the environment variable KANBUS_OVERLAY_TTL_S is set to "120"
-rust|the environment variable KANBUS_PROJECT_KEY is not set
-rust|the environment variable KANBUS_REALTIME_AUTOSTART is set to "false"
-rust|the environment variable KANBUS_REALTIME_BROKER is set to "mqtt://127.0.0.1:1883"
-rust|the environment variable KANBUS_REALTIME_TRANSPORT is set to "mqtt"
 rust|the issue "kbs-assign" has labels "bug,ui"
 rust|the issue "kbs-running" has labels "agent-class:implementation"
 rust|the issue "kbs-write-block" has a blocked router conversation
