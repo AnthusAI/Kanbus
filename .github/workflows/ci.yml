@@ -216,6 +216,9 @@ jobs:
       - name: Verify Rust toolchain version
         run: rustc --version
 
+      - name: Forbid blocking I/O in async console handlers
+        run: python3 tools/check_console_blocking_io.py
+
       - name: Run Rust quality gates
         run: |
           cd rust

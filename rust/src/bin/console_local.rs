@@ -693,12 +693,15 @@ impl FromRequestParts<AppState> for TenantSelection {
     }
 }
 
-fn resolve_store(
+async fn resolve_store(
     state: &AppState,
     TenantSelection(selection): TenantSelection,
 ) -> Result<FileStore, ConsoleApiError> {
     match selection {
-        Some((account, project)) => Ok(store_for(state, &account, &project)),
+        Some((account, project)) => {
+            let state = state.clone();
+            run_blocking(move || Ok(store_for(&state, &account, &project))).await
+        }
         None => store_for_root(state).ok_or_else(|| {
             ConsoleApiError::new(
                 StatusCode::BAD_REQUEST,
@@ -730,7 +733,7 @@ async fn get_config(
     State(state): State<AppState>,
     selection: TenantSelection,
 ) -> Result<Response, ConsoleApiError> {
-    let store = resolve_store(&state, selection)?;
+    let store = resolve_store(&state, selection).await?;
     let snapshot = build_snapshot_off_runtime(store).await?;
     Ok(Json(snapshot.config).into_response())
 }
@@ -739,13 +742,13 @@ async fn get_issues(
     State(state): State<AppState>,
     selection: TenantSelection,
 ) -> Result<Response, ConsoleApiError> {
-    let store = resolve_store(&state, selection)?;
+    let store = resolve_store(&state, selection).await?;
     let snapshot = build_snapshot_off_runtime(store).await?;
     Ok(Json(snapshot.issues).into_response())
 }
 
 async fn get_now(State(state): State<AppState>, selection: TenantSelection) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => now_snapshot_response(store).await,
         Err(error) => error.into_response(),
     }
@@ -769,7 +772,7 @@ async fn post_standup(
     selection: TenantSelection,
     Json(payload): Json<StandupGenerateRequest>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => standup_response(store, payload).await,
         Err(error) => error.into_response(),
     }
@@ -790,7 +793,7 @@ async fn get_issue(
     selection: TenantSelection,
     IssueIdentifierPath(id): IssueIdentifierPath,
 ) -> Result<Json<IssueData>, ConsoleApiError> {
-    let store = resolve_store(&state, selection)?;
+    let store = resolve_store(&state, selection).await?;
     let snapshot = build_snapshot_off_runtime(store).await?;
     let issue = resolve_single_issue(&snapshot, &id)?;
     Ok(Json(issue.clone()))
@@ -1113,7 +1116,7 @@ async fn post_issue_comment(
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = match resolve_store(&state, selection) {
+    let store = match resolve_store(&state, selection).await {
         Ok(store) => store,
         Err(error) => return error.into_response(),
     };
@@ -1130,7 +1133,7 @@ async fn post_issue_status(
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = match resolve_store(&state, selection) {
+    let store = match resolve_store(&state, selection).await {
         Ok(store) => store,
         Err(error) => return error.into_response(),
     };
@@ -1147,7 +1150,7 @@ async fn post_issue_assignment(
     if let Some(refused) = require_loopback(addr) {
         return refused;
     }
-    let store = match resolve_store(&state, selection) {
+    let store = match resolve_store(&state, selection).await {
         Ok(store) => store,
         Err(error) => return error.into_response(),
     };
@@ -1160,7 +1163,7 @@ async fn get_issue_events(
     IssueIdentifierPath(id): IssueIdentifierPath,
     Query(query): Query<IssueEventsQuery>,
 ) -> Result<Json<IssueEventsResponse>, ConsoleApiError> {
-    let store = resolve_store(&state, selection)?;
+    let store = resolve_store(&state, selection).await?;
     run_blocking(move || {
         let snapshot = store.build_snapshot()?;
         let issue_id = resolve_single_issue(&snapshot, &id)?.identifier.clone();
@@ -1256,7 +1259,7 @@ async fn get_events(
     State(state): State<AppState>,
     selection: TenantSelection,
 ) -> Result<Sse<BoxStream<'static, Result<Event, Infallible>>>, ConsoleApiError> {
-    let store = resolve_store(&state, selection)?;
+    let store = resolve_store(&state, selection).await?;
     Ok(snapshot_event_stream(state.snapshot_feeds.clone(), store))
 }
 
@@ -1267,7 +1270,7 @@ async fn post_console_telemetry(
 ) -> StatusCode {
     let message = build_telemetry_payload(parse_json_body(&body), selection);
     let _ = state.telemetry_tx.send(message);
-    write_telemetry_log(&state, &body);
+    let _ = tokio::task::spawn_blocking(move || write_telemetry_log(&state, &body)).await;
     StatusCode::NO_CONTENT
 }
 
@@ -1594,7 +1597,7 @@ where
 }
 
 async fn get_wiki_pages(State(state): State<AppState>, selection: TenantSelection) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => wiki_response(store, StatusCode::OK, list_pages).await,
         Err(error) => error.into_response(),
     }
@@ -1605,7 +1608,7 @@ async fn get_wiki_page(
     selection: TenantSelection,
     Query(query): Query<WikiPathQuery>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => {
             wiki_response(store, StatusCode::OK, move |store| {
                 get_page(store, &query.path)
@@ -1621,7 +1624,7 @@ async fn post_wiki_page(
     selection: TenantSelection,
     Json(payload): Json<WikiCreateRequest>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => {
             wiki_response(store, StatusCode::CREATED, move |store| {
                 create_page(store, &payload)
@@ -1637,7 +1640,7 @@ async fn put_wiki_page(
     selection: TenantSelection,
     Json(payload): Json<WikiUpdateRequest>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => {
             wiki_response(store, StatusCode::OK, move |store| {
                 update_page(store, &payload)
@@ -1653,7 +1656,7 @@ async fn delete_wiki_page(
     selection: TenantSelection,
     Query(query): Query<WikiPathQuery>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => {
             wiki_response(store, StatusCode::OK, move |store| {
                 delete_page(store, &query.path)
@@ -1669,7 +1672,7 @@ async fn post_wiki_rename(
     selection: TenantSelection,
     Json(payload): Json<WikiRenameRequest>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => {
             wiki_response(store, StatusCode::OK, move |store| {
                 rename_page(store, &payload)
@@ -1685,7 +1688,7 @@ async fn post_wiki_render(
     selection: TenantSelection,
     Json(payload): Json<WikiRenderRequestPayload>,
 ) -> Response {
-    match resolve_store(&state, selection) {
+    match resolve_store(&state, selection).await {
         Ok(store) => {
             wiki_response(store, StatusCode::OK, move |store| {
                 render_page(store, &payload)
@@ -1983,18 +1986,18 @@ async fn get_index(
     State(state): State<AppState>,
     AxumPath((_account, _project)): AxumPath<(String, String)>,
 ) -> Response {
-    serve_asset(&state, "index.html")
+    serve_asset_off_runtime(state, "index.html".to_string()).await
 }
 
 async fn get_index_root(State(state): State<AppState>) -> Response {
-    serve_asset(&state, "index.html")
+    serve_asset_off_runtime(state, "index.html".to_string()).await
 }
 
 async fn get_asset(
     State(state): State<AppState>,
     AxumPath((_account, _project, path)): AxumPath<(String, String, String)>,
 ) -> Response {
-    serve_asset(&state, &path)
+    serve_asset_off_runtime(state, path).await
 }
 
 async fn get_asset_root(
@@ -2003,23 +2006,23 @@ async fn get_asset_root(
 ) -> Response {
     let path = uri.0.path().trim_start_matches('/');
     if path.is_empty() {
-        return serve_asset(&state, "index.html");
+        return serve_asset_off_runtime(state, "index.html".to_string()).await;
     }
-    serve_asset(&state, path)
+    serve_asset_off_runtime(state, path.to_string()).await
 }
 
 async fn get_public_asset(
     State(state): State<AppState>,
     AxumPath(path): AxumPath<String>,
 ) -> Response {
-    serve_asset(&state, &format!("assets/{path}"))
+    serve_asset_off_runtime(state, format!("assets/{path}")).await
 }
 
 async fn get_favicon(State(state): State<AppState>) -> Response {
     // serve favicon if present; fall back to 204 to avoid 500s
     let favicon_paths = ["favicon.ico", "assets/favicon.ico"];
     for path in favicon_paths {
-        let response = serve_asset(&state, path);
+        let response = serve_asset_off_runtime(state.clone(), path.to_string()).await;
         if response.status().is_success() {
             return response;
         }
@@ -2029,6 +2032,14 @@ async fn get_favicon(State(state): State<AppState>) -> Response {
         .status(StatusCode::NO_CONTENT)
         .body(Body::empty())
         .unwrap_or_else(|_| error_response("favicon unavailable", StatusCode::NO_CONTENT))
+}
+
+async fn serve_asset_off_runtime(state: AppState, asset_path: String) -> Response {
+    tokio::task::spawn_blocking(move || serve_asset(&state, &asset_path))
+        .await
+        .unwrap_or_else(|error| {
+            error_response(error.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+        })
 }
 
 fn serve_asset(state: &AppState, asset_path: &str) -> Response {
