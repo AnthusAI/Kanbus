@@ -1,0 +1,20 @@
+{
+  "id": "kbs-746dfdf6-7a24-4e2e-a581-f0fc99778de8",
+  "title": "Port the 22 CLI and harness parity gaps to the Rust step definitions",
+  "description": "First batch of the Rust gaps in tools/parity/known_unimplemented_steps.txt: the gitignore, project-local, guard-file, environment-variable, daemon-error, created-issue-id and standup-parity steps (22 lines). Implement each in rust/features/steps mirroring the Python step's behaviour, make the owning scenarios pass under cargo test, and remove the lines from the ratchet. Acceptance: tools/check_spec_parity.py passes with the ratchet reduced by these 22 lines, cargo test passes, cargo fmt and clippy clean. The console-server issue-write API, routing assignment and console now steps are a later batch.",
+  "type": "sub-task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-25T16:03:58.395079Z",
+  "updated_at": "2026-10-25T16:03:58.594945Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
