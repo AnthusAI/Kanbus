@@ -3,17 +3,25 @@
   "title": "Remove the remaining quadratic board-load callers (ready, dep add, dep tree, update --type)",
   "description": "Board load remainder of kbs-73f796e3: kbs ready, kbs dep add, kbs dep tree and kbs update --type still load or scan the board per issue. Make each load the board once per command in both runtimes, with identical output, and add a performance regression check alongside the existing performance CI job.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
   "parent": "kbs-e47401a8-0f04-4ae5-b5f3-afb203ded46e",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "cd9c90c9-a576-4e5a-820c-7997e4030c43",
+      "author": "home",
+      "text": "Done: PR #541 merged with CI green (parity-exempt: Python-only fix matching Rust). Python single-file reads no longer rebuild the whole issues table; on 2,000 issues ready, dep tree, dep add and move went from about 170 s to under 1 s (Rust already linear). tools/check_board_load.py in the performance job guards both runtimes. update --type does not exist; the type change is kbs move.",
+      "created_at": "2026-10-25T23:05:05.735482Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-25T22:07:08.394673Z",
-  "updated_at": "2026-10-25T22:07:15.311468Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T23:05:05.816422Z",
+  "closed_at": "2026-10-25T23:05:05.776681Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
