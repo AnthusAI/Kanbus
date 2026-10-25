@@ -3,17 +3,25 @@
   "title": "Inventory KANBUS_* environment variables and close the Python/Rust gaps",
   "description": "Item 6 of kbs-eb1788. Rust reads 70 KANBUS_* names, Python 47. Rust-only: console and cloud auth settings (KANBUS_AUTH_MODE, KANBUS_API_STAGE, KANBUS_CLOUD_*, KANBUS_COGNITO_*, KANBUS_IDENTITY_POOL_ID, KANBUS_IOT_DATA_ENDPOINT, KANBUS_MQTT_CUSTOM_AUTHORIZER_NAME, KANBUS_TENANT_*_CLAIM_KEY), KANBUS_SNYK_DEBUG, the prefixes KANBUS_REALTIME_ and KANBUS_COORDINATION_, and KANBUS_TEST_* hooks. Python-only: KANBUS_NON_INTERACTIVE, KANBUS_ROUTER_MQTT_DIAGNOSTICS, KANBUS_ENABLE_TEST_HOOKS. Work: document every variable in one table (name, purpose, runtimes, intentional or gap); port user-facing gaps spec-first; list console/server-only and test-hook variables as intentional Rust-only or Python-only; identify variables that only served the retired legacy cloud console (kbs-14a848) for a separate removal task.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-eb1788eb-09fe-4ebc-8fa1-0703c6476c1f",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f6becce7-d369-431e-add1-557c081a9e75",
+      "author": "home",
+      "text": "Done: PR #536 merged with CI green. docs/ENVIRONMENT_VARIABLES.md lists all 71 KANBUS_* variables (27 shared, 18 shared test hooks, 10 single-runtime, 14 legacy-cloud, 2 documented gaps: KANBUS_SNYK_DEBUG debug output and KANBUS_ROUTER_MQTT_DIAGNOSTICS harness diagnostics). Rust now honours KANBUS_NON_INTERACTIVE and the no-TTY refusal with KANBUS_FORCE_INTERACTIVE, matching Python. Legacy-cloud removal filed as kbs-109538.",
+      "created_at": "2026-10-25T19:06:48.422463Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-25T18:16:27.080019Z",
-  "updated_at": "2026-10-25T18:16:27.209797Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T19:06:48.497216Z",
+  "closed_at": "2026-10-25T19:06:48.464621Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

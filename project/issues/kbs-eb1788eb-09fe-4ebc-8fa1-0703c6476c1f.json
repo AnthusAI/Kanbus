@@ -3,7 +3,7 @@
   "title": "Enforce parity between the Rust and Python implementations in CI",
   "description": "Direction (Ryan, 2026-10-17): Python stays a full, independent port of Kanbus. It is never a wrapper over kbs. This task enforces that the two implementations stay identical, mechanically, so the convention is no longer the only guard.\n\nProblem: the dual implementation (66,500 lines Rust, 38,300 lines Python) is kept in lockstep by convention and the convention is failing. Of the last 300 commits, 52 touched implementation code: 30 both sides, 15 Rust-only, 7 Python-only (42 percent one-sided). Rust honours about 25 KANBUS_* environment variables Python does not. The shared Gherkin suite catches behavioural drift but never diffs the two runtimes: exactly one scenario runs both (features/standup/standup_time_windows.feature:167, tagged @python-parity) and Rust excludes it. tools/check_spec_parity.py runs with KANBUS_PARITY_STRICT=0 and today reports 78 steps missing in Rust and 14 in Python with false positives from unparsed cucumber expressions. 41 scenarios starting 'Given a Kanbus project with virtual projects configured' never reach the real CLI: maybe_simulate_virtual_project_command (rust/features/steps/virtual_project_steps.rs:433, 1,404 lines; python mirror :218) fabricates stdout. _promote_quality_signals_to_stderr (python/features/steps/shared.py:70-75) returns stdout as stderr when stderr is empty, so 453 'stderr should contain' steps enforce a different contract than Rust. Rust ignores @skip so five scenarios are spec in Rust and dead in Python. About 450 lines of #[cfg(tarpaulin)] padding in rust/tests/cucumber.rs:201-648 export cover_* functions from the production crate and never compile under llvm-cov.\n\nWork:\n1. Parity lane in CI: a fixture script of a few dozen golden commands run against both CLIs (kbs and kanbus), diffing normalised stdout, stderr, exit code and the resulting project directory. Issue files must be byte-identical (the file-fidelity work in kbs-232185 already made the serializers match).\n2. Make tools/check_spec_parity.py tag-aware and cucumber-expression-aware, then set KANBUS_PARITY_STRICT=1.\n3. Delete the simulated virtual-project CLI and run those scenarios against a real multi-root temp tree in both runtimes.\n4. Remove the stdout-to-stderr promotion and fix the scenarios that depended on it; honour @skip in the Rust harness; delete the tarpaulin padding and the cover_* exports.\n5. A CI check that fails when rust/src changes without python/src (and vice versa) unless the PR carries a 'parity-exempt' label.\n6. Document the KANBUS_* environment variables Python lacks and either port them or list them as intentional Rust-only.\n\nAcceptance: parity lane green on develop; strict spec parity green; no simulated CLI code under features/steps. No decision is needed from Ryan.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -45,11 +45,18 @@
       "text": "2026-10-25: parity step gaps closed (PR #534 and #535); the ratchet is empty and the checker reports 0 tolerated steps. Remaining: item 6, the KANBUS_* environment variable inventory (port to Python or list as intentional Rust-only).",
       "created_at": "2026-10-25T18:15:59.073811Z",
       "comment_type": "default"
+    },
+    {
+      "id": "73a3dfeb-6b98-4261-885f-2f1d8e22913a",
+      "author": "home",
+      "text": "Done 2026-10-25. Acceptance met: parity lane, strict spec parity and cochange checks in CI; no simulated CLI code under features/steps; tools/check_spec_parity.py reports 0 tolerated steps after PR #534 and #535; environment variables inventoried in PR #536. Follow-up: kbs-109538 (remove legacy cloud console code).",
+      "created_at": "2026-10-25T19:06:48.569625Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T16:37:46.028515447Z",
-  "updated_at": "2026-10-25T18:15:59.073838Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T19:06:48.648985Z",
+  "closed_at": "2026-10-25T19:06:48.616883Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
