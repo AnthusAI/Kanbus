@@ -3,17 +3,25 @@
   "title": "Verify no synchronous fs or process calls inside async console handlers",
   "description": "Acceptance line of kbs-29c415: add a CI check (clippy lint configuration or a grep-based tool in tools/) that fails when rust/src/bin/console_local.rs or kanbus::console_backend handlers call std::fs, std::process or other blocking I/O outside spawn_blocking, and fix any hits.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 3,
   "assignee": null,
   "creator": null,
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "21c220ea-9440-43d9-b97e-dfddfae19a3d",
+      "author": "home",
+      "text": "Done: PR #538 merged with CI green. Fixed blocking calls in async console handlers (static assets, telemetry append, multi-tenant resolve_store read_dir); tools/check_console_blocking_io.py runs in the CI rust job and fails on blocking calls in async code outside spawn_blocking/run_blocking (16 tests; rule documented in docs/ARCHITECTURE.md).",
+      "created_at": "2026-10-25T21:09:14.756118Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-25T19:07:41.810072Z",
-  "updated_at": "2026-10-25T20:24:38.190726Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T21:09:14.827909Z",
+  "closed_at": "2026-10-25T21:09:14.795310Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
