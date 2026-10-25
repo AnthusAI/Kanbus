@@ -3,17 +3,25 @@
   "title": "Console frontend hygiene: devDependencies, dynamic imports, duplicate modules, helper tests",
   "description": "From kbs-29c415: move express, cors, chokidar, express-rate-limit and js-yaml (dev-server only) to devDependencies; dynamic-import mermaid and the MQTT/SigV4 path so the local console bundle does not load them; delete the pre-extraction copies of @kanbus/ui modules (IssueCard.tsx, useBoardTransitions.ts, diverged issue-colors.ts) in favour of the package; add vitest for pure helpers and run it in CI.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 3,
   "assignee": null,
   "creator": null,
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "bcb4fe93-12a8-40ac-91b1-78c6fc905a73",
+      "author": "home",
+      "text": "Done: PR #539 merged (7b1ab86), all 25 checks green. Dev-server packages moved to devDependencies, unused mermaid removed (MQTT and SigV4 were already lazy chunks), five dead pre-extraction modules deleted, issue-colors.ts trimmed to the metrics-only helpers with colours unchanged, 79 vitest tests run in CI. Color-coding steps in both runtimes now read @kanbus/ui issue-colors.ts.",
+      "created_at": "2026-10-25T22:06:03.757871Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-25T19:07:35.366632Z",
-  "updated_at": "2026-10-25T21:09:14.926833Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T22:06:03.841525Z",
+  "closed_at": "2026-10-25T22:06:03.804111Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

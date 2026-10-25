@@ -3,7 +3,7 @@
   "title": "Console backend: cached snapshot with broadcast realtime, spawn_blocking everywhere, one StoreSelector, untracked embedded assets, App.tsx split",
   "description": "Problem: console cost and duplication. Every SSE subscriber owns an interval that re-parses every issue file every 15 s and re-serialises the whole snapshot to hash it (rust/src/bin/console_local.rs:1135-1165, 1926-1945); each mutation rebuilds the snapshot twice (:775/799, 815/829); the gossip bridge (:1505) already knows when issues change. get_config, get_issues, get_issue, get_issue_events, every wiki handler, both SSE streams and the D2 renderer (Command::new(\"d2\").output(), :1838) do synchronous disk I/O or spawn processes on Tokio worker threads; only now, standup and the three mutation handlers use spawn_blocking. Every handler exists twice for root and tenant routes (the string 'multi-tenant mode requires /:account/:project' appears 17 times), which is how the loopback guard ended up on only some mutating routes. console_lambda.rs:308-379, 465-490 re-implements error_response, snapshot_payload, snapshot_fingerprint and is_console_route from console_local; apps/console/server/index.ts (1,105 lines) and python/src/kanbus/console_*.py (936 lines) are two more copies. In multi-tenant mode AppState has one ui_state and one notification_tx (:65-76) and get_realtime_events ignores account and project (:1476-1492), so UI state and IssueUpdated payloads leak across tenants. rust/embedded_assets/console is tracked in git, last built 2026-09-18 while apps/console/src changed 2026-10-15; CI rebuilds it before packaging but 'cargo build' or 'cargo install --path rust' ships a month-old UI and each UI commit adds about 1.1 MB of blobs. Frontend: App.tsx is 2,384 lines with 32 useState and 38 useEffect; express, cors, chokidar, express-rate-limit and js-yaml are runtime dependencies used only by the dev server; mermaid and the AWS SigV4 plus MQTT path load for the local console that never uses them (bundle 718 kB plus 373 kB mqtt); pre-extraction copies of @kanbus/ui modules remain (IssueCard.tsx and useBoardTransitions.ts unused; issue-colors.ts diverged); no unit tests exist for pure helpers and the console cucumber suite is not run in CI (only packages/ui). console_wiki.rs:181-208 strips '../' from wiki_directory by string matching with no final starts_with check; python wiki.py:243-244 uses lstrip which strips characters, not a prefix.\n\nWork: one Arc<RwLock<CachedSnapshot>> per store root refreshed by a single background task invalidated by the gossip bridge or a filesystem watcher, with SSE clients on a broadcast channel; spawn_blocking (or tokio::process for d2) in every handler via a small with_store helper; a StoreSelector FromRequestParts extractor so each route has one handler, and shared helpers moved into kanbus::console_backend for both binaries; key UI state and notification channels by (account, project) or refuse those routes in multi-tenant mode; stop tracking rust/embedded_assets/console and make build.rs fail with a clear message (or run the npm build) when embed-assets is on, or add a CI check that the committed bundle matches a fresh build; extract useConsoleRoute, useSnapshotFeed, usePersistedUiPrefs and useCloudAuth from App.tsx; move server-only packages to devDependencies, dynamic-import mermaid and the MQTT/SigV4 path; delete the duplicate ui modules; add vitest for the pure helpers and wire the apps/console cucumber suite into CI; resolve wiki_directory with Path::components and reject escapes, and use removeprefix in Python.\n\nAcceptance: with five SSE clients connected, issue files are read once per change (not once per client per 15 s); no synchronous fs or process call inside an async handler (clippy lint or grep check); one handler per route; git does not track rust/embedded_assets; App.tsx under 600 lines.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -59,11 +59,18 @@
       "text": "Acceptance check 2026-10-25 against develop: done: shared snapshot (one read per change), one handler per route, embedded assets untracked, tenant UI state and notification isolation (PR #490), wiki path escapes (Rust components check, Python removeprefix). Open, filed as sub-tasks: kbs-dd3e6f App.tsx split (2,406 lines), kbs-dcad0f frontend hygiene, kbs-6fa55e blocking-I/O check. console_lambda duplicates go away with kbs-109538.",
       "created_at": "2026-10-25T19:07:42.011236Z",
       "comment_type": "default"
+    },
+    {
+      "id": "002f77a1-74c7-4d8f-9f35-8a318049453c",
+      "author": "home",
+      "text": "Done 2026-10-25. Acceptance met on develop: one snapshot read per change shared by all SSE clients; no blocking I/O in async handlers, enforced in CI by tools/check_console_blocking_io.py (PR #538); one handler per route; rust/embedded_assets untracked; App.tsx 575 lines (PR #537). Frontend hygiene done (PR #539). The console_lambda duplicates are removed with the legacy cloud code under kbs-109538.",
+      "created_at": "2026-10-25T22:06:03.919663Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T16:37:46.455147316Z",
-  "updated_at": "2026-10-25T19:07:42.011267Z",
-  "closed_at": null,
+  "updated_at": "2026-10-25T22:06:03.994931Z",
+  "closed_at": "2026-10-25T22:06:03.963499Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
