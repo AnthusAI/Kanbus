@@ -184,6 +184,11 @@ jobs:
           cd apps/console
           npm ci
 
+      - name: Run console unit tests
+        run: |
+          cd apps/console
+          npm test
+
       - name: Install and build shared UI package
         run: |
           cd packages/ui

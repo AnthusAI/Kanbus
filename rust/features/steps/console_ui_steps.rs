@@ -1851,12 +1851,22 @@ fn assert_priority_pill_uses_background() {
     if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
         panic!("priority label must use background with --issue-priority-bg in globals.css");
     }
-    let issue_colors = fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
-        .expect("read issue-colors.ts");
+    let issue_colors_path = root
+        .join("..")
+        .join("..")
+        .join("packages")
+        .join("ui")
+        .join("src")
+        .join("kanban")
+        .join("issue-colors.ts");
+    let issue_colors =
+        fs::read_to_string(issue_colors_path).expect("read @kanbus/ui issue-colors.ts");
     if !issue_colors.contains("issue-priority-bg-light")
         || !issue_colors.contains("issue-priority-bg-dark")
     {
-        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
+        panic!(
+            "@kanbus/ui issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
+        );
     }
     assert_priority_pill_dark_mode_css_is_valid(&globals_css);
 }
