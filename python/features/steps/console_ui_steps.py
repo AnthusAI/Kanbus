@@ -1432,12 +1432,24 @@ def then_metrics_toggle_selects(context: object, label: str) -> None:
 
 @then("the metrics toggle should include a board icon")
 def then_metrics_toggle_board_icon(context: object) -> None:
-    pass
+    selector_options = (
+        _console_app_root() / "src" / "components" / "selectorOptions.tsx"
+    ).read_text()
+    assert (
+        "LayoutGrid" in selector_options
+        and 'buildSelectorOption("board",' in selector_options
+    ), "expected LayoutGrid icon for board toggle"
 
 
 @then("the metrics toggle should include a chart icon")
 def then_metrics_toggle_chart_icon(context: object) -> None:
-    pass
+    selector_options = (
+        _console_app_root() / "src" / "components" / "selectorOptions.tsx"
+    ).read_text()
+    assert (
+        "BarChart3" in selector_options
+        and 'buildSelectorOption("metrics",' in selector_options
+    ), "expected BarChart3 icon for metrics toggle"
 
 
 @given(

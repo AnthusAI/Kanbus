@@ -278,11 +278,12 @@ fn then_type_filter_selector_hidden(world: &mut KanbusWorld) {
         .join("apps")
         .join("console")
         .join("src")
-        .join("App.tsx");
-    let app_source = fs::read_to_string(app_path).expect("read App.tsx");
+        .join("components")
+        .join("ConsoleToolbar.tsx");
+    let toolbar_source = fs::read_to_string(app_path).expect("read ConsoleToolbar.tsx");
     assert!(
-        app_source.contains("panelMode !== \"now\""),
-        "App.tsx does not hide the type filter on Now"
+        toolbar_source.contains("panelMode !== \"now\""),
+        "ConsoleToolbar.tsx does not hide the type filter on Now"
     );
 }
 
@@ -347,17 +348,18 @@ fn panel_mode_selector_labels() -> Vec<String> {
         .join("apps")
         .join("console")
         .join("src")
-        .join("App.tsx");
-    let app_source = fs::read_to_string(app_path).expect("read App.tsx");
+        .join("components")
+        .join("selectorOptions.tsx");
+    let app_source = fs::read_to_string(app_path).expect("read selectorOptions.tsx");
     let start = app_source
-        .find("const panelModeOptions")
-        .expect("panelModeOptions not found in App.tsx");
+        .find("export function buildPanelModeOptions")
+        .expect("buildPanelModeOptions not found in selectorOptions.tsx");
     let end = start.saturating_add(800).min(app_source.len());
     let chunk = &app_source[start..end];
     let mut labels = Vec::new();
     for line in chunk.lines() {
         let trimmed = line.trim();
-        let Some(rest) = trimmed.strip_prefix("buildOption(") else {
+        let Some(rest) = trimmed.strip_prefix("buildSelectorOption(") else {
             continue;
         };
         let parts: Vec<&str> = rest.split('"').collect();

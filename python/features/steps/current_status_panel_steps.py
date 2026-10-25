@@ -23,15 +23,17 @@ RIGHT_NOW_PLACEHOLDER = "(no right-now summary)"
 STATUS_FEED_LIMIT = 30
 NOW_STATUS_FILTER_ALL = "all"
 DEFAULT_NOW_STATUS_FILTER = "in_progress"
-PANEL_MODE_OPTION_PATTERN = re.compile(r'buildOption\("[^"]+", "([^"]+)"')
+PANEL_MODE_OPTION_PATTERN = re.compile(r'buildSelectorOption\("[^"]+", "([^"]+)"')
 
 
 def _panel_mode_selector_labels() -> list[str]:
-    app_source = (_console_app_root() / "src" / "App.tsx").read_text()
-    marker = "const panelModeOptions"
+    app_source = (
+        _console_app_root() / "src" / "components" / "selectorOptions.tsx"
+    ).read_text()
+    marker = "export function buildPanelModeOptions"
     start = app_source.find(marker)
     if start == -1:
-        raise AssertionError("panelModeOptions not found in App.tsx")
+        raise AssertionError("buildPanelModeOptions not found in selectorOptions.tsx")
     chunk = app_source[start : start + 800]
     return PANEL_MODE_OPTION_PATTERN.findall(chunk)
 
@@ -244,9 +246,13 @@ def then_current_status_view_active(context: object) -> None:
 def then_type_filter_selector_hidden(context: object) -> None:
     state = _require_console_state(context)
     if state.panel_mode == "now":
-        app_source = (_console_app_root() / "src" / "App.tsx").read_text()
-        if 'panelMode !== "now"' not in app_source:
-            raise AssertionError("App.tsx does not hide the type filter on Now")
+        toolbar_source = (
+            _console_app_root() / "src" / "components" / "ConsoleToolbar.tsx"
+        ).read_text()
+        if 'panelMode !== "now"' not in toolbar_source:
+            raise AssertionError(
+                "ConsoleToolbar.tsx does not hide the type filter on Now"
+            )
         return
     raise AssertionError(
         f"expected type filter hidden on Now, panel mode is {state.panel_mode}"
