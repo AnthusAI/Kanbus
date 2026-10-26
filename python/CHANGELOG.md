@@ -2,6 +2,249 @@
 
 <!-- version list -->
 
+## v0.41.0 (2026-10-26)
+
+### Bug Fixes
+
+- Honour KANBUS_NON_INTERACTIVE in Rust and inventory KANBUS_* variables
+  ([`c7dc5e2`](https://github.com/AnthusAI/Kanbus/commit/c7dc5e251e7861288b47947c0ce842ab3c97743a))
+
+- Keep test switches out of release builds
+  ([`5853857`](https://github.com/AnthusAI/Kanbus/commit/58538571250f8adb957966be92f0ac91b4145b71))
+
+- Make kbs and kanbus write identical files in the parity lane
+  ([`5440ee1`](https://github.com/AnthusAI/Kanbus/commit/5440ee12d84d948404e1c8acdb9dfd100b7bc718))
+
+- Refuse setup agents prompt without a TTY in Rust
+  ([`afd0e21`](https://github.com/AnthusAI/Kanbus/commit/afd0e21531e0f4e82f930a1e0a1049a2981fd3e5))
+
+- Remove the ai_credentials environment race
+  ([`cba0703`](https://github.com/AnthusAI/Kanbus/commit/cba07035e3bf44267f43c8516873f3aaec46b4b9))
+
+- **hooks**: Bound Rust hook output draining by the hook timeout
+  ([`9196d6b`](https://github.com/AnthusAI/Kanbus/commit/9196d6b7e27e6ac47f58a24a6403ad356058e3d7))
+
+- **hooks**: Enforce hook timeouts while writing stdin and draining output
+  ([`680eb15`](https://github.com/AnthusAI/Kanbus/commit/680eb15c1b7c9f5d85d1c7f60759aa78fb6aee40))
+
+- **hooks**: Kill the Python hook process group on timeout
+  ([`7d2c2d5`](https://github.com/AnthusAI/Kanbus/commit/7d2c2d5f7ad9ea2980fa91543d26eb516d4df6b9))
+
+- **router**: Process groups, reaping, timeouts and resilient watch
+  ([`7da91b1`](https://github.com/AnthusAI/Kanbus/commit/7da91b1c3cfa7fde2e6b338de3b446d1217d59fe))
+
+- **router**: Prune worktrees, stop copying credentials, shared redaction, TLS for mutex
+  ([`0bba8d1`](https://github.com/AnthusAI/Kanbus/commit/0bba8d1abe6b54e96f6d8ccc4948e082db575609))
+
+- **router**: Remove the temp-directory fallback for the worktree root
+  ([`9f1ffc7`](https://github.com/AnthusAI/Kanbus/commit/9f1ffc78f6418cd286e22047a75f970bea931798))
+
+### Chores
+
+- Finish repository hygiene
+  ([`51063cc`](https://github.com/AnthusAI/Kanbus/commit/51063cc16f170781a3da9c02d464449adec91cfd))
+
+- Pin papyrus-newsroom 5.12.0 and anthus-markus 0.13 range (PPY-a55f75)
+  ([`618e332`](https://github.com/AnthusAI/Kanbus/commit/618e3324e52031f3fd24cb8d0e5efd05528ede71))
+
+- **cloud**: Drop gitignore entry for removed infra/cloud
+  ([`e652601`](https://github.com/AnthusAI/Kanbus/commit/e652601b997e5acf9096d22be97a45f0c6a126b3))
+
+- **cloud**: Remove legacy cloud scripts and console runtime doc
+  ([`3a17d29`](https://github.com/AnthusAI/Kanbus/commit/3a17d29dc8b68013402226b784bbfaaf8492b792))
+
+- **cloud**: Remove legacy infra/cloud CDK app
+  ([`a22f26e`](https://github.com/AnthusAI/Kanbus/commit/a22f26eda3bb6e5b68211456d702afb524f97717))
+
+- **console**: Trim runtime deps, lazy-load mermaid and MQTT, add helper tests
+  ([`9ff7967`](https://github.com/AnthusAI/Kanbus/commit/9ff7967a0a731a2d58ea3f529a114608a24a3dd6))
+
+- **kanbus**: Close App.tsx split, start blocking-I/O check
+  ([`a162afa`](https://github.com/AnthusAI/Kanbus/commit/a162afa070adc841b7e66fb9201da622bab7a470))
+
+- **kanbus**: Close blocking-I/O check, start console frontend hygiene
+  ([`6c40ef8`](https://github.com/AnthusAI/Kanbus/commit/6c40ef8f89cf20a5039afbc66edb077929dbe0b3))
+
+- **kanbus**: Close board-load remainders, start parity divergences
+  ([`a1a783b`](https://github.com/AnthusAI/Kanbus/commit/a1a783b52c82c1c9d8bab3d5654ea9728eefa487))
+
+- **kanbus**: Close console backend review kbs-29c415
+  ([`e4ebdd9`](https://github.com/AnthusAI/Kanbus/commit/e4ebdd911c57dc75fa26c4785fd585295fdf3fc9))
+
+- **kanbus**: Close daemon and realtime defaults task kbs-bbf2a6
+  ([`c3d8bba`](https://github.com/AnthusAI/Kanbus/commit/c3d8bba5eef8757511f9abbce21233eb6f55c1aa))
+
+- **kanbus**: Close documentation task kbs-76b265
+  ([`be86f27`](https://github.com/AnthusAI/Kanbus/commit/be86f27f472e8c0d72fee57a0ec90ef3de2f80aa))
+
+- **kanbus**: Close first parity batch, file the second
+  ([`d7861ea`](https://github.com/AnthusAI/Kanbus/commit/d7861ea7574109f7dd67fa9ce78922e24dd9cc2a))
+
+- **kanbus**: Close flaky ai_credentials test bug
+  ([`5120a8f`](https://github.com/AnthusAI/Kanbus/commit/5120a8f9f4c633535f3603bf7aad70ed05bff768))
+
+- **kanbus**: Close hook timeout sub-task, start test-switch gating
+  ([`95601de`](https://github.com/AnthusAI/Kanbus/commit/95601de401a1405d7c4dddaee1e3a8231fa55240))
+
+- **kanbus**: Close kbs-14a848 legacy cloud retirement
+  ([`19c7239`](https://github.com/AnthusAI/Kanbus/commit/19c72395d7f3500664c4ca2fa9858b8b2e9d6691))
+
+- **kanbus**: Close kbs-2696c3 card subtitle
+  ([`42584f8`](https://github.com/AnthusAI/Kanbus/commit/42584f837d004d5f3dfd07a21df9cb6b85218eed))
+
+- **kanbus**: Close parity divergences, mark P1 remainders blocked on Ryan
+  ([`1e329ea`](https://github.com/AnthusAI/Kanbus/commit/1e329ea75d7c97c66e68512154fca17c6eddbb8a))
+
+- **kanbus**: Close parity enforcement task kbs-eb1788
+  ([`90b926f`](https://github.com/AnthusAI/Kanbus/commit/90b926fcf36bd514834a7d6d3240ee92d96767a3))
+
+- **kanbus**: Close ProjectContext sub-task, start CLI realtime defaults
+  ([`801faa7`](https://github.com/AnthusAI/Kanbus/commit/801faa73396f044263be0b3bde86d923a5705a54))
+
+- **kanbus**: Close repository hygiene task
+  ([`ceae971`](https://github.com/AnthusAI/Kanbus/commit/ceae971de255ed6065f53d05f6f7628580df9b00))
+
+- **kanbus**: Close router process half, start credentials half
+  ([`d064994`](https://github.com/AnthusAI/Kanbus/commit/d06499433e4a04ba4acc1eae18dbb98b420cc23c))
+
+- **kanbus**: Close router process hygiene kbs-7bf31f
+  ([`c99e7db`](https://github.com/AnthusAI/Kanbus/commit/c99e7dbd4bbf346640ce5d0a897023183da665c3))
+
+- **kanbus**: Close second parity batch
+  ([`f4c6620`](https://github.com/AnthusAI/Kanbus/commit/f4c66203418ceae52d30c1065116d691eaa06571))
+
+- **kanbus**: Close test-switch gating, start ProjectContext
+  ([`6f13323`](https://github.com/AnthusAI/Kanbus/commit/6f13323bcd9345d9f90cb466a619bd135e24a859))
+
+- **kanbus**: Commit board state
+  ([`17a78eb`](https://github.com/AnthusAI/Kanbus/commit/17a78eb8c821863315c009e5b6c07f899fec8b74))
+
+- **kanbus**: Commit board state
+  ([`5264d7f`](https://github.com/AnthusAI/Kanbus/commit/5264d7f0e9b5267f5d180c62e1c8877adcc9364a))
+
+- **kanbus**: Commit board state
+  ([`21d28bf`](https://github.com/AnthusAI/Kanbus/commit/21d28bfcea008d8bd2297b7934d312f3b8935a64))
+
+- **kanbus**: Commit pending board events
+  ([`beaf19b`](https://github.com/AnthusAI/Kanbus/commit/beaf19b475666eabdb2d72f6836f8158b9567ca0))
+
+- **kanbus**: Commit redaction task event
+  ([`8ff5142`](https://github.com/AnthusAI/Kanbus/commit/8ff51424af7f3b86499611d96f41e188e3b2be15))
+
+- **kanbus**: File environment variable inventory sub-task
+  ([`4a5cb73`](https://github.com/AnthusAI/Kanbus/commit/4a5cb739415507ee103bc9b7a9aeba4fa61c0f27))
+
+- **kanbus**: File first Rust parity gap batch
+  ([`ff4d3cf`](https://github.com/AnthusAI/Kanbus/commit/ff4d3cfc3f8fcc73277d1fcb725fb0407ecb6969))
+
+- **kanbus**: File legacy cloud console code removal
+  ([`ec6ce23`](https://github.com/AnthusAI/Kanbus/commit/ec6ce2335e26cf321777b7429e822928318bedd1))
+
+- **kanbus**: File legacy secrets migration task
+  ([`56f5864`](https://github.com/AnthusAI/Kanbus/commit/56f5864688df5c94a57af4783f1b705e98f003c4))
+
+- **kanbus**: File remaining console review sub-tasks
+  ([`9321a2a`](https://github.com/AnthusAI/Kanbus/commit/9321a2a4fdade316fbd273dda43521a2b8fa97f6))
+
+- **kanbus**: File uncommitted event redaction task
+  ([`4d08a6a`](https://github.com/AnthusAI/Kanbus/commit/4d08a6a9aac826466b5b220c1e6c77f4e2b3981c))
+
+- **kanbus**: Record coordination stack deletion on kbs-14a848
+  ([`9154a5b`](https://github.com/AnthusAI/Kanbus/commit/9154a5b65cd4427e9f81a8d231faada073884cca))
+
+- **kanbus**: Record event identifier decision and close kbs-b5f3676c
+  ([`b9e6b03`](https://github.com/AnthusAI/Kanbus/commit/b9e6b03e01f16ad58fe85f46b41dd80cc5eb848b))
+
+- **kanbus**: Record legacy cloud retirement on kbs-14a848
+  ([`972afc4`](https://github.com/AnthusAI/Kanbus/commit/972afc44a743ae2c33eff707c95bc29e6c3b8dd8))
+
+- **kanbus**: Record legacy secrets findings on kbs-14a848
+  ([`e6f06b1`](https://github.com/AnthusAI/Kanbus/commit/e6f06b106c3d68179370a99baaf30d1e1bd9a436))
+
+- **kanbus**: Record legacy stack retirement plan on kbs-14a848
+  ([`878cb98`](https://github.com/AnthusAI/Kanbus/commit/878cb98b6a7333de55a2947ecefb795fcff7fe04))
+
+- **kanbus**: Record pause status on in-progress engineering review tasks
+  ([`8b9285e`](https://github.com/AnthusAI/Kanbus/commit/8b9285e4559f3bc93a5c4b4ce4759be63372b5ce))
+
+- **kanbus**: Split daemon and realtime defaults work into four sub-tasks
+  ([`f2a7f04`](https://github.com/AnthusAI/Kanbus/commit/f2a7f04d44687b009d3d1ce4068709c55b1c3422))
+
+- **kanbus**: Split router hygiene into two sub-tasks
+  ([`c7a7704`](https://github.com/AnthusAI/Kanbus/commit/c7a7704856bd934a4bc77bbcdd3e962d6ff30712))
+
+- **kanbus**: Triage engineering review P1 remainders
+  ([`1ab1c0a`](https://github.com/AnthusAI/Kanbus/commit/1ab1c0a1a714469f0758457d92c69be32462785d))
+
+### Continuous Integration
+
+- Forbid blocking I/O in async console handlers
+  ([`ed78f91`](https://github.com/AnthusAI/Kanbus/commit/ed78f911c39ca3c9975c1da555e02232486ea5ff))
+
+### Documentation
+
+- Pin papyrus-newsroom 5.1.0 and anthus-markus 0.13, publish sitemap.xml and a 404 page
+  ([#527](https://github.com/AnthusAI/Kanbus/pull/527),
+  [`497afcf`](https://github.com/AnthusAI/Kanbus/commit/497afcff8ba1d38b94a451f0a3ae7e99e933dda8))
+
+- Pin papyrus-newsroom 5.10.0 for page actions on docs pages
+  ([`be0fbeb`](https://github.com/AnthusAI/Kanbus/commit/be0fbeb3926881bdd8dc881ce5ea780f4c8e8062))
+
+- Pin papyrus-newsroom 5.14.0 for Open-in-AI page actions (PPY-4277dd)
+  ([`0730259`](https://github.com/AnthusAI/Kanbus/commit/073025980ab309ec2ea3cf760ea0567867b70bb0))
+
+- Pin papyrus-newsroom 5.8.0 for Markdown twins, llms.txt, sitemap lastmod and robots (PPY-bcfd2d)
+  ([#528](https://github.com/AnthusAI/Kanbus/pull/528),
+  [`b22af0e`](https://github.com/AnthusAI/Kanbus/commit/b22af0e375c04ad2d1f62180c2282b31f8471ba3))
+
+- Replace invalid configuration examples and validate doc YAML in CI
+  ([`d637a86`](https://github.com/AnthusAI/Kanbus/commit/d637a8697b47c50da8e6675a5e49ce2264c179c2))
+
+### Features
+
+- CLI skips realtime discovery and daemon by default; explicit brokers publish fire-and-forget
+  ([`f596bb1`](https://github.com/AnthusAI/Kanbus/commit/f596bb1369cca522929c7f336a56f3cc1914c08f))
+
+- **ui**: Show issue subtitle under the title on board cards (0.4.2)
+  ([`c0f470b`](https://github.com/AnthusAI/Kanbus/commit/c0f470b4eb7d6ccca53620c12013206f567423bd))
+
+### Performance Improvements
+
+- Load the board once in ready, dep add, dep tree and update --type
+  ([`1d2000a`](https://github.com/AnthusAI/Kanbus/commit/1d2000aff0ea1f711eb741578b654cf9d0324406))
+
+### Refactoring
+
+- Build one ProjectContext per command and propagate configuration errors
+  ([`342973c`](https://github.com/AnthusAI/Kanbus/commit/342973ccd8c2530110482c51e7643ced7bfaa375))
+
+- **console**: Split App.tsx into hooks and components
+  ([`5886862`](https://github.com/AnthusAI/Kanbus/commit/5886862d3b85fd1097161562345ff57310f29b65))
+
+### Testing
+
+- Do not debug-print command results in project context tests
+  ([`a1c9ab2`](https://github.com/AnthusAI/Kanbus/commit/a1c9ab20cbffa883eb05ad772c354629f1738ac6))
+
+- **cloud**: Remove GitHub webhook ingress spec for the retired legacy stack
+  ([`9dd1dfe`](https://github.com/AnthusAI/Kanbus/commit/9dd1dfe75aa267455755f08d28c9f82f9b40d26e))
+
+- **console**: Point source-reading steps at the extracted console modules
+  ([`0e28d44`](https://github.com/AnthusAI/Kanbus/commit/0e28d44f8b181a84de622b70972424974f62fbdb))
+
+- **console**: Read priority color variables from @kanbus/ui
+  ([`376ede2`](https://github.com/AnthusAI/Kanbus/commit/376ede2a1e172fb48b95cc75b66ab4a2e3215931))
+
+- **hooks**: Fake Popen in the hook runner unit tests
+  ([`28292b5`](https://github.com/AnthusAI/Kanbus/commit/28292b5847f57a1d853acef09c2f683ca893be15))
+
+- **rust**: Implement 22 parity steps in the Rust harness
+  ([`7bdc7a3`](https://github.com/AnthusAI/Kanbus/commit/7bdc7a32ad960f2f1c69389698523d95603752c0))
+
+- **rust**: Implement the remaining console parity steps
+  ([`435d625`](https://github.com/AnthusAI/Kanbus/commit/435d625ff13e751fe97325bc86c641b577d639be))
+
+
 ## v0.40.1 (2026-10-21)
 
 ### Bug Fixes
