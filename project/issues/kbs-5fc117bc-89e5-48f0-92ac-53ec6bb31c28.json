@@ -1,0 +1,20 @@
+{
+  "id": "kbs-5fc117bc-89e5-48f0-92ac-53ec6bb31c28",
+  "title": "Router worktrees, credentials and redaction: prune worktrees, stop copying auth.json, shared redaction, encrypted mutex transport, design doc",
+  "description": "Parts (b), (d), (e), (g) and (h) of kbs-7bf31f. Move Rust attempt worktrees to the git common dir, remove them on terminal outcomes and run git worktree prune at watch start; stop copying OpenCode auth.json per issue (private data dir, 0600 copies deleted at terminal state at minimum); one shared redaction helper covering OpenAI sk-, GitHub ghp_/github_pat_, AWS keys, Slack tokens and Authorization headers, preserving newlines, applied to transcripts in both runtimes; require TLS (or loopback) for the mutex API endpoint as the LLM client does; fix docs/ISSUE_ROUTER_DESIGN.md (gh auth token fallback, supported adapters). Keep router.workflow unchanged. Acceptance: no worktree remains after a package reaches a terminal state; redaction tests cover each token family in both runtimes.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-7bf31fda-a464-45a2-a681-e933f95df403",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-26T02:05:25.611313Z",
+  "updated_at": "2026-10-26T02:05:25.640554Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
