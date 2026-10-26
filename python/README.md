@@ -104,9 +104,6 @@ We provide two implementations driven by the same behavior specification:
 
 ```
 Kanbus/
-|-- planning/
-|   |-- VISION.md                  # Complete specification
-|   `-- IMPLEMENTATION_PLAN.md     # Detailed technical plan
 |-- specs/                         # Shared Gherkin feature files
 |-- python/                        # Python implementation
 |-- rust/                          # Rust implementation

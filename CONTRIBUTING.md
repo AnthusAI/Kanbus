@@ -4,7 +4,7 @@ Kanbus is a behavior-specification-first project with two full, independent impl
 
 ## Set up
 
-See [INSTALL.md](INSTALL.md) for prerequisites. In short:
+See [Building from source](docs/dev/building-from-source.md) for prerequisites. In short:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate

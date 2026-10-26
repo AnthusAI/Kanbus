@@ -74,7 +74,7 @@ cargo build --release --manifest-path rust/Cargo.toml
 # Binaries: rust/target/release/kbs and rust/target/release/kbsc
 ```
 
-To work on the console itself, `./dev.sh` starts the frontend watcher and the Rust backend with automatic rebuilds.
+For developer installs of both implementations, see [Building from source](dev/building-from-source.md). To work on the console itself, `./dev.sh` starts the frontend watcher and the Rust backend with automatic rebuilds.
 
 ## Optional: an LLM key for AI features
 

@@ -89,7 +89,7 @@ artifacts/
 dist/
 coverage-python-local.xml
 rust/*.profraw
-src/videos/*/*.timing.xml
+videos/src/videos/*/*.timing.xml
 .agents/
 
 coverage.xml

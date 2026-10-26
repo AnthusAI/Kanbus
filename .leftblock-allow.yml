@@ -1,0 +1,47 @@
+# LeftBlock overrides: each entry approves one finding (one rule on one exact
+# line content in one file). Changing that line re-blocks it. `kind` is the
+# rule's category, shown for reviewers; it is not part of matching.
+version: 1
+allow:
+  - id: "e60b7b433cbd68af"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
+  - id: "086926f97431e8b5"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
+  - id: "ff95e402fb36dfb9"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
+  - id: "7febff21ab9a6b44"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
+  - id: "b553b7da0b6096ee"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
+  - id: "b74f273118b4415e"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
+  - id: "ff2f9a4642cbcbaa"
+    rule: "leftblock-session-uuid"
+    file: "docs/pr-faq/right-now-summary-dogfood.md"
+    kind: "Bare UUID (potential session/agent identifier)"
+    reason: "Kanbus issue identifiers (kbs-<uuid>) in a dogfood log, not session or agent identifiers"
+    added: 2026-10-26
