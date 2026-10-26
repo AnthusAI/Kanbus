@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "3639c6e4-b78a-427c-87b7-7ef44164addc",
+  "issue_id": "kbs-aff0fba7-64f4-404b-9f98-719f87a5fbf4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-26T04:16:37.308Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Gate KANBUS_TEST_* and *_for_testing out of release builds",
+    "description": "From kbs-bbf2a6. 42 KANBUS_TEST_* variables (25 Rust, 17 Python) and ten *_for_testing functions change behaviour in release builds (for example KANBUS_TEST_INVALID_STATUS makes every status validation fail), and PYTEST_CURRENT_TEST disables the daemon in issue_files.py. Gate Rust hooks behind cfg(test) or the test-hooks feature, and Python behind the existing KANBUS_ENABLE_TEST_HOOKS gate or fixtures, injecting failures through traits or step-library fixtures. Update docs/ENVIRONMENT_VARIABLES.md. Acceptance: a release kbs binary ignores every KANBUS_TEST_* variable (test), and Python ignores them unless the test gate is on.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
+    "labels": []
+  }
+}

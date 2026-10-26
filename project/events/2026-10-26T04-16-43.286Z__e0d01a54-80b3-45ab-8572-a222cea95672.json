@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "e0d01a54-80b3-45ab-8572-a222cea95672",
+  "issue_id": "kbs-0786ec8c-ae5d-49e3-9d63-939d8abee368",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-26T04:16:43.286Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "One ProjectContext per command: load configuration and dotenv once, propagate configuration errors",
+    "description": "From kbs-bbf2a6. load_project_configuration has 73 call sites (71 loads for one kanbus list), re-serialises defaults through YAML each call and mutates the process environment via dotenv each time; root discovery, project-dir resolution and overlay config are redone 3 to 6 times per command; malformed configuration is swallowed (if let Ok / .ok() / unwrap_or_default) and changes behaviour. Build one ProjectContext (root, config path, configuration, project dir, overlay config) at command entry in both runtimes and pass it down; load dotenv once at process start; propagate configuration errors, tolerating only file-not-found. Acceptance: configuration loads once per command (counted in a test); malformed configuration fails with a clear error in both runtimes.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
+    "labels": []
+  }
+}

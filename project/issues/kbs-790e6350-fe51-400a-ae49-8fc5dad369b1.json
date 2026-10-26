@@ -1,0 +1,20 @@
+{
+  "id": "kbs-790e6350-fe51-400a-ae49-8fc5dad369b1",
+  "title": "Hooks: write stdin on a helper thread and drain stderr concurrently so the timeout fires",
+  "description": "From kbs-bbf2a6. hooks.rs writes the payload to the hook child's stdin before the timeout loop starts and drains stderr only after exit, so a hook that never reads stdin (or fills stderr) hangs kbs forever. Write stdin on a helper thread, drain stdout and stderr concurrently, and enforce the timeout in both runtimes. Acceptance: a hook that never reads stdin is killed at its timeout (scenario in both runtimes).",
+  "type": "sub-task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-26T04:16:31.265829Z",
+  "updated_at": "2026-10-26T04:16:49.425586Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
