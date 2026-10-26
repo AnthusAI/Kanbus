@@ -18,7 +18,7 @@ concurrency:
 jobs:
   release:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.actor.login != 'anthusbot') }}
-    uses: AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main
+    uses: AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@e2a513570c81b93f21a0407009b4a0d30803c87d # main 2026-08-27
     with:
       python_version: "3.11"
       release_branch: "main"
