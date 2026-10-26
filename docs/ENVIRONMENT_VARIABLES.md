@@ -7,7 +7,7 @@ the source, so a name that appears in either runtime appears here.
 Classifications:
 
 - **shared**: both runtimes read it with the same meaning.
-- **test hook**: only honoured by the test suites. Python ignores these unless `KANBUS_ENABLE_TEST_HOOKS=1`; Rust ignores them unless built with `cfg(test)` or the `test-hooks` cargo feature (`rust/src/test_hooks.rs`).
+- **test hook**: only honoured by the test suites. Python ignores these unless `KANBUS_ENABLE_TEST_HOOKS=1`; Rust ignores them unless built with `cfg(test)` or the `test-hooks` cargo feature (`rust/src/test_hooks.rs`). A release `kbs`/`kbsc` built with default features ignores every `KANBUS_TEST_*` variable, and the `*_for_testing` and `set_test_daemon_*` helpers in `daemon_client.rs` and `daemon_server.rs` are compiled only with the same gate. `tools/check_test_switch_gating.py` (run in CI) fails on any `KANBUS_TEST_*` read outside the gates and on any use of `PYTEST_CURRENT_TEST`.
 - **single-runtime**: only one runtime has the feature, on purpose.
 - **gap**: user-facing behaviour that one runtime lacks and that has not been closed.
 - **legacy-cloud**: serves only the retired Cognito/IoT cloud console (its AWS stacks were deleted under kbs-14a848). The code is still present and slated for removal in a follow-up.
@@ -81,6 +81,7 @@ Not for users. Both runtimes gate them (see the classification notes above).
 | `KANBUS_ENABLE_TEST_HOOKS` (gate) | none (compile-time `test-hooks` feature) | `test_hooks.py:6` | single-runtime |
 | `KANBUS_TEST_AI_MOCK` | `summarize.rs:284` | `ai_summarize.py:71` | test hook, shared |
 | `KANBUS_TEST_AI_REQUIRE_ENV_CREDENTIALS` | `right_now.rs:941` | `right_now.py:791` | test hook, shared |
+| `KANBUS_TEST_DISABLE_SERVICE` | none | `issue_files.py:77` | test hook, Python-only |
 | `KANBUS_TEST_CANONICALIZE_FAILURE` | `file_io.rs:63` | `project.py:264` | test hook, shared |
 | `KANBUS_TEST_CONFIGURATION_PATH_FAILURE` | `file_io.rs:488` | `project.py:353` | test hook, shared |
 | `KANBUS_TEST_LITELLM_COMPLETION` | `litellm_completion.rs:14` | `right_now.py:867` | test hook, shared |

@@ -264,7 +264,7 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, b
     )
 }
 
-/// Handle a daemon request without opening a socket.
+/// Handle a daemon request without opening a socket (test hook).
 ///
 /// # Arguments
 /// * `root` - Repository root path.
@@ -272,6 +272,7 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, b
 ///
 /// # Returns
 /// Response envelope for the request.
+#[cfg(any(test, feature = "test-hooks"))]
 pub fn handle_request_for_testing(root: &Path, request: RequestEnvelope) -> ResponseEnvelope {
     handle_request(root, request).0
 }

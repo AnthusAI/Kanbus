@@ -74,7 +74,7 @@ def _project_root(issues_directory: Path) -> Path:
 
 def _use_service(issues_directory: Path) -> bool:
     """Return whether this directory belongs to a daemon-addressable project."""
-    if read_test_hook("PYTEST_CURRENT_TEST") is not None:
+    if read_test_hook("KANBUS_TEST_DISABLE_SERVICE") == "1":
         return False
     root = _project_root(issues_directory)
     return is_daemon_enabled() and (root / ".kanbus.yml").is_file()

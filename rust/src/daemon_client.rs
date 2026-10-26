@@ -19,21 +19,6 @@ use crate::daemon_paths::get_daemon_socket_path;
 use crate::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
 use crate::error::KanbusError;
 
-/// Test-only response override for daemon client requests.
-#[derive(Clone, Debug)]
-pub enum TestDaemonResponse {
-    /// Simulate an empty daemon response.
-    Empty,
-    /// Simulate a daemon connection error.
-    IoError,
-    /// Return a fixed response envelope.
-    Envelope(ResponseEnvelope),
-}
-
-static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
-static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
-static TEST_DAEMON_SPAWN_FAILURE: OnceLock<Mutex<bool>> = OnceLock::new();
-static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
 static DAEMON_UNAVAILABLE_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 /// Maximum time to wait for a just-started daemon socket to become connectable.
@@ -55,80 +40,162 @@ fn is_daemon_unavailable(root: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Clear the per-root "daemon unavailable" sticky marks (test helper).
-pub fn reset_daemon_unavailable_roots_for_testing() {
-    let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
-    if let Ok(mut guard) = cell.lock() {
+#[cfg(any(test, feature = "test-hooks"))]
+mod overrides {
+    use super::*;
+
+    /// Test-only response override for daemon client requests.
+    #[derive(Clone, Debug)]
+    pub enum TestDaemonResponse {
+        /// Simulate an empty daemon response.
+        Empty,
+        /// Simulate a daemon connection error.
+        IoError,
+        /// Return a fixed response envelope.
+        Envelope(ResponseEnvelope),
+    }
+
+    static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
+    static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
+    static TEST_DAEMON_SPAWN_FAILURE: OnceLock<Mutex<bool>> = OnceLock::new();
+    static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
+
+    /// Clear the per-root "daemon unavailable" sticky marks (test helper).
+    pub fn reset_daemon_unavailable_roots_for_testing() {
+        let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
+        if let Ok(mut guard) = cell.lock() {
+            guard.clear();
+        }
+    }
+
+    /// Set the test response for the next daemon request.
+    ///
+    /// Passing `None` clears any pending override.
+    pub fn set_test_daemon_response(response: Option<TestDaemonResponse>) {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = cell.lock().expect("lock test response");
         guard.clear();
+        if let Some(item) = response {
+            guard.push(item);
+        }
+    }
+
+    /// Set a sequence of test responses for daemon requests.
+    pub fn set_test_daemon_responses(responses: Vec<TestDaemonResponse>) {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = cell.lock().expect("lock test responses");
+        *guard = responses;
+    }
+
+    /// Return whether a test daemon response override is set.
+    pub fn has_test_daemon_response() -> bool {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let guard = cell.lock().expect("lock test response");
+        !guard.is_empty()
+    }
+
+    /// Disable daemon spawning for tests when set to true.
+    pub fn set_test_daemon_spawn_disabled(disabled: bool) {
+        let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
+        let mut guard = cell.lock().expect("lock test spawn flag");
+        *guard = disabled;
+    }
+
+    /// Force daemon spawning to fail with a missing-executable error when set to true.
+    pub fn set_test_daemon_spawn_failure(enabled: bool) {
+        let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
+        let mut guard = cell.lock().expect("lock test spawn failure flag");
+        *guard = enabled;
+    }
+
+    pub(super) fn is_test_spawn_failure_enabled() -> bool {
+        let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
+        let guard = cell.lock().expect("lock test spawn failure flag");
+        *guard
+    }
+
+    pub(super) fn is_test_spawn_disabled() -> bool {
+        let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
+        let guard = cell.lock().expect("lock test spawn flag");
+        *guard
+    }
+
+    pub(super) fn take_simulated_response() -> Option<Result<ResponseEnvelope, KanbusError>> {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = cell.lock().expect("lock test response");
+        if guard.is_empty() {
+            return None;
+        }
+        Some(match guard.remove(0) {
+            TestDaemonResponse::Empty => Err(KanbusError::IssueOperation(
+                "empty daemon response".to_string(),
+            )),
+            TestDaemonResponse::IoError => {
+                Err(KanbusError::Io("daemon connection failed".to_string()))
+            }
+            TestDaemonResponse::Envelope(envelope) => Ok(envelope),
+        })
+    }
+
+    pub(super) fn record_daemon_restart() {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder") = true;
+    }
+
+    /// Return whether `restart_daemon` ran during the current test scenario.
+    pub fn was_daemon_restarted_for_testing() -> bool {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder")
+    }
+
+    /// Clear the `restart_daemon` test recorder.
+    pub fn reset_daemon_restart_recorded_for_testing() {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder") = false;
     }
 }
 
-/// Set the test response for the next daemon request.
-///
-/// Passing `None` clears any pending override.
-pub fn set_test_daemon_response(response: Option<TestDaemonResponse>) {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let mut guard = cell.lock().expect("lock test response");
-    guard.clear();
-    if let Some(item) = response {
-        guard.push(item);
+#[cfg(not(any(test, feature = "test-hooks")))]
+mod overrides {
+    use super::*;
+
+    pub(super) fn has_test_daemon_response() -> bool {
+        false
     }
+
+    pub(super) fn is_test_spawn_failure_enabled() -> bool {
+        false
+    }
+
+    pub(super) fn is_test_spawn_disabled() -> bool {
+        false
+    }
+
+    pub(super) fn take_simulated_response() -> Option<Result<ResponseEnvelope, KanbusError>> {
+        None
+    }
+
+    pub(super) fn record_daemon_restart() {}
 }
 
-/// Set a sequence of test responses for daemon requests.
-pub fn set_test_daemon_responses(responses: Vec<TestDaemonResponse>) {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let mut guard = cell.lock().expect("lock test responses");
-    *guard = responses;
-}
-
-/// Return whether a test daemon response override is set.
-pub fn has_test_daemon_response() -> bool {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let guard = cell.lock().expect("lock test response");
-    !guard.is_empty()
-}
-
-/// Disable daemon spawning for tests when set to true.
-pub fn set_test_daemon_spawn_disabled(disabled: bool) {
-    let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
-    let mut guard = cell.lock().expect("lock test spawn flag");
-    *guard = disabled;
-}
-
-/// Force daemon spawning to fail with a missing-executable error when set to true.
-pub fn set_test_daemon_spawn_failure(enabled: bool) {
-    let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
-    let mut guard = cell.lock().expect("lock test spawn failure flag");
-    *guard = enabled;
-}
-
-fn is_test_spawn_failure_enabled() -> bool {
-    let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
-    let guard = cell.lock().expect("lock test spawn failure flag");
-    *guard
-}
+#[cfg(not(any(test, feature = "test-hooks")))]
+use overrides::has_test_daemon_response;
+#[cfg(any(test, feature = "test-hooks"))]
+pub use overrides::{
+    has_test_daemon_response, reset_daemon_restart_recorded_for_testing,
+    reset_daemon_unavailable_roots_for_testing, set_test_daemon_response,
+    set_test_daemon_responses, set_test_daemon_spawn_disabled, set_test_daemon_spawn_failure,
+    was_daemon_restarted_for_testing, TestDaemonResponse,
+};
+use overrides::{
+    is_test_spawn_disabled, is_test_spawn_failure_enabled, record_daemon_restart,
+    take_simulated_response,
+};
 
 fn daemon_spawn_failed_error(error: &std::io::Error) -> KanbusError {
     KanbusError::Io(format!(
         "daemon spawn failed: {error}. Set KANBUS_NO_DAEMON=1 to bypass the daemon."
     ))
-}
-
-fn take_test_daemon_response() -> Option<TestDaemonResponse> {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let mut guard = cell.lock().expect("lock test response");
-    if guard.is_empty() {
-        None
-    } else {
-        Some(guard.remove(0))
-    }
-}
-
-fn is_test_spawn_disabled() -> bool {
-    let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
-    let guard = cell.lock().expect("lock test spawn flag");
-    *guard
 }
 
 /// Return whether daemon mode is enabled.
@@ -153,18 +220,6 @@ pub fn is_daemon_config_schema_error(message: &str) -> bool {
     message == DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE
 }
 
-/// Return whether `restart_daemon` ran during the current test scenario.
-pub fn was_daemon_restarted_for_testing() -> bool {
-    let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
-    *cell.lock().expect("lock daemon restart recorder")
-}
-
-/// Clear the `restart_daemon` test recorder.
-pub fn reset_daemon_restart_recorded_for_testing() {
-    let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
-    *cell.lock().expect("lock daemon restart recorder") = false;
-}
-
 /// Restart the daemon after a stale process rejects the current config schema.
 ///
 /// # Arguments
@@ -173,10 +228,7 @@ pub fn reset_daemon_restart_recorded_for_testing() {
 /// # Errors
 /// Returns `KanbusError` when socket cleanup fails.
 pub fn restart_daemon(root: &Path) -> Result<(), KanbusError> {
-    {
-        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
-        *cell.lock().expect("lock daemon restart recorder") = true;
-    }
+    record_daemon_restart();
     if !has_test_daemon_response() {
         let _ = request_shutdown(root);
     }
@@ -468,16 +520,8 @@ fn send_request(
     socket_path: &Path,
     request: &RequestEnvelope,
 ) -> Result<ResponseEnvelope, KanbusError> {
-    if let Some(response) = take_test_daemon_response() {
-        return match response {
-            TestDaemonResponse::Empty => Err(KanbusError::IssueOperation(
-                "empty daemon response".to_string(),
-            )),
-            TestDaemonResponse::IoError => {
-                Err(KanbusError::Io("daemon connection failed".to_string()))
-            }
-            TestDaemonResponse::Envelope(envelope) => Ok(envelope),
-        };
+    if let Some(simulated) = take_simulated_response() {
+        return simulated;
     }
     let mut stream = UnixStream::connect(socket_path).map_err(|error| {
         KanbusError::Io(format!(
