@@ -3,17 +3,25 @@
   "title": "Router worktrees, credentials and redaction: prune worktrees, stop copying auth.json, shared redaction, encrypted mutex transport, design doc",
   "description": "Parts (b), (d), (e), (g) and (h) of kbs-7bf31f. Move Rust attempt worktrees to the git common dir, remove them on terminal outcomes and run git worktree prune at watch start; stop copying OpenCode auth.json per issue (private data dir, 0600 copies deleted at terminal state at minimum); one shared redaction helper covering OpenAI sk-, GitHub ghp_/github_pat_, AWS keys, Slack tokens and Authorization headers, preserving newlines, applied to transcripts in both runtimes; require TLS (or loopback) for the mutex API endpoint as the LLM client does; fix docs/ISSUE_ROUTER_DESIGN.md (gh auth token fallback, supported adapters). Keep router.workflow unchanged. Acceptance: no worktree remains after a package reaches a terminal state; redaction tests cover each token family in both runtimes.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-7bf31fda-a464-45a2-a681-e933f95df403",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "cff2f150-9c0a-4d56-bda1-54a2bd3d3431",
+      "author": "home",
+      "text": "Done: PR #547 merged with CI green. Both runtimes remove a package's managed worktrees and OpenCode data directory at terminal outcomes (blocked packages keep theirs), resolve the worktree root with no temp fallback (shared error), redact transcripts with one shared pattern set (15-row scenario outline), refuse plaintext non-loopback mutex endpoints in the client with a shared message, and docs/ISSUE_ROUTER_DESIGN.md matches the code.",
+      "created_at": "2026-10-26T04:15:58.072962Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-26T02:05:25.611313Z",
-  "updated_at": "2026-10-26T03:07:31.827395Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T04:15:58.148433Z",
+  "closed_at": "2026-10-26T04:15:58.112662Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
