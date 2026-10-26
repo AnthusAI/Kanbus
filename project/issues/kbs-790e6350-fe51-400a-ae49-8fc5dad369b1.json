@@ -3,17 +3,25 @@
   "title": "Hooks: write stdin on a helper thread and drain stderr concurrently so the timeout fires",
   "description": "From kbs-bbf2a6. hooks.rs writes the payload to the hook child's stdin before the timeout loop starts and drains stderr only after exit, so a hook that never reads stdin (or fills stderr) hangs kbs forever. Write stdin on a helper thread, drain stdout and stderr concurrently, and enforce the timeout in both runtimes. Acceptance: a hook that never reads stdin is killed at its timeout (scenario in both runtimes).",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "c5e217eb-6eaa-4af9-84d1-b5fabeaa8d3f",
+      "author": "home",
+      "text": "Done: PR #548 merged with CI green. Both runtimes run each hook in its own process group, write stdin and drain output concurrently under one timeout, and on expiry kill and reap the whole group with the same message; scenarios cover a hook that never reads a 256 KB payload, 256 KB of stderr, and a grandchild holding stderr open (grandchild verified dead).",
+      "created_at": "2026-10-26T05:24:44.836863Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-26T04:16:31.265829Z",
-  "updated_at": "2026-10-26T04:16:49.425586Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T05:24:44.917731Z",
+  "closed_at": "2026-10-26T05:24:44.880018Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
