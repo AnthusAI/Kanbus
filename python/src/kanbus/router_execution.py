@@ -98,7 +98,11 @@ from kanbus.router_forge import (
     record_github_check_run_event,
     record_github_pull_request_event,
 )
-from kanbus.router_state import publish_router_start_event, publish_router_state
+from kanbus.router_state import (
+    ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
+    publish_router_start_event,
+    publish_router_state,
+)
 
 HARD_COORDINATION_ERROR = (
     "hard router coordination requires Mutex API; provider mutex_api is "
@@ -516,6 +520,26 @@ def watch_poll_backoff_seconds(interval: float, consecutive_failures: int) -> fl
     )
 
 
+def decide_watch_poll_failure(
+    error: Exception, interval: float, consecutive_failures: int
+) -> float | None:
+    """Decide how the watch loop reacts to a failed GitHub poll.
+
+    :param error: Failure raised by the poll.
+    :type error: Exception
+    :param interval: Configured watch interval in seconds.
+    :type interval: float
+    :param consecutive_failures: Failures in a row, including this one.
+    :type consecutive_failures: int
+    :return: Seconds to wait before polling again, or ``None`` when the failure
+        is not transient and the watch must stop.
+    :rtype: float | None
+    """
+    if not is_transient_github_error(error):
+        return None
+    return watch_poll_backoff_seconds(interval, consecutive_failures)
+
+
 def run_router_watch(context: RouterContext) -> None:
     """Reconcile immediately, then poll durable state at the configured interval."""
     interval = parse_duration(context.router.watch_interval)
@@ -563,12 +587,12 @@ def run_router_watch(context: RouterContext) -> None:
                 _reconcile_pull_requests(current, scheduler_handles)
                 consecutive_poll_failures = 0
             except IssueRouterError as error:
-                if not is_transient_github_error(error):
-                    raise
                 consecutive_poll_failures += 1
-                backoff = watch_poll_backoff_seconds(
-                    interval, consecutive_poll_failures
+                backoff = decide_watch_poll_failure(
+                    error, interval, consecutive_poll_failures
                 )
+                if backoff is None:
+                    raise
                 print(
                     f"router watch: {error}; retrying in {backoff:.0f}s",
                     file=sys.stderr,
@@ -2961,9 +2985,6 @@ def _prune_stale_worktrees(root: Path) -> None:
     subprocess.run(
         ["git", "worktree", "prune"], cwd=root, check=False, capture_output=True
     )
-
-
-ROUTER_GIT_NETWORK_TIMEOUT_SECONDS = 120
 
 
 def _git_network_environment() -> dict[str, str]:

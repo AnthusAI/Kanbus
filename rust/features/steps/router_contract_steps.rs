@@ -80,6 +80,29 @@ fn spawn_fixture_child(world: &mut KanbusWorld) -> u32 {
     pid
 }
 
+fn adapter_record_pid(world: &mut KanbusWorld, state: &Value) -> Option<u64> {
+    let issue = state["active_issue_id"].as_str()?;
+    let claim = state["active_claim_id"].as_str()?;
+    let path =
+        kanbus::router::router_adapter_process_record_path(root(world), issue, claim).ok()?;
+    let record: Value = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    record["pid"].as_u64()
+}
+
+fn register_fixture_adapter(world: &mut KanbusWorld, issue: &str, claim: &str, pid: u32) {
+    let path = kanbus::router::router_adapter_process_record_path(root(world), issue, claim)
+        .expect("adapter record path");
+    fs::create_dir_all(path.parent().expect("record directory")).expect("record directory");
+    let record = json!({
+        "schema_version": 2,
+        "package_id": issue,
+        "claim_id": claim,
+        "pid": pid,
+        "process_identity": kanbus::router::router_process_identity(pid),
+    });
+    fs::write(path, record.to_string()).expect("write adapter record");
+}
+
 fn cleanup_fixture_child(world: &mut KanbusWorld) {
     if let Some(mut child) = active_fixture_children()
         .lock()
@@ -911,10 +934,9 @@ fn wait_for_blocking_adapter(world: &mut KanbusWorld, issue_id: &str) -> String 
     let deadline = std::time::Instant::now() + Duration::from_secs(15);
     loop {
         let state = local_router_state(world);
-        let active_pid = state["active_child_pid"].as_u64();
         if started.exists()
             && state["active_issue_id"] == issue_id
-            && active_pid.is_some_and(process_is_running)
+            && adapter_record_pid(world, &state).is_some_and(process_is_running)
         {
             return state["scheduler_claim_id"]
                 .as_str()
@@ -2246,7 +2268,7 @@ fn given_active_package(world: &mut KanbusWorld) {
     );
     set_local_router_state(
         world,
-        json!({"watch_pid":std::process::id(),"active_issue_id":"kbs-active","active_claim_id":"claim-active","active_child_pid":null}),
+        json!({"watch_pid":std::process::id(),"active_issue_id":"kbs-active","active_claim_id":"claim-active"}),
     );
 }
 
@@ -2395,7 +2417,7 @@ fn given_active_claim_checkpoint(
     seed_request_checkpoint(world, &issue, &checkpoint, 1);
     set_local_router_state(
         world,
-        json!({"active_issue_id":issue,"active_claim_id":claim,"active_child_pid":null}),
+        json!({"active_issue_id":issue,"active_claim_id":claim}),
     );
 }
 
@@ -2406,8 +2428,9 @@ fn given_profile_running_package(world: &mut KanbusWorld, _profile: String, issu
     let mut state = local_router_state(world);
     state["active_issue_id"] = json!(issue);
     state["active_claim_id"] = json!("claim-210");
-    state["active_child_pid"] = json!(spawn_fixture_child(world));
+    let child_pid = spawn_fixture_child(world);
     set_local_router_state(world, state);
+    register_fixture_adapter(world, "kbs-210", "claim-210", child_pid);
 }
 
 #[then(
@@ -2443,9 +2466,7 @@ fn then_current_adapter_kept_running(world: &mut KanbusWorld) {
     let state = local_router_state(world);
     let active = state["stop_requested"].as_bool().unwrap_or(false)
         && state["active_issue_id"] == "kbs-220"
-        && state["active_child_pid"]
-            .as_u64()
-            .is_some_and(process_is_running);
+        && adapter_record_pid(world, &state).is_some_and(process_is_running);
     release_blocking_adapter(world);
     wait_for_watch_shutdown(world);
     assert!(

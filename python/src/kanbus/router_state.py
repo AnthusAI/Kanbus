@@ -16,6 +16,9 @@ from kanbus.event_history import EventRecord, event_filename, write_events_batch
 from kanbus.issue_router import IssueRouterError
 from kanbus.project import get_configuration_path
 
+ROUTER_GIT_NETWORK_TIMEOUT_SECONDS = 120
+NETWORK_GIT_SUBCOMMANDS = frozenset({"fetch", "push", "ls-remote", "clone", "pull"})
+
 STATE_BRANCH = "kanbus/router-state"
 STATE_REF = f"refs/heads/{STATE_BRANCH}"
 REMOTE_REF = f"refs/remotes/origin/{STATE_BRANCH}"
@@ -276,8 +279,9 @@ def _fetch_state(root: Path) -> None:
             capture_output=True,
             text=True,
             env=env,
+            timeout=ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
         ).stdout
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.SubprocessError):
         raise IssueRouterError("could not fetch shared router state")
     if not advertised.strip():
         return
@@ -350,6 +354,20 @@ def resolve_router_root(root: Path) -> Path:
         raise IssueRouterError("issue router requires a Git repository") from error
 
 
+def _git_timeout_seconds(args: tuple[str, ...]) -> int | None:
+    """Return the timeout for a Git invocation, bounding only network operations."""
+    arguments = [argument for argument in args if not argument.startswith("-")]
+    subcommand_index = 0
+    while subcommand_index < len(arguments) and "=" in arguments[subcommand_index]:
+        subcommand_index += 1
+    if (
+        subcommand_index < len(arguments)
+        and arguments[subcommand_index] in NETWORK_GIT_SUBCOMMANDS
+    ):
+        return ROUTER_GIT_NETWORK_TIMEOUT_SECONDS
+    return None
+
+
 def _git(root: Path, *args: str) -> str:
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
@@ -361,8 +379,9 @@ def _git(root: Path, *args: str) -> str:
             capture_output=True,
             text=True,
             env=env,
+            timeout=_git_timeout_seconds(args),
         )
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         detail = (
             error.stderr.strip()
             if isinstance(error, subprocess.CalledProcessError)
@@ -383,8 +402,9 @@ def _try_git(root: Path, *args: str, capture: bool = False) -> str | int | None:
             capture_output=True,
             text=True,
             env=env,
+            timeout=_git_timeout_seconds(args),
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if capture:
         return completed.returncode
