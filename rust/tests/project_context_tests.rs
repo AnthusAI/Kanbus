@@ -64,7 +64,8 @@ fn assert_malformed_configuration_error(root: &Path, arguments: &[&str]) {
         Err(kanbus::error::KanbusError::Configuration(message)) => {
             assert_eq!(message, "configuration is not valid YAML");
         }
-        other => panic!("expected a configuration error, got {other:?}"),
+        Err(_) => panic!("expected a configuration error, got a different error"),
+        Ok(_) => panic!("expected a configuration error, but the command succeeded"),
     }
 }
 
