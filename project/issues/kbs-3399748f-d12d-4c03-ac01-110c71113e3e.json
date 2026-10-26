@@ -3,17 +3,25 @@
   "title": "CLI daemon and realtime defaults: off by default for CLI, fire-and-forget publish, daemon socket timeouts",
   "description": "From kbs-bbf2a6. With default configuration (realtime.broker auto, autostart true) every mutation probes the broker, may spawn mosquitto and waits up to 16 s; the daemon adds spawn and wait time and has no socket timeouts. Default daemon and realtime auto-discovery off for CLI commands and on for the console; when a broker is explicitly configured (for example KANBUS_REALTIME_BROKER in ~/.kanbus.env, as on Ryan's machine with an always-on Mosquitto), the CLI must still publish, fire-and-forget on a detached thread with a hard cap, so live console updates keep working. Add timeouts to the daemon socket paths in both runtimes; stop the daemon terminating on per-connection I/O errors. Acceptance: kbs create on a board with mosquitto installed and no console running completes under 0.3 s with no spawned broker; with an explicit broker configured, the CLI still publishes the issue event.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "22207843-1840-4835-a0ea-7fcb92efc949",
+      "author": "home",
+      "text": "Done: PR #551 merged with CI green. CLI with broker auto: no discovery, autostart or MQTT publish (a running kbsc hub still receives events over its local socket, 2 s cap). Explicit broker: CLI publishes on a background thread with a 2 s cap, joined at command end, warnings only. Daemon is opt-in via KANBUS_DAEMON (KANBUS_NO_DAEMON removed); client and server socket timeouts; daemon survives connection errors. Rust kbs create spawns nothing; Python create is about 0.37 s, which is interpreter startup.",
+      "created_at": "2026-10-26T09:48:49.538417Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-26T04:16:49.203519Z",
-  "updated_at": "2026-10-26T08:25:37.710041Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T09:48:49.618148Z",
+  "closed_at": "2026-10-26T09:48:49.583566Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
