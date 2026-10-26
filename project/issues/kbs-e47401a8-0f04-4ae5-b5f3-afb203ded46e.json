@@ -33,10 +33,17 @@
       "text": "Engineering items done (PR #540 pending, #541, #542). Blocked on Ryan: (1) main ruleset drift: repository file wants enforcement active with required reviews, the live ruleset is disabled with reviews off; PR #540 (platform-ci pin) fails check / sync until one side is chosen; (2) kbsc default bind host 127.0.0.1 versus 0.0.0.0; (3) develop ruleset and required checks (admin); (4) PyPI Trusted Publishing registry setup (also kbs-9dc61a).",
       "created_at": "2026-10-25T23:57:10.307760Z",
       "comment_type": "default"
+    },
+    {
+      "id": "5c9b0dfb-5516-4289-8647-3d806085e64d",
+      "author": "home",
+      "text": "2026-10-26: platform-ci pinned by SHA (PR #540 merged). Ryan chose the live main ruleset as the source of truth; infra/github-rulesets/main-branch-protection.json now matches it (enforcement disabled, no required reviews) and the drift check passes. Still waiting on Ryan: kbsc default bind host, develop ruleset and required checks, PyPI Trusted Publishing.",
+      "created_at": "2026-10-26T17:16:30.154455Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T19:41:45.021043975Z",
-  "updated_at": "2026-10-25T23:57:10.307783Z",
+  "updated_at": "2026-10-26T17:16:30.155130Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
