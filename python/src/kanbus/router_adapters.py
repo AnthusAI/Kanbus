@@ -36,6 +36,38 @@ def signal_process_group(group_leader_pid: int, signal_number: int) -> None:
         return
 
 
+def spawn_adapter_process(
+    command: list[str],
+    *,
+    working_directory: str | None,
+    environment: dict[str, str] | None,
+    **extra_arguments: Any,
+) -> "subprocess.Popen[str]":
+    """Start a router adapter as the leader of its own session and process group.
+
+    :param command: Adapter command line.
+    :type command: list[str]
+    :param working_directory: Directory the adapter runs in.
+    :type working_directory: str | None
+    :param environment: Adapter environment, or ``None`` to inherit.
+    :type environment: dict[str, str] | None
+    :param extra_arguments: Additional ``subprocess.Popen`` keyword arguments.
+    :type extra_arguments: Any
+    :return: Running adapter process.
+    :rtype: subprocess.Popen[str]
+    """
+    return subprocess.Popen(
+        command,
+        cwd=working_directory,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+        start_new_session=True,
+        **extra_arguments,
+    )
+
+
 def terminate_process_tree(process: "subprocess.Popen[Any]") -> None:
     """Kill an adapter and everything it spawned, then reap the adapter.
 
@@ -174,14 +206,10 @@ class _SubprocessAdapter:
         """
         command = self._build_command(request)
         try:
-            self.process = subprocess.Popen(
+            self.process = spawn_adapter_process(
                 command,
-                cwd=request.worktree_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=self._environment(request),
-                start_new_session=True,
+                working_directory=request.worktree_path,
+                environment=self._environment(request),
                 **self._popen_extras(),
             )
             self._record_process(request)

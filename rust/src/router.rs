@@ -162,7 +162,6 @@ struct LocalRouterState {
     scheduler_hard: bool,
     active_issue_id: Option<String>,
     active_claim_id: Option<String>,
-    active_child_pid: Option<u32>,
     stop_requested: bool,
 }
 
@@ -267,7 +266,7 @@ impl RouterLeaseRenewalGuard {
             .map_err(|_| KanbusError::IssueOperation("router lease renewer failed".into()))?;
         if let Some(error) = failure.as_ref() {
             return Err(KanbusError::IssueOperation(format!(
-                "router hard lease renewal failed: {error}"
+                "router lease renewal failed: {error}"
             )));
         }
         Ok(())
@@ -3279,7 +3278,25 @@ fn request_router_process_group_termination(group_leader_pid: u32) {
     let _ = group_leader_pid;
 }
 
-pub(crate) fn terminate_router_child_process_tree(child: &mut Child) {
+/// Spawn a router adapter as the leader of its own process group.
+///
+/// # Arguments
+/// * `command` - Adapter command, fully configured except for its process group.
+///
+/// # Errors
+/// Returns the operating-system error when the adapter cannot be started.
+pub fn spawn_router_child_in_own_process_group(
+    command: &mut Command,
+) -> Result<Child, std::io::Error> {
+    place_router_child_in_own_process_group(command);
+    command.spawn()
+}
+
+/// Kill an adapter together with every process it spawned, then reap it.
+///
+/// # Arguments
+/// * `child` - Adapter started by `spawn_router_child_in_own_process_group`.
+pub fn terminate_router_child_process_tree(child: &mut Child) {
     #[cfg(unix)]
     signal_router_process_group(child.id(), libc::SIGKILL);
     let _ = child.kill();
@@ -3302,6 +3319,20 @@ fn process_is_running(pid: u32) -> bool {
         .args(["-0", &pid.to_string()])
         .status()
         .is_ok_and(|status| status.success())
+}
+
+/// Return the boot-aware identity of the process currently using a PID.
+///
+/// The format is identical to the Python runtime so a recorded identity means
+/// the same process in both runtimes.
+///
+/// # Arguments
+/// * `pid` - Operating-system process identifier.
+///
+/// # Returns
+/// The identity string, or `None` when the platform cannot provide one.
+pub fn router_process_identity(pid: u32) -> Option<String> {
+    process_identity(pid)
 }
 
 fn process_identity(pid: u32) -> Option<String> {
@@ -3340,16 +3371,145 @@ fn process_identity(pid: u32) -> Option<String> {
     ))
 }
 
+/// Decide whether a recorded process still exists as the same process.
+///
+/// A live PID whose current identity differs from the recorded identity was
+/// reused by an unrelated process and does not count as running.
+///
+/// # Arguments
+/// * `pid` - Recorded process identifier.
+/// * `recorded_identity` - Identity recorded when the process started, if any.
+///
+/// # Returns
+/// `true` when the recorded process is still running.
+pub fn recorded_router_process_is_running(pid: u32, recorded_identity: Option<&str>) -> bool {
+    if !process_is_running(pid) {
+        return false;
+    }
+    match (recorded_identity, process_identity(pid)) {
+        (Some(recorded), Some(current)) => recorded == current,
+        _ => true,
+    }
+}
+
 fn watch_process_is_running(local: &LocalRouterState) -> bool {
     let Some(pid) = local.watch_pid else {
         return false;
     };
-    if !process_is_running(pid) {
-        return false;
+    recorded_router_process_is_running(pid, local.watch_process_identity.as_deref())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RouterAdapterProcessRecord {
+    claim_id: String,
+    package_id: String,
+    pid: u32,
+    process_identity: Option<String>,
+    schema_version: u32,
+}
+
+/// Return the host-local record path of the adapter running a package claim.
+///
+/// The path and the JSON schema are shared with the Python runtime.
+///
+/// # Arguments
+/// * `root` - Repository root.
+/// * `package_id` - Routed package identifier.
+/// * `claim_id` - Claim identifier owning the adapter.
+///
+/// # Errors
+/// Returns an error when the common repository directory cannot be resolved.
+pub fn router_adapter_process_record_path(
+    root: &Path,
+    package_id: &str,
+    claim_id: &str,
+) -> Result<PathBuf, KanbusError> {
+    use sha2::{Digest, Sha256};
+    let output = Command::new("git")
+        .args(["rev-parse", "--git-common-dir"])
+        .current_dir(root)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !output.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "issue router requires a Git repository".to_string(),
+        ));
     }
-    match (&local.watch_process_identity, process_identity(pid)) {
-        (Some(recorded), Some(current)) => *recorded == current,
-        _ => true,
+    let common_dir = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    let common_dir = if common_dir.is_absolute() {
+        common_dir
+    } else {
+        root.join(common_dir)
+    };
+    let record_key = format!(
+        "{:x}",
+        Sha256::digest(format!("{package_id}\0{claim_id}").as_bytes())
+    );
+    Ok(common_dir
+        .join("kanbus-router-adapters")
+        .join(format!("{record_key}.json")))
+}
+
+fn write_router_adapter_process_record(
+    root: &Path,
+    package_id: &str,
+    claim_id: &str,
+    pid: u32,
+) -> Result<(), KanbusError> {
+    let path = router_adapter_process_record_path(root, package_id, claim_id)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| KanbusError::Io("router adapter record directory unavailable".into()))?;
+    fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let record = RouterAdapterProcessRecord {
+        claim_id: claim_id.to_string(),
+        package_id: package_id.to_string(),
+        pid,
+        process_identity: process_identity(pid),
+        schema_version: 2,
+    };
+    let bytes = serde_json::to_vec(&record).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let temporary = parent.join(format!(".router-adapter-{}.tmp", Uuid::new_v4()));
+    fs::write(&temporary, bytes).map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::rename(&temporary, &path).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        KanbusError::Io(error.to_string())
+    })
+}
+
+fn remove_router_adapter_process_record(root: &Path, package_id: &str, claim_id: &str) {
+    if let Ok(path) = router_adapter_process_record_path(root, package_id, claim_id) {
+        let _ = fs::remove_file(path);
+    }
+}
+
+fn registered_router_adapter_pid(root: &Path, package_id: &str, claim_id: &str) -> Option<u32> {
+    let path = router_adapter_process_record_path(root, package_id, claim_id).ok()?;
+    let record: RouterAdapterProcessRecord = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    let recorded_identity = record
+        .process_identity
+        .as_deref()
+        .filter(|identity| !identity.is_empty())?;
+    (record.schema_version == 2
+        && record.package_id == package_id
+        && record.claim_id == claim_id
+        && record.pid > 0
+        && process_identity(record.pid).as_deref() == Some(recorded_identity))
+    .then_some(record.pid)
+}
+
+/// Ask the adapter registered for a package claim to terminate.
+///
+/// Only a process whose current identity equals the recorded identity is
+/// signalled, so a PID reused by an unrelated process is never touched.
+///
+/// # Arguments
+/// * `root` - Repository root.
+/// * `package_id` - Routed package identifier.
+/// * `claim_id` - Claim identifier owning the adapter.
+pub fn signal_registered_router_adapter(root: &Path, package_id: &str, claim_id: &str) {
+    if let Some(pid) = registered_router_adapter_pid(root, package_id, claim_id) {
+        request_router_process_group_termination(pid);
     }
 }
 
@@ -3411,10 +3571,13 @@ fn router_status_output(root: &Path, project_dir: &Path) -> Result<String, Kanbu
     let local = read_local_router_state(root)?;
     let state = reduce_router_events(&load_router_events(project_dir)?);
     let running = watch_process_is_running(&local);
-    let active_runs = usize::from(
-        local.active_issue_id.is_some()
-            && (running || local.active_child_pid.is_some_and(process_is_running)),
-    );
+    let adapter_running = match (&local.active_issue_id, &local.active_claim_id) {
+        (Some(issue_id), Some(claim_id)) => {
+            registered_router_adapter_pid(root, issue_id, claim_id).is_some()
+        }
+        _ => false,
+    };
+    let active_runs = usize::from(local.active_issue_id.is_some() && (running || adapter_running));
     let held_routes = if state.holds.is_empty() {
         "none".to_string()
     } else {
@@ -3533,9 +3696,8 @@ fn cancel_router_package(
     };
     assert_current_router_claim(project_dir, &configuration, &claim)?;
     router_cancel_control_event(project_dir, issue_id, &claim_id, revision)?;
-    if let Some(pid) = local.active_child_pid {
-        request_router_process_group_termination(pid);
-    }
+    signal_registered_router_adapter(root, issue_id, &claim_id);
+    remove_router_adapter_process_record(root, issue_id, &claim_id);
     let _ = router;
     let checkpoint = reduce_router_events(&load_router_events(project_dir)?)
         .checkpoints
@@ -3549,7 +3711,6 @@ fn cancel_router_package(
     )?;
     local.active_issue_id = None;
     local.active_claim_id = None;
-    local.active_child_pid = None;
     write_local_router_state(root, &local)?;
     Ok(format!(
         "Cancelled router package {issue_id}; checkpoint {} preserved.\n",
@@ -3790,6 +3951,14 @@ fn run_issue_router_once(
         owner: owner.clone(),
         resources,
     };
+    if !hard {
+        lease_renewer = Some(start_soft_lease_renewer(
+            root,
+            project_dir,
+            &configuration,
+            &claim,
+        )?);
+    }
     let active_state = reduce_router_events(&load_router_events(project_dir)?);
     let checkpoint = active_state.checkpoints.get(&package.issue_id).cloned();
     let mut started_payload = json!({
@@ -4256,6 +4425,41 @@ fn watch_poll_backoff_seconds(interval_seconds: u64, consecutive_failures: u32) 
         .min(WATCH_POLL_BACKOFF_CEILING_SECONDS)
 }
 
+/// What the watch loop does after a failed GitHub pull request poll.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WatchPollFailureDecision {
+    /// Log the failure and poll again after the given delay.
+    Retry {
+        /// Seconds to wait before the next poll.
+        backoff_seconds: u64,
+    },
+    /// Stop the watch because the failure is not transient.
+    Abort,
+}
+
+/// Decide whether a poll failure stops the watch or is retried with backoff.
+///
+/// # Arguments
+/// * `error` - Failure returned by the poll.
+/// * `interval_seconds` - Configured watch interval.
+/// * `consecutive_failures` - Failures in a row, including this one.
+///
+/// # Returns
+/// `Retry` for network errors, HTTP 429 and HTTP 5xx; `Abort` otherwise.
+pub fn decide_watch_poll_failure(
+    error: &KanbusError,
+    interval_seconds: u64,
+    consecutive_failures: u32,
+) -> WatchPollFailureDecision {
+    if is_transient_github_polling_error(error) {
+        WatchPollFailureDecision::Retry {
+            backoff_seconds: watch_poll_backoff_seconds(interval_seconds, consecutive_failures),
+        }
+    } else {
+        WatchPollFailureDecision::Abort
+    }
+}
+
 fn run_issue_router_watch(
     root: &Path,
     router: &IssueRouterConfiguration,
@@ -4360,16 +4564,19 @@ fn run_issue_router_watch(
                     next_poll = Instant::now() + Duration::from_secs(interval);
                     run_cycle = true;
                 }
-                Err(error) if is_transient_github_polling_error(&error) => {
-                    consecutive_poll_failures = consecutive_poll_failures.saturating_add(1);
-                    let backoff = watch_poll_backoff_seconds(interval, consecutive_poll_failures);
-                    eprintln!("router watch: {error}; retrying in {backoff}s");
-                    next_poll = Instant::now() + Duration::from_secs(backoff);
-                }
                 Err(error) => {
-                    release_watch_scheduler_claim(root, project_dir, &configuration)?;
-                    clear_watch_router_state(root)?;
-                    return Err(error);
+                    consecutive_poll_failures = consecutive_poll_failures.saturating_add(1);
+                    match decide_watch_poll_failure(&error, interval, consecutive_poll_failures) {
+                        WatchPollFailureDecision::Retry { backoff_seconds } => {
+                            eprintln!("router watch: {error}; retrying in {backoff_seconds}s");
+                            next_poll = Instant::now() + Duration::from_secs(backoff_seconds);
+                        }
+                        WatchPollFailureDecision::Abort => {
+                            release_watch_scheduler_claim(root, project_dir, &configuration)?;
+                            clear_watch_router_state(root)?;
+                            return Err(error);
+                        }
+                    }
                 }
             }
         }
@@ -4523,9 +4730,7 @@ fn acquire_router_claims(
                 let cleanup =
                     release_hard_resources(coordination, project_dir, &acquired, owner, claim_id);
                 return Err(combine_hard_acquisition_error(
-                    KanbusError::IssueOperation(format!(
-                        "router hard lease renewal failed: {error}"
-                    )),
+                    KanbusError::IssueOperation(format!("router lease renewal failed: {error}")),
                     cleanup,
                 ));
             }
@@ -4697,6 +4902,55 @@ fn acquire_router_claims(
         }
     }
     Ok((!resources.is_empty(), resources, false, None))
+}
+
+fn start_soft_lease_renewer(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+) -> Result<RouterLeaseRenewalGuard, KanbusError> {
+    let ttl_seconds = parse_duration_seconds(&configuration.coordination.default_lease_ttl)
+        .map_err(KanbusError::Configuration)?;
+    let interval = Duration::from_secs(ttl_seconds.saturating_div(3).max(1));
+    let renewal_root = root.to_path_buf();
+    let renewal_project_dir = project_dir.to_path_buf();
+    let renewal_configuration = configuration.clone();
+    let renewal_claim = claim.clone();
+    RouterLeaseRenewalGuard::start(interval, move || {
+        renew_soft_router_leases(
+            &renewal_root,
+            &renewal_project_dir,
+            &renewal_configuration,
+            &renewal_claim,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .map_err(|error| KanbusError::IssueOperation(format!("router lease renewal failed: {error}")))
+}
+
+fn renew_soft_router_leases(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+) -> Result<(), KanbusError> {
+    let ttl_seconds = parse_duration_seconds(&configuration.coordination.default_lease_ttl)
+        .map_err(KanbusError::Configuration)?;
+    for resource in &claim.resources {
+        renew_soft_router_resource(
+            root,
+            project_dir,
+            resource,
+            &claim.owner,
+            &claim.claim_id,
+            ttl_seconds,
+        )?;
+    }
+    if read_local_router_state(root)?.scheduler_claim_id.is_some() {
+        renew_watch_scheduler(root, project_dir, configuration)?;
+    }
+    Ok(())
 }
 
 fn update_renewal_resource_set(
@@ -5593,12 +5847,11 @@ fn execute_router_adapter(
         data_home.as_ref(),
         ResumeMode::decide(resume.as_ref(), resumed),
     );
-    place_router_child_in_own_process_group(&mut command);
     command
         .current_dir(&worktree)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command.spawn().map_err(|_| {
+    let mut child = spawn_router_child_in_own_process_group(&mut command).map_err(|_| {
         KanbusError::IssueOperation(format!("{adapter_name} router adapter failed"))
     })?;
     set_active_router_state(root, issue_id, &claim.claim_id, Some(child.id()))?;
@@ -5655,10 +5908,12 @@ fn execute_router_adapter(
             )));
         }
         if Instant::now() >= next_renewal {
-            let renew_result = if claim.hard && external_renewer.is_some() {
+            let renew_result = if external_renewer.is_none() {
+                renew_router_claims(root, project_dir, configuration, claim)
+            } else if claim.hard {
                 Ok(())
             } else {
-                renew_router_claims(root, project_dir, configuration, claim)
+                assert_current_router_claim(project_dir, configuration, claim)
             };
             if let Err(error) = renew_result {
                 terminate_router_child_process_tree(&mut child);
@@ -6353,15 +6608,19 @@ fn set_active_router_state(
     let mut state = read_local_router_state(root)?;
     state.active_issue_id = Some(issue_id.to_string());
     state.active_claim_id = Some(claim_id.to_string());
-    state.active_child_pid = child_pid;
+    if let Some(pid) = child_pid {
+        write_router_adapter_process_record(root, issue_id, claim_id, pid)?;
+    }
     write_local_router_state(root, &state)
 }
 
 fn clear_active_router_state(root: &Path) -> Result<(), KanbusError> {
     let mut state = read_local_router_state(root)?;
+    if let (Some(issue_id), Some(claim_id)) = (&state.active_issue_id, &state.active_claim_id) {
+        remove_router_adapter_process_record(root, issue_id, claim_id);
+    }
     state.active_issue_id = None;
     state.active_claim_id = None;
-    state.active_child_pid = None;
     write_local_router_state(root, &state)
 }
 
@@ -10340,13 +10599,13 @@ mod tests {
         let error = preserve_router_error_after_adapter_failure(
             KanbusError::IssueOperation("Codex router adapter failed".to_string()),
             Err(KanbusError::IssueOperation(
-                "router hard lease renewal failed: synthetic failure".to_string(),
+                "router lease renewal failed: synthetic failure".to_string(),
             )),
             cleanup,
         );
         assert!(error.to_string().contains("Codex router adapter failed"));
         assert!(error.to_string().contains(
-            "lease renewer shutdown failed: router hard lease renewal failed: synthetic failure"
+            "lease renewer shutdown failed: router lease renewal failed: synthetic failure"
         ));
         assert!(error.to_string().contains("router cleanup failed"));
         assert_eq!(
