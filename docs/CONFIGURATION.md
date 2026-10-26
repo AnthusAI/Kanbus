@@ -183,42 +183,93 @@ Notes:
 
 ## Examples
 
+Both examples are complete `.kanbus.yml` files that the loader accepts. CI validates every YAML block in this document that uses configuration keys.
+
 ### Default software project
 
+A four-level hierarchy, three issue types, and the standard five priorities, with the workflow `kbs init` produces.
+
 ```yaml
-project_key: "KAN"
-issue_types: [bug, story, chore]
-workflow_bindings:
-  bug: default
-  story: default
-  chore: default
+project_directory: project
+project_key: KAN
+hierarchy: [initiative, epic, task, sub-task]
+types: [bug, story, chore]
+workflows:
+  default:
+    backlog: [open, closed]
+    open: [in_progress, closed, backlog]
+    in_progress: [open, closed, backlog]
+    closed: [open, backlog]
 initial_status: open
-priorities: [critical, high, medium, low, trivial]
-default_priority: medium
-priority_import_aliases:
-  P0: critical
-  P1: high
-  P2: medium
-  P3: low
-priority_accept_unmapped: true
+priorities:
+  0: {name: critical, color: red}
+  1: {name: high, color: bright_red}
+  2: {name: medium, color: yellow}
+  3: {name: low, color: blue}
+  4: {name: trivial, color: white}
+default_priority: 2
+transition_labels:
+  default:
+    backlog:
+      open: Start discovery
+      closed: Drop
+    open:
+      in_progress: Start work
+      closed: Drop
+      backlog: Back to backlog
+    in_progress:
+      open: Pause
+      closed: Complete
+      backlog: Back to backlog
+    closed:
+      open: Reopen
+      backlog: Back to backlog
+categories:
+  - {name: To do, color: grey}
+  - {name: In progress, color: blue}
+  - {name: Done, color: green}
+statuses:
+  - {key: backlog, name: Backlog, category: To do, collapsed: true}
+  - {key: open, name: Ready, category: To do}
+  - {key: in_progress, name: In Progress, category: In progress}
+  - {key: closed, name: Done, category: Done, collapsed: true}
 ```
 
-### Beads import mapping
+### Beads-compatible project
+
+A project that works with a Beads repository (`.beads/issues.jsonl`) sets `beads_compatibility: true` and keeps Beads' numeric priorities `0` to `4` (Beads `P0` to `P4`). Kanbus has no priority alias mapping: priorities are the integer keys of `priorities`, so the Beads values are used directly.
 
 ```yaml
-project_key: "BDX"
-issue_types: [bug, task]
-workflow_bindings:
-  bug: default
-  task: default
-priorities: [urgent, high, normal, low]
-default_priority: normal
-priority_import_aliases:
-  P0: urgent
-  P1: high
-  P2: normal
-  P3: low
-priority_accept_unmapped: false
+project_directory: project
+project_key: BDX
+beads_compatibility: true
+hierarchy: [epic, task]
+types: [bug, feature, chore]
+workflows:
+  default:
+    open: [in_progress, closed]
+    in_progress: [open, closed]
+    closed: [open]
+initial_status: open
+priorities:
+  0: {name: critical}
+  1: {name: high}
+  2: {name: medium}
+  3: {name: low}
+  4: {name: backlog}
+default_priority: 2
+transition_labels:
+  default:
+    open: {in_progress: Start work, closed: Close}
+    in_progress: {open: Pause, closed: Close}
+    closed: {open: Reopen}
+categories:
+  - {name: To do}
+  - {name: Done}
+statuses:
+  - {key: open, name: Open, category: To do}
+  - {key: in_progress, name: In Progress, category: To do}
+  - {key: closed, name: Closed, category: Done}
 ```
 
 ## Methodologies
