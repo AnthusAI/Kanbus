@@ -110,7 +110,7 @@ fn then_worktree_inside_common_directory(_world: &mut KanbusWorld, package: Stri
         root.join(common)
     })
     .expect("canonical common directory");
-    let path = router_worktree_path(&root, &package, &claim);
+    let path = router_worktree_path(&root, &package, &claim).expect("worktree path");
     assert!(
         path.starts_with(&common) || path.starts_with(root.join(".git")),
         "{} is outside {}",
@@ -123,7 +123,7 @@ fn then_worktree_inside_common_directory(_world: &mut KanbusWorld, package: Stri
 fn given_registered_router_worktree(_world: &mut KanbusWorld, package: String, claim: String) {
     let state = fixture().lock().expect("lock fixture");
     let root = repository_root(&state);
-    let path = router_worktree_path(&root, &package, &claim);
+    let path = router_worktree_path(&root, &package, &claim).expect("worktree path");
     fs::create_dir_all(path.parent().expect("worktree parent")).expect("create parent");
     git(
         &root,
@@ -135,6 +135,22 @@ fn given_registered_router_worktree(_world: &mut KanbusWorld, package: String, c
             "HEAD",
         ],
     );
+}
+
+#[given("an empty directory outside any git repository")]
+fn given_directory_that_is_not_a_repository(_world: &mut KanbusWorld) {
+    fixture().lock().expect("lock fixture").repository = Some(TempDir::new().expect("directory"));
+}
+
+#[then(expr = "resolving the router worktree directory should fail with {string}")]
+fn then_worktree_resolution_fails(_world: &mut KanbusWorld, expected_start: String) {
+    let state = fixture().lock().expect("lock fixture");
+    let root = state.repository.as_ref().expect("directory").path();
+    let message = router_worktree_root(root)
+        .expect_err("resolution must fail")
+        .to_string();
+    let expected = expected_start.replace("<directory>", &root.display().to_string());
+    assert!(message.starts_with(&expected), "{message}");
 }
 
 #[given(expr = "an OpenCode data directory holding a credentials copy for package {string}")]
@@ -180,7 +196,7 @@ fn then_no_worktree_remains(_world: &mut KanbusWorld, package: String) {
     let root = repository_root(&state);
     assert!(!package_has_registered_worktree(&root, &package));
     let prefix = format!("{package}-");
-    let leftover = fs::read_dir(router_worktree_root(&root))
+    let leftover = fs::read_dir(router_worktree_root(&root).expect("worktree root"))
         .map(|entries| {
             entries.flatten().any(|entry| {
                 entry

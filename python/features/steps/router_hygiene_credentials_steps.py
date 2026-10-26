@@ -10,6 +10,7 @@ from pathlib import Path
 from behave import given, then, when
 
 from kanbus.coordination_mutex_api import MutexApiUnavailable, acquire
+from kanbus.issue_router import IssueRouterError
 from kanbus.models import MutexApiConfiguration
 from kanbus.router_adapters import opencode_data_directory
 from kanbus.router_conversation import redact_text
@@ -51,6 +52,24 @@ def _package_has_registered_worktree(context: object, package: str) -> bool:
         path.name.startswith(f"{package}-")
         for path in _registered_worktrees(context.hygiene_root)
     )
+
+
+@given("an empty directory outside any git repository")
+def given_directory_that_is_not_a_repository(context: object) -> None:
+    directory = tempfile.mkdtemp(prefix="kanbus-hygiene-")
+    context.add_cleanup(shutil.rmtree, directory, True)
+    context.hygiene_root = Path(directory)
+
+
+@then('resolving the router worktree directory should fail with "{expected_start}"')
+def then_worktree_resolution_fails(context: object, expected_start: str) -> None:
+    try:
+        router_worktree_root(context.hygiene_root)
+    except IssueRouterError as error:
+        expected = expected_start.replace("<directory>", str(context.hygiene_root))
+        assert str(error).startswith(expected), str(error)
+        return
+    raise AssertionError("resolution unexpectedly succeeded")
 
 
 @given("a router test repository")

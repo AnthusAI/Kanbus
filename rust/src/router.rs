@@ -6163,7 +6163,9 @@ pub fn finish_router_package_resources(root: &Path, issue_id: &str) {
 }
 
 fn remove_router_package_worktrees(root: &Path, issue_id: &str) {
-    let managed_root = router_worktree_root(root);
+    let Ok(managed_root) = router_worktree_root(root) else {
+        return;
+    };
     let prefix = format!("{issue_id}-");
     let listing = Command::new("git")
         .args(["worktree", "list", "--porcelain"])
@@ -6776,7 +6778,7 @@ fn latest_router_worktree(root: &Path, claim_id: &str) -> Result<PathBuf, Kanbus
         .ok_or_else(|| {
             KanbusError::IssueOperation("router worktree claim is no longer active".to_string())
         })?;
-    Ok(router_worktree_path(root, &issue_id, claim_id))
+    router_worktree_path(root, &issue_id, claim_id)
 }
 
 fn publish_router_checkpoint(
@@ -6830,7 +6832,7 @@ fn create_router_worktree(
             return Ok(previous.to_path_buf());
         }
     }
-    let worktree = router_worktree_path(root, issue_id, &claim.claim_id);
+    let worktree = router_worktree_path(root, issue_id, &claim.claim_id)?;
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
@@ -6914,25 +6916,48 @@ fn worktree_is_registered(root: &Path, path: &Path) -> bool {
 }
 
 /// The directory inside the git common directory that holds managed router worktrees.
-pub fn router_worktree_root(root: &Path) -> PathBuf {
-    let git_path = Command::new("git")
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` naming the repository and the git
+/// failure when `git rev-parse --git-path` cannot resolve the directory.
+pub fn router_worktree_root(root: &Path) -> Result<PathBuf, KanbusError> {
+    let unresolved = |detail: String| {
+        KanbusError::IssueOperation(format!(
+            "router worktree directory could not be resolved for repository {}: {detail}",
+            root.display()
+        ))
+    };
+    let output = Command::new("git")
         .args(["rev-parse", "--git-path", "kanbus/router/worktrees"])
         .current_dir(root)
         .output()
-        .ok()
-        .filter(|output| output.status.success())
-        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
-        .filter(|path| !path.is_empty());
-    match git_path {
-        Some(path) if Path::new(&path).is_absolute() => PathBuf::from(path),
-        Some(path) => root.join(path),
-        None => std::env::temp_dir().join("kanbus-router-worktrees"),
+        .map_err(|error| unresolved(error.to_string()))?;
+    if !output.status.success() {
+        return Err(unresolved(
+            String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        ));
+    }
+    let git_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if git_path.is_empty() {
+        return Err(unresolved("git returned an empty path".to_string()));
+    }
+    if Path::new(&git_path).is_absolute() {
+        Ok(PathBuf::from(git_path))
+    } else {
+        Ok(root.join(git_path))
     }
 }
 
 /// The isolated worktree path of one package claim.
-pub fn router_worktree_path(root: &Path, issue_id: &str, claim_id: &str) -> PathBuf {
-    router_worktree_root(root).join(format!("{}-{}", issue_id, claim_id))
+///
+/// # Errors
+/// Returns the error of `router_worktree_root` when the directory cannot be resolved.
+pub fn router_worktree_path(
+    root: &Path,
+    issue_id: &str,
+    claim_id: &str,
+) -> Result<PathBuf, KanbusError> {
+    Ok(router_worktree_root(root)?.join(format!("{}-{}", issue_id, claim_id)))
 }
 
 /// Drop registrations of worktrees whose directories no longer exist.
@@ -7973,6 +7998,19 @@ fn publish_router_checkpoint_ref(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn router_worktree_root_fails_with_the_repository_and_git_error_outside_a_repository() {
+        let directory = tempfile::tempdir().unwrap();
+        let error = router_worktree_root(directory.path())
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with(&format!(
+            "router worktree directory could not be resolved for repository {}: ",
+            directory.path().display()
+        )));
+        assert!(error.contains("not a git repository"));
+    }
+
+    #[test]
     fn router_worktrees_live_in_the_git_directory_of_the_repository() {
         let repository = tempfile::tempdir().unwrap();
         Command::new("git")
@@ -7980,7 +8018,7 @@ mod tests {
             .current_dir(repository.path())
             .status()
             .unwrap();
-        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1");
+        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1").unwrap();
         let expected_prefix = repository
             .path()
             .join(".git")

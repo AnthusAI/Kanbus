@@ -7,6 +7,10 @@ Feature: Issue Router host hygiene and credential handling
     Given a router test repository
     Then the router worktree for package "kbs-hygiene" claim "claim-hygiene" should be inside the git common directory
 
+  Scenario: Resolving the worktree directory outside a git repository fails clearly
+    Given an empty directory outside any git repository
+    Then resolving the router worktree directory should fail with "router worktree directory could not be resolved for repository <directory>: "
+
   Scenario: No worktree or credentials copy remains after a package reaches a terminal outcome
     Given a router test repository
     And a registered router worktree for package "kbs-hygiene" claim "claim-hygiene"

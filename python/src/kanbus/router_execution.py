@@ -1172,6 +1172,13 @@ def _create_isolated_worktree(
     return worktree
 
 
+def _worktree_directory_error(root: Path, detail: str) -> str:
+    return (
+        "router worktree directory could not be resolved for repository "
+        f"{root}: {detail}"
+    )
+
+
 def router_worktree_root(root: Path) -> Path:
     """Return the managed worktree directory inside the git common directory.
 
@@ -1179,8 +1186,22 @@ def router_worktree_root(root: Path) -> Path:
     :type root: Path
     :return: Directory that holds the router's isolated worktrees.
     :rtype: Path
+    :raises IssueRouterError: If git cannot resolve the directory.
     """
-    git_path = _git(root, ["rev-parse", "--git-path", "kanbus/router/worktrees"])
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--git-path", "kanbus/router/worktrees"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as error:
+        raise IssueRouterError(_worktree_directory_error(root, str(error))) from error
+    git_path = completed.stdout.strip()
+    if completed.returncode != 0 or not git_path:
+        detail = completed.stderr.strip() or "git returned an empty path"
+        raise IssueRouterError(_worktree_directory_error(root, detail))
     worktree_root = Path(git_path)
     if not worktree_root.is_absolute():
         worktree_root = root / worktree_root
