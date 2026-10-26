@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import time
 from pathlib import Path
 
 import yaml
@@ -83,3 +85,16 @@ def then_hook_log_not_contains(context: object, relative_path: str, token: str) 
 def then_hook_log_equals(context: object, relative_path: str) -> None:
     content = (_root(context) / relative_path).read_text(encoding="utf-8")
     assert content == (context.text or "").strip() + "\n"
+
+
+@then('the process recorded in "{relative_path}" should not be running')
+def then_recorded_process_not_running(context: object, relative_path: str) -> None:
+    process_identifier = int((_root(context) / relative_path).read_text().strip())
+    deadline = time.monotonic() + 3.0
+    while time.monotonic() < deadline:
+        try:
+            os.kill(process_identifier, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"process {process_identifier} is still running")
