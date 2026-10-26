@@ -121,13 +121,27 @@ pub fn read_dotenv_value(path: &Path, key: &str) -> Option<String> {
 /// * `repository_root` - Repository root containing `.env`, if known.
 /// * `variable` - Environment variable name to resolve.
 pub fn resolve_api_key_source(repository_root: Option<&Path>, variable: &str) -> CredentialSource {
-    let congregation = read_dotenv_value(&crate::config_loader::congregation_env_path(), variable)
-        .filter(|value| !value.is_empty());
+    let process_value = std::env::var(variable).ok();
+    classify_api_key_source(
+        &crate::config_loader::congregation_env_path(),
+        repository_root,
+        variable,
+        process_value,
+    )
+}
+
+fn classify_api_key_source(
+    congregation_path: &Path,
+    repository_root: Option<&Path>,
+    variable: &str,
+    process_value: Option<String>,
+) -> CredentialSource {
+    let congregation =
+        read_dotenv_value(congregation_path, variable).filter(|value| !value.is_empty());
     let project = repository_root
         .and_then(|root| read_dotenv_value(&root.join(".env"), variable))
         .filter(|value| !value.is_empty());
-    let env = std::env::var(variable)
-        .ok()
+    let env = process_value
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
 
@@ -258,37 +272,7 @@ pub fn write_congregation_env_value(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::OsString;
     use tempfile::TempDir;
-
-    struct EnvRestore {
-        home: Option<OsString>,
-        variable: Option<OsString>,
-        variable_name: String,
-    }
-
-    impl EnvRestore {
-        fn capture(variable_name: &str) -> Self {
-            Self {
-                home: std::env::var_os("HOME"),
-                variable: std::env::var_os(variable_name),
-                variable_name: variable_name.to_string(),
-            }
-        }
-    }
-
-    impl Drop for EnvRestore {
-        fn drop(&mut self) {
-            match self.home.take() {
-                Some(value) => std::env::set_var("HOME", value),
-                None => std::env::remove_var("HOME"),
-            }
-            match self.variable.take() {
-                Some(value) => std::env::set_var(&self.variable_name, value),
-                None => std::env::remove_var(&self.variable_name),
-            }
-        }
-    }
 
     #[test]
     fn missing_api_key_message_matches_default_constant() {
@@ -450,18 +434,21 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial]
     fn resolve_api_key_source_covers_all_outcomes() {
-        let _restore = EnvRestore::capture("KANBUS_TEST_RESOLVE_VAR");
         let home_dir = TempDir::new().expect("home tempdir");
-        std::env::set_var("HOME", home_dir.path());
-        std::env::remove_var("KANBUS_TEST_RESOLVE_VAR");
+        let congregation_path = home_dir.path().join(".kanbus.env");
+        let mut process_value: Option<String> = None;
 
         let project_dir = TempDir::new().expect("project tempdir");
 
         // Nothing set anywhere.
         assert_eq!(
-            resolve_api_key_source(Some(project_dir.path()), "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                Some(project_dir.path()),
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::None
         );
 
@@ -472,7 +459,12 @@ mod tests {
         )
         .expect("write congregation env");
         assert_eq!(
-            resolve_api_key_source(Some(project_dir.path()), "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                Some(project_dir.path()),
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::CongregationFile
         );
 
@@ -484,7 +476,12 @@ mod tests {
         )
         .expect("write project env");
         assert_eq!(
-            resolve_api_key_source(Some(project_dir.path()), "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                Some(project_dir.path()),
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::ProjectFile
         );
 
@@ -494,29 +491,49 @@ mod tests {
             "KANBUS_TEST_RESOLVE_VAR=congregation-value\n",
         )
         .expect("write congregation env");
-        std::env::set_var("KANBUS_TEST_RESOLVE_VAR", "congregation-value");
+        process_value = Some("congregation-value".to_string());
         assert_eq!(
-            resolve_api_key_source(Some(project_dir.path()), "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                Some(project_dir.path()),
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::CongregationFile
         );
 
         // Process env set and matches project file (not congregation).
-        std::env::set_var("KANBUS_TEST_RESOLVE_VAR", "project-value");
+        process_value = Some("project-value".to_string());
         assert_eq!(
-            resolve_api_key_source(Some(project_dir.path()), "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                Some(project_dir.path()),
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::ProjectFile
         );
 
         // Process env set to something matching neither file.
-        std::env::set_var("KANBUS_TEST_RESOLVE_VAR", "shell-value");
+        process_value = Some("shell-value".to_string());
         assert_eq!(
-            resolve_api_key_source(Some(project_dir.path()), "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                Some(project_dir.path()),
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::ProcessEnv
         );
 
         // No repository root at all, env set.
         assert_eq!(
-            resolve_api_key_source(None, "KANBUS_TEST_RESOLVE_VAR"),
+            classify_api_key_source(
+                &congregation_path,
+                None,
+                "KANBUS_TEST_RESOLVE_VAR",
+                process_value.clone(),
+            ),
             CredentialSource::ProcessEnv
         );
     }
