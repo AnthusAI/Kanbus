@@ -22,13 +22,14 @@ from kanbus.wiki_templates import (
     DEFAULT_WIKI_WHATS_NEXT,
     DEFAULT_WIKI_WHATS_NEXT_FILENAME,
 )
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import ConfigurationError
 from kanbus.models import ProjectConfiguration
 from kanbus.project import (
     ProjectMarkerError,
     ensure_project_local_directory,
     get_configuration_path,
 )
+from kanbus.project_context import ProjectContext
 
 
 class InitializationError(RuntimeError):
@@ -346,8 +347,31 @@ def detect_repairable_project_issues(
     except ConfigurationError as error:
         raise error
 
-    configuration = load_project_configuration(config_path)
-    project_dir = config_path.parent / configuration.project_directory
+    context = ProjectContext.from_configuration_path(root, config_path)
+    return detect_repairable_project_issues_with_context(
+        context, allow_uninitialized=allow_uninitialized
+    )
+
+
+def detect_repairable_project_issues_with_context(
+    context: ProjectContext | None, *, allow_uninitialized: bool
+) -> RepairPlan | None:
+    """Detect missing project directories using an already built project context.
+
+    :param context: Project context built at command entry, if a configuration exists.
+    :type context: ProjectContext | None
+    :param allow_uninitialized: Whether a missing configuration is tolerated.
+    :type allow_uninitialized: bool
+    :return: A repair plan, or None when the structure is healthy.
+    :rtype: RepairPlan | None
+    :raises ProjectMarkerError: If no configuration exists and it is not tolerated.
+    """
+    if context is None:
+        if allow_uninitialized:
+            return None
+        raise ProjectMarkerError("project not initialized")
+    configuration = context.configuration
+    project_dir = context.repository_root / configuration.project_directory
     try:
         project_dir_stat = project_dir.stat()
     except FileNotFoundError:

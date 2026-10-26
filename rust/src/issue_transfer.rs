@@ -65,7 +65,7 @@ pub fn promote_issue(root: &Path, identifier: &str) -> Result<IssueData, KanbusE
         &result.issue,
         Some(event_id),
         "issue.mutated",
-    );
+    )?;
     Ok(result.issue)
 }
 
@@ -114,7 +114,7 @@ pub fn localize_issue(root: &Path, identifier: &str) -> Result<IssueData, Kanbus
         before_issue: Some(issue.clone()),
         relocate_to: Some(target_path),
     })?;
-    crate::gossip::publish_issue_deleted(root, &project_dir, &issue.identifier, Some(event_id));
+    crate::gossip::publish_issue_deleted(root, &project_dir, &issue.identifier, Some(event_id))?;
     Ok(result.issue)
 }
 

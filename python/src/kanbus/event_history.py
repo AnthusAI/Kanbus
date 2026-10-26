@@ -109,7 +109,27 @@ def write_events_batch(events_dir: Path, events: Iterable[EventRecord]) -> List[
     events_list = list(events)
     if not events_list:
         return []
-    if not events_enabled_for_events_directory(events_dir):
+    events_enabled = events_enabled_for_events_directory(events_dir)
+    return write_events_batch_with_setting(events_dir, events_list, events_enabled)
+
+
+def write_events_batch_with_setting(
+    events_dir: Path, events: Iterable[EventRecord], events_enabled: bool
+) -> List[Path]:
+    """Write events when the already loaded configuration enables them.
+
+    :param events_dir: Events directory that receives the batch.
+    :type events_dir: Path
+    :param events: Events to write.
+    :type events: Iterable[EventRecord]
+    :param events_enabled: The ``events`` setting from the loaded configuration.
+    :type events_enabled: bool
+    :return: Paths of written event files.
+    :rtype: List[Path]
+    :raises RuntimeError: If an event cannot be written.
+    """
+    events_list = list(events)
+    if not events_list or not events_enabled:
         return []
     events_dir.mkdir(parents=True, exist_ok=True)
     written: List[Path] = []

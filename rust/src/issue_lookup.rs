@@ -5,14 +5,13 @@ use std::path::{Path, PathBuf};
 
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::{
-    find_project_local_directory, get_configuration_path, resolve_labeled_projects,
-};
+use crate::file_io::find_project_local_directory;
 use crate::ids::issue_identifier_matches;
 use crate::issue_files::{issue_path_for_identifier, read_issue_from_file};
 use crate::models::IssueData;
 use crate::overlay::{load_overlay_issue, load_tombstone, resolve_issue_with_overlay};
-use crate::project::discover_project_directories;
+use crate::project::discover_project_directories_with_context;
+use crate::project_context::ProjectContext;
 use chrono::{DateTime, Duration, Utc};
 
 /// Issue lookup result.
@@ -35,26 +34,47 @@ pub fn load_issue_from_project(
     root: &Path,
     identifier: &str,
 ) -> Result<IssueLookupResult, KanbusError> {
-    let project_dirs = discover_project_directories(root)?;
+    let context = ProjectContext::discover(root)?;
+    load_issue_from_project_with_context(root, context.as_ref(), identifier)
+}
+
+/// Load an issue by identifier using an already built project context.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `context` - Project context built at command entry, if a configuration exists.
+/// * `identifier` - Issue identifier (full or abbreviated).
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` if the issue cannot be found, and
+/// any configuration error raised while resolving projects.
+pub fn load_issue_from_project_with_context(
+    root: &Path,
+    context: Option<&ProjectContext>,
+    identifier: &str,
+) -> Result<IssueLookupResult, KanbusError> {
+    let project_dirs = discover_project_directories_with_context(root, context)?;
     if project_dirs.is_empty() {
         return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
         ));
     }
-    let root_configuration = load_root_configuration(root)?;
-    let project_labels: std::collections::BTreeMap<PathBuf, String> =
-        resolve_labeled_projects(root)
-            .unwrap_or_default()
+    let root_configuration = context.map(|context| &context.configuration);
+    let project_labels: std::collections::BTreeMap<PathBuf, String> = match context {
+        Some(context) => context
+            .labeled_projects()?
             .into_iter()
             .map(|project| (project.project_dir, project.label))
-            .collect();
+            .collect(),
+        None => std::collections::BTreeMap::new(),
+    };
     let overlay_configs: std::collections::BTreeMap<PathBuf, crate::models::OverlayConfig> =
         project_dirs
             .iter()
             .map(|project_dir| {
                 Ok((
                     project_dir.clone(),
-                    overlay_config_for_project(project_dir, root_configuration.as_ref())?,
+                    overlay_config_for_project(project_dir, root_configuration)?,
                 ))
             })
             .collect::<Result<_, KanbusError>>()?;
@@ -234,15 +254,6 @@ fn find_matching_issues(
     Ok(matches)
 }
 
-fn load_root_configuration(
-    root: &Path,
-) -> Result<Option<crate::models::ProjectConfiguration>, KanbusError> {
-    match get_configuration_path(root) {
-        Ok(config_path) => load_project_configuration(&config_path).map(Some),
-        Err(_) => Ok(None),
-    }
-}
-
 fn disabled_overlay_config() -> crate::models::OverlayConfig {
     crate::models::OverlayConfig {
         enabled: false,
@@ -271,8 +282,6 @@ fn overlay_config_for_project(
 mod tests {
     use super::*;
     use crate::config::default_project_configuration;
-    use std::fs::File;
-    use std::io::Write;
 
     #[test]
     fn tombstone_expired_handles_zero_ttl_and_invalid_timestamp() {
@@ -371,40 +380,5 @@ mod tests {
         let resolved = overlay_config_for_project(&project_dir, None).expect("overlay config");
         assert!(resolved.enabled);
         assert_eq!(resolved.ttl_s, 4321);
-    }
-
-    #[test]
-    fn load_root_configuration_returns_none_when_lookup_fails() {
-        let tempdir = tempfile::tempdir().expect("tempdir");
-        let root = tempdir.path();
-        // Not initialized workspace => no configuration path.
-        assert!(load_root_configuration(root).expect("lookup").is_none());
-    }
-
-    #[test]
-    fn load_root_configuration_fails_on_malformed_configuration() {
-        let tempdir = tempfile::tempdir().expect("tempdir");
-        let root = tempdir.path();
-        std::fs::create_dir_all(root.join("project").join("issues")).expect("create project");
-        std::fs::write(root.join(".kanbus.yml"), "project_key: [unterminated\n")
-            .expect("write config");
-        assert!(load_root_configuration(root).is_err());
-    }
-
-    #[test]
-    fn load_root_configuration_reads_configuration_when_present() {
-        let tempdir = tempfile::tempdir().expect("tempdir");
-        let root = tempdir.path();
-        std::fs::create_dir_all(root.join("project").join("issues")).expect("create project");
-        let mut config = default_project_configuration();
-        config.project_key = "myproj".to_string();
-        let yaml = serde_yaml::to_string(&config).expect("serialize config");
-        let mut file = File::create(root.join(".kanbus.yml")).expect("create config");
-        file.write_all(yaml.as_bytes()).expect("write config");
-
-        let loaded = load_root_configuration(root)
-            .expect("load root config")
-            .expect("configuration present");
-        assert_eq!(loaded.project_key, "myproj");
     }
 }

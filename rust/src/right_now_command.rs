@@ -12,6 +12,7 @@ use crate::file_io::get_configuration_path;
 use crate::issue_listing::list_issues;
 use crate::issue_lookup::load_issue_from_project;
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::project_context::ProjectContext;
 use crate::queries::sort_issues_by_recently_updated;
 use crate::right_now::{
     association_trees_for_seeds, ensure_right_now_summaries, purge_right_now_summaries,
@@ -132,7 +133,7 @@ pub fn run_right_now_command(
         }
         issues = reloaded;
     }
-    let configuration = load_configuration(root);
+    let configuration = load_configuration(root)?;
     let tree_expanded = resolve_tree_expanded(options, configuration.as_ref());
     match options.output_format {
         RightNowOutputFormat::Json => {
@@ -430,9 +431,8 @@ fn select_right_now_issues(
     )
 }
 
-fn load_configuration(root: &Path) -> Option<ProjectConfiguration> {
-    let configuration_path = get_configuration_path(root).ok()?;
-    load_project_configuration(&configuration_path).ok()
+fn load_configuration(root: &Path) -> Result<Option<ProjectConfiguration>, KanbusError> {
+    Ok(ProjectContext::discover(root)?.map(|context| context.configuration))
 }
 
 fn resolve_tree_expanded(

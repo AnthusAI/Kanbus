@@ -32,13 +32,23 @@ def _setup(monkeypatch: pytest.MonkeyPatch, root: Path, issue=None, issue_path=N
     )
     cfg = build_project_configuration(project_directory="project")
 
-    monkeypatch.setattr(issue_update, "load_issue_from_project", lambda *_a: lookup)
-    monkeypatch.setattr(
-        issue_update, "get_configuration_path", lambda _r: root / ".kanbus.yml"
+    project_context = SimpleNamespace(
+        root=root,
+        configuration=cfg,
+        configuration_for_project_directory=lambda _directory: cfg,
     )
-    monkeypatch.setattr(issue_update, "load_project_configuration", lambda _p: cfg)
     monkeypatch.setattr(
-        issue_update, "persist_issue_mutation", stub_persist_issue_mutation()
+        issue_update.ProjectContext,
+        "discover",
+        classmethod(lambda _cls, _root: project_context),
+    )
+    monkeypatch.setattr(
+        issue_update, "load_issue_from_project_with_context", lambda *_a: lookup
+    )
+    monkeypatch.setattr(
+        issue_update,
+        "persist_issue_mutation_with_events_setting",
+        stub_persist_issue_mutation(),
     )
     monkeypatch.setattr(
         issue_update, "now_timestamp", lambda: "2026-03-09T00:00:00.000Z"
@@ -49,7 +59,9 @@ def _setup(monkeypatch: pytest.MonkeyPatch, root: Path, issue=None, issue_path=N
         "build_update_events",
         lambda *_a: [SimpleNamespace(event_id="evt-1")],
     )
-    monkeypatch.setattr(issue_update, "publish_issue_mutation", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_update, "publish_issue_mutation_with_context", lambda *_a: None
+    )
     monkeypatch.setattr(issue_update, "validate_status_value", lambda *_a: None)
     monkeypatch.setattr(issue_update, "validate_status_transition", lambda *_a: None)
     monkeypatch.setattr(
@@ -66,7 +78,7 @@ def test_update_issue_wraps_lookup_error(
 ) -> None:
     monkeypatch.setattr(
         issue_update,
-        "load_issue_from_project",
+        "load_issue_from_project_with_context",
         lambda *_a: (_ for _ in ()).throw(IssueLookupError("missing")),
     )
     with pytest.raises(issue_update.IssueUpdateError, match="missing"):
@@ -90,7 +102,7 @@ def test_update_issue_matching_values_succeed_without_write(
     persist_calls: list[PersistIssueMutationRequest] = []
     monkeypatch.setattr(
         issue_update,
-        "persist_issue_mutation",
+        "persist_issue_mutation_with_events_setting",
         stub_persist_issue_mutation(persist_calls),
     )
     result = issue_update.update_issue(
@@ -201,7 +213,7 @@ def test_update_issue_happy_path_with_labels_and_claim(
     persist_calls: list[object] = []
     monkeypatch.setattr(
         issue_update,
-        "persist_issue_mutation",
+        "persist_issue_mutation_with_events_setting",
         stub_persist_issue_mutation(persist_calls),
     )
 
@@ -359,7 +371,7 @@ def test_update_issue_event_write_failure_rolls_back(
     _setup(monkeypatch, tmp_path)
     monkeypatch.setattr(
         issue_update,
-        "persist_issue_mutation",
+        "persist_issue_mutation_with_events_setting",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("event fail")),
     )
     with pytest.raises(issue_update.IssueUpdateError, match="event fail"):

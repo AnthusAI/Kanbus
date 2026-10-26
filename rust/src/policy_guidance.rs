@@ -15,6 +15,7 @@ use crate::policy_evaluator::{
 };
 use crate::policy_loader::load_policies;
 use crate::project::load_project_directory;
+use crate::project_context::ProjectContext;
 use crate::rich_text_signals::emit_stderr_line;
 
 /// Return true if guidance hooks are enabled.
@@ -36,10 +37,14 @@ struct LoadedGuidanceEnvironment {
 
 fn load_guidance_environment(
     root: &Path,
+    context: Option<&ProjectContext>,
     operation: PolicyOperation,
     seed_issue: &IssueData,
 ) -> Result<Option<LoadedGuidanceEnvironment>, KanbusError> {
-    let project_dir = load_project_directory(root)?;
+    let project_dir = match context {
+        Some(context) => context.primary_project_directory()?,
+        None => load_project_directory(root)?,
+    };
     let policies_dir = project_dir.join("policies");
     if !policies_dir.is_dir() {
         return Ok(None);
@@ -50,8 +55,12 @@ fn load_guidance_environment(
         return Ok(None);
     }
 
-    let config_path = get_configuration_path(&project_dir)?;
-    let configuration = load_project_configuration(&config_path)?;
+    let configuration = match context {
+        Some(context) => context
+            .configuration_for_project_directory(&project_dir)?
+            .into_owned(),
+        None => load_project_configuration(&get_configuration_path(&project_dir)?)?,
+    };
     let issues_dir = project_dir.join("issues");
     let all_issues = load_issues_from_directory(&issues_dir)?;
 
@@ -91,27 +100,49 @@ pub fn collect_guidance_for_issue(
     issue: &IssueData,
     operation: PolicyOperation,
 ) -> Result<PolicyEvaluationReport, KanbusError> {
-    match load_guidance_environment(root, operation, issue)? {
+    let context = ProjectContext::discover(root)?;
+    match load_guidance_environment(root, context.as_ref(), operation, issue)? {
         None => Ok(PolicyEvaluationReport::default()),
         Some(mut environment) => Ok(evaluate_guidance_in_environment(&mut environment, issue)),
     }
 }
 
 /// Run non-blocking guidance hooks and emit results to stderr.
+///
+/// Configuration errors are returned; other guidance failures stay non-blocking.
 pub fn emit_guidance_for_issues(
     root: &Path,
     issues: &[IssueData],
     operation: PolicyOperation,
     no_guidance: bool,
-) {
+) -> Result<(), KanbusError> {
     if !guidance_enabled(no_guidance) || issues.is_empty() {
-        return;
+        return Ok(());
+    }
+    let context = ProjectContext::discover(root)?;
+    emit_guidance_for_issues_with_context(root, context.as_ref(), issues, operation, no_guidance)
+}
+
+/// Run non-blocking guidance hooks using an already built project context.
+///
+/// Configuration errors are returned; other guidance failures stay non-blocking.
+pub fn emit_guidance_for_issues_with_context(
+    root: &Path,
+    context: Option<&ProjectContext>,
+    issues: &[IssueData],
+    operation: PolicyOperation,
+    no_guidance: bool,
+) -> Result<(), KanbusError> {
+    if !guidance_enabled(no_guidance) || issues.is_empty() {
+        return Ok(());
     }
 
     let mut collected: Vec<GuidanceItem> = Vec::new();
-    let mut environment = match load_guidance_environment(root, operation, &issues[0]) {
+    let mut environment = match load_guidance_environment(root, context, operation, &issues[0]) {
         Ok(Some(environment)) => environment,
-        Ok(None) | Err(_) => return,
+        Ok(None) => return Ok(()),
+        Err(error @ KanbusError::Configuration(_)) => return Err(error),
+        Err(_) => return Ok(()),
     };
     for issue in issues {
         let report = evaluate_guidance_in_environment(&mut environment, issue);
@@ -172,6 +203,7 @@ pub fn emit_guidance_for_issues(
             emit_stderr_line(&format!("  Explanation: {explanation}"));
         }
     }
+    Ok(())
 }
 
 /// Sort and de-duplicate guidance items with warnings first.

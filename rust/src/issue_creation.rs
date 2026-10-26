@@ -3,21 +3,20 @@
 use chrono::Utc;
 use std::path::{Path, PathBuf};
 
-use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::event_history::{issue_created_payload, now_timestamp, EventRecord, EventType};
 use crate::hierarchy::validate_parent_child_relationship;
 use crate::ids::{generate_issue_identifier, issue_identifier_matches, IssueIdentifierRequest};
 use crate::issue_files::{issue_path_for_identifier, list_issue_identifiers, read_issue_from_file};
-use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
+use crate::issue_mutation::{
+    persist_issue_mutation_with_events_setting, PersistIssueMutationRequest,
+};
 use crate::models::{IssueData, ProjectConfiguration};
+use crate::project_context::ProjectContext;
 use crate::users::get_current_user;
 use crate::workflows::validate_status_value;
 use crate::{
-    file_io::{
-        ensure_project_local_directory, find_project_local_directory, get_configuration_path,
-        load_project_directory,
-    },
+    file_io::{ensure_project_local_directory, find_project_local_directory},
     models::DependencyLink,
 };
 
@@ -53,15 +52,30 @@ pub struct IssueCreationResult {
 /// # Errors
 /// Returns `KanbusError` if validation or file operations fail.
 pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResult, KanbusError> {
-    let project_dir = load_project_directory(request.root.as_path())?;
+    let context = ProjectContext::require(request.root.as_path())?;
+    create_issue_with_context(request, &context)
+}
+
+/// Create a new issue using an already built project context.
+///
+/// # Arguments
+/// * `request` - Issue creation request payload.
+/// * `context` - Project context built at command entry.
+///
+/// # Errors
+/// Returns `KanbusError` if validation or file operations fail.
+pub fn create_issue_with_context(
+    request: &IssueCreationRequest,
+    context: &ProjectContext,
+) -> Result<IssueCreationResult, KanbusError> {
+    let project_dir = context.primary_project_directory()?;
     let mut issues_dir = project_dir.join("issues");
     let mut local_dir = find_project_local_directory(&project_dir);
     if request.local {
         local_dir = Some(ensure_project_local_directory(&project_dir)?);
         issues_dir = local_dir.as_ref().expect("local dir").join("issues");
     }
-    let config_path = get_configuration_path(request.root.as_path())?;
-    let configuration = load_project_configuration(&config_path)?;
+    let configuration = context.configuration.clone();
 
     let resolved_type = request.issue_type.as_deref().unwrap_or("task");
     let resolved_priority = request.priority.unwrap_or(configuration.default_priority);
@@ -177,25 +191,28 @@ pub fn create_issue(request: &IssueCreationRequest) -> Result<IssueCreationResul
         issue_created_payload(&issue),
         occurred_at,
     );
-    persist_issue_mutation(&PersistIssueMutationRequest {
-        project_dir: project_dir.clone(),
-        issue_path,
-        issue: issue.clone(),
-        actor_id: get_current_user(),
-        events: vec![event.clone()],
-        before_issue: None,
-        relocate_to: None,
-    })?;
+    persist_issue_mutation_with_events_setting(
+        &PersistIssueMutationRequest {
+            project_dir: project_dir.clone(),
+            issue_path,
+            issue: issue.clone(),
+            actor_id: get_current_user(),
+            events: vec![event.clone()],
+            before_issue: None,
+            relocate_to: None,
+        },
+        context.configuration.events,
+    )?;
     let event_id = event.event_id.clone();
 
     if !request.local {
-        crate::gossip::publish_issue_mutation(
-            request.root.as_path(),
+        crate::gossip::publish_issue_mutation_with_context(
+            context,
             &project_dir,
             &issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
 
     Ok(IssueCreationResult {

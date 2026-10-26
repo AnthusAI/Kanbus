@@ -34,29 +34,27 @@ use crate::dependency_tree::{build_dependency_tree, render_dependency_tree};
 use crate::doctor::run_doctor;
 use crate::error::KanbusError;
 use crate::file_io::{
-    canonicalize_path, detect_repairable_project_issues, ensure_git_repository,
-    get_configuration_path, initialize_project, repair_project_structure, resolve_root,
+    canonicalize_path, detect_repairable_project_issues,
+    detect_repairable_project_issues_with_context, ensure_git_repository, get_configuration_path,
+    initialize_project, repair_project_structure, resolve_root,
 };
 use crate::github_security_sync::{pull_dependabot_from_github, pull_dependabot_from_github_beads};
 use crate::hooks::{
-    list_hooks, run_lifecycle_hooks, serialize_issue, validate_hooks, HookEvent,
+    list_hooks, run_lifecycle_hooks_with_context, serialize_issue, validate_hooks, HookEvent,
     HookExecutionOptions, HookPhase,
 };
 use crate::ids::format_issue_key;
 use crate::issue_close::close_issue;
-use crate::issue_comment::{
-    add_comment, delete_comment, ensure_issue_comment_ids, load_issue_with_display_comment_ids,
-    update_comment,
-};
+use crate::issue_comment::{add_comment, delete_comment, ensure_issue_comment_ids, update_comment};
 use crate::issue_commit::commit_project_issues;
-use crate::issue_creation::{create_issue, IssueCreationRequest};
+use crate::issue_creation::{create_issue_with_context, IssueCreationRequest};
 use crate::issue_delete::delete_issue;
 use crate::issue_display::format_issue_for_display;
 use crate::issue_line::{compute_widths, format_empty_status_lines, format_issue_line};
-use crate::issue_listing::list_issues;
-use crate::issue_lookup::load_issue_from_project;
+use crate::issue_listing::{list_issues, list_issues_with_context};
+use crate::issue_lookup::{load_issue_from_project, load_issue_from_project_with_context};
 use crate::issue_transfer::{localize_issue, promote_issue};
-use crate::issue_update::update_issue;
+use crate::issue_update::{update_issue, update_issue_with_context};
 use crate::jira_sync::pull_from_jira;
 use crate::kanbus_version::enforce_kanbus_version;
 use crate::maintenance::{collect_project_stats, validate_project};
@@ -65,6 +63,7 @@ use crate::migration::{
     migrate_from_beads_into_project,
 };
 use crate::models::IssueData;
+use crate::project_context::{locate_configuration_path, ProjectContext};
 use crate::queries::{filter_issues, search_issues};
 use crate::rich_text_signals::{
     apply_text_quality_signals, emit_signals, start_stderr_capture, take_captured_stderr,
@@ -1489,21 +1488,32 @@ where
         root
     };
     let root = canonicalize_path(&root).unwrap_or(root);
-    if let Ok(configuration_path) = get_configuration_path(&root) {
-        let repository_root = configuration_path.parent().unwrap_or(&root);
-        load_repository_environment(repository_root);
+    let configuration_path = locate_configuration_path(&root)?;
+    if let Some(configuration_path) = configuration_path.as_ref() {
+        load_repository_environment(configuration_path.parent().unwrap_or(&root));
     }
     if should_enforce_kanbus_version(&cli.command) {
         enforce_kanbus_version(&root, env!("GIT_VERSION"))
             .map_err(|error| KanbusError::IssueOperation(error.message().to_string()))?;
     }
-    let (beads_mode, beads_forced) = resolve_beads_mode(&root, beads_flag)?;
+    let context = match configuration_path {
+        Some(configuration_path) => Some(ProjectContext::from_configuration_path(
+            &root,
+            configuration_path,
+        )?),
+        None => None,
+    };
+    if let Some(context) = context.as_ref() {
+        crate::daemon_paths::remember_project_directory(context);
+    }
+    let (beads_mode, beads_forced) = resolve_beads_mode(context.as_ref(), beads_flag);
     let no_guidance = cli.no_guidance;
     let no_hooks = cli.no_hooks;
-    maybe_prompt_project_repair(&cli.command, &root)?;
+    maybe_prompt_project_repair(&cli.command, context.as_ref())?;
     let stdout = execute_command(
         cli.command,
         &root,
+        context.as_ref(),
         beads_mode,
         beads_forced,
         no_guidance,
@@ -1518,29 +1528,35 @@ where
     })
 }
 
-fn resolve_beads_mode(root: &Path, beads_flag: bool) -> Result<(bool, bool), KanbusError> {
+fn resolve_beads_mode(context: Option<&ProjectContext>, beads_flag: bool) -> (bool, bool) {
     if beads_flag {
-        return Ok((true, true));
+        return (true, true);
     }
-    let configuration_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(KanbusError::IssueOperation(message)) if message == "project not initialized" => {
-            return Ok((false, false))
-        }
-        Err(KanbusError::Io(message)) if message == "configuration path lookup failed" => {
-            return Ok((false, false))
-        }
-        Err(error) => return Err(error),
-    };
-    let configuration = load_project_configuration(&configuration_path)?;
-    Ok((configuration.beads_compatibility, false))
+    match context {
+        Some(context) => (context.configuration.beads_compatibility, false),
+        None => (false, false),
+    }
 }
 
-fn beads_root(root: &Path) -> std::path::PathBuf {
-    get_configuration_path(root)
+fn load_issues_for_display(
+    beads_mode: bool,
+    lookup_root: &Path,
+    lookup_context: Option<&ProjectContext>,
+) -> Option<Vec<IssueData>> {
+    if beads_mode {
+        return None;
+    }
+    let lookup_context = lookup_context?;
+    crate::console_backend::FileStore::new(lookup_root)
+        .load_issues(&lookup_context.configuration)
         .ok()
-        .and_then(|p| p.parent().map(std::path::PathBuf::from))
-        .unwrap_or_else(|| root.to_path_buf())
+}
+
+fn beads_root(root: &Path, context: Option<&ProjectContext>) -> std::path::PathBuf {
+    match context {
+        Some(context) => context.repository_root.clone(),
+        None => root.to_path_buf(),
+    }
 }
 
 fn is_valid_environment_variable_name(name: &str) -> bool {
@@ -1700,11 +1716,14 @@ fn should_enforce_kanbus_version(command: &Commands) -> bool {
     )
 }
 
-fn maybe_prompt_project_repair(command: &Commands, root: &Path) -> Result<(), KanbusError> {
+fn maybe_prompt_project_repair(
+    command: &Commands,
+    context: Option<&ProjectContext>,
+) -> Result<(), KanbusError> {
     if !should_check_project_structure(command) {
         return Ok(());
     }
-    let plan = match detect_repairable_project_issues(root, true)? {
+    let plan = match detect_repairable_project_issues_with_context(context, true)? {
         Some(plan) => plan,
         None => return Ok(()),
     };
@@ -1765,24 +1784,34 @@ fn deprecated_create_focus_error() -> KanbusError {
 
 fn run_lifecycle_hooks_for_context(
     root: &Path,
+    context: Option<&ProjectContext>,
     phase: HookPhase,
     event: HookEvent,
     operation: serde_json::Value,
     issues_for_policy: &[IssueData],
     options: HookExecutionOptions,
 ) -> Result<(), KanbusError> {
-    run_lifecycle_hooks(root, phase, event, operation, issues_for_policy, options)
+    run_lifecycle_hooks_with_context(
+        root,
+        context,
+        phase,
+        event,
+        operation,
+        issues_for_policy,
+        options,
+    )
 }
 
 fn execute_command(
     command: Commands,
     root: &Path,
+    context: Option<&ProjectContext>,
     beads_mode: bool,
     _beads_forced: bool,
     no_guidance: bool,
     no_hooks: bool,
 ) -> Result<Option<String>, KanbusError> {
-    let root_for_beads = beads_root(root);
+    let root_for_beads = beads_root(root, context);
     let hook_options = HookExecutionOptions {
         beads_mode,
         no_hooks,
@@ -2082,6 +2111,7 @@ fn execute_command(
             }
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueCreate,
                 serde_json::json!({
@@ -2119,6 +2149,7 @@ fn execute_command(
                 }
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::After,
                     HookEvent::IssueCreate,
                     serde_json::json!({
@@ -2148,7 +2179,10 @@ fn execute_command(
                 requested_id: id,
                 agent: agent_metadata,
             };
-            let result = create_issue(&request)?;
+            let create_context = context.ok_or_else(|| {
+                KanbusError::IssueOperation("project not initialized".to_string())
+            })?;
+            let result = create_issue_with_context(&request, create_context)?;
             let configuration = result.configuration;
             let issue = result.issue;
 
@@ -2166,6 +2200,7 @@ fn execute_command(
             );
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueCreate,
                 serde_json::json!({
@@ -2184,9 +2219,19 @@ fn execute_command(
             project_root,
         } => {
             let lookup_root = project_root.as_deref().unwrap_or(root);
-            let beads_root_for_show = beads_root(lookup_root);
+            let lookup_context_owned = match project_root.as_deref() {
+                Some(project_root_path) => ProjectContext::discover(project_root_path)?,
+                None => None,
+            };
+            let lookup_context = if project_root.is_some() {
+                lookup_context_owned.as_ref()
+            } else {
+                context
+            };
+            let beads_root_for_show = beads_root(lookup_root, lookup_context);
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueShow,
                 serde_json::json!({
@@ -2206,20 +2251,25 @@ fn execute_command(
                 beads_issue = normalized;
 
                 // Merge data from project copy if present to surface cross-mode changes
-                if let Ok(project_lookup) = load_issue_from_project(root, &identifier) {
+                if let Ok(project_lookup) =
+                    load_issue_from_project_with_context(root, context, &identifier)
+                {
                     let project_issue = project_lookup.issue;
                     beads_issue = merge_issue_views(beads_issue, project_issue);
                 }
 
                 (beads_issue, None)
             } else {
-                match load_issue_from_project(lookup_root, &identifier) {
+                match load_issue_from_project_with_context(lookup_root, lookup_context, &identifier)
+                {
                     Ok(lookup) => {
-                        let configuration = load_project_configuration(&get_configuration_path(
-                            lookup.project_dir.as_path(),
-                        )?)?;
-                        let mut issue =
-                            load_issue_with_display_comment_ids(lookup_root, &identifier)?;
+                        let lookup_context = lookup_context.ok_or_else(|| {
+                            KanbusError::IssueOperation("project not initialized".to_string())
+                        })?;
+                        let configuration = lookup_context
+                            .configuration_for_project_directory(lookup.project_dir.as_path())?
+                            .into_owned();
+                        let mut issue = crate::issue_comment::ensure_comment_ids(&lookup.issue).0;
                         if configuration.beads_compatibility {
                             if let Ok(beads_issue) =
                                 load_beads_issue_by_id(&beads_root_for_show, &identifier)
@@ -2237,7 +2287,7 @@ fn execute_command(
                         };
                         let configuration_path = beads_root.join(".kanbus.yml");
                         let configuration = if configuration_path.is_file() {
-                            load_project_configuration(&configuration_path).ok()
+                            Some(load_project_configuration(&configuration_path)?)
                         } else {
                             None
                         };
@@ -2258,16 +2308,8 @@ fn execute_command(
                     let mut new_issue = issue.clone();
                     crate::summarize::apply_virtualized_issue_view(&mut new_issue, raw);
                     let use_color = should_use_color();
-                    let all_issues = if beads_mode {
-                        None
-                    } else {
-                        let store = crate::console_backend::FileStore::new(lookup_root);
-                        if let Ok(config) = store.load_config() {
-                            store.load_issues(&config).ok()
-                        } else {
-                            None
-                        }
-                    };
+                    let all_issues =
+                        load_issues_for_display(beads_mode, lookup_root, lookup_context);
                     format_issue_for_display(
                         &new_issue,
                         configuration.as_ref(),
@@ -2277,16 +2319,8 @@ fn execute_command(
                     )
                 } else {
                     let use_color = should_use_color();
-                    let all_issues = if beads_mode {
-                        None
-                    } else {
-                        let store = crate::console_backend::FileStore::new(lookup_root);
-                        if let Ok(config) = store.load_config() {
-                            store.load_issues(&config).ok()
-                        } else {
-                            None
-                        }
-                    };
+                    let all_issues =
+                        load_issues_for_display(beads_mode, lookup_root, lookup_context);
                     format_issue_for_display(
                         &issue,
                         configuration.as_ref(),
@@ -2298,6 +2332,7 @@ fn execute_command(
             };
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueShow,
                 serde_json::json!({
@@ -2377,12 +2412,13 @@ fn execute_command(
             let before_issue_for_hooks = if beads_mode {
                 load_beads_issue_by_id(&root_for_beads, &identifier).ok()
             } else {
-                load_issue_from_project(root, &identifier)
+                load_issue_from_project_with_context(root, context, &identifier)
                     .ok()
                     .map(|lookup| lookup.issue)
             };
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueUpdate,
                 serde_json::json!({
@@ -2538,8 +2574,9 @@ fn execute_command(
                 )?;
                 after_issue_for_hooks = load_beads_issue_by_id(&root_for_beads, &identifier).ok();
             } else {
-                let update_result = update_issue(
+                let update_result = update_issue_with_context(
                     root,
+                    context,
                     &identifier,
                     title_value,
                     final_description_value,
@@ -2566,6 +2603,7 @@ fn execute_command(
                     .unwrap_or_default();
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::After,
                     HookEvent::IssueUpdate,
                     serde_json::json!({
@@ -2601,6 +2639,7 @@ fn execute_command(
                 .unwrap_or_default();
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueUpdate,
                 serde_json::json!({
@@ -2637,6 +2676,7 @@ fn execute_command(
                 .map(|lookup| lookup.issue);
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueUpdate,
                 serde_json::json!({
@@ -2668,6 +2708,7 @@ fn execute_command(
             let moved_issue = update_result.issue;
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueUpdate,
                 serde_json::json!({
@@ -2713,6 +2754,7 @@ fn execute_command(
                 }
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::Before,
                     HookEvent::IssueUpdate,
                     serde_json::json!({
@@ -2797,6 +2839,7 @@ fn execute_command(
 
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::After,
                     HookEvent::IssueUpdate,
                     serde_json::json!({
@@ -2835,6 +2878,7 @@ fn execute_command(
                 };
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::Before,
                     HookEvent::IssueComment,
                     serde_json::json!({
@@ -2879,6 +2923,7 @@ fn execute_command(
                 };
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::After,
                     HookEvent::IssueComment,
                     serde_json::json!({
@@ -2900,6 +2945,7 @@ fn execute_command(
             };
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueClose,
                 serde_json::json!({
@@ -2934,6 +2980,7 @@ fn execute_command(
                 .unwrap_or_default();
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueClose,
                 serde_json::json!({
@@ -3022,6 +3069,7 @@ fn execute_command(
                 }
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::Before,
                     HookEvent::IssueDelete,
                     serde_json::json!({
@@ -3036,6 +3084,7 @@ fn execute_command(
                 let formatted_identifier = format_issue_key(&identifier, false);
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::After,
                     HookEvent::IssueDelete,
                     serde_json::json!({
@@ -3096,6 +3145,7 @@ fn execute_command(
             }
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueDelete,
                 serde_json::json!({
@@ -3121,6 +3171,7 @@ fn execute_command(
                 .unwrap_or_default();
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueDelete,
                 serde_json::json!({
@@ -3281,6 +3332,7 @@ fn execute_command(
                 };
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::Before,
                     HookEvent::IssueComment,
                     serde_json::json!({
@@ -3334,6 +3386,7 @@ fn execute_command(
                         .map(|agent| format!("Agent: {}", format_agent_display_line(agent)));
                     run_lifecycle_hooks_for_context(
                         root,
+                        context,
                         HookPhase::After,
                         HookEvent::IssueComment,
                         serde_json::json!({
@@ -3349,6 +3402,7 @@ fn execute_command(
                 };
                 run_lifecycle_hooks_for_context(
                     root,
+                    context,
                     HookPhase::After,
                     HookEvent::IssueComment,
                     serde_json::json!({
@@ -3369,6 +3423,7 @@ fn execute_command(
                 .map(|lookup| lookup.issue);
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssuePromote,
                 serde_json::json!({
@@ -3381,6 +3436,7 @@ fn execute_command(
             let issue = promote_issue(root, &identifier)?;
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssuePromote,
                 serde_json::json!({
@@ -3399,6 +3455,7 @@ fn execute_command(
                 .map(|lookup| lookup.issue);
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueLocalize,
                 serde_json::json!({
@@ -3411,6 +3468,7 @@ fn execute_command(
             let issue = localize_issue(root, &identifier)?;
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueLocalize,
                 serde_json::json!({
@@ -3447,6 +3505,7 @@ fn execute_command(
             let effective_limit = if all { 0 } else { limit.unwrap_or(0) };
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueList,
                 serde_json::json!({
@@ -3495,8 +3554,9 @@ fn execute_command(
                 });
                 searched
             } else {
-                list_issues(
+                list_issues_with_context(
                     root,
+                    context,
                     status.as_deref(),
                     issue_type.as_deref(),
                     assignee.as_deref(),
@@ -3515,15 +3575,7 @@ fn execute_command(
             let configuration = if beads_mode {
                 None
             } else {
-                match get_configuration_path(root) {
-                    Ok(path) => Some(load_project_configuration(&path)?),
-                    Err(KanbusError::IssueOperation(message))
-                        if message == "project not initialized" =>
-                    {
-                        None
-                    }
-                    Err(error) => return Err(error),
-                }
+                context.map(|context| &context.configuration)
             };
             let project_context = if beads_mode || full_ids {
                 false
@@ -3545,13 +3597,13 @@ fn execute_command(
                         widths.as_ref(),
                         porcelain,
                         project_context,
-                        configuration.as_ref(),
+                        configuration,
                         None,
                     )
                 })
                 .collect::<Vec<_>>();
             if !porcelain {
-                if let Some(configuration) = configuration.as_ref() {
+                if let Some(configuration) = configuration {
                     lines.extend(format_empty_status_lines(
                         &issues,
                         configuration,
@@ -3561,6 +3613,7 @@ fn execute_command(
             }
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueList,
                 serde_json::json!({
@@ -3669,6 +3722,7 @@ fn execute_command(
             };
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueDependency,
                 serde_json::json!({
@@ -3705,6 +3759,7 @@ fn execute_command(
             };
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueDependency,
                 serde_json::json!({
@@ -3726,6 +3781,7 @@ fn execute_command(
         } => {
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::Before,
                 HookEvent::IssueReady,
                 serde_json::json!({
@@ -3754,6 +3810,7 @@ fn execute_command(
             }
             run_lifecycle_hooks_for_context(
                 root,
+                context,
                 HookPhase::After,
                 HookEvent::IssueReady,
                 serde_json::json!({
@@ -4186,7 +4243,7 @@ fn execute_command(
         },
         Commands::Hooks { command } => match command {
             HooksCommands::List => {
-                let mut rows = list_hooks(root);
+                let mut rows = list_hooks(root)?;
                 rows.sort_by(|a, b| {
                     a.source
                         .cmp(&b.source)
@@ -4219,7 +4276,7 @@ fn execute_command(
                 Ok(Some(lines.join("\n")))
             }
             HooksCommands::Validate => {
-                let issues = validate_hooks(root);
+                let issues = validate_hooks(root)?;
                 if issues.is_empty() {
                     return Ok(Some("Hook configuration is valid.".to_string()));
                 }
@@ -5136,8 +5193,7 @@ mod tests {
 
     #[test]
     fn resolve_beads_mode_returns_false_for_uninitialized_root() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let (beads_mode, forced) = resolve_beads_mode(temp.path(), false).expect("beads mode");
+        let (beads_mode, forced) = resolve_beads_mode(None, false);
         assert!(!beads_mode);
         assert!(!forced);
     }
@@ -5150,7 +5206,8 @@ mod tests {
         let yaml = serde_yaml::to_string(&config).expect("serialize config");
         std::fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
 
-        let (beads_mode, forced) = resolve_beads_mode(temp.path(), false).expect("beads mode");
+        let context = ProjectContext::require(temp.path()).expect("project context");
+        let (beads_mode, forced) = resolve_beads_mode(Some(&context), false);
         assert!(beads_mode);
         assert!(!forced);
     }
@@ -5164,7 +5221,8 @@ mod tests {
         let yaml = serde_yaml::to_string(&config).expect("serialize config");
         std::fs::write(temp.path().join(".kanbus.yml"), yaml).expect("write config");
 
-        assert_eq!(beads_root(&nested), temp.path());
+        let context = ProjectContext::require(&nested).expect("project context");
+        assert_eq!(beads_root(&nested, Some(&context)), temp.path());
     }
 }
 

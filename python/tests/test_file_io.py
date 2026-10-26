@@ -155,7 +155,9 @@ def test_detect_repairable_project_issues_paths(
     config = build_project_configuration(project_directory="project")
     config_path = tmp_path / ".kanbus.yml"
     monkeypatch.setattr(file_io, "get_configuration_path", lambda _root: config_path)
-    monkeypatch.setattr(file_io, "load_project_configuration", lambda _path: config)
+    monkeypatch.setattr(
+        "kanbus.project_context.load_project_configuration", lambda _path: config
+    )
 
     missing_project = file_io.detect_repairable_project_issues(
         tmp_path, allow_uninitialized=False

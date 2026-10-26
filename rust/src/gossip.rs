@@ -28,6 +28,7 @@ use crate::error::KanbusError;
 use crate::file_io::{get_configuration_path, resolve_labeled_projects};
 use crate::models::{IssueData, OverlayConfig, ProjectConfiguration, RealtimeConfig};
 use crate::overlay::{write_overlay_issue, write_tombstone, OverlayTombstone};
+use crate::project_context::ProjectContext;
 
 /// Realtime gossip envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -230,30 +231,38 @@ mod dedupe_tests {
 }
 
 /// Publish a gossip envelope for an issue mutation.
+///
+/// # Errors
+/// Returns the configuration error when the project configuration is invalid.
 pub fn publish_issue_mutation(
     root: &Path,
     project_dir: &Path,
     issue: &IssueData,
     event_id: Option<String>,
     event_type: &str,
-) {
-    let config_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(_) => return,
+) -> Result<(), KanbusError> {
+    let Some(context) = ProjectContext::discover(root)? else {
+        return Ok(());
     };
-    let configuration = match load_project_configuration(&config_path) {
-        Ok(config) => config,
-        Err(_) => return,
-    };
+    publish_issue_mutation_with_context(&context, project_dir, issue, event_id, event_type)
+}
+
+/// Publish a gossip envelope for an issue mutation using a built project context.
+pub fn publish_issue_mutation_with_context(
+    context: &ProjectContext,
+    project_dir: &Path,
+    issue: &IssueData,
+    event_id: Option<String>,
+    event_type: &str,
+) -> Result<(), KanbusError> {
+    let root = context.root.as_path();
+    let configuration = &context.configuration;
     if configuration.realtime.broker == "off" {
-        return;
+        return Ok(());
     }
-    let project_label = resolve_project_label(root, project_dir, &configuration);
-    let Some(project_label) = project_label else {
-        return;
-    };
-    let Some(project_identity) = realtime_project_id(&configuration) else {
-        return;
+    let project_label = resolve_project_label(context, project_dir)?;
+    let Some(project_identity) = realtime_project_id(configuration) else {
+        return Ok(());
     };
     let envelope = GossipEnvelope {
         id: Uuid::new_v4().to_string(),
@@ -269,35 +278,33 @@ pub fn publish_issue_mutation(
         coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_identity);
-    if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
+    if let Err(error) = publish_envelope(root, configuration, &topic, &envelope) {
         eprintln!("warning: realtime publish failed: {error}");
     }
+    Ok(())
 }
 
 /// Publish a gossip envelope for an issue deletion.
+///
+/// # Errors
+/// Returns the configuration error when the project configuration is invalid.
 pub fn publish_issue_deleted(
     root: &Path,
     project_dir: &Path,
     issue_id: &str,
     event_id: Option<String>,
-) {
-    let config_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(_) => return,
+) -> Result<(), KanbusError> {
+    let Some(context) = ProjectContext::discover(root)? else {
+        return Ok(());
     };
-    let configuration = match load_project_configuration(&config_path) {
-        Ok(config) => config,
-        Err(_) => return,
-    };
+    let root = context.root.as_path();
+    let configuration = &context.configuration;
     if configuration.realtime.broker == "off" {
-        return;
+        return Ok(());
     }
-    let project_label = resolve_project_label(root, project_dir, &configuration);
-    let Some(project_label) = project_label else {
-        return;
-    };
-    let Some(project_identity) = realtime_project_id(&configuration) else {
-        return;
+    let project_label = resolve_project_label(&context, project_dir)?;
+    let Some(project_identity) = realtime_project_id(configuration) else {
+        return Ok(());
     };
     let envelope = GossipEnvelope {
         id: Uuid::new_v4().to_string(),
@@ -313,15 +320,19 @@ pub fn publish_issue_deleted(
         coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_identity);
-    if let Err(error) = publish_envelope(root, &configuration, &topic, &envelope) {
+    if let Err(error) = publish_envelope(root, configuration, &topic, &envelope) {
         eprintln!("warning: realtime publish failed: {error}");
     }
+    Ok(())
 }
 
 /// Publish a coordination envelope through MQTT only.
 ///
 /// Coordination gossip is an optional fast path. A missing or unreachable
 /// broker returns `false` so the caller can continue with Git history.
+///
+/// # Errors
+/// Returns the configuration error when the project configuration is invalid.
 pub fn publish_coordination_gossip(
     root: &Path,
     project_dir: &Path,
@@ -329,20 +340,35 @@ pub fn publish_coordination_gossip(
     event_id: &str,
     message_ts: Option<&str>,
     fields: CoordinationGossipFields,
+) -> Result<bool, KanbusError> {
+    let Some(context) = ProjectContext::discover(root)? else {
+        return Ok(false);
+    };
+    let project_label = resolve_project_label(&context, project_dir)?;
+    Ok(publish_coordination_gossip_with_configuration(
+        &context.configuration,
+        project_label,
+        project_dir,
+        event_type,
+        event_id,
+        message_ts,
+        fields,
+    ))
+}
+
+fn publish_coordination_gossip_with_configuration(
+    configuration: &ProjectConfiguration,
+    project_label: String,
+    project_dir: &Path,
+    event_type: &str,
+    event_id: &str,
+    message_ts: Option<&str>,
+    fields: CoordinationGossipFields,
 ) -> bool {
-    let Ok(config_path) = get_configuration_path(root) else {
-        return false;
-    };
-    let Ok(configuration) = load_project_configuration(&config_path) else {
-        return false;
-    };
     if !coordination_mqtt_available(&configuration.realtime) {
         return false;
     }
-    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
-        return false;
-    };
-    let Some(project_identity) = realtime_project_id(&configuration) else {
+    let Some(project_identity) = realtime_project_id(configuration) else {
         return false;
     };
     let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
@@ -470,8 +496,9 @@ pub fn collect_coordination_gossip_window(
     project_dir: &Path,
     budget: Duration,
     overlay_ttl_s: u64,
-) -> usize {
-    collect_coordination_gossip_window_with(root, project_dir, budget, overlay_ttl_s, || false).0
+) -> Result<usize, KanbusError> {
+    collect_coordination_gossip_window_with(root, project_dir, budget, overlay_ttl_s, || false)
+        .map(|(accepted, _)| accepted)
 }
 
 /// Variant of [`collect_coordination_gossip_window`] that invokes a local
@@ -483,19 +510,38 @@ pub fn collect_coordination_gossip_window_with<F>(
     budget: Duration,
     overlay_ttl_s: u64,
     on_subscribed: F,
-) -> (usize, bool)
+) -> Result<(usize, bool), KanbusError>
 where
     F: FnOnce() -> bool + Send,
 {
     if budget.is_zero() {
-        return (0, false);
+        return Ok((0, false));
     }
-    let Ok(config_path) = get_configuration_path(root) else {
-        return (0, false);
+    let Some(context) = ProjectContext::discover(root)? else {
+        return Ok((0, false));
     };
-    let Ok(configuration) = load_project_configuration(&config_path) else {
-        return (0, false);
-    };
+    let project_label = resolve_project_label(&context, project_dir)?;
+    Ok(collect_coordination_gossip_window_with_configuration(
+        &context.configuration,
+        project_label,
+        project_dir,
+        budget,
+        overlay_ttl_s,
+        on_subscribed,
+    ))
+}
+
+fn collect_coordination_gossip_window_with_configuration<F>(
+    configuration: &ProjectConfiguration,
+    project_label: String,
+    project_dir: &Path,
+    budget: Duration,
+    overlay_ttl_s: u64,
+    on_subscribed: F,
+) -> (usize, bool)
+where
+    F: FnOnce() -> bool + Send,
+{
     if configuration.realtime.broker == "off"
         || !matches!(configuration.realtime.transport.as_str(), "auto" | "mqtt")
         || (configuration.realtime.transport == "auto"
@@ -503,10 +549,7 @@ where
     {
         return (0, false);
     }
-    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
-        return (0, false);
-    };
-    let Some(project_identity) = realtime_project_id(&configuration) else {
+    let Some(project_identity) = realtime_project_id(configuration) else {
         return (0, false);
     };
     let Ok(endpoint) = resolve_broker_endpoint(&configuration.realtime.broker) else {
@@ -621,16 +664,32 @@ pub fn wait_for_coordination_gossip_notification(
     project_dir: &Path,
     budget: Duration,
     overlay_ttl_s: u64,
-) -> bool {
+) -> Result<bool, KanbusError> {
     if budget.is_zero() {
-        return false;
+        return Ok(false);
     }
-    let Ok(config_path) = get_configuration_path(root) else {
-        return false;
+    let Some(context) = ProjectContext::discover(root)? else {
+        return Ok(false);
     };
-    let Ok(configuration) = load_project_configuration(&config_path) else {
-        return false;
-    };
+    let project_label = resolve_project_label(&context, project_dir)?;
+    Ok(
+        wait_for_coordination_gossip_notification_with_configuration(
+            &context.configuration,
+            project_label,
+            project_dir,
+            budget,
+            overlay_ttl_s,
+        ),
+    )
+}
+
+fn wait_for_coordination_gossip_notification_with_configuration(
+    configuration: &ProjectConfiguration,
+    project_label: String,
+    project_dir: &Path,
+    budget: Duration,
+    overlay_ttl_s: u64,
+) -> bool {
     let realtime = configuration.realtime.clone();
     if realtime.broker == "off"
         || !matches!(realtime.transport.as_str(), "auto" | "mqtt")
@@ -638,10 +697,7 @@ pub fn wait_for_coordination_gossip_notification(
     {
         return false;
     }
-    let Some(project_label) = resolve_project_label(root, project_dir, &configuration) else {
-        return false;
-    };
-    let Some(project_identity) = realtime_project_id(&configuration) else {
+    let Some(project_identity) = realtime_project_id(configuration) else {
         return false;
     };
     let Ok(endpoint) = resolve_broker_endpoint(&realtime.broker) else {
@@ -1825,16 +1881,20 @@ pub fn realtime_project_id(configuration: &ProjectConfiguration) -> Option<Strin
 /// Return [`MISSING_PROJECT_ID_MESSAGE`] when a broker is configured but the project has no `project_id`.
 ///
 /// Used by kbsc startup so the explanation is logged once instead of on every command.
-pub fn missing_project_id_startup_warning(root: &Path) -> Option<String> {
-    let configuration_path = get_configuration_path(root).ok()?;
-    let configuration = load_project_configuration(&configuration_path).ok()?;
-    if configuration.realtime.broker == "off" {
-        return None;
+///
+/// # Errors
+/// Returns the configuration error when the project configuration is invalid.
+pub fn missing_project_id_startup_warning(root: &Path) -> Result<Option<String>, KanbusError> {
+    let Some(context) = ProjectContext::discover(root)? else {
+        return Ok(None);
+    };
+    if context.configuration.realtime.broker == "off" {
+        return Ok(None);
     }
-    match realtime_project_id(&configuration) {
+    Ok(match realtime_project_id(&context.configuration) {
         Some(_) => None,
         None => Some(MISSING_PROJECT_ID_MESSAGE.to_string()),
-    }
+    })
 }
 
 /// Return true when an envelope carries exactly the expected project identity.
@@ -1871,17 +1931,15 @@ fn project_topic(realtime: &RealtimeConfig, project_id: &str) -> String {
 }
 
 fn resolve_project_label(
-    root: &Path,
+    context: &ProjectContext,
     project_dir: &Path,
-    configuration: &ProjectConfiguration,
-) -> Option<String> {
-    let labeled = resolve_labeled_projects(root).ok()?;
-    for project in labeled {
+) -> Result<String, KanbusError> {
+    for project in context.labeled_projects()? {
         if project.project_dir == project_dir {
-            return Some(project.label);
+            return Ok(project.label);
         }
     }
-    Some(configuration.project_key.clone())
+    Ok(context.configuration.project_key.clone())
 }
 
 fn parse_broker_url(url: &str) -> Result<BrokerEndpoint, KanbusError> {
@@ -2377,9 +2435,10 @@ mod tests {
 
         std::thread::sleep(std::time::Duration::from_millis(150));
 
-        publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload");
+        publish_issue_mutation(root, root, &dummy_issue, None, "ui.reload")
+            .expect("publish ui reload");
 
-        publish_issue_deleted(root, root, "id", None);
+        publish_issue_deleted(root, root, "id", None).expect("publish ui deleted");
 
         #[cfg(unix)]
         {
@@ -2887,8 +2946,10 @@ mod tests {
                             .and_then(serde_json::Value::as_u64),
                     },
                 )
+                .expect("publish claim")
             },
-        );
+        )
+        .expect("collect coordination window");
         broker.join().expect("broker thread");
         assert!(published, "local claim publishes only after subscription");
         assert_eq!(received, 1);
@@ -2992,7 +3053,8 @@ mod tests {
                 callback_flag.store(true, Ordering::SeqCst);
                 true
             },
-        );
+        )
+        .expect("collect coordination window");
 
         broker_finished_rx
             .recv_timeout(Duration::from_secs(3))
@@ -3201,16 +3263,16 @@ mod tests {
         );
         let yaml = serde_yaml::to_string(&configuration).expect("serialize config");
         std::fs::write(root.join(".kanbus.yml"), yaml).expect("write config");
-        let configuration =
-            load_project_configuration(&root.join(".kanbus.yml")).expect("load project config");
+        let context = ProjectContext::require(root).expect("project context");
 
         assert_eq!(
-            resolve_project_label(root, &alpha_dir, &configuration),
-            Some("alpha".to_string())
+            resolve_project_label(&context, &alpha_dir).expect("alpha label"),
+            "alpha".to_string()
         );
         assert_eq!(
-            resolve_project_label(root, &root.join("projects").join("missing"), &configuration),
-            Some("fallback".to_string())
+            resolve_project_label(&context, &root.join("projects").join("missing"))
+                .expect("fallback label"),
+            "fallback".to_string()
         );
     }
 
@@ -3383,7 +3445,8 @@ mod tests {
             &issue,
             None,
             "issue.mutated",
-        );
+        )
+        .expect("publish with broker off");
     }
 
     #[test]
@@ -3402,7 +3465,8 @@ mod tests {
             &temp.path().join("projects/test"),
             "test-1",
             None,
-        );
+        )
+        .expect("publish deletion with broker off");
     }
 
     #[test]

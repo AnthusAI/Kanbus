@@ -317,25 +317,10 @@ fn write_tool_block_files(root: &Path) -> Result<(), KanbusError> {
 ///
 /// Returns `KanbusError::IssueOperation` if no project or multiple projects are found.
 pub fn load_project_directory(root: &Path) -> Result<PathBuf, KanbusError> {
-    // When a config file is found, derive the primary project directory from it.
-    // Virtual project directories are for reading and lookup only — including
-    // them here causes "multiple projects found" errors for write operations.
-    if let Ok(config_path) = get_configuration_path(root) {
-        let configuration = load_project_configuration(&config_path)?;
-        let base = config_path.parent().unwrap_or_else(|| Path::new(""));
-        let primary = base.join(&configuration.project_directory);
-        if is_path_ignored(&primary, base, &configuration.ignore_paths) {
-            return Err(KanbusError::IssueOperation(
-                "project not initialized".to_string(),
-            ));
-        }
-        return Ok(match canonicalize_path(&primary) {
-            Ok(p) => p,
-            Err(_) => primary,
-        });
+    if let Some(context) = crate::project_context::ProjectContext::discover(root)? {
+        return context.primary_project_directory();
     }
 
-    // No config file — fall back to filesystem scanning.
     let mut projects = Vec::new();
     discover_project_directories(root, &mut projects)?;
 
@@ -355,25 +340,37 @@ pub fn detect_repairable_project_issues(
     root: &Path,
     allow_uninitialized: bool,
 ) -> Result<Option<RepairPlan>, KanbusError> {
-    let config_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(KanbusError::IssueOperation(message)) if message == "project not initialized" => {
-            if allow_uninitialized {
-                return Ok(None);
-            }
-            return Err(KanbusError::IssueOperation(message));
+    let context = crate::project_context::ProjectContext::discover(root)?;
+    detect_repairable_project_issues_with_context(context.as_ref(), allow_uninitialized)
+}
+
+/// Detect missing project directories using an already built project context.
+///
+/// # Arguments
+///
+/// * `context` - Project context built at command entry, if a configuration exists.
+/// * `allow_uninitialized` - Whether a missing configuration is tolerated.
+///
+/// # Errors
+///
+/// Returns `project not initialized` when no configuration exists and
+/// `allow_uninitialized` is false.
+pub fn detect_repairable_project_issues_with_context(
+    context: Option<&crate::project_context::ProjectContext>,
+    allow_uninitialized: bool,
+) -> Result<Option<RepairPlan>, KanbusError> {
+    let Some(context) = context else {
+        if allow_uninitialized {
+            return Ok(None);
         }
-        Err(KanbusError::Io(message)) if message == "configuration path lookup failed" => {
-            if allow_uninitialized {
-                return Ok(None);
-            }
-            return Err(KanbusError::Io(message));
-        }
-        Err(error) => return Err(error),
+        return Err(KanbusError::IssueOperation(
+            "project not initialized".to_string(),
+        ));
     };
-    let configuration = load_project_configuration(&config_path)?;
-    let base = config_path.parent().unwrap_or_else(|| Path::new(""));
-    let project_dir = base.join(&configuration.project_directory);
+    let configuration = &context.configuration;
+    let project_dir = context
+        .repository_root
+        .join(&configuration.project_directory);
     let missing_project_dir = !project_dir.exists();
     let issues_dir = project_dir.join("issues");
     let events_dir = project_dir.join("events");
@@ -528,18 +525,31 @@ fn ensure_gitignore_entry(root: &Path, entry: &str) -> Result<(), KanbusError> {
 /// # Errors
 /// Returns `KanbusError` if configuration or dotfile paths are invalid.
 pub fn discover_kanbus_projects(root: &Path) -> Result<Vec<PathBuf>, KanbusError> {
-    let mut projects = Vec::new();
     let config_path = root.join(".kanbus.yml");
     if !config_path.is_file() {
-        return Ok(projects);
+        return Ok(Vec::new());
     }
     let configuration = load_project_configuration(&config_path)?;
-    let resolved = resolve_project_directories(
-        config_path.parent().unwrap_or_else(|| Path::new("")),
-        &configuration,
-    )?;
-    projects.extend(resolved.into_iter().map(|rp| rp.project_dir));
-    Ok(projects)
+    discover_kanbus_projects_with(root, Some(&configuration))
+}
+
+/// Discover configured project paths from an already loaded root configuration.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `root_configuration` - Configuration loaded from `root/.kanbus.yml`, if any.
+///
+/// # Errors
+/// Returns `KanbusError` if configured paths are invalid.
+pub fn discover_kanbus_projects_with(
+    root: &Path,
+    root_configuration: Option<&ProjectConfiguration>,
+) -> Result<Vec<PathBuf>, KanbusError> {
+    let Some(configuration) = root_configuration else {
+        return Ok(Vec::new());
+    };
+    let resolved = resolve_project_directories(root, configuration)?;
+    Ok(resolved.into_iter().map(|rp| rp.project_dir).collect())
 }
 
 /// Resolve all labeled project directories from configuration.
@@ -572,7 +582,7 @@ pub(crate) fn find_configuration_file(root: &Path) -> Result<Option<PathBuf>, Ka
     Ok(None)
 }
 
-fn resolve_project_directories(
+pub(crate) fn resolve_project_directories(
     base: &Path,
     configuration: &ProjectConfiguration,
 ) -> Result<Vec<ResolvedProject>, KanbusError> {
@@ -626,12 +636,21 @@ pub(crate) fn discover_project_directories(
     projects: &mut Vec<PathBuf>,
 ) -> Result<(), KanbusError> {
     let config_path = root.join(".kanbus.yml");
-    if config_path.is_file() {
-        let configuration = load_project_configuration(&config_path)?;
-        let resolved = resolve_project_directories(
-            config_path.parent().unwrap_or_else(|| Path::new("")),
-            &configuration,
-        )?;
+    let configuration = if config_path.is_file() {
+        Some(load_project_configuration(&config_path)?)
+    } else {
+        None
+    };
+    discover_project_directories_with(root, configuration.as_ref(), projects)
+}
+
+pub(crate) fn discover_project_directories_with(
+    root: &Path,
+    root_configuration: Option<&ProjectConfiguration>,
+    projects: &mut Vec<PathBuf>,
+) -> Result<(), KanbusError> {
+    if let Some(configuration) = root_configuration {
+        let resolved = resolve_project_directories(root, configuration)?;
         for rp in resolved {
             if !rp.project_dir.is_dir() {
                 return Err(KanbusError::IssueOperation(format!(

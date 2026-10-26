@@ -3162,9 +3162,14 @@ pub fn default_provider_profile(router: &IssueRouterConfiguration) -> Option<&st
 /// Wait for a valid peer MQTT coordination notification, if MQTT is configured.
 /// Returns immediately on an unavailable broker so watch mode can retain its
 /// durable Git polling interval.
-pub fn wait_for_issue_router_notification(root: &Path, timeout: Duration) -> bool {
-    let Ok((configuration, _, project_dir)) = load_issue_router(root) else {
-        return false;
+pub fn wait_for_issue_router_notification(
+    root: &Path,
+    timeout: Duration,
+) -> Result<bool, KanbusError> {
+    let (configuration, _, project_dir) = match load_issue_router(root) {
+        Ok(loaded) => loaded,
+        Err(error @ KanbusError::Configuration(_)) => return Err(error),
+        Err(_) => return Ok(false),
     };
     if !configuration
         .coordination
@@ -3172,7 +3177,7 @@ pub fn wait_for_issue_router_notification(root: &Path, timeout: Duration) -> boo
         .iter()
         .any(|provider| provider == "mqtt")
     {
-        return false;
+        return Ok(false);
     }
     crate::gossip::wait_for_coordination_gossip_notification(
         root,
@@ -4614,7 +4619,7 @@ fn run_issue_router_watch(
                 project_dir,
                 wait,
                 configuration.overlay.ttl_s,
-            );
+            )?;
             if notified {
                 next_poll = Instant::now();
             } else if let Some(remaining) = wait.checked_sub(wait_started.elapsed()) {

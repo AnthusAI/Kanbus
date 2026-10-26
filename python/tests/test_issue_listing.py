@@ -11,6 +11,20 @@ from kanbus.models import OverlayConfig
 from test_helpers import build_issue, build_project_configuration
 
 
+def _fake_context(
+    root: Path, labeled=(), configuration=None, *, at_root: bool = True
+) -> SimpleNamespace:
+    resolved = configuration or build_project_configuration()
+    return SimpleNamespace(
+        root=root,
+        repository_root=root,
+        configuration=resolved,
+        labeled_projects=lambda: list(labeled),
+        configuration_at_root=lambda: resolved if at_root else None,
+        primary_project_directory=lambda: root / "project",
+    )
+
+
 def test_list_issues_rejects_invalid_flag_combinations(tmp_path: Path) -> None:
     with pytest.raises(issue_listing.IssueListingError, match="local-only conflicts"):
         issue_listing.list_issues(tmp_path, include_local=False, local_only=True)
@@ -39,17 +53,14 @@ def test_list_issues_beads_mode_filters_closed_by_default(
     assert any(issue.identifier == "kanbus-closed" for issue in issues_with_status)
 
 
-def test_list_issues_with_project_filter_unknown_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        issue_listing,
-        "resolve_labeled_projects",
-        lambda _r: [SimpleNamespace(label="alpha", project_dir=tmp_path / "project")],
+def test_list_issues_with_project_filter_unknown_project(tmp_path: Path) -> None:
+    context = _fake_context(
+        tmp_path,
+        labeled=[SimpleNamespace(label="alpha", project_dir=tmp_path / "project")],
     )
     with pytest.raises(issue_listing.IssueListingError, match="unknown project: beta"):
         issue_listing._list_with_project_filter(
-            tmp_path, ["beta"], None, None, None, None, None, None, True, False
+            tmp_path, context, ["beta"], None, None, None, None, None, None, True, False
         )
 
 
@@ -223,17 +234,23 @@ def test_list_issues_project_discovery_failures(
 ) -> None:
     monkeypatch.setattr(
         issue_listing,
-        "discover_project_directories",
-        lambda _r: (_ for _ in ()).throw(issue_listing.ProjectMarkerError("bad root")),
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: (_ for _ in ()).throw(
+            issue_listing.ProjectMarkerError("bad root")
+        ),
     )
     with pytest.raises(issue_listing.IssueListingError, match="bad root"):
-        issue_listing.list_issues(tmp_path)
+        issue_listing.list_issues_with_context(tmp_path, None)
 
-    monkeypatch.setattr(issue_listing, "discover_project_directories", lambda _r: [])
+    monkeypatch.setattr(
+        issue_listing,
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [],
+    )
     with pytest.raises(
         issue_listing.IssueListingError, match="project not initialized"
     ):
-        issue_listing.list_issues(tmp_path)
+        issue_listing.list_issues_with_context(tmp_path, None)
 
 
 def test_list_issues_multiple_projects_path(
@@ -244,33 +261,27 @@ def test_list_issues_multiple_projects_path(
     p1.mkdir(parents=True)
     p2.mkdir(parents=True)
     issue = build_issue("kanbus-1")
-    monkeypatch.setattr(
-        issue_listing, "discover_project_directories", lambda _r: [p1, p2]
-    )
-    monkeypatch.setattr(
-        issue_listing,
-        "load_project_configuration",
-        lambda _p: build_project_configuration().model_copy(
+    context = _fake_context(
+        tmp_path,
+        labeled=[
+            SimpleNamespace(project_dir=p1, label="alpha"),
+            SimpleNamespace(project_dir=p2, label="beta"),
+        ],
+        configuration=build_project_configuration().model_copy(
             update={"overlay": OverlayConfig(enabled=False)}
         ),
     )
     monkeypatch.setattr(
-        issue_listing, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
         issue_listing,
-        "resolve_labeled_projects",
-        lambda _r: [
-            SimpleNamespace(project_dir=p1, label="alpha"),
-            SimpleNamespace(project_dir=p2, label="beta"),
-        ],
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [p1, p2],
     )
     monkeypatch.setattr(
         issue_listing,
         "_list_issues_across_projects",
         lambda *_a, **_k: [issue],
     )
-    assert issue_listing.list_issues(tmp_path) == [issue]
+    assert issue_listing.list_issues_with_context(tmp_path, context) == [issue]
 
 
 def test_list_issues_single_project_permission_and_local_only_errors(
@@ -278,22 +289,17 @@ def test_list_issues_single_project_permission_and_local_only_errors(
 ) -> None:
     project_dir = tmp_path / "project"
     project_dir.mkdir(parents=True)
-    monkeypatch.setattr(
-        issue_listing, "discover_project_directories", lambda _r: [project_dir]
-    )
+    context = _fake_context(tmp_path)
     monkeypatch.setattr(
         issue_listing,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
-    )
-    monkeypatch.setattr(
-        issue_listing, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [project_dir],
     )
     monkeypatch.setattr(
         issue_listing, "os", SimpleNamespace(access=lambda *_a: False, R_OK=4, X_OK=1)
     )
     with pytest.raises(issue_listing.IssueListingError, match="Permission denied"):
-        issue_listing.list_issues(tmp_path)
+        issue_listing.list_issues_with_context(tmp_path, context)
 
     monkeypatch.setattr(issue_listing, "os", __import__("os"))
     monkeypatch.setattr(
@@ -302,7 +308,7 @@ def test_list_issues_single_project_permission_and_local_only_errors(
         lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("local boom")),
     )
     with pytest.raises(issue_listing.IssueListingError, match="local boom"):
-        issue_listing.list_issues(tmp_path, local_only=True)
+        issue_listing.list_issues_with_context(tmp_path, context, local_only=True)
 
 
 def test_list_issues_single_project_local_only_success(
@@ -311,18 +317,12 @@ def test_list_issues_single_project_local_only_success(
     project_dir = tmp_path / "project"
     project_dir.mkdir(parents=True, exist_ok=True)
     issue = build_issue("kanbus-local-only")
-    monkeypatch.setattr(
-        issue_listing, "discover_project_directories", lambda _r: [project_dir]
-    )
-    monkeypatch.setattr(
-        issue_listing, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
-    )
+    context = _fake_context(tmp_path)
     monkeypatch.setattr(
         issue_listing,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [project_dir],
     )
-    monkeypatch.setattr(issue_listing, "resolve_labeled_projects", lambda _r: [])
     monkeypatch.setattr(
         issue_listing,
         "find_project_local_directory",
@@ -332,7 +332,9 @@ def test_list_issues_single_project_local_only_success(
         issue_listing, "_list_issues_with_local", lambda *_a, **_k: [issue]
     )
     monkeypatch.setattr(issue_listing, "_apply_query", lambda issues, *_a: issues)
-    assert issue_listing.list_issues(tmp_path, local_only=True) == [issue]
+    assert issue_listing.list_issues_with_context(
+        tmp_path, context, local_only=True
+    ) == [issue]
 
 
 def test_list_issues_daemon_and_local_merge_branches(
@@ -344,20 +346,17 @@ def test_list_issues_daemon_and_local_merge_branches(
     (local_dir / "issues").mkdir(parents=True, exist_ok=True)
     shared = build_issue("kanbus-shared")
     local = build_issue("kanbus-local")
-    monkeypatch.setattr(
-        issue_listing, "discover_project_directories", lambda _r: [project_dir]
-    )
-    monkeypatch.setattr(
-        issue_listing, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        issue_listing,
-        "load_project_configuration",
-        lambda _p: build_project_configuration().model_copy(
+    context = _fake_context(
+        tmp_path,
+        configuration=build_project_configuration().model_copy(
             update={"overlay": OverlayConfig(enabled=False)}
         ),
     )
-    monkeypatch.setattr(issue_listing, "resolve_labeled_projects", lambda _r: [])
+    monkeypatch.setattr(
+        issue_listing,
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [project_dir],
+    )
     monkeypatch.setattr(
         issue_listing, "find_project_local_directory", lambda _p: local_dir
     )
@@ -374,7 +373,7 @@ def test_list_issues_daemon_and_local_merge_branches(
         "request_index_list",
         lambda _r: [shared.model_dump(by_alias=True, mode="json")],
     )
-    daemon_issues = issue_listing.list_issues(tmp_path)
+    daemon_issues = issue_listing.list_issues_with_context(tmp_path, context)
     assert {issue.identifier for issue in daemon_issues} == {
         "kanbus-shared",
         "kanbus-local",
@@ -386,25 +385,25 @@ def test_list_issues_daemon_and_local_merge_branches(
         lambda _r: (_ for _ in ()).throw(RuntimeError("daemon boom")),
     )
     with pytest.raises(issue_listing.IssueListingError, match="daemon boom"):
-        issue_listing.list_issues(tmp_path)
+        issue_listing.list_issues_with_context(tmp_path, context)
 
     monkeypatch.setattr(issue_listing, "is_daemon_enabled", lambda: False)
     monkeypatch.setattr(
         issue_listing,
         "_list_issues_locally",
-        lambda _r: (_ for _ in ()).throw(RuntimeError("local list boom")),
+        lambda _r, _c: (_ for _ in ()).throw(RuntimeError("local list boom")),
     )
     with pytest.raises(issue_listing.IssueListingError, match="local list boom"):
-        issue_listing.list_issues(tmp_path)
+        issue_listing.list_issues_with_context(tmp_path, context)
 
-    monkeypatch.setattr(issue_listing, "_list_issues_locally", lambda _r: [shared])
+    monkeypatch.setattr(issue_listing, "_list_issues_locally", lambda _r, _c: [shared])
     monkeypatch.setattr(
         issue_listing,
         "_load_issues_from_directory",
         lambda _d: (_ for _ in ()).throw(RuntimeError("bad local read")),
     )
     with pytest.raises(issue_listing.IssueListingError, match="bad local read"):
-        issue_listing.list_issues(tmp_path)
+        issue_listing.list_issues_with_context(tmp_path, context)
 
 
 def test_list_with_project_filter_error_and_success_paths(
@@ -413,52 +412,34 @@ def test_list_with_project_filter_error_and_success_paths(
     p1 = tmp_path / "a" / "project"
     p1.mkdir(parents=True)
     labeled = [SimpleNamespace(label="alpha", project_dir=p1)]
+    arguments = (["alpha"], None, None, None, None, None, None, True, False)
 
-    monkeypatch.setattr(
-        issue_listing,
-        "resolve_labeled_projects",
-        lambda _r: (_ for _ in ()).throw(
-            issue_listing.ProjectMarkerError("bad labels")
-        ),
-    )
+    with pytest.raises(
+        issue_listing.IssueListingError, match="project not initialized"
+    ):
+        issue_listing._list_with_project_filter(tmp_path, None, *arguments)
+
+    def failing_labels():
+        raise issue_listing.ProjectMarkerError("bad labels")
+
+    failing_context = _fake_context(tmp_path)
+    failing_context.labeled_projects = failing_labels
     with pytest.raises(issue_listing.IssueListingError, match="bad labels"):
-        issue_listing._list_with_project_filter(
-            tmp_path, ["alpha"], None, None, None, None, None, None, True, False
-        )
+        issue_listing._list_with_project_filter(tmp_path, failing_context, *arguments)
 
-    monkeypatch.setattr(issue_listing, "resolve_labeled_projects", lambda _r: [])
     with pytest.raises(
         issue_listing.IssueListingError, match="project not initialized"
     ):
         issue_listing._list_with_project_filter(
-            tmp_path, ["alpha"], None, None, None, None, None, None, True, False
-        )
-
-    monkeypatch.setattr(issue_listing, "resolve_labeled_projects", lambda _r: labeled)
-    monkeypatch.setattr(
-        issue_listing,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(issue_listing.ConfigurationError("bad cfg")),
-    )
-    monkeypatch.setattr(
-        issue_listing, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
-    )
-    with pytest.raises(issue_listing.IssueListingError, match="bad cfg"):
-        issue_listing._list_with_project_filter(
-            tmp_path, ["alpha"], None, None, None, None, None, None, True, False
+            tmp_path, _fake_context(tmp_path, labeled=[]), *arguments
         )
 
     issue = build_issue("kanbus-1")
     monkeypatch.setattr(
-        issue_listing,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
-    )
-    monkeypatch.setattr(
         issue_listing, "_list_issues_across_projects", lambda *_a, **_k: [issue]
     )
     assert issue_listing._list_with_project_filter(
-        tmp_path, ["alpha"], None, None, None, None, None, None, True, False
+        tmp_path, _fake_context(tmp_path, labeled=labeled), *arguments
     ) == [issue]
 
 
@@ -470,7 +451,15 @@ def test_local_helpers_and_query_pipeline(
     monkeypatch.setattr(
         issue_listing, "_list_issues_for_project", lambda _p: [build_issue("kanbus-1")]
     )
-    assert issue_listing._list_issues_locally(tmp_path)[0].identifier == "kanbus-1"
+    assert (
+        issue_listing._list_issues_locally(tmp_path, None)[0].identifier == "kanbus-1"
+    )
+    assert (
+        issue_listing._list_issues_locally(tmp_path, _fake_context(tmp_path))[
+            0
+        ].identifier
+        == "kanbus-1"
+    )
 
     issues_dir = tmp_path / "issues"
     issues_dir.mkdir()

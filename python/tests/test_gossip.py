@@ -9,11 +9,24 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+from kanbus.config_loader import ConfigurationError
 from test_helpers import build_issue
 
 from kanbus import coordination_mqtt, gossip
 
 TEST_PROJECT_ID = "test-project-id"
+
+
+def _stub_gossip_context(monkeypatch, tmp_path: Path, configuration) -> None:
+    context = SimpleNamespace(
+        root=tmp_path,
+        configuration=configuration,
+        labeled_projects=lambda: [],
+    )
+    monkeypatch.setattr(
+        gossip.ProjectContext, "discover", classmethod(lambda _cls, _root: context)
+    )
 
 
 def test_dedupe_set_expires_entries() -> None:
@@ -397,13 +410,10 @@ def test_publish_issue_mutation_skips_when_broker_off(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "kanbus"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "kanbus")
     called = {"value": False}
     monkeypatch.setattr(
         gossip,
@@ -432,13 +442,10 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
 
     captured: dict[str, object] = {}
 
@@ -472,13 +479,10 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     monkeypatch.setattr(
         gossip,
         "_publish_envelope",
@@ -1030,13 +1034,10 @@ def test_publish_issue_mutation_success_and_warning_paths(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     monkeypatch.setattr(gossip, "_now_iso", lambda: "2026-01-01T00:00:00Z")
     monkeypatch.setattr(gossip, "producer_id", lambda: "producer-1")
 
@@ -1073,66 +1074,6 @@ def test_publish_issue_mutation_success_and_warning_paths(
     assert "warning: realtime publish failed for kanbus-12" in capsys.readouterr().err
 
 
-def test_publish_issue_mutation_returns_when_project_label_missing(
-    monkeypatch, tmp_path: Path
-) -> None:
-    configuration = SimpleNamespace(
-        project_id=TEST_PROJECT_ID,
-        realtime=SimpleNamespace(
-            broker="auto",
-            topics=SimpleNamespace(project_events="projects/{project}/events"),
-        ),
-    )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: None)
-    called = {"value": False}
-    monkeypatch.setattr(
-        gossip,
-        "_publish_envelope",
-        lambda *_args, **_kwargs: called.__setitem__("value", True),
-    )
-    gossip.publish_issue_mutation(
-        root=tmp_path,
-        project_dir=tmp_path / "project",
-        issue=build_issue("kanbus-111"),
-        event_id="evt-111",
-        event_type="issue.mutated",
-    )
-    assert called["value"] is False
-
-
-def test_publish_issue_deleted_returns_when_project_label_missing(
-    monkeypatch, tmp_path: Path
-) -> None:
-    configuration = SimpleNamespace(
-        project_id=TEST_PROJECT_ID,
-        realtime=SimpleNamespace(
-            broker="auto",
-            topics=SimpleNamespace(project_events="projects/{project}/events"),
-        ),
-    )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: None)
-    called = {"value": False}
-    monkeypatch.setattr(
-        gossip,
-        "_publish_envelope",
-        lambda *_args, **_kwargs: called.__setitem__("value", True),
-    )
-    gossip.publish_issue_deleted(tmp_path, tmp_path / "project", "kanbus-13", "evt-13")
-    assert called["value"] is False
-
-
 def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -1150,12 +1091,7 @@ def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     called = {"value": False}
     monkeypatch.setattr(
         gossip,
@@ -1664,12 +1600,7 @@ def test_run_gossip_broker_uses_configured_realtime_socket(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(uds_socket_path=str(expected_socket)),
     )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     captured: dict[str, Path] = {}
     monkeypatch.setattr(
         gossip,
@@ -2110,13 +2041,10 @@ def test_publish_issue_mutation_uses_scoped_topic_and_identity(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     captured: dict[str, object] = {}
     monkeypatch.setattr(
         gossip,
@@ -2145,13 +2073,10 @@ def test_publish_without_project_id_publishes_nothing_and_warns_once(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     published: list[object] = []
     monkeypatch.setattr(
         gossip, "_publish_envelope", lambda *args, **_kwargs: published.append(args)
@@ -2176,3 +2101,24 @@ def test_migrate_project_id_appends_once_and_preserves_content(tmp_path: Path) -
     assert contents.startswith("# keep me\nproject_key: tsk\nproject_id: ")
     assert migrate_project_id(tmp_path).startswith("project_id already set: ")
     assert configuration_path.read_text(encoding="utf-8") == contents
+
+
+def test_publish_issue_mutation_and_deleted_propagate_configuration_errors(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".kanbus.yml").write_text("project_key: [unclosed\n", encoding="utf-8")
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        gossip.publish_issue_mutation(
+            root=tmp_path,
+            project_dir=tmp_path / "project",
+            issue=build_issue("kanbus-1"),
+            event_id="evt-1",
+            event_type="issue.mutated",
+        )
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        gossip.publish_issue_deleted(
+            root=tmp_path,
+            project_dir=tmp_path / "project",
+            issue_id="kanbus-1",
+            event_id="evt-1",
+        )

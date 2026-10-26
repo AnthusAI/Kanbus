@@ -187,7 +187,9 @@ def test_emit_guidance_for_issues_emits_sorted_deduped_items_and_converts_violat
         policy_guidance, "guidance_is_enabled", lambda _no_guidance: True
     )
     monkeypatch.setattr(
-        policy_guidance, "_load_guidance_environment", lambda _root: object()
+        policy_guidance,
+        "_load_guidance_environment",
+        lambda _root, _context: object(),
     )
     monkeypatch.setattr(
         policy_guidance,
@@ -200,8 +202,8 @@ def test_emit_guidance_for_issues_emits_sorted_deduped_items_and_converts_violat
         policy_guidance.click, "echo", lambda msg, err=True: lines.append(msg)
     )
 
-    policy_guidance.emit_guidance_for_issues(
-        Path("/repo"), [issue], PolicyOperation.UPDATE
+    policy_guidance.emit_guidance_for_issues_with_context(
+        Path("/repo"), None, [issue], PolicyOperation.UPDATE
     )
 
     assert sum("GUIDANCE WARNING: missing owner" in line for line in lines) == 1

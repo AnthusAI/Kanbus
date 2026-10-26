@@ -65,8 +65,30 @@ def discover_project_directories(root: Path) -> List[Path]:
         has_config = config_path.is_file()
     except OSError as error:
         raise ProjectMarkerError(str(error)) from error
+    root_configuration = None
     if has_config:
-        project_dirs = _resolve_project_directories_from_config(config_path)
+        try:
+            root_configuration = _load_configuration(config_path)
+        except RuntimeError as error:
+            raise ProjectMarkerError(str(error)) from error
+    return discover_project_directories_from_configuration(root, root_configuration)
+
+
+def discover_project_directories_from_configuration(
+    root: Path, root_configuration: Optional[ProjectConfiguration]
+) -> List[Path]:
+    """Discover project directories using an already loaded root configuration.
+
+    :param root: Root directory to search from.
+    :type root: Path
+    :param root_configuration: Configuration loaded from ``root/.kanbus.yml``, if any.
+    :type root_configuration: Optional[ProjectConfiguration]
+    :return: List of discovered project directories.
+    :rtype: List[Path]
+    :raises ProjectMarkerError: If a configured project path is missing.
+    """
+    if root_configuration is not None:
+        project_dirs = _project_directories_for_configuration(root, root_configuration)
         for project_dir in project_dirs:
             if not project_dir.is_dir():
                 raise ProjectMarkerError(f"kanbus path not found: {project_dir}")
@@ -161,10 +183,14 @@ def _resolve_project_directories_from_config(config_path: Path) -> List[Path]:
         configuration = _load_configuration(config_path)
     except RuntimeError as error:
         raise ProjectMarkerError(str(error)) from error
-    project_dirs = _resolve_project_directories(config_path.parent, configuration)
-    return _apply_ignore_paths_for_config(
-        config_path.parent, configuration, project_dirs
-    )
+    return _project_directories_for_configuration(config_path.parent, configuration)
+
+
+def _project_directories_for_configuration(
+    base: Path, configuration: ProjectConfiguration
+) -> List[Path]:
+    project_dirs = _resolve_project_directories(base, configuration)
+    return _apply_ignore_paths_for_config(base, configuration, project_dirs)
 
 
 def _apply_ignore_paths_for_config(

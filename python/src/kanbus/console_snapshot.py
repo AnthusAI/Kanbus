@@ -21,10 +21,12 @@ from kanbus.models import IssueData, IssueRouterConfiguration, ProjectConfigurat
 from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
     ProjectMarkerError,
+    ResolvedProject,
     find_project_local_directory,
     get_configuration_path,
     resolve_labeled_projects,
 )
+from kanbus.project_context import ProjectContext
 
 
 class ConsoleSnapshotError(RuntimeError):
@@ -119,6 +121,28 @@ def get_issues_for_root(root: Path) -> List[IssueData]:
     return _load_console_issues(root, project_dir, config)
 
 
+def get_issues_for_context(context: ProjectContext) -> List[IssueData]:
+    """Load console issues using an already built project context.
+
+    :param context: Project context built at command entry.
+    :type context: ProjectContext
+    :return: List of issues.
+    :rtype: List[IssueData]
+    :raises ConsoleSnapshotError: If loading fails.
+    """
+    project_dir = context.repository_root / context.configuration.project_directory
+    return _load_console_issues(
+        context.root,
+        project_dir,
+        context.configuration,
+        labeled_projects=(
+            context.labeled_projects()
+            if context.configuration.virtual_projects
+            else None
+        ),
+    )
+
+
 def _load_project_context(root: Path) -> tuple[Path, ProjectConfiguration]:
     try:
         configuration_path = get_configuration_path(root)
@@ -136,9 +160,12 @@ def _load_console_issues(
     root: Path,
     project_dir: Path,
     configuration: ProjectConfiguration,
+    labeled_projects: List[ResolvedProject] | None = None,
 ) -> List[IssueData]:
     if configuration.virtual_projects:
-        return _load_issues_with_virtual_projects(root, configuration)
+        if labeled_projects is None:
+            return _load_issues_with_virtual_projects(root, configuration)
+        return _load_issues_with_virtual_projects(root, configuration, labeled_projects)
     if configuration.beads_compatibility:
         try:
             issues = load_beads_issues(root)
@@ -191,11 +218,15 @@ def _load_console_issues(
 def _load_issues_with_virtual_projects(
     root: Path,
     configuration: ProjectConfiguration,
+    labeled_projects: List[ResolvedProject] | None = None,
 ) -> List[IssueData]:
-    try:
-        labeled = resolve_labeled_projects(root)
-    except Exception as error:
-        raise ConsoleSnapshotError(str(error)) from error
+    if labeled_projects is None:
+        try:
+            labeled = resolve_labeled_projects(root)
+        except Exception as error:
+            raise ConsoleSnapshotError(str(error)) from error
+    else:
+        labeled = labeled_projects
 
     all_issues: List[IssueData] = []
     for project in labeled:

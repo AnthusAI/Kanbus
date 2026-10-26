@@ -256,6 +256,7 @@ async fn main() {
         .map(PathBuf::from)
         .or_else(|| root_override.clone())
         .unwrap_or_else(|| repo_root.clone());
+    kanbus::config_loader::load_repository_environment(&data_root);
     trace("checking project structure");
     maybe_prompt_project_repair(&data_root);
     trace("loading config");
@@ -273,11 +274,9 @@ async fn main() {
             }
         }
         Err(e) => {
-            eprintln!(
-                "Warning: Failed to load project config: {}. Using default port.",
-                e
-            );
-            None
+            eprintln!("Error: Failed to load project config: {}", e);
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
         }
     };
 
@@ -1547,8 +1546,14 @@ fn start_gossip_bridge(state: AppState) {
         return;
     }
     let root = state.base_root.clone();
-    if let Some(warning) = kanbus::gossip::missing_project_id_startup_warning(&root) {
-        eprintln!("warning: {warning}");
+    match kanbus::gossip::missing_project_id_startup_warning(&root) {
+        Ok(Some(warning)) => eprintln!("warning: {warning}"),
+        Ok(None) => {}
+        Err(error) => {
+            eprintln!("Error: Failed to load project config: {error}");
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
+        }
     }
     let notification_tx = state.notification_tx.clone();
     std::thread::spawn(move || {

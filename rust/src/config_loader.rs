@@ -3,6 +3,7 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use serde_yaml::{Mapping, Value};
 
@@ -35,7 +36,27 @@ pub fn load_repository_environment(repository_root: &Path) {
     load_dotenv(&repository_root.join(".env"));
 }
 
+thread_local! {
+    static CONFIGURATION_LOAD_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Return how many times the current thread has loaded a project configuration.
+///
+/// The counter exists so tests can assert that one command loads the
+/// configuration exactly once.
+pub fn configuration_load_count() -> usize {
+    CONFIGURATION_LOAD_COUNT.with(std::cell::Cell::get)
+}
+
+/// Reset the per-thread configuration load counter to zero.
+pub fn reset_configuration_load_count() {
+    CONFIGURATION_LOAD_COUNT.with(|count| count.set(0));
+}
+
 /// Load a project configuration from disk.
+///
+/// This function reads and validates the file only. Dotenv files are loaded
+/// once at process start by [`load_repository_environment`], never here.
 ///
 /// # Arguments
 ///
@@ -45,8 +66,7 @@ pub fn load_repository_environment(repository_root: &Path) {
 ///
 /// Returns `KanbusError::Configuration` if the configuration is invalid.
 pub fn load_project_configuration(path: &Path) -> Result<ProjectConfiguration, KanbusError> {
-    let repository_root = path.parent().unwrap_or(Path::new("."));
-    load_repository_environment(repository_root);
+    CONFIGURATION_LOAD_COUNT.with(|count| count.set(count.get() + 1));
     let contents = fs::read_to_string(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             KanbusError::Configuration("configuration file not found".to_string())
@@ -746,6 +766,9 @@ fn handle_legacy_fields(mapping: &mut Mapping) {
     }
 }
 
+/// Message raised when `.kanbus.yml` cannot be parsed as YAML.
+pub const INVALID_YAML_MESSAGE: &str = "configuration is not valid YAML";
+
 const STANDUP_LOOKBACK_HOURS_MIGRATION_MESSAGE: &str = "standup.lookback_hours was removed; use standup.lookback with a duration string such as 24h or 1d";
 
 fn reject_standup_lookback_hours(mapping: &Mapping) -> Result<(), KanbusError> {
@@ -775,13 +798,20 @@ fn map_configuration_error(error: &serde_yaml::Error) -> String {
     message
 }
 
+static DEFAULT_CONFIGURATION_MAPPING: OnceLock<Mapping> = OnceLock::new();
+
+fn default_configuration_mapping() -> &'static Mapping {
+    DEFAULT_CONFIGURATION_MAPPING.get_or_init(|| {
+        serde_yaml::to_value(default_project_configuration())
+            .expect("default configuration must serialize")
+            .as_mapping()
+            .cloned()
+            .expect("default configuration must be a mapping")
+    })
+}
+
 fn merge_with_defaults(value: Value) -> Result<Mapping, KanbusError> {
-    let defaults_value = serde_yaml::to_value(default_project_configuration())
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
-    let mut defaults = defaults_value
-        .as_mapping()
-        .cloned()
-        .expect("default configuration must be a mapping");
+    let mut defaults = default_configuration_mapping().clone();
     let overrides = match value {
         Value::Null => Mapping::new(),
         Value::Mapping(mapping) => mapping,
@@ -802,8 +832,14 @@ fn load_configuration_value(contents: &str) -> Result<Value, KanbusError> {
     if contents.trim().is_empty() {
         return Ok(Value::Mapping(Mapping::new()));
     }
-    let raw_value: Value = serde_yaml::from_str(contents)
-        .map_err(|error| KanbusError::Configuration(map_configuration_error(&error)))?;
+    let raw_value: Value = serde_yaml::from_str(contents).map_err(|error| {
+        let mapped = map_configuration_error(&error);
+        if mapped == error.to_string() {
+            KanbusError::Configuration(INVALID_YAML_MESSAGE.to_string())
+        } else {
+            KanbusError::Configuration(mapped)
+        }
+    })?;
     Ok(raw_value)
 }
 

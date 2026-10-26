@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import load_project_configuration
 from kanbus.daemon_client import (
     is_daemon_config_schema_error,
     is_daemon_enabled,
@@ -19,13 +19,12 @@ from kanbus.models import IssueData, OverlayConfig, ProjectConfiguration
 from kanbus.overlay import apply_overlay_to_issues
 from kanbus.project import (
     ProjectMarkerError,
-    discover_project_directories,
+    discover_project_directories_from_configuration,
     find_project_local_directory,
-    get_configuration_path,
     load_project_directory,
-    resolve_labeled_projects,
     resolve_project_path,
 )
+from kanbus.project_context import ProjectContext
 from kanbus.migration import MigrationError, load_beads_issues
 from kanbus.queries import filter_issues, search_issues, sort_issues
 
@@ -60,6 +59,49 @@ def list_issues(
     :type beads_mode: bool
     :raises IssueListingError: If listing fails.
     """
+    context = None if beads_mode else ProjectContext.discover(root)
+    return list_issues_with_context(
+        root,
+        context,
+        status=status,
+        issue_type=issue_type,
+        assignee=assignee,
+        label=label,
+        sort=sort,
+        search=search,
+        project_filter=project_filter,
+        include_local=include_local,
+        local_only=local_only,
+        beads_mode=beads_mode,
+        parent=parent,
+    )
+
+
+def list_issues_with_context(
+    root: Path,
+    context: ProjectContext | None,
+    status: str | None = None,
+    issue_type: str | None = None,
+    assignee: str | None = None,
+    label: str | None = None,
+    sort: str | None = None,
+    search: str | None = None,
+    project_filter: List[str] | None = None,
+    include_local: bool = True,
+    local_only: bool = False,
+    beads_mode: bool = False,
+    parent: str | None = None,
+) -> List[IssueData]:
+    """List issues using an already built project context.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param context: Project context built at command entry, if a configuration exists.
+    :type context: ProjectContext | None
+    :return: List of issues.
+    :rtype: List[IssueData]
+    :raises IssueListingError: If listing fails.
+    """
     if local_only and not include_local:
         raise IssueListingError("local-only conflicts with no-local")
     if beads_mode:
@@ -79,6 +121,7 @@ def list_issues(
     if project_filter:
         return _list_with_project_filter(
             root,
+            context,
             project_filter,
             status,
             issue_type,
@@ -92,22 +135,26 @@ def list_issues(
         )
 
     try:
-        project_dirs = discover_project_directories(root)
+        project_dirs = discover_project_directories_from_configuration(
+            root, context.configuration_at_root() if context else None
+        )
     except ProjectMarkerError as error:
         raise IssueListingError(str(error)) from error
     if not project_dirs:
         raise IssueListingError("project not initialized")
 
-    root_configuration: ProjectConfiguration | None = None
+    root_configuration: ProjectConfiguration | None = (
+        context.configuration if context else None
+    )
     project_labels: dict[Path, str] = {}
-    try:
-        root_configuration = load_project_configuration(get_configuration_path(root))
-        project_labels = {
-            project.project_dir: project.label
-            for project in resolve_labeled_projects(root)
-        }
-    except ProjectMarkerError:
-        root_configuration = None
+    if context is not None:
+        try:
+            project_labels = {
+                project.project_dir: project.label
+                for project in context.labeled_projects()
+            }
+        except ProjectMarkerError as error:
+            raise IssueListingError(str(error)) from error
 
     if len(project_dirs) > 1:
         overlay_configs = _resolve_overlay_configs(project_dirs, root_configuration)
@@ -150,7 +197,7 @@ def list_issues(
     shared_issues: List[IssueData]
     if is_daemon_enabled():
         try:
-            shared_issues = _load_shared_issues_via_daemon_or_filesystem(root)
+            shared_issues = _load_shared_issues_via_daemon_or_filesystem(root, context)
             shared_issues = [
                 _tag_issue_source(issue, "shared") for issue in shared_issues
             ]
@@ -158,7 +205,7 @@ def list_issues(
             raise IssueListingError(str(error)) from error
     else:
         try:
-            shared_issues = _list_issues_locally(root)
+            shared_issues = _list_issues_locally(root, context)
             shared_issues = [
                 _tag_issue_source(issue, "shared") for issue in shared_issues
             ]
@@ -192,6 +239,7 @@ def list_issues(
 
 def _list_with_project_filter(
     root: Path,
+    context: ProjectContext | None,
     project_filter: List[str],
     status: str | None,
     issue_type: str | None,
@@ -203,8 +251,10 @@ def _list_with_project_filter(
     local_only: bool,
     parent: str | None = None,
 ) -> List[IssueData]:
+    if context is None:
+        raise IssueListingError("project not initialized")
     try:
-        labeled = resolve_labeled_projects(root)
+        labeled = context.labeled_projects()
     except ProjectMarkerError as error:
         raise IssueListingError(str(error)) from error
     if not labeled:
@@ -216,12 +266,8 @@ def _list_with_project_filter(
     allowed = set(project_filter)
     filtered_projects = [project for project in labeled if project.label in allowed]
     project_dirs = [project.project_dir for project in filtered_projects]
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-    except (ProjectMarkerError, ConfigurationError) as error:
-        raise IssueListingError(str(error)) from error
     project_labels = {project.project_dir: project.label for project in labeled}
-    overlay_configs = _resolve_overlay_configs(project_dirs, configuration)
+    overlay_configs = _resolve_overlay_configs(project_dirs, context.configuration)
     issues = _list_issues_across_projects(
         root,
         project_dirs,
@@ -235,7 +281,9 @@ def _list_with_project_filter(
     )
 
 
-def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
+def _load_shared_issues_via_daemon_or_filesystem(
+    root: Path, context: ProjectContext | None
+) -> List[IssueData]:
     """Load shared issues from the daemon, falling back to filesystem listing.
 
     The daemon is a just-in-time accelerator and never required for
@@ -244,6 +292,8 @@ def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
 
     :param root: Repository root path.
     :type root: Path
+    :param context: Project context built at command entry, if a configuration exists.
+    :type context: ProjectContext | None
     :return: Shared issues from the project index.
     :rtype: List[IssueData]
     :raises IssueListingError: When daemon and filesystem listing both fail.
@@ -257,12 +307,16 @@ def _load_shared_issues_via_daemon_or_filesystem(root: Path) -> List[IssueData]:
             logging.getLogger(__name__).debug(
                 "daemon unavailable (%s); falling back to direct listing", message
             )
-            return _list_issues_locally(root)
+            return _list_issues_locally(root, context)
         raise IssueListingError(message) from error
 
 
-def _list_issues_locally(root: Path) -> List[IssueData]:
-    project_dir = load_project_directory(root)
+def _list_issues_locally(root: Path, context: ProjectContext | None) -> List[IssueData]:
+    project_dir = (
+        context.primary_project_directory()
+        if context is not None
+        else load_project_directory(root)
+    )
     return _list_issues_for_project(project_dir)
 
 
