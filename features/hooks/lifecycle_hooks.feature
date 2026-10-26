@@ -311,7 +311,7 @@ Feature: Lifecycle hooks
       before:
         issue.update:
           - id: before-update-grandchild
-            command: ["sh", "-c", "cat >/dev/null; (sleep 30 >&2 &); exit 0"]
+            command: ["sh", "-c", "cat >/dev/null; (sleep 30 >&2 & echo $! > grandchild.pid); exit 0"]
             timeout_ms: 500
       """
     And an issue "kanbus-hook-grandchild" of type "task" with status "open"
@@ -320,3 +320,4 @@ Feature: Lifecycle hooks
     And stderr should contain "before-update-grandchild"
     And stderr should contain "timed out after 500ms"
     And issue "kanbus-hook-grandchild" should have status "open"
+    And the process recorded in "grandchild.pid" should not be running

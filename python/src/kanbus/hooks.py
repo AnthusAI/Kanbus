@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import time
 from dataclasses import dataclass
@@ -144,25 +145,33 @@ class ExternalCommandHookHandler:
         payload = json.dumps(invocation.to_payload(), sort_keys=True, default=str)
         started = time.monotonic()
         try:
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 hook.command,
-                input=payload,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                capture_output=True,
-                timeout=max(timeout_ms, 1) / 1000,
                 cwd=cwd,
                 env=env,
-                check=False,
+                start_new_session=True,
             )
-        except subprocess.TimeoutExpired:
-            duration_ms = int((time.monotonic() - started) * 1000)
-            return HookResult(
-                hook_id=hook.id,
-                succeeded=False,
-                timed_out=True,
-                exit_code=None,
-                duration_ms=duration_ms,
-                message=f"timed out after {timeout_ms}ms",
+            try:
+                standard_output, standard_error = process.communicate(
+                    input=payload, timeout=max(timeout_ms, 1) / 1000
+                )
+            except subprocess.TimeoutExpired:
+                _kill_process_group(process)
+                duration_ms = int((time.monotonic() - started) * 1000)
+                return HookResult(
+                    hook_id=hook.id,
+                    succeeded=False,
+                    timed_out=True,
+                    exit_code=None,
+                    duration_ms=duration_ms,
+                    message=f"timed out after {timeout_ms}ms",
+                )
+            completed = subprocess.CompletedProcess(
+                hook.command, process.returncode, standard_output, standard_error
             )
         except OSError as error:
             duration_ms = int((time.monotonic() - started) * 1000)
@@ -190,6 +199,19 @@ class ExternalCommandHookHandler:
             duration_ms=duration_ms,
             message=message,
         )
+
+
+def _kill_process_group(process: subprocess.Popen) -> None:
+    """Kill the hook's whole process group and reap the hook process."""
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.kill()
+    process.wait()
+    for stream in (process.stdin, process.stdout, process.stderr):
+        if stream is not None:
+            stream.close()
 
 
 def hooks_globally_disabled(no_hooks: bool = False) -> bool:
