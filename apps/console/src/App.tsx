@@ -15,7 +15,6 @@ import type { IssueSelectionContext, NavAction, PanelMode, ViewMode } from "./ty
 import { buildUrl, navigate, parseRoute, replaceCurrentRoute } from "./utils/console-route";
 import {
   buildPriorityLookup,
-  collectDescendants,
   computeViewModeCounts,
   resolveBoardTypeFilter,
   resolveIssueByIdentifier,
