@@ -467,6 +467,8 @@ fn run_external_hook(
         .stderr(Stdio::piped())
         .current_dir(cwd)
         .envs(std::env::vars());
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
 
     for (key, value) in &hook.env {
         command.env(key, value);
@@ -487,22 +489,24 @@ fn run_external_hook(
     };
 
     let payload = serde_json::to_string(invocation).unwrap_or_else(|_| "{}".to_string());
-    let stdin_writer = child.stdin.take().map(|mut stdin| {
+    if let Some(mut stdin) = child.stdin.take() {
         std::thread::spawn(move || {
             let _ = stdin.write_all(payload.as_bytes());
-        })
-    });
-    let stderr_reader = child.stderr.take().map(|mut stderr_pipe| {
+        });
+    }
+    let stderr_receiver = child.stderr.take().map(|mut stderr_pipe| {
+        let (sender, receiver) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let mut captured = String::new();
             let _ = stderr_pipe.read_to_string(&mut captured);
-            captured
-        })
+            let _ = sender.send(captured);
+        });
+        receiver
     });
 
     let timeout = Duration::from_millis(timeout_ms.max(1));
     let mut timed_out = false;
-    let exit_code: Option<i32>;
+    let mut exit_code: Option<i32>;
 
     loop {
         match child.try_wait() {
@@ -513,7 +517,7 @@ fn run_external_hook(
             Ok(None) => {
                 if started.elapsed() >= timeout {
                     timed_out = true;
-                    let _ = child.kill();
+                    kill_hook_process_group(&mut child);
                     let _ = child.wait();
                     exit_code = None;
                     break;
@@ -532,16 +536,21 @@ fn run_external_hook(
         }
     }
 
-    let stderr = if timed_out {
-        String::new()
-    } else {
-        if let Some(writer) = stdin_writer {
-            let _ = writer.join();
+    let mut stderr = String::new();
+    if !timed_out {
+        if let Some(receiver) = stderr_receiver {
+            let remaining = timeout.saturating_sub(started.elapsed());
+            match receiver.recv_timeout(remaining) {
+                Ok(captured) => stderr = captured,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    timed_out = true;
+                    exit_code = None;
+                    kill_hook_process_group(&mut child);
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {}
+            }
         }
-        stderr_reader
-            .map(|reader| reader.join().unwrap_or_default())
-            .unwrap_or_default()
-    };
+    }
 
     let duration_ms = started.elapsed().as_millis() as u64;
     let succeeded = !timed_out && exit_code == Some(0);
@@ -562,6 +571,19 @@ fn run_external_hook(
         duration_ms,
         message,
     }
+}
+
+/// Kill the hook and, on unix, every process in its process group.
+fn kill_hook_process_group(child: &mut std::process::Child) {
+    #[cfg(unix)]
+    {
+        let group_identifier = child.id() as libc::pid_t;
+        // SAFETY: killpg only signals the process group created for this hook.
+        unsafe {
+            libc::killpg(group_identifier, libc::SIGKILL);
+        }
+    }
+    let _ = child.kill();
 }
 
 fn looks_like_path(command: &str) -> bool {

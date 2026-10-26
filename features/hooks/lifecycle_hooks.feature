@@ -301,3 +301,22 @@ Feature: Lifecycle hooks
     When I run "kanbus update kanbus-hook-noisy --status in_progress"
     Then the command should succeed
     And issue "kanbus-hook-noisy" should have status "in_progress"
+
+  Scenario: before-hook whose background grandchild holds stderr open is bounded by its timeout
+    Given the Kanbus hooks configuration is:
+      """
+      enabled: true
+      run_in_beads_mode: true
+      default_timeout_ms: 5000
+      before:
+        issue.update:
+          - id: before-update-grandchild
+            command: ["sh", "-c", "cat >/dev/null; (sleep 30 >&2 &); exit 0"]
+            timeout_ms: 500
+      """
+    And an issue "kanbus-hook-grandchild" of type "task" with status "open"
+    When I run "kanbus update kanbus-hook-grandchild --status in_progress"
+    Then the command should fail with exit code 1
+    And stderr should contain "before-update-grandchild"
+    And stderr should contain "timed out after 500ms"
+    And issue "kanbus-hook-grandchild" should have status "open"
