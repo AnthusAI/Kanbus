@@ -65,6 +65,7 @@ pub mod policy_guidance;
 pub mod policy_loader;
 pub mod policy_steps;
 pub mod project;
+pub mod project_context;
 pub mod project_management_template;
 pub mod queries;
 pub mod rekey;

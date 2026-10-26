@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "1fd60788-564f-4f19-8dfe-18a2720e15b9",
+  "issue_id": "kbs-429fa3fd-cde5-44ee-811e-79f43b3730a4",
+  "event_type": "field_updated",
+  "occurred_at": "2026-10-02T19:55:24.252Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "Shorten the standard issue-ID hash prefix from 6 to 5 characters",
+        "to": "Dynamic short issue IDs: default 4-character hash prefix, widened only on collision"
+      },
+      "description": {
+        "from": "Change the standard way Kanbus abbreviates an issue's hash prefix in the Kanbus interface (CLI and console). Short IDs currently show 6 characters of the hash (for example kbs-60bf38). Make the standard 5 characters instead (for example kbs-60bf3).\n\nWhy 5:\n- 4 characters carries a remote but real chance of collisions, which could confuse two different issues.\n- 5 balances that collision risk against cognitive load for people reading the UI, and against token cost for agents doing the work. Every character removed cuts noise and token usage.\n\nScope: Kanbus's own issue-ID display and abbreviation (CLI output, console, and anywhere a short ID is generated or shown), plus unique-prefix lookups, which keep working. This is not about GitHub's commit-hash display.\n\nOpen considerations for planning: how existing 6-character references in comments, commits and docs keep resolving, and what to do when a 5-character prefix is ambiguous (fall back to a longer prefix).",
+        "to": "Change how Kanbus abbreviates an issue's hash prefix for display (CLI and console). Short IDs currently show 6 characters (for example kbs-60bf38).\n\nNew design: a dynamic prefix length.\n- By default, show 4 characters of the hash in short IDs (for example kbs-60bf).\n- Detect collisions in context. When rendering a set of issues (for example the output of kbs list), if two or more issues in that set share the same first 4 characters, widen the displayed prefix for that list or session only. Add characters as needed until every displayed ID in that context is unique.\n- The full original ID is always kept. This changes only how much of the ID is shown in a given context, never the stored ID.\n- Unique-prefix lookups (kbs show <prefix>, --parent <prefix>, and so on) keep working, and existing longer references in comments, commits and docs still resolve.\n\nWhy:\n- 4 characters saves tokens for agents and cuts visual noise for people reading the UI.\n- Collisions at 4 characters are rare.\n- When a collision does happen, the extra characters are paid only in the context where it occurs, not across every ID everywhere.\n\nOut of scope: GitHub's commit-hash display."
+      }
+    }
+  }
+}

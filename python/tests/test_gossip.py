@@ -2,18 +2,30 @@ from __future__ import annotations
 
 import socket
 import sys
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+from kanbus.config_loader import ConfigurationError
 from test_helpers import build_issue
 
 from kanbus import coordination_mqtt, gossip
 
 TEST_PROJECT_ID = "test-project-id"
+
+
+def _stub_gossip_context(monkeypatch, tmp_path: Path, configuration) -> None:
+    context = SimpleNamespace(
+        root=tmp_path,
+        configuration=configuration,
+        labeled_projects=lambda: [],
+    )
+    monkeypatch.setattr(
+        gossip.ProjectContext, "discover", classmethod(lambda _cls, _root: context)
+    )
 
 
 def test_dedupe_set_expires_entries() -> None:
@@ -397,13 +409,10 @@ def test_publish_issue_mutation_skips_when_broker_off(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "kanbus"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "kanbus")
     called = {"value": False}
     monkeypatch.setattr(
         gossip,
@@ -428,31 +437,30 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
 
     captured: dict[str, object] = {}
 
-    def _capture_publish(_root, _config, topic, envelope) -> None:
+    def _capture_publish(_endpoint, topic, envelope, _realtime) -> None:
         captured["topic"] = topic
         captured["envelope"] = envelope
 
-    monkeypatch.setattr(gossip, "_publish_envelope", _capture_publish)
+    monkeypatch.setattr(gossip, "_publish_mqtt", _capture_publish)
     gossip.publish_issue_deleted(
         root=tmp_path,
         project_dir=tmp_path / "project",
         issue_id="kanbus-3",
         event_id="evt-3",
     )
+    gossip.finish_pending_realtime_publishes()
     assert captured["topic"] == f"projects/{TEST_PROJECT_ID}/events"
     envelope = captured["envelope"]
     assert isinstance(envelope, gossip.GossipEnvelope)
@@ -468,20 +476,18 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
+        "_publish_mqtt",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     gossip.publish_issue_deleted(
@@ -490,6 +496,7 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
         issue_id="kanbus-4",
         event_id="evt-4",
     )
+    gossip.finish_pending_realtime_publishes()
     captured = capsys.readouterr()
     assert "warning: realtime publish failed for kanbus-4" in captured.err
 
@@ -1026,25 +1033,23 @@ def test_publish_issue_mutation_success_and_warning_paths(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     monkeypatch.setattr(gossip, "_now_iso", lambda: "2026-01-01T00:00:00Z")
     monkeypatch.setattr(gossip, "producer_id", lambda: "producer-1")
 
     captured: dict[str, object] = {}
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
-        lambda _root, _config, topic, envelope: captured.update(
+        "_publish_mqtt",
+        lambda _endpoint, topic, envelope, _realtime: captured.update(
             {"topic": topic, "envelope": envelope}
         ),
     )
@@ -1055,12 +1060,13 @@ def test_publish_issue_mutation_success_and_warning_paths(
         event_id="evt-11",
         event_type="issue.mutated",
     )
+    gossip.finish_pending_realtime_publishes()
     assert captured["topic"] == f"projects/{TEST_PROJECT_ID}/events"
     assert captured["envelope"].event_id == "evt-11"
 
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
+        "_publish_mqtt",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("publish failed")),
     )
     gossip.publish_issue_mutation(
@@ -1070,67 +1076,8 @@ def test_publish_issue_mutation_success_and_warning_paths(
         event_id="evt-12",
         event_type="issue.mutated",
     )
+    gossip.finish_pending_realtime_publishes()
     assert "warning: realtime publish failed for kanbus-12" in capsys.readouterr().err
-
-
-def test_publish_issue_mutation_returns_when_project_label_missing(
-    monkeypatch, tmp_path: Path
-) -> None:
-    configuration = SimpleNamespace(
-        project_id=TEST_PROJECT_ID,
-        realtime=SimpleNamespace(
-            broker="auto",
-            topics=SimpleNamespace(project_events="projects/{project}/events"),
-        ),
-    )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: None)
-    called = {"value": False}
-    monkeypatch.setattr(
-        gossip,
-        "_publish_envelope",
-        lambda *_args, **_kwargs: called.__setitem__("value", True),
-    )
-    gossip.publish_issue_mutation(
-        root=tmp_path,
-        project_dir=tmp_path / "project",
-        issue=build_issue("kanbus-111"),
-        event_id="evt-111",
-        event_type="issue.mutated",
-    )
-    assert called["value"] is False
-
-
-def test_publish_issue_deleted_returns_when_project_label_missing(
-    monkeypatch, tmp_path: Path
-) -> None:
-    configuration = SimpleNamespace(
-        project_id=TEST_PROJECT_ID,
-        realtime=SimpleNamespace(
-            broker="auto",
-            topics=SimpleNamespace(project_events="projects/{project}/events"),
-        ),
-    )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: None)
-    called = {"value": False}
-    monkeypatch.setattr(
-        gossip,
-        "_publish_envelope",
-        lambda *_args, **_kwargs: called.__setitem__("value", True),
-    )
-    gossip.publish_issue_deleted(tmp_path, tmp_path / "project", "kanbus-13", "evt-13")
-    assert called["value"] is False
 
 
 def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
@@ -1150,12 +1097,7 @@ def test_publish_issue_deleted_returns_on_config_error_and_broker_off(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     called = {"value": False}
     monkeypatch.setattr(
         gossip,
@@ -1664,12 +1606,7 @@ def test_run_gossip_broker_uses_configured_realtime_socket(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(uds_socket_path=str(expected_socket)),
     )
-    monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     captured: dict[str, Path] = {}
     monkeypatch.setattr(
         gossip,
@@ -2001,33 +1938,6 @@ def test_broadcast_payload_ignores_non_string_topic() -> None:
     assert len(subscribers) == 1
 
 
-def test_publish_within_hard_cap_abandons_a_wedged_publisher(
-    monkeypatch, capsys
-) -> None:
-    release_wedged_publisher = threading.Event()
-
-    def wedged_publish(*_args, **_kwargs) -> None:
-        release_wedged_publisher.wait(timeout=10)
-
-    monkeypatch.setattr(gossip, "_publish_envelope", wedged_publish)
-    monkeypatch.setattr(gossip, "REALTIME_PUBLISH_HARD_CAP_SECONDS", 0.2)
-    started_at = time.monotonic()
-    gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)
-    elapsed_seconds = time.monotonic() - started_at
-    release_wedged_publisher.set()
-    assert elapsed_seconds < 2.0
-    assert "abandoned" in capsys.readouterr().err
-
-
-def test_publish_within_hard_cap_reraises_publisher_failure(monkeypatch) -> None:
-    def failing_publish(*_args, **_kwargs) -> None:
-        raise OSError("broker exploded")
-
-    monkeypatch.setattr(gossip, "_publish_envelope", failing_publish)
-    with pytest.raises(OSError, match="broker exploded"):
-        gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)
-
-
 def test_event_carrying_another_projects_identity_is_dropped(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -2106,28 +2016,27 @@ def test_publish_issue_mutation_uses_scoped_topic_and_identity(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     captured: dict[str, object] = {}
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
-        lambda _root, _config, topic, envelope: captured.update(
+        "_publish_mqtt",
+        lambda _endpoint, topic, envelope, _realtime: captured.update(
             {"topic": topic, "envelope": envelope}
         ),
     )
     gossip.publish_issue_mutation(
         tmp_path, project_dir, build_issue("kanbus-31"), "evt-31", "issue.mutated"
     )
+    gossip.finish_pending_realtime_publishes()
     identity = TEST_PROJECT_ID
     assert captured["topic"] == f"projects/{identity}/events"
     assert captured["envelope"].project_identity == identity
@@ -2145,13 +2054,10 @@ def test_publish_without_project_id_publishes_nothing_and_warns_once(
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
+    _stub_gossip_context(monkeypatch, tmp_path, configuration)
     monkeypatch.setattr(
-        gossip, "get_configuration_path", lambda _root: tmp_path / ".kanbus.yml"
+        gossip, "_resolve_project_label_in_context", lambda *_args: "alpha"
     )
-    monkeypatch.setattr(
-        gossip, "load_project_configuration", lambda _path: configuration
-    )
-    monkeypatch.setattr(gossip, "_resolve_project_label", lambda *_args: "alpha")
     published: list[object] = []
     monkeypatch.setattr(
         gossip, "_publish_envelope", lambda *args, **_kwargs: published.append(args)
@@ -2176,3 +2082,24 @@ def test_migrate_project_id_appends_once_and_preserves_content(tmp_path: Path) -
     assert contents.startswith("# keep me\nproject_key: tsk\nproject_id: ")
     assert migrate_project_id(tmp_path).startswith("project_id already set: ")
     assert configuration_path.read_text(encoding="utf-8") == contents
+
+
+def test_publish_issue_mutation_and_deleted_propagate_configuration_errors(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".kanbus.yml").write_text("project_key: [unclosed\n", encoding="utf-8")
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        gossip.publish_issue_mutation(
+            root=tmp_path,
+            project_dir=tmp_path / "project",
+            issue=build_issue("kanbus-1"),
+            event_id="evt-1",
+            event_type="issue.mutated",
+        )
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        gossip.publish_issue_deleted(
+            root=tmp_path,
+            project_dir=tmp_path / "project",
+            issue_id="kanbus-1",
+            event_id="evt-1",
+        )

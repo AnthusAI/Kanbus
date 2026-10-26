@@ -4,9 +4,11 @@ use std::path::{Path, PathBuf};
 
 use crate::error::KanbusError;
 use crate::file_io::{
-    discover_kanbus_projects, discover_project_directories as discover_project_directories_inner,
+    discover_kanbus_projects_with, discover_project_directories_with,
     load_project_directory as load_project_directory_inner,
 };
+use crate::models::ProjectConfiguration;
+use crate::project_context::ProjectContext;
 
 /// Discover all Kanbus project directories from the root.
 ///
@@ -16,9 +18,42 @@ use crate::file_io::{
 /// # Errors
 /// Returns `KanbusError::IssueOperation` if a configured project path is missing.
 pub fn discover_project_directories(root: &Path) -> Result<Vec<PathBuf>, KanbusError> {
+    let config_path = root.join(".kanbus.yml");
+    let configuration = if config_path.is_file() {
+        Some(crate::config_loader::load_project_configuration(
+            &config_path,
+        )?)
+    } else {
+        None
+    };
+    discover_project_directories_from(root, configuration.as_ref())
+}
+
+/// Discover all Kanbus project directories using an already built context.
+///
+/// # Arguments
+/// * `root` - Root directory used for discovery.
+/// * `context` - Project context built at command entry, if a configuration exists.
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` if a configured project path is missing.
+pub fn discover_project_directories_with_context(
+    root: &Path,
+    context: Option<&ProjectContext>,
+) -> Result<Vec<PathBuf>, KanbusError> {
+    discover_project_directories_from(
+        root,
+        context.and_then(ProjectContext::configuration_at_root),
+    )
+}
+
+fn discover_project_directories_from(
+    root: &Path,
+    root_configuration: Option<&ProjectConfiguration>,
+) -> Result<Vec<PathBuf>, KanbusError> {
     let mut projects = Vec::new();
-    discover_project_directories_inner(root, &mut projects)?;
-    let mut dotfile_projects = discover_kanbus_projects(root)?;
+    discover_project_directories_with(root, root_configuration, &mut projects)?;
+    let mut dotfile_projects = discover_kanbus_projects_with(root, root_configuration)?;
     projects.append(&mut dotfile_projects);
     let mut normalized = Vec::new();
     for path in projects {

@@ -7,6 +7,7 @@ import os
 import pytest
 
 os.environ["KANBUS_ENABLE_TEST_HOOKS"] = "1"
+os.environ["KANBUS_TEST_DISABLE_SERVICE"] = "1"
 
 
 @pytest.fixture(autouse=True)
@@ -35,3 +36,13 @@ def _reset_router_worktree_bases():
     router_execution._WORKTREE_BASES.clear()
     yield
     router_execution._WORKTREE_BASES.clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_resolved_project_directories():
+    """The daemon path cache is process-wide; never let one test's root leak."""
+    from kanbus import daemon_paths
+
+    daemon_paths._resolved_project_directories.clear()
+    yield
+    daemon_paths._resolved_project_directories.clear()

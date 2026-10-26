@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a7c36504-8003-471d-8645-1af1406dc572",
+  "issue_id": "kbs-3f9f3327-006a-4982-bb0f-8943591fa5a7",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T14:59:33.078Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "As a maintainer, I want issue files that kbs show reports as not found removed, so that list and greps are not confused by orphans.\n\nFind files in project/issues/ whose identifier kbs show cannot resolve. Use kbs show only (do not read JSON with cat/jq). Remove orphans with rm. Do not delete valid issues.",
+    "issue_type": "chore",
+    "labels": [],
+    "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+    "priority": 2,
+    "status": "open",
+    "title": "Remove stale not-found issue files"
+  }
+}

@@ -9,7 +9,7 @@ from typing import Iterable, Optional
 
 from pydantic import ValidationError
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import ConfigurationError
 from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
 from kanbus.ids import IssueIdentifierRequest, generate_issue_identifier
 from kanbus.issue_files import (
@@ -17,7 +17,10 @@ from kanbus.issue_files import (
     read_issue_from_file,
 )
 from kanbus.issue_lookup import IssueLookupError, resolve_issue_identifier
-from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.issue_mutation import (
+    PersistIssueMutationRequest,
+    persist_issue_mutation_with_events_setting,
+)
 from kanbus.models import AgentMetadata, IssueData, ProjectConfiguration
 from kanbus.event_history import (
     create_event,
@@ -28,12 +31,11 @@ from kanbus.project import (
     ProjectMarkerError,
     ensure_project_local_directory,
     find_project_local_directory,
-    get_configuration_path,
-    load_project_directory,
 )
+from kanbus.project_context import ProjectContext, require_project_context
 from kanbus.workflows import InvalidTransitionError, validate_status_value
 from kanbus.users import get_current_user
-from kanbus.gossip import publish_issue_mutation
+from kanbus.gossip import publish_issue_mutation_with_context
 
 
 class IssueCreationError(RuntimeError):
@@ -64,8 +66,46 @@ def create_issue(
 ) -> IssueCreationResult:
     """Create a new issue and write it to disk.
 
-    :param root: Repository root path.
-    :type root: Path
+    :raises IssueCreationError: If validation or file operations fail.
+    """
+    try:
+        context = require_project_context(root)
+    except (ProjectMarkerError, ConfigurationError) as error:
+        raise IssueCreationError(str(error)) from error
+    return create_issue_with_context(
+        context,
+        title=title,
+        issue_type=issue_type,
+        priority=priority,
+        assignee=assignee,
+        parent=parent,
+        labels=labels,
+        description=description,
+        local=local,
+        validate=validate,
+        requested_id=requested_id,
+        agent=agent,
+    )
+
+
+def create_issue_with_context(
+    context: ProjectContext,
+    title: str,
+    issue_type: Optional[str],
+    priority: Optional[int],
+    assignee: Optional[str],
+    parent: Optional[str],
+    labels: Iterable[str],
+    description: Optional[str],
+    local: bool = False,
+    validate: bool = True,
+    requested_id: Optional[str] = None,
+    agent: Optional[AgentMetadata] = None,
+) -> IssueCreationResult:
+    """Create a new issue using an already built project context.
+
+    :param context: Project context built at command entry.
+    :type context: ProjectContext
     :param title: Issue title.
     :type title: str
     :param issue_type: Issue type override.
@@ -89,8 +129,8 @@ def create_issue(
     :raises IssueCreationError: If validation or file operations fail.
     """
     try:
-        project_dir = load_project_directory(root)
-    except (ProjectMarkerError, ConfigurationError) as error:
+        project_dir = context.primary_project_directory()
+    except ProjectMarkerError as error:
         raise IssueCreationError(str(error)) from error
 
     issues_dir = project_dir / "issues"
@@ -98,10 +138,7 @@ def create_issue(
     if local:
         local_dir = ensure_project_local_directory(project_dir)
         issues_dir = local_dir / "issues"
-    try:
-        configuration = load_project_configuration(get_configuration_path(project_dir))
-    except (ProjectMarkerError, ConfigurationError) as error:
-        raise IssueCreationError(str(error)) from error
+    configuration = context.configuration
 
     resolved_type = issue_type or "task"
     resolved_priority = (
@@ -204,7 +241,7 @@ def create_issue(
         policy_documents = load_policies(policies_dir)
         if policy_documents:
             all_issues = load_issues_from_directory(issues_dir)
-            context = PolicyContext(
+            policy_context = PolicyContext(
                 current_issue=None,
                 proposed_issue=issue,
                 transition=None,
@@ -213,7 +250,7 @@ def create_issue(
                 all_issues=all_issues,
             )
             try:
-                evaluate_policies(context, policy_documents)
+                evaluate_policies(policy_context, policy_documents)
             except PolicyViolationError as error:
                 raise IssueCreationError(str(error)) from error
 
@@ -228,20 +265,21 @@ def create_issue(
         occurred_at=occurred_at,
     )
     try:
-        persist_issue_mutation(
+        persist_issue_mutation_with_events_setting(
             PersistIssueMutationRequest(
                 project_dir=project_dir,
                 issue_path=issue_path,
                 issue=issue,
                 actor_id=actor_id,
                 events=[event],
-            )
+            ),
+            configuration.events,
         )
     except Exception as error:  # noqa: BLE001
         raise IssueCreationError(str(error)) from error
     if not local:
-        publish_issue_mutation(
-            root,
+        publish_issue_mutation_with_context(
+            context,
             project_dir,
             issue,
             event.event_id,

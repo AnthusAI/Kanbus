@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "01b177c8-3527-4622-b7d3-2522fff8419c",
+  "issue_id": "kbs-b768cbfd-49e0-47f1-927f-a0bdfb5ff195",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-02T20:43:01.598Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "kbs init creates an unwanted CONTRIBUTING_AGENT_TEMPLATE.md alongside CONTRIBUTING_AGENT.md",
+    "description": "Running kbs init in a project creates CONTRIBUTING_AGENT.md as intended, but it also creates a CONTRIBUTING_AGENT_TEMPLATE.md file in the project. We don't want the template file in initialized projects.\n\nExpected: kbs init creates only CONTRIBUTING_AGENT.md.\nActual: kbs init creates both CONTRIBUTING_AGENT.md and CONTRIBUTING_AGENT_TEMPLATE.md.\n\nFix should keep Rust and Python in sync and add a spec scenario asserting the template file is not created.\n\nReported by Ryan, 2026-10-02.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "grok_bot",
+      "model": "Grok",
+      "name": "Project Manager"
+    }
+  }
+}

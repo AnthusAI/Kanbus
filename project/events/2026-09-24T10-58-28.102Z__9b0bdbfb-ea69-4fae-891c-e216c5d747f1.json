@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_id": "9b0bdbfb-ea69-4fae-891c-e216c5d747f1",
+  "issue_id": "kbs-a1201bce-346d-4fe4-84fd-a342776265f0",
+  "event_type": "comment_added",
+  "occurred_at": "2026-09-24T10:58:28.102Z",
+  "actor_id": "home",
+  "payload": {
+    "comment_id": "7a750241-18be-47e3-b87b-a1bbd7eb839c",
+    "comment_author": "home",
+    "agent": {
+      "platform": "claude_code",
+      "model": "Claude Haiku 4.5",
+      "name": "apricity-rekey-r1"
+    }
+  }
+}

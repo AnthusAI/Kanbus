@@ -12,6 +12,17 @@ from kanbus.models import OverlayConfig
 from test_helpers import build_issue, build_project_configuration
 
 
+def _fake_context(root: Path, labeled=()) -> SimpleNamespace:
+    configuration = build_project_configuration()
+    return SimpleNamespace(
+        root=root,
+        repository_root=root,
+        configuration=configuration,
+        labeled_projects=lambda: list(labeled),
+        configuration_at_root=lambda: configuration,
+    )
+
+
 def write_issue(path: Path, issue_id: str) -> None:
     issue = build_issue(issue_id)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -122,20 +133,12 @@ def test_load_issue_from_project_exact_match_and_overlay_virtual(
     project_dir = root / "project"
     write_issue(project_dir / "issues" / "kanbus-1.json", "kanbus-1")
     monkeypatch.setattr(
-        issue_lookup, "discover_project_directories", lambda _r: [project_dir]
-    )
-    monkeypatch.setattr(
-        issue_lookup, "get_configuration_path", lambda _r: root / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
         issue_lookup,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [project_dir],
     )
-    monkeypatch.setattr(
-        issue_lookup,
-        "resolve_labeled_projects",
-        lambda _r: [SimpleNamespace(project_dir=project_dir, label="alpha")],
+    context = _fake_context(
+        root, labeled=[SimpleNamespace(project_dir=project_dir, label="alpha")]
     )
     monkeypatch.setattr(issue_lookup, "load_overlay_issue", lambda *_args: None)
     monkeypatch.setattr(issue_lookup, "load_tombstone", lambda *_args: None)
@@ -145,7 +148,9 @@ def test_load_issue_from_project_exact_match_and_overlay_virtual(
         lambda _p, issue, *_args, **_kwargs: issue,
     )
 
-    result = issue_lookup.load_issue_from_project(root, "kanbus-1")
+    result = issue_lookup.load_issue_from_project_with_context(
+        root, context, "kanbus-1"
+    )
     assert result.issue.identifier == "kanbus-1"
     assert result.project_dir == project_dir
 
@@ -161,7 +166,9 @@ def test_load_issue_from_project_exact_match_and_overlay_virtual(
         "resolve_issue_with_overlay",
         lambda _p, _base, _overlay, *_args, **_kwargs: overlay_issue,
     )
-    result = issue_lookup.load_issue_from_project(root, "kanbus-overlay")
+    result = issue_lookup.load_issue_from_project_with_context(
+        root, context, "kanbus-overlay"
+    )
     assert result.issue.identifier == "kanbus-overlay"
     assert result.issue_path.name == "kanbus-overlay.json"
     assert ".overlay" in str(result.issue_path)
@@ -179,7 +186,9 @@ def test_load_issue_from_project_exact_match_and_overlay_virtual(
     )
     monkeypatch.setattr(issue_lookup, "list_issue_identifiers", lambda _d: [])
     with pytest.raises(issue_lookup.IssueLookupError, match="not found"):
-        issue_lookup.load_issue_from_project(root, "kanbus-suppressed")
+        issue_lookup.load_issue_from_project_with_context(
+            root, context, "kanbus-suppressed"
+        )
 
 
 def test_load_issue_from_project_not_found_ambiguous_and_single_partial(
@@ -191,21 +200,16 @@ def test_load_issue_from_project_not_found_ambiguous_and_single_partial(
     write_issue(issues_dir / "kanbus-abc111.json", "kanbus-abc111")
     write_issue(issues_dir / "kanbus-abc222.json", "kanbus-abc222")
     monkeypatch.setattr(
-        issue_lookup, "discover_project_directories", lambda _r: [project_dir]
-    )
-    monkeypatch.setattr(
         issue_lookup,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(issue_lookup.ProjectMarkerError("no config")),
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [project_dir],
     )
-    monkeypatch.setattr(
-        issue_lookup, "get_configuration_path", lambda _r: root / ".kanbus.yml"
-    )
+    context = None
     monkeypatch.setattr(issue_lookup, "load_overlay_issue", lambda *_args: None)
     monkeypatch.setattr(issue_lookup, "load_tombstone", lambda *_args: None)
 
     with pytest.raises(issue_lookup.IssueLookupError, match="ambiguous identifier"):
-        issue_lookup.load_issue_from_project(root, "kanbus-abc")
+        issue_lookup.load_issue_from_project_with_context(root, context, "kanbus-abc")
 
     write_issue(issues_dir / "kanbus-only123.json", "kanbus-only123")
     monkeypatch.setattr(
@@ -213,12 +217,14 @@ def test_load_issue_from_project_not_found_ambiguous_and_single_partial(
         "list_issue_identifiers",
         lambda _d: ["kanbus-only123"],
     )
-    single = issue_lookup.load_issue_from_project(root, "kanbus-only")
+    single = issue_lookup.load_issue_from_project_with_context(
+        root, context, "kanbus-only"
+    )
     assert single.issue.identifier == "kanbus-only123"
 
     monkeypatch.setattr(issue_lookup, "list_issue_identifiers", lambda _d: [])
     with pytest.raises(issue_lookup.IssueLookupError, match="not found"):
-        issue_lookup.load_issue_from_project(root, "missing")
+        issue_lookup.load_issue_from_project_with_context(root, context, "missing")
 
 
 def test_load_issue_from_project_project_errors(
@@ -226,15 +232,21 @@ def test_load_issue_from_project_project_errors(
 ) -> None:
     monkeypatch.setattr(
         issue_lookup,
-        "discover_project_directories",
-        lambda _r: (_ for _ in ()).throw(issue_lookup.ProjectMarkerError("no marker")),
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: (_ for _ in ()).throw(
+            issue_lookup.ProjectMarkerError("no marker")
+        ),
     )
     with pytest.raises(issue_lookup.IssueLookupError, match="no marker"):
-        issue_lookup.load_issue_from_project(tmp_path, "kanbus-1")
+        issue_lookup.load_issue_from_project_with_context(tmp_path, None, "kanbus-1")
 
-    monkeypatch.setattr(issue_lookup, "discover_project_directories", lambda _r: [])
+    monkeypatch.setattr(
+        issue_lookup,
+        "discover_project_directories_from_configuration",
+        lambda _r, _c: [],
+    )
     with pytest.raises(issue_lookup.IssueLookupError, match="project not initialized"):
-        issue_lookup.load_issue_from_project(tmp_path, "kanbus-1")
+        issue_lookup.load_issue_from_project_with_context(tmp_path, None, "kanbus-1")
 
 
 def test_overlay_config_lookup_fails_on_malformed_workspace_configuration(

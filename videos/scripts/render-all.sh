@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-SCRIPTS_ROOT=..
+SCRIPTS_ROOT=.
 OUT=out
 BABULUS_BUNDLE=node_modules/babulus/public/babulus-standard.js
 export PATH="$(pwd)/node_modules/.bin:$PATH"

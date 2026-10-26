@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "64db3127-107d-46ae-90d5-1d4c98f5e816",
+  "issue_id": "kbs-1cfe800c-e040-4307-a35f-0c6ce79571e1",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T18:16:28.774Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "## Why this exists\nkbs-3b5cc3 removed the NAT Gateway and replaced TenantSyncWorker with GitSync + EFS Writer + SyncNotify. That slice is merged on develop (PR #201) and a disposable tenant (`preaccept/accept-135301`) synced successfully.\n\nThat is not the hosted product.\n\n## Gap\n- S3 bucket `kanbus-sync-dev-335163751677` has only `preaccept/`. There is no `anthus/kanbus` tarball.\n- GitHub repo AnthusAI/Kanbus has no webhook to `KanbusCloudFoundation` (`/internal/webhooks/github`). Live pushes do not refresh the hosted board.\n- Launch checklist items for live webhook -> EFS -> IoT -> UI are still open.\n\n## DoD\n1. Signed webhook for account `anthus` project `kanbus` using a real `origin/develop` SHA produces: GitSync success, S3 `{account}/{project}/{sha}.tar.gz`, EFS Writer extract to `/mnt/data/anthus/kanbus/repo`, `.synced.json`, SyncNotify IoT publish. DLQ not growing from this run.\n2. Authenticated GET `/{anthus}/{kanbus}/api/issues` returns the Kanbus board (not empty/error).\n3. Browser login to `https://l90n23uqnl.execute-api.us-east-1.amazonaws.com/dev/anthus/kanbus/` shows issues.\n4. Record whether GitHub webhook registration is still missing; do not pretend Amplify/Snyk hooks are Kanbus sync.\n\n## Out of scope\nMerge to main. New NAT. Fargate/CodeBuild.\n\n## Staging\nStack KanbusCloudFoundation, account 335163751677, AWS_PROFILE=default. No cdk deploy --all.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Hosted anthus/kanbus board is unproven after S3-bridge cutover"
+  }
+}

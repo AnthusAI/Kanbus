@@ -29,13 +29,13 @@ bd create "Test issue C" --json >/dev/null
 list_all() {
   label="$1"
   echo "Listing with Python kanbus..."
-  KANBUS_NO_DAEMON=1 kanbus list --status open --porcelain | tee /tmp/list_python.txt
+  KANBUS_DAEMON=0 kanbus list --status open --porcelain | tee /tmp/list_python.txt
 
   echo "Listing with Rust kbs..."
-  KANBUS_NO_DAEMON=1 kbs list --status open --porcelain | tee /tmp/list_rust.txt
+  KANBUS_DAEMON=0 kbs list --status open --porcelain | tee /tmp/list_rust.txt
 
   echo "Listing with beads (bd)..."
-  KANBUS_NO_DAEMON=1 bd list --status open --json > /tmp/bd_raw.txt 2>/dev/null || true
+  KANBUS_DAEMON=0 bd list --status open --json > /tmp/bd_raw.txt 2>/dev/null || true
   python3.11 - <<'PY' > /tmp/list_beads.txt
 import json, sys
 text = open("/tmp/bd_raw.txt","r",encoding="utf-8").read()
@@ -60,19 +60,19 @@ PY
 list_all "seed issues (A/B/C)"
 
 echo "Adding issue via Python kanbus..."
-KANBUS_NO_DAEMON=1 kanbus create "Test issue PY-added" >/dev/null
-KANBUS_NO_DAEMON=1 bd create "Test issue PY-added" --json >/dev/null
+KANBUS_DAEMON=0 kanbus create "Test issue PY-added" >/dev/null
+KANBUS_DAEMON=0 bd create "Test issue PY-added" --json >/dev/null
 list_all "after Python add"
 
 echo "Adding issue via Rust kbs..."
-KANBUS_NO_DAEMON=1 kbs create "Test issue RUST-added" >/dev/null
-KANBUS_NO_DAEMON=1 bd create "Test issue RUST-added" --json >/dev/null
+KANBUS_DAEMON=0 kbs create "Test issue RUST-added" >/dev/null
+KANBUS_DAEMON=0 bd create "Test issue RUST-added" --json >/dev/null
 list_all "after Rust add"
 
 echo "Adding issue via beads..."
-KANBUS_NO_DAEMON=1 bd create "Test issue BEADS-added" --json >/dev/null
+KANBUS_DAEMON=0 bd create "Test issue BEADS-added" --json >/dev/null
 # Pull beads issues back into kanbus so parity holds
-KANBUS_NO_DAEMON=1 kanbus create "Test issue BEADS-added" >/dev/null || true
+KANBUS_DAEMON=0 kanbus create "Test issue BEADS-added" >/dev/null || true
 list_all "after beads add"
 
 echo "Interop smoke passed with six issues in sync."

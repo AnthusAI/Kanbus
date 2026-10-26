@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "b37a0073-32de-4786-8a31-353cdd28ef29",
+  "issue_id": "kbs-549db4a0-2703-43ac-9eb0-fd0ed73783d0",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T14:59:33.003Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "As an agent, I want a first-class command to git-commit project/issues, so that I do not have to remember the git add/commit ritual.\n\nDecision: add `kbs commit` (not `kbs sync` — sync is Jira/Snyk/GitHub). Keep existing CONTRIBUTING_AGENT.md docs and point them at this command. Commit project/issues only. Do not push. Do not un-gitignore project/events.\n\nFeature: Commit board state\n  Scenario: Commit persists uncommitted issue files\n    Given a Kanbus project with default configuration\n    And an uncommitted issue exists\n    When I run \"kanbus commit\"\n    Then the command should succeed\n    And the issue files are committed to git\n\n  Scenario: Commit succeeds when there is nothing to commit\n    Given a Kanbus project with default configuration\n    And the working tree has no uncommitted issue files\n    When I run \"kanbus commit\"\n    Then the command should succeed",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+    "priority": 1,
+    "status": "open",
+    "title": "Commit board state with kbs commit"
+  }
+}

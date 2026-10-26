@@ -162,7 +162,6 @@ struct LocalRouterState {
     scheduler_hard: bool,
     active_issue_id: Option<String>,
     active_claim_id: Option<String>,
-    active_child_pid: Option<u32>,
     stop_requested: bool,
 }
 
@@ -267,7 +266,7 @@ impl RouterLeaseRenewalGuard {
             .map_err(|_| KanbusError::IssueOperation("router lease renewer failed".into()))?;
         if let Some(error) = failure.as_ref() {
             return Err(KanbusError::IssueOperation(format!(
-                "router hard lease renewal failed: {error}"
+                "router lease renewal failed: {error}"
             )));
         }
         Ok(())
@@ -3163,9 +3162,14 @@ pub fn default_provider_profile(router: &IssueRouterConfiguration) -> Option<&st
 /// Wait for a valid peer MQTT coordination notification, if MQTT is configured.
 /// Returns immediately on an unavailable broker so watch mode can retain its
 /// durable Git polling interval.
-pub fn wait_for_issue_router_notification(root: &Path, timeout: Duration) -> bool {
-    let Ok((configuration, _, project_dir)) = load_issue_router(root) else {
-        return false;
+pub fn wait_for_issue_router_notification(
+    root: &Path,
+    timeout: Duration,
+) -> Result<bool, KanbusError> {
+    let (configuration, _, project_dir) = match load_issue_router(root) {
+        Ok(loaded) => loaded,
+        Err(error @ KanbusError::Configuration(_)) => return Err(error),
+        Err(_) => return Ok(false),
     };
     if !configuration
         .coordination
@@ -3173,7 +3177,7 @@ pub fn wait_for_issue_router_notification(root: &Path, timeout: Duration) -> boo
         .iter()
         .any(|provider| provider == "mqtt")
     {
-        return false;
+        return Ok(false);
     }
     crate::gossip::wait_for_coordination_gossip_notification(
         root,
@@ -3279,7 +3283,25 @@ fn request_router_process_group_termination(group_leader_pid: u32) {
     let _ = group_leader_pid;
 }
 
-pub(crate) fn terminate_router_child_process_tree(child: &mut Child) {
+/// Spawn a router adapter as the leader of its own process group.
+///
+/// # Arguments
+/// * `command` - Adapter command, fully configured except for its process group.
+///
+/// # Errors
+/// Returns the operating-system error when the adapter cannot be started.
+pub fn spawn_router_child_in_own_process_group(
+    command: &mut Command,
+) -> Result<Child, std::io::Error> {
+    place_router_child_in_own_process_group(command);
+    command.spawn()
+}
+
+/// Kill an adapter together with every process it spawned, then reap it.
+///
+/// # Arguments
+/// * `child` - Adapter started by `spawn_router_child_in_own_process_group`.
+pub fn terminate_router_child_process_tree(child: &mut Child) {
     #[cfg(unix)]
     signal_router_process_group(child.id(), libc::SIGKILL);
     let _ = child.kill();
@@ -3302,6 +3324,20 @@ fn process_is_running(pid: u32) -> bool {
         .args(["-0", &pid.to_string()])
         .status()
         .is_ok_and(|status| status.success())
+}
+
+/// Return the boot-aware identity of the process currently using a PID.
+///
+/// The format is identical to the Python runtime so a recorded identity means
+/// the same process in both runtimes.
+///
+/// # Arguments
+/// * `pid` - Operating-system process identifier.
+///
+/// # Returns
+/// The identity string, or `None` when the platform cannot provide one.
+pub fn router_process_identity(pid: u32) -> Option<String> {
+    process_identity(pid)
 }
 
 fn process_identity(pid: u32) -> Option<String> {
@@ -3340,16 +3376,145 @@ fn process_identity(pid: u32) -> Option<String> {
     ))
 }
 
+/// Decide whether a recorded process still exists as the same process.
+///
+/// A live PID whose current identity differs from the recorded identity was
+/// reused by an unrelated process and does not count as running.
+///
+/// # Arguments
+/// * `pid` - Recorded process identifier.
+/// * `recorded_identity` - Identity recorded when the process started, if any.
+///
+/// # Returns
+/// `true` when the recorded process is still running.
+pub fn recorded_router_process_is_running(pid: u32, recorded_identity: Option<&str>) -> bool {
+    if !process_is_running(pid) {
+        return false;
+    }
+    match (recorded_identity, process_identity(pid)) {
+        (Some(recorded), Some(current)) => recorded == current,
+        _ => true,
+    }
+}
+
 fn watch_process_is_running(local: &LocalRouterState) -> bool {
     let Some(pid) = local.watch_pid else {
         return false;
     };
-    if !process_is_running(pid) {
-        return false;
+    recorded_router_process_is_running(pid, local.watch_process_identity.as_deref())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RouterAdapterProcessRecord {
+    claim_id: String,
+    package_id: String,
+    pid: u32,
+    process_identity: Option<String>,
+    schema_version: u32,
+}
+
+/// Return the host-local record path of the adapter running a package claim.
+///
+/// The path and the JSON schema are shared with the Python runtime.
+///
+/// # Arguments
+/// * `root` - Repository root.
+/// * `package_id` - Routed package identifier.
+/// * `claim_id` - Claim identifier owning the adapter.
+///
+/// # Errors
+/// Returns an error when the common repository directory cannot be resolved.
+pub fn router_adapter_process_record_path(
+    root: &Path,
+    package_id: &str,
+    claim_id: &str,
+) -> Result<PathBuf, KanbusError> {
+    use sha2::{Digest, Sha256};
+    let output = Command::new("git")
+        .args(["rev-parse", "--git-common-dir"])
+        .current_dir(root)
+        .output()
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    if !output.status.success() {
+        return Err(KanbusError::IssueOperation(
+            "issue router requires a Git repository".to_string(),
+        ));
     }
-    match (&local.watch_process_identity, process_identity(pid)) {
-        (Some(recorded), Some(current)) => *recorded == current,
-        _ => true,
+    let common_dir = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    let common_dir = if common_dir.is_absolute() {
+        common_dir
+    } else {
+        root.join(common_dir)
+    };
+    let record_key = format!(
+        "{:x}",
+        Sha256::digest(format!("{package_id}\0{claim_id}").as_bytes())
+    );
+    Ok(common_dir
+        .join("kanbus-router-adapters")
+        .join(format!("{record_key}.json")))
+}
+
+fn write_router_adapter_process_record(
+    root: &Path,
+    package_id: &str,
+    claim_id: &str,
+    pid: u32,
+) -> Result<(), KanbusError> {
+    let path = router_adapter_process_record_path(root, package_id, claim_id)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| KanbusError::Io("router adapter record directory unavailable".into()))?;
+    fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let record = RouterAdapterProcessRecord {
+        claim_id: claim_id.to_string(),
+        package_id: package_id.to_string(),
+        pid,
+        process_identity: process_identity(pid),
+        schema_version: 2,
+    };
+    let bytes = serde_json::to_vec(&record).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let temporary = parent.join(format!(".router-adapter-{}.tmp", Uuid::new_v4()));
+    fs::write(&temporary, bytes).map_err(|error| KanbusError::Io(error.to_string()))?;
+    fs::rename(&temporary, &path).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        KanbusError::Io(error.to_string())
+    })
+}
+
+fn remove_router_adapter_process_record(root: &Path, package_id: &str, claim_id: &str) {
+    if let Ok(path) = router_adapter_process_record_path(root, package_id, claim_id) {
+        let _ = fs::remove_file(path);
+    }
+}
+
+fn registered_router_adapter_pid(root: &Path, package_id: &str, claim_id: &str) -> Option<u32> {
+    let path = router_adapter_process_record_path(root, package_id, claim_id).ok()?;
+    let record: RouterAdapterProcessRecord = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
+    let recorded_identity = record
+        .process_identity
+        .as_deref()
+        .filter(|identity| !identity.is_empty())?;
+    (record.schema_version == 2
+        && record.package_id == package_id
+        && record.claim_id == claim_id
+        && record.pid > 0
+        && process_identity(record.pid).as_deref() == Some(recorded_identity))
+    .then_some(record.pid)
+}
+
+/// Ask the adapter registered for a package claim to terminate.
+///
+/// Only a process whose current identity equals the recorded identity is
+/// signalled, so a PID reused by an unrelated process is never touched.
+///
+/// # Arguments
+/// * `root` - Repository root.
+/// * `package_id` - Routed package identifier.
+/// * `claim_id` - Claim identifier owning the adapter.
+pub fn signal_registered_router_adapter(root: &Path, package_id: &str, claim_id: &str) {
+    if let Some(pid) = registered_router_adapter_pid(root, package_id, claim_id) {
+        request_router_process_group_termination(pid);
     }
 }
 
@@ -3411,10 +3576,13 @@ fn router_status_output(root: &Path, project_dir: &Path) -> Result<String, Kanbu
     let local = read_local_router_state(root)?;
     let state = reduce_router_events(&load_router_events(project_dir)?);
     let running = watch_process_is_running(&local);
-    let active_runs = usize::from(
-        local.active_issue_id.is_some()
-            && (running || local.active_child_pid.is_some_and(process_is_running)),
-    );
+    let adapter_running = match (&local.active_issue_id, &local.active_claim_id) {
+        (Some(issue_id), Some(claim_id)) => {
+            registered_router_adapter_pid(root, issue_id, claim_id).is_some()
+        }
+        _ => false,
+    };
+    let active_runs = usize::from(local.active_issue_id.is_some() && (running || adapter_running));
     let held_routes = if state.holds.is_empty() {
         "none".to_string()
     } else {
@@ -3533,9 +3701,8 @@ fn cancel_router_package(
     };
     assert_current_router_claim(project_dir, &configuration, &claim)?;
     router_cancel_control_event(project_dir, issue_id, &claim_id, revision)?;
-    if let Some(pid) = local.active_child_pid {
-        request_router_process_group_termination(pid);
-    }
+    signal_registered_router_adapter(root, issue_id, &claim_id);
+    remove_router_adapter_process_record(root, issue_id, &claim_id);
     let _ = router;
     let checkpoint = reduce_router_events(&load_router_events(project_dir)?)
         .checkpoints
@@ -3549,7 +3716,6 @@ fn cancel_router_package(
     )?;
     local.active_issue_id = None;
     local.active_claim_id = None;
-    local.active_child_pid = None;
     write_local_router_state(root, &local)?;
     Ok(format!(
         "Cancelled router package {issue_id}; checkpoint {} preserved.\n",
@@ -3790,6 +3956,14 @@ fn run_issue_router_once(
         owner: owner.clone(),
         resources,
     };
+    if !hard {
+        lease_renewer = Some(start_soft_lease_renewer(
+            root,
+            project_dir,
+            &configuration,
+            &claim,
+        )?);
+    }
     let active_state = reduce_router_events(&load_router_events(project_dir)?);
     let checkpoint = active_state.checkpoints.get(&package.issue_id).cloned();
     let mut started_payload = json!({
@@ -4202,6 +4376,9 @@ fn run_issue_router_once(
             return Err(error);
         }
     };
+    if result.outcome != "blocked" {
+        finish_router_package_resources(root, &package.issue_id);
+    }
     if let Some(renewer) = lease_renewer.as_mut() {
         if let Err(error) = renewer.stop() {
             release_then_clear(
@@ -4254,6 +4431,41 @@ fn watch_poll_backoff_seconds(interval_seconds: u64, consecutive_failures: u32) 
     interval_seconds
         .saturating_mul(1_u64 << consecutive_failures.clamp(1, 16))
         .min(WATCH_POLL_BACKOFF_CEILING_SECONDS)
+}
+
+/// What the watch loop does after a failed GitHub pull request poll.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WatchPollFailureDecision {
+    /// Log the failure and poll again after the given delay.
+    Retry {
+        /// Seconds to wait before the next poll.
+        backoff_seconds: u64,
+    },
+    /// Stop the watch because the failure is not transient.
+    Abort,
+}
+
+/// Decide whether a poll failure stops the watch or is retried with backoff.
+///
+/// # Arguments
+/// * `error` - Failure returned by the poll.
+/// * `interval_seconds` - Configured watch interval.
+/// * `consecutive_failures` - Failures in a row, including this one.
+///
+/// # Returns
+/// `Retry` for network errors, HTTP 429 and HTTP 5xx; `Abort` otherwise.
+pub fn decide_watch_poll_failure(
+    error: &KanbusError,
+    interval_seconds: u64,
+    consecutive_failures: u32,
+) -> WatchPollFailureDecision {
+    if is_transient_github_polling_error(error) {
+        WatchPollFailureDecision::Retry {
+            backoff_seconds: watch_poll_backoff_seconds(interval_seconds, consecutive_failures),
+        }
+    } else {
+        WatchPollFailureDecision::Abort
+    }
 }
 
 fn run_issue_router_watch(
@@ -4360,16 +4572,19 @@ fn run_issue_router_watch(
                     next_poll = Instant::now() + Duration::from_secs(interval);
                     run_cycle = true;
                 }
-                Err(error) if is_transient_github_polling_error(&error) => {
-                    consecutive_poll_failures = consecutive_poll_failures.saturating_add(1);
-                    let backoff = watch_poll_backoff_seconds(interval, consecutive_poll_failures);
-                    eprintln!("router watch: {error}; retrying in {backoff}s");
-                    next_poll = Instant::now() + Duration::from_secs(backoff);
-                }
                 Err(error) => {
-                    release_watch_scheduler_claim(root, project_dir, &configuration)?;
-                    clear_watch_router_state(root)?;
-                    return Err(error);
+                    consecutive_poll_failures = consecutive_poll_failures.saturating_add(1);
+                    match decide_watch_poll_failure(&error, interval, consecutive_poll_failures) {
+                        WatchPollFailureDecision::Retry { backoff_seconds } => {
+                            eprintln!("router watch: {error}; retrying in {backoff_seconds}s");
+                            next_poll = Instant::now() + Duration::from_secs(backoff_seconds);
+                        }
+                        WatchPollFailureDecision::Abort => {
+                            release_watch_scheduler_claim(root, project_dir, &configuration)?;
+                            clear_watch_router_state(root)?;
+                            return Err(error);
+                        }
+                    }
                 }
             }
         }
@@ -4404,7 +4619,7 @@ fn run_issue_router_watch(
                 project_dir,
                 wait,
                 configuration.overlay.ttl_s,
-            );
+            )?;
             if notified {
                 next_poll = Instant::now();
             } else if let Some(remaining) = wait.checked_sub(wait_started.elapsed()) {
@@ -4523,9 +4738,7 @@ fn acquire_router_claims(
                 let cleanup =
                     release_hard_resources(coordination, project_dir, &acquired, owner, claim_id);
                 return Err(combine_hard_acquisition_error(
-                    KanbusError::IssueOperation(format!(
-                        "router hard lease renewal failed: {error}"
-                    )),
+                    KanbusError::IssueOperation(format!("router lease renewal failed: {error}")),
                     cleanup,
                 ));
             }
@@ -4697,6 +4910,55 @@ fn acquire_router_claims(
         }
     }
     Ok((!resources.is_empty(), resources, false, None))
+}
+
+fn start_soft_lease_renewer(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+) -> Result<RouterLeaseRenewalGuard, KanbusError> {
+    let ttl_seconds = parse_duration_seconds(&configuration.coordination.default_lease_ttl)
+        .map_err(KanbusError::Configuration)?;
+    let interval = Duration::from_secs(ttl_seconds.saturating_div(3).max(1));
+    let renewal_root = root.to_path_buf();
+    let renewal_project_dir = project_dir.to_path_buf();
+    let renewal_configuration = configuration.clone();
+    let renewal_claim = claim.clone();
+    RouterLeaseRenewalGuard::start(interval, move || {
+        renew_soft_router_leases(
+            &renewal_root,
+            &renewal_project_dir,
+            &renewal_configuration,
+            &renewal_claim,
+        )
+        .map_err(|error| error.to_string())
+    })
+    .map_err(|error| KanbusError::IssueOperation(format!("router lease renewal failed: {error}")))
+}
+
+fn renew_soft_router_leases(
+    root: &Path,
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+    claim: &RouterClaim,
+) -> Result<(), KanbusError> {
+    let ttl_seconds = parse_duration_seconds(&configuration.coordination.default_lease_ttl)
+        .map_err(KanbusError::Configuration)?;
+    for resource in &claim.resources {
+        renew_soft_router_resource(
+            root,
+            project_dir,
+            resource,
+            &claim.owner,
+            &claim.claim_id,
+            ttl_seconds,
+        )?;
+    }
+    if read_local_router_state(root)?.scheduler_claim_id.is_some() {
+        renew_watch_scheduler(root, project_dir, configuration)?;
+    }
+    Ok(())
 }
 
 fn update_renewal_resource_set(
@@ -5593,12 +5855,11 @@ fn execute_router_adapter(
         data_home.as_ref(),
         ResumeMode::decide(resume.as_ref(), resumed),
     );
-    place_router_child_in_own_process_group(&mut command);
     command
         .current_dir(&worktree)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command.spawn().map_err(|_| {
+    let mut child = spawn_router_child_in_own_process_group(&mut command).map_err(|_| {
         KanbusError::IssueOperation(format!("{adapter_name} router adapter failed"))
     })?;
     set_active_router_state(root, issue_id, &claim.claim_id, Some(child.id()))?;
@@ -5632,6 +5893,7 @@ fn execute_router_adapter(
         if router_cancel_requested(project_dir, issue_id) {
             terminate_router_child_process_tree(&mut child);
             let _ = clear_active_router_state(root);
+            finish_router_package_resources(root, issue_id);
             let state = reduce_router_events(&load_router_events(project_dir)?);
             append_router_event(
                 project_dir,
@@ -5655,10 +5917,12 @@ fn execute_router_adapter(
             )));
         }
         if Instant::now() >= next_renewal {
-            let renew_result = if claim.hard && external_renewer.is_some() {
+            let renew_result = if external_renewer.is_none() {
+                renew_router_claims(root, project_dir, configuration, claim)
+            } else if claim.hard {
                 Ok(())
             } else {
-                renew_router_claims(root, project_dir, configuration, claim)
+                assert_current_router_claim(project_dir, configuration, claim)
             };
             if let Err(error) = renew_result {
                 terminate_router_child_process_tree(&mut child);
@@ -5852,17 +6116,12 @@ fn validate_router_worktree_changes(
     Ok(())
 }
 
-/// The private OpenCode data dir for one package.
+/// The persistent OpenCode data directory of one package, when the repository is known.
 ///
-/// Concurrent OpenCode processes share one SQLite session database and fail
-/// with "database is locked", so each package gets its own directory. It lives
-/// beside the repository's other host-local router state and persists across
-/// attempts so a saved session can be resumed with a human's reply. When the
-/// repository directory cannot be found it is a temporary directory instead.
-/// A private owner-only copy of `auth.json` is placed in it for the run so
-/// non-AWS providers keep working, and removed when the run ends.
-fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
-    let common_dir = Command::new("git")
+/// The key scheme is shared with the Python runtime so either can resume the
+/// other's saved session and either can remove it at a terminal outcome.
+fn opencode_data_directory(root: &Path, issue_id: &str) -> Option<PathBuf> {
+    let common = Command::new("git")
         .args(["rev-parse", "--git-common-dir"])
         .current_dir(root)
         .output()
@@ -5876,7 +6135,7 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
             } else {
                 root.join(path)
             }
-        });
+        })?;
     let key: String = issue_id
         .chars()
         .map(|c| {
@@ -5887,12 +6146,74 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
             }
         })
         .collect();
-    let home = match common_dir {
-        Some(common) => {
-            let path = common
-                .join("kanbus-router-adapters")
-                .join("opencode")
-                .join(key);
+    Some(
+        common
+            .join("kanbus-router-adapters")
+            .join("opencode")
+            .join(key),
+    )
+}
+
+/// Release everything a package holds on this host once it reaches a terminal outcome.
+///
+/// Removes every isolated worktree the router created for the package, prunes
+/// stale worktree registrations, and deletes the package's private OpenCode
+/// data directory together with any credentials copy inside it. A package that
+/// is blocked awaiting a human reply is not terminal and keeps both.
+pub fn finish_router_package_resources(root: &Path, issue_id: &str) {
+    remove_router_package_worktrees(root, issue_id);
+    if let Some(directory) = opencode_data_directory(root, issue_id) {
+        let _ = fs::remove_dir_all(directory);
+    }
+}
+
+fn remove_router_package_worktrees(root: &Path, issue_id: &str) {
+    let Ok(managed_root) = router_worktree_root(root) else {
+        return;
+    };
+    let prefix = format!("{issue_id}-");
+    let listing = Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .map(|output| String::from_utf8_lossy(&output.stdout).to_string())
+        .unwrap_or_default();
+    let managed_root = fs::canonicalize(&managed_root).unwrap_or(managed_root);
+    for registered in listing
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+    {
+        let path = fs::canonicalize(registered).unwrap_or_else(|_| PathBuf::from(registered));
+        let belongs_to_package = path.parent() == Some(managed_root.as_path())
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix));
+        if belongs_to_package {
+            let _ = Command::new("git")
+                .args(["worktree", "remove", "--force"])
+                .arg(registered)
+                .current_dir(root)
+                .output();
+            let _ = fs::remove_dir_all(registered);
+        }
+    }
+    prune_stale_router_worktrees(root);
+}
+
+/// The private OpenCode data dir for one package.
+///
+/// Concurrent OpenCode processes share one SQLite session database and fail
+/// with "database is locked", so each package gets its own directory. It lives
+/// beside the repository's other host-local router state and persists across
+/// attempts so a saved session can be resumed with a human's reply. When the
+/// repository directory cannot be found it is a temporary directory instead.
+/// A private owner-only copy of `auth.json` is placed in it for the run so
+/// non-AWS providers keep working, and removed when the run ends.
+fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
+    let home = match opencode_data_directory(root, issue_id) {
+        Some(path) => {
             fs::create_dir_all(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
             AdapterDataHome::Persistent(path)
         }
@@ -6353,15 +6674,19 @@ fn set_active_router_state(
     let mut state = read_local_router_state(root)?;
     state.active_issue_id = Some(issue_id.to_string());
     state.active_claim_id = Some(claim_id.to_string());
-    state.active_child_pid = child_pid;
+    if let Some(pid) = child_pid {
+        write_router_adapter_process_record(root, issue_id, claim_id, pid)?;
+    }
     write_local_router_state(root, &state)
 }
 
 fn clear_active_router_state(root: &Path) -> Result<(), KanbusError> {
     let mut state = read_local_router_state(root)?;
+    if let (Some(issue_id), Some(claim_id)) = (&state.active_issue_id, &state.active_claim_id) {
+        remove_router_adapter_process_record(root, issue_id, claim_id);
+    }
     state.active_issue_id = None;
     state.active_claim_id = None;
-    state.active_child_pid = None;
     write_local_router_state(root, &state)
 }
 
@@ -6458,7 +6783,7 @@ fn latest_router_worktree(root: &Path, claim_id: &str) -> Result<PathBuf, Kanbus
         .ok_or_else(|| {
             KanbusError::IssueOperation("router worktree claim is no longer active".to_string())
         })?;
-    Ok(router_worktree_path(root, &issue_id, claim_id))
+    router_worktree_path(root, &issue_id, claim_id)
 }
 
 fn publish_router_checkpoint(
@@ -6512,7 +6837,7 @@ fn create_router_worktree(
             return Ok(previous.to_path_buf());
         }
     }
-    let worktree = router_worktree_path(root, issue_id, &claim.claim_id);
+    let worktree = router_worktree_path(root, issue_id, &claim.claim_id)?;
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
@@ -6595,27 +6920,53 @@ fn worktree_is_registered(root: &Path, path: &Path) -> bool {
         .any(|listed| fs::canonicalize(listed).unwrap_or_else(|_| PathBuf::from(listed)) == wanted)
 }
 
-fn router_worktree_root(root: &Path) -> PathBuf {
-    let git_path = Command::new("git")
+/// The directory inside the git common directory that holds managed router worktrees.
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` naming the repository and the git
+/// failure when `git rev-parse --git-path` cannot resolve the directory.
+pub fn router_worktree_root(root: &Path) -> Result<PathBuf, KanbusError> {
+    let unresolved = |detail: String| {
+        KanbusError::IssueOperation(format!(
+            "router worktree directory could not be resolved for repository {}: {detail}",
+            root.display()
+        ))
+    };
+    let output = Command::new("git")
         .args(["rev-parse", "--git-path", "kanbus/router/worktrees"])
         .current_dir(root)
         .output()
-        .ok()
-        .filter(|output| output.status.success())
-        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
-        .filter(|path| !path.is_empty());
-    match git_path {
-        Some(path) if Path::new(&path).is_absolute() => PathBuf::from(path),
-        Some(path) => root.join(path),
-        None => std::env::temp_dir().join("kanbus-router-worktrees"),
+        .map_err(|error| unresolved(error.to_string()))?;
+    if !output.status.success() {
+        return Err(unresolved(
+            String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        ));
+    }
+    let git_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if git_path.is_empty() {
+        return Err(unresolved("git returned an empty path".to_string()));
+    }
+    if Path::new(&git_path).is_absolute() {
+        Ok(PathBuf::from(git_path))
+    } else {
+        Ok(root.join(git_path))
     }
 }
 
-fn router_worktree_path(root: &Path, issue_id: &str, claim_id: &str) -> PathBuf {
-    router_worktree_root(root).join(format!("{}-{}", issue_id, claim_id))
+/// The isolated worktree path of one package claim.
+///
+/// # Errors
+/// Returns the error of `router_worktree_root` when the directory cannot be resolved.
+pub fn router_worktree_path(
+    root: &Path,
+    issue_id: &str,
+    claim_id: &str,
+) -> Result<PathBuf, KanbusError> {
+    Ok(router_worktree_root(root)?.join(format!("{}-{}", issue_id, claim_id)))
 }
 
-fn prune_stale_router_worktrees(root: &Path) {
+/// Drop registrations of worktrees whose directories no longer exist.
+pub fn prune_stale_router_worktrees(root: &Path) {
     let _ = Command::new("git")
         .args(["worktree", "prune"])
         .current_dir(root)
@@ -7652,6 +8003,19 @@ fn publish_router_checkpoint_ref(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn router_worktree_root_fails_with_the_repository_and_git_error_outside_a_repository() {
+        let directory = tempfile::tempdir().unwrap();
+        let error = router_worktree_root(directory.path())
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with(&format!(
+            "router worktree directory could not be resolved for repository {}: ",
+            directory.path().display()
+        )));
+        assert!(error.contains("not a git repository"));
+    }
+
+    #[test]
     fn router_worktrees_live_in_the_git_directory_of_the_repository() {
         let repository = tempfile::tempdir().unwrap();
         Command::new("git")
@@ -7659,7 +8023,7 @@ mod tests {
             .current_dir(repository.path())
             .status()
             .unwrap();
-        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1");
+        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1").unwrap();
         let expected_prefix = repository
             .path()
             .join(".git")
@@ -10340,13 +10704,13 @@ mod tests {
         let error = preserve_router_error_after_adapter_failure(
             KanbusError::IssueOperation("Codex router adapter failed".to_string()),
             Err(KanbusError::IssueOperation(
-                "router hard lease renewal failed: synthetic failure".to_string(),
+                "router lease renewal failed: synthetic failure".to_string(),
             )),
             cleanup,
         );
         assert!(error.to_string().contains("Codex router adapter failed"));
         assert!(error.to_string().contains(
-            "lease renewer shutdown failed: router hard lease renewal failed: synthetic failure"
+            "lease renewer shutdown failed: router lease renewal failed: synthetic failure"
         ));
         assert!(error.to_string().contains("router cleanup failed"));
         assert_eq!(

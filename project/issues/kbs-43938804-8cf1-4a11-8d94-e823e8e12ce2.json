@@ -1,0 +1,20 @@
+{
+  "id": "kbs-43938804-8cf1-4a11-8d94-e823e8e12ce2",
+  "title": "Serialize the remaining Rust tests that mutate HOME or the process environment",
+  "description": "Follow-up to kbs-6cd2b1. Several Rust tests (for example in rust/src/gossip.rs) change HOME, the current directory or process environment variables without #[serial], while load_dotenv copies env files into the process environment. They can race each other the same way ai_credentials did. Put every such test under one serial key or refactor it to pass explicit values, and add a check (grep-based tool or test helper) so new env-mutating tests must be serialized.",
+  "type": "bug",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-26T00:43:59.316418Z",
+  "updated_at": "2026-10-26T00:43:59.346795Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

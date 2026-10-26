@@ -19,7 +19,11 @@ from kanbus.overlay import OverlayReconcileStats
 from kanbus.project import ProjectMarkerError
 from kanbus.snyk_sync import SnykPullResult, SnykSyncError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import (
+    build_issue,
+    build_project_configuration,
+    stub_cli_project_context,
+)
 
 
 def _run(args: list[str]) -> object:
@@ -82,13 +86,8 @@ def test_dep_add_remove_paths_with_modes(
         ),
     )
 
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(beads_compatibility=True),
-    )
-    monkeypatch.setattr(
-        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
+    stub_cli_project_context(
+        monkeypatch, tmp_path, build_project_configuration(beads_compatibility=True)
     )
     added: list[tuple[str, str, str]] = []
     monkeypatch.setattr(
@@ -118,11 +117,7 @@ def test_dep_add_remove_paths_with_modes(
     assert result_add_beads_fail.exit_code != 0
     assert "beads add fail" in result_add_beads_fail.output
 
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(ProjectMarkerError("project not initialized")),
-    )
+    stub_cli_project_context(monkeypatch, tmp_path)
     removed: list[tuple[str, str, str]] = []
     monkeypatch.setattr(
         cli, "remove_dependency", lambda _r, i, t, d: removed.append((i, t, d))
@@ -141,11 +136,7 @@ def test_dep_add_remove_paths_with_modes(
     assert result_remove_fail.exit_code != 0
     assert "dep remove fail" in result_remove_fail.output
 
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(ProjectMarkerError("pm fail")),
-    )
+    stub_cli_project_context(monkeypatch, tmp_path)
     monkeypatch.setattr(
         cli,
         "add_dependency",

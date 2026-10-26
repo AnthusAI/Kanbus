@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "c94b6752-e622-4345-91f8-c506ba2407df",
+  "issue_id": "kbs-6fa55ef6-891a-4661-912a-f1bd442bce4d",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T19:07:41.839Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Verify no synchronous fs or process calls inside async console handlers",
+    "description": "Acceptance line of kbs-29c415: add a CI check (clippy lint configuration or a grep-based tool in tools/) that fails when rust/src/bin/console_local.rs or kanbus::console_backend handlers call std::fs, std::process or other blocking I/O outside spawn_blocking, and fix any hits.",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 3,
+    "assignee": null,
+    "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+    "labels": []
+  }
+}

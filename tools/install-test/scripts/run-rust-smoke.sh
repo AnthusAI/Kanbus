@@ -18,10 +18,10 @@ kanbus create "Test issue B"
 kanbus create "Test issue C"
 
 echo "Listing issues with Rust binary (kbs)..."
-KANBUS_NO_DAEMON=1 kbs list --status open --porcelain | tee /tmp/kanbus_rust_list.txt
+KANBUS_DAEMON=0 kbs list --status open --porcelain | tee /tmp/kanbus_rust_list.txt
 
 echo "Listing issues with Python binary (kanbus) for comparison..."
-KANBUS_NO_DAEMON=1 kanbus list --status open --porcelain | tee /tmp/kanbus_python_list.txt
+KANBUS_DAEMON=0 kanbus list --status open --porcelain | tee /tmp/kanbus_python_list.txt
 
 echo "Diffing outputs..."
 if diff -u /tmp/kanbus_python_list.txt /tmp/kanbus_rust_list.txt; then

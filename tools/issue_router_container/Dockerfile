@@ -25,7 +25,7 @@ RUN python3 -m venv /opt/kanbus/venv \
     && python3 -c 'import json, pathlib, subprocess; catalog=json.loads(subprocess.check_output(["codex", "debug", "models"])); model=next(item for item in catalog["models"] if item["slug"] == "gpt-5.6-luna"); tiers=model.setdefault("service_tiers", []); tiers.append({"id": "flex", "name": "Flex", "description": "Flex Processing"}) if not any(tier.get("id") == "flex" for tier in tiers) else None; pathlib.Path("/opt/kanbus/codex-models.json").write_text(json.dumps(catalog), encoding="utf-8")'
 
 ENV PATH="/opt/kanbus/venv/bin:${PATH}" \
-    KANBUS_NO_DAEMON=1 \
+    KANBUS_DAEMON=0 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /workspace

@@ -53,13 +53,14 @@ def error_response(request_id: str, message: str) -> ResponseEnvelope:
 
 
 def test_is_daemon_enabled_env_matrix(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
-    assert daemon_client.is_daemon_enabled() is True
+    monkeypatch.delenv("KANBUS_DAEMON", raising=False)
+    assert daemon_client.is_daemon_enabled() is False
     for value in ["1", "true", "yes", "TRUE", "Yes"]:
-        monkeypatch.setenv("KANBUS_NO_DAEMON", value)
+        monkeypatch.setenv("KANBUS_DAEMON", value)
+        assert daemon_client.is_daemon_enabled() is True
+    for value in ["0", "false", "no", ""]:
+        monkeypatch.setenv("KANBUS_DAEMON", value)
         assert daemon_client.is_daemon_enabled() is False
-    monkeypatch.setenv("KANBUS_NO_DAEMON", "0")
-    assert daemon_client.is_daemon_enabled() is True
 
 
 def test_request_index_list_happy_path_and_disabled(
@@ -81,12 +82,12 @@ def test_request_index_list_happy_path_and_disabled(
             request.request_id, {"issues": [{"id": "kanbus-1"}]}
         ),
     )
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
 
     issues = daemon_client.request_index_list(root)
     assert issues == [{"id": "kanbus-1"}]
 
-    monkeypatch.setenv("KANBUS_NO_DAEMON", "1")
+    monkeypatch.setenv("KANBUS_DAEMON", "0")
     with pytest.raises(daemon_client.DaemonClientError, match="daemon disabled"):
         daemon_client.request_index_list(root)
 
@@ -108,7 +109,7 @@ def test_request_index_list_spawns_when_socket_missing(
     monkeypatch.setattr(daemon_client, "get_daemon_socket_path", lambda _r: socket_path)
     monkeypatch.setattr(daemon_client.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(daemon_client, "DAEMON_SOCKET_WAIT_SECONDS", 0.05)
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     with pytest.raises(daemon_client.DaemonClientError):
         daemon_client.request_index_list(root)
     assert spawned.get("spawned") is True
@@ -139,7 +140,7 @@ def test_request_index_list_restarts_daemon_on_config_schema_error(
         return ok_response(request.request_id, {"issues": [{"id": "kanbus-1"}]})
 
     monkeypatch.setattr(daemon_client, "_request_with_recovery", responder)
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     daemon_client.reset_daemon_restart_recorded_for_testing()
 
     issues = daemon_client.request_index_list(root)
@@ -159,7 +160,7 @@ def test_request_index_list_error_response_uses_envelope_message(
         "_request_with_recovery",
         lambda _s, request, _r: error_response(request.request_id, "daemon boom"),
     )
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     with pytest.raises(daemon_client.DaemonClientError, match="daemon boom"):
         daemon_client.request_index_list(root)
 
@@ -179,11 +180,11 @@ def test_request_status_and_shutdown_paths(
         return ok_response(req.request_id, {"stopped": True})
 
     monkeypatch.setattr(daemon_client, "_request_with_recovery", responder)
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     assert daemon_client.request_status(root) == {"status": "ok"}
     assert daemon_client.request_shutdown(root) == {"stopped": True}
 
-    monkeypatch.setenv("KANBUS_NO_DAEMON", "true")
+    monkeypatch.setenv("KANBUS_DAEMON", "0")
     with pytest.raises(daemon_client.DaemonClientError, match="daemon disabled"):
         daemon_client.request_status(root)
     with pytest.raises(daemon_client.DaemonClientError, match="daemon disabled"):
@@ -207,7 +208,7 @@ def test_request_status_and_shutdown_error_fallback_message(
             error=None,
         ),
     )
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     with pytest.raises(daemon_client.DaemonClientError, match="daemon error"):
         daemon_client.request_status(root)
     with pytest.raises(daemon_client.DaemonClientError, match="daemon error"):
@@ -401,7 +402,7 @@ def test_send_virtuus_request_empty_and_error_and_result_responses() -> None:
 
 
 def test_request_virtuus_disabled_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KANBUS_NO_DAEMON", "1")
+    monkeypatch.setenv("KANBUS_DAEMON", "0")
     with pytest.raises(daemon_client.DaemonClientError, match="daemon disabled"):
         daemon_client.request_virtuus(Path("/tmp/kanbus-root"), {"action": "ping"})
 
@@ -417,7 +418,7 @@ def test_ensure_daemon_socket_spawn_failure_marks_root_unavailable(
         raise OSError("exec failed")
 
     monkeypatch.setattr(daemon_client.subprocess, "Popen", raising_popen)
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     with pytest.raises(daemon_client.DaemonClientError, match="daemon spawn failed"):
         daemon_client.ensure_daemon_socket_best_effort(root, socket_path)
     assert daemon_client.is_daemon_unavailable(root) is True
@@ -441,7 +442,7 @@ def test_ensure_daemon_socket_probe_failure_then_deadline(
 
     monkeypatch.setattr(daemon_client.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(daemon_client, "DAEMON_SOCKET_WAIT_SECONDS", 0.15)
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     with pytest.raises(
         daemon_client.DaemonClientError, match="daemon socket did not become ready"
     ):

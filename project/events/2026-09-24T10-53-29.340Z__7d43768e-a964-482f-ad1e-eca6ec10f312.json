@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "7d43768e-a964-482f-ad1e-eca6ec10f312",
+  "issue_id": "kbs-a1201bce-346d-4fe4-84fd-a342776265f0",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-24T10:53:29.340Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "labels": {
+        "from": [],
+        "to": [
+          "ready-for-review"
+        ]
+      }
+    }
+  }
+}

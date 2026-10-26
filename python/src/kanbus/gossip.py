@@ -20,14 +20,14 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import load_project_configuration
 from kanbus.models import IssueData, ProjectConfiguration, RealtimeConfig
 from kanbus.overlay import OverlayTombstone, write_overlay_issue, write_tombstone
 from kanbus.project import (
-    ProjectMarkerError,
     get_configuration_path,
     resolve_labeled_projects,
 )
+from kanbus.project_context import ProjectContext
 from kanbus.test_hooks import read_test_hook
 
 _MOSQUITTO_MISSING_WARNED = False
@@ -170,16 +170,30 @@ def publish_issue_mutation(
     event_id: Optional[str],
     event_type: str,
 ) -> None:
-    """Publish a gossip envelope for an issue mutation."""
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-    except (ProjectMarkerError, ConfigurationError):
+    """Publish a gossip envelope for an issue mutation.
+
+    :raises ConfigurationError: If the project configuration is invalid.
+    """
+    context = ProjectContext.discover(root)
+    if context is None:
         return
+    publish_issue_mutation_with_context(
+        context, project_dir, issue, event_id, event_type
+    )
+
+
+def publish_issue_mutation_with_context(
+    context: ProjectContext,
+    project_dir: Path,
+    issue: IssueData,
+    event_id: Optional[str],
+    event_type: str,
+) -> None:
+    """Publish a gossip envelope for an issue mutation using a built context."""
+    configuration = context.configuration
     if configuration.realtime.broker == "off":
         return
-    project_label = _resolve_project_label(root, project_dir, configuration)
-    if project_label is None:
-        return
+    project_label = _resolve_project_label_in_context(context, project_dir)
     project_identity = realtime_project_id(configuration)
     if project_identity is None:
         return
@@ -195,13 +209,7 @@ def publish_issue_mutation(
         issue=issue,
     )
     topic = _project_topic(configuration.realtime, project_identity)
-    try:
-        _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
-    except Exception as error:
-        print(
-            f"warning: realtime publish failed for {issue.identifier}: {error}",
-            file=sys.stderr,
-        )
+    _publish_issue_event(configuration, topic, envelope, issue.identifier)
 
 
 def publish_issue_deleted(
@@ -210,16 +218,17 @@ def publish_issue_deleted(
     issue_id: str,
     event_id: Optional[str],
 ) -> None:
-    """Publish a gossip envelope for an issue deletion."""
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-    except (ProjectMarkerError, ConfigurationError):
+    """Publish a gossip envelope for an issue deletion.
+
+    :raises ConfigurationError: If the project configuration is invalid.
+    """
+    context = ProjectContext.discover(root)
+    if context is None:
         return
+    configuration = context.configuration
     if configuration.realtime.broker == "off":
         return
-    project_label = _resolve_project_label(root, project_dir, configuration)
-    if project_label is None:
-        return
+    project_label = _resolve_project_label_in_context(context, project_dir)
     project_identity = realtime_project_id(configuration)
     if project_identity is None:
         return
@@ -234,13 +243,7 @@ def publish_issue_deleted(
         producer_id=producer_id(),
     )
     topic = _project_topic(configuration.realtime, project_identity)
-    try:
-        _publish_envelope_within_hard_cap(root, configuration, topic, envelope)
-    except Exception as error:  # noqa: BLE001
-        print(
-            f"warning: realtime publish failed for {issue_id}: {error}",
-            file=sys.stderr,
-        )
+    _publish_issue_event(configuration, topic, envelope, issue_id)
 
 
 def run_gossip_watch(
@@ -453,11 +456,11 @@ def run_gossip_broker(root: Path, socket_override: Optional[Path]) -> None:
     """Run a UDS gossip broker."""
     socket_path = socket_override
     if socket_path is None:
-        try:
-            configuration = load_project_configuration(get_configuration_path(root))
-            socket_path = _uds_socket_path(configuration.realtime)
-        except (ProjectMarkerError, ConfigurationError):
+        context = ProjectContext.discover(root)
+        if context is None:
             socket_path = _uds_socket_path()
+        else:
+            socket_path = _uds_socket_path(context.configuration.realtime)
     run_uds_broker(socket_path)
 
 
@@ -579,44 +582,96 @@ def run_uds_subscription(
                 handler(envelope)
 
 
-REALTIME_PUBLISH_HARD_CAP_SECONDS = 5.0
+CLI_REALTIME_PUBLISH_CAP_SECONDS = 2.0
+"""Longest time a CLI command waits for its fire-and-forget realtime publish."""
+
+_pending_cli_publishes: list[tuple[threading.Thread, float]] = []
+_pending_cli_publishes_lock = threading.Lock()
 
 
-def _publish_envelope_within_hard_cap(
-    root: Path,
+def _publish_issue_event(
     configuration: ProjectConfiguration,
     topic: str,
     envelope: GossipEnvelope,
+    issue_id: str,
 ) -> None:
-    """Publish on a detached thread and stop waiting after a hard cap.
+    """Publish an issue event for a CLI command.
 
-    Realtime delivery is best effort, so a slow or wedged broker must never
-    hold a command open longer than the cap.
+    A running console hub on the local UDS socket receives the event inline.
+    With ``realtime.broker`` set to ``auto`` or ``off`` nothing else happens:
+    no broker discovery, no autostart, no publish. With an explicit broker URL
+    the event is published on a daemon thread; see
+    :func:`finish_pending_realtime_publishes` for the process-exit rule.
     """
-    failure: list[BaseException] = []
-
-    def publish_and_record_failure() -> None:
+    realtime = configuration.realtime
+    if realtime.transport == "uds":
         try:
-            _publish_envelope(root, configuration, topic, envelope)
+            _publish_uds(topic, envelope, realtime)
+        except OSError:
+            pass
+        return
+    if realtime.transport == "auto" and _uds_socket_path(realtime).exists():
+        try:
+            _publish_uds(topic, envelope, realtime)
+            return
+        except OSError:
+            pass
+    if realtime.broker in {"auto", "off"}:
+        return
+    try:
+        endpoint = _parse_broker_url(realtime.broker)
+    except GossipError as error:
+        print(
+            f"warning: realtime publish failed for {issue_id}: {error}",
+            file=sys.stderr,
+        )
+        return
+
+    def publish_and_report_failure() -> None:
+        try:
+            _publish_mqtt(endpoint, topic, envelope, realtime)
         except Exception as error:  # noqa: BLE001
-            failure.append(error)
+            print(
+                f"warning: realtime publish failed for {issue_id}: {error}",
+                file=sys.stderr,
+            )
 
     publisher_thread = threading.Thread(
-        target=publish_and_record_failure,
+        target=publish_and_report_failure,
         name="kanbus-realtime-publish",
         daemon=True,
     )
     publisher_thread.start()
-    publisher_thread.join(REALTIME_PUBLISH_HARD_CAP_SECONDS)
-    if publisher_thread.is_alive():
-        print(
-            "warning: realtime publish abandoned after "
-            f"{REALTIME_PUBLISH_HARD_CAP_SECONDS:g}s",
-            file=sys.stderr,
+    with _pending_cli_publishes_lock:
+        _pending_cli_publishes[:] = [
+            entry for entry in _pending_cli_publishes if entry[0].is_alive()
+        ]
+        _pending_cli_publishes.append(
+            (publisher_thread, time.monotonic() + CLI_REALTIME_PUBLISH_CAP_SECONDS)
         )
-        return
-    if failure:
-        raise failure[0]
+
+
+def finish_pending_realtime_publishes() -> None:
+    """Wait for the realtime publishes a CLI command started, up to the cap.
+
+    Every publish started by a CLI command has a deadline of
+    ``CLI_REALTIME_PUBLISH_CAP_SECONDS`` after it started. The command runner
+    calls this once the command has finished: it returns as soon as each
+    publish completes or its deadline passes, so the process never exits before
+    a publish ends unless the cap is hit, in which case it warns and abandons
+    that publish.
+    """
+    with _pending_cli_publishes_lock:
+        pending = list(_pending_cli_publishes)
+        _pending_cli_publishes.clear()
+    for publisher_thread, deadline in pending:
+        publisher_thread.join(max(0.0, deadline - time.monotonic()))
+        if publisher_thread.is_alive():
+            print(
+                "warning: realtime publish abandoned after "
+                f"{CLI_REALTIME_PUBLISH_CAP_SECONDS:g}s",
+                file=sys.stderr,
+            )
 
 
 def _publish_envelope(
@@ -968,6 +1023,15 @@ def _resolve_project_label(
         if project.project_dir == project_dir:
             return project.label
     return configuration.project_key
+
+
+def _resolve_project_label_in_context(
+    context: ProjectContext, project_dir: Path
+) -> str:
+    for project in context.labeled_projects():
+        if project.project_dir == project_dir:
+            return project.label
+    return context.configuration.project_key
 
 
 MISSING_PROJECT_ID_MESSAGE = "Realtime updates are off for this project because .kanbus.yml has no project_id. Run 'kbs migrate project-id' once on the repository's integration branch and commit .kanbus.yml; every clone and worktree then shares live updates. Every machine using this repository needs kbs 0.40.0 or later first."

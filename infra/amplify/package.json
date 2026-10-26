@@ -1,0 +1,20 @@
+{
+  "devDependencies": {
+    "@aws-amplify/backend": "^1.24.0",
+    "@aws-amplify/backend-cli": "^1.9.0",
+    "aws-cdk": "^2.1136.0",
+    "aws-cdk-lib": "^2.274.0",
+    "constructs": "^10.8.1"
+  },
+  "overrides": {
+    "minimatch": "10.2.4",
+    "@smithy/config-resolver": "4.4.6",
+    "fast-xml-parser": "4.4.1",
+    "lodash": "4.18.1",
+    "handlebars": "4.7.10",
+    "mysql2": "3.24.6",
+    "@ardatan/relay-compiler": {
+      "immutable": "3.8.4"
+    }
+  }
+}

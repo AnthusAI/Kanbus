@@ -7,6 +7,7 @@ import json
 import math
 import os
 import posixpath
+import shutil
 import signal
 import re
 import subprocess
@@ -83,6 +84,7 @@ from kanbus.issue_update import IssueUpdateError, update_issue
 from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
 from kanbus.router_adapters import (
     ADAPTER_CLASSES,
+    opencode_data_directory,
     RouterAdapter,
     RouterAgentResult,
     RouterCheckpoint,
@@ -98,7 +100,11 @@ from kanbus.router_forge import (
     record_github_check_run_event,
     record_github_pull_request_event,
 )
-from kanbus.router_state import publish_router_start_event, publish_router_state
+from kanbus.router_state import (
+    ROUTER_GIT_NETWORK_TIMEOUT_SECONDS,
+    publish_router_start_event,
+    publish_router_state,
+)
 
 HARD_COORDINATION_ERROR = (
     "hard router coordination requires Mutex API; provider mutex_api is "
@@ -321,6 +327,7 @@ def run_router_once(
                     error="router scheduler coordination lease renewal failed",
                 )
             if _cancel_was_requested(context.project_dir, candidate.issue_id, claim_id):
+                finish_package_resources(context.root, candidate.issue_id)
                 return RouterRunResult(
                     started=1, failed=1, error="router run was cancelled"
                 )
@@ -383,6 +390,7 @@ def run_router_once(
                 revision,
                 result.summary or "retryable adapter failure",
             )
+            finish_package_resources(context.root, candidate.issue_id)
             return RouterRunResult(
                 started=1, failed=1, error=result.summary or "router adapter failed"
             )
@@ -458,6 +466,7 @@ def run_router_once(
             },
         )
         publish_router_state(context.root, set(candidate.package_issue_ids))
+        finish_package_resources(context.root, candidate.issue_id)
         return RouterRunResult(
             started=1,
             completed=1,
@@ -516,6 +525,26 @@ def watch_poll_backoff_seconds(interval: float, consecutive_failures: int) -> fl
     )
 
 
+def decide_watch_poll_failure(
+    error: Exception, interval: float, consecutive_failures: int
+) -> float | None:
+    """Decide how the watch loop reacts to a failed GitHub poll.
+
+    :param error: Failure raised by the poll.
+    :type error: Exception
+    :param interval: Configured watch interval in seconds.
+    :type interval: float
+    :param consecutive_failures: Failures in a row, including this one.
+    :type consecutive_failures: int
+    :return: Seconds to wait before polling again, or ``None`` when the failure
+        is not transient and the watch must stop.
+    :rtype: float | None
+    """
+    if not is_transient_github_error(error):
+        return None
+    return watch_poll_backoff_seconds(interval, consecutive_failures)
+
+
 def run_router_watch(context: RouterContext) -> None:
     """Reconcile immediately, then poll durable state at the configured interval."""
     interval = parse_duration(context.router.watch_interval)
@@ -527,7 +556,7 @@ def run_router_watch(context: RouterContext) -> None:
     renewal_stop: threading.Event | None = None
     renewal_thread: threading.Thread | None = None
     control_started = False
-    _prune_stale_worktrees(context.root)
+    prune_stale_worktrees(context.root)
     consecutive_poll_failures = 0
     try:
         scheduler_handles, scheduler_claim_id = _acquire_watch_scheduler_claim(
@@ -563,12 +592,12 @@ def run_router_watch(context: RouterContext) -> None:
                 _reconcile_pull_requests(current, scheduler_handles)
                 consecutive_poll_failures = 0
             except IssueRouterError as error:
-                if not is_transient_github_error(error):
-                    raise
                 consecutive_poll_failures += 1
-                backoff = watch_poll_backoff_seconds(
-                    interval, consecutive_poll_failures
+                backoff = decide_watch_poll_failure(
+                    error, interval, consecutive_poll_failures
                 )
+                if backoff is None:
+                    raise
                 print(
                     f"router watch: {error}; retrying in {backoff:.0f}s",
                     file=sys.stderr,
@@ -1115,12 +1144,7 @@ def _create_isolated_worktree(
         # absolute paths there, and it may hold the agent's unfinished work.
         _WORKTREE_BASES[claim_id] = _git(reuse_path, ["rev-parse", "HEAD"])
         return reuse_path
-    git_path = _git(
-        context.root, ["rev-parse", "--git-path", "kanbus/router/worktrees"]
-    )
-    worktree_root = Path(git_path)
-    if not worktree_root.is_absolute():
-        worktree_root = context.root / worktree_root
+    worktree_root = router_worktree_root(context.root)
     worktree = worktree_root / f"{package_id}-{claim_id}"
     worktree.parent.mkdir(parents=True, exist_ok=True)
     branch = branch or f"codex/router/{package_id}/r{revision}"
@@ -1146,6 +1170,91 @@ def _create_isolated_worktree(
     # Everything the agent commits after this point is judged against this base.
     _WORKTREE_BASES[claim_id] = _git(worktree, ["rev-parse", "HEAD"])
     return worktree
+
+
+def _worktree_directory_error(root: Path, detail: str) -> str:
+    return (
+        "router worktree directory could not be resolved for repository "
+        f"{root}: {detail}"
+    )
+
+
+def router_worktree_root(root: Path) -> Path:
+    """Return the managed worktree directory inside the git common directory.
+
+    :param root: Repository root.
+    :type root: Path
+    :return: Directory that holds the router's isolated worktrees.
+    :rtype: Path
+    :raises IssueRouterError: If git cannot resolve the directory.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--git-path", "kanbus/router/worktrees"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as error:
+        raise IssueRouterError(_worktree_directory_error(root, str(error))) from error
+    git_path = completed.stdout.strip()
+    if completed.returncode != 0 or not git_path:
+        detail = completed.stderr.strip() or "git returned an empty path"
+        raise IssueRouterError(_worktree_directory_error(root, detail))
+    worktree_root = Path(git_path)
+    if not worktree_root.is_absolute():
+        worktree_root = root / worktree_root
+    return worktree_root
+
+
+def _remove_package_worktrees(root: Path, prefix: str) -> None:
+    managed_root = router_worktree_root(root).resolve()
+    listing = _git(root, ["worktree", "list", "--porcelain"])
+    for line in listing.splitlines():
+        if not line.startswith("worktree "):
+            continue
+        registered = Path(line.removeprefix("worktree "))
+        if registered.resolve().parent == managed_root and registered.name.startswith(
+            prefix
+        ):
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(registered)],
+                cwd=root,
+                check=False,
+                capture_output=True,
+            )
+            shutil.rmtree(registered, ignore_errors=True)
+    prune_stale_worktrees(root)
+
+
+def finish_package_resources(root: Path, package_id: str) -> None:
+    """Release what a package holds on this host after a terminal outcome.
+
+    Removes every isolated worktree the router created for the package, prunes
+    stale worktree registrations, and deletes the package's private OpenCode
+    data directory together with any credentials copy inside it. A package that
+    is blocked awaiting a human reply is not terminal and keeps both. A
+    failure to clean up never changes the package outcome.
+
+    :param root: Repository root.
+    :type root: Path
+    :param package_id: Package issue identifier.
+    :type package_id: str
+    """
+    prefix = f"{package_id}-"
+    try:
+        _remove_package_worktrees(root, prefix)
+        state_directory = _adapter_process_record_path(root, package_id, "").parent
+    except IssueRouterError:
+        state_directory = None
+    if state_directory is not None:
+        shutil.rmtree(
+            opencode_data_directory(state_directory, package_id), ignore_errors=True
+        )
+    for claim_id, path in list(_WORKTREE_PATHS.items()):
+        if path.name.startswith(prefix):
+            _WORKTREE_PATHS.pop(claim_id, None)
 
 
 def _existing_pull_request_branch(project_dir: Path, package_id: str) -> str | None:
@@ -2957,13 +3066,11 @@ def _latest_relevant_review(
     )
 
 
-def _prune_stale_worktrees(root: Path) -> None:
+def prune_stale_worktrees(root: Path) -> None:
+    """Drop registrations of worktrees whose directories no longer exist."""
     subprocess.run(
         ["git", "worktree", "prune"], cwd=root, check=False, capture_output=True
     )
-
-
-ROUTER_GIT_NETWORK_TIMEOUT_SECONDS = 120
 
 
 def _git_network_environment() -> dict[str, str]:

@@ -156,7 +156,7 @@ pub fn create_beads_issue(
         &issue,
         Some(event_id),
         "issue.mutated",
-    );
+    )?;
 
     Ok(issue)
 }
@@ -315,7 +315,7 @@ pub fn add_beads_comment(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
     Ok(())
 }
@@ -421,7 +421,7 @@ pub fn update_beads_comment(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
     Ok(())
 }
@@ -527,7 +527,7 @@ pub fn delete_beads_comment(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
     Ok(())
 }
@@ -642,7 +642,7 @@ pub fn add_beads_dependency(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
     Ok(())
 }
@@ -723,7 +723,7 @@ pub fn remove_beads_dependency(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
     Ok(())
 }
@@ -909,7 +909,7 @@ pub fn update_beads_issue(
         &updated_issue,
         event_id,
         "issue.mutated",
-    );
+    )?;
 
     Ok(updated_issue)
 }
@@ -1111,7 +1111,7 @@ fn delete_single_beads_issue(
         let _ = fs::write(issues_path, original_contents);
         return Err(error);
     }
-    crate::gossip::publish_issue_deleted(root, &project_dir, identifier, None);
+    crate::gossip::publish_issue_deleted(root, &project_dir, identifier, None)?;
     Ok(())
 }
 

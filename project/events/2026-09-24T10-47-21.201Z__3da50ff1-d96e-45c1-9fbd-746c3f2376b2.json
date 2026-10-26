@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "3da50ff1-d96e-45c1-9fbd-746c3f2376b2",
+  "issue_id": "kbs-a1201bce-346d-4fe4-84fd-a342776265f0",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-24T10:47:21.201Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "rekey: rename a project key and every issue ID (kbs + kanbus parity)",
+    "description": "**Goal:** a `rekey` command, `kbs rekey <new-key> [--dry-run]` and the Python `kanbus rekey`, with identical behaviour, that renames a project's key and every issue ID under it. Requested by the Apricity project (formerly Apricitus), whose board has ~150 issues keyed `apricitus-…` that must become `apricity-…`. Today the only way is hand-editing `project/`, which The Way forbids.\n\n**Behaviour (specs first, in `features/`):**\n- The new ID keeps the old suffix: `apricitus-0a00f39c-34cf-…` → `apricity-0a00f39c-34cf-…`, so short IDs (`apricity-0a00f3`) keep their hex.\n- It rewrites:\n  - the issue file name;\n  - the `id` field;\n  - every field that references an issue ID (parent, dependencies/links of every kind, anything else the model stores);\n  - `project_key` in `.kanbus.yml`.\n- **ID mentions in text.** Descriptions, titles and comment bodies that mention an ID under the old key (full or short form, matched on word boundaries and only when it resolves to an existing issue) are rewritten to the new key. Text that merely contains the old key as a word (e.g. \"the apricitus project\") is **not** changed.\n- **Derived state.** Caches, overlays and indexes are rebuilt or invalidated so `kbs show <new-id>`, `kbs list`, `kbs ready` and the console work immediately. Git-tracked event history is handled consistently, and the spec states how.\n- **Dry run.** `--dry-run` prints the planned renames (old → new, a count of text rewrites per issue) and changes nothing.\n- **Refusals** (non-zero exit, nothing changed): the new key equals the old one; the new key is invalid per the project-key rules; a target file already exists; the working tree has uncommitted changes under `project/`.\n- **Guarantees.** Rekeying is idempotent (a second run to the same key is a no-op with a clear message). After a rekey, `kbs validate` passes.\n- **Out of scope:** rewriting git commit messages. Old IDs in history stay as they were.\n\n**Rules:** this repo's AGENTS.md: spec-first Gherkin, Python/Rust parity (`tools/check_spec_parity.py`), JSON/error/CLI output parity, the coverage ratchet, and all quality gates. Work on a feature branch off `develop`, in its own worktree. No PR, push or merge without the user.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude_code",
+      "model": "Claude Opus 5.5",
+      "name": "apricity-lead"
+    }
+  }
+}

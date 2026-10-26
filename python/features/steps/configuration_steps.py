@@ -90,6 +90,14 @@ def given_repo_with_empty_hierarchy(context: object) -> None:
     given_invalid_config_empty_hierarchy(context)
 
 
+@given("the Kanbus configuration file contains malformed YAML")
+def given_configuration_file_contains_malformed_yaml(context: object) -> None:
+    repository = Path(context.working_directory)
+    (repository / ".kanbus.yml").write_text(
+        "project_key: [unclosed\n", encoding="utf-8"
+    )
+
+
 @given("a Kanbus repository with a .kanbus.yml file that is not a mapping")
 def given_repo_with_non_mapping_config(context: object) -> None:
     initialize_default_project(context)

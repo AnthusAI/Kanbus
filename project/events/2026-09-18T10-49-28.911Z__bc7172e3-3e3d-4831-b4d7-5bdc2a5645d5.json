@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "event_id": "bc7172e3-3e3d-4831-b4d7-5bdc2a5645d5",
+  "issue_id": "tskl-eo2.5.4",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-18T10:49:28.911Z",
+  "actor_id": "home",
+  "payload": {
+    "changes": {
+      "title": {
+        "from": "GitHub webhook -> SQS -> EFS git sync worker",
+        "to": "Verify GitHub webhook-triggered tenant sync and Kanbus event"
+      },
+      "description": {
+        "from": "## Intent\nImplement event-driven Git synchronization from GitHub into EFS-backed tenant repos.\n\n## Scope\n- Verify GitHub webhook signatures\n- Enqueue sync jobs to SQS\n- Worker fetch/reset repo on EFS per tenant\n- Detect issue/config changes and publish IoT events\n\n## Definition of Done\n- Retry and DLQ behavior works as expected.\n- Per-tenant sync lock prevents overlapping sync races.\n- CloudWatch alarms are configured for failures and backlog.\n- End-to-end webhook-to-event flow is reproducible in test.",
+        "to": "## Context\nThis is the verification slice under the Event-driven GitHub integrations for Kanbus initiative. A signed GitHub push webhook can keep a cloud tenant's Git-backed Kanbus data fresh and emit a notification for downstream features. It is useful for changes initiated in GitHub, but it is not needed for the current single-worker Issue Router dispatch path.\n\n## Start with evidence reconciliation\nThe deployed cloud-backend epic records webhook/sync validation as complete, while this task's older note says signed ingress was blocked on access to the webhook secret. Inspect the existing validation artifacts and deployment/runbook first. Do not rebuild the webhook, queue, worker, or EFS path if the prior evidence already proves them.\n\n## Remaining work\nIf evidence is incomplete, run one signed test delivery and trace it through signature verification, SQS, the correct tenant's EFS checkout, and the published Kanbus/IoT change event. Confirm duplicate delivery and retry behavior do not create unsafe duplicate effects, and record the precise least-privilege permission needed for the test. If evidence is already complete, link it and close this task.\n\n## Acceptance\n- The end-to-end signed-event result is reproducible or existing evidence is linked.\n- Tenant isolation, retry/DLQ behavior, and the resulting change notification are accounted for.\n- Any missing credential permission is recorded as a precise owner/action, not left as an unexplained blocker.\n- Future PR, review, or CI webhook actions are separate scoped issues under the initiative."
+      },
+      "parent": {
+        "from": "tskl-eo2.5",
+        "to": "kbs-953d7962-b827-47b7-8072-6223d7407c36"
+      }
+    }
+  }
+}

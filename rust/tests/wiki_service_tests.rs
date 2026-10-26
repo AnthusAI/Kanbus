@@ -70,7 +70,7 @@ type_colors: {}
 beads_compatibility: false
 "#;
     fs::write(dir.join(".kanbus.yml"), contents).expect("write config");
-    env::set_var("KANBUS_NO_DAEMON", "1");
+    env::set_var("KANBUS_DAEMON", "0");
     let project_dir = dir.join("project");
     let issues_dir = project_dir.join("issues");
     fs::create_dir_all(&issues_dir).expect("create issues dir");
@@ -300,7 +300,7 @@ type_colors: {}
 beads_compatibility: true
 "#;
     fs::write(dir.join(".kanbus.yml"), config).expect("write config");
-    env::set_var("KANBUS_NO_DAEMON", "1");
+    env::set_var("KANBUS_DAEMON", "0");
     let beads_dir = dir.join(".beads");
     fs::create_dir_all(&beads_dir).expect("create .beads");
     let record = r#"{"id":"bdx-001","title":"Beads task","issue_type":"task","status":"open","priority":2,"created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:00:00Z"}"#;

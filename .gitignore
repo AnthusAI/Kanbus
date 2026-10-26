@@ -88,9 +88,8 @@ amplify_outputs.json
 artifacts/
 dist/
 coverage-python-local.xml
-infra/cloud/cdk.context.json
 rust/*.profraw
-src/videos/*/*.timing.xml
+videos/src/videos/*/*.timing.xml
 .agents/
 
 coverage.xml

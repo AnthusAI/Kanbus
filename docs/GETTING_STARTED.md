@@ -18,7 +18,7 @@ All three use the same issue format, configuration file (`.kanbus.yml`), workflo
 Pick one and follow its guide:
 
 1. [Local files](getting-started/local-files.md). Start here if you are new to Kanbus; the other two guides build on it.
-2. [Files in the cloud](getting-started/cloud-files.md). Share a board through a hosted git repository, with optional live updates and an optional hosted console.
+2. [Files in the cloud](getting-started/cloud-files.md). Share a board through a hosted git repository, with optional live updates.
 3. [S3 and DynamoDB in the cloud](getting-started/cloud-database.md). Run the Kanbus API on AWS and embed the board in a web application.
 
 ## Install the CLI
@@ -74,7 +74,7 @@ cargo build --release --manifest-path rust/Cargo.toml
 # Binaries: rust/target/release/kbs and rust/target/release/kbsc
 ```
 
-To work on the console itself, `./dev.sh` starts the frontend watcher and the Rust backend with automatic rebuilds.
+For developer installs of both implementations, see [Building from source](dev/building-from-source.md). To work on the console itself, `./dev.sh` starts the frontend watcher and the Rust backend with automatic rebuilds.
 
 ## Optional: an LLM key for AI features
 

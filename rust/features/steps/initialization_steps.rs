@@ -94,6 +94,9 @@ pub struct KanbusWorld {
     pub standup_api_response: Option<serde_json::Value>,
     pub now_api_status: Option<u16>,
     pub now_api_response: Option<String>,
+    pub issue_write_status: Option<u16>,
+    pub issue_write_payload: Option<serde_json::Value>,
+    pub routing_choice: Option<serde_json::Value>,
     pub console_sort_order: Option<BTreeMap<String, serde_json::Value>>,
     pub console_time_zone: Option<String>,
     pub console_board_column_fixture_loaded: bool,
@@ -152,6 +155,7 @@ pub struct KanbusWorld {
     pub uds_subscriber: Option<std::os::unix::net::UnixStream>,
     pub uds_published_id: Option<String>,
     pub realtime_scope: crate::step_definitions::realtime_steps::RealtimeScopeState,
+    pub realtime_cli: crate::step_definitions::realtime_cli_steps::RealtimeCliState,
     pub mosquitto_startup: Option<kanbus::gossip::BrokerStartup>,
     pub mosquitto_hint_count: Option<usize>,
     pub mosquitto_unavailable: bool,
@@ -335,6 +339,7 @@ impl Drop for KanbusWorld {
         std::env::remove_var("KANBUS_TEST_EXTERNAL_TIMEOUT_MS");
         daemon_client::set_test_daemon_response(None);
         daemon_client::set_test_daemon_spawn_disabled(false);
+        daemon_client::set_test_daemon_spawn_failure(false);
         daemon_client::reset_daemon_restart_recorded_for_testing();
         daemon_client::reset_daemon_unavailable_roots_for_testing();
         std::env::remove_var("KANBUS_TEST_SIMULATE_LITELLM_MISSING");

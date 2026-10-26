@@ -43,7 +43,7 @@ fn run_cli_binary(world: &mut KanbusWorld, args: Vec<String>) {
     command.args(args);
     let output = command
         .current_dir(cwd)
-        .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_DAEMON", "0")
         .output()
         .expect("run kbs --help");
     world.exit_code = Some(output.status.code().unwrap_or(1));

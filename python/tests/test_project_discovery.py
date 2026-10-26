@@ -10,15 +10,10 @@ from kanbus.config_loader import ConfigurationError
 from test_helpers import build_project_configuration
 
 
-def test_discover_project_directories_from_root_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    (tmp_path / ".kanbus.yml").write_text("x", encoding="utf-8")
+def test_discover_project_directories_from_root_config(tmp_path: Path) -> None:
+    (tmp_path / ".kanbus.yml").write_text("project_key: kanbus\n", encoding="utf-8")
     p1 = tmp_path / "project"
     p1.mkdir()
-    monkeypatch.setattr(
-        project, "_resolve_project_directories_from_config", lambda _cfg: [p1]
-    )
 
     discovered = project.discover_project_directories(tmp_path)
     assert discovered == [p1.resolve()]
@@ -41,12 +36,10 @@ def test_discover_project_directories_wraps_is_file_oserror(
 
 
 def test_discover_project_directories_raises_for_missing_configured_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
-    (tmp_path / ".kanbus.yml").write_text("x", encoding="utf-8")
-    missing = tmp_path / "missing"
-    monkeypatch.setattr(
-        project, "_resolve_project_directories_from_config", lambda _cfg: [missing]
+    (tmp_path / ".kanbus.yml").write_text(
+        "project_key: kanbus\nproject_directory: missing\n", encoding="utf-8"
     )
 
     with pytest.raises(project.ProjectMarkerError, match="kanbus path not found"):
@@ -74,7 +67,7 @@ def test_discover_project_directories_workspace_config_fallback(
     assert discovered == [proj.resolve()]
 
 
-def test_discover_project_directories_handles_workspace_config_errors(
+def test_discover_project_directories_skips_invalid_workspace_configs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cfg = tmp_path / "workspace" / ".kanbus.yml"

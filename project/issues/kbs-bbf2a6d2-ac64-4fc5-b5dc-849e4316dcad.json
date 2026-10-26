@@ -3,7 +3,7 @@
   "title": "Default the daemon and realtime off for the CLI; one ProjectContext per command; test switches out of release builds",
   "description": "Problem: three optional subsystems sit on the synchronous critical path of every mutation, and project context is recomputed everywhere. With default configuration (realtime.broker 'auto', autostart true, rust/src/models.rs:308-321) each create, update, comment, dependency change and delete reloads configuration, probes the broker with a 1 s connect timeout (gossip.rs:1498), and if mosquitto is installed spawns it, connects with a 16 s timeout, publishes and kills it (gossip.rs:1172-1225); failures are eprintln only. The daemon adds spawn plus up to 400 ms wait on failure (daemon_client.rs:39, 305-322), terminates on any per-connection I/O error (daemon_server.rs:48-52), multiplexes two protocols by sniffing protocol_version (:114), has no idle shutdown, and its Virtuus socket path has no timeout in either runtime (daemon_client.rs:391-407; daemon_client.py:254-265). load_project_configuration has 73 call sites, re-serialises defaults through YAML on every call (config_loader.rs:749-770) and mutates the process environment via dotenv each time (config_loader.rs:47-49, 285-299; config_loader.py:51-55, 227-240), which is a data race in the multi-threaded console; measured 71 loads for one 'kanbus list'. Root discovery, project-dir resolution and overlay config are each redone 3 to 6 times per command with different fallbacks (issue_lookup.rs:237-266 vs issue_listing.rs:348-377; load_issues_from_directory x3; tag_issue_project x2). Malformed configuration is swallowed and changes behaviour instead of failing (file_io.rs:323 'if let Ok(configuration)' falls back to filesystem scanning; .ok()/unwrap_or_default in issue_lookup.rs:237-240, issue_listing.rs:348-351, hooks.rs:380-395, gossip.rs:176-183). 42 distinct KANBUS_TEST_* variables (25 Rust, 17 Python) and ten *_for_testing functions change behaviour in release builds, including KANBUS_TEST_INVALID_STATUS which makes every status validation fail (workflows.rs:205), and PYTEST_CURRENT_TEST disables the daemon (issue_files.py:71); this is the mechanism class behind the KANBUS_AGENT_* bug (kbs-7203dc). Hooks can also hang kbs forever: hooks.rs:476 writes the payload to the child's stdin before the timeout loop starts and drains stderr only after exit.\n\nWork, both runtimes: build one ProjectContext (root, config path, configuration, project dir, overlay config) at command entry and pass it down; load dotenv once at process start; propagate configuration errors (tolerate only file-not-found); default daemon and realtime off for CLI commands and on for the console, publish realtime fire-and-forget on a detached thread with a hard cap; add timeouts to the daemon socket paths; gate KANBUS_TEST_* and *_for_testing behind cfg(test) or a dev feature and inject failures through traits or fixtures in the step libraries instead; write hook stdin on a helper thread and drain stderr concurrently so the timeout fires.\n\nAcceptance: 'kbs create' on a board with mosquitto installed and no console running completes under 0.3 s with no spawned broker; configuration loads once per command (count in a test); release binary ignores every KANBUS_TEST_* variable; a hook that never reads stdin is killed at its timeout.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -17,13 +17,20 @@
       "id": "fe640a14-c95a-452a-a608-1d07b633b00c",
       "author": "Claude",
       "text": "Handoff status 2026-10-19: Not started (daemon and realtime off for the CLI); no branch or PR exists. The task description is self-contained. Do not start it while kbs-eb1788eb or the console slice (kbs-29c41525) is still open, per the low-WIP rule.",
-      "created_at": "2026-10-19T16:42:31.569399000Z",
+      "created_at": "2026-10-19T16:42:31.569399Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "a2c3da13-3c14-4e4e-967c-6c3e0eaa89ff",
+      "author": "home",
+      "text": "Done 2026-10-26 via kbs-790e63 (#548 hook timeouts), kbs-aff0fb (#549 test switches out of release builds), kbs-0786ec (#550 one ProjectContext, configuration errors propagate) and kbs-339974 (#551 CLI realtime and daemon defaults). Acceptance met except Python create under 0.3 s, which interpreter startup alone exceeds.",
+      "created_at": "2026-10-26T09:48:49.690338Z",
       "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T16:37:45.713258530Z",
-  "updated_at": "2026-10-19T16:42:31.569399000Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T09:48:49.768950Z",
+  "closed_at": "2026-10-26T09:48:49.737261Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

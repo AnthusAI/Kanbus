@@ -298,7 +298,7 @@ fn then_rendered_wiki_has_issue_link(world: &mut KanbusWorld, identifier: String
 
 #[given("a Kanbus project with AI configured")]
 fn given_project_with_ai_configured(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_DAEMON", "0");
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_path).expect("create repo dir");
@@ -418,7 +418,7 @@ fn then_rendered_wiki_has_generated_summary(world: &mut KanbusWorld, identifier:
 
 #[given(expr = "a Kanbus project with wiki_directory set to {string}")]
 fn given_project_with_wiki_directory(world: &mut KanbusWorld, value: String) {
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_DAEMON", "0");
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_path).expect("create repo dir");
@@ -657,7 +657,7 @@ fn given_project_issues_agents_baseline_saved(world: &mut KanbusWorld) {
     world.project_issues_agents_baseline = Some(baseline);
 }
 
-#[then(expr = "project/AGENTS.md should contain {string}")]
+#[then(expr = "project\\/AGENTS.md should contain {string}")]
 fn then_project_agents_contains(world: &mut KanbusWorld, text: String) {
     let project_dir = load_project_dir(world);
     let content = fs::read_to_string(project_dir.join("AGENTS.md")).expect("read agents");

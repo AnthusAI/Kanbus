@@ -1,0 +1,28 @@
+{
+  "id": "kbs-aff0fba7-64f4-404b-9f98-719f87a5fbf4",
+  "title": "Gate KANBUS_TEST_* and *_for_testing out of release builds",
+  "description": "From kbs-bbf2a6. 42 KANBUS_TEST_* variables (25 Rust, 17 Python) and ten *_for_testing functions change behaviour in release builds (for example KANBUS_TEST_INVALID_STATUS makes every status validation fail), and PYTEST_CURRENT_TEST disables the daemon in issue_files.py. Gate Rust hooks behind cfg(test) or the test-hooks feature, and Python behind the existing KANBUS_ENABLE_TEST_HOOKS gate or fixtures, injecting failures through traits or step-library fixtures. Update docs/ENVIRONMENT_VARIABLES.md. Acceptance: a release kbs binary ignores every KANBUS_TEST_* variable (test), and Python ignores them unless the test gate is on.",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7f36c3e2-c08c-42a1-93d0-f4c4711a8a06",
+      "author": "home",
+      "text": "Done: PR #549 merged with CI green. Remaining ungated test behaviour (Rust daemon client overrides and *_for_testing helpers, daemon_server handle_request_for_testing) now compiles only under cfg(test) or the test-hooks feature; Python's PYTEST_CURRENT_TEST switch replaced by the gated KANBUS_TEST_DISABLE_SERVICE hook. tools/check_test_switch_gating.py in CI blocks ungated reads. Release kbs with KANBUS_TEST_INVALID_STATUS=1 behaves normally; the name is absent from the binary.",
+      "created_at": "2026-10-26T06:32:19.584120Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-26T04:16:37.279672Z",
+  "updated_at": "2026-10-26T06:32:19.659416Z",
+  "closed_at": "2026-10-26T06:32:19.625662Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

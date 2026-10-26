@@ -19,20 +19,6 @@ use crate::daemon_paths::get_daemon_socket_path;
 use crate::daemon_protocol::{ErrorEnvelope, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
 use crate::error::KanbusError;
 
-/// Test-only response override for daemon client requests.
-#[derive(Clone, Debug)]
-pub enum TestDaemonResponse {
-    /// Simulate an empty daemon response.
-    Empty,
-    /// Simulate a daemon connection error.
-    IoError,
-    /// Return a fixed response envelope.
-    Envelope(ResponseEnvelope),
-}
-
-static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
-static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
-static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
 static DAEMON_UNAVAILABLE_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 /// Maximum time to wait for a just-started daemon socket to become connectable.
@@ -54,69 +40,171 @@ fn is_daemon_unavailable(root: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Clear the per-root "daemon unavailable" sticky marks (test helper).
-pub fn reset_daemon_unavailable_roots_for_testing() {
-    let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
-    if let Ok(mut guard) = cell.lock() {
+#[cfg(any(test, feature = "test-hooks"))]
+mod overrides {
+    use super::*;
+
+    /// Test-only response override for daemon client requests.
+    #[derive(Clone, Debug)]
+    pub enum TestDaemonResponse {
+        /// Simulate an empty daemon response.
+        Empty,
+        /// Simulate a daemon connection error.
+        IoError,
+        /// Return a fixed response envelope.
+        Envelope(ResponseEnvelope),
+    }
+
+    static TEST_DAEMON_RESPONSES: OnceLock<Mutex<Vec<TestDaemonResponse>>> = OnceLock::new();
+    static TEST_DAEMON_SPAWN_DISABLED: OnceLock<Mutex<bool>> = OnceLock::new();
+    static TEST_DAEMON_SPAWN_FAILURE: OnceLock<Mutex<bool>> = OnceLock::new();
+    static TEST_DAEMON_RESTART_RECORDED: OnceLock<Mutex<bool>> = OnceLock::new();
+
+    /// Clear the per-root "daemon unavailable" sticky marks (test helper).
+    pub fn reset_daemon_unavailable_roots_for_testing() {
+        let cell = DAEMON_UNAVAILABLE_ROOTS.get_or_init(|| Mutex::new(HashSet::new()));
+        if let Ok(mut guard) = cell.lock() {
+            guard.clear();
+        }
+    }
+
+    /// Set the test response for the next daemon request.
+    ///
+    /// Passing `None` clears any pending override.
+    pub fn set_test_daemon_response(response: Option<TestDaemonResponse>) {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = cell.lock().expect("lock test response");
         guard.clear();
+        if let Some(item) = response {
+            guard.push(item);
+        }
+    }
+
+    /// Set a sequence of test responses for daemon requests.
+    pub fn set_test_daemon_responses(responses: Vec<TestDaemonResponse>) {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = cell.lock().expect("lock test responses");
+        *guard = responses;
+    }
+
+    /// Return whether a test daemon response override is set.
+    pub fn has_test_daemon_response() -> bool {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let guard = cell.lock().expect("lock test response");
+        !guard.is_empty()
+    }
+
+    /// Disable daemon spawning for tests when set to true.
+    pub fn set_test_daemon_spawn_disabled(disabled: bool) {
+        let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
+        let mut guard = cell.lock().expect("lock test spawn flag");
+        *guard = disabled;
+    }
+
+    /// Force daemon spawning to fail with a missing-executable error when set to true.
+    pub fn set_test_daemon_spawn_failure(enabled: bool) {
+        let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
+        let mut guard = cell.lock().expect("lock test spawn failure flag");
+        *guard = enabled;
+    }
+
+    pub(super) fn is_test_spawn_failure_enabled() -> bool {
+        let cell = TEST_DAEMON_SPAWN_FAILURE.get_or_init(|| Mutex::new(false));
+        let guard = cell.lock().expect("lock test spawn failure flag");
+        *guard
+    }
+
+    pub(super) fn is_test_spawn_disabled() -> bool {
+        let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
+        let guard = cell.lock().expect("lock test spawn flag");
+        *guard
+    }
+
+    pub(super) fn take_simulated_response() -> Option<Result<ResponseEnvelope, KanbusError>> {
+        let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = cell.lock().expect("lock test response");
+        if guard.is_empty() {
+            return None;
+        }
+        Some(match guard.remove(0) {
+            TestDaemonResponse::Empty => Err(KanbusError::IssueOperation(
+                "empty daemon response".to_string(),
+            )),
+            TestDaemonResponse::IoError => {
+                Err(KanbusError::Io("daemon connection failed".to_string()))
+            }
+            TestDaemonResponse::Envelope(envelope) => Ok(envelope),
+        })
+    }
+
+    pub(super) fn record_daemon_restart() {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder") = true;
+    }
+
+    /// Return whether `restart_daemon` ran during the current test scenario.
+    pub fn was_daemon_restarted_for_testing() -> bool {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder")
+    }
+
+    /// Clear the `restart_daemon` test recorder.
+    pub fn reset_daemon_restart_recorded_for_testing() {
+        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
+        *cell.lock().expect("lock daemon restart recorder") = false;
     }
 }
 
-/// Set the test response for the next daemon request.
-///
-/// Passing `None` clears any pending override.
-pub fn set_test_daemon_response(response: Option<TestDaemonResponse>) {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let mut guard = cell.lock().expect("lock test response");
-    guard.clear();
-    if let Some(item) = response {
-        guard.push(item);
+#[cfg(not(any(test, feature = "test-hooks")))]
+mod overrides {
+    use super::*;
+
+    pub(super) fn has_test_daemon_response() -> bool {
+        false
     }
-}
 
-/// Set a sequence of test responses for daemon requests.
-pub fn set_test_daemon_responses(responses: Vec<TestDaemonResponse>) {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let mut guard = cell.lock().expect("lock test responses");
-    *guard = responses;
-}
+    pub(super) fn is_test_spawn_failure_enabled() -> bool {
+        false
+    }
 
-/// Return whether a test daemon response override is set.
-pub fn has_test_daemon_response() -> bool {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let guard = cell.lock().expect("lock test response");
-    !guard.is_empty()
-}
+    pub(super) fn is_test_spawn_disabled() -> bool {
+        false
+    }
 
-/// Disable daemon spawning for tests when set to true.
-pub fn set_test_daemon_spawn_disabled(disabled: bool) {
-    let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
-    let mut guard = cell.lock().expect("lock test spawn flag");
-    *guard = disabled;
-}
-
-fn take_test_daemon_response() -> Option<TestDaemonResponse> {
-    let cell = TEST_DAEMON_RESPONSES.get_or_init(|| Mutex::new(Vec::new()));
-    let mut guard = cell.lock().expect("lock test response");
-    if guard.is_empty() {
+    pub(super) fn take_simulated_response() -> Option<Result<ResponseEnvelope, KanbusError>> {
         None
-    } else {
-        Some(guard.remove(0))
     }
+
+    pub(super) fn record_daemon_restart() {}
 }
 
-fn is_test_spawn_disabled() -> bool {
-    let cell = TEST_DAEMON_SPAWN_DISABLED.get_or_init(|| Mutex::new(false));
-    let guard = cell.lock().expect("lock test spawn flag");
-    *guard
+#[cfg(not(any(test, feature = "test-hooks")))]
+use overrides::has_test_daemon_response;
+#[cfg(any(test, feature = "test-hooks"))]
+pub use overrides::{
+    has_test_daemon_response, reset_daemon_restart_recorded_for_testing,
+    reset_daemon_unavailable_roots_for_testing, set_test_daemon_response,
+    set_test_daemon_responses, set_test_daemon_spawn_disabled, set_test_daemon_spawn_failure,
+    was_daemon_restarted_for_testing, TestDaemonResponse,
+};
+use overrides::{
+    is_test_spawn_disabled, is_test_spawn_failure_enabled, record_daemon_restart,
+    take_simulated_response,
+};
+
+fn daemon_spawn_failed_error(error: &std::io::Error) -> KanbusError {
+    KanbusError::Io(format!(
+        "daemon spawn failed: {error}. Unset KANBUS_DAEMON to bypass the daemon."
+    ))
 }
 
 /// Return whether daemon mode is enabled.
+///
+/// The daemon is opt-in: it is used only when `KANBUS_DAEMON` is `1`, `true`
+/// or `yes`. Unset or any other value leaves it off.
 pub fn is_daemon_enabled() -> bool {
-    let value = env::var("KANBUS_NO_DAEMON")
-        .unwrap_or_default()
-        .to_lowercase();
-    !matches!(value.as_str(), "1" | "true" | "yes")
+    let value = env::var("KANBUS_DAEMON").unwrap_or_default().to_lowercase();
+    matches!(value.as_str(), "1" | "true" | "yes")
 }
 
 /// Error message returned when a stale daemon rejects the current config schema.
@@ -133,18 +221,6 @@ pub fn is_daemon_config_schema_error(message: &str) -> bool {
     message == DAEMON_CONFIG_SCHEMA_ERROR_MESSAGE
 }
 
-/// Return whether `restart_daemon` ran during the current test scenario.
-pub fn was_daemon_restarted_for_testing() -> bool {
-    let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
-    *cell.lock().expect("lock daemon restart recorder")
-}
-
-/// Clear the `restart_daemon` test recorder.
-pub fn reset_daemon_restart_recorded_for_testing() {
-    let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
-    *cell.lock().expect("lock daemon restart recorder") = false;
-}
-
 /// Restart the daemon after a stale process rejects the current config schema.
 ///
 /// # Arguments
@@ -153,10 +229,7 @@ pub fn reset_daemon_restart_recorded_for_testing() {
 /// # Errors
 /// Returns `KanbusError` when socket cleanup fails.
 pub fn restart_daemon(root: &Path) -> Result<(), KanbusError> {
-    {
-        let cell = TEST_DAEMON_RESTART_RECORDED.get_or_init(|| Mutex::new(false));
-        *cell.lock().expect("lock daemon restart recorder") = true;
-    }
+    record_daemon_restart();
     if !has_test_daemon_response() {
         let _ = request_shutdown(root);
     }
@@ -293,7 +366,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
     if let Err(error) = spawn_daemon(root) {
         mark_daemon_unavailable(root);
         log::debug!("daemon spawn failed; using direct storage access");
-        return Err(KanbusError::Io(format!("daemon spawn failed: {error}")));
+        return Err(error);
     }
     let deadline = std::time::Instant::now() + DAEMON_SOCKET_WAIT;
     loop {
@@ -314,7 +387,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
 
 #[cfg(unix)]
 fn is_socket_connectable(socket_path: &Path) -> bool {
-    UnixStream::connect(socket_path).is_ok()
+    connect_with_timeout(socket_path, DAEMON_CONNECT_TIMEOUT).is_ok()
 }
 
 #[cfg(not(unix))]
@@ -374,8 +447,41 @@ pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusErro
     }
 }
 
+/// Maximum time to wait for a connection to the daemon socket.
 #[cfg(unix)]
-const DAEMON_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+pub const DAEMON_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Maximum time to wait on a daemon socket read or write.
+#[cfg(unix)]
+pub const DAEMON_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Connect to a Unix socket without blocking longer than `timeout`.
+///
+/// The standard library has no connect timeout for Unix sockets, so the
+/// connection is made on a helper thread that is abandoned when the deadline
+/// passes.
+///
+/// # Arguments
+/// * `socket_path` - Socket to connect to.
+/// * `timeout` - Longest time to wait for the connection.
+///
+/// # Errors
+/// Returns the connection error or a timed-out error.
+#[cfg(unix)]
+pub fn connect_with_timeout(socket_path: &Path, timeout: Duration) -> std::io::Result<UnixStream> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let path = socket_path.to_path_buf();
+    std::thread::spawn(move || {
+        let _ = sender.send(UnixStream::connect(path));
+    });
+    match receiver.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "daemon socket connect timed out",
+        )),
+    }
+}
 
 #[cfg(unix)]
 fn apply_daemon_request_timeouts(stream: &UnixStream) -> std::io::Result<()> {
@@ -385,7 +491,8 @@ fn apply_daemon_request_timeouts(stream: &UnixStream) -> std::io::Result<()> {
 
 #[cfg(unix)]
 fn send_virtuus_request(socket_path: &Path, request: &Value) -> Result<Value, String> {
-    let mut stream = UnixStream::connect(socket_path).map_err(|error| error.to_string())?;
+    let mut stream = connect_with_timeout(socket_path, DAEMON_CONNECT_TIMEOUT)
+        .map_err(|error| error.to_string())?;
     apply_daemon_request_timeouts(&stream).map_err(|error| error.to_string())?;
     let payload = serde_json::to_string(request).map_err(|error| error.to_string())?;
     stream
@@ -436,7 +543,7 @@ fn request_with_recovery(
                 }
             }
             Err(KanbusError::Io(format!(
-                "daemon connection failed after retries: {}. Set KANBUS_NO_DAEMON=1 to bypass the daemon.",
+                "daemon connection failed after retries: {}. Unset KANBUS_DAEMON to bypass the daemon.",
                 socket_path.display()
             )))
         }
@@ -448,24 +555,17 @@ fn send_request(
     socket_path: &Path,
     request: &RequestEnvelope,
 ) -> Result<ResponseEnvelope, KanbusError> {
-    if let Some(response) = take_test_daemon_response() {
-        return match response {
-            TestDaemonResponse::Empty => Err(KanbusError::IssueOperation(
-                "empty daemon response".to_string(),
-            )),
-            TestDaemonResponse::IoError => {
-                Err(KanbusError::Io("daemon connection failed".to_string()))
-            }
-            TestDaemonResponse::Envelope(envelope) => Ok(envelope),
-        };
+    if let Some(simulated) = take_simulated_response() {
+        return simulated;
     }
-    let mut stream = UnixStream::connect(socket_path).map_err(|error| {
-        KanbusError::Io(format!(
-            "daemon connect failed: {}: {}",
-            socket_path.display(),
-            error
-        ))
-    })?;
+    let mut stream =
+        connect_with_timeout(socket_path, DAEMON_CONNECT_TIMEOUT).map_err(|error| {
+            KanbusError::Io(format!(
+                "daemon connect failed: {}: {}",
+                socket_path.display(),
+                error
+            ))
+        })?;
     apply_daemon_request_timeouts(&stream).map_err(|error| KanbusError::Io(error.to_string()))?;
     let payload =
         serde_json::to_string(request).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -500,6 +600,11 @@ fn send_request(
 
 #[cfg(unix)]
 fn spawn_daemon(root: &Path) -> Result<(), KanbusError> {
+    if is_test_spawn_failure_enabled() {
+        return Err(daemon_spawn_failed_error(
+            &std::io::Error::from_raw_os_error(2),
+        ));
+    }
     if is_test_spawn_disabled() {
         return Ok(());
     }
@@ -528,7 +633,7 @@ fn spawn_daemon(root: &Path) -> Result<(), KanbusError> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|error| KanbusError::Io(error.to_string()))?;
+        .map_err(|error| daemon_spawn_failed_error(&error))?;
     Ok(())
 }
 
@@ -537,4 +642,29 @@ fn spawn_daemon(_root: &Path) -> Result<(), KanbusError> {
     Err(KanbusError::IssueOperation(
         "daemon not supported on this platform".to_string(),
     ))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::net::UnixListener;
+
+    #[test]
+    fn connect_with_timeout_reaches_a_listening_socket() {
+        let directory = tempfile::TempDir::new().expect("temp dir");
+        let socket_path = directory.path().join("daemon.sock");
+        let _listener = UnixListener::bind(&socket_path).expect("bind");
+        assert!(connect_with_timeout(&socket_path, DAEMON_CONNECT_TIMEOUT).is_ok());
+        assert!(is_socket_connectable(&socket_path));
+    }
+
+    #[test]
+    fn connect_with_timeout_fails_fast_for_a_missing_socket() {
+        let directory = tempfile::TempDir::new().expect("temp dir");
+        let socket_path = directory.path().join("missing.sock");
+        let started_at = std::time::Instant::now();
+        assert!(connect_with_timeout(&socket_path, DAEMON_CONNECT_TIMEOUT).is_err());
+        assert!(started_at.elapsed() < DAEMON_CONNECT_TIMEOUT);
+        assert!(!is_socket_connectable(&socket_path));
+    }
 }

@@ -185,3 +185,24 @@ def test_python_step_collection_reads_concatenated_literals(tmp_path: Path) -> N
     assert [pattern.text for pattern in patterns] == [
         'a signed payload for account "{account}" and project "{project}"'
     ]
+
+
+def test_rust_plain_literal_steps_match_exactly_without_alternation(
+    tmp_path: Path,
+) -> None:
+    steps_root = tmp_path / "steps"
+    steps_root.mkdir()
+    (steps_root / "sample.rs").write_text(
+        '#[then(".gitignore should include \\"project-local/\\"")]\n'
+        "fn sample() {}\n",
+        encoding="utf-8",
+    )
+
+    patterns = check_spec_parity.collect_rust_steps(steps_root)
+
+    exact_step = '.gitignore should include "project-local/"'
+    truncated_step = '.gitignore should include "project-local"'
+    assert check_spec_parity._find_missing({exact_step}, patterns) == set()
+    assert check_spec_parity._find_missing({truncated_step}, patterns) == {
+        truncated_step
+    }

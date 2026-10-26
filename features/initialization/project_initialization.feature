@@ -51,6 +51,24 @@ Feature: Project initialization
     And CONTRIBUTING_AGENT.template.md should contain "--full-ids"
 
 
+  Scenario: Initialize writes the complete default configuration
+    Given an empty git repository
+    When I run "kanbus init"
+    Then the file ".kanbus.yml" should contain "project_management_template: null"
+    And the file ".kanbus.yml" should contain "mqtt_api_token: null"
+    And the file ".kanbus.yml" should contain "github_security: null"
+    And the file ".kanbus.yml" should contain "ignore_paths: []"
+
+  Scenario: Template carries the current doctrine and multi-line command examples
+    Given an empty git repository
+    When I run "kanbus init"
+    Then a "CONTRIBUTING_AGENT.template.md" file should be created
+    And CONTRIBUTING_AGENT.template.md should contain "record a running log in Kanbus comments"
+    And CONTRIBUTING_AGENT.template.md should contain "Initiatives are top-level milestones"
+    And CONTRIBUTING_AGENT.template.md should contain "do not need their own project-management issues"
+    And CONTRIBUTING_AGENT.template.md should contain "Do not put sub-tasks under stories"
+    And CONTRIBUTING_AGENT.template.md should not contain "codex   --agent-model"
+
   Scenario: Refuse to initialize outside a git repository
     Given a directory that is not a git repository
     When I run "kanbus init"

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "event_id": "28bfa3e2-997d-4b0d-8d89-a39025770bf6",
+  "issue_id": "kbs-60bf3853-045d-4553-892a-e3c0fb49aae5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-02T19:47:31.306Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "CLI list hides empty status columns; should list all columns even when empty",
+    "description": "The kbs CLI list/board text output only shows statuses (columns) that currently have issues in them. Empty columns such as Backlog, In Progress, or Blocked are omitted entirely. Expected: list every configured column that applies at the current filter level, even when it is empty (with a zero count or an empty marker). Columns that don't apply to the current type filter can stay hidden, matching the web console.\n\nImpact: on 2026-10-02, a BotSpy board where every issue was either open or closed looked like it only had open and closed columns. That made the board configuration look broken, when .kanbus.yml correctly defined Backlog, Discovery, In Progress, Blocked and Done.\n\nScope: CLI list/text output only. Do not change the web console, which already shows empty columns.\n\nRepro: in a project whose issues are all open or closed (e.g. ~/Projects/BotSpy), run the kbs list/board view and note that only those columns appear.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [
+      "cli"
+    ]
+  }
+}

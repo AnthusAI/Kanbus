@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "a2f3589c-70e7-4075-ab33-d329fb3fbb40",
+  "issue_id": "kbs-8740c2a3-dfec-4f22-8cd2-a484aadcd8e2",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-10T17:39:03.712Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Publish from the production account with a reversible cutover",
+    "description": "As the Cyclotron publication owner, I want a private-repository AWS pipeline in cyclotron-production to build and deploy a parallel site before DNS switches, so that routine main releases are automatic and the legacy site remains a rollback path.\n\nFeature: Parallel production delivery\n  Scenario: Verify target before DNS cutover\n    Given cyclotron.anth.us is still served by the legacy distribution\n    And cyclotron-production has a site-only pipeline connected only to AnthusAI/Cyclotron-web\n    When main revision 840d4e87871b3010780d2d47e0e62024f7cd1e40 runs through the target pipeline\n    Then Source, Build, and Deploy record that revision as successful\n    And the target distribution serves the expected Learn guide\n    And no cyclotron.anth.us DNS record changes before explicit cutover approval\n\nOut of scope: moving the anth.us hosted zone, granting cross-account administrator access, activating the legacy connection, or deleting legacy resources.",
+    "issue_type": "story",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-60e506cc-668e-441b-9733-dfb9874403da",
+    "labels": [],
+    "agent": {
+      "platform": "codex",
+      "model": "GPT-5",
+      "name": "Cyclotron DevOps"
+    }
+  }
+}

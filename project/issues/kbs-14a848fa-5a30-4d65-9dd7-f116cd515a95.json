@@ -1,0 +1,56 @@
+{
+  "id": "kbs-14a848fa-5a30-4d65-9dd7-f116cd515a95",
+  "title": "Move legacy Kanbus Secrets Manager secrets to SSM SecureString or retire them",
+  "description": "Requested by Ryan via the Prospectus session (2026-10-21). Standing rule: SSM Parameter Store standard SecureString for secrets and config; Secrets Manager only where a service requires it; nothing manually configured; delete nothing without Ryan's approval.\n\nSecrets in legacy account 335163751677 that belong to Kanbus:\n- kanbus/github-webhook/dev: created by infra/cloud/kanbus_cloud/cloud_stack.py (GithubWebhookSecret, generated).\n- kanbus/mqtt-token-pepper/dev (last accessed Apr 3) and kanbus/mqtt-token-pepper/prod: created by cloud_stack.py and coordination_stack.py (MqttApiTokenPepper, generated).\n\nThe infra/cloud Python CDK app has no deploy job in CI (CI only synthesizes and tests it), so whatever is in 335163751677 was deployed by hand. The current product path (kanbus-api with @kanbus/cdk) does not use these secrets.\n\nPlan:\n1. Read-only, on Ryan's Mac: list CloudFormation stacks in 335163751677 that own these secrets, which functions reference them, and each secret's last accessed date.\n2. If no live stack reads a secret, it is an orphan: propose retiring the owning legacy stack through CI (stack deletion removes its generated secrets) for Ryan's approval.\n3. If a live stack reads it (most likely the prod pepper for MQTT token hashing): switch the CDK to an SSM SecureString parameter read with decryption. CloudFormation cannot create SecureString parameters, so the generated value needs a small custom resource; deploy only through a CI job.\n4. Retire infra/cloud once nothing in it is live.\n\nNot Kanbus (routed to owners): b0rd/mqtt-test/broker-password (B0rd infra/lib/mqtt-broker-stack.ts), amplify/github-app-token (Papyrus standard-site hosting; Amplify may genuinely need Secrets Manager), GoogleOAuthSecret963EF6DE-* (Auritus cdk/stacks/backend.py), SessionKey0FE01E29-* and sierrendipity/google-oauth (Sierrendipity infra/lib/stack.ts).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4c5914cc-48a7-4e03-94c2-5b08adfe3520",
+      "author": "home",
+      "text": "Read-only check of 335163751677 (2026-10-21). Recommendation: migrate nothing, retire all three.\n- kanbus/github-webhook/dev (stack KanbusCloudFoundation): read by GithubWebhookIngress about 25 times a day, fed by the push webhook 673694740 on AnthusAI/Kanbus to the legacy dev API. Downstream is failing: EfsWriter 771 errors in 1562 runs over 30 days, GitSync 80 of 1007, 11 messages in kanbus-sync-dlq-dev. ConsoleLambda had no invocations in 30 days, and no repo or client config references the legacy API or user pools.\n- kanbus/mqtt-token-pepper/dev (KanbusCloudFoundation): its authorizer last ran 2026-09-02; the token admin API never ran in 90 days.\n- kanbus/mqtt-token-pepper/prod (KanbusCoordinationProduction): last used 2026-09-22/23, no use since, no client config points at it.\nRetained data on stack deletion: KanbusCloudFoundation keeps EFS fs-09fcbd58a2e2d2c98 (75 GB, the main cost), S3 kanbus-sync-dev-335163751677 (27 GB), Cognito us-east-1_mPUGMCuS6 (21 users) and the token table; its two secrets have DeletionPolicy Delete. KanbusCoordinationProduction keeps Cognito us-east-1_ytWCFJZy3 (1 user), two DynamoDB tables and the prod pepper secret (DeletionPolicy Retain, so it needs its own delete).\nProposed steps, each awaiting Ryan's approval: 1) deactivate the Kanbus repo webhook; 2) delete stack KanbusCloudFoundation; 3) delete stack KanbusCoordinationProduction and then the retained prod pepper; 4) decide keep or delete for the retained EFS, S3, Cognito and table data; 5) remove infra/cloud and its CI job.",
+      "created_at": "2026-10-21T18:44:26.034862Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "2a4e711b-566f-4ef4-af5b-fc584510b886",
+      "author": "home",
+      "text": "Step 1 done 2026-10-21: webhook 673694740 on AnthusAI/Kanbus deactivated (not deleted). Retirement plan: 2) delete stack KanbusCoordinationProduction (50 resources, idle since 2026-09-23); 3) delete stack KanbusCloudFoundation (100 resources) after 24 hours of zero ingress invocations confirms nothing else feeds it; neither stack has exports or termination protection; 4) delete the retained data: EFS fs-09fcbd58a2e2d2c98 (75 GB), S3 kanbus-sync-dev-335163751677 (27 GB), Cognito us-east-1_mPUGMCuS6 (21 users) and us-east-1_ytWCFJZy3 (1 user), the three DynamoDB tables, and secret kanbus/mqtt-token-pepper/prod with the default 30-day recovery window; the synced board data is a mirror of the git repository and is recoverable from it; 5) PR removing infra/cloud, its CI job and docs, then delete the webhook. Execution: no CI role for AnthusAI/Kanbus exists in 335163751677, and creating one only for teardown would itself be manual configuration, so steps 2 to 4 are proposed as approved one-time CLI deletions from Ryan's Mac.",
+      "created_at": "2026-10-21T20:49:49.899390Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "f57306b4-4860-4ca4-a78c-3f674a2f878b",
+      "author": "home",
+      "text": "Ryan approved the plan 2026-10-21. Step 2 done: stack KanbusCoordinationProduction deleted; its retained tables kanbus-coordination-leases-prod and kanbus-coordination-mqtt-tokens-prod, Cognito us-east-1_ytWCFJZy3 and secret kanbus/mqtt-token-pepper/prod remain until step 4. A 24-hour invocation check of KanbusCloudFoundation started before step 3; the infra/cloud removal PR is being drafted and will not merge before step 3.",
+      "created_at": "2026-10-21T20:56:16.444323Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "2e903281-5759-481e-a923-c850b7bdbb59",
+      "author": "home",
+      "text": "Done 2026-10-22. 24-hour check showed zero invocations, so KanbusCloudFoundation was deleted (retry after removing four detached Lambda ENIs and clearing the IoT default authorizer, which pointed at the retired kanbus-mqtt-token-dev). Deleted the retained data: EFS fs-09fcbd58a2e2d2c98, S3 kanbus-sync-dev-335163751677, Cognito us-east-1_mPUGMCuS6 and us-east-1_ytWCFJZy3, tables KanbusCloudFoundation-MqttApiTokenTable27CEB026-ZQUN0NAAJO1L, kanbus-coordination-leases-prod and kanbus-coordination-mqtt-tokens-prod, the orphaned IoT authorizer kanbus-mqtt-token-prod, and secret kanbus/mqtt-token-pepper/prod (30-day recovery window, removed 2026-11-21). infra/cloud removed in PR #532. Left for Ryan's decision: two empty tables from the first deploy (KanbusCloudFoundation-MqttApiTokenTable27CEB026-NSVTBSFQANZ2, kanbus-mqtt-tokens-dev) and 20 /aws/lambda/Kanbus* log groups (124 MB).",
+      "created_at": "2026-10-22T21:42:07.582883Z",
+      "comment_type": "default"
+    },
+    {
+      "id": "1c3d9b43-4324-46e2-b89d-3974cd0de5b2",
+      "author": "home",
+      "text": "Ryan approved and done: deleted the two empty tables (KanbusCloudFoundation-MqttApiTokenTable27CEB026-NSVTBSFQANZ2, kanbus-mqtt-tokens-dev) and all 20 /aws/lambda/Kanbus* log groups. No Kanbus resources remain in 335163751677 except secret kanbus/mqtt-token-pepper/prod, scheduled for removal 2026-11-21.",
+      "created_at": "2026-10-23T01:16:34.809623Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-21T15:49:43.550319Z",
+  "updated_at": "2026-10-23T01:16:35.020432Z",
+  "closed_at": "2026-10-23T01:16:34.866445Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

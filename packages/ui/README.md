@@ -122,6 +122,16 @@ card, status tree, detail panels and descendant link labels. Elements showing a
 host formatted id carry `data-issue-id-format="host"`, and the editorial themes
 keep them in the mono face without text transformation.
 
+## Card subtitle
+
+`KanbanIssue.subtitle` is an optional, host-supplied string. When it is
+non-empty, board cards render it directly under the title as
+`<p class="issue-card-subtitle">`, in a modest muted style; when it is unset
+or empty, no subtitle element is rendered. Kanbus itself does not store a
+subtitle, so hosts map it from their own records. It is separate from
+`excerpt`, which is a longer blurb clamped to three lines with a More/Less
+toggle.
+
 ## Browser acceptance tests
 
 The package-local Gherkin specifications describe React behavior rather than

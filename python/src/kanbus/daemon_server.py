@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import socketserver
 import threading
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ from kanbus.daemon_protocol import (
 from kanbus.models import IssueData
 from kanbus.project import load_project_directory
 from virtuus.service import Service
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -119,10 +122,26 @@ class DaemonCore:
         return [IssueData.model_validate(record) for record in response["result"]]
 
 
+DAEMON_CONNECTION_TIMEOUT_SECONDS = 10.0
+"""Longest time the daemon waits on one connection's read or write."""
+
+
 class DaemonRequestHandler(socketserver.StreamRequestHandler):
-    """Handle daemon request/response flow."""
+    """Handle daemon request/response flow.
+
+    An I/O failure on one connection (reset, broken pipe, timeout) is logged
+    and dropped; it never stops the daemon.
+    """
+
+    timeout = DAEMON_CONNECTION_TIMEOUT_SECONDS
 
     def handle(self) -> None:
+        try:
+            self._serve_connection()
+        except OSError as error:
+            logger.warning("daemon connection failed: %s", error)
+
+    def _serve_connection(self) -> None:
         raw = self.rfile.readline()
         if not raw:
             return

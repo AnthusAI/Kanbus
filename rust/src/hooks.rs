@@ -9,10 +9,9 @@ use std::time::{Duration, Instant};
 use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Value};
 
-use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::get_configuration_path;
 use crate::models::{HookDefinition, HooksConfiguration, IssueData};
+use crate::project_context::ProjectContext;
 use crate::rich_text_signals::emit_stderr_line;
 use crate::users::get_current_user;
 
@@ -139,8 +138,8 @@ pub fn serialize_issue(issue: &IssueData) -> Value {
     serde_json::to_value(issue).unwrap_or(Value::Null)
 }
 
-pub fn list_hooks(root: &Path) -> Vec<HookListRow> {
-    let (hooks_config, _) = resolve_hook_configuration(root);
+pub fn list_hooks(root: &Path) -> Result<Vec<HookListRow>, KanbusError> {
+    let (hooks_config, _) = resolve_hook_configuration(root)?;
     let mut rows = Vec::new();
 
     for (phase, map) in [
@@ -176,11 +175,11 @@ pub fn list_hooks(root: &Path) -> Vec<HookListRow> {
         });
     }
 
-    rows
+    Ok(rows)
 }
 
-pub fn validate_hooks(root: &Path) -> Vec<String> {
-    let (hooks_config, project_root) = resolve_hook_configuration(root);
+pub fn validate_hooks(root: &Path) -> Result<Vec<String>, KanbusError> {
+    let (hooks_config, project_root) = resolve_hook_configuration(root)?;
     let mut issues = Vec::new();
 
     for (phase_name, event_map) in [
@@ -255,7 +254,7 @@ pub fn validate_hooks(root: &Path) -> Vec<String> {
         }
     }
 
-    issues
+    Ok(issues)
 }
 
 pub fn run_lifecycle_hooks(
@@ -269,8 +268,40 @@ pub fn run_lifecycle_hooks(
     if hooks_globally_disabled(options.no_hooks) {
         return Ok(());
     }
+    let context = ProjectContext::discover(root)?;
+    run_lifecycle_hooks_with_context(
+        root,
+        context.as_ref(),
+        phase,
+        event,
+        operation,
+        issues_for_policy,
+        options,
+    )
+}
 
-    let (hooks_config, project_root) = resolve_hook_configuration_or_fail(root)?;
+/// Run lifecycle hooks using an already built project context.
+///
+/// # Arguments
+/// * `root` - Working root the command runs from.
+/// * `context` - Project context built at command entry, if a configuration exists.
+///
+/// # Errors
+/// Returns `KanbusError` when a blocking hook fails or configuration is invalid.
+pub fn run_lifecycle_hooks_with_context(
+    root: &Path,
+    context: Option<&ProjectContext>,
+    phase: HookPhase,
+    event: HookEvent,
+    operation: Value,
+    issues_for_policy: &[IssueData],
+    options: HookExecutionOptions,
+) -> Result<(), KanbusError> {
+    if hooks_globally_disabled(options.no_hooks) {
+        return Ok(());
+    }
+
+    let (hooks_config, project_root) = hook_configuration_from_context(root, context);
     if !hooks_config.enabled {
         return Ok(());
     }
@@ -328,11 +359,12 @@ pub fn run_lifecycle_hooks(
     if phase == HookPhase::After {
         run_policy_provider(
             &project_root,
+            context,
             event,
             issues_for_policy,
             options.beads_mode,
             options.no_guidance,
-        );
+        )?;
     }
 
     Ok(())
@@ -340,24 +372,26 @@ pub fn run_lifecycle_hooks(
 
 fn run_policy_provider(
     root: &Path,
+    context: Option<&ProjectContext>,
     event: HookEvent,
     issues_for_policy: &[IssueData],
     beads_mode: bool,
     no_guidance: bool,
-) {
+) -> Result<(), KanbusError> {
     if beads_mode || issues_for_policy.is_empty() {
-        return;
+        return Ok(());
     }
     let policy_map = policy_event_map();
     let Some(operation) = policy_map.get(&event) else {
-        return;
+        return Ok(());
     };
-    crate::policy_guidance::emit_guidance_for_issues(
+    crate::policy_guidance::emit_guidance_for_issues_with_context(
         root,
+        context,
         issues_for_policy,
         operation.clone(),
         no_guidance,
-    );
+    )
 }
 
 fn policy_event_map() -> HashMap<HookEvent, crate::policy_context::PolicyOperation> {
@@ -373,35 +407,22 @@ fn policy_event_map() -> HashMap<HookEvent, crate::policy_context::PolicyOperati
     ])
 }
 
-fn resolve_hook_configuration_or_fail(
+fn hook_configuration_from_context(
     root: &Path,
-) -> Result<(HooksConfiguration, PathBuf), KanbusError> {
-    let config_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(_) => return Ok((HooksConfiguration::default(), root.to_path_buf())),
-    };
-    let project_root = config_path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| root.to_path_buf());
-    let configuration = load_project_configuration(&config_path)?;
-    Ok((configuration.hooks, project_root))
+    context: Option<&ProjectContext>,
+) -> (HooksConfiguration, PathBuf) {
+    match context {
+        Some(context) => (
+            context.configuration.hooks.clone(),
+            context.repository_root.clone(),
+        ),
+        None => (HooksConfiguration::default(), root.to_path_buf()),
+    }
 }
 
-fn resolve_hook_configuration(root: &Path) -> (HooksConfiguration, PathBuf) {
-    let config_path = match get_configuration_path(root) {
-        Ok(path) => path,
-        Err(_) => return (HooksConfiguration::default(), root.to_path_buf()),
-    };
-    let project_root = config_path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| root.to_path_buf());
-
-    match load_project_configuration(&config_path) {
-        Ok(configuration) => (configuration.hooks, project_root),
-        Err(_) => (HooksConfiguration::default(), project_root),
-    }
+fn resolve_hook_configuration(root: &Path) -> Result<(HooksConfiguration, PathBuf), KanbusError> {
+    let context = ProjectContext::discover(root)?;
+    Ok(hook_configuration_from_context(root, context.as_ref()))
 }
 
 fn hooks_for_event(
@@ -467,6 +488,8 @@ fn run_external_hook(
         .stderr(Stdio::piped())
         .current_dir(cwd)
         .envs(std::env::vars());
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
 
     for (key, value) in &hook.env {
         command.env(key, value);
@@ -487,22 +510,24 @@ fn run_external_hook(
     };
 
     let payload = serde_json::to_string(invocation).unwrap_or_else(|_| "{}".to_string());
-    let stdin_writer = child.stdin.take().map(|mut stdin| {
+    if let Some(mut stdin) = child.stdin.take() {
         std::thread::spawn(move || {
             let _ = stdin.write_all(payload.as_bytes());
-        })
-    });
-    let stderr_reader = child.stderr.take().map(|mut stderr_pipe| {
+        });
+    }
+    let stderr_receiver = child.stderr.take().map(|mut stderr_pipe| {
+        let (sender, receiver) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let mut captured = String::new();
             let _ = stderr_pipe.read_to_string(&mut captured);
-            captured
-        })
+            let _ = sender.send(captured);
+        });
+        receiver
     });
 
     let timeout = Duration::from_millis(timeout_ms.max(1));
     let mut timed_out = false;
-    let exit_code: Option<i32>;
+    let mut exit_code: Option<i32>;
 
     loop {
         match child.try_wait() {
@@ -513,7 +538,7 @@ fn run_external_hook(
             Ok(None) => {
                 if started.elapsed() >= timeout {
                     timed_out = true;
-                    let _ = child.kill();
+                    kill_hook_process_group(&mut child);
                     let _ = child.wait();
                     exit_code = None;
                     break;
@@ -532,16 +557,21 @@ fn run_external_hook(
         }
     }
 
-    let stderr = if timed_out {
-        String::new()
-    } else {
-        if let Some(writer) = stdin_writer {
-            let _ = writer.join();
+    let mut stderr = String::new();
+    if !timed_out {
+        if let Some(receiver) = stderr_receiver {
+            let remaining = timeout.saturating_sub(started.elapsed());
+            match receiver.recv_timeout(remaining) {
+                Ok(captured) => stderr = captured,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    timed_out = true;
+                    exit_code = None;
+                    kill_hook_process_group(&mut child);
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {}
+            }
         }
-        stderr_reader
-            .map(|reader| reader.join().unwrap_or_default())
-            .unwrap_or_default()
-    };
+    }
 
     let duration_ms = started.elapsed().as_millis() as u64;
     let succeeded = !timed_out && exit_code == Some(0);
@@ -562,6 +592,19 @@ fn run_external_hook(
         duration_ms,
         message,
     }
+}
+
+/// Kill the hook and, on unix, every process in its process group.
+fn kill_hook_process_group(child: &mut std::process::Child) {
+    #[cfg(unix)]
+    {
+        let group_identifier = child.id() as libc::pid_t;
+        // SAFETY: killpg only signals the process group created for this hook.
+        unsafe {
+            libc::killpg(group_identifier, libc::SIGKILL);
+        }
+    }
+    let _ = child.kill();
 }
 
 fn looks_like_path(command: &str) -> bool {

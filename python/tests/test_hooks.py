@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from kanbus import hooks
+from kanbus.config_loader import ConfigurationError
 from kanbus.hooks import (
     HookEvent,
     HookExecutionError,
@@ -14,9 +15,8 @@ from kanbus.hooks import (
     HookResult,
 )
 from kanbus.models import HookDefinition, HooksConfiguration
-from kanbus.project import ProjectMarkerError
 
-from test_helpers import build_issue, build_project_configuration
+from test_helpers import build_issue
 
 
 def _hook(
@@ -113,6 +113,50 @@ def test_hooks_globally_disabled_flag_and_env(monkeypatch: pytest.MonkeyPatch) -
     assert hooks.hooks_globally_disabled() is False
 
 
+class _FakeHookProcess:
+    """Stand-in for subprocess.Popen used by the hook runner tests."""
+
+    def __init__(self, calls, returncode, stdout, stderr, timeout, args, kwargs):
+        self.pid = 999999
+        self.returncode = returncode
+        self.stdin = None
+        self.stdout = None
+        self.stderr = None
+        self._stdout = stdout
+        self._stderr = stderr
+        self._timeout = timeout
+        calls.append(dict(kwargs, command=args[0] if args else None))
+
+    def communicate(self, input=None, timeout=None):
+        if self._timeout:
+            raise subprocess.TimeoutExpired(cmd=["cmd"], timeout=timeout)
+        return self._stdout, self._stderr
+
+    def kill(self):
+        return None
+
+    def wait(self):
+        return self.returncode
+
+
+def _fake_popen(calls, returncode=0, stdout="", stderr="", timeout=False, inputs=None):
+    def factory(*args, **kwargs):
+        process = _FakeHookProcess(
+            calls, returncode, stdout, stderr, timeout, args, kwargs
+        )
+        if inputs is not None:
+            original = process.communicate
+
+            def communicate(input=None, timeout=None):
+                inputs.append(input)
+                return original(input=input, timeout=timeout)
+
+            process.communicate = communicate
+        return process
+
+    return factory
+
+
 def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -129,14 +173,9 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     hook = _hook("h1", ["cmd"], cwd=".", env={"X": "1"})
 
     calls: list[dict[str, object]] = []
-
-    def ok_run(*_args, **kwargs):
-        calls.append(kwargs)
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=0, stdout="", stderr=""
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", ok_run)
+    inputs: list[str] = []
+    monkeypatch.setattr(hooks.os, "killpg", lambda *_args: None)
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen(calls, inputs=inputs))
     result = handler.run(
         hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=200
     )
@@ -145,14 +184,12 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert result.message == "ok"
     assert calls[0]["cwd"] == tmp_path
     assert calls[0]["env"]["X"] == "1"
-    assert json.loads(calls[0]["input"])["event"] == "issue.update"
+    assert calls[0]["start_new_session"] is True
+    assert json.loads(inputs[0])["event"] == "issue.update"
 
-    def fail_run(*_args, **_kwargs):
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=7, stdout="", stderr="bad"
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", fail_run)
+    monkeypatch.setattr(
+        hooks.subprocess, "Popen", _fake_popen([], returncode=7, stderr="bad")
+    )
     fail = handler.run(
         hook=_hook("h2", ["cmd"]),
         invocation=invocation,
@@ -163,12 +200,7 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert fail.exit_code == 7
     assert fail.message == "bad"
 
-    def fail_no_stderr(*_args, **_kwargs):
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=8, stdout="", stderr=""
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", fail_no_stderr)
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen([], returncode=8))
     fail2 = handler.run(
         hook=_hook("h3", ["cmd"]),
         invocation=invocation,
@@ -177,10 +209,7 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     )
     assert fail2.message == "exit code 8"
 
-    def timeout_run(*_args, **_kwargs):
-        raise subprocess.TimeoutExpired(cmd=["cmd"], timeout=1)
-
-    monkeypatch.setattr(hooks.subprocess, "run", timeout_run)
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen([], timeout=True))
     timeout = handler.run(
         hook=_hook("h4", ["cmd"]),
         invocation=invocation,
@@ -190,10 +219,10 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert timeout.succeeded is False
     assert timeout.timed_out is True
 
-    def os_error_run(*_args, **_kwargs):
+    def os_error_popen(*_args, **_kwargs):
         raise OSError("nope")
 
-    monkeypatch.setattr(hooks.subprocess, "run", os_error_run)
+    monkeypatch.setattr(hooks.subprocess, "Popen", os_error_popen)
     os_error = handler.run(
         hook=_hook("h5", ["cmd"]),
         invocation=invocation,
@@ -205,27 +234,27 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert "nope" in os_error.message
 
 
-def test_resolve_hook_configuration_success_and_fallback(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cfg = build_project_configuration()
-    config_path = tmp_path / ".kanbus.yml"
+def test_resolve_hook_configuration_success_and_fallback(tmp_path: Path) -> None:
+    fallback, fallback_root = hooks._resolve_hook_configuration(tmp_path)
+    assert isinstance(fallback, HooksConfiguration)
+    assert fallback_root == tmp_path
 
-    monkeypatch.setattr(hooks, "get_configuration_path", lambda _root: config_path)
-    monkeypatch.setattr(hooks, "load_project_configuration", lambda _path: cfg)
-
+    (tmp_path / ".kanbus.yml").write_text("project_key: kanbus\n", encoding="utf-8")
     resolved, root = hooks._resolve_hook_configuration(tmp_path)
     assert isinstance(resolved, HooksConfiguration)
     assert root == tmp_path
 
-    monkeypatch.setattr(
-        hooks,
-        "get_configuration_path",
-        lambda _root: (_ for _ in ()).throw(ProjectMarkerError("missing")),
-    )
-    fallback, fallback_root = hooks._resolve_hook_configuration(tmp_path)
-    assert isinstance(fallback, HooksConfiguration)
-    assert fallback_root == tmp_path
+
+def test_resolve_hook_configuration_propagates_configuration_errors(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".kanbus.yml").write_text("project_key: [unclosed\n", encoding="utf-8")
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        hooks._resolve_hook_configuration(tmp_path)
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        hooks.list_hooks(tmp_path)
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        hooks.validate_hooks(tmp_path)
 
 
 def test_hooks_for_event_and_blocking_helpers() -> None:
@@ -363,8 +392,8 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
     # Config disabled
     monkeypatch.setattr(
         hooks,
-        "_resolve_hook_configuration_or_fail",
-        lambda _root: (_hooks_config(enabled=False), tmp_path),
+        "_hook_configuration_from_context",
+        lambda _root, _context: (_hooks_config(enabled=False), tmp_path),
     )
     hooks.run_lifecycle_hooks(
         root=tmp_path,
@@ -377,8 +406,8 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
     # Beads mode blocked
     monkeypatch.setattr(
         hooks,
-        "_resolve_hook_configuration_or_fail",
-        lambda _root: (_hooks_config(run_in_beads_mode=False), tmp_path),
+        "_hook_configuration_from_context",
+        lambda _root, _context: (_hooks_config(run_in_beads_mode=False), tmp_path),
     )
     hooks.run_lifecycle_hooks(
         root=tmp_path,
@@ -391,7 +420,9 @@ def test_run_lifecycle_hooks_short_circuits_and_blocking_failure(
     # Blocking failure on before/mutating event raises.
     cfg = _hooks_config(before={HookEvent.ISSUE_CREATE.value: [_hook("b1", ["echo"])]})
     monkeypatch.setattr(
-        hooks, "_resolve_hook_configuration_or_fail", lambda _root: (cfg, tmp_path)
+        hooks,
+        "_hook_configuration_from_context",
+        lambda _root, _context: (cfg, tmp_path),
     )
 
     class FailHandler:
@@ -425,8 +456,8 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     )
     monkeypatch.setattr(
         hooks,
-        "_resolve_hook_configuration_or_fail",
-        lambda _root: (before_cfg, tmp_path),
+        "_hook_configuration_from_context",
+        lambda _root, _context: (before_cfg, tmp_path),
     )
 
     class WarnHandler:
@@ -459,8 +490,8 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     )
     monkeypatch.setattr(
         hooks,
-        "_resolve_hook_configuration_or_fail",
-        lambda _root: (after_cfg, tmp_path),
+        "_hook_configuration_from_context",
+        lambda _root, _context: (after_cfg, tmp_path),
     )
 
     class OkHandler:
@@ -480,6 +511,7 @@ def test_run_lifecycle_hooks_nonblocking_warning_and_after_policy_provider(
     def fake_provider(
         *,
         project_root: Path,
+        context,
         event: HookEvent,
         issues_for_policy,
         beads_mode: bool,
@@ -511,6 +543,7 @@ def test_run_policy_guidance_provider_all_paths(
     # No-op cases.
     hooks._run_policy_guidance_provider(
         project_root=Path("/repo"),
+        context=None,
         event=HookEvent.ISSUE_UPDATE,
         issues_for_policy=[issue],
         beads_mode=True,
@@ -518,6 +551,7 @@ def test_run_policy_guidance_provider_all_paths(
     )
     hooks._run_policy_guidance_provider(
         project_root=Path("/repo"),
+        context=None,
         event=HookEvent.ISSUE_UPDATE,
         issues_for_policy=[],
         beads_mode=False,
@@ -525,6 +559,7 @@ def test_run_policy_guidance_provider_all_paths(
     )
     hooks._run_policy_guidance_provider(
         project_root=Path("/repo"),
+        context=None,
         event=HookEvent.ISSUE_COMMENT,
         issues_for_policy=[issue],
         beads_mode=False,
@@ -534,14 +569,17 @@ def test_run_policy_guidance_provider_all_paths(
     calls: list[tuple[str, int, bool]] = []
 
     def fake_emit(
-        project_root: Path, issues_for_policy, operation, *, no_guidance: bool
+        project_root: Path, context, issues_for_policy, operation, *, no_guidance: bool
     ) -> None:
         calls.append((str(project_root), len(issues_for_policy), no_guidance))
 
-    monkeypatch.setattr("kanbus.policy_guidance.emit_guidance_for_issues", fake_emit)
+    monkeypatch.setattr(
+        "kanbus.policy_guidance.emit_guidance_for_issues_with_context", fake_emit
+    )
 
     hooks._run_policy_guidance_provider(
         project_root=Path("/repo"),
+        context=None,
         event=HookEvent.ISSUE_CREATE,
         issues_for_policy=[issue],
         beads_mode=False,
@@ -550,7 +588,7 @@ def test_run_policy_guidance_provider_all_paths(
     assert calls == [("/repo", 1, True)]
 
     monkeypatch.setattr(
-        "kanbus.policy_guidance.emit_guidance_for_issues",
+        "kanbus.policy_guidance.emit_guidance_for_issues_with_context",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("guidance boom")),
     )
     warned: list[str] = []
@@ -558,6 +596,7 @@ def test_run_policy_guidance_provider_all_paths(
 
     hooks._run_policy_guidance_provider(
         project_root=Path("/repo"),
+        context=None,
         event=HookEvent.ISSUE_UPDATE,
         issues_for_policy=[issue],
         beads_mode=False,
@@ -595,7 +634,9 @@ def test_validate_hooks_path_executable_branch(
         before={HookEvent.ISSUE_CREATE.value: [_hook("ok", [str(script)])]}
     )
     monkeypatch.setattr(
-        hooks, "_resolve_hook_configuration_or_fail", lambda _root: (cfg, tmp_path)
+        hooks,
+        "_hook_configuration_from_context",
+        lambda _root, _context: (cfg, tmp_path),
     )
 
     issues = hooks.validate_hooks(tmp_path)
@@ -619,16 +660,12 @@ def test_external_handler_absolute_cwd(
     abs_cwd.mkdir(parents=True)
     seen_cwd: list[Path] = []
 
-    def ok_run(*_args, **kwargs):
-        seen_cwd.append(Path(kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=0, stdout="", stderr=""
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", ok_run)
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen(calls))
     hook = _hook("x", ["cmd"], cwd=str(abs_cwd))
     result = handler.run(
         hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=1
     )
     assert result.succeeded is True
+    seen_cwd.extend(Path(call["cwd"]) for call in calls)
     assert seen_cwd == [abs_cwd]

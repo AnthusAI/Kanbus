@@ -137,30 +137,19 @@ def test_repair_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     assert repaired == [tmp_path]
 
 
-def test_resolve_beads_mode_projectmarker_and_config_error(
+def test_resolve_beads_mode_without_context_and_build_context_config_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     context = cli.click.Context(cli.click.Command("kanbus"))
     context.get_parameter_source = lambda _name: cli.click.core.ParameterSource.DEFAULT
 
-    monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(
-        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
-    )
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(ProjectMarkerError("no project")),
-    )
-    assert cli._resolve_beads_mode(context, beads_mode=False) == (False, False)
+    assert cli._resolve_beads_mode(context, False, None) == (False, False)
 
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(ConfigurationError("bad config")),
-    )
-    with pytest.raises(cli.click.ClickException, match="bad config"):
-        cli._resolve_beads_mode(context, beads_mode=False)
+    (tmp_path / ".kanbus.yml").write_text("project_key: [unclosed\n", encoding="utf-8")
+    with pytest.raises(
+        cli.click.ClickException, match="configuration is not valid YAML"
+    ):
+        cli._build_project_context(tmp_path)
 
 
 def test_setup_ai_invalid_variable_name(

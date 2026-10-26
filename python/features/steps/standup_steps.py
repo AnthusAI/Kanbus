@@ -220,7 +220,7 @@ def _select_standup_fact_feed_for_scenario(
     context: object, root: Path, options: StandupCommandOptions
 ) -> list[IssueData]:
     """Select facts under the scenario's daemon override without leaking env."""
-    with _scenario_environment_override(context, "KANBUS_NO_DAEMON"):
+    with _scenario_environment_override(context, "KANBUS_DAEMON"):
         return select_standup_fact_feed(root, options)
 
 
@@ -249,7 +249,7 @@ def _kanbus_now_fact_feed(context: object, status_filter: str) -> list[str]:
         output_format=RightNowOutputFormat.YAML,
         status=status_filter,
     )
-    with _scenario_environment_override(context, "KANBUS_NO_DAEMON"):
+    with _scenario_environment_override(context, "KANBUS_DAEMON"):
         issues = select_right_now_issues(root, options)
     return [issue.identifier for issue in issues]
 

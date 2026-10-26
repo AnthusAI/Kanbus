@@ -5,15 +5,16 @@ use std::fs;
 use std::path::Path;
 
 use crate::agent_metadata::assign_agent_metadata_if_incomplete;
-use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::event_history::{build_update_events, now_timestamp};
-use crate::file_io::get_configuration_path;
 use crate::issue_creation::resolve_issue_identifier;
 use crate::issue_files::read_issue_from_file;
-use crate::issue_lookup::load_issue_from_project;
-use crate::issue_mutation::{persist_issue_mutation, PersistIssueMutationRequest};
+use crate::issue_lookup::load_issue_from_project_with_context;
+use crate::issue_mutation::{
+    persist_issue_mutation_with_events_setting, PersistIssueMutationRequest,
+};
 use crate::models::{AgentMetadata, IssueData};
+use crate::project_context::{ProjectContext, PROJECT_NOT_INITIALIZED_MESSAGE};
 use crate::status_semantics::{
     resolve_primary_status_key_for_semantic_category, SEMANTIC_IN_PROGRESS,
 };
@@ -62,6 +63,54 @@ pub fn update_issue(
     issue_type: Option<&str>,
     agent: Option<AgentMetadata>,
 ) -> Result<IssueUpdateResult, KanbusError> {
+    let context = ProjectContext::discover(root)?;
+    update_issue_with_context(
+        root,
+        context.as_ref(),
+        identifier,
+        title,
+        description,
+        status,
+        assignee,
+        priority,
+        claim,
+        validate,
+        add_labels,
+        remove_labels,
+        set_labels,
+        parent,
+        issue_type,
+        agent,
+    )
+}
+
+/// Update an issue using an already built project context.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `context` - Project context built at command entry, if a configuration exists.
+///
+/// # Errors
+/// Returns `KanbusError` if the update fails.
+#[allow(clippy::too_many_arguments)]
+pub fn update_issue_with_context(
+    root: &Path,
+    context: Option<&ProjectContext>,
+    identifier: &str,
+    title: Option<&str>,
+    description: Option<&str>,
+    status: Option<&str>,
+    assignee: Option<&str>,
+    priority: Option<u8>,
+    claim: bool,
+    validate: bool,
+    add_labels: &[String],
+    remove_labels: &[String],
+    set_labels: Option<&str>,
+    parent: Option<&str>,
+    issue_type: Option<&str>,
+    agent: Option<AgentMetadata>,
+) -> Result<IssueUpdateResult, KanbusError> {
     let fields_requested = title.is_some()
         || description.is_some()
         || status.is_some()
@@ -75,10 +124,12 @@ pub fn update_issue(
         || issue_type.is_some()
         || agent.is_some();
 
-    let lookup = load_issue_from_project(root, identifier)?;
+    let lookup = load_issue_from_project_with_context(root, context, identifier)?;
     let before_issue = lookup.issue.clone();
-    let config_path = get_configuration_path(lookup.project_dir.as_path())?;
-    let configuration = load_project_configuration(&config_path)?;
+    let context = context
+        .ok_or_else(|| KanbusError::IssueOperation(PROJECT_NOT_INITIALIZED_MESSAGE.to_string()))?;
+    let configuration =
+        context.configuration_for_project_directory(lookup.project_dir.as_path())?;
 
     let mut updated_issue = lookup.issue.clone();
     let current_time = Utc::now();
@@ -327,7 +378,7 @@ pub fn update_issue(
                     to: s.to_string(),
                 }),
                 operation: crate::policy_context::PolicyOperation::Update,
-                project_configuration: configuration.clone(),
+                project_configuration: (*configuration).clone(),
                 all_issues,
             };
             crate::policy_evaluator::evaluate_policies(&context, &policy_documents)?;
@@ -337,26 +388,29 @@ pub fn update_issue(
     let occurred_at = now_timestamp();
     let actor_id = get_current_user();
     let events = build_update_events(&before_issue, &updated_issue, &actor_id, &occurred_at);
-    let result = persist_issue_mutation(&PersistIssueMutationRequest {
-        project_dir: lookup.project_dir.clone(),
-        issue_path: lookup.issue_path.clone(),
-        issue: updated_issue.clone(),
-        actor_id,
-        events,
-        before_issue: Some(before_issue),
-        relocate_to: None,
-    })?;
+    let result = persist_issue_mutation_with_events_setting(
+        &PersistIssueMutationRequest {
+            project_dir: lookup.project_dir.clone(),
+            issue_path: lookup.issue_path.clone(),
+            issue: updated_issue.clone(),
+            actor_id,
+            events,
+            before_issue: Some(before_issue),
+            relocate_to: None,
+        },
+        configuration.events,
+    )?;
     let updated_issue = result.issue;
 
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
         let event_id = result.events.first().map(|event| event.event_id.clone());
-        crate::gossip::publish_issue_mutation(
-            root,
+        crate::gossip::publish_issue_mutation_with_context(
+            context,
             &lookup.project_dir,
             &updated_issue,
             event_id,
             "issue.mutated",
-        );
+        )?;
     }
 
     Ok(IssueUpdateResult {

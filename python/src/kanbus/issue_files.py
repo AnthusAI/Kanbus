@@ -74,7 +74,7 @@ def _project_root(issues_directory: Path) -> Path:
 
 def _use_service(issues_directory: Path) -> bool:
     """Return whether this directory belongs to a daemon-addressable project."""
-    if read_test_hook("PYTEST_CURRENT_TEST") is not None:
+    if read_test_hook("KANBUS_TEST_DISABLE_SERVICE") == "1":
         return False
     root = _project_root(issues_directory)
     return is_daemon_enabled() and (root / ".kanbus.yml").is_file()
@@ -138,6 +138,24 @@ def list_issue_identifiers(issues_directory: Path) -> Set[str]:
     )
 
 
+def _read_issue_record_directly(issue_path: Path) -> Optional[dict]:
+    """Read one issue record from its own file without loading the directory.
+
+    Building a Virtuus table loads every issue file in the directory, which
+    makes reading each issue in a loop quadratic in the board size.
+
+    :param issue_path: Path to the issue JSON file.
+    :type issue_path: Path
+    :return: Parsed record, or None when the file is missing or not a JSON object.
+    :rtype: Optional[dict]
+    """
+    try:
+        record = json.loads(issue_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
 def read_issue_from_file(issue_path: Path) -> IssueData:
     """Read an issue from a JSON file.
 
@@ -149,7 +167,7 @@ def read_issue_from_file(issue_path: Path) -> IssueData:
     record = _service_request_with_fallback(
         issue_path.parent,
         {"action": "get", "pk": issue_path.stem},
-        lambda: _issue_table(issue_path.parent).get(issue_path.stem),
+        lambda: _read_issue_record_directly(issue_path),
         lambda response: response,
     )
     if record is None:
@@ -232,6 +250,7 @@ def _persisted_issue_record(issue: IssueData, issue_path: Path) -> dict:
     """Build the JSON record with the same keys the Rust CLI persists."""
     record = issue.model_dump(by_alias=True, mode="json")
     record.pop("agent_assignment", None)
+    record["custom"] = {key: record["custom"][key] for key in sorted(record["custom"])}
     agent = _without_empty_agent_fields(record.get("agent"))
     if agent is None:
         record.pop("agent", None)

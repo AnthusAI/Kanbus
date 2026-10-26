@@ -12,7 +12,7 @@ use crate::config::resolve_board_name;
 use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
 use crate::file_io::{
-    find_project_local_directory, get_configuration_path, resolve_labeled_projects,
+    find_project_local_directory, get_configuration_path, resolve_project_directories,
 };
 use crate::migration::load_beads_issues;
 use crate::models::{IssueData, ProjectConfiguration};
@@ -99,20 +99,22 @@ impl FileStore {
         configuration: &ProjectConfiguration,
     ) -> Result<Vec<IssueData>, KanbusError> {
         if !configuration.virtual_projects.is_empty() {
-            return self.load_issues_with_virtual_projects();
+            return self.load_issues_with_virtual_projects(configuration);
         }
         if configuration.beads_compatibility {
             load_beads_issues(self.root())
         } else {
             let project_dir = self.root().join(&configuration.project_directory);
-            load_console_issues(&project_dir)
+            load_console_issues(&project_dir, configuration)
         }
     }
 
     /// Load issues from all virtual projects.
-    fn load_issues_with_virtual_projects(&self) -> Result<Vec<IssueData>, KanbusError> {
-        let configuration = self.load_config()?;
-        let labeled = resolve_labeled_projects(self.root())?;
+    fn load_issues_with_virtual_projects(
+        &self,
+        configuration: &ProjectConfiguration,
+    ) -> Result<Vec<IssueData>, KanbusError> {
+        let labeled = resolve_project_directories(self.root(), configuration)?;
         let mut all_issues = Vec::new();
         for project in &labeled {
             let issues_dir = project.project_dir.join("issues");
@@ -359,7 +361,10 @@ fn load_issues_from_dir(issues_dir: &Path) -> Result<Vec<IssueData>, KanbusError
     Ok(issues)
 }
 
-fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError> {
+fn load_console_issues(
+    project_dir: &Path,
+    configuration: &ProjectConfiguration,
+) -> Result<Vec<IssueData>, KanbusError> {
     let issues_dir = project_dir.join("issues");
     if !issues_dir.exists() || !issues_dir.is_dir() {
         return Err(KanbusError::IssueOperation(
@@ -372,8 +377,6 @@ fn load_console_issues(project_dir: &Path) -> Result<Vec<IssueData>, KanbusError
         tag_custom(issue, "source", "shared");
     }
 
-    let configuration_path = get_configuration_path(project_dir)?;
-    let configuration = load_project_configuration(&configuration_path)?;
     issues = apply_overlay_to_issues(
         project_dir,
         issues,
@@ -449,6 +452,10 @@ mod tests {
 
     fn write_base_config(root: &Path) {
         std::fs::write(root.join(".kanbus.yml"), "project_key: kanbus\n").expect("write config");
+    }
+
+    fn load_cfg(root: &Path) -> ProjectConfiguration {
+        load_project_configuration(&root.join(".kanbus.yml")).expect("load config")
     }
 
     #[test]
@@ -528,7 +535,7 @@ mod tests {
         std::fs::create_dir_all(&project_dir).expect("create project dir");
         write_base_config(temp_dir.path());
 
-        let result = load_console_issues(&project_dir);
+        let result = load_console_issues(&project_dir, &load_cfg(temp_dir.path()));
         match result {
             Err(KanbusError::IssueOperation(message)) => {
                 assert_eq!(message, "project/issues directory not found")
@@ -558,7 +565,8 @@ mod tests {
         )
         .expect("write local issue");
 
-        let issues = load_console_issues(&project_dir).expect("load issues");
+        let issues =
+            load_console_issues(&project_dir, &load_cfg(temp_dir.path())).expect("load issues");
         let by_id = issues
             .into_iter()
             .map(|issue| (issue.identifier.clone(), issue))

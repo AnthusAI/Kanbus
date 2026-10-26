@@ -360,7 +360,7 @@ fn fixture(world: &KanbusWorld) -> &MutexApiFixture {
 
 fn run_cli(world: &mut KanbusWorld, args: Vec<String>) {
     let cwd = root(world).to_path_buf();
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_DAEMON", "0");
     match run_from_args_in_blocking_thread(args, &cwd) {
         Ok(output) => {
             world.exit_code = Some(0);

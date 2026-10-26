@@ -751,11 +751,11 @@ def when_build_right_now_context(context: object, identifier: str) -> None:
     """
     root = Path(context.working_directory)
     overrides = getattr(context, "environment_overrides", None) or {}
-    previous_daemon = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    previous_daemon = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     else:
-        os.environ["KANBUS_NO_DAEMON"] = "1"
+        os.environ["KANBUS_DAEMON"] = "0"
     project_dir = load_project_directory(context)
     issue = read_issue_file(project_dir, identifier)
     try:
@@ -763,9 +763,9 @@ def when_build_right_now_context(context: object, identifier: str) -> None:
         context.right_now_context = build_right_now_context(issue, children)
     finally:
         if previous_daemon is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = previous_daemon
+            os.environ["KANBUS_DAEMON"] = previous_daemon
 
 
 def _require_right_now_context(context: object):

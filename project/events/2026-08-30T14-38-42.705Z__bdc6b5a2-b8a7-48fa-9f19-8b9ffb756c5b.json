@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "bdc6b5a2-b8a7-48fa-9f19-8b9ffb756c5b",
+  "issue_id": "kbs-2817309f-00bf-4b86-b45c-5e7c7ebd5c22",
+  "event_type": "issue_created",
+  "occurred_at": "2026-08-30T14:38:42.705Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "## Problem\n\nKanbus 0.23.0 does not declare a Rust minimum in `rust/Cargo.toml` and the repository has no Rust toolchain file or user-facing build prerequisite. On Cargo 1.81.0, a normal build fails inside a transitive dependency because `clap_lex 1.1.0` requires Edition 2024 support.\n\n## Reproduction\n\n`cargo build --manifest-path rust/Cargo.toml --bin kbs`\n\nEnvironment:\n\n- Kanbus commit `3c5dec99` / version 0.23.0\n- `rustc 1.81.0`\n- `cargo 1.81.0`\n\nObserved error:\n\n`feature edition2024 is required` while parsing the downloaded `clap_lex 1.1.0` manifest.\n\n## Expected behavior\n\nKanbus should define one supported Rust toolchain contract. Building with an older toolchain should fail immediately with an actionable version requirement rather than a transitive-manifest error.\n\n## Acceptance criteria\n\n- The repository declares the supported Rust version in the canonical Cargo metadata or a pinned toolchain file.\n- Installation/build documentation states the same requirement.\n- CI verifies the declared minimum or intentionally uses the pinned version.\n- A build attempted with an older toolchain produces a clear actionable failure.\n- Release tooling reports the selected Rust toolchain.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Declare and enforce the Rust minimum supported version"
+  }
+}

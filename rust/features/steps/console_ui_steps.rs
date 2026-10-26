@@ -18,6 +18,13 @@ pub struct ConsoleAgentMetadata {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConsoleAgentAssignment {
+    pub kind: String,
+    pub name: String,
+    pub effective_model: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct ConsoleIssue {
     pub identifier: Option<String>,
     pub title: String,
@@ -34,6 +41,7 @@ pub struct ConsoleIssue {
     pub location: String,
     pub agent: Option<ConsoleAgentMetadata>,
     pub right_now_summary: Option<String>,
+    pub agent_assignment: Option<ConsoleAgentAssignment>,
 }
 
 #[allow(dead_code)]
@@ -313,6 +321,7 @@ fn when_add_task_issue(world: &mut KanbusWorld, title: String) {
         location: "shared".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
 }
 
@@ -445,6 +454,7 @@ fn given_console_open_with_virtual_projects(world: &mut KanbusWorld) {
         location: "shared".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
 }
 
@@ -487,6 +497,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -504,6 +515,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -521,6 +533,7 @@ fn given_issues_exist_multiple_projects(world: &mut KanbusWorld) {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
     ];
 }
@@ -544,6 +557,7 @@ fn given_local_issues_current_project(world: &mut KanbusWorld) {
         location: "local".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
     state.local_filter_visible = true;
 }
@@ -567,6 +581,7 @@ fn given_local_issues_virtual_project(world: &mut KanbusWorld, label: String) {
         location: "local".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
     state.local_filter_visible = true;
 }
@@ -846,6 +861,18 @@ fn given_console_task_without_agent_metadata(world: &mut KanbusWorld, title: Str
     panic!("task not found: {title}");
 }
 
+#[given(expr = "the console has a task {string} without agent assignment")]
+fn given_console_task_without_agent_assignment(world: &mut KanbusWorld, title: String) {
+    let state = require_console_state(world);
+    for issue in &mut state.issues {
+        if issue.title == title {
+            issue.agent_assignment = None;
+            return;
+        }
+    }
+    panic!("task not found: {title}");
+}
+
 #[given(
     expr = "the console has a comment from {string} on task {string} with agent platform {string} model {string}"
 )]
@@ -908,6 +935,44 @@ fn then_issue_agent_metadata_model(world: &mut KanbusWorld, model: String) {
 fn then_issue_agent_metadata_not_visible(world: &mut KanbusWorld) {
     let issue = get_selected_issue(world);
     assert!(issue.agent.is_none(), "expected no agent metadata");
+}
+
+#[then(expr = "the issue agent assignment should show route {string}")]
+fn then_issue_assignment_route(world: &mut KanbusWorld, route: String) {
+    let issue = get_selected_issue(world);
+    let assignment = issue
+        .agent_assignment
+        .as_ref()
+        .expect("expected an agent assignment");
+    let actual = match assignment.kind.as_str() {
+        "class" => format!("Class \u{b7} {}", assignment.name),
+        "provider" => format!("Provider \u{b7} {}", assignment.name),
+        _ => assignment.name.clone(),
+    };
+    assert_eq!(actual, route);
+}
+
+#[then(expr = "the issue agent assignment should show effective {string}")]
+fn then_issue_assignment_effective(world: &mut KanbusWorld, value: String) {
+    let issue = get_selected_issue(world);
+    let assignment = issue
+        .agent_assignment
+        .as_ref()
+        .unwrap_or_else(|| panic!("expected effective configuration to include {value}"));
+    assert!(
+        assignment.effective_model.contains(&value),
+        "expected effective configuration to include {value}"
+    );
+}
+
+#[then("the issue agent assignment should show unassigned")]
+fn then_issue_assignment_unassigned(world: &mut KanbusWorld) {
+    let issue = get_selected_issue(world);
+    assert!(
+        issue.agent_assignment.is_none(),
+        "expected unassigned issue but found {:?}",
+        issue.agent_assignment
+    );
 }
 
 #[then(expr = "the comment agent metadata should include platform {string}")]
@@ -1109,9 +1174,15 @@ fn then_metrics_toggle_selected(world: &mut KanbusWorld, view: String) {
 #[then("the metrics toggle should include a board icon")]
 fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
-    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
+    let selector_options = std::fs::read_to_string(
+        root.join("src")
+            .join("components")
+            .join("selectorOptions.tsx"),
+    )
+    .expect("read selectorOptions.tsx");
     assert!(
-        app_tsx.contains("LayoutGrid") && app_tsx.contains("buildOption(\"board\","),
+        selector_options.contains("LayoutGrid")
+            && selector_options.contains("buildSelectorOption(\"board\","),
         "expected LayoutGrid icon for board toggle"
     );
 }
@@ -1119,9 +1190,15 @@ fn then_metrics_toggle_has_board_icon(_world: &mut KanbusWorld) {
 #[then("the metrics toggle should include a chart icon")]
 fn then_metrics_toggle_has_chart_icon(_world: &mut KanbusWorld) {
     let root = console_app_root();
-    let app_tsx = std::fs::read_to_string(root.join("src").join("App.tsx")).expect("read App.tsx");
+    let selector_options = std::fs::read_to_string(
+        root.join("src")
+            .join("components")
+            .join("selectorOptions.tsx"),
+    )
+    .expect("read selectorOptions.tsx");
     assert!(
-        app_tsx.contains("BarChart3") && app_tsx.contains("buildOption(\"metrics\","),
+        selector_options.contains("BarChart3")
+            && selector_options.contains("buildSelectorOption(\"metrics\","),
         "expected BarChart3 icon for metrics toggle"
     );
 }
@@ -1158,6 +1235,7 @@ fn given_metrics_issue(
         location: source,
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
 }
 
@@ -1265,6 +1343,7 @@ fn given_console_has_only_these_issues(world: &mut KanbusWorld, step: &Step) {
                 location: "shared".to_string(),
                 agent: None,
                 right_now_summary: None,
+                agent_assignment: None,
             }
         })
         .collect();
@@ -1677,6 +1756,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1694,6 +1774,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1711,6 +1792,11 @@ fn default_issues() -> Vec<ConsoleIssue> {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: Some(ConsoleAgentAssignment {
+                kind: "class".to_string(),
+                name: "implementation".to_string(),
+                effective_model: "gpt-5.6-luna".to_string(),
+            }),
         },
         ConsoleIssue {
             identifier: None,
@@ -1728,6 +1814,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
         ConsoleIssue {
             identifier: None,
@@ -1745,6 +1832,7 @@ fn default_issues() -> Vec<ConsoleIssue> {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         },
     ]
 }
@@ -1763,12 +1851,22 @@ fn assert_priority_pill_uses_background() {
     if !globals_css.contains("background") || !globals_css.contains("--issue-priority-bg") {
         panic!("priority label must use background with --issue-priority-bg in globals.css");
     }
-    let issue_colors = fs::read_to_string(root.join("src").join("utils").join("issue-colors.ts"))
-        .expect("read issue-colors.ts");
+    let issue_colors_path = root
+        .join("..")
+        .join("..")
+        .join("packages")
+        .join("ui")
+        .join("src")
+        .join("kanban")
+        .join("issue-colors.ts");
+    let issue_colors =
+        fs::read_to_string(issue_colors_path).expect("read @kanbus/ui issue-colors.ts");
     if !issue_colors.contains("issue-priority-bg-light")
         || !issue_colors.contains("issue-priority-bg-dark")
     {
-        panic!("issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark");
+        panic!(
+            "@kanbus/ui issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
+        );
     }
     assert_priority_pill_dark_mode_css_is_valid(&globals_css);
 }

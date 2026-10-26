@@ -8,10 +8,14 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::models::MutexApiConfiguration;
+use crate::models::{validate_http_endpoint, HttpEndpointError, MutexApiConfiguration};
 
 /// Request timeout used for the optional mutex API.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Error reported when the bearer token would travel over plaintext HTTP to a non-loopback host.
+pub const PLAINTEXT_ENDPOINT_MESSAGE: &str =
+    "mutex api endpoint must use https unless the host is loopback";
 
 /// An active hard lease returned by the mutex API.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,6 +217,11 @@ fn request(
         .expect("validated endpoint")
         .trim()
         .trim_end_matches('/');
+    if validate_http_endpoint(endpoint) == Err(HttpEndpointError::Insecure) {
+        return Err(MutexApiError::Unavailable(
+            PLAINTEXT_ENDPOINT_MESSAGE.to_string(),
+        ));
+    }
     let url = format!(
         "{endpoint}/api/coordination/leases/{}",
         encode_path_segment(resource)

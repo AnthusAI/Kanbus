@@ -179,7 +179,7 @@ fn load_issue_json(project_dir: &PathBuf, identifier: &str) -> Value {
 
 #[given("a Kanbus project with default configuration")]
 pub(crate) fn given_kanbus_project(world: &mut KanbusWorld) {
-    env::set_var("KANBUS_NO_DAEMON", "1");
+    env::set_var("KANBUS_DAEMON", "0");
     let temp_dir = TempDir::new().expect("tempdir");
     let repo_path = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_path).expect("create repo dir");
@@ -248,6 +248,15 @@ fn then_issues_directory_contains_count(world: &mut KanbusWorld, count: i32) {
         })
         .count();
     assert_eq!(actual as i32, count);
+}
+
+#[then(expr = "the created issue should have id {string}")]
+fn then_created_issue_id(world: &mut KanbusWorld, issue_id: String) {
+    let identifier = capture_issue_identifier(world);
+    assert_eq!(identifier, issue_id);
+    let project_dir = load_project_dir(world);
+    let payload = load_issue_json(&project_dir, &identifier);
+    assert_eq!(payload["id"], issue_id.as_str());
 }
 
 #[then("the created issue should have title \"Implement OAuth2 flow\"")]

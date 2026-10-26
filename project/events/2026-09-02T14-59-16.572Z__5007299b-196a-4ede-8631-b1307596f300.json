@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "5007299b-196a-4ede-8631-b1307596f300",
+  "issue_id": "kbs-d4b205e3-671c-4d4f-b1a2-d1878ca6c9ea",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T14:59:16.572Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "## Intent\n\nAs a Kanbus CLI user (and as an agent dogfooding Kanbus), I want no-op updates, board-state commits, list --all, and discoverable dep help so that routine board operations succeed without extra git ceremony or confusing errors.\n\n## In scope\n\n1. Idempotent `kbs update` / `kanbus update` when requested fields already match (especially `--status` already at the target).\n2. A `kbs commit` command that git-commits `project/issues` (not `kbs sync`; sync is Jira/Snyk/GitHub).\n3. Remove stale issue files that `kbs show` reports as not found.\n4. Discoverable `kbs dep --help` and usage errors with real examples; correct CLI_REFERENCE.md (it currently documents the nonexistent `kanbus dep add`).\n5. `kbs list --all` as shorthand for `--limit 0`, Python and Rust parity.\n\n## Out of scope\n\n- Jira/Snyk/GitHub sync behavior\n- Auto-push (commit only; agents still push)\n- Changing `project/events/` gitignore\n- Merging to main\n\n## Definition of Done\n\n- Gherkin scenarios exist for each behavior change and pass in Python (behave/pytest) and Rust (cargo test)\n- Python and Rust produce identical observable CLI behavior\n- PR opened against develop",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Fix CLI dogfood rough edges"
+  }
+}

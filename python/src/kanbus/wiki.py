@@ -819,15 +819,12 @@ def _wiki_render_log_cache_hit(cache_dir: Path) -> None:
 
 def _load_ai_config_and_project_dir(root: Path) -> tuple[object | None, str | None]:
     """Load AI configuration and project directory. Returns (ai_config, project_dir)."""
-    from kanbus.config_loader import ConfigurationError, load_project_configuration
-    from kanbus.project import ProjectMarkerError, get_configuration_path
+    from kanbus.project_context import ProjectContext
 
-    try:
-        config_path = get_configuration_path(root)
-        configuration = load_project_configuration(config_path)
-        return (configuration.ai, configuration.project_directory)
-    except (ProjectMarkerError, ConfigurationError):
+    context = ProjectContext.discover(root)
+    if context is None:
         return (None, None)
+    return (context.configuration.ai, context.configuration.project_directory)
 
 
 def _get_string(value: object) -> str | None:

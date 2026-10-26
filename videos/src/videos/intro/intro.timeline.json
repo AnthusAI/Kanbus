@@ -2,249 +2,228 @@
   "items": [
     {
       "type": "tts",
-      "sceneId": "hook",
-      "cueId": "hook",
+      "sceneId": "overview",
+      "cueId": "overview",
       "startSec": 0,
-      "endSec": 21.85,
+      "endSec": 14.100000000000001,
       "segments": [
         {
           "type": "pause",
           "startSec": 0,
-          "endSec": 0.6,
-          "seconds": 0.6
+          "endSec": 0.4,
+          "seconds": 0.4
         },
         {
           "type": "tts",
-          "startSec": 0.6,
-          "endSec": 10.95,
-          "text": "What if your project tracker was just files in your repository? No SaaS login. No per-seat costs. No external database to maintain.",
-          "segmentPath": "src/videos/intro/env/development/segments/hook--hook--tts--89ca7c0661b8--1.wav",
-          "durationSec": 10.35,
-          "rawDurationSec": 10.35,
+          "startSec": 0.4,
+          "endSec": 5.525,
+          "text": "Kanbus is a high-level, accessible way to run Kanban directly from your repository.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/overview--overview--tts--af48571017d1--1.wav",
+          "durationSec": 5.125,
+          "rawDurationSec": 5.125,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 10.95,
-          "endSec": 11.25,
-          "seconds": 0.3
+          "startSec": 5.525,
+          "endSec": 5.7250000000000005,
+          "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 11.25,
-          "endSec": 21.85,
-          "text": "Kanbus is a lightweight issue tracker that lives entirely in your Git repo. Issues, plans, and execution stay connected in one place—right next to your code.",
-          "segmentPath": "src/videos/intro/env/development/segments/hook--hook--tts--881d88183fbe--1.wav",
-          "durationSec": 10.6,
-          "rawDurationSec": 10.6,
+          "startSec": 5.7250000000000005,
+          "endSec": 14.100000000000001,
+          "text": "You get a live board and a command line workflow, while everything stays grounded in plain files your team and AI agents can both use.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/overview--overview--tts--2e4df80ce626--1.wav",
+          "durationSec": 8.375,
+          "rawDurationSec": 8.375,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "files",
-      "cueId": "one_file",
-      "startSec": 27.5,
-      "endSec": 52.55,
+      "sceneId": "git-sync",
+      "cueId": "git_bus",
+      "startSec": 14.100000000000001,
+      "endSec": 27.975,
       "segments": [
         {
           "type": "tts",
-          "startSec": 27.5,
-          "endSec": 37.4,
-          "text": "Every issue is a single JSON file. Not one giant file that causes merge conflicts every time two people touch it—one file per issue.",
-          "segmentPath": "src/videos/intro/env/development/segments/files--one_file--tts--5f28117a807c--1.wav",
-          "durationSec": 9.9,
-          "rawDurationSec": 9.9,
+          "startSec": 14.100000000000001,
+          "endSec": 18.6875,
+          "text": "Git synchronization is the core idea: use Git as the bus for Kanban boards.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/git-sync--git_bus--tts--240cdf8f2e15--1.wav",
+          "durationSec": 4.5875,
+          "rawDurationSec": 4.5875,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 37.4,
-          "endSec": 37.699999999999996,
-          "seconds": 0.3
+          "startSec": 18.6875,
+          "endSec": 18.8875,
+          "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 37.699999999999996,
-          "endSec": 52.55,
-          "text": "That means your team and your AI agents can create, update, and close issues in parallel without stepping on each other. Hash-based IDs make collisions impossible, even when multiple agents are creating tasks at the same time.",
-          "segmentPath": "src/videos/intro/env/development/segments/files--one_file--tts--acd1be396bd0--1.wav",
-          "durationSec": 14.85,
-          "rawDurationSec": 14.85,
+          "startSec": 18.8875,
+          "endSec": 27.975,
+          "text": "Board updates become normal file changes, so review, history, branching, and collaboration work exactly the way your engineering team already expects.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/git-sync--git_bus--tts--ba801c4b34c0--1.wav",
+          "durationSec": 9.0875,
+          "rawDurationSec": 9.0875,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "files",
-      "cueId": "no_friction",
-      "startSec": 52.55,
-      "endSec": 63.55,
+      "sceneId": "feature-cli",
+      "cueId": "feature_cli",
+      "startSec": 27.975,
+      "endSec": 35.475,
       "segments": [
         {
-          "type": "pause",
-          "startSec": 52.55,
-          "endSec": 52.849999999999994,
-          "seconds": 0.3
-        },
-        {
           "type": "tts",
-          "startSec": 52.849999999999994,
-          "endSec": 63.55,
-          "text": "There's no database server to maintain, no background process to crash, and no complex synchronization logic. Each command just scans the project files directly.",
-          "segmentPath": "src/videos/intro/env/development/segments/files--no_friction--tts--0679f1a72ee6--1.wav",
-          "durationSec": 10.7,
-          "rawDurationSec": 10.7,
+          "startSec": 27.975,
+          "endSec": 35.475,
+          "text": "The agent-ready CLI lets you create, update, and move work from your terminal without leaving repository-native workflows.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-cli--feature_cli--tts--a4f1dd31d1f2--1.wav",
+          "durationSec": 7.5,
+          "rawDurationSec": 7.5,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "agents",
-      "cueId": "agent_native",
-      "startSec": 64.05,
-      "endSec": 83.35,
+      "sceneId": "feature-jira",
+      "cueId": "feature_jira",
+      "startSec": 35.475,
+      "endSec": 43.112500000000004,
       "segments": [
         {
           "type": "tts",
-          "startSec": 64.05,
-          "endSec": 75.05,
-          "text": "Kanbus is designed from the ground up for AI-assisted development. Your agents can read and write issues through the CLI, exactly the same way a human developer would.",
-          "segmentPath": "src/videos/intro/env/development/segments/agents--agent_native--tts--73f3c64366a9--1.wav",
-          "durationSec": 11,
-          "rawDurationSec": 11,
-          "trimEndSec": 0
-        },
-        {
-          "type": "pause",
-          "startSec": 75.05,
-          "endSec": 75.35,
-          "seconds": 0.3
-        },
-        {
-          "type": "tts",
-          "startSec": 75.35,
-          "endSec": 83.35,
-          "text": "No API keys. No web latency. Just native file and command-line access to the full project tracker.",
-          "segmentPath": "src/videos/intro/env/development/segments/agents--agent_native--tts--9f9b177b1808--1.wav",
-          "durationSec": 8,
-          "rawDurationSec": 8,
+          "startSec": 35.475,
+          "endSec": 43.112500000000004,
+          "text": "Jira synchronization brings existing Jira projects into the repo so agents and humans work from the same source of truth.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-jira--feature_jira--tts--b496ee5ceba9--1.wav",
+          "durationSec": 7.6375,
+          "rawDurationSec": 7.6375,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "agents",
-      "cueId": "wiki",
-      "startSec": 83.35,
-      "endSec": 100.35,
+      "sceneId": "feature-local",
+      "cueId": "feature_local",
+      "startSec": 43.112500000000004,
+      "endSec": 50.112500000000004,
       "segments": [
         {
-          "type": "pause",
-          "startSec": 83.35,
-          "endSec": 83.64999999999999,
-          "seconds": 0.3
-        },
-        {
           "type": "tts",
-          "startSec": 83.64999999999999,
-          "endSec": 100.35,
-          "text": "Kanbus also includes an integrated wiki with live templates. Use Jinja2 expressions to inject real-time lists of open tasks directly into your planning docs. When an agent reads a plan, it sees the current state of the project—not a stale snapshot.",
-          "segmentPath": "src/videos/intro/env/development/segments/agents--wiki--tts--c9a1d63e6fdf--1.wav",
-          "durationSec": 16.7,
-          "rawDurationSec": 16.7,
+          "startSec": 43.112500000000004,
+          "endSec": 50.112500000000004,
+          "text": "Local tasks let you draft privately and promote to the shared board only when work is ready for team visibility.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-local--feature_local--tts--8553b58395a2--1.wav",
+          "durationSec": 7,
+          "rawDurationSec": 7,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "sync",
-      "cueId": "jira_sync",
-      "startSec": 100.85,
-      "endSec": 114.5,
+      "sceneId": "feature-virtual",
+      "cueId": "feature_virtual",
+      "startSec": 50.112500000000004,
+      "endSec": 57.225,
       "segments": [
         {
           "type": "tts",
-          "startSec": 100.85,
-          "endSec": 114.5,
-          "text": "Already using Jira? Kanbus syncs with it. Pull your Jira issues into the repository so your agents always have the full context locally, without needing Jira credentials or API access.",
-          "segmentPath": "src/videos/intro/env/development/segments/sync--jira_sync--tts--c51dfff5e057--1.wav",
-          "durationSec": 13.65,
-          "rawDurationSec": 13.65,
+          "startSec": 50.112500000000004,
+          "endSec": 57.225,
+          "text": "Virtual projects aggregate cross-repository execution into a single view for planning and delivery coordination.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-virtual--feature_virtual--tts--3484558d4f93--1.wav",
+          "durationSec": 7.1125,
+          "rawDurationSec": 7.1125,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "sync",
-      "cueId": "local_tasks",
-      "startSec": 114.5,
-      "endSec": 126.39999999999999,
+      "sceneId": "feature-beads",
+      "cueId": "feature_beads",
+      "startSec": 57.225,
+      "endSec": 64.7875,
       "segments": [
         {
-          "type": "pause",
-          "startSec": 114.5,
-          "endSec": 114.8,
-          "seconds": 0.3
-        },
-        {
           "type": "tts",
-          "startSec": 114.8,
-          "endSec": 126.39999999999999,
-          "text": "And for your own work-in-progress, local tasks stay off Git until you're ready. Draft ideas, experiment, and promote tasks to the shared board when they're ready for the team.",
-          "segmentPath": "src/videos/intro/env/development/segments/sync--local_tasks--tts--847107679a8f--1.wav",
-          "durationSec": 11.6,
-          "rawDurationSec": 11.6,
+          "startSec": 57.225,
+          "endSec": 64.7875,
+          "text": "Beads compatibility lets you open existing data immediately and evolve your process incrementally while teams keep shipping.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-beads--feature_beads--tts--6280de542434--1.wav",
+          "durationSec": 7.5625,
+          "rawDurationSec": 7.5625,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "tools",
-      "cueId": "implementations",
-      "startSec": 126.89999999999999,
-      "endSec": 153.95,
+      "sceneId": "feature-vscode",
+      "cueId": "feature_vscode",
+      "startSec": 64.7875,
+      "endSec": 72.32499999999999,
       "segments": [
         {
           "type": "tts",
-          "startSec": 126.89999999999999,
-          "endSec": 153.95,
-          "text": "Kanbus gives you three ways to work. A Python CLI that installs with pip—perfect for scripting and AI tool integrations. A Rust CLI for high-performance use in CI/CD pipelines and large repositories. And a web console: a single binary with an embedded React frontend. Download it, run it, and you have a full Kanban board—no configuration, no npm, no separate assets.",
-          "segmentPath": "src/videos/intro/env/development/segments/tools--implementations--tts--b52be85dae0e--1.wav",
-          "durationSec": 27.05,
-          "rawDurationSec": 27.05,
+          "startSec": 64.7875,
+          "endSec": 72.32499999999999,
+          "text": "The VS Code plugin lets you inspect and update board state without context switching away from the files you are editing.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-vscode--feature_vscode--tts--403ee7cb3f03--1.wav",
+          "durationSec": 7.5375,
+          "rawDurationSec": 7.5375,
           "trimEndSec": 0
         }
       ]
     },
     {
       "type": "tts",
-      "sceneId": "tools",
-      "cueId": "shared_store",
-      "startSec": 153.95,
-      "endSec": 163.8,
+      "sceneId": "feature-wiki",
+      "cueId": "feature_wiki",
+      "startSec": 72.32499999999999,
+      "endSec": 80.17499999999998,
       "segments": [
         {
-          "type": "pause",
-          "startSec": 153.95,
-          "endSec": 154.25,
-          "seconds": 0.3
-        },
+          "type": "tts",
+          "startSec": 72.32499999999999,
+          "endSec": 80.17499999999998,
+          "text": "The integrated wiki renders current issue lists inside docs so plans, status updates, and execution context stay synchronized.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-wiki--feature_wiki--tts--809a4050bc12--1.wav",
+          "durationSec": 7.85,
+          "rawDurationSec": 7.85,
+          "trimEndSec": 0
+        }
+      ]
+    },
+    {
+      "type": "tts",
+      "sceneId": "feature-policy",
+      "cueId": "feature_policy",
+      "startSec": 80.17499999999998,
+      "endSec": 88.36249999999998,
+      "segments": [
         {
           "type": "tts",
-          "startSec": 154.25,
-          "endSec": 163.8,
-          "text": "Multiple projects can even share a data store while keeping issues namespaced per project. Track work across codebases with centralized visibility.",
-          "segmentPath": "src/videos/intro/env/development/segments/tools--shared_store--tts--ac7475817553--1.wav",
-          "durationSec": 9.55,
-          "rawDurationSec": 9.55,
+          "startSec": 80.17499999999998,
+          "endSec": 88.36249999999998,
+          "text": "Policy as code lets you define standards once and apply them consistently across CLI usage, automation, and collaborative workflows.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/feature-policy--feature_policy--tts--9fa946da8e6d--1.wav",
+          "durationSec": 8.1875,
+          "rawDurationSec": 8.1875,
           "trimEndSec": 0
         }
       ]
@@ -253,40 +232,34 @@
       "type": "tts",
       "sceneId": "cta",
       "cueId": "cta",
-      "startSec": 164.3,
-      "endSec": 178.9,
+      "startSec": 88.36249999999998,
+      "endSec": 95.88749999999999,
       "segments": [
         {
           "type": "tts",
-          "startSec": 164.3,
-          "endSec": 174.75,
-          "text": "Kanbus. A tiny Jira clone for your repo. Files are the database. Agents are first-class citizens. And everything stays in Git.",
-          "segmentPath": "src/videos/intro/env/development/segments/cta--cta--tts--215db7068055--1.wav",
-          "durationSec": 10.45,
-          "rawDurationSec": 10.45,
+          "startSec": 88.36249999999998,
+          "endSec": 89.67499999999998,
+          "text": "Get started at kanb.us.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/cta--cta--tts--480563fcefb6--1.wav",
+          "durationSec": 1.3125,
+          "rawDurationSec": 1.3125,
           "trimEndSec": 0
         },
         {
           "type": "pause",
-          "startSec": 174.75,
-          "endSec": 175.05,
-          "seconds": 0.3
+          "startSec": 89.67499999999998,
+          "endSec": 89.87499999999999,
+          "seconds": 0.2
         },
         {
           "type": "tts",
-          "startSec": 175.05,
-          "endSec": 178.4,
-          "text": "Visit kanb.us to get started.",
-          "segmentPath": "src/videos/intro/env/development/segments/cta--cta--tts--ed7e27f98a79--1.wav",
-          "durationSec": 3.35,
-          "rawDurationSec": 3.35,
+          "startSec": 89.87499999999999,
+          "endSec": 95.88749999999999,
+          "text": "Install Kanbus, connect your repository, and run the same board workflow for humans and AI agents.",
+          "segmentPath": ".videoml/out/intro/env/development/segments/cta--cta--tts--7da02dde765e--1.wav",
+          "durationSec": 6.0125,
+          "rawDurationSec": 6.0125,
           "trimEndSec": 0
-        },
-        {
-          "type": "pause",
-          "startSec": 178.4,
-          "endSec": 178.9,
-          "seconds": 0.5
         }
       ]
     }
@@ -298,115 +271,115 @@
         "kind": "narration",
         "clips": [
           {
-            "id": "hook--hook--tts--89ca7c0661b8--1",
+            "id": "overview--overview--tts--af48571017d1--1",
             "kind": "file",
-            "startSec": 0.6,
-            "durationSec": 10.35,
-            "src": "/videoml/intro/env/development/segments/hook--hook--tts--89ca7c0661b8--1.wav",
+            "startSec": 0.4,
+            "durationSec": 5.125,
+            "src": "/videoml/intro/env/development/segments/overview--overview--tts--af48571017d1--1.wav",
             "volume": 1
           },
           {
-            "id": "hook--hook--tts--881d88183fbe--1",
+            "id": "overview--overview--tts--2e4df80ce626--1",
             "kind": "file",
-            "startSec": 11.25,
-            "durationSec": 10.6,
-            "src": "/videoml/intro/env/development/segments/hook--hook--tts--881d88183fbe--1.wav",
+            "startSec": 5.7250000000000005,
+            "durationSec": 8.375,
+            "src": "/videoml/intro/env/development/segments/overview--overview--tts--2e4df80ce626--1.wav",
             "volume": 1
           },
           {
-            "id": "files--one_file--tts--5f28117a807c--1",
+            "id": "git-sync--git_bus--tts--240cdf8f2e15--1",
             "kind": "file",
-            "startSec": 27.5,
-            "durationSec": 9.9,
-            "src": "/videoml/intro/env/development/segments/files--one_file--tts--5f28117a807c--1.wav",
+            "startSec": 14.100000000000001,
+            "durationSec": 4.5875,
+            "src": "/videoml/intro/env/development/segments/git-sync--git_bus--tts--240cdf8f2e15--1.wav",
             "volume": 1
           },
           {
-            "id": "files--one_file--tts--acd1be396bd0--1",
+            "id": "git-sync--git_bus--tts--ba801c4b34c0--1",
             "kind": "file",
-            "startSec": 37.699999999999996,
-            "durationSec": 14.85,
-            "src": "/videoml/intro/env/development/segments/files--one_file--tts--acd1be396bd0--1.wav",
+            "startSec": 18.8875,
+            "durationSec": 9.0875,
+            "src": "/videoml/intro/env/development/segments/git-sync--git_bus--tts--ba801c4b34c0--1.wav",
             "volume": 1
           },
           {
-            "id": "files--no_friction--tts--0679f1a72ee6--1",
+            "id": "feature-cli--feature_cli--tts--a4f1dd31d1f2--1",
             "kind": "file",
-            "startSec": 52.849999999999994,
-            "durationSec": 10.7,
-            "src": "/videoml/intro/env/development/segments/files--no_friction--tts--0679f1a72ee6--1.wav",
+            "startSec": 27.975,
+            "durationSec": 7.5,
+            "src": "/videoml/intro/env/development/segments/feature-cli--feature_cli--tts--a4f1dd31d1f2--1.wav",
             "volume": 1
           },
           {
-            "id": "agents--agent_native--tts--73f3c64366a9--1",
+            "id": "feature-jira--feature_jira--tts--b496ee5ceba9--1",
             "kind": "file",
-            "startSec": 64.05,
-            "durationSec": 11,
-            "src": "/videoml/intro/env/development/segments/agents--agent_native--tts--73f3c64366a9--1.wav",
+            "startSec": 35.475,
+            "durationSec": 7.6375,
+            "src": "/videoml/intro/env/development/segments/feature-jira--feature_jira--tts--b496ee5ceba9--1.wav",
             "volume": 1
           },
           {
-            "id": "agents--agent_native--tts--9f9b177b1808--1",
+            "id": "feature-local--feature_local--tts--8553b58395a2--1",
             "kind": "file",
-            "startSec": 75.35,
-            "durationSec": 8,
-            "src": "/videoml/intro/env/development/segments/agents--agent_native--tts--9f9b177b1808--1.wav",
+            "startSec": 43.112500000000004,
+            "durationSec": 7,
+            "src": "/videoml/intro/env/development/segments/feature-local--feature_local--tts--8553b58395a2--1.wav",
             "volume": 1
           },
           {
-            "id": "agents--wiki--tts--c9a1d63e6fdf--1",
+            "id": "feature-virtual--feature_virtual--tts--3484558d4f93--1",
             "kind": "file",
-            "startSec": 83.64999999999999,
-            "durationSec": 16.7,
-            "src": "/videoml/intro/env/development/segments/agents--wiki--tts--c9a1d63e6fdf--1.wav",
+            "startSec": 50.112500000000004,
+            "durationSec": 7.1125,
+            "src": "/videoml/intro/env/development/segments/feature-virtual--feature_virtual--tts--3484558d4f93--1.wav",
             "volume": 1
           },
           {
-            "id": "sync--jira_sync--tts--c51dfff5e057--1",
+            "id": "feature-beads--feature_beads--tts--6280de542434--1",
             "kind": "file",
-            "startSec": 100.85,
-            "durationSec": 13.65,
-            "src": "/videoml/intro/env/development/segments/sync--jira_sync--tts--c51dfff5e057--1.wav",
+            "startSec": 57.225,
+            "durationSec": 7.5625,
+            "src": "/videoml/intro/env/development/segments/feature-beads--feature_beads--tts--6280de542434--1.wav",
             "volume": 1
           },
           {
-            "id": "sync--local_tasks--tts--847107679a8f--1",
+            "id": "feature-vscode--feature_vscode--tts--403ee7cb3f03--1",
             "kind": "file",
-            "startSec": 114.8,
-            "durationSec": 11.6,
-            "src": "/videoml/intro/env/development/segments/sync--local_tasks--tts--847107679a8f--1.wav",
+            "startSec": 64.7875,
+            "durationSec": 7.5375,
+            "src": "/videoml/intro/env/development/segments/feature-vscode--feature_vscode--tts--403ee7cb3f03--1.wav",
             "volume": 1
           },
           {
-            "id": "tools--implementations--tts--b52be85dae0e--1",
+            "id": "feature-wiki--feature_wiki--tts--809a4050bc12--1",
             "kind": "file",
-            "startSec": 126.89999999999999,
-            "durationSec": 27.05,
-            "src": "/videoml/intro/env/development/segments/tools--implementations--tts--b52be85dae0e--1.wav",
+            "startSec": 72.32499999999999,
+            "durationSec": 7.85,
+            "src": "/videoml/intro/env/development/segments/feature-wiki--feature_wiki--tts--809a4050bc12--1.wav",
             "volume": 1
           },
           {
-            "id": "tools--shared_store--tts--ac7475817553--1",
+            "id": "feature-policy--feature_policy--tts--9fa946da8e6d--1",
             "kind": "file",
-            "startSec": 154.25,
-            "durationSec": 9.55,
-            "src": "/videoml/intro/env/development/segments/tools--shared_store--tts--ac7475817553--1.wav",
+            "startSec": 80.17499999999998,
+            "durationSec": 8.1875,
+            "src": "/videoml/intro/env/development/segments/feature-policy--feature_policy--tts--9fa946da8e6d--1.wav",
             "volume": 1
           },
           {
-            "id": "cta--cta--tts--215db7068055--1",
+            "id": "cta--cta--tts--480563fcefb6--1",
             "kind": "file",
-            "startSec": 164.3,
-            "durationSec": 10.45,
-            "src": "/videoml/intro/env/development/segments/cta--cta--tts--215db7068055--1.wav",
+            "startSec": 88.36249999999998,
+            "durationSec": 1.3125,
+            "src": "/videoml/intro/env/development/segments/cta--cta--tts--480563fcefb6--1.wav",
             "volume": 1
           },
           {
-            "id": "cta--cta--tts--ed7e27f98a79--1",
+            "id": "cta--cta--tts--7da02dde765e--1",
             "kind": "file",
-            "startSec": 175.05,
-            "durationSec": 3.35,
-            "src": "/videoml/intro/env/development/segments/cta--cta--tts--ed7e27f98a79--1.wav",
+            "startSec": 89.87499999999999,
+            "durationSec": 6.0125,
+            "src": "/videoml/intro/env/development/segments/cta--cta--tts--7da02dde765e--1.wav",
             "volume": 1
           }
         ]
@@ -425,18 +398,18 @@
             "variants": [
               {
                 "variant": 0,
-                "seed": 1378077976,
-                "path": "src/videos/intro/env/development/music/bed--v1--d223cd17a4e1.wav",
-                "durationSec": 178.9
+                "seed": 615907505,
+                "path": ".videoml/out/intro/env/development/music/bed--v1--a4b600b06b5c.wav",
+                "durationSec": 95.88749999999999
               }
             ],
             "chosen": {
               "variant": 0,
-              "seed": 1378077976,
-              "path": "src/videos/intro/env/development/music/bed--v1--d223cd17a4e1.wav",
-              "durationSec": 178.9
+              "seed": 615907505,
+              "path": ".videoml/out/intro/env/development/music/bed--v1--a4b600b06b5c.wav",
+              "durationSec": 95.88749999999999
             },
-            "src": "/videoml/env/development/music/bed/bed--v1--d223cd17a4e1.wav",
+            "src": "/videoml/env/development/music/bed/bed--v1--a4b600b06b5c.wav",
             "playThrough": true,
             "volumeEnvelope": [
               {
@@ -452,11 +425,11 @@
                 "volume": 0.12
               },
               {
-                "atSec": 173.9,
+                "atSec": 90.88749999999999,
                 "volume": 0.12
               },
               {
-                "atSec": 176.9,
+                "atSec": 93.88749999999999,
                 "volume": 0.7
               }
             ]

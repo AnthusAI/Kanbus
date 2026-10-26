@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "2dc918b2-e5c3-42d6-98f3-f43d21a157c5",
+  "issue_id": "kbs-f06201a5-7c7a-428e-bf31-e3bb476a3c27",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-25T22:07:15.107Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Fix the four known file divergences in the parity lane",
+    "description": "tools/parity/known_divergences.txt still lists four file-level differences between kbs and kanbus: dependencies::file::project/issues/kbs-aa0002.json, init::file::.kanbus.yml, init::file::CONTRIBUTING_AGENT.template.md and update_comment_close::file::project/issues/kbs-aa0001.json. Make both runtimes write byte-identical files for these cases and empty the list; the lane then guards file fidelity (the golden cross-runtime test kbs-232185 asked for).",
+    "issue_type": "sub-task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-e47401a8-0f04-4ae5-b5f3-afb203ded46e",
+    "labels": []
+  }
+}

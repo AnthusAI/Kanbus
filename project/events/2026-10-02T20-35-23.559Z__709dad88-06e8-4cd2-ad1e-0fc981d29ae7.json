@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "event_id": "709dad88-06e8-4cd2-ad1e-0fc981d29ae7",
+  "issue_id": "kbs-82034500-a8df-4436-bc64-21ee041cf351",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-02T20:35:23.559Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Web: TypeScript ID list formatter + data-layer hook",
+    "description": "Implements kbs-c118a7. Shared TS formatter (default 4, lowercase, widen colliding groups iteratively, no cap) replacing packages/ui format-issue-id.ts (delete it; TaskDetailPanel/StatusTree route through the new hook). Hook at data layer re-runs on visible-set changes (filters, search, columns, trees). Reads short_id_length from snapshot config.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [
+      "console"
+    ],
+    "agent": {
+      "platform": "cursor",
+      "model": "GLM 5.3",
+      "name": "Cloud Agent"
+    }
+  }
+}

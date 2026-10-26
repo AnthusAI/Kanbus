@@ -94,7 +94,7 @@ def _start_kbsc(
 ) -> subprocess.Popen:  # type: ignore[type-arg]
     binary = _kbsc_binary_path()
     _build_kbsc_if_needed(binary)
-    environment = {**os.environ, "KANBUS_NO_DAEMON": "1"}
+    environment = {**os.environ, "KANBUS_DAEMON": "0"}
     overrides = (
         getattr(context, "environment_overrides", None) if context is not None else None
     )
@@ -106,7 +106,7 @@ def _start_kbsc(
             **environment,
             "CONSOLE_PORT": str(port),
             "CONSOLE_DATA_ROOT": str(working_directory),
-            "KANBUS_NO_DAEMON": "1",
+            "KANBUS_DAEMON": "0",
         },
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -965,13 +965,16 @@ def _assert_priority_pill_uses_background() -> None:
         raise AssertionError(
             "priority label must use background with --issue-priority-bg in globals.css"
         )
-    issue_colors_ts = (root / "src" / "utils" / "issue-colors.ts").read_text()
+    issue_colors_ts = (
+        root.parent.parent / "packages" / "ui" / "src" / "kanban" / "issue-colors.ts"
+    ).read_text()
     if (
         "issue-priority-bg-light" not in issue_colors_ts
         or "issue-priority-bg-dark" not in issue_colors_ts
     ):
         raise AssertionError(
-            "issue-colors.ts must set --issue-priority-bg-light and --issue-priority-bg-dark"
+            "@kanbus/ui issue-colors.ts must set --issue-priority-bg-light and "
+            "--issue-priority-bg-dark"
         )
     _assert_priority_pill_dark_mode_css_is_valid(globals_css)
 
@@ -1432,12 +1435,24 @@ def then_metrics_toggle_selects(context: object, label: str) -> None:
 
 @then("the metrics toggle should include a board icon")
 def then_metrics_toggle_board_icon(context: object) -> None:
-    pass
+    selector_options = (
+        _console_app_root() / "src" / "components" / "selectorOptions.tsx"
+    ).read_text()
+    assert (
+        "LayoutGrid" in selector_options
+        and 'buildSelectorOption("board",' in selector_options
+    ), "expected LayoutGrid icon for board toggle"
 
 
 @then("the metrics toggle should include a chart icon")
 def then_metrics_toggle_chart_icon(context: object) -> None:
-    pass
+    selector_options = (
+        _console_app_root() / "src" / "components" / "selectorOptions.tsx"
+    ).read_text()
+    assert (
+        "BarChart3" in selector_options
+        and 'buildSelectorOption("metrics",' in selector_options
+    ), "expected BarChart3 icon for metrics toggle"
 
 
 @given(

@@ -9,7 +9,7 @@ from typing import Optional
 
 import click
 
-from kanbus.config_loader import load_project_configuration
+from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.issue_listing import load_issues_from_directory
 from kanbus.models import IssueData
 from kanbus.policy_context import (
@@ -26,6 +26,7 @@ from kanbus.policy_evaluator import (
 )
 from kanbus.policy_loader import load_policies
 from kanbus.project import get_configuration_path, load_project_directory
+from kanbus.project_context import ProjectContext
 
 
 def guidance_is_enabled(no_guidance: bool = False) -> bool:
@@ -43,8 +44,14 @@ class _LoadedGuidanceEnvironment:
     all_issues: list
 
 
-def _load_guidance_environment(root: Path) -> Optional[_LoadedGuidanceEnvironment]:
-    project_dir = load_project_directory(root)
+def _load_guidance_environment(
+    root: Path, context: ProjectContext | None
+) -> Optional[_LoadedGuidanceEnvironment]:
+    project_dir = (
+        context.primary_project_directory()
+        if context is not None
+        else load_project_directory(root)
+    )
     policies_dir = project_dir / "policies"
     if not policies_dir.is_dir():
         return None
@@ -53,7 +60,10 @@ def _load_guidance_environment(root: Path) -> Optional[_LoadedGuidanceEnvironmen
     if not policy_documents:
         return None
 
-    configuration = load_project_configuration(get_configuration_path(project_dir))
+    if context is not None:
+        configuration = context.configuration_for_project_directory(project_dir)
+    else:
+        configuration = load_project_configuration(get_configuration_path(project_dir))
     all_issues = load_issues_from_directory(project_dir / "issues")
     return _LoadedGuidanceEnvironment(
         policy_documents=policy_documents,
@@ -91,7 +101,7 @@ def collect_guidance_for_issue(
     operation: PolicyOperation,
 ) -> PolicyEvaluationReport:
     """Evaluate policies in guidance mode for one issue."""
-    environment = _load_guidance_environment(root)
+    environment = _load_guidance_environment(root, ProjectContext.discover(root))
     if environment is None:
         return PolicyEvaluationReport()
     return _evaluate_guidance_in_environment(environment, issue, operation)
@@ -107,10 +117,35 @@ def emit_guidance_for_issues(
     """Run non-blocking guidance hooks and emit results on stderr."""
     if not guidance_is_enabled(no_guidance):
         return
+    emit_guidance_for_issues_with_context(
+        root,
+        ProjectContext.discover(root),
+        issues,
+        operation,
+        no_guidance=no_guidance,
+    )
+
+
+def emit_guidance_for_issues_with_context(
+    root: Path,
+    context: ProjectContext | None,
+    issues: list[IssueData],
+    operation: PolicyOperation,
+    *,
+    no_guidance: bool = False,
+) -> None:
+    """Run non-blocking guidance hooks using an already built project context.
+
+    Configuration errors are raised; other guidance failures stay non-blocking.
+    """
+    if not guidance_is_enabled(no_guidance):
+        return
 
     collected: list[GuidanceItem] = []
     try:
-        environment = _load_guidance_environment(root)
+        environment = _load_guidance_environment(root, context)
+    except ConfigurationError:
+        raise
     except Exception:
         return
     if environment is None:

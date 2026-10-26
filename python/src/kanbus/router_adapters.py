@@ -36,6 +36,38 @@ def signal_process_group(group_leader_pid: int, signal_number: int) -> None:
         return
 
 
+def spawn_adapter_process(
+    command: list[str],
+    *,
+    working_directory: str | None,
+    environment: dict[str, str] | None,
+    **extra_arguments: Any,
+) -> "subprocess.Popen[str]":
+    """Start a router adapter as the leader of its own session and process group.
+
+    :param command: Adapter command line.
+    :type command: list[str]
+    :param working_directory: Directory the adapter runs in.
+    :type working_directory: str | None
+    :param environment: Adapter environment, or ``None`` to inherit.
+    :type environment: dict[str, str] | None
+    :param extra_arguments: Additional ``subprocess.Popen`` keyword arguments.
+    :type extra_arguments: Any
+    :return: Running adapter process.
+    :rtype: subprocess.Popen[str]
+    """
+    return subprocess.Popen(
+        command,
+        cwd=working_directory,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+        start_new_session=True,
+        **extra_arguments,
+    )
+
+
 def terminate_process_tree(process: "subprocess.Popen[Any]") -> None:
     """Kill an adapter and everything it spawned, then reap the adapter.
 
@@ -112,6 +144,23 @@ class RouterAgentResult(BaseModel):
         return self
 
 
+def opencode_data_directory(state_dir: Path, package_id: str) -> Path:
+    """Return the persistent OpenCode data directory of one package.
+
+    The key scheme is shared with the Rust runtime so either can resume the
+    other's saved session and either can remove it at a terminal outcome.
+
+    :param state_dir: Host-local router adapter state directory.
+    :type state_dir: Path
+    :param package_id: Package issue identifier.
+    :type package_id: str
+    :return: Directory that holds the package's OpenCode data.
+    :rtype: Path
+    """
+    key = re.sub(r"[^A-Za-z0-9._-]", "_", package_id)
+    return state_dir / "opencode" / key
+
+
 class RouterExecutionRequest(BaseModel):
     """Bounded request delivered to an agent adapter."""
 
@@ -174,14 +223,10 @@ class _SubprocessAdapter:
         """
         command = self._build_command(request)
         try:
-            self.process = subprocess.Popen(
+            self.process = spawn_adapter_process(
                 command,
-                cwd=request.worktree_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=self._environment(request),
-                start_new_session=True,
+                working_directory=request.worktree_path,
+                environment=self._environment(request),
                 **self._popen_extras(),
             )
             self._record_process(request)
@@ -354,8 +399,7 @@ class OpenCodeRunAdapter(_SubprocessAdapter):
         if self.state_dir is not None:
             # Same key scheme as the Rust runtime, so either can resume the
             # other's saved session.
-            key = re.sub(r"[^A-Za-z0-9._-]", "_", package_id)
-            data_home = self.state_dir / "opencode" / key
+            data_home = opencode_data_directory(self.state_dir, package_id)
             data_home.mkdir(parents=True, exist_ok=True)
             self._data_home = None  # persistent: never removed by cleanup
         else:

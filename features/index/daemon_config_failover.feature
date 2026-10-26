@@ -1,7 +1,7 @@
 Feature: Daemon config schema failover
   As a Kanbus user
   I want listing to recover when a stale daemon rejects the current config schema
-  So that I never need KANBUS_NO_DAEMON after config upgrades
+  So that I never need to unset KANBUS_DAEMON after config upgrades
 
   Scenario: List falls back to filesystem when daemon rejects config schema
     Given a Kanbus project with default configuration

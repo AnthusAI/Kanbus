@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "event_id": "092a2abe-5d28-431d-b6a1-7ed2a05abafe",
+  "issue_id": "kbs-51bc2747-e1aa-432c-8bb5-cfc6f869bf44",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-02T20:35:24.020Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Web: hyphen-insensitive matchers in console_backend.rs and App.tsx",
+    "description": "Implements kbs-c118a7 matcher half. short_id_matches (rust/src/console_backend.rs:291) and shortIdMatches (apps/console/src/App.tsx:424) strip hyphens before prefix compare (no 6-char cap); dotted sub-IDs match base+suffix separately.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [
+      "console"
+    ],
+    "agent": {
+      "platform": "cursor",
+      "model": "GLM 5.3",
+      "name": "Cloud Agent"
+    }
+  }
+}

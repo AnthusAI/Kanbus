@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "4ba96a6f-b928-4d45-a065-61f1733292ff",
+  "issue_id": "kbs-14a848fa-5a30-4d65-9dd7-f116cd515a95",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-21T15:49:43.585Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Move legacy Kanbus Secrets Manager secrets to SSM SecureString or retire them",
+    "description": "Requested by Ryan via the Prospectus session (2026-10-21). Standing rule: SSM Parameter Store standard SecureString for secrets and config; Secrets Manager only where a service requires it; nothing manually configured; delete nothing without Ryan's approval.\n\nSecrets in legacy account 335163751677 that belong to Kanbus:\n- kanbus/github-webhook/dev: created by infra/cloud/kanbus_cloud/cloud_stack.py (GithubWebhookSecret, generated).\n- kanbus/mqtt-token-pepper/dev (last accessed Apr 3) and kanbus/mqtt-token-pepper/prod: created by cloud_stack.py and coordination_stack.py (MqttApiTokenPepper, generated).\n\nThe infra/cloud Python CDK app has no deploy job in CI (CI only synthesizes and tests it), so whatever is in 335163751677 was deployed by hand. The current product path (kanbus-api with @kanbus/cdk) does not use these secrets.\n\nPlan:\n1. Read-only, on Ryan's Mac: list CloudFormation stacks in 335163751677 that own these secrets, which functions reference them, and each secret's last accessed date.\n2. If no live stack reads a secret, it is an orphan: propose retiring the owning legacy stack through CI (stack deletion removes its generated secrets) for Ryan's approval.\n3. If a live stack reads it (most likely the prod pepper for MQTT token hashing): switch the CDK to an SSM SecureString parameter read with decryption. CloudFormation cannot create SecureString parameters, so the generated value needs a small custom resource; deploy only through a CI job.\n4. Retire infra/cloud once nothing in it is live.\n\nNot Kanbus (routed to owners): b0rd/mqtt-test/broker-password (B0rd infra/lib/mqtt-broker-stack.ts), amplify/github-app-token (Papyrus standard-site hosting; Amplify may genuinely need Secrets Manager), GoogleOAuthSecret963EF6DE-* (Auritus cdk/stacks/backend.py), SessionKey0FE01E29-* and sierrendipity/google-oauth (Sierrendipity infra/lib/stack.ts).",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

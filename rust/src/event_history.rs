@@ -159,7 +159,28 @@ pub fn write_events_batch(
     events_dir: &Path,
     events: &[EventRecord],
 ) -> Result<Vec<PathBuf>, KanbusError> {
-    if events.is_empty() || !events_enabled_for_events_directory(events_dir)? {
+    if events.is_empty() {
+        return Ok(Vec::new());
+    }
+    let events_enabled = events_enabled_for_events_directory(events_dir)?;
+    write_events_batch_with_setting(events_dir, events, events_enabled)
+}
+
+/// Write events when the already loaded configuration enables them.
+///
+/// # Arguments
+/// * `events_dir` - Events directory that receives the batch.
+/// * `events` - Events to write.
+/// * `events_enabled` - The `events` setting from the loaded configuration.
+///
+/// # Errors
+/// Returns `KanbusError` if an event cannot be written.
+pub fn write_events_batch_with_setting(
+    events_dir: &Path,
+    events: &[EventRecord],
+    events_enabled: bool,
+) -> Result<Vec<PathBuf>, KanbusError> {
+    if events.is_empty() || !events_enabled {
         return Ok(Vec::new());
     }
     fs::create_dir_all(events_dir).map_err(|error| KanbusError::Io(error.to_string()))?;

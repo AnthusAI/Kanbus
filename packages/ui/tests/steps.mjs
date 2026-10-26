@@ -568,3 +568,21 @@ Then("the host formatted card ids are not uppercase, are monospaced and are not 
     expect(style.size).toBe("10px");
   }
 });
+
+Then("the card {string} shows the subtitle {string} under its title", async function (identifier, subtitle) {
+  const card = this.page.locator(`.issue-card[data-issue-id="${identifier}"]`);
+  const subtitleElement = card.locator(".issue-card-subtitle");
+  await expect(subtitleElement).toHaveText(subtitle);
+  const follows = await card.evaluate((element) => {
+    const heading = element.querySelector("h3");
+    return heading?.nextElementSibling?.classList.contains("issue-card-subtitle") ?? false;
+  });
+  expect(follows).toBe(true);
+});
+Then("the card {string} has no subtitle element", async function (identifier) {
+  await expect(this.page.locator(`.issue-card[data-issue-id="${identifier}"]`)).toHaveCount(1);
+  await expect(this.page.locator(`.issue-card[data-issue-id="${identifier}"] .issue-card-subtitle`)).toHaveCount(0);
+});
+When("the host changes the subtitle of issue {string} to {string}", async function (identifier, subtitle) {
+  await this.page.evaluate(({ identifier, subtitle }) => window.updateIssueSubtitle(identifier, subtitle), { identifier, subtitle });
+});

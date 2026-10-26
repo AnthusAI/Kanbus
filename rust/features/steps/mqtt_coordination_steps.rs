@@ -34,7 +34,7 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .working_directory
         .as_deref()
         .expect("working directory not set");
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_DAEMON", "0");
     let previous_clock = std::env::var_os("KANBUS_TEST_COORDINATION_NOW");
     if let Some(clock) = &world.coordination_now_override {
         std::env::set_var("KANBUS_TEST_COORDINATION_NOW", clock);

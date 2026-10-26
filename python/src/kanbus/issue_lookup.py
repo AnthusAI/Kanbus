@@ -16,11 +16,10 @@ from kanbus.overlay import (
 )
 from kanbus.project import (
     ProjectMarkerError,
-    discover_project_directories,
+    discover_project_directories_from_configuration,
     find_project_local_directory,
-    get_configuration_path,
-    resolve_labeled_projects,
 )
+from kanbus.project_context import ProjectContext
 
 
 class IssueLookupError(RuntimeError):
@@ -50,8 +49,30 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
     :rtype: IssueLookupResult
     :raises IssueLookupError: If the issue cannot be found.
     """
+    return load_issue_from_project_with_context(
+        root, ProjectContext.discover(root), identifier
+    )
+
+
+def load_issue_from_project_with_context(
+    root: Path, context: ProjectContext | None, identifier: str
+) -> IssueLookupResult:
+    """Load an issue by identifier using an already built project context.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param context: Project context built at command entry, if a configuration exists.
+    :type context: ProjectContext | None
+    :param identifier: Issue identifier.
+    :type identifier: str
+    :return: Issue lookup result.
+    :rtype: IssueLookupResult
+    :raises IssueLookupError: If the issue cannot be found.
+    """
     try:
-        project_dirs = discover_project_directories(root)
+        project_dirs = discover_project_directories_from_configuration(
+            root, context.configuration_at_root() if context else None
+        )
     except ProjectMarkerError as error:
         raise IssueLookupError(str(error)) from error
 
@@ -59,16 +80,18 @@ def load_issue_from_project(root: Path, identifier: str) -> IssueLookupResult:
         raise IssueLookupError("project not initialized")
 
     all_matches: list[tuple[str, Path, Path]] = []
-    root_configuration: ProjectConfiguration | None = None
+    root_configuration: ProjectConfiguration | None = (
+        context.configuration if context else None
+    )
     project_labels: dict[Path, str] = {}
-    try:
-        root_configuration = load_project_configuration(get_configuration_path(root))
-        project_labels = {
-            project.project_dir: project.label
-            for project in resolve_labeled_projects(root)
-        }
-    except ProjectMarkerError:
-        root_configuration = None
+    if context is not None:
+        try:
+            project_labels = {
+                project.project_dir: project.label
+                for project in context.labeled_projects()
+            }
+        except ProjectMarkerError as error:
+            raise IssueLookupError(str(error)) from error
 
     overlay_configs = {
         project_dir: _overlay_config_for_project(project_dir, root_configuration)

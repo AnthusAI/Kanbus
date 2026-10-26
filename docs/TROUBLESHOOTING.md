@@ -87,22 +87,26 @@ rm -f project/.cache/index.json
 
 **Cause**
 
-The daemon socket is stale or daemon mode is disabled.
+The daemon is off by default. `kanbus daemon-status` and `kanbus daemon-stop` report `daemon disabled` until you opt in, and CLI commands never spawn or wait for the daemon. When it is enabled, the socket can be stale.
 
 **Fix**
+
+- Opt in to the daemon for a command or a shell:
+
+```bash
+KANBUS_DAEMON=1 kanbus list
+```
 
 - Stop and restart the daemon:
 
 ```bash
-kanbus daemon-stop
-kanbus daemon-status
+KANBUS_DAEMON=1 kanbus daemon-stop
+KANBUS_DAEMON=1 kanbus daemon-status
 ```
 
-- To bypass the daemon for a single command:
+- To go back to the default, unset `KANBUS_DAEMON` (or set it to `0`).
 
-```bash
-KANBUS_NO_DAEMON=1 kanbus list
-```
+Daemon sockets have timeouts: 1 second to connect, 30 seconds to read or write on the client, and 10 seconds per connection on the daemon, which drops a stalled or failed connection and keeps serving others.
 
 ## Console serves stale UI or favicon/module-script errors
 

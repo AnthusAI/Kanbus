@@ -11,9 +11,12 @@ from typing import Any
 from urllib.parse import quote, urlparse
 
 from kanbus.coordination import CoordinationError
-from kanbus.models import MutexApiConfiguration
+from kanbus.models import MutexApiConfiguration, is_loopback_http_url
 
 REQUEST_TIMEOUT_SECONDS = 3.0
+PLAINTEXT_ENDPOINT_MESSAGE = (
+    "mutex api endpoint must use https unless the host is loopback"
+)
 _urlopen = urllib.request.urlopen
 
 
@@ -170,7 +173,9 @@ def _request(
 ) -> _Response:
     if not is_configured(configuration):
         raise MutexApiUnavailable("mutex api is not configured")
-    endpoint = (configuration.endpoint or "").rstrip("/")
+    endpoint = (configuration.endpoint or "").strip().rstrip("/")
+    if urlparse(endpoint).scheme == "http" and not is_loopback_http_url(endpoint):
+        raise MutexApiUnavailable(PLAINTEXT_ENDPOINT_MESSAGE)
     url = f"{endpoint}/api/coordination/leases/{quote(resource, safe='')}"
     data = None if body is None else json.dumps(body).encode("utf-8")
     headers = {

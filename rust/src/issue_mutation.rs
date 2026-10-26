@@ -7,8 +7,9 @@ use chrono::Utc;
 
 use crate::error::KanbusError;
 use crate::event_history::{
-    delete_events_for_issues, events_dir_for_issue_path, issue_deleted_payload, now_timestamp,
-    write_events_batch, EventRecord, EventType,
+    delete_events_for_issues, events_dir_for_issue_path, events_enabled_for_events_directory,
+    issue_deleted_payload, now_timestamp, write_events_batch, write_events_batch_with_setting,
+    EventRecord, EventType,
 };
 use crate::issue_files::{delete_issue_file, read_issue_from_file, write_issue_to_file};
 use crate::models::IssueData;
@@ -91,6 +92,26 @@ fn refuse_if_issue_changed_since_read(
 pub fn persist_issue_mutation(
     request: &PersistIssueMutationRequest,
 ) -> Result<PersistIssueMutationResult, KanbusError> {
+    let events_dir = events_dir_for_issue_path(
+        &request.project_dir,
+        request.relocate_to.as_ref().unwrap_or(&request.issue_path),
+    )?;
+    let events_enabled = events_enabled_for_events_directory(&events_dir)?;
+    persist_issue_mutation_with_events_setting(request, events_enabled)
+}
+
+/// Persist an issue mutation using the events setting of an already loaded configuration.
+///
+/// # Arguments
+/// * `request` - Mutation request including issue, path, and events.
+/// * `events_enabled` - The `events` setting from the loaded configuration.
+///
+/// # Errors
+/// Returns `KanbusError` if persistence or event writing fails.
+pub fn persist_issue_mutation_with_events_setting(
+    request: &PersistIssueMutationRequest,
+    events_enabled: bool,
+) -> Result<PersistIssueMutationResult, KanbusError> {
     let current_time = Utc::now();
     let mut persisted_issue = request.issue.clone();
     persisted_issue.updated_at = current_time;
@@ -106,7 +127,7 @@ pub fn persist_issue_mutation(
         delete_issue_file(&request.issue_path)?;
     }
     let events_dir = events_dir_for_issue_path(&request.project_dir, &final_issue_path)?;
-    match write_events_batch(&events_dir, &request.events) {
+    match write_events_batch_with_setting(&events_dir, &request.events, events_enabled) {
         Ok(_paths) => Ok(PersistIssueMutationResult {
             issue: persisted_issue,
             events: request.events.clone(),

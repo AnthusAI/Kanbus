@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "cucumber": "cucumber-js --config cucumber.js",
-    "test:ui": "tsx scripts/run_ui_tests.ts"
+    "test:ui": "tsx scripts/run_ui_tests.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
@@ -35,17 +36,11 @@
     "@visx/group": "^3.12.0",
     "@visx/scale": "^3.12.0",
     "@visx/shape": "^3.12.0",
-    "chokidar": "^3.6.0",
     "clsx": "^2.1.1",
-    "cors": "^2.8.5",
     "dompurify": "^3.3.1",
-    "express": "^4.19.2",
-    "express-rate-limit": "^7.5.1",
     "gsap": "^3.12.5",
-    "js-yaml": "^4.1.0",
     "lucide-react": "^0.468.0",
     "marked": "^15.0.12",
-    "mermaid": "^11.12.3",
     "mqtt": "^5.15.2",
     "plantuml-encoder": "^1.4.0",
     "react": "^18.3.1",
@@ -64,13 +59,19 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
+    "chokidar": "^3.6.0",
     "concurrently": "^9.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.5.1",
+    "js-yaml": "^4.1.0",
     "playwright": "^1.49.1",
     "postcss": "^8.4.47",
     "start-server-and-test": "^2.0.5",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.23.12",
     "typescript": "^5.6.3",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "vitest": "^5.0.5"
   }
 }

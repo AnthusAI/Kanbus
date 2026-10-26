@@ -3,17 +3,25 @@
   "title": "Flaky Rust test: ai_credentials resolve_api_key_source races with tests that load env files into the process",
   "description": "CI rust job on PR #501 (run 39405341840, 2026-10-20): ai_credentials::tests::resolve_api_key_source_covers_all_outcomes failed at rust/src/ai_credentials.rs:486 (left ProcessEnv, right ProjectFile). The test is #[serial] and sets HOME to a temp dir containing .kanbus.env with KANBUS_TEST_RESOLVE_VAR; a non-serial test running in parallel appears to load that HOME env file into the process environment (or set the variable) during the window, so the process env check wins. Passed on other runs, so it is a race. Fix: find every test that reads HOME env files or calls std::env::set_var/remove_var and put them under the same serial key (or make credential loading never mutate the process environment, which is better if production code does it). Acceptance: the test passes 50 consecutive runs of cargo test --lib ai_credentials with full parallelism.",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-267634df-710b-4f10-9b93-5f13b20df1b7",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7258956f-7647-4658-9fed-0e2b57622c84",
+      "author": "home",
+      "text": "Fixed: PR #543 merged with CI green. Root cause: load_dotenv (rust/src/config_loader.rs) copies env files into the process environment with set_var, as Python does, so a parallel test loaded the serial test's temp HOME .kanbus.env. The test now calls a pure classify_api_key_source helper with explicit paths and values; 50 of 50 runs pass; production unchanged. Other tests still mutate HOME or env without serialization (for example gossip.rs); filed as a follow-up.",
+      "created_at": "2026-10-26T00:43:53.387948Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T10:28:43.550944Z",
-  "updated_at": "2026-10-20T10:28:43.619357Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T00:43:53.459989Z",
+  "closed_at": "2026-10-26T00:43:53.427512Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}

@@ -278,11 +278,12 @@ fn then_type_filter_selector_hidden(world: &mut KanbusWorld) {
         .join("apps")
         .join("console")
         .join("src")
-        .join("App.tsx");
-    let app_source = fs::read_to_string(app_path).expect("read App.tsx");
+        .join("components")
+        .join("ConsoleToolbar.tsx");
+    let toolbar_source = fs::read_to_string(app_path).expect("read ConsoleToolbar.tsx");
     assert!(
-        app_source.contains("panelMode !== \"now\""),
-        "App.tsx does not hide the type filter on Now"
+        toolbar_source.contains("panelMode !== \"now\""),
+        "ConsoleToolbar.tsx does not hide the type filter on Now"
     );
 }
 
@@ -347,17 +348,18 @@ fn panel_mode_selector_labels() -> Vec<String> {
         .join("apps")
         .join("console")
         .join("src")
-        .join("App.tsx");
-    let app_source = fs::read_to_string(app_path).expect("read App.tsx");
+        .join("components")
+        .join("selectorOptions.tsx");
+    let app_source = fs::read_to_string(app_path).expect("read selectorOptions.tsx");
     let start = app_source
-        .find("const panelModeOptions")
-        .expect("panelModeOptions not found in App.tsx");
+        .find("export function buildPanelModeOptions")
+        .expect("buildPanelModeOptions not found in selectorOptions.tsx");
     let end = start.saturating_add(800).min(app_source.len());
     let chunk = &app_source[start..end];
     let mut labels = Vec::new();
     for line in chunk.lines() {
         let trimmed = line.trim();
-        let Some(rest) = trimmed.strip_prefix("buildOption(") else {
+        let Some(rest) = trimmed.strip_prefix("buildSelectorOption(") else {
             continue;
         };
         let parts: Vec<&str> = rest.split('"').collect();
@@ -410,6 +412,7 @@ fn push_status_issue(
         location: "shared".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
 }
 
@@ -438,6 +441,7 @@ fn given_status_hierarchy_root(
         location: "shared".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
 }
 
@@ -469,6 +473,7 @@ fn given_status_hierarchy_child(
         location: "shared".to_string(),
         agent: None,
         right_now_summary: None,
+        agent_assignment: None,
     });
 }
 
@@ -510,6 +515,7 @@ fn given_thirty_five_status_issues(world: &mut KanbusWorld) {
             location: "shared".to_string(),
             agent: None,
             right_now_summary: None,
+            agent_assignment: None,
         });
     }
 }
@@ -798,8 +804,46 @@ fn then_now_panel_no_right_now_placeholder(world: &mut KanbusWorld) {
     }
 }
 
+#[when("I request the console now snapshot")]
+fn when_request_console_now_snapshot_plain(world: &mut KanbusWorld) {
+    request_console_now_snapshot(world);
+    assert_eq!(
+        world.now_api_status,
+        Some(200),
+        "console now snapshot failed: {:?}",
+        world.now_api_response
+    );
+}
+
+#[then(
+    expr = "the console now response should include issue {string} with right-now summary {string}"
+)]
+fn then_console_now_response_includes_summary(
+    world: &mut KanbusWorld,
+    issue_id: String,
+    expected: String,
+) {
+    let body = world
+        .now_api_response
+        .as_ref()
+        .expect("console now response not loaded");
+    let issues: serde_json::Value = serde_json::from_str(body).expect("parse now response");
+    let matched = issues
+        .as_array()
+        .expect("now response is a list")
+        .iter()
+        .find(|item| item["id"] == issue_id)
+        .unwrap_or_else(|| panic!("issue not found in now response: {issue_id}"));
+    let actual = matched["right_now_summary"].as_str().unwrap_or("");
+    assert_eq!(actual, expected);
+}
+
 #[when("I request the console now snapshot from the API")]
 fn when_request_console_now_snapshot(world: &mut KanbusWorld) {
+    request_console_now_snapshot(world);
+}
+
+fn request_console_now_snapshot(world: &mut KanbusWorld) {
     let port = world.console_port.expect("console server is not running");
     let url = format!("http://127.0.0.1:{port}/api/now");
     let (status, body) = thread::spawn(move || {

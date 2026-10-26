@@ -20,7 +20,7 @@ fn load_project_dir(world: &KanbusWorld) -> PathBuf {
     load_project_directory(cwd).expect("project dir")
 }
 
-fn write_issue_file(project_dir: &std::path::Path, issue: &IssueData) {
+pub(crate) fn write_issue_file(project_dir: &std::path::Path, issue: &IssueData) {
     let issue_path = project_dir
         .join("issues")
         .join(format!("{}.json", issue.identifier));
@@ -52,7 +52,7 @@ fn post_notification(world: &KanbusWorld, body: serde_json::Value) {
     .expect("post notification thread");
 }
 
-fn allocate_port() -> u16 {
+pub(crate) fn allocate_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
         .expect("bind ephemeral port")
         .local_addr()
@@ -60,7 +60,7 @@ fn allocate_port() -> u16 {
         .port()
 }
 
-fn wait_for_server(port: u16) -> bool {
+pub(crate) fn wait_for_server(port: u16) -> bool {
     thread::spawn(move || {
         let client = Client::builder()
             .timeout(Duration::from_millis(500))
@@ -111,7 +111,7 @@ fn kbsc_binary_path() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_kbsc"))
 }
 
-fn start_kbsc(world: &KanbusWorld, port: u16) -> Child {
+pub(crate) fn start_kbsc(world: &KanbusWorld, port: u16) -> Child {
     let data_root = world.working_directory.as_ref().expect("working directory");
     let binary = kbsc_binary_path();
     if !binary.exists() {
@@ -126,14 +126,14 @@ fn start_kbsc(world: &KanbusWorld, port: u16) -> Child {
     Command::new(binary)
         .env("CONSOLE_PORT", port.to_string())
         .env("CONSOLE_DATA_ROOT", data_root)
-        .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_DAEMON", "0")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .expect("spawn kbsc")
 }
 
-fn write_console_port_to_config(world: &KanbusWorld, port: u16) {
+pub(crate) fn write_console_port_to_config(world: &KanbusWorld, port: u16) {
     let root = world.working_directory.as_ref().expect("working directory");
     let config_path = root.join(".kanbus.yml");
     let existing = if config_path.exists() {
@@ -296,7 +296,7 @@ impl TenantConsoleFixture {
                 "CONSOLE_TENANT_MODE",
                 if multi { "multi" } else { "single" },
             )
-            .env("KANBUS_NO_DAEMON", "1")
+            .env("KANBUS_DAEMON", "0")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()

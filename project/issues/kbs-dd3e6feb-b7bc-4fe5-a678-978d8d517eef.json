@@ -1,0 +1,28 @@
+{
+  "id": "kbs-dd3e6feb-b7bc-4fe5-a678-978d8d517eef",
+  "title": "Split apps/console App.tsx below 600 lines",
+  "description": "Acceptance line of kbs-29c415: App.tsx is 2,406 lines. Extract useConsoleRoute, useSnapshotFeed, usePersistedUiPrefs and useCloudAuth (and further components as needed) into apps/console/src so App.tsx is under 600 lines, with no behaviour change: npm run typecheck, npm run build and the console cucumber suites (Python console parity and Rust console mode) pass.",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "626c1c0d-1668-4736-a945-141f4513f423",
+      "author": "home",
+      "text": "Done: PR #537 merged (merge 5abbcd6), all 25 checks green. App.tsx 2,406 to 575 lines via 11 hooks, 4 components and shared utils; source-reading console steps in both runtimes now read selectorOptions.tsx and ConsoleToolbar.tsx, and the Python metrics toggle steps are real checks instead of stubs.",
+      "created_at": "2026-10-25T20:24:38.013976Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-25T19:07:28.945226Z",
+  "updated_at": "2026-10-25T20:24:38.087776Z",
+  "closed_at": "2026-10-25T20:24:38.053139Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

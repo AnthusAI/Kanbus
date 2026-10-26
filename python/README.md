@@ -73,12 +73,12 @@ kanbus show kanbus-a1b
 
 ## Daemon Behavior
 
-Kanbus uses a just-in-time index daemon for read-heavy commands such as `kanbus list`. The CLI auto-starts the daemon when needed, reuses a healthy socket, and removes stale sockets before restarting.
+Kanbus can use a just-in-time index daemon for read-heavy commands such as `kanbus list`. The daemon is off by default: the CLI never spawns or waits for it. When you opt in, the CLI auto-starts the daemon when needed, reuses a healthy socket, and removes stale sockets before restarting.
 
-To disable daemon mode for a command:
+To enable daemon mode for a command:
 
 ```bash
-KANBUS_NO_DAEMON=1 kanbus list
+KANBUS_DAEMON=1 kanbus list
 ```
 
 Operational commands:
@@ -104,9 +104,6 @@ We provide two implementations driven by the same behavior specification:
 
 ```
 Kanbus/
-|-- planning/
-|   |-- VISION.md                  # Complete specification
-|   `-- IMPLEMENTATION_PLAN.md     # Detailed technical plan
 |-- specs/                         # Shared Gherkin feature files
 |-- python/                        # Python implementation
 |-- rust/                          # Rust implementation

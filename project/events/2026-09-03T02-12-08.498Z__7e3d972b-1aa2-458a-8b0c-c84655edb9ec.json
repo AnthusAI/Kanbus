@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "7e3d972b-1aa2-458a-8b0c-c84655edb9ec",
+  "issue_id": "kbs-0af573da-8b23-498f-8088-5d8c7c24ee88",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-03T02:12:08.498Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": "agent",
+    "description": "The initiative / epic / issues type selector does not apply to Now. Now is already hierarchical and shows all levels, so that selector should be hidden when Now is the active panel.\n\nBoard (and other modes that use type filtering) keep the selector.\n\n```mermaid\nflowchart LR\n  now[\"Now selected\"] --> hide[\"hide type selector\"]\n  board[\"Board selected\"] --> show[\"show type selector\"]\n```",
+    "issue_type": "story",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Hide type selector on Now view"
+  }
+}

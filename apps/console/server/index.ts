@@ -126,7 +126,7 @@ function logConsoleEvent(
 function kanbusCommandEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    KANBUS_NO_DAEMON: process.env.KANBUS_NO_DAEMON ?? "1",
+    KANBUS_DAEMON: process.env.KANBUS_DAEMON ?? "0",
     PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
   };
 }
@@ -337,7 +337,7 @@ apiRouter.get("/now", commandRateLimit, async (_req, res) => {
         cwd: repoRoot,
         env: {
           ...process.env,
-          KANBUS_NO_DAEMON: "1",
+          KANBUS_DAEMON: "0",
           PYTHONPATH: pythonPath ?? process.env.PYTHONPATH
         },
         maxBuffer: 10 * 1024 * 1024
@@ -790,7 +790,7 @@ async function wikiRenderPage(relativePagePath: string): Promise<WikiCliRenderRe
     cwd: repoRoot,
     env: {
       ...process.env,
-      KANBUS_NO_DAEMON: "1",
+      KANBUS_DAEMON: "0",
       PYTHONPATH: kanbusPython ? pythonPath ?? process.env.PYTHONPATH : process.env.PYTHONPATH
     },
     maxBuffer: 2 * 1024 * 1024

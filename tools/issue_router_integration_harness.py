@@ -1071,7 +1071,7 @@ def _worker_environment(
     release_path: Path | None = None,
 ) -> dict[str, str]:
     env = _environment_with_project_toolchain(base_env)
-    env.setdefault("KANBUS_NO_DAEMON", "1")
+    env.setdefault("KANBUS_DAEMON", "0")
     source_path = str(Path(__file__).resolve().parents[1] / "python" / "src")
     existing_python_path = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = os.pathsep.join(

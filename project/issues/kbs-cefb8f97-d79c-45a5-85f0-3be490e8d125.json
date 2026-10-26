@@ -1,0 +1,20 @@
+{
+  "id": "kbs-cefb8f97-d79c-45a5-85f0-3be490e8d125",
+  "title": "Redact sensitive content in an uncommitted event record through kbs",
+  "description": "Event files are append-only, so when LeftBlock blocks an uncommitted event for content such as a home path, the only fix today is to delete and recreate the issue, which fails once the issue itself is committed. Add a spec-first kbs command that rewrites the flagged content in an event that has not been committed yet (refusing committed events), with Python and Rust parity. Current cases in this repo: project/events/2026-09-02T12-42-03.073Z__133c20ef-9306-49ae-a74c-63b846fd49b7.json and project/events/2026-10-03T16-04-01.745Z__70b5382f-a805-4233-9eca-e2fe62891af0.json (leftblock-home-path-posix), left untracked. Suggested by the Biblicus session via the LeftBlock owner.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-21T01:37:29.773884Z",
+  "updated_at": "2026-10-21T01:37:29.831105Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

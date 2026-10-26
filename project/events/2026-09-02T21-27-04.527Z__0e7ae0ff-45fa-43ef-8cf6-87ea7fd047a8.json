@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "0e7ae0ff-45fa-43ef-8cf6-87ea7fd047a8",
+  "issue_id": "kbs-c1373883-d68c-4c91-9efb-b541058f5c69",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-02T21:27:04.527Z",
+  "actor_id": "home",
+  "payload": {
+    "assignee": null,
+    "description": "Right-now summarization is just-in-time and recursive. Opening Now (CLI or console) backfills missing or stale summaries children-first, then persists the cache.\n\nLooking at the feed is the generation moment. Empty boards do not stay on the placeholder until a later mutation.\n\n## Gherkin\n\n```gherkin\nFeature: Right now just-in-time backfill\n  Scenario: Now backfills a missing summary\n    Given a Kanbus project with default configuration\n    And mock AI is enabled\n    And the Kanbus configuration uses AI provider \"litellm\" with model \"gpt-4o-mini\"\n    And an issue \"kanbus-jit1\" exists with title \"Needs a summary\"\n    When I run \"kanbus now --list\"\n    Then the command should succeed\n    And stdout should contain \"Mock right-now summary for kanbus-jit1.\"\n    And issue \"kanbus-jit1\" should have a mock right now summary\n\n  Scenario: Now backfills children before the parent\n    Given a Kanbus project with default configuration\n    And mock AI is enabled\n    And the Kanbus configuration uses AI provider \"litellm\" with model \"gpt-4o-mini\"\n    And an issue \"kanbus-jit-epic\" of type \"epic\" with status \"open\" and title \"Parent epic\"\n    And an issue \"kanbus-jit-task\" of type \"task\" with status \"open\" and parent \"kanbus-jit-epic\"\n    When I run \"kanbus now kanbus-jit-epic\"\n    Then the command should succeed\n    And issue \"kanbus-jit-task\" should have a mock right now summary\n    And issue \"kanbus-jit-epic\" should have a mock right now summary\n```",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 0,
+    "status": "open",
+    "title": "Right-now summaries backfill recursively when viewing Now"
+  }
+}

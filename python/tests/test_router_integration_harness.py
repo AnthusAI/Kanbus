@@ -66,15 +66,15 @@ def test_worker_environment_disables_daemon_by_default_and_honors_override(
         {}, worker, inputs=inputs, log_path=tmp_path / "calls.jsonl", role="unit"
     )
     explicit_env = harness._worker_environment(
-        {"KANBUS_NO_DAEMON": "0"},
+        {"KANBUS_DAEMON": "1"},
         worker,
         inputs=inputs,
         log_path=tmp_path / "calls.jsonl",
         role="unit",
     )
 
-    assert default_env["KANBUS_NO_DAEMON"] == "1"
-    assert explicit_env["KANBUS_NO_DAEMON"] == "0"
+    assert default_env["KANBUS_DAEMON"] == "0"
+    assert explicit_env["KANBUS_DAEMON"] == "1"
 
 
 def test_live_mode_requires_an_explicit_environment_gate() -> None:

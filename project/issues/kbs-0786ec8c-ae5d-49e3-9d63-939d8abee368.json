@@ -1,0 +1,28 @@
+{
+  "id": "kbs-0786ec8c-ae5d-49e3-9d63-939d8abee368",
+  "title": "One ProjectContext per command: load configuration and dotenv once, propagate configuration errors",
+  "description": "From kbs-bbf2a6. load_project_configuration has 73 call sites (71 loads for one kanbus list), re-serialises defaults through YAML each call and mutates the process environment via dotenv each time; root discovery, project-dir resolution and overlay config are redone 3 to 6 times per command; malformed configuration is swallowed (if let Ok / .ok() / unwrap_or_default) and changes behaviour. Build one ProjectContext (root, config path, configuration, project dir, overlay config) at command entry in both runtimes and pass it down; load dotenv once at process start; propagate configuration errors, tolerating only file-not-found. Acceptance: configuration loads once per command (counted in a test); malformed configuration fails with a clear error in both runtimes.",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-bbf2a6d2-ac64-4fc5-b5dc-849e4316dcad",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "06cfbe25-a171-42ad-8dc6-a4364ed29512",
+      "author": "home",
+      "text": "Done: PR #550 merged with CI green. One ProjectContext per command in both runtimes: list, show, create and update load configuration exactly once (was 9 to 24 on a small fixture); dotenv loads once at process start; malformed .kanbus.yml fails with 'configuration is not valid YAML' (exit 1) in both runtimes; about 20 swallow sites now propagate configuration errors while realtime publish failures stay warnings. CodeQL: test no longer prints command results; path alert 140 dismissed as a local-CLI false positive.",
+      "created_at": "2026-10-26T08:25:37.514480Z",
+      "comment_type": "default"
+    }
+  ],
+  "created_at": "2026-10-26T04:16:43.257824Z",
+  "updated_at": "2026-10-26T08:25:37.595217Z",
+  "closed_at": "2026-10-26T08:25:37.560062Z",
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

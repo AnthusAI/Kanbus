@@ -48,6 +48,7 @@ class StepPattern:
     text: str
     is_regex: bool
     is_cucumber_expression: bool = False
+    is_literal: bool = False
 
 
 @dataclass(frozen=True)
@@ -282,11 +283,11 @@ def collect_rust_steps(steps_root: Path) -> List[StepPattern]:
         for match in RUST_STEP_RAW_PATTERN.finditer(contents):
             text = match.group("text")
             text = _decode_escaped_literal(text)
-            steps.append(_rust_pattern(text))
+            steps.append(_rust_literal_pattern(text))
         for match in RUST_STEP_PATTERN.finditer(contents):
             text = match.group("text")
             text = _decode_escaped_literal(text)
-            steps.append(_rust_pattern(text))
+            steps.append(_rust_literal_pattern(text))
         for match in RUST_EXPR_RAW_PATTERN.finditer(contents):
             text = match.group("text")
             text = _decode_escaped_literal(text)
@@ -304,6 +305,17 @@ def collect_rust_steps(steps_root: Path) -> List[StepPattern]:
             text = _decode_escaped_literal(text)
             steps.append(StepPattern(text=text, is_regex=True))
     return steps
+
+
+def _rust_literal_pattern(text: str) -> StepPattern:
+    """Build a pattern for a plain ``#[given("...")]`` attribute.
+
+    cucumber-rs matches a plain string literal exactly (``^escaped$``), without
+    cucumber-expression semantics such as ``/`` alternation.
+    """
+    if _looks_like_regex(text):
+        return _rust_pattern(text)
+    return StepPattern(text=text, is_regex=False, is_literal=True)
 
 
 def _rust_pattern(text: str) -> StepPattern:
@@ -442,6 +454,8 @@ def _behave_parse_expression_to_regex(expression: str) -> re.Pattern[str]:
 
 
 def _compile_pattern(pattern: StepPattern) -> re.Pattern[str]:
+    if pattern.is_literal:
+        return re.compile(re.escape(pattern.text))
     if pattern.is_regex:
         try:
             return re.compile(pattern.text)

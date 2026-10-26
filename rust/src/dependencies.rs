@@ -96,7 +96,7 @@ pub fn add_dependency(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
 
     Ok(updated_issue)
@@ -169,7 +169,7 @@ pub fn remove_dependency(
             &updated_issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
 
     Ok(updated_issue)

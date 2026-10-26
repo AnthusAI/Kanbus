@@ -169,7 +169,7 @@ fn assert_standup_drawer_portals_to_body() {
     );
 }
 
-#[given(regex = r"^the browser viewport is (?P<width>\d+) by (?P<height>\d+)$")]
+#[given(regex = r#"^the browser viewport is (?P<width>\d+) by (?P<height>\d+)$"#)]
 fn given_browser_viewport(world: &mut KanbusWorld, width: u32, height: u32) {
     world.console_viewport = Some((width, height));
 }

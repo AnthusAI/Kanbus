@@ -96,3 +96,19 @@ async fn then_hook_log_equals(
     let content = fs::read_to_string(root(world).join(relative_path)).expect("read hook log");
     assert_eq!(content, expected);
 }
+
+#[then(expr = "the process recorded in {string} should not be running")]
+fn then_recorded_process_not_running(world: &mut KanbusWorld, relative_path: String) {
+    let content = fs::read_to_string(root(world).join(relative_path)).expect("read pid file");
+    let process_identifier: libc::pid_t = content.trim().parse().expect("parse pid");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    while std::time::Instant::now() < deadline {
+        // SAFETY: signal 0 only probes for process existence.
+        let probe = unsafe { libc::kill(process_identifier, 0) };
+        if probe != 0 {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("process {process_identifier} is still running");
+}

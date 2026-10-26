@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, Write};
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
+use std::time::Duration;
 
 use serde_json::Value;
 
@@ -22,6 +23,12 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use virtuus::table::{StorageMode, ValidationMode};
 use virtuus::Table;
+
+/// Longest time the daemon waits on one connection's read or write.
+///
+/// A client that stalls past this limit is dropped; the daemon keeps serving
+/// other connections.
+pub const DAEMON_CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Run the daemon server for a repository root.
 ///
@@ -46,9 +53,17 @@ pub fn run_daemon(root: &Path) -> Result<(), KanbusError> {
     warm_cache(root)?;
     let mut virtuus_service = virtuus::service::Service::new();
     for stream in listener.incoming() {
-        let stream = stream.map_err(|error| KanbusError::Io(error.to_string()))?;
-        if handle_stream(root, &mut virtuus_service, stream)? {
-            break;
+        let stream = match stream {
+            Ok(stream) => stream,
+            Err(error) => {
+                log::warn!("daemon accept failed: {error}");
+                continue;
+            }
+        };
+        match handle_stream(root, &mut virtuus_service, stream) {
+            Ok(true) => break,
+            Ok(false) => {}
+            Err(error) => log::warn!("daemon connection failed: {error}"),
         }
     }
     Ok(())
@@ -72,6 +87,12 @@ fn handle_stream(
     virtuus_service: &mut virtuus::service::Service,
     stream: UnixStream,
 ) -> Result<bool, KanbusError> {
+    stream
+        .set_read_timeout(Some(DAEMON_CONNECTION_TIMEOUT))
+        .map_err(|error| KanbusError::Io(format!("failed to set read timeout: {error}")))?;
+    stream
+        .set_write_timeout(Some(DAEMON_CONNECTION_TIMEOUT))
+        .map_err(|error| KanbusError::Io(format!("failed to set write timeout: {error}")))?;
     let mut reader = BufReader::new(
         stream
             .try_clone()
@@ -264,7 +285,7 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, b
     )
 }
 
-/// Handle a daemon request without opening a socket.
+/// Handle a daemon request without opening a socket (test hook).
 ///
 /// # Arguments
 /// * `root` - Repository root path.
@@ -272,6 +293,7 @@ fn handle_request(root: &Path, request: RequestEnvelope) -> (ResponseEnvelope, b
 ///
 /// # Returns
 /// Response envelope for the request.
+#[cfg(any(test, feature = "test-hooks"))]
 pub fn handle_request_for_testing(root: &Path, request: RequestEnvelope) -> ResponseEnvelope {
     handle_request(root, request).0
 }
