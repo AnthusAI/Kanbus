@@ -2076,7 +2076,12 @@ def test_create_worktree_fetches_existing_remote_branch(monkeypatch, tmp_path):
     monkeypatch.setattr(
         router_execution,
         "_git",
-        lambda _root, args: commands.append(args) or ".git/kanbus/router/worktrees",
+        lambda _root, args: commands.append(args) or "",
+    )
+    monkeypatch.setattr(
+        router_execution,
+        "router_worktree_root",
+        lambda root: root / ".git/kanbus/router/worktrees",
     )
     monkeypatch.setattr(router_execution, "_detach_previous_worktree", lambda *_: None)
     monkeypatch.setattr(router_execution, "_remote_branch_exists", lambda *_: True)
@@ -2086,9 +2091,9 @@ def test_create_worktree_fetches_existing_remote_branch(monkeypatch, tmp_path):
     )
 
     assert path == tmp_path / ".git/kanbus/router/worktrees/kbs-42-claim"
-    assert commands[1][0:2] == ["fetch", "origin"]
-    assert commands[2][:2] == ["branch", "-f"]
-    assert commands[3][:2] == ["worktree", "add"]
+    assert commands[0][0:2] == ["fetch", "origin"]
+    assert commands[1][:2] == ["branch", "-f"]
+    assert commands[2][:2] == ["worktree", "add"]
 
 
 def test_worktree_snapshot_cleans_private_index_on_failure(monkeypatch, tmp_path):

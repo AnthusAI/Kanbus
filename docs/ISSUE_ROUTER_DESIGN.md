@@ -46,11 +46,11 @@ router:
 
 `workflow` requires all five roles. `terminal` is a nonempty list of configured statuses. Workflow role names must map to distinct statuses, and every configured status must exist in the project workflow. `limits.project_wip` and `limits.review_wip` are required positive integers; review WIP cannot exceed project WIP. `class_wip` and `provider_wip` are optional maps of configured class/profile names to positive integers. Missing entries have no route-specific cap. `retries.max_attempts` defaults to 3. `watch_interval` defaults to `30s` and accepts a positive duration in seconds, minutes, or hours.
 
-The only initial adapter is `codex`. Each provider profile requires `adapter: codex`. `command` defaults to `codex`; `args` defaults to an empty list and replaces the executable's default prefix for controlled environments such as the fake adapter used by specs. Class provider lists are ordered and nonempty. An exact provider route is pinned to that profile; a class route tries the configured profiles in order when a new claim or takeover begins.
+Supported adapters are `codex` and `opencode`; each provider profile names one with `adapter:`. `command` defaults to the adapter's executable name (`codex` or `opencode`); `args` defaults to an empty list and replaces the executable's default prefix for controlled environments such as the fake adapter used by specs. Class provider lists are ordered and nonempty. An exact provider route is pinned to that profile; a class route tries the configured profiles in order when a new claim or takeover begins.
 
 `forge.repository` is required and accepts one `owner/repository` value. `provider` defaults to `github` and no other provider is accepted in the first slice. `base_branch` defaults to `main`, `api_url` defaults to `https://api.github.com`, and `token_env` defaults to `GITHUB_TOKEN`. The token is read from the named environment variable; when it is unset or empty, the router falls back to the output of `gh auth token` (the same order in both runtimes). Credentials are never stored in `.kanbus.yml`.
 
-The router uses existing top-level `coordination.providers` settings. `[git]` and `[mqtt, git]` are soft coordination: MQTT may improve claim visibility, but neither configuration guarantees exclusive starts. `[mutex_api, mqtt, git]` requests hard coordination. When Mutex API is first in the configured provider list, a router start requires a live Mutex API lease; falling back to MQTT or Git does not authorize an adapter start.
+The router uses existing top-level `coordination.providers` settings. `[git]` and `[mqtt, git]` are soft coordination: MQTT may improve claim visibility, but neither configuration guarantees exclusive starts. `[mutex_api, mqtt, git]` requests hard coordination. The Mutex API endpoint must use HTTPS unless its host is loopback, because the bearer token is sent with every request; both the configuration validator and the client enforce this. When Mutex API is first in the configured provider list, a router start requires a live Mutex API lease; falling back to MQTT or Git does not authorize an adapter start.
 
 Watch mode polls on `router.watch_interval`. When MQTT coordination is available, it subscribes before claim publication and uses peer notifications to wake reconciliation before the next scheduled poll. If MQTT becomes unavailable, Git-backed router-state polling continues at the configured interval.
 
@@ -59,6 +59,8 @@ Watch mode polls on `router.watch_interval`. When MQTT coordination is available
 Shared router events and router-owned issue status records are published to `refs/heads/kanbus/router-state`. The router creates publication commits in an isolated hidden Git worktree, keeping the user's checkout index and uncommitted files out of router commits. Router events and affected issue records are written by the router; the adapter cannot write Kanbus project data directly. Without an `origin` remote, this state stays in the local repository and cannot coordinate with other clones. If a configured `origin` cannot be reached, state publication fails.
 
 The Python implementation keeps a hidden worktree for this branch. The Rust implementation currently creates a temporary detached worktree for each publication. Both target the dedicated state ref, but the worktree lifetime differs between implementations.
+
+Agent worktrees are a separate matter: both runtimes create them under the Git common directory (`kanbus/router/worktrees`), never under a temporary directory. A package's worktrees and its private OpenCode data directory are removed when the package reaches a terminal outcome (completed, retryable failure, retries exhausted, or cancelled), and `git worktree prune` runs when a watch starts. A package blocked awaiting a human reply keeps its worktree and saved session so the reply can resume it. OpenCode needs the user's provider credentials (`auth.json`); the router copies that file into the package's private data directory with owner-only permissions for the duration of one run and deletes the copy when the run ends.
 
 ## Routing and package boundaries
 
@@ -122,7 +124,7 @@ The JSON `route.kind` is `class` or `provider`. `name` is the class or profile n
 
 ## Execution and operator controls
 
-`kanbus router run --once` performs one reconciliation pass and processes at most the first eligible package synchronously. It creates a run-specific worktree and branch, executes the configured Codex adapter, validates the result, records the accepted checkpoint and artifact references in router history, and opens or updates a GitHub pull request for a completed result when a forge is configured. Its summary is:
+`kanbus router run --once` performs one reconciliation pass and processes at most the first eligible package synchronously. It creates a run-specific worktree and branch, executes the configured adapter (Codex or OpenCode), validates the result, records the accepted checkpoint and artifact references in router history, and opens or updates a GitHub pull request for a completed result when a forge is configured. Its summary is:
 
 ```text
 Issue Router run completed: started=1 completed=1 review=1 failed=0 deferred=0
@@ -143,7 +145,7 @@ Both runtimes keep the active claim and adapter process identifier in Git-common
 Each routed package has an append-only, provider-neutral conversation stream on
 the router-state branch. A record contains the provider, provider session ID
 when available, claim/revision, lifecycle, worktree and branch, agent or system
-message, concise command/test evidence, and a redacted raw-log payload. The
+message, concise command/test evidence, and a redacted raw-log payload. Both runtimes redact the same credential patterns (OpenAI `sk-` keys including `sk-proj-`, GitHub `ghp_`, `gho_`, `ghs_`, `ghu_`, `ghr_` and `github_pat_` tokens, AWS `AKIA`/`ASIA` access key ids and `aws_secret_access_key` values, Slack `xox[abprs]-` tokens, and `Authorization` and `Bearer` header values) with `[REDACTED]` before text is persisted, and newlines are preserved. The
 router records `started` before launching the agent and records the complete raw
 turn before parsing its final answer. `kanbus router recover <issue>` surfaces
 that preserved run without launching a replacement session.

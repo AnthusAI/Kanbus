@@ -19,7 +19,7 @@ from pydantic import (
 from kanbus.status_semantic_defaults import derive_semantic_category
 
 
-def _is_loopback_http_url(value: str) -> bool:
+def is_loopback_http_url(value: str) -> bool:
     """Return whether an HTTP URL targets an explicitly loopback host.
 
     :param value: Absolute HTTP URL to inspect.
@@ -431,7 +431,7 @@ class MutexApiConfiguration(BaseModel):
             raise ValueError("must be an absolute http(s) URL")
         if parsed.username is not None or parsed.password is not None:
             raise ValueError("must not include URL credentials")
-        if parsed.scheme == "http" and not _is_loopback_http_url(endpoint):
+        if parsed.scheme == "http" and not is_loopback_http_url(endpoint):
             raise ValueError("must use HTTPS unless the host is loopback")
         return endpoint
 
@@ -618,7 +618,7 @@ class RouterForgeConfiguration(BaseModel):
             raise ValueError("router forge api_url must be an absolute http(s) URL")
         if parsed_api_url.username is not None or parsed_api_url.password is not None:
             raise ValueError("router forge api_url must not include URL credentials")
-        if parsed_api_url.scheme == "http" and not _is_loopback_http_url(self.api_url):
+        if parsed_api_url.scheme == "http" and not is_loopback_http_url(self.api_url):
             raise ValueError(
                 "router forge api_url must use HTTPS unless the host is loopback"
             )

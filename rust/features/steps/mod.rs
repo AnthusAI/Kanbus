@@ -54,6 +54,7 @@ pub mod rich_text_signal_steps;
 pub mod right_now_cli_steps;
 pub mod right_now_steps;
 pub mod router_contract_steps;
+pub mod router_hygiene_credentials_steps;
 pub mod router_process_resilience_steps;
 pub mod router_steps;
 pub mod setup_ai_steps;

@@ -4371,6 +4371,9 @@ fn run_issue_router_once(
             return Err(error);
         }
     };
+    if result.outcome != "blocked" {
+        finish_router_package_resources(root, &package.issue_id);
+    }
     if let Some(renewer) = lease_renewer.as_mut() {
         if let Err(error) = renewer.stop() {
             release_then_clear(
@@ -5885,6 +5888,7 @@ fn execute_router_adapter(
         if router_cancel_requested(project_dir, issue_id) {
             terminate_router_child_process_tree(&mut child);
             let _ = clear_active_router_state(root);
+            finish_router_package_resources(root, issue_id);
             let state = reduce_router_events(&load_router_events(project_dir)?);
             append_router_event(
                 project_dir,
@@ -6107,17 +6111,12 @@ fn validate_router_worktree_changes(
     Ok(())
 }
 
-/// The private OpenCode data dir for one package.
+/// The persistent OpenCode data directory of one package, when the repository is known.
 ///
-/// Concurrent OpenCode processes share one SQLite session database and fail
-/// with "database is locked", so each package gets its own directory. It lives
-/// beside the repository's other host-local router state and persists across
-/// attempts so a saved session can be resumed with a human's reply. When the
-/// repository directory cannot be found it is a temporary directory instead.
-/// A private owner-only copy of `auth.json` is placed in it for the run so
-/// non-AWS providers keep working, and removed when the run ends.
-fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
-    let common_dir = Command::new("git")
+/// The key scheme is shared with the Python runtime so either can resume the
+/// other's saved session and either can remove it at a terminal outcome.
+fn opencode_data_directory(root: &Path, issue_id: &str) -> Option<PathBuf> {
+    let common = Command::new("git")
         .args(["rev-parse", "--git-common-dir"])
         .current_dir(root)
         .output()
@@ -6131,7 +6130,7 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
             } else {
                 root.join(path)
             }
-        });
+        })?;
     let key: String = issue_id
         .chars()
         .map(|c| {
@@ -6142,12 +6141,74 @@ fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, Ka
             }
         })
         .collect();
-    let home = match common_dir {
-        Some(common) => {
-            let path = common
-                .join("kanbus-router-adapters")
-                .join("opencode")
-                .join(key);
+    Some(
+        common
+            .join("kanbus-router-adapters")
+            .join("opencode")
+            .join(key),
+    )
+}
+
+/// Release everything a package holds on this host once it reaches a terminal outcome.
+///
+/// Removes every isolated worktree the router created for the package, prunes
+/// stale worktree registrations, and deletes the package's private OpenCode
+/// data directory together with any credentials copy inside it. A package that
+/// is blocked awaiting a human reply is not terminal and keeps both.
+pub fn finish_router_package_resources(root: &Path, issue_id: &str) {
+    remove_router_package_worktrees(root, issue_id);
+    if let Some(directory) = opencode_data_directory(root, issue_id) {
+        let _ = fs::remove_dir_all(directory);
+    }
+}
+
+fn remove_router_package_worktrees(root: &Path, issue_id: &str) {
+    let Ok(managed_root) = router_worktree_root(root) else {
+        return;
+    };
+    let prefix = format!("{issue_id}-");
+    let listing = Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .map(|output| String::from_utf8_lossy(&output.stdout).to_string())
+        .unwrap_or_default();
+    let managed_root = fs::canonicalize(&managed_root).unwrap_or(managed_root);
+    for registered in listing
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+    {
+        let path = fs::canonicalize(registered).unwrap_or_else(|_| PathBuf::from(registered));
+        let belongs_to_package = path.parent() == Some(managed_root.as_path())
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix));
+        if belongs_to_package {
+            let _ = Command::new("git")
+                .args(["worktree", "remove", "--force"])
+                .arg(registered)
+                .current_dir(root)
+                .output();
+            let _ = fs::remove_dir_all(registered);
+        }
+    }
+    prune_stale_router_worktrees(root);
+}
+
+/// The private OpenCode data dir for one package.
+///
+/// Concurrent OpenCode processes share one SQLite session database and fail
+/// with "database is locked", so each package gets its own directory. It lives
+/// beside the repository's other host-local router state and persists across
+/// attempts so a saved session can be resumed with a human's reply. When the
+/// repository directory cannot be found it is a temporary directory instead.
+/// A private owner-only copy of `auth.json` is placed in it for the run so
+/// non-AWS providers keep working, and removed when the run ends.
+fn opencode_data_home(root: &Path, issue_id: &str) -> Result<AdapterDataHome, KanbusError> {
+    let home = match opencode_data_directory(root, issue_id) {
+        Some(path) => {
             fs::create_dir_all(&path).map_err(|error| KanbusError::Io(error.to_string()))?;
             AdapterDataHome::Persistent(path)
         }
@@ -6717,7 +6778,7 @@ fn latest_router_worktree(root: &Path, claim_id: &str) -> Result<PathBuf, Kanbus
         .ok_or_else(|| {
             KanbusError::IssueOperation("router worktree claim is no longer active".to_string())
         })?;
-    Ok(router_worktree_path(root, &issue_id, claim_id))
+    router_worktree_path(root, &issue_id, claim_id)
 }
 
 fn publish_router_checkpoint(
@@ -6771,7 +6832,7 @@ fn create_router_worktree(
             return Ok(previous.to_path_buf());
         }
     }
-    let worktree = router_worktree_path(root, issue_id, &claim.claim_id);
+    let worktree = router_worktree_path(root, issue_id, &claim.claim_id)?;
     if let Some(parent) = worktree.parent() {
         fs::create_dir_all(parent).map_err(|error| KanbusError::Io(error.to_string()))?;
     }
@@ -6854,27 +6915,53 @@ fn worktree_is_registered(root: &Path, path: &Path) -> bool {
         .any(|listed| fs::canonicalize(listed).unwrap_or_else(|_| PathBuf::from(listed)) == wanted)
 }
 
-fn router_worktree_root(root: &Path) -> PathBuf {
-    let git_path = Command::new("git")
+/// The directory inside the git common directory that holds managed router worktrees.
+///
+/// # Errors
+/// Returns `KanbusError::IssueOperation` naming the repository and the git
+/// failure when `git rev-parse --git-path` cannot resolve the directory.
+pub fn router_worktree_root(root: &Path) -> Result<PathBuf, KanbusError> {
+    let unresolved = |detail: String| {
+        KanbusError::IssueOperation(format!(
+            "router worktree directory could not be resolved for repository {}: {detail}",
+            root.display()
+        ))
+    };
+    let output = Command::new("git")
         .args(["rev-parse", "--git-path", "kanbus/router/worktrees"])
         .current_dir(root)
         .output()
-        .ok()
-        .filter(|output| output.status.success())
-        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
-        .filter(|path| !path.is_empty());
-    match git_path {
-        Some(path) if Path::new(&path).is_absolute() => PathBuf::from(path),
-        Some(path) => root.join(path),
-        None => std::env::temp_dir().join("kanbus-router-worktrees"),
+        .map_err(|error| unresolved(error.to_string()))?;
+    if !output.status.success() {
+        return Err(unresolved(
+            String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        ));
+    }
+    let git_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if git_path.is_empty() {
+        return Err(unresolved("git returned an empty path".to_string()));
+    }
+    if Path::new(&git_path).is_absolute() {
+        Ok(PathBuf::from(git_path))
+    } else {
+        Ok(root.join(git_path))
     }
 }
 
-fn router_worktree_path(root: &Path, issue_id: &str, claim_id: &str) -> PathBuf {
-    router_worktree_root(root).join(format!("{}-{}", issue_id, claim_id))
+/// The isolated worktree path of one package claim.
+///
+/// # Errors
+/// Returns the error of `router_worktree_root` when the directory cannot be resolved.
+pub fn router_worktree_path(
+    root: &Path,
+    issue_id: &str,
+    claim_id: &str,
+) -> Result<PathBuf, KanbusError> {
+    Ok(router_worktree_root(root)?.join(format!("{}-{}", issue_id, claim_id)))
 }
 
-fn prune_stale_router_worktrees(root: &Path) {
+/// Drop registrations of worktrees whose directories no longer exist.
+pub fn prune_stale_router_worktrees(root: &Path) {
     let _ = Command::new("git")
         .args(["worktree", "prune"])
         .current_dir(root)
@@ -7911,6 +7998,19 @@ fn publish_router_checkpoint_ref(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn router_worktree_root_fails_with_the_repository_and_git_error_outside_a_repository() {
+        let directory = tempfile::tempdir().unwrap();
+        let error = router_worktree_root(directory.path())
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with(&format!(
+            "router worktree directory could not be resolved for repository {}: ",
+            directory.path().display()
+        )));
+        assert!(error.contains("not a git repository"));
+    }
+
+    #[test]
     fn router_worktrees_live_in_the_git_directory_of_the_repository() {
         let repository = tempfile::tempdir().unwrap();
         Command::new("git")
@@ -7918,7 +8018,7 @@ mod tests {
             .current_dir(repository.path())
             .status()
             .unwrap();
-        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1");
+        let worktree_path = router_worktree_path(repository.path(), "kanbus-1", "claim-1").unwrap();
         let expected_prefix = repository
             .path()
             .join(".git")
