@@ -113,6 +113,50 @@ def test_hooks_globally_disabled_flag_and_env(monkeypatch: pytest.MonkeyPatch) -
     assert hooks.hooks_globally_disabled() is False
 
 
+class _FakeHookProcess:
+    """Stand-in for subprocess.Popen used by the hook runner tests."""
+
+    def __init__(self, calls, returncode, stdout, stderr, timeout, args, kwargs):
+        self.pid = 999999
+        self.returncode = returncode
+        self.stdin = None
+        self.stdout = None
+        self.stderr = None
+        self._stdout = stdout
+        self._stderr = stderr
+        self._timeout = timeout
+        calls.append(dict(kwargs, command=args[0] if args else None))
+
+    def communicate(self, input=None, timeout=None):
+        if self._timeout:
+            raise subprocess.TimeoutExpired(cmd=["cmd"], timeout=timeout)
+        return self._stdout, self._stderr
+
+    def kill(self):
+        return None
+
+    def wait(self):
+        return self.returncode
+
+
+def _fake_popen(calls, returncode=0, stdout="", stderr="", timeout=False, inputs=None):
+    def factory(*args, **kwargs):
+        process = _FakeHookProcess(
+            calls, returncode, stdout, stderr, timeout, args, kwargs
+        )
+        if inputs is not None:
+            original = process.communicate
+
+            def communicate(input=None, timeout=None):
+                inputs.append(input)
+                return original(input=input, timeout=timeout)
+
+            process.communicate = communicate
+        return process
+
+    return factory
+
+
 def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -129,14 +173,9 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     hook = _hook("h1", ["cmd"], cwd=".", env={"X": "1"})
 
     calls: list[dict[str, object]] = []
-
-    def ok_run(*_args, **kwargs):
-        calls.append(kwargs)
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=0, stdout="", stderr=""
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", ok_run)
+    inputs: list[str] = []
+    monkeypatch.setattr(hooks.os, "killpg", lambda *_args: None)
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen(calls, inputs=inputs))
     result = handler.run(
         hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=200
     )
@@ -145,14 +184,12 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert result.message == "ok"
     assert calls[0]["cwd"] == tmp_path
     assert calls[0]["env"]["X"] == "1"
-    assert json.loads(calls[0]["input"])["event"] == "issue.update"
+    assert calls[0]["start_new_session"] is True
+    assert json.loads(inputs[0])["event"] == "issue.update"
 
-    def fail_run(*_args, **_kwargs):
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=7, stdout="", stderr="bad"
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", fail_run)
+    monkeypatch.setattr(
+        hooks.subprocess, "Popen", _fake_popen([], returncode=7, stderr="bad")
+    )
     fail = handler.run(
         hook=_hook("h2", ["cmd"]),
         invocation=invocation,
@@ -163,12 +200,7 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert fail.exit_code == 7
     assert fail.message == "bad"
 
-    def fail_no_stderr(*_args, **_kwargs):
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=8, stdout="", stderr=""
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", fail_no_stderr)
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen([], returncode=8))
     fail2 = handler.run(
         hook=_hook("h3", ["cmd"]),
         invocation=invocation,
@@ -177,10 +209,7 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     )
     assert fail2.message == "exit code 8"
 
-    def timeout_run(*_args, **_kwargs):
-        raise subprocess.TimeoutExpired(cmd=["cmd"], timeout=1)
-
-    monkeypatch.setattr(hooks.subprocess, "run", timeout_run)
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen([], timeout=True))
     timeout = handler.run(
         hook=_hook("h4", ["cmd"]),
         invocation=invocation,
@@ -190,10 +219,10 @@ def test_external_command_hook_handler_success_failure_timeout_and_oserror(
     assert timeout.succeeded is False
     assert timeout.timed_out is True
 
-    def os_error_run(*_args, **_kwargs):
+    def os_error_popen(*_args, **_kwargs):
         raise OSError("nope")
 
-    monkeypatch.setattr(hooks.subprocess, "run", os_error_run)
+    monkeypatch.setattr(hooks.subprocess, "Popen", os_error_popen)
     os_error = handler.run(
         hook=_hook("h5", ["cmd"]),
         invocation=invocation,
@@ -619,16 +648,12 @@ def test_external_handler_absolute_cwd(
     abs_cwd.mkdir(parents=True)
     seen_cwd: list[Path] = []
 
-    def ok_run(*_args, **kwargs):
-        seen_cwd.append(Path(kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            args=["cmd"], returncode=0, stdout="", stderr=""
-        )
-
-    monkeypatch.setattr(hooks.subprocess, "run", ok_run)
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(hooks.subprocess, "Popen", _fake_popen(calls))
     hook = _hook("x", ["cmd"], cwd=str(abs_cwd))
     result = handler.run(
         hook=hook, invocation=invocation, project_root=tmp_path, timeout_ms=1
     )
     assert result.succeeded is True
+    seen_cwd.extend(Path(call["cwd"]) for call in calls)
     assert seen_cwd == [abs_cwd]
