@@ -3,17 +3,25 @@
   "title": "Router processes and resilience: process groups, reaping, boot-id identity, network timeouts, watch-loop backoff, lease renewal thread",
   "description": "Parts (a), (c) and (f) of kbs-7bf31f in both runtimes. Spawn adapters in their own process group (setsid / start_new_session), kill the group on cancel and timeout and always wait after kill; boot-id process identity in Rust like Python's router_adapters.py; connect and read timeouts on the GitHub client; route all network git through router_git_command and ROUTER_GIT_TIMEOUT; log-and-continue with backoff on poll errors in the watch loop, exiting only on configuration or fence errors; renew soft leases from the RouterLeaseRenewalGuard thread. Keep router.workflow unchanged. Acceptance: a test spawns an adapter that forks a sleeping grandchild, cancels, and asserts no survivors; a simulated 500 from GitHub does not stop the watch loop.",
   "type": "sub-task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "kbs-7bf31fda-a464-45a2-a681-e933f95df403",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "eb1f783b-7532-435a-978d-63738a6d5b78",
+      "author": "home",
+      "text": "Done: PR #546 merged with CI green. One process-group spawn helper per runtime with kill-group-then-wait; soft leases renewed by RouterLeaseRenewalGuard; shared decide_watch_poll_failure (retry 5xx, 429 and network errors with backoff, stop on others); Python router_state network git gets 120 s timeouts; Rust router cancel and status use Python's boot-id adapter record instead of a bare PID. features/router/router_process_resilience.feature (9 scenarios) passes in both runtimes; grandchild death verified with ps.",
+      "created_at": "2026-10-26T03:07:31.638648Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-26T02:05:19.722316Z",
-  "updated_at": "2026-10-26T02:05:25.833317Z",
-  "closed_at": null,
+  "updated_at": "2026-10-26T03:07:31.717327Z",
+  "closed_at": "2026-10-26T03:07:31.681240Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
