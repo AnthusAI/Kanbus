@@ -116,7 +116,7 @@ jobs:
       - name: Check generated CLI reference
         run: python tools/generate_cli_reference.py --check
 
-      - name: Check generated configuration reference
+      - name: Check generated configuration reference and documented YAML
         run: python tools/generate_configuration_reference.py --check
 
   python-versions:

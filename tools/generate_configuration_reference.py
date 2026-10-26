@@ -10,13 +10,17 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tempfile
 from pathlib import Path
+
+import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT / "python" / "src"))
 
 from pydantic_core import PydanticUndefined
 
+from kanbus.config_loader import ConfigurationError, load_project_configuration
 from kanbus.models import ProjectConfiguration
 
 CONFIGURATION_DOCUMENT_PATH = REPOSITORY_ROOT / "docs" / "CONFIGURATION.md"
@@ -90,6 +94,49 @@ def replace_generated_block(document_text: str) -> str:
     return pattern.sub(lambda _match: render_generated_block(), document_text)
 
 
+YAML_BLOCK_PATTERN = re.compile(r"```yaml\n(.*?)```", re.DOTALL)
+
+
+def looks_like_configuration(parsed_block: object) -> bool:
+    """Return True when a parsed YAML block uses ProjectConfiguration keys.
+
+    Blocks that share no key with the configuration model (for example a
+    data sample) are not configuration files and are not validated.
+    """
+    if not isinstance(parsed_block, dict):
+        return False
+    known_keys = set(ProjectConfiguration.model_fields)
+    return any(key in known_keys for key in parsed_block)
+
+
+def validate_documented_yaml_blocks(document_text: str) -> list[str]:
+    """Validate every configuration-shaped yaml block with the real loader.
+
+    Each block is written to a temporary .kanbus.yml and loaded through
+    ``load_project_configuration``, the same path ``kanbus`` uses, so unknown
+    keys and invalid values fail exactly as they would for a reader who copies
+    the block. Returns one message per failing block, quoting the block.
+    """
+    failures: list[str] = []
+    for match in YAML_BLOCK_PATTERN.finditer(document_text):
+        block_text = match.group(1)
+        try:
+            parsed_block = yaml.safe_load(block_text)
+        except yaml.YAMLError as error:
+            failures.append(f"unparseable yaml block:\n{block_text}\n{error}")
+            continue
+        if not looks_like_configuration(parsed_block):
+            continue
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            configuration_path = Path(temporary_directory) / ".kanbus.yml"
+            configuration_path.write_text(block_text)
+            try:
+                load_project_configuration(configuration_path)
+            except ConfigurationError as error:
+                failures.append(f"invalid configuration block:\n{block_text}\n{error}")
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -106,7 +153,10 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
-        return 0
+        block_failures = validate_documented_yaml_blocks(current_text)
+        for failure in block_failures:
+            print(failure, file=sys.stderr)
+        return 1 if block_failures else 0
     CONFIGURATION_DOCUMENT_PATH.write_text(regenerated_text)
     return 0
 
