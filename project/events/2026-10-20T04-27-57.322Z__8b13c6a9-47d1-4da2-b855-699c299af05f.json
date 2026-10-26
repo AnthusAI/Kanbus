@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "8b13c6a9-47d1-4da2-b855-699c299af05f",
+  "issue_id": "kbs-9f762cea-2e2a-4303-815b-009f53312a4a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T04:27:57.322Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "PyPI README project tree lists .beads/, planning/VISION.md and `--status todo`, none of which exist",
+    "description": "**Problem**\nThe project-structure example and CLI example in the PyPI long description describe things Kanbus no longer has.\n\n**Evidence**\n- python/README.md project tree lists `.beads/` and `planning/VISION.md`.\n- It shows `--status todo`, which is not a valid status.\n\n**Fix**\nUpdate the tree to the real layout (`project/issues`, `project/events`, `project/wiki`, `.kanbus.yml`) and use a valid status (e.g. `open`).\n\n**How to verify**\n`grep -nE '\\.beads|VISION\\.md|--status todo' python/README.md` returns nothing, and every command shown in the README runs.\n\nSource: Anthus repo audit, 2026-10-20.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude-code",
+      "model": "claude-sonnet-5-5",
+      "name": "audit-filing"
+    }
+  }
+}
