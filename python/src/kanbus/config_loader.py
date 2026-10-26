@@ -32,12 +32,39 @@ HOOK_EVENTS = {
 }
 
 
+INVALID_YAML_MESSAGE = "configuration is not valid YAML"
+
+
 class ConfigurationError(RuntimeError):
     """Raised when configuration validation fails."""
 
 
+_configuration_load_count = 0
+
+
+def configuration_load_count() -> int:
+    """Return how many times this process has loaded a project configuration.
+
+    The counter exists so tests can assert that one command loads the
+    configuration exactly once.
+
+    :return: Number of configuration loads since the last reset.
+    :rtype: int
+    """
+    return _configuration_load_count
+
+
+def reset_configuration_load_count() -> None:
+    """Reset the configuration load counter to zero."""
+    global _configuration_load_count
+    _configuration_load_count = 0
+
+
 def load_project_configuration(path: Path) -> ProjectConfiguration:
     """Load a project configuration from disk.
+
+    This function reads and validates the file only. Dotenv files are loaded
+    once at process start by :func:`load_repository_environment`, never here.
 
     :param path: Path to the .kanbus.yml file.
     :type path: Path
@@ -45,10 +72,11 @@ def load_project_configuration(path: Path) -> ProjectConfiguration:
     :rtype: ProjectConfiguration
     :raises ConfigurationError: If the configuration is invalid or missing.
     """
+    global _configuration_load_count
+    _configuration_load_count += 1
     if not path.exists():
         raise ConfigurationError("configuration file not found")
 
-    load_repository_environment(path.parent)
     data = _load_configuration_data(path)
     _validate_canonical_config_overrides(path, data)
     override = _load_override_configuration(path.parent / ".kanbus.override.yml")
@@ -349,6 +377,8 @@ def _load_configuration_data(path: Path) -> dict:
         data = yaml.safe_load(contents)
     except OSError as error:
         raise ConfigurationError(str(error)) from error
+    except yaml.YAMLError as error:
+        raise ConfigurationError(INVALID_YAML_MESSAGE) from error
 
     if data is None:
         return {}

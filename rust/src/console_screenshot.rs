@@ -5,9 +5,8 @@ use std::process::Command;
 
 use serde::Serialize;
 
-use crate::config_loader::load_project_configuration;
 use crate::error::KanbusError;
-use crate::file_io::get_configuration_path;
+use crate::project_context::ProjectContext;
 
 const DEFAULT_SCREENSHOT_FILENAME: &str = "kanbus-board.png";
 const DEFAULT_APPEARANCE_MODE: &str = "light";
@@ -57,16 +56,15 @@ impl ScreenshotCaptureOptions {
 ///
 /// # Returns
 /// Console port number (defaults to 5174)
-pub fn resolve_console_port(root: &Path) -> u16 {
+pub fn resolve_console_port(root: &Path) -> Result<u16, KanbusError> {
     if let Ok(value) = std::env::var("CONSOLE_PORT") {
         if let Ok(port) = value.trim().parse::<u16>() {
-            return port;
+            return Ok(port);
         }
     }
-    match get_configuration_path(root).and_then(|path| load_project_configuration(&path)) {
-        Ok(config) => config.console_port.unwrap_or(5174),
-        Err(_) => 5174,
-    }
+    Ok(ProjectContext::discover(root)?
+        .and_then(|context| context.configuration.console_port)
+        .unwrap_or(5174))
 }
 
 /// Return whether the console server responds on its HTTP port.
@@ -77,16 +75,19 @@ pub fn resolve_console_port(root: &Path) -> u16 {
 ///
 /// # Returns
 /// `true` when `/api/config` responds with HTTP 200
-pub fn is_console_server_running(root: &Path, port: Option<u16>) -> bool {
-    let resolved_port = port.unwrap_or_else(|| resolve_console_port(root));
+pub fn is_console_server_running(root: &Path, port: Option<u16>) -> Result<bool, KanbusError> {
+    let resolved_port = match port {
+        Some(port) => port,
+        None => resolve_console_port(root)?,
+    };
     let url = format!("http://127.0.0.1:{resolved_port}/api/config");
     let client = reqwest::blocking::Client::new();
-    client
+    Ok(client
         .get(&url)
         .timeout(std::time::Duration::from_secs(3))
         .send()
         .map(|response| response.status().is_success())
-        .unwrap_or(false)
+        .unwrap_or(false))
 }
 
 fn locate_capture_script(root: &Path) -> Result<PathBuf, KanbusError> {
@@ -147,7 +148,7 @@ fn resolve_output_path(root: &Path, output: Option<String>) -> Result<PathBuf, K
     Ok(path)
 }
 
-fn server_ready_for_screenshot(root: &Path) -> bool {
+fn server_ready_for_screenshot(root: &Path) -> Result<bool, KanbusError> {
     if crate::test_hooks::var("KANBUS_TEST_SCREENSHOT_ASSUME_SERVER")
         .ok()
         .map(|value| {
@@ -156,7 +157,7 @@ fn server_ready_for_screenshot(root: &Path) -> bool {
         })
         .unwrap_or(false)
     {
-        return true;
+        return Ok(true);
     }
     is_console_server_running(root, None)
 }
@@ -242,7 +243,7 @@ pub fn capture_console_screenshot(
         collapse_columns,
     )?;
     let output_path = resolve_output_path(root, output)?;
-    if !server_ready_for_screenshot(root) {
+    if !server_ready_for_screenshot(root)? {
         return Err(KanbusError::IssueOperation(
             "Console server is not running.".to_string(),
         ));
@@ -266,7 +267,7 @@ pub fn capture_console_screenshot(
         return Ok(output_path);
     }
 
-    let port = resolve_console_port(root);
+    let port = resolve_console_port(root)?;
     let console_url = format!("http://127.0.0.1:{port}/");
     let node_executable = resolve_node_executable()?;
     let script_path = locate_capture_script(root)?;
@@ -410,11 +411,11 @@ mod tests {
         clear_screenshot_test_env();
         let temp = TempDir::new().expect("tempdir");
         env::set_var("CONSOLE_PORT", "4242");
-        assert_eq!(resolve_console_port(temp.path()), 4242);
+        assert_eq!(resolve_console_port(temp.path()).expect("port"), 4242);
         env::set_var("CONSOLE_PORT", "nope");
-        assert_eq!(resolve_console_port(temp.path()), 5174);
+        assert_eq!(resolve_console_port(temp.path()).expect("port"), 5174);
         env::remove_var("CONSOLE_PORT");
-        assert_eq!(resolve_console_port(temp.path()), 5174);
+        assert_eq!(resolve_console_port(temp.path()).expect("port"), 5174);
         clear_screenshot_test_env();
     }
 
@@ -423,7 +424,7 @@ mod tests {
         let _guard = test_lock();
         clear_screenshot_test_env();
         let temp = TempDir::new().expect("tempdir");
-        assert!(!is_console_server_running(temp.path(), Some(1)));
+        assert!(!is_console_server_running(temp.path(), Some(1)).expect("running check"));
         let error =
             capture_console_screenshot(temp.path(), None, None, None, false, vec![], vec![])
                 .unwrap_err();

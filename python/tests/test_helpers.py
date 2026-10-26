@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Callable, List, Optional
 
 from kanbus.issue_mutation import (
@@ -8,8 +9,11 @@ from kanbus.issue_mutation import (
     PersistIssueMutationResult,
 )
 from kanbus.models import IssueData, ProjectConfiguration
+from kanbus.project_context import ProjectContext
 
 if TYPE_CHECKING:
+    import pytest
+
     from kanbus.issue_update import IssueUpdateResult
 
 
@@ -137,9 +141,56 @@ def stub_persist_issue_mutation(
 
     def persist(
         request: PersistIssueMutationRequest,
+        events_enabled: Optional[bool] = None,
     ) -> PersistIssueMutationResult:
         if calls is not None:
             calls.append(request)
         return PersistIssueMutationResult(issue=request.issue, events=request.events)
 
     return persist
+
+
+def build_project_context(
+    root: Path, configuration: Optional[ProjectConfiguration] = None
+) -> ProjectContext:
+    """Build a project context without reading any configuration file.
+
+    :param root: Working root and repository root of the context.
+    :type root: Path
+    :param configuration: Configuration to carry; a default one when omitted.
+    :type configuration: Optional[ProjectConfiguration]
+    :return: Project context.
+    :rtype: ProjectContext
+    """
+    resolved = configuration or build_project_configuration()
+    return ProjectContext(
+        root=root,
+        config_path=root / ".kanbus.yml",
+        repository_root=root,
+        configuration=resolved,
+        project_dir=root / resolved.project_directory,
+        overlay=resolved.overlay,
+    )
+
+
+def stub_cli_project_context(
+    monkeypatch: pytest.MonkeyPatch,
+    root: Path,
+    configuration: Optional[ProjectConfiguration] = None,
+) -> ProjectContext:
+    """Make the CLI entry point build a fixed project context.
+
+    :param monkeypatch: Pytest monkeypatch fixture.
+    :type monkeypatch: pytest.MonkeyPatch
+    :param root: Working root of the context.
+    :type root: Path
+    :param configuration: Configuration to carry; a default one when omitted.
+    :type configuration: Optional[ProjectConfiguration]
+    :return: The context the CLI will use.
+    :rtype: ProjectContext
+    """
+    from kanbus import cli
+
+    context = build_project_context(root, configuration)
+    monkeypatch.setattr(cli, "_build_project_context", lambda _root: context)
+    return context

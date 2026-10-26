@@ -80,7 +80,7 @@ def test_promote_issue_rolls_back_when_event_write_fails(
         issue_transfer, "find_project_local_directory", lambda _p: local_dir
     )
     monkeypatch.setattr(
-        "kanbus.issue_mutation.write_events_batch",
+        "kanbus.issue_mutation.write_events_batch_with_setting",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
@@ -188,7 +188,7 @@ def test_localize_issue_rolls_back_when_event_write_fails(
         issue_transfer, "ensure_project_local_directory", lambda _p: local_dir
     )
     monkeypatch.setattr(
-        "kanbus.issue_mutation.write_events_batch",
+        "kanbus.issue_mutation.write_events_batch_with_setting",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 

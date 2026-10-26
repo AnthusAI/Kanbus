@@ -812,14 +812,14 @@ pub fn publish_coordination_lease_if_ready(
     {
         return Ok(true);
     }
-    Ok(publish_coordination_gossip(
+    publish_coordination_gossip(
         root,
         &project_dir,
         "coordination.lease",
         &event_id,
         None,
         fields,
-    ))
+    )
 }
 
 fn append_event(
@@ -1155,8 +1155,10 @@ pub fn run_coordination(
                 }
             }
             let claim_event_result = Arc::new(Mutex::new(None));
+            let claim_publish_error: Arc<Mutex<Option<KanbusError>>> = Arc::new(Mutex::new(None));
             let provider = if mqtt_configured {
                 let claim_event_result = Arc::clone(&claim_event_result);
+                let claim_publish_error = Arc::clone(&claim_publish_error);
                 let claim_resource = resource.clone();
                 let claim_owner = owner.clone();
                 let stable_claim_id = claim_id.clone();
@@ -1190,7 +1192,7 @@ pub fn run_coordination(
                         } else {
                             return false;
                         }
-                        publish_coordination_gossip(
+                        match publish_coordination_gossip(
                             root,
                             &project_dir,
                             "coordination.claim",
@@ -1207,9 +1209,28 @@ pub fn run_coordination(
                                     .get("operation_sequence")
                                     .and_then(Value::as_u64),
                             },
-                        )
+                        ) {
+                            Ok(published) => published,
+                            Err(error) => {
+                                if let Ok(mut slot) = claim_publish_error.lock() {
+                                    *slot = Some(error);
+                                }
+                                false
+                            }
+                        }
                     },
-                );
+                )?;
+                if let Some(error) = claim_publish_error
+                    .lock()
+                    .map_err(|_| {
+                        KanbusError::IssueOperation(
+                            "coordination claim publish result is unavailable".to_string(),
+                        )
+                    })?
+                    .take()
+                {
+                    return Err(error);
+                }
                 if published {
                     "mqtt"
                 } else {
@@ -1430,7 +1451,7 @@ pub fn run_coordination(
                             .get("operation_sequence")
                             .and_then(Value::as_u64),
                     },
-                ) {
+                )? {
                 "mqtt"
             } else {
                 "git"

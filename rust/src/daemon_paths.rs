@@ -2,7 +2,68 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::file_io::{get_configuration_path, load_project_directory, resolve_labeled_projects};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+use crate::file_io::{canonicalize_path, load_project_directory};
+use crate::project_context::ProjectContext;
+
+static RESOLVED_PROJECT_DIRECTORIES: OnceLock<Mutex<HashMap<PathBuf, PathBuf>>> = OnceLock::new();
+
+fn resolved_project_directories() -> &'static Mutex<HashMap<PathBuf, PathBuf>> {
+    RESOLVED_PROJECT_DIRECTORIES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn directory_key(root: &Path) -> PathBuf {
+    canonicalize_path(root).unwrap_or_else(|_| root.to_path_buf())
+}
+
+/// Record the primary project directory resolved by a project context.
+///
+/// Every issue file operation asks for the daemon socket path. Recording the
+/// directory the command already resolved keeps those lookups from reloading
+/// the configuration.
+///
+/// # Arguments
+/// * `context` - Project context built at command entry.
+///
+/// A context whose primary directory is ignored, or whose virtual projects are
+/// missing, records nothing; the socket lookup then reports the same error as
+/// before.
+pub fn remember_project_directory(context: &ProjectContext) {
+    if context.labeled_projects().is_err() {
+        return;
+    }
+    if let Ok(project_dir) = context.primary_project_directory() {
+        resolved_project_directories()
+            .lock()
+            .expect("project directory cache lock")
+            .insert(directory_key(&context.repository_root), project_dir);
+    }
+}
+
+fn daemon_project_directory(root: &Path) -> Result<PathBuf, crate::error::KanbusError> {
+    let key = directory_key(root);
+    if let Some(project_dir) = resolved_project_directories()
+        .lock()
+        .expect("project directory cache lock")
+        .get(&key)
+    {
+        return Ok(project_dir.clone());
+    }
+    let project_dir = match ProjectContext::discover(root)? {
+        Some(context) => {
+            context.labeled_projects()?;
+            context.primary_project_directory()?
+        }
+        None => load_project_directory(root)?,
+    };
+    resolved_project_directories()
+        .lock()
+        .expect("project directory cache lock")
+        .insert(key, project_dir.clone());
+    Ok(project_dir)
+}
 
 /// Return the daemon socket path for a repository.
 ///
@@ -12,10 +73,7 @@ use crate::file_io::{get_configuration_path, load_project_directory, resolve_lab
 /// # Errors
 /// Returns `KanbusError` if the project marker is missing.
 pub fn get_daemon_socket_path(root: &Path) -> Result<PathBuf, crate::error::KanbusError> {
-    if get_configuration_path(root).is_ok() {
-        let _ = resolve_labeled_projects(root)?;
-    }
-    let project_dir = load_project_directory(root)?;
+    let project_dir = daemon_project_directory(root)?;
     Ok(project_dir.join(".cache").join("kanbus.sock"))
 }
 

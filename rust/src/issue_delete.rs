@@ -96,7 +96,7 @@ pub fn delete_issue(
     )?;
     if lookup.issue_path.parent() == Some(lookup.project_dir.join("issues").as_path()) {
         let event_id = result.event.as_ref().map(|event| event.event_id.clone());
-        crate::gossip::publish_issue_deleted(root, &lookup.project_dir, &issue_id, event_id);
+        crate::gossip::publish_issue_deleted(root, &lookup.project_dir, &issue_id, event_id)?;
     }
     Ok(())
 }

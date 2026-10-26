@@ -151,35 +151,16 @@ def test_wiki_render_log_cache_hit(tmp_path: Path) -> None:
     assert log.read_text(encoding="utf-8") == "1\n"
 
 
-def test_load_ai_config_and_project_dir_success_and_failures(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    cfg = build_project_configuration().model_copy(
-        update={"project_directory": "project"}
-    )
-    cfg_path = tmp_path / ".kanbus.yml"
+def test_load_ai_config_and_project_dir_success_and_failures(tmp_path: Path) -> None:
+    assert wiki._load_ai_config_and_project_dir(tmp_path) == (None, None)
 
-    monkeypatch.setattr(project, "get_configuration_path", lambda _root: cfg_path)
-    monkeypatch.setattr(config_loader, "load_project_configuration", lambda _path: cfg)
-
+    (tmp_path / ".kanbus.yml").write_text("project_key: kanbus\n", encoding="utf-8")
     ai_config, project_dir = wiki._load_ai_config_and_project_dir(tmp_path)
-    assert ai_config is None
     assert project_dir == "project"
 
-    monkeypatch.setattr(
-        project,
-        "get_configuration_path",
-        lambda _root: (_ for _ in ()).throw(ProjectMarkerError("missing")),
-    )
-    assert wiki._load_ai_config_and_project_dir(tmp_path) == (None, None)
-
-    monkeypatch.setattr(project, "get_configuration_path", lambda _root: cfg_path)
-    monkeypatch.setattr(
-        config_loader,
-        "load_project_configuration",
-        lambda _path: (_ for _ in ()).throw(ConfigurationError("bad")),
-    )
-    assert wiki._load_ai_config_and_project_dir(tmp_path) == (None, None)
+    (tmp_path / ".kanbus.yml").write_text("project_key: [unclosed\n", encoding="utf-8")
+    with pytest.raises(ConfigurationError, match="not valid YAML"):
+        wiki._load_ai_config_and_project_dir(tmp_path)
 
 
 def test_render_template_string_success_and_errors() -> None:

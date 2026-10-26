@@ -142,7 +142,7 @@ fn persist_comment_mutation(
             &result.issue,
             Some(event_id),
             "issue.mutated",
-        );
+        )?;
     }
     Ok(result.issue)
 }

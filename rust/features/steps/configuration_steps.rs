@@ -164,6 +164,16 @@ fn given_repo_with_empty_hierarchy(world: &mut KanbusWorld) {
     given_invalid_config_empty_hierarchy(world);
 }
 
+#[given("the Kanbus configuration file contains malformed YAML")]
+fn given_configuration_file_contains_malformed_yaml(world: &mut KanbusWorld) {
+    let config_path = world
+        .working_directory
+        .as_ref()
+        .expect("working directory not set")
+        .join(".kanbus.yml");
+    fs::write(config_path, "project_key: [unclosed\n").expect("write malformed config");
+}
+
 #[given("a Kanbus repository with a .kanbus.yml file that is not a mapping")]
 fn given_repo_with_non_mapping_config(world: &mut KanbusWorld) {
     initialize_project(world);

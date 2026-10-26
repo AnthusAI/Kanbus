@@ -3,18 +3,22 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import click
 from click.testing import CliRunner
 import pytest
 
 from kanbus import cli
-from kanbus.config_loader import ConfigurationError
 from kanbus.issue_delete import IssueDeleteError
 from kanbus.issue_listing import IssueListingError
 from kanbus.issue_lookup import IssueLookupError
 from kanbus.issue_update import IssueUpdateError
 from kanbus.queries import QueryError
 
-from test_helpers import build_issue, build_update_result, build_project_configuration
+from test_helpers import (
+    build_issue,
+    build_update_result,
+    stub_cli_project_context,
+)
 
 
 def _run(args: list[str]) -> object:
@@ -251,15 +255,8 @@ def test_list_default_returns_all_issues(
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
     issues = [build_issue(f"kanbus-{index}") for index in range(51)]
-    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: issues)
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
-    )
-    monkeypatch.setattr(
-        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
-    )
+    monkeypatch.setattr(cli, "list_issues_with_context", lambda *_a, **_k: issues)
+    stub_cli_project_context(monkeypatch, tmp_path)
     monkeypatch.setattr(
         cli,
         "format_issue_line",
@@ -296,17 +293,10 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     )
     monkeypatch.setattr(
         cli,
-        "list_issues",
+        "list_issues_with_context",
         lambda *_a, **_k: [regular_issue_a, regular_issue_b],
     )
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
-    )
-    monkeypatch.setattr(
-        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
-    )
+    stub_cli_project_context(monkeypatch, tmp_path)
 
     result_regular = _run(["list", "--limit", "1", "--full-ids"])
     assert result_regular.exit_code == 0
@@ -314,7 +304,9 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     assert widths_calls == [False]
 
     widths_calls.clear()
-    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: [regular_issue_a])
+    monkeypatch.setattr(
+        cli, "list_issues_with_context", lambda *_a, **_k: [regular_issue_a]
+    )
     result_project_context = _run(["list", "--limit", "1"])
     assert result_project_context.exit_code == 0
     assert "kanbus-1:False:True:True" in result_project_context.output
@@ -322,21 +314,17 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
     monkeypatch.setattr(
         cli,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(ConfigurationError("config fail")),
+        "_build_project_context",
+        lambda _root: (_ for _ in ()).throw(click.ClickException("config fail")),
     )
     result_config_fail = _run(["list"])
     assert result_config_fail.exit_code != 0
     assert "config fail" in result_config_fail.output
 
+    stub_cli_project_context(monkeypatch, tmp_path)
     monkeypatch.setattr(
         cli,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
-    )
-    monkeypatch.setattr(
-        cli,
-        "list_issues",
+        "list_issues_with_context",
         lambda *_a, **_k: (_ for _ in ()).throw(IssueListingError("list fail")),
     )
     result_list_fail = _run(["list"])
@@ -345,7 +333,7 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
     monkeypatch.setattr(
         cli,
-        "list_issues",
+        "list_issues_with_context",
         lambda *_a, **_k: (_ for _ in ()).throw(QueryError("query fail")),
     )
     result_query_fail = _run(["list"])
@@ -356,7 +344,9 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     beads_issue_b = build_issue("kanbus-2", priority=1)
     monkeypatch.setattr(cli, "_resolve_beads_root", lambda _cwd: tmp_path)
     monkeypatch.setattr(
-        cli, "list_issues", lambda *_a, **_k: [beads_issue_a, beads_issue_b]
+        cli,
+        "list_issues_with_context",
+        lambda *_a, **_k: [beads_issue_a, beads_issue_b],
     )
     monkeypatch.setattr(
         cli,
@@ -381,21 +371,14 @@ def test_list_command_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 def test_list_all_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(cli, "_run_lifecycle_hooks_for_context", lambda *_a, **_k: None)
-    monkeypatch.setattr(
-        cli,
-        "load_project_configuration",
-        lambda _p: build_project_configuration(),
-    )
-    monkeypatch.setattr(
-        cli, "get_configuration_path", lambda _p: tmp_path / ".kanbus.yml"
-    )
+    stub_cli_project_context(monkeypatch, tmp_path)
 
     result_reject = _run(["list", "--all", "--limit", "2"])
     assert result_reject.exit_code != 0
     assert "cannot combine --all with --limit" in result_reject.output
 
     issues = [build_issue("kanbus-1"), build_issue("kanbus-2")]
-    monkeypatch.setattr(cli, "list_issues", lambda *_a, **_k: issues)
+    monkeypatch.setattr(cli, "list_issues_with_context", lambda *_a, **_k: issues)
     monkeypatch.setattr(cli, "compute_widths", lambda *_a, **_k: {"id": 8})
     monkeypatch.setattr(
         cli,

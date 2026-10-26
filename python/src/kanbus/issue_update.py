@@ -10,12 +10,14 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
-from kanbus.config_loader import load_project_configuration
-from kanbus.issue_mutation import PersistIssueMutationRequest, persist_issue_mutation
+from kanbus.issue_mutation import (
+    PersistIssueMutationRequest,
+    persist_issue_mutation_with_events_setting,
+)
 from kanbus.issue_files import read_issue_from_file
 from kanbus.issue_lookup import (
     IssueLookupError,
-    load_issue_from_project,
+    load_issue_from_project_with_context,
     resolve_issue_identifier,
 )
 from kanbus.hierarchy import InvalidHierarchyError, validate_parent_child_relationship
@@ -24,7 +26,7 @@ from kanbus.agent_metadata import (
     assign_agent_metadata_if_incomplete,
 )
 from kanbus.models import AgentMetadata, IssueData
-from kanbus.project import get_configuration_path
+from kanbus.project_context import ProjectContext
 from kanbus.status_semantics import (
     SEMANTIC_IN_PROGRESS,
     resolve_primary_status_key_for_semantic_category,
@@ -40,7 +42,7 @@ from kanbus.event_history import (
     now_timestamp,
 )
 from kanbus.users import get_current_user
-from kanbus.gossip import publish_issue_mutation
+from kanbus.gossip import publish_issue_mutation_with_context
 
 
 class IssueUpdateError(RuntimeError):
@@ -101,6 +103,56 @@ def update_issue(
     :type root: Path
     :param identifier: Issue identifier.
     :type identifier: str
+    :return: Updated issue data and whether disk state changed.
+    :rtype: IssueUpdateResult
+    :raises IssueUpdateError: If the update fails.
+    """
+    return update_issue_with_context(
+        root,
+        ProjectContext.discover(root),
+        identifier,
+        title,
+        description,
+        status,
+        assignee,
+        claim,
+        validate=validate,
+        priority=priority,
+        add_labels=add_labels,
+        remove_labels=remove_labels,
+        set_labels=set_labels,
+        parent=parent,
+        issue_type=issue_type,
+        agent=agent,
+    )
+
+
+def update_issue_with_context(
+    root: Path,
+    project_context: ProjectContext | None,
+    identifier: str,
+    title: Optional[str],
+    description: Optional[str],
+    status: Optional[str],
+    assignee: Optional[str],
+    claim: bool,
+    validate: bool = True,
+    priority: Optional[int] = None,
+    add_labels: Optional[list[str]] = None,
+    remove_labels: Optional[list[str]] = None,
+    set_labels: Optional[list[str]] = None,
+    parent: Optional[str] = None,
+    issue_type: Optional[str] = None,
+    agent: Optional[AgentMetadata] = None,
+) -> IssueUpdateResult:
+    """Update an issue using an already built project context.
+
+    :param root: Repository root path.
+    :type root: Path
+    :param project_context: Project context built at command entry, if a configuration exists.
+    :type project_context: ProjectContext | None
+    :param identifier: Issue identifier.
+    :type identifier: str
     :param title: Updated title if provided.
     :type title: Optional[str]
     :param description: Updated description if provided.
@@ -143,12 +195,14 @@ def update_issue(
     )
 
     try:
-        lookup = load_issue_from_project(root, identifier)
+        lookup = load_issue_from_project_with_context(root, project_context, identifier)
     except IssueLookupError as error:
         raise IssueUpdateError(str(error)) from error
 
+    if project_context is None:
+        raise IssueUpdateError("project not initialized")
     project_dir = lookup.project_dir
-    configuration = load_project_configuration(get_configuration_path(project_dir))
+    configuration = project_context.configuration_for_project_directory(project_dir)
     before_issue = lookup.issue
     updated_issue = lookup.issue
     current_time = datetime.now(timezone.utc)
@@ -367,7 +421,7 @@ def update_issue(
     actor_id = get_current_user()
     events = build_update_events(before_issue, updated_issue, actor_id, occurred_at)
     try:
-        result = persist_issue_mutation(
+        result = persist_issue_mutation_with_events_setting(
             PersistIssueMutationRequest(
                 project_dir=lookup.project_dir,
                 issue_path=lookup.issue_path,
@@ -375,15 +429,16 @@ def update_issue(
                 actor_id=actor_id,
                 events=events,
                 before_issue=before_issue,
-            )
+            ),
+            configuration.events,
         )
     except Exception as error:  # noqa: BLE001
         raise IssueUpdateError(str(error)) from error
     updated_issue = result.issue
     if lookup.issue_path.parent == lookup.project_dir / "issues":
         event_id = events[0].event_id if events else None
-        publish_issue_mutation(
-            root,
+        publish_issue_mutation_with_context(
+            project_context,
             lookup.project_dir,
             updated_issue,
             event_id,

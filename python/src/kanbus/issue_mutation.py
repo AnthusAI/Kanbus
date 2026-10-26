@@ -18,9 +18,11 @@ from kanbus.event_history import (
     create_event,
     delete_events_for_issues,
     events_dir_for_issue_path,
+    events_enabled_for_events_directory,
     issue_deleted_payload,
     now_timestamp,
     write_events_batch,
+    write_events_batch_with_setting,
 )
 from kanbus.issue_files import (
     delete_issue_file,
@@ -125,21 +127,42 @@ def persist_issue_mutation(
 
     See :func:`_persist_issue_mutation_locked` for the write sequence.
     """
+    events_dir = events_dir_for_issue_path(
+        request.project_dir, request.relocate_to or request.issue_path
+    )
+    events_enabled = events_enabled_for_events_directory(events_dir)
+    return persist_issue_mutation_with_events_setting(request, events_enabled)
+
+
+def persist_issue_mutation_with_events_setting(
+    request: PersistIssueMutationRequest, events_enabled: bool
+) -> PersistIssueMutationResult:
+    """Persist an issue mutation using the events setting of a loaded configuration.
+
+    :param request: Mutation request including issue, path, and events.
+    :type request: PersistIssueMutationRequest
+    :param events_enabled: The ``events`` setting from the loaded configuration.
+    :type events_enabled: bool
+    :return: Persisted issue and written events.
+    :rtype: PersistIssueMutationResult
+    """
     with _issue_write_lock(request.project_dir, request.issue.identifier):
         if request.before_issue is not None:
             _refuse_if_issue_changed_since_read(
                 request.issue_path, request.before_issue
             )
-        return _persist_issue_mutation_locked(request)
+        return _persist_issue_mutation_locked(request, events_enabled)
 
 
 def _persist_issue_mutation_locked(
-    request: PersistIssueMutationRequest,
+    request: PersistIssueMutationRequest, events_enabled: bool
 ) -> PersistIssueMutationResult:
     """Persist an issue mutation with updated_at and event history.
 
     :param request: Mutation request including issue, path, and events.
     :type request: PersistIssueMutationRequest
+    :param events_enabled: The ``events`` setting from the loaded configuration.
+    :type events_enabled: bool
     :return: Persisted issue and written events.
     :rtype: PersistIssueMutationResult
     :raises RuntimeError: If event writing fails after rollback attempt.
@@ -154,7 +177,7 @@ def _persist_issue_mutation_locked(
         delete_issue_file(request.issue_path)
     events_dir = events_dir_for_issue_path(request.project_dir, final_issue_path)
     try:
-        write_events_batch(events_dir, request.events)
+        write_events_batch_with_setting(events_dir, request.events, events_enabled)
     except Exception as error:  # noqa: BLE001
         if request.relocate_to is not None and final_issue_path.exists():
             write_issue_to_file(persisted_issue, request.issue_path)

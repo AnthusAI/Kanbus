@@ -15,6 +15,7 @@ def test_should_check_project_structure_ignores_setup_commands() -> None:
     context.invoked_subcommand = "setup"
     assert cli._should_check_project_structure(context) is False
     context.invoked_subcommand = "list"
+    context.obj = {"project_context": None}
     assert cli._should_check_project_structure(context) is True
 
 
@@ -50,7 +51,7 @@ def test_resolve_beads_root_uses_configuration_marker_parent(
 def test_resolve_beads_mode_uses_commandline_override() -> None:
     context = click.Context(click.Command("kanbus"))
     context.get_parameter_source = lambda _name: click.core.ParameterSource.COMMANDLINE
-    assert cli._resolve_beads_mode(context, beads_mode=True) == (True, True)
+    assert cli._resolve_beads_mode(context, True, None) == (True, True)
 
 
 def test_maybe_prompt_project_repair_repairs_when_confirmed(
@@ -58,11 +59,12 @@ def test_maybe_prompt_project_repair_repairs_when_confirmed(
 ) -> None:
     context = click.Context(click.Command("kanbus"))
     context.invoked_subcommand = "list"
+    context.obj = {"project_context": None}
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(
         cli,
-        "detect_repairable_project_issues",
-        lambda _root, allow_uninitialized: SimpleNamespace(
+        "detect_repairable_project_issues_with_context",
+        lambda _context, allow_uninitialized: SimpleNamespace(
             missing_project_dir=True,
             missing_issues_dir=False,
             missing_events_dir=True,
@@ -95,11 +97,12 @@ def test_maybe_prompt_project_repair_skips_when_no_plan(
 ) -> None:
     context = click.Context(click.Command("kanbus"))
     context.invoked_subcommand = "list"
+    context.obj = {"project_context": None}
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(
         cli,
-        "detect_repairable_project_issues",
-        lambda _root, allow_uninitialized: None,
+        "detect_repairable_project_issues_with_context",
+        lambda _context, allow_uninitialized: None,
     )
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
@@ -120,18 +123,19 @@ def test_maybe_prompt_project_repair_permission_and_noninteractive_paths(
 ) -> None:
     context = click.Context(click.Command("kanbus"))
     context.invoked_subcommand = "list"
+    context.obj = {"project_context": None}
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(
         cli,
-        "detect_repairable_project_issues",
+        "detect_repairable_project_issues_with_context",
         lambda *_a, **_k: (_ for _ in ()).throw(PermissionError("denied")),
     )
     cli._maybe_prompt_project_repair(context)
 
     monkeypatch.setattr(
         cli,
-        "detect_repairable_project_issues",
-        lambda _root, allow_uninitialized: SimpleNamespace(
+        "detect_repairable_project_issues_with_context",
+        lambda _context, allow_uninitialized: SimpleNamespace(
             missing_project_dir=True,
             missing_issues_dir=True,
             missing_events_dir=True,
@@ -147,11 +151,12 @@ def test_maybe_prompt_project_repair_includes_missing_issues_in_prompt(
 ) -> None:
     context = click.Context(click.Command("kanbus"))
     context.invoked_subcommand = "list"
+    context.obj = {"project_context": None}
     monkeypatch.setattr(cli.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(
         cli,
-        "detect_repairable_project_issues",
-        lambda _root, allow_uninitialized: SimpleNamespace(
+        "detect_repairable_project_issues_with_context",
+        lambda _context, allow_uninitialized: SimpleNamespace(
             missing_project_dir=False,
             missing_issues_dir=True,
             missing_events_dir=False,

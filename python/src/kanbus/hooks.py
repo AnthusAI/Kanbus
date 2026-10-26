@@ -16,9 +16,9 @@ from typing import Any, Protocol
 
 import click
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import ConfigurationError
 from kanbus.models import HookDefinition, HooksConfiguration, IssueData
-from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.project_context import ProjectContext
 
 HOOK_SCHEMA_VERSION = "kanbus.hooks.v1"
 
@@ -343,8 +343,44 @@ def run_lifecycle_hooks(
     """Run external hooks and built-in policy provider for one lifecycle event."""
     if hooks_globally_disabled(no_hooks):
         return
+    run_lifecycle_hooks_with_context(
+        root=root,
+        context=ProjectContext.discover(root),
+        phase=phase,
+        event=event,
+        actor=actor,
+        beads_mode=beads_mode,
+        operation=operation,
+        issues_for_policy=issues_for_policy,
+        no_hooks=no_hooks,
+        no_guidance=no_guidance,
+    )
 
-    hooks_config, project_root = _resolve_hook_configuration_or_fail(root)
+
+def run_lifecycle_hooks_with_context(
+    *,
+    root: Path,
+    context: ProjectContext | None,
+    phase: HookPhase,
+    event: HookEvent,
+    actor: str,
+    beads_mode: bool,
+    operation: dict[str, Any] | None = None,
+    issues_for_policy: list[IssueData] | None = None,
+    no_hooks: bool = False,
+    no_guidance: bool = False,
+) -> None:
+    """Run lifecycle hooks using an already built project context.
+
+    :param root: Working root the command runs from.
+    :type root: Path
+    :param context: Project context built at command entry, if a configuration exists.
+    :type context: ProjectContext | None
+    """
+    if hooks_globally_disabled(no_hooks):
+        return
+
+    hooks_config, project_root = _hook_configuration_from_context(root, context)
     if not hooks_config.enabled:
         return
     if beads_mode and not hooks_config.run_in_beads_mode:
@@ -393,6 +429,7 @@ def run_lifecycle_hooks(
     if phase == HookPhase.AFTER:
         _run_policy_guidance_provider(
             project_root=project_root,
+            context=context,
             event=event,
             issues_for_policy=issues_for_policy or [],
             beads_mode=beads_mode,
@@ -400,24 +437,16 @@ def run_lifecycle_hooks(
         )
 
 
-def _resolve_hook_configuration_or_fail(
-    root: Path,
+def _hook_configuration_from_context(
+    root: Path, context: ProjectContext | None
 ) -> tuple[HooksConfiguration, Path]:
-    try:
-        config_path = get_configuration_path(root)
-    except ProjectMarkerError:
+    if context is None:
         return HooksConfiguration(), root
-    configuration = load_project_configuration(config_path)
-    return configuration.hooks, config_path.parent
+    return context.configuration.hooks, context.repository_root
 
 
 def _resolve_hook_configuration(root: Path) -> tuple[HooksConfiguration, Path]:
-    try:
-        config_path = get_configuration_path(root)
-        configuration = load_project_configuration(config_path)
-        return configuration.hooks, config_path.parent
-    except (ConfigurationError, ProjectMarkerError, OSError):
-        return HooksConfiguration(), root
+    return _hook_configuration_from_context(root, ProjectContext.discover(root))
 
 
 def _hooks_for_event(
@@ -448,6 +477,7 @@ def _policy_events() -> list[HookEvent]:
 def _run_policy_guidance_provider(
     *,
     project_root: Path,
+    context: ProjectContext | None,
     event: HookEvent,
     issues_for_policy: list[IssueData],
     beads_mode: bool,
@@ -460,14 +490,17 @@ def _run_policy_guidance_provider(
         return
     try:
         from kanbus.policy_context import PolicyOperation
-        from kanbus.policy_guidance import emit_guidance_for_issues
+        from kanbus.policy_guidance import emit_guidance_for_issues_with_context
 
-        emit_guidance_for_issues(
+        emit_guidance_for_issues_with_context(
             project_root,
+            context,
             issues_for_policy,
             PolicyOperation(operation_name),
             no_guidance=no_guidance,
         )
+    except ConfigurationError:
+        raise
     except Exception as error:  # pragma: no cover - intentionally non-blocking
         click.echo(
             f"Hook warning ({event.value}/after/policy-guidance): {error}",

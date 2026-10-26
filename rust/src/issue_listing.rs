@@ -7,11 +7,12 @@ use crate::config_loader::load_project_configuration;
 use crate::daemon_client::{is_daemon_config_schema_error, is_daemon_enabled, request_index_list};
 use crate::error::KanbusError;
 use crate::file_io::{
-    canonicalize_path, discover_kanbus_projects, discover_project_directories,
-    find_project_local_directory, get_configuration_path, resolve_labeled_projects,
+    canonicalize_path, discover_kanbus_projects_with, discover_project_directories_with,
+    find_project_local_directory,
 };
 use crate::models::{IssueData, ProjectConfiguration};
 use crate::overlay::apply_overlay_to_issues;
+use crate::project_context::{ProjectContext, PROJECT_NOT_INITIALIZED_MESSAGE};
 use crate::queries::{filter_issues, search_issues, sort_issues};
 use std::collections::{HashMap, HashSet};
 
@@ -36,6 +37,46 @@ pub fn list_issues(
     include_local: bool,
     local_only: bool,
 ) -> Result<Vec<IssueData>, KanbusError> {
+    let context = ProjectContext::discover(root)?;
+    list_issues_with_context(
+        root,
+        context.as_ref(),
+        status,
+        issue_type,
+        assignee,
+        label,
+        parent,
+        sort,
+        search,
+        project_filter,
+        include_local,
+        local_only,
+    )
+}
+
+/// List issues for the project using an already built project context.
+///
+/// # Arguments
+/// * `root` - Repository root path.
+/// * `context` - Project context built at command entry, if a configuration exists.
+///
+/// # Errors
+/// Returns `KanbusError` when listing fails, including configuration errors.
+#[allow(clippy::too_many_arguments)]
+pub fn list_issues_with_context(
+    root: &Path,
+    context: Option<&ProjectContext>,
+    status: Option<&str>,
+    issue_type: Option<&str>,
+    assignee: Option<&str>,
+    label: Option<&str>,
+    parent: Option<&str>,
+    sort: Option<&str>,
+    search: Option<&str>,
+    project_filter: &[String],
+    include_local: bool,
+    local_only: bool,
+) -> Result<Vec<IssueData>, KanbusError> {
     if local_only && !include_local {
         return Err(KanbusError::IssueOperation(
             "local-only conflicts with no-local".to_string(),
@@ -44,6 +85,7 @@ pub fn list_issues(
     if !project_filter.is_empty() {
         return list_with_project_filter(
             root,
+            context,
             project_filter,
             status,
             issue_type,
@@ -56,9 +98,10 @@ pub fn list_issues(
             local_only,
         );
     }
+    let configuration_at_root = context.and_then(ProjectContext::configuration_at_root);
     let mut projects = Vec::new();
-    discover_project_directories(root, &mut projects)?;
-    let mut dotfile_projects = discover_kanbus_projects(root)?;
+    discover_project_directories_with(root, configuration_at_root, &mut projects)?;
+    let mut dotfile_projects = discover_kanbus_projects_with(root, configuration_at_root)?;
     for configured_project in &dotfile_projects {
         let issues_dir = configured_project.join("issues");
         let issues_directory_missing = matches!(
@@ -82,14 +125,14 @@ pub fn list_issues(
     }
     normalized.sort();
     normalized.dedup();
-    let root_configuration = load_root_configuration(root)?;
-    if let Some(configuration) = root_configuration.as_ref() {
-        let base = get_configuration_path(root)?
-            .parent()
-            .unwrap_or_else(|| Path::new(""))
-            .to_path_buf();
+    let root_configuration = context.map(|context| &context.configuration);
+    if let Some(context) = context {
         normalized.retain(|project_path| {
-            !crate::file_io::is_path_ignored(project_path, &base, &configuration.ignore_paths)
+            !crate::file_io::is_path_ignored(
+                project_path,
+                &context.repository_root,
+                &context.configuration.ignore_paths,
+            )
         });
     }
     let mut permission_error = None;
@@ -114,14 +157,10 @@ pub fn list_issues(
             "project not initialized".to_string(),
         ));
     }
-    let project_labels: HashMap<std::path::PathBuf, String> = resolve_labeled_projects(root)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|project| (project.project_dir, project.label))
-        .collect();
+    let project_labels = project_labels_for_context(context)?;
 
     if projects.len() > 1 {
-        let overlay_configs = resolve_overlay_configs(&projects, root_configuration.as_ref())?;
+        let overlay_configs = resolve_overlay_configs(&projects, root_configuration)?;
         let issues = list_issues_across_projects(
             root,
             &projects,
@@ -136,7 +175,7 @@ pub fn list_issues(
     }
 
     let project_dir = projects[0].clone();
-    let overlay_config = overlay_config_for_project(&project_dir, root_configuration.as_ref())?;
+    let overlay_config = overlay_config_for_project(&project_dir, root_configuration)?;
 
     if include_local || local_only {
         let local_dir = find_project_local_directory(&project_dir);
@@ -190,6 +229,7 @@ pub fn list_issues(
 #[allow(clippy::too_many_arguments)]
 fn list_with_project_filter(
     root: &Path,
+    context: Option<&ProjectContext>,
     project_filter: &[String],
     status: Option<&str>,
     issue_type: Option<&str>,
@@ -201,7 +241,9 @@ fn list_with_project_filter(
     include_local: bool,
     local_only: bool,
 ) -> Result<Vec<IssueData>, KanbusError> {
-    let labeled = resolve_labeled_projects(root)?;
+    let context = context
+        .ok_or_else(|| KanbusError::IssueOperation(PROJECT_NOT_INITIALIZED_MESSAGE.to_string()))?;
+    let labeled = context.labeled_projects()?;
     if labeled.is_empty() {
         return Err(KanbusError::IssueOperation(
             "project not initialized".to_string(),
@@ -217,13 +259,12 @@ fn list_with_project_filter(
     }
     let allowed: HashSet<&str> = project_filter.iter().map(|s| s.as_str()).collect();
     let project_dirs: Vec<std::path::PathBuf> = labeled
-        .into_iter()
+        .iter()
         .filter(|p| allowed.contains(p.label.as_str()))
-        .map(|p| p.project_dir)
+        .map(|p| p.project_dir.clone())
         .collect();
-    let configuration = load_project_configuration(&get_configuration_path(root)?)?;
-    let overlay_configs = resolve_overlay_configs(&project_dirs, Some(&configuration))?;
-    let project_labels: HashMap<std::path::PathBuf, String> = resolve_labeled_projects(root)?
+    let overlay_configs = resolve_overlay_configs(&project_dirs, Some(&context.configuration))?;
+    let project_labels: HashMap<std::path::PathBuf, String> = labeled
         .into_iter()
         .map(|project| (project.project_dir, project.label))
         .collect();
@@ -238,6 +279,19 @@ fn list_with_project_filter(
     apply_query(
         issues, status, issue_type, assignee, label, parent, sort, search,
     )
+}
+
+fn project_labels_for_context(
+    context: Option<&ProjectContext>,
+) -> Result<HashMap<std::path::PathBuf, String>, KanbusError> {
+    let Some(context) = context else {
+        return Ok(HashMap::new());
+    };
+    Ok(context
+        .labeled_projects()?
+        .into_iter()
+        .map(|project| (project.project_dir, project.label))
+        .collect())
 }
 
 fn load_shared_issues_via_daemon_or_filesystem(
@@ -356,13 +410,6 @@ fn list_issues_across_projects(
         issues.extend(project_issues);
     }
     Ok(issues)
-}
-
-fn load_root_configuration(root: &Path) -> Result<Option<ProjectConfiguration>, KanbusError> {
-    match get_configuration_path(root) {
-        Ok(config_path) => load_project_configuration(&config_path).map(Some),
-        Err(_) => Ok(None),
-    }
 }
 
 fn disabled_overlay_config() -> crate::models::OverlayConfig {

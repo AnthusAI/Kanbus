@@ -15,6 +15,7 @@ from kanbus import __version__
 from kanbus.file_io import (
     InitializationError,
     detect_repairable_project_issues,
+    detect_repairable_project_issues_with_context,
     ensure_git_repository,
     initialize_project,
     repair_project_structure,
@@ -22,7 +23,7 @@ from kanbus.file_io import (
 from kanbus.kanbus_version import KanbusVersionError, enforce_kanbus_version
 from kanbus.content_validation import ContentValidationError, validate_code_blocks
 from kanbus.rich_text_signals import apply_text_quality_signals, emit_signals
-from kanbus.issue_creation import IssueCreationError, create_issue
+from kanbus.issue_creation import IssueCreationError, create_issue_with_context
 from kanbus.coordination import (
     CoordinationError,
     claim as coordination_claim,
@@ -58,13 +59,26 @@ from kanbus.issue_line import (
     format_empty_status_lines,
     format_issue_line,
 )
-from kanbus.issue_lookup import IssueLookupError, load_issue_from_project
-from kanbus.issue_update import IssueUpdateError, update_issue
+from kanbus.issue_lookup import (
+    IssueLookupError,
+    load_issue_from_project,
+    load_issue_from_project_with_context,
+)
+from kanbus.issue_update import (
+    IssueUpdateError,
+    update_issue,
+    update_issue_with_context,
+)
 from kanbus.issue_commit import IssueCommitError, commit_project_issues
 from kanbus.issue_transfer import IssueTransferError, localize_issue, promote_issue
-from kanbus.issue_listing import IssueListingError, list_issues
+from kanbus.issue_listing import (
+    IssueListingError,
+    list_issues,
+    list_issues_with_context,
+)
 from kanbus.queries import QueryError
 from kanbus.daemon_client import DaemonClientError, request_shutdown, request_status
+from kanbus.daemon_paths import remember_project_directory
 from kanbus.users import get_current_user
 from kanbus.migration import (
     MigrationError,
@@ -127,6 +141,7 @@ from kanbus.console_standup import (
 from kanbus.console_screenshot import ConsoleScreenshotError, capture_console_screenshot
 from kanbus.console_ui_state import fetch_console_ui_state
 from kanbus.project import ProjectMarkerError, get_configuration_path
+from kanbus.project_context import ProjectContext, locate_configuration_path
 from kanbus.config_loader import (
     ConfigurationError,
     congregation_env_path,
@@ -160,7 +175,7 @@ from kanbus.hooks import (
     HookExecutionError,
     HookPhase,
     list_hooks,
-    run_lifecycle_hooks,
+    run_lifecycle_hooks_with_context,
     serialize_issue,
     validate_hooks,
 )
@@ -229,17 +244,39 @@ def _resolve_cli_agent_metadata(
         raise click.ClickException(str(error)) from error
 
 
-def _resolve_beads_mode(context: click.Context, beads_mode: bool) -> tuple[bool, bool]:
+def _resolve_beads_mode(
+    context: click.Context, beads_mode: bool, project_context: ProjectContext | None
+) -> tuple[bool, bool]:
     source = context.get_parameter_source("beads_mode")
     if source == click.core.ParameterSource.COMMANDLINE and beads_mode:
         return True, True
-    try:
-        configuration = load_project_configuration(get_configuration_path(Path.cwd()))
-    except ProjectMarkerError:
+    if project_context is None:
         return False, False
+    return project_context.configuration.beads_compatibility, False
+
+
+def _build_project_context(root: Path) -> ProjectContext | None:
+    """Build the one project context for this command.
+
+    Dotenv files are loaded here, once, before the configuration is read.
+    """
+    try:
+        configuration_path = locate_configuration_path(root)
+        if configuration_path is None:
+            return None
+        load_repository_environment(configuration_path.parent)
+        project_context = ProjectContext.from_configuration_path(
+            root, configuration_path
+        )
     except ConfigurationError as error:
         raise click.ClickException(str(error)) from error
-    return configuration.beads_compatibility, False
+    remember_project_directory(project_context)
+    return project_context
+
+
+def _project_context(context: click.Context) -> ProjectContext | None:
+    """Return the project context built at command entry."""
+    return context.obj["project_context"]
 
 
 def _resolve_beads_root(cwd: Path) -> Path:
@@ -252,7 +289,7 @@ def _resolve_beads_root(cwd: Path) -> Path:
     try:
         marker = get_configuration_path(cwd)
         return marker.parent
-    except (ProjectMarkerError, ConfigurationError):
+    except ProjectMarkerError:
         pass
 
     current: Optional[Path] = cwd
@@ -299,23 +336,16 @@ def cli(
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
     _enforce_kanbus_version(context)
-    _preload_repository_environment()
-    resolved, forced = _resolve_beads_mode(context, beads_mode)
+    project_context = _build_project_context(Path.cwd())
+    resolved, forced = _resolve_beads_mode(context, beads_mode, project_context)
     context.obj = {
         "beads_mode": resolved,
         "beads_mode_forced": forced,
         "no_guidance": no_guidance,
         "no_hooks": no_hooks,
+        "project_context": project_context,
     }
     _maybe_prompt_project_repair(context)
-
-
-def _preload_repository_environment() -> None:
-    try:
-        configuration_path = get_configuration_path(Path.cwd())
-    except (ProjectMarkerError, ConfigurationError):
-        return
-    load_repository_environment(configuration_path.parent)
 
 
 def _should_check_project_structure(context: click.Context) -> bool:
@@ -350,7 +380,9 @@ def _maybe_prompt_project_repair(context: click.Context) -> None:
         return
     root = Path.cwd()
     try:
-        plan = detect_repairable_project_issues(root, allow_uninitialized=True)
+        plan = detect_repairable_project_issues_with_context(
+            _project_context(context), allow_uninitialized=True
+        )
     except PermissionError:
         return
     if plan is None:
@@ -904,9 +936,12 @@ def create(
         root=root,
         beads_mode=False,
     )
+    project_context = _project_context(context)
+    if project_context is None:
+        raise click.ClickException("project not initialized")
     try:
-        result = create_issue(
-            root=root,
+        result = create_issue_with_context(
+            project_context,
             title=title_text,
             issue_type=issue_type,
             priority=priority,
@@ -967,16 +1002,6 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
 
-    # Check if beads_compatibility is enabled in config
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
-            pass
-
     if beads_mode:
         root = _resolve_beads_root(root)
 
@@ -996,12 +1021,17 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
             raise click.ClickException(str(error)) from error
         configuration = None
     else:
+        project_context = _project_context(context)
         try:
-            lookup = load_issue_from_project(root, identifier)
+            lookup = load_issue_from_project_with_context(
+                root, project_context, identifier
+            )
         except IssueLookupError as error:
             raise click.ClickException(str(error)) from error
+        if project_context is None:
+            raise click.ClickException("project not initialized")
         issue = lookup.issue
-        configuration = load_project_configuration(get_configuration_path(root))
+        configuration = project_context.configuration
 
     if as_json:
         payload = issue.model_dump(by_alias=True, mode="json")
@@ -1020,10 +1050,10 @@ def show(context: click.Context, identifier: str, as_json: bool, raw: bool) -> N
     all_issues = None
     if not beads_mode:
         try:
-            from kanbus.console_snapshot import get_issues_for_root
+            from kanbus.console_snapshot import get_issues_for_context
 
-            all_issues = list(get_issues_for_root(root))
-        except Exception:
+            all_issues = list(get_issues_for_context(project_context))
+        except ConsoleSnapshotError:
             pass
 
     summary_comment = next(
@@ -1123,16 +1153,6 @@ def update(
     if context.obj:
         beads_mode = bool(context.obj.get("beads_mode"))
 
-    # Check if beads_compatibility is enabled in config
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
-            pass
-
     update_quality_result = None
     if description:
         description_text_stripped = description.strip()
@@ -1220,7 +1240,6 @@ def update(
             )
             from kanbus.policy_evaluator import evaluate_policies
             from kanbus.policy_loader import load_policies
-            from kanbus.project import load_project_directory
             from kanbus.workflows import (
                 validate_status_transition,
                 validate_status_value,
@@ -1228,15 +1247,15 @@ def update(
 
             project_dir: Path | None = None
             configuration = None
-            try:
-                project_dir = load_project_directory(root)
-                configuration = load_project_configuration(
-                    get_configuration_path(project_dir)
-                )
-            except (ProjectMarkerError, ConfigurationError):
-                # Beads mode can operate without an initialized Kanbus project.
-                project_dir = None
-                configuration = None
+            beads_project_context = _project_context(context)
+            if beads_project_context is not None:
+                try:
+                    project_dir = beads_project_context.primary_project_directory()
+                    configuration = beads_project_context.configuration
+                except ProjectMarkerError:
+                    # Beads mode can operate without an initialized Kanbus project.
+                    project_dir = None
+                    configuration = None
 
             if configuration and proposed_issue.status != before_issue.status:
                 validate_status_value(
@@ -1261,7 +1280,7 @@ def update(
                         if existing_issue.identifier == proposed_issue.identifier:
                             all_issues[index] = proposed_issue
                             break
-                    context = PolicyContext(
+                    policy_context = PolicyContext(
                         current_issue=before_issue,
                         proposed_issue=proposed_issue,
                         transition=(
@@ -1276,7 +1295,7 @@ def update(
                         project_configuration=configuration,
                         all_issues=all_issues,
                     )
-                    evaluate_policies(context, policy_documents)
+                    evaluate_policies(policy_context, policy_documents)
 
         try:
             update_beads_issue(
@@ -1317,9 +1336,12 @@ def update(
         return
 
     # Regular Kanbus mode
+    project_context = _project_context(context)
     before_issue_snapshot: IssueData | None = None
     try:
-        before_issue_snapshot = load_issue_from_project(root, identifier).issue
+        before_issue_snapshot = load_issue_from_project_with_context(
+            root, project_context, identifier
+        ).issue
     except IssueLookupError:
         before_issue_snapshot = None
 
@@ -1346,8 +1368,9 @@ def update(
         beads_mode=False,
     )
     try:
-        update_result = update_issue(
+        update_result = update_issue_with_context(
             root=root,
+            project_context=project_context,
             identifier=identifier,
             title=title.strip() if title else None,
             description=description.strip() if description else None,
@@ -1701,15 +1724,6 @@ def move(
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
 
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
-            pass
-
     if beads_mode:
         raise click.ClickException("move is not supported in beads mode")
 
@@ -1784,14 +1798,6 @@ def delete(
     beads_mode = bool(context.obj.get("beads_mode"))
     issue_for_guidance: IssueData | None = None
     issue_for_hooks: IssueData | None = None
-
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            pass
 
     if not beads_mode:
         try:
@@ -2062,13 +2068,6 @@ def _update_issue_comment(
     text = " ".join(tokens[2:]).strip() if len(tokens) > 2 else ""
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            pass
     agent_metadata = _resolve_cli_agent_metadata(
         agent_platform, agent_model, agent_settings, agent_name
     )
@@ -2165,16 +2164,6 @@ def comment(
     agent_metadata = _resolve_cli_agent_metadata(
         agent_platform, agent_model, agent_settings, agent_name
     )
-
-    # Check if beads_compatibility is enabled in config
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
-            pass
 
     if beads_mode:
         reject_agent_metadata_in_beads_mode(agent_metadata is not None)
@@ -2380,9 +2369,11 @@ def list_command(
         root=root,
         beads_mode=beads_mode,
     )
+    project_context = _project_context(context)
     try:
-        issues = list_issues(
+        issues = list_issues_with_context(
             root,
+            project_context,
             status=status,
             issue_type=issue_type,
             assignee=assignee,
@@ -2411,13 +2402,8 @@ def list_command(
         issues = issues[:limit]
 
     configuration = None
-    if not beads_mode:
-        try:
-            configuration = load_project_configuration(get_configuration_path(root))
-        except ProjectMarkerError:
-            configuration = None
-        except ConfigurationError as error:
-            raise click.ClickException(str(error)) from error
+    if not beads_mode and project_context is not None:
+        configuration = project_context.configuration
 
     # In Beads mode, always show full IDs (project_context=False)
     # In regular mode, use project_context if all issues are from same project
@@ -2484,8 +2470,9 @@ def _run_lifecycle_hooks_for_context(
     if not context.obj:
         return
     try:
-        run_lifecycle_hooks(
+        run_lifecycle_hooks_with_context(
             root=root or Path.cwd(),
+            context=_project_context(context),
             phase=phase,
             event=event,
             actor=get_current_user(),
@@ -3440,16 +3427,6 @@ def dep(context: click.Context, args: tuple[str, ...]) -> None:
 
     root = Path.cwd()
     beads_mode = bool(context.obj.get("beads_mode")) if context.obj else False
-
-    # Check if beads_compatibility is enabled in config
-    if not beads_mode:
-        try:
-            config = load_project_configuration(get_configuration_path(root))
-            if config.beads_compatibility:
-                beads_mode = True
-        except (ConfigurationError, ProjectMarkerError):
-            # Treat unreadable/missing project config as standard Kanbus mode.
-            pass
 
     if is_remove:
         _run_lifecycle_hooks_for_context(

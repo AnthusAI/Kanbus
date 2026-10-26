@@ -20,14 +20,14 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from kanbus.config_loader import ConfigurationError, load_project_configuration
+from kanbus.config_loader import load_project_configuration
 from kanbus.models import IssueData, ProjectConfiguration, RealtimeConfig
 from kanbus.overlay import OverlayTombstone, write_overlay_issue, write_tombstone
 from kanbus.project import (
-    ProjectMarkerError,
     get_configuration_path,
     resolve_labeled_projects,
 )
+from kanbus.project_context import ProjectContext
 from kanbus.test_hooks import read_test_hook
 
 _MOSQUITTO_MISSING_WARNED = False
@@ -170,16 +170,31 @@ def publish_issue_mutation(
     event_id: Optional[str],
     event_type: str,
 ) -> None:
-    """Publish a gossip envelope for an issue mutation."""
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-    except (ProjectMarkerError, ConfigurationError):
+    """Publish a gossip envelope for an issue mutation.
+
+    :raises ConfigurationError: If the project configuration is invalid.
+    """
+    context = ProjectContext.discover(root)
+    if context is None:
         return
+    publish_issue_mutation_with_context(
+        context, project_dir, issue, event_id, event_type
+    )
+
+
+def publish_issue_mutation_with_context(
+    context: ProjectContext,
+    project_dir: Path,
+    issue: IssueData,
+    event_id: Optional[str],
+    event_type: str,
+) -> None:
+    """Publish a gossip envelope for an issue mutation using a built context."""
+    root = context.root
+    configuration = context.configuration
     if configuration.realtime.broker == "off":
         return
-    project_label = _resolve_project_label(root, project_dir, configuration)
-    if project_label is None:
-        return
+    project_label = _resolve_project_label_in_context(context, project_dir)
     project_identity = realtime_project_id(configuration)
     if project_identity is None:
         return
@@ -210,16 +225,18 @@ def publish_issue_deleted(
     issue_id: str,
     event_id: Optional[str],
 ) -> None:
-    """Publish a gossip envelope for an issue deletion."""
-    try:
-        configuration = load_project_configuration(get_configuration_path(root))
-    except (ProjectMarkerError, ConfigurationError):
+    """Publish a gossip envelope for an issue deletion.
+
+    :raises ConfigurationError: If the project configuration is invalid.
+    """
+    context = ProjectContext.discover(root)
+    if context is None:
         return
+    root = context.root
+    configuration = context.configuration
     if configuration.realtime.broker == "off":
         return
-    project_label = _resolve_project_label(root, project_dir, configuration)
-    if project_label is None:
-        return
+    project_label = _resolve_project_label_in_context(context, project_dir)
     project_identity = realtime_project_id(configuration)
     if project_identity is None:
         return
@@ -453,11 +470,11 @@ def run_gossip_broker(root: Path, socket_override: Optional[Path]) -> None:
     """Run a UDS gossip broker."""
     socket_path = socket_override
     if socket_path is None:
-        try:
-            configuration = load_project_configuration(get_configuration_path(root))
-            socket_path = _uds_socket_path(configuration.realtime)
-        except (ProjectMarkerError, ConfigurationError):
+        context = ProjectContext.discover(root)
+        if context is None:
             socket_path = _uds_socket_path()
+        else:
+            socket_path = _uds_socket_path(context.configuration.realtime)
     run_uds_broker(socket_path)
 
 
@@ -968,6 +985,15 @@ def _resolve_project_label(
         if project.project_dir == project_dir:
             return project.label
     return configuration.project_key
+
+
+def _resolve_project_label_in_context(
+    context: ProjectContext, project_dir: Path
+) -> str:
+    for project in context.labeled_projects():
+        if project.project_dir == project_dir:
+            return project.label
+    return context.configuration.project_key
 
 
 MISSING_PROJECT_ID_MESSAGE = "Realtime updates are off for this project because .kanbus.yml has no project_id. Run 'kbs migrate project-id' once on the repository's integration branch and commit .kanbus.yml; every clone and worktree then shares live updates. Every machine using this repository needs kbs 0.40.0 or later first."

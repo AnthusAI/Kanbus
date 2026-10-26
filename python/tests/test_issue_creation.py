@@ -13,6 +13,7 @@ from kanbus.workflows import InvalidTransitionError
 from test_helpers import (
     build_issue,
     build_project_configuration,
+    build_project_context,
     stub_persist_issue_mutation,
 )
 
@@ -25,16 +26,13 @@ def _setup_common(
     issues_dir.mkdir(parents=True, exist_ok=True)
     cfg = build_project_configuration(project_directory="project")
 
+    project_context = build_project_context(root, cfg)
     monkeypatch.setattr(
-        issue_creation, "load_project_directory", lambda _r: project_dir
+        issue_creation, "require_project_context", lambda _r: project_context
     )
     monkeypatch.setattr(
         issue_creation, "find_project_local_directory", lambda _p: local_dir
     )
-    monkeypatch.setattr(
-        issue_creation, "get_configuration_path", lambda _r: root / ".kanbus.yml"
-    )
-    monkeypatch.setattr(issue_creation, "load_project_configuration", lambda _p: cfg)
     monkeypatch.setattr(issue_creation, "list_issue_identifiers", lambda _d: set())
     monkeypatch.setattr(
         issue_creation,
@@ -65,12 +63,14 @@ def test_create_issue_success_non_local(
     persist_calls: list[object] = []
     monkeypatch.setattr(
         issue_creation,
-        "persist_issue_mutation",
+        "persist_issue_mutation_with_events_setting",
         stub_persist_issue_mutation(persist_calls),
     )
     published: list[str] = []
     monkeypatch.setattr(
-        issue_creation, "publish_issue_mutation", lambda *_a: published.append("pub")
+        issue_creation,
+        "publish_issue_mutation_with_context",
+        lambda *_a: published.append("pub"),
     )
 
     result = issue_creation.create_issue(
@@ -107,12 +107,12 @@ def test_create_issue_success_local_uses_local_events(
     persist_calls: list[object] = []
     monkeypatch.setattr(
         issue_creation,
-        "persist_issue_mutation",
+        "persist_issue_mutation_with_events_setting",
         stub_persist_issue_mutation(persist_calls),
     )
     monkeypatch.setattr(
         issue_creation,
-        "publish_issue_mutation",
+        "publish_issue_mutation_with_context",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("should not publish")),
     )
 
@@ -137,25 +137,16 @@ def test_create_issue_wraps_project_or_config_errors(
 ) -> None:
     monkeypatch.setattr(
         issue_creation,
-        "load_project_directory",
+        "require_project_context",
         lambda _r: (_ for _ in ()).throw(issue_creation.ProjectMarkerError("bad root")),
     )
     with pytest.raises(issue_creation.IssueCreationError, match="bad root"):
         issue_creation.create_issue(tmp_path, "t", None, None, None, None, [], None)
 
-    project_dir = tmp_path / "project"
-    project_dir.mkdir(parents=True)
-    monkeypatch.setattr(
-        issue_creation, "load_project_directory", lambda _r: project_dir
-    )
-    monkeypatch.setattr(issue_creation, "find_project_local_directory", lambda _p: None)
-    monkeypatch.setattr(
-        issue_creation, "get_configuration_path", lambda _r: tmp_path / ".kanbus.yml"
-    )
     monkeypatch.setattr(
         issue_creation,
-        "load_project_configuration",
-        lambda _p: (_ for _ in ()).throw(issue_creation.ConfigurationError("bad cfg")),
+        "require_project_context",
+        lambda _r: (_ for _ in ()).throw(issue_creation.ConfigurationError("bad cfg")),
     )
     with pytest.raises(issue_creation.IssueCreationError, match="bad cfg"):
         issue_creation.create_issue(tmp_path, "t", None, None, None, None, [], None)
@@ -167,9 +158,13 @@ def test_create_issue_validation_errors(
     root = tmp_path
     _project_dir, issues_dir, cfg = _setup_common(monkeypatch, root)
     monkeypatch.setattr(
-        issue_creation, "persist_issue_mutation", stub_persist_issue_mutation()
+        issue_creation,
+        "persist_issue_mutation_with_events_setting",
+        stub_persist_issue_mutation(),
     )
-    monkeypatch.setattr(issue_creation, "publish_issue_mutation", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_creation, "publish_issue_mutation_with_context", lambda *_a: None
+    )
 
     with pytest.raises(issue_creation.IssueCreationError, match="unknown issue type"):
         issue_creation.create_issue(
@@ -247,9 +242,13 @@ def test_create_issue_policy_violation_and_event_rollback(
     monkeypatch.setattr(issue_creation, "validate_status_value", lambda *_a: None)
     monkeypatch.setattr(issue_creation, "_find_duplicate_title", lambda *_a: None)
     monkeypatch.setattr(
-        issue_creation, "persist_issue_mutation", stub_persist_issue_mutation()
+        issue_creation,
+        "persist_issue_mutation_with_events_setting",
+        stub_persist_issue_mutation(),
     )
-    monkeypatch.setattr(issue_creation, "publish_issue_mutation", lambda *_a: None)
+    monkeypatch.setattr(
+        issue_creation, "publish_issue_mutation_with_context", lambda *_a: None
+    )
 
     policies_dir = project_dir / "policies"
     policies_dir.mkdir(parents=True, exist_ok=True)
@@ -285,7 +284,7 @@ def test_create_issue_policy_violation_and_event_rollback(
     monkeypatch.setattr(policy_loader, "load_policies", lambda _p: [])
     monkeypatch.setattr(
         issue_creation,
-        "persist_issue_mutation",
+        "persist_issue_mutation_with_events_setting",
         lambda *_a: (_ for _ in ()).throw(RuntimeError("event write fail")),
     )
 
