@@ -7,6 +7,7 @@ import os
 import pytest
 
 os.environ["KANBUS_ENABLE_TEST_HOOKS"] = "1"
+os.environ["KANBUS_TEST_DISABLE_SERVICE"] = "1"
 
 
 @pytest.fixture(autouse=True)
