@@ -577,9 +577,6 @@ fn given_issue_has_description_with_character_count(
 
 #[when(expr = "I build the right now context for issue {string}")]
 fn when_build_right_now_context(world: &mut KanbusWorld, identifier: String) {
-    if std::env::var("KANBUS_NO_DAEMON").is_err() {
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
-    }
     let root = world.working_directory.as_ref().expect("cwd");
     let project_dir = load_project_dir(world);
     let issue = read_issue_file(&project_dir, &identifier);

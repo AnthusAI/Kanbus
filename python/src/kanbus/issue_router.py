@@ -125,17 +125,17 @@ def load_router_context(root: Path) -> RouterContext:
     if configuration.router is None:
         raise IssueRouterError("issue router is not configured")
     project_dir = config_path.parent / configuration.project_directory
-    previous_no_daemon = os.environ.get("KANBUS_NO_DAEMON")
-    os.environ["KANBUS_NO_DAEMON"] = "1"
+    previous_daemon_setting = os.environ.get("KANBUS_DAEMON")
+    os.environ["KANBUS_DAEMON"] = "0"
     try:
         issues = list_issues(root)
     except IssueListingError as error:
         raise IssueRouterError(str(error)) from error
     finally:
-        if previous_no_daemon is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+        if previous_daemon_setting is None:
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = previous_no_daemon
+            os.environ["KANBUS_DAEMON"] = previous_daemon_setting
     return RouterContext(
         root=root,
         project_dir=project_dir,

@@ -567,7 +567,7 @@ jobs:
           cd "$scratch"
           git init -q
           "$GITHUB_WORKSPACE/rust/target/release/kbs" init
-          KANBUS_NO_DAEMON=1 KANBUS_TEST_INVALID_STATUS=1 \
+          KANBUS_DAEMON=0 KANBUS_TEST_INVALID_STATUS=1 \
             "$GITHUB_WORKSPACE/rust/target/release/kbs" create "release binary ignores test hooks"
 
       - name: Prepare binaries for Docker test

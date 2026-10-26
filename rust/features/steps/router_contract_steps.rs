@@ -366,8 +366,8 @@ pub fn launch_watch(world: &mut KanbusWorld) {
     world.last_command = Some("kanbus router run --watch".to_string());
     let mut overrides = world.environment_overrides.clone();
     overrides
-        .entry("KANBUS_NO_DAEMON".to_string())
-        .or_insert_with(|| "1".to_string());
+        .entry("KANBUS_DAEMON".to_string())
+        .or_insert_with(|| "0".to_string());
     let diagnostic_root = root_path.clone();
     let join = thread::spawn(move || {
         let saved =

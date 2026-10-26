@@ -511,7 +511,7 @@ def main(argv: list[str]) -> int:
 
     env = os.environ.copy()
     env["NO_COLOR"] = "1"
-    env["KANBUS_NO_DAEMON"] = "1"
+    env["KANBUS_DAEMON"] = "0"
 
     try:
         with tempfile.TemporaryDirectory(prefix="kanbus-beads-interop-") as temp_dir:

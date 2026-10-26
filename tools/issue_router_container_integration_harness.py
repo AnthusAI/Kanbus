@@ -621,7 +621,7 @@ def _container_command(
         "--workdir",
         "/workspace",
         "--env",
-        "KANBUS_NO_DAEMON=1",
+        "KANBUS_DAEMON=0",
         "--env",
         f"KANBUS_REALTIME_UDS_SOCKET_PATH=/tmp/{name}.sock",
     ]

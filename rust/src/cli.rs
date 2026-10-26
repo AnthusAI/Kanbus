@@ -1519,6 +1519,7 @@ where
         no_guidance,
         no_hooks,
     );
+    crate::gossip::finish_pending_realtime_publishes();
     let captured_stderr = take_captured_stderr().unwrap_or_default();
     let stdout = stdout?;
 

@@ -94,7 +94,7 @@ def _start_kbsc(
 ) -> subprocess.Popen:  # type: ignore[type-arg]
     binary = _kbsc_binary_path()
     _build_kbsc_if_needed(binary)
-    environment = {**os.environ, "KANBUS_NO_DAEMON": "1"}
+    environment = {**os.environ, "KANBUS_DAEMON": "0"}
     overrides = (
         getattr(context, "environment_overrides", None) if context is not None else None
     )
@@ -106,7 +106,7 @@ def _start_kbsc(
             **environment,
             "CONSOLE_PORT": str(port),
             "CONSOLE_DATA_ROOT": str(working_directory),
-            "KANBUS_NO_DAEMON": "1",
+            "KANBUS_DAEMON": "0",
         },
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

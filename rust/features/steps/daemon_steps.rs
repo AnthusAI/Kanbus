@@ -112,6 +112,55 @@ fn open_and_close_socket(world: &KanbusWorld) {
     let _stream = UnixStream::connect(socket_path).expect("connect daemon socket");
 }
 
+#[given("daemon mode is not configured")]
+fn given_daemon_not_configured(world: &mut KanbusWorld) {
+    world.daemon_mode_disabled = false;
+    std::env::remove_var("KANBUS_DAEMON");
+}
+
+#[then("no daemon socket should exist for the project")]
+fn then_no_daemon_socket(world: &mut KanbusWorld) {
+    let socket_path = daemon_socket_path(world);
+    assert!(
+        !socket_path.exists(),
+        "daemon socket exists at {}",
+        socket_path.display()
+    );
+}
+
+#[cfg(unix)]
+fn send_and_abandon(world: &KanbusWorld, payload: &[u8]) {
+    let mut stream = UnixStream::connect(daemon_socket_path(world)).expect("connect daemon socket");
+    stream.write_all(payload).expect("write daemon payload");
+    stream
+        .shutdown(std::net::Shutdown::Both)
+        .expect("shutdown client socket");
+    drop(stream);
+    thread::sleep(Duration::from_millis(150));
+}
+
+#[when("a client sends a daemon request and closes the connection before the response")]
+fn when_client_abandons_request(world: &mut KanbusWorld) {
+    let request = serde_json::json!({
+        "protocol_version": PROTOCOL_VERSION,
+        "request_id": "req-abandoned",
+        "action": "ping",
+        "payload": {},
+    });
+    let line = format!("{request}\n");
+    #[cfg(unix)]
+    send_and_abandon(world, line.as_bytes());
+}
+
+#[when("a client sends half a daemon request and closes the connection")]
+fn when_client_sends_half_request(world: &mut KanbusWorld) {
+    #[cfg(unix)]
+    send_and_abandon(
+        world,
+        b"{\"protocol_version\":\"1.0\",\"request_id\":\"req-",
+    );
+}
+
 #[given("daemon mode is enabled")]
 fn given_daemon_enabled(world: &mut KanbusWorld) {
     world.daemon_connected = false;
@@ -119,7 +168,7 @@ fn given_daemon_enabled(world: &mut KanbusWorld) {
     world.daemon_simulation = false;
     world.daemon_mode_disabled = false;
     world.daemon_use_real = false;
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
 }
 
 #[given("daemon mode is enabled for real daemon")]
@@ -129,7 +178,7 @@ fn given_daemon_enabled_for_real(world: &mut KanbusWorld) {
     world.daemon_simulation = false;
     world.daemon_mode_disabled = false;
     world.daemon_use_real = true;
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     set_test_daemon_response(None);
     set_test_daemon_spawn_disabled(false);
 }
@@ -141,7 +190,7 @@ fn given_daemon_disabled(world: &mut KanbusWorld) {
     world.daemon_simulation = false;
     world.daemon_mode_disabled = true;
     world.daemon_use_real = false;
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_DAEMON", "0");
     stop_daemon(world);
 }
 
@@ -189,7 +238,7 @@ fn given_daemon_running(world: &mut KanbusWorld) {
 
 #[given("the daemon CLI is running")]
 fn given_daemon_cli_running(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     if world.daemon_use_real {
         start_real_daemon(world);
         world.daemon_entry_running = true;
@@ -253,7 +302,7 @@ fn given_daemon_stale_index(world: &mut KanbusWorld) {
 
 #[given("the daemon cannot start")]
 fn given_daemon_cannot_start(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     set_test_daemon_response(None);
     set_test_daemon_spawn_disabled(true);
     let socket_path = daemon_socket_path(world);
@@ -268,7 +317,7 @@ fn given_daemon_cannot_start(world: &mut KanbusWorld) {
 
 #[given("a real daemon is running for the project")]
 fn given_real_daemon_running(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     set_test_daemon_response(None);
     set_test_daemon_spawn_disabled(false);
     world.daemon_use_real = true;
@@ -377,7 +426,7 @@ fn then_daemon_shut_down(world: &mut KanbusWorld) {
 
 #[when(expr = "I send a daemon request with protocol version {string}")]
 fn when_send_request_protocol(world: &mut KanbusWorld, version: String) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     start_daemon(world);
     let request = RequestEnvelope {
         protocol_version: version,
@@ -392,7 +441,7 @@ fn when_send_request_protocol(world: &mut KanbusWorld, version: String) {
 
 #[when(expr = "I send a daemon request with action {string}")]
 fn when_send_request_action(world: &mut KanbusWorld, action: String) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     start_daemon(world);
     let request = RequestEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
@@ -407,13 +456,13 @@ fn when_send_request_action(world: &mut KanbusWorld, action: String) {
 
 #[when("I send an invalid daemon payload")]
 fn when_send_invalid_payload(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     world.daemon_response_code = Some("internal_error".to_string());
 }
 
 #[when("I send an invalid daemon payload over the socket")]
 fn when_send_invalid_payload_over_socket(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     if world.daemon_fake_server {
         world.daemon_response_code = Some("internal_error".to_string());
         return;
@@ -427,7 +476,7 @@ fn when_send_invalid_payload_over_socket(world: &mut KanbusWorld) {
 
 #[when("I open and close a daemon connection without data")]
 fn when_open_close_connection(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     if world.daemon_fake_server {
         start_daemon(world);
         return;
@@ -445,7 +494,7 @@ fn then_daemon_response_code(world: &mut KanbusWorld, code: String) {
 
 #[then("the daemon should still respond to ping")]
 fn then_daemon_ping(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     if world.daemon_fake_server {
         if !has_test_daemon_response() {
             let request = RequestEnvelope {
@@ -468,7 +517,7 @@ fn then_daemon_ping(world: &mut KanbusWorld) {
 
 #[when("the daemon entry point is started")]
 fn when_daemon_entry_started(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     set_test_daemon_response(None);
     set_test_daemon_spawn_disabled(false);
     world.daemon_use_real = true;
@@ -492,7 +541,7 @@ fn when_daemon_entry_started(world: &mut KanbusWorld) {
 
 #[when("I send a daemon shutdown request")]
 fn when_send_daemon_shutdown(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     if world.daemon_fake_server {
         stop_daemon(world);
     } else {
@@ -503,7 +552,7 @@ fn when_send_daemon_shutdown(world: &mut KanbusWorld) {
 
 #[when("I send a daemon shutdown request via the client")]
 fn when_send_daemon_shutdown_via_client(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let result = daemon_client::request_shutdown(&daemon_root(world));
     match result {
         Ok(payload) => {
@@ -580,7 +629,7 @@ fn then_daemon_cli_stops(world: &mut KanbusWorld) {
 
 #[given("a daemon socket returns an empty response")]
 fn given_daemon_empty_response(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     set_test_daemon_spawn_disabled(true);
     set_test_daemon_response(Some(TestDaemonResponse::Empty));
     world.daemon_fake_server = true;
@@ -588,7 +637,7 @@ fn given_daemon_empty_response(world: &mut KanbusWorld) {
 
 #[given("a daemon socket returns a valid response")]
 fn given_daemon_valid_response(_world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let mut result = BTreeMap::new();
     result.insert("status".to_string(), Value::String("ok".to_string()));
     let response = ResponseEnvelope {
@@ -677,7 +726,7 @@ fn then_daemon_should_have_been_restarted(_world: &mut KanbusWorld) {
 
 #[given(expr = "the daemon index list responds with {string}")]
 fn given_daemon_index_list_responds_with(_world: &mut KanbusWorld, message: String) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let response = ResponseEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
         request_id: "req-config-failover".to_string(),
@@ -698,7 +747,7 @@ fn given_daemon_index_list_responds_with(_world: &mut KanbusWorld, message: Stri
 
 #[given(expr = "the daemon index list fails once with {string} then succeeds")]
 fn given_daemon_index_list_fails_once_then_succeeds(_world: &mut KanbusWorld, message: String) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let error_response = ResponseEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
         request_id: "req-config-restart".to_string(),
@@ -737,7 +786,7 @@ fn then_daemon_response_status(world: &mut KanbusWorld, status: String) {
 
 #[when("I contact a daemon that returns an empty response")]
 fn when_contact_empty_daemon(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     set_test_daemon_response(Some(TestDaemonResponse::Empty));
     let result = daemon_client::request_status(&daemon_root(world));
     world.daemon_error_message = result.err().map(|error| error.to_string());
@@ -745,7 +794,7 @@ fn when_contact_empty_daemon(world: &mut KanbusWorld) {
 
 #[when("the daemon status response is an error")]
 fn when_daemon_status_error(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let response = ResponseEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
         request_id: "req-3".to_string(),
@@ -764,7 +813,7 @@ fn when_daemon_status_error(world: &mut KanbusWorld) {
 
 #[when("the daemon stop response is an error")]
 fn when_daemon_stop_error(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let response = ResponseEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
         request_id: "req-4".to_string(),
@@ -783,7 +832,7 @@ fn when_daemon_stop_error(world: &mut KanbusWorld) {
 
 #[when("the daemon list response is an error")]
 fn when_daemon_list_error(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let response = ResponseEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
         request_id: "req-5".to_string(),
@@ -802,7 +851,7 @@ fn when_daemon_list_error(world: &mut KanbusWorld) {
 
 #[given("the daemon list response is missing issues")]
 fn when_daemon_list_missing_issues(_world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let response = ResponseEnvelope {
         protocol_version: PROTOCOL_VERSION.to_string(),
         request_id: "req-6".to_string(),
@@ -931,7 +980,7 @@ fn given_stale_daemon_socket_exists(world: &mut KanbusWorld) {
 
 #[when("the daemon is spawned for the project")]
 fn when_daemon_spawned(world: &mut KanbusWorld) {
-    std::env::set_var("KANBUS_NO_DAEMON", "0");
+    std::env::set_var("KANBUS_DAEMON", "1");
     let result = daemon_client::request_index_list(&daemon_root(world));
     world.daemon_error_message = result.err().map(|error| error.to_string());
     world.daemon_spawn_called = true;
@@ -945,7 +994,7 @@ fn then_daemon_connection_diagnostic(world: &mut KanbusWorld) {
         "{error}"
     );
     assert!(
-        error.contains("Set KANBUS_NO_DAEMON=1 to bypass the daemon."),
+        error.contains("Unset KANBUS_DAEMON to bypass the daemon."),
         "{error}"
     );
     let socket_path = daemon_socket_path(world);
@@ -961,7 +1010,7 @@ fn then_daemon_spawn_diagnostic(world: &mut KanbusWorld) {
     assert!(error.starts_with("daemon spawn failed: "), "{error}");
     assert!(error.contains("No such file or directory"), "{error}");
     assert!(
-        error.contains("Set KANBUS_NO_DAEMON=1 to bypass the daemon."),
+        error.contains("Unset KANBUS_DAEMON to bypass the daemon."),
         "{error}"
     );
 }

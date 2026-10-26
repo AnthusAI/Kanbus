@@ -18,10 +18,6 @@ fn run_cli(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    if std::env::var("KANBUS_NO_DAEMON").is_err() {
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
-    }
-
     match run_from_args_in_blocking_thread(args, cwd.as_path()) {
         Ok(output) => {
             world.exit_code = Some(0);

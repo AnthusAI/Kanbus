@@ -164,7 +164,12 @@ from kanbus.agent_metadata import (
     reject_agent_metadata_in_beads_mode,
     resolve_agent_metadata,
 )
-from kanbus.gossip import GossipError, run_gossip_broker, run_gossip_watch
+from kanbus.gossip import (
+    GossipError,
+    finish_pending_realtime_publishes,
+    run_gossip_broker,
+    run_gossip_watch,
+)
 from kanbus.overlay import (
     gc_overlay_for_projects,
     install_overlay_hooks,
@@ -335,6 +340,7 @@ def cli(
     Statuses:     open  in_progress  blocked  done  closed
     Priorities:   0=critical  1=high  2=medium(default)  3=low  4=trivial
     """
+    context.call_on_close(finish_pending_realtime_publishes)
     _enforce_kanbus_version(context)
     project_context = _build_project_context(Path.cwd())
     resolved, forced = _resolve_beads_mode(context, beads_mode, project_context)

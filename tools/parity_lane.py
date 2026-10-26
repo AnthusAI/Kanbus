@@ -104,7 +104,7 @@ def prepare_environment(home_directory: Path) -> Dict[str, str]:
     environment.update(
         {
             "HOME": str(home_directory),
-            "KANBUS_NO_DAEMON": "1",
+            "KANBUS_DAEMON": "0",
             "OPENAI_API_KEY": "parity-lane-placeholder",
             "NO_COLOR": "1",
             "GIT_AUTHOR_NAME": "parity",

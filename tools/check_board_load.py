@@ -98,7 +98,7 @@ def _environment() -> Dict[str, str]:
     :rtype: Dict[str, str]
     """
     environment = dict(os.environ)
-    environment["KANBUS_NO_DAEMON"] = "1"
+    environment["KANBUS_DAEMON"] = "0"
     environment["KANBUS_REALTIME_BROKER"] = "off"
     environment["PYTHONPATH"] = str(PYTHON_SOURCE)
     return environment

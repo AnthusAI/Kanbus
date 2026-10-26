@@ -58,7 +58,7 @@ fn ensure_default_project(world: &mut KanbusWorld) {
     if world.working_directory.is_some() {
         return;
     }
-    std::env::set_var("KANBUS_NO_DAEMON", "1");
+    std::env::set_var("KANBUS_DAEMON", "0");
     let temp_dir = TempDir::new().expect("temporary directory");
     let repo_root = temp_dir.path().join("repo");
     fs::create_dir_all(&repo_root).expect("create repository");

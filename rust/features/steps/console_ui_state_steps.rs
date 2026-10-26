@@ -126,7 +126,7 @@ pub(crate) fn start_kbsc(world: &KanbusWorld, port: u16) -> Child {
     Command::new(binary)
         .env("CONSOLE_PORT", port.to_string())
         .env("CONSOLE_DATA_ROOT", data_root)
-        .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_DAEMON", "0")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -296,7 +296,7 @@ impl TenantConsoleFixture {
                 "CONSOLE_TENANT_MODE",
                 if multi { "multi" } else { "single" },
             )
-            .env("KANBUS_NO_DAEMON", "1")
+            .env("KANBUS_DAEMON", "0")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()

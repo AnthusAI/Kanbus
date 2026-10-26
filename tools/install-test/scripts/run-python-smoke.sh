@@ -18,6 +18,6 @@ kanbus create "Test issue B"
 kanbus create "Test issue C"
 
 echo "Listing issues (kanbus / Python)..."
-KANBUS_NO_DAEMON=1 kanbus list --status open --porcelain | tee /tmp/kanbus_python_list.txt
+KANBUS_DAEMON=0 kanbus list --status open --porcelain | tee /tmp/kanbus_python_list.txt
 
 echo "Smoke test complete."

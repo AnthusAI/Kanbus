@@ -342,17 +342,17 @@ def test_load_router_context_restores_daemon_setting_after_issue_error(
         ),
     )
     if previous is None:
-        monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+        monkeypatch.delenv("KANBUS_DAEMON", raising=False)
     else:
-        monkeypatch.setenv("KANBUS_NO_DAEMON", previous)
+        monkeypatch.setenv("KANBUS_DAEMON", previous)
 
     with pytest.raises(IssueRouterError, match="issue store unavailable"):
         load_router_context(tmp_path)
 
     if previous is None:
-        assert "KANBUS_NO_DAEMON" not in os.environ
+        assert "KANBUS_DAEMON" not in os.environ
     else:
-        assert os.environ["KANBUS_NO_DAEMON"] == previous
+        assert os.environ["KANBUS_DAEMON"] == previous
 
 
 def test_disabled_router_plan_is_empty_and_preserves_pause_state(

@@ -157,16 +157,16 @@ def _handle_request_via_handler(context: object, payload: bytes) -> bytes:
 
 def _set_daemon_env(context: object, value: str) -> None:
     if not hasattr(context, "original_daemon_env"):
-        context.original_daemon_env = os.environ.get("KANBUS_NO_DAEMON")
-    os.environ["KANBUS_NO_DAEMON"] = value
+        context.original_daemon_env = os.environ.get("KANBUS_DAEMON")
+    os.environ["KANBUS_DAEMON"] = value
 
 
 def _restore_daemon_env(context: object) -> None:
     original = getattr(context, "original_daemon_env", None)
     if original is None:
-        os.environ.pop("KANBUS_NO_DAEMON", None)
+        os.environ.pop("KANBUS_DAEMON", None)
     else:
-        os.environ["KANBUS_NO_DAEMON"] = original
+        os.environ["KANBUS_DAEMON"] = original
 
 
 def _exercise_daemon_entry_point(context: object) -> None:
@@ -254,7 +254,7 @@ def _exercise_run_daemon_loop(context: object) -> None:
 @given("daemon mode is enabled")
 def given_daemon_enabled(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "0"
+    overrides["KANBUS_DAEMON"] = "1"
     context.environment_overrides = overrides
     try:
         _patch_daemon_client(context)
@@ -265,15 +265,15 @@ def given_daemon_enabled(context: object) -> None:
 @given("daemon mode is enabled for real daemon")
 def given_daemon_enabled_for_real(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "0"
+    overrides["KANBUS_DAEMON"] = "1"
     context.environment_overrides = overrides
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
 
 
 @given("daemon mode is disabled")
 def given_daemon_disabled(context: object) -> None:
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "1"
+    overrides["KANBUS_DAEMON"] = "0"
     context.environment_overrides = overrides
 
 
@@ -368,7 +368,7 @@ def given_daemon_cannot_start(context: object) -> None:
         context.daemon_original_send = None
 
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "0"
+    overrides["KANBUS_DAEMON"] = "1"
     context.environment_overrides = overrides
 
     project_dir = load_project_directory(context)
@@ -389,9 +389,9 @@ def given_real_daemon_running(context: object) -> None:
     from kanbus import daemon_client, daemon_server
 
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "0"
+    overrides["KANBUS_DAEMON"] = "1"
     context.environment_overrides = overrides
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
 
     project_dir = load_project_directory(context)
     root = project_dir.parent
@@ -434,17 +434,17 @@ def then_daemon_status_ok(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
-    original = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    original = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     project_dir = load_project_directory(context)
     try:
         payload = daemon_client.request_status(project_dir.parent)
     finally:
         if original is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original
+            os.environ["KANBUS_DAEMON"] = original
     assert payload.get("status") == "ok"
 
 
@@ -546,7 +546,7 @@ def given_daemon_empty_response(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "0"
+    overrides["KANBUS_DAEMON"] = "1"
     context.environment_overrides = overrides
 
     class _EmptyResponseSocket:
@@ -584,7 +584,7 @@ def given_daemon_valid_response(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = dict(getattr(context, "environment_overrides", {}) or {})
-    overrides["KANBUS_NO_DAEMON"] = "0"
+    overrides["KANBUS_DAEMON"] = "1"
     context.environment_overrides = overrides
     original_send = getattr(context, "daemon_original_send", None)
     if original_send is not None:
@@ -635,9 +635,9 @@ def when_request_daemon_status(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
-    original = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    original = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     project_dir = load_project_directory(context)
     try:
         payload = daemon_client.request_status(project_dir.parent)
@@ -654,9 +654,9 @@ def when_request_daemon_status(context: object) -> None:
         context.daemon_error = str(error)
     finally:
         if original is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original
+            os.environ["KANBUS_DAEMON"] = original
 
 
 @when("I send a daemon shutdown request via the client")
@@ -664,9 +664,9 @@ def when_send_daemon_shutdown_via_client(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
-    original = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    original = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     project_dir = load_project_directory(context)
     request = RequestEnvelope(
         protocol_version=PROTOCOL_VERSION,
@@ -691,9 +691,9 @@ def when_send_daemon_shutdown_via_client(context: object) -> None:
         context.daemon_error = str(error)
     finally:
         if original is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original
+            os.environ["KANBUS_DAEMON"] = original
 
 
 @when("a daemon status request is handled directly")
@@ -755,7 +755,7 @@ def given_daemon_index_list_responds_with(context: object, message: str) -> None
     from kanbus import daemon_client
     from kanbus.daemon_protocol import ErrorEnvelope
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
@@ -778,7 +778,7 @@ def given_daemon_index_list_fails_once_then_succeeds(
     from kanbus import daemon_client
     from kanbus.daemon_protocol import ErrorEnvelope
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     context.original_request_with_recovery = daemon_client._request_with_recovery
     attempts = {"count": 0}
 
@@ -846,6 +846,51 @@ def when_send_invalid_daemon_payload_over_socket(context: object) -> None:
     context.daemon_response = response
 
 
+@given("daemon mode is not configured")
+def given_daemon_not_configured(context: object) -> None:
+    overrides = dict(getattr(context, "environment_overrides", {}) or {})
+    overrides.pop("KANBUS_DAEMON", None)
+    context.environment_overrides = overrides
+    if not hasattr(context, "original_daemon_env"):
+        context.original_daemon_env = os.environ.get("KANBUS_DAEMON")
+    os.environ.pop("KANBUS_DAEMON", None)
+    context.add_cleanup(lambda: _restore_daemon_env(context))
+
+
+@then("no daemon socket should exist for the project")
+def then_no_daemon_socket(context: object) -> None:
+    project_dir = load_project_directory(context)
+    socket_path = get_daemon_socket_path(project_dir.parent)
+    assert not socket_path.exists(), f"daemon socket exists at {socket_path}"
+
+
+def _send_and_abandon(context: object, payload: bytes) -> None:
+    project_dir = load_project_directory(context)
+    socket_path = get_daemon_socket_path(project_dir.parent)
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+        sock.settimeout(2.0)
+        sock.connect(str(socket_path))
+        sock.sendall(payload)
+        sock.shutdown(socket.SHUT_RDWR)
+    time.sleep(0.15)
+
+
+@when("a client sends a daemon request and closes the connection before the response")
+def when_client_abandons_request(context: object) -> None:
+    request = {
+        "protocol_version": PROTOCOL_VERSION,
+        "request_id": "req-abandoned",
+        "action": "ping",
+        "payload": {},
+    }
+    _send_and_abandon(context, json.dumps(request).encode("utf-8") + b"\n")
+
+
+@when("a client sends half a daemon request and closes the connection")
+def when_client_sends_half_request(context: object) -> None:
+    _send_and_abandon(context, b'{"protocol_version":"1.0","request_id":"req-')
+
+
 @when("I open and close a daemon connection without data")
 def when_open_close_daemon_connection(context: object) -> None:
     if getattr(context, "real_daemon_running", False):
@@ -905,7 +950,7 @@ def then_daemon_response_status(context: object, status: str) -> None:
 
 @when("the daemon entry point is started")
 def when_daemon_entry_started(context: object) -> None:
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     _exercise_daemon_entry_point(context)
     _exercise_daemon_server_wrapper(context)
     _exercise_run_daemon_loop(context)
@@ -917,7 +962,7 @@ def when_daemon_entry_started(context: object) -> None:
 def when_send_daemon_shutdown(context: object) -> None:
     from kanbus import daemon_client
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     project_dir = load_project_directory(context)
     request = RequestEnvelope(
         protocol_version=PROTOCOL_VERSION,
@@ -934,7 +979,7 @@ def when_send_daemon_shutdown(context: object) -> None:
 def when_send_daemon_ping(context: object) -> None:
     from kanbus import daemon_client
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     project_dir = load_project_directory(context)
     root = project_dir.parent
     try:
@@ -999,7 +1044,7 @@ def when_contact_empty_daemon(context: object) -> None:
 def when_daemon_status_error(context: object) -> None:
     from kanbus import daemon_client
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
@@ -1025,7 +1070,7 @@ def when_daemon_status_error(context: object) -> None:
 def when_daemon_stop_error(context: object) -> None:
     from kanbus import daemon_client
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
@@ -1051,7 +1096,7 @@ def when_daemon_stop_error(context: object) -> None:
 def when_daemon_list_error(context: object) -> None:
     from kanbus import daemon_client
 
-    _set_daemon_env(context, "0")
+    _set_daemon_env(context, "1")
     context.original_request_with_recovery = daemon_client._request_with_recovery
 
     def fake_request(
@@ -1098,9 +1143,9 @@ def when_request_daemon_index_list(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
-    original = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    original = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     project_dir = load_project_directory(context)
     try:
         issues = daemon_client.request_index_list(project_dir.parent)
@@ -1111,9 +1156,9 @@ def when_request_daemon_index_list(context: object) -> None:
         context.daemon_error = str(error)
     finally:
         if original is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original
+            os.environ["KANBUS_DAEMON"] = original
 
 
 @when("a daemon index list request is handled directly")
@@ -1157,9 +1202,9 @@ def when_request_daemon_status_command(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
-    original = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    original = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     project_dir = load_project_directory(context)
     try:
         daemon_client.request_status(project_dir.parent)
@@ -1168,9 +1213,9 @@ def when_request_daemon_status_command(context: object) -> None:
         context.daemon_error = str(error)
     finally:
         if original is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original
+            os.environ["KANBUS_DAEMON"] = original
 
 
 @when("I request a daemon shutdown")
@@ -1178,9 +1223,9 @@ def when_request_daemon_shutdown(context: object) -> None:
     from kanbus import daemon_client
 
     overrides = getattr(context, "environment_overrides", None) or {}
-    original = os.environ.get("KANBUS_NO_DAEMON")
-    if "KANBUS_NO_DAEMON" in overrides:
-        os.environ["KANBUS_NO_DAEMON"] = overrides["KANBUS_NO_DAEMON"]
+    original = os.environ.get("KANBUS_DAEMON")
+    if "KANBUS_DAEMON" in overrides:
+        os.environ["KANBUS_DAEMON"] = overrides["KANBUS_DAEMON"]
     project_dir = load_project_directory(context)
     try:
         daemon_client.request_shutdown(project_dir.parent)
@@ -1189,9 +1234,9 @@ def when_request_daemon_shutdown(context: object) -> None:
         context.daemon_error = str(error)
     finally:
         if original is None:
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original
+            os.environ["KANBUS_DAEMON"] = original
 
 
 @when('I send a daemon request with action "{action}" to the running daemon')
@@ -1232,7 +1277,7 @@ def then_daemon_request_failed(context: object, message: str) -> None:
 def then_daemon_connection_diagnostic(context: object) -> None:
     error = getattr(context, "daemon_error", "")
     assert error.startswith("daemon connection failed after retries: ")
-    assert "Set KANBUS_NO_DAEMON=1 to bypass the daemon." in error
+    assert "Unset KANBUS_DAEMON to bypass the daemon." in error
     assert str(context.daemon_socket_path) in error
 
 
@@ -1248,7 +1293,7 @@ def then_daemon_spawn_diagnostic(context: object) -> None:
             error = str(spawn_error)
     assert error.startswith("daemon spawn failed: ")
     assert "No such file or directory" in error
-    assert "Set KANBUS_NO_DAEMON=1 to bypass the daemon." in error
+    assert "Unset KANBUS_DAEMON to bypass the daemon." in error
 
 
 @then("the daemon request should fail")

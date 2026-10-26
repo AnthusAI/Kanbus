@@ -71,7 +71,7 @@ def before_scenario(context: object, scenario: object) -> None:
     context.result = None
     context.last_issue_id = None
     context.coordination_mqtt_messages = []
-    context.environment_overrides = {"KANBUS_NO_DAEMON": "1"}
+    context.environment_overrides = {"KANBUS_DAEMON": "0"}
     context.console_server_process = None
     context.console_server_port = None
     for name in (
@@ -320,9 +320,9 @@ def after_scenario(context: object, scenario: object) -> None:
         import os
 
         if original_daemon_env is None or original_daemon_env == "":
-            os.environ.pop("KANBUS_NO_DAEMON", None)
+            os.environ.pop("KANBUS_DAEMON", None)
         else:
-            os.environ["KANBUS_NO_DAEMON"] = original_daemon_env
+            os.environ["KANBUS_DAEMON"] = original_daemon_env
         context.original_daemon_env = None
 
     original_daemon_socket = getattr(context, "original_daemon_socket", None)
@@ -483,7 +483,7 @@ def _run_coverage_helper() -> None:
     )
     from kanbus.config_loader import load_project_configuration
 
-    os.environ["KANBUS_NO_DAEMON"] = "1"
+    os.environ["KANBUS_DAEMON"] = "0"
 
     with TemporaryDirectory(dir="/tmp") as temp_dir:
         root = Path(temp_dir)
@@ -750,12 +750,12 @@ def _run_coverage_helper() -> None:
             pass
 
         runner = CliRunner()
-        runner.invoke(cli, ["--help"], env={"KANBUS_NO_DAEMON": "1"})
+        runner.invoke(cli, ["--help"], env={"KANBUS_DAEMON": "0"})
         runner.invoke(
             cli,
             ["list"],
             env={
-                "KANBUS_NO_DAEMON": "1",
+                "KANBUS_DAEMON": "0",
                 "KANBUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
             },
         )
@@ -1114,43 +1114,43 @@ def _run_coverage_helper() -> None:
         os.chdir(root)
         try:
             env_base = {
-                "KANBUS_NO_DAEMON": "1",
+                "KANBUS_DAEMON": "0",
                 "KANBUS_TEST_CONFIGURATION_PATH_FAILURE": "1",
             }
             runner.invoke(cli, ["show", "missing"], env=env_base)
             runner.invoke(cli, ["update", "missing"], env=env_base)
             runner.invoke(cli, ["delete", "missing"], env=env_base)
-            runner.invoke(cli, ["comment", "missing"], env={"KANBUS_NO_DAEMON": "1"})
+            runner.invoke(cli, ["comment", "missing"], env={"KANBUS_DAEMON": "0"})
             runner.invoke(cli, ["comment", "missing", "text"], env=env_base)
             runner.invoke(
                 cli,
                 ["dep"],
-                env={"KANBUS_NO_DAEMON": "1"},
+                env={"KANBUS_DAEMON": "0"},
             )
             runner.invoke(
                 cli,
                 ["dep", "tree"],
-                env={"KANBUS_NO_DAEMON": "1"},
+                env={"KANBUS_DAEMON": "0"},
             )
             runner.invoke(
                 cli,
                 ["dep", "tree", ""],
-                env={"KANBUS_NO_DAEMON": "1"},
+                env={"KANBUS_DAEMON": "0"},
             )
             runner.invoke(
                 cli,
                 ["dep", "tree", "issue", "--depth", "x"],
-                env={"KANBUS_NO_DAEMON": "1"},
+                env={"KANBUS_DAEMON": "0"},
             )
             runner.invoke(
                 cli,
                 ["dep", "tree", "issue", "--format", "text", "--bogus"],
-                env={"KANBUS_NO_DAEMON": "1"},
+                env={"KANBUS_DAEMON": "0"},
             )
             runner.invoke(
                 cli,
                 ["dep", "identifier"],
-                env={"KANBUS_NO_DAEMON": "1"},
+                env={"KANBUS_DAEMON": "0"},
             )
             runner.invoke(
                 cli,
@@ -1275,12 +1275,12 @@ def _run_coverage_helper() -> None:
                 runner.invoke(
                     cli,
                     ["--beads", "comment", "missing", "text"],
-                    env={"KANBUS_NO_DAEMON": "1"},
+                    env={"KANBUS_DAEMON": "0"},
                 )
                 runner.invoke(
                     cli,
                     ["--beads", "dep", "id", "remove", "blocked-by", "target"],
-                    env={"KANBUS_NO_DAEMON": "1"},
+                    env={"KANBUS_DAEMON": "0"},
                 )
             finally:
                 os.chdir(original_cwd)

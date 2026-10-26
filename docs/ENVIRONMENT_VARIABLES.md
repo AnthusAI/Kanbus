@@ -26,18 +26,18 @@ value. Any variable can also live in `~/.kanbus.env` (`kbs setup env NAME --valu
 | `KANBUS_AGENT_SETTINGS` | Default agent settings blob for provenance | `agent_metadata.rs:150` | `agent_metadata.py` | shared | |
 | `KANBUS_COORDINATION_MUTEX_API_ENDPOINT` | Mutex API endpoint for coordination | `config_loader.rs:859` | `config_loader.py:137` | shared | Overrides `coordination.mutex_api.endpoint` |
 | `KANBUS_COORDINATION_MUTEX_API_BEARER_TOKEN` | Bearer token for the mutex API | `config_loader.rs:868` | `config_loader.py:142` | shared | Credential; keep in `~/.kanbus.env` |
+| `KANBUS_DAEMON` | `1`, `true`, or `yes` enables the index daemon; unset or any other value leaves it off. The CLI never spawns or waits for the daemon unless this is set | `daemon_client.rs` (`is_daemon_enabled`) | `daemon_client.py` (`is_daemon_enabled`) | shared | Daemon sockets use a 1 second connect timeout and a 30 second read/write timeout; the daemon drops a stalled connection after 10 seconds. See [Troubleshooting](TROUBLESHOOTING.md) |
 | `KANBUS_FORCE_INTERACTIVE` | `1` treats the session as interactive even without a TTY | `cli.rs:1558`, `agents_management.rs` (`confirm_overwrite`) | `cli.py:338`, `agents_management.py:378` | shared | Used by the specs to feed prompts through pipes |
 | `KANBUS_NON_INTERACTIVE` | `1` makes prompts fail instead of asking (currently `setup agents` overwrite) | `agents_management.rs` (`confirm_overwrite`) | `agents_management.py:374` | shared | Rust gained this in the PR that created this page |
 | `KANBUS_GITHUB_API_BASE` | GitHub API base URL | `github_security_sync.rs:29` | `github_security_sync.py:42` | shared | Points sync at a test server |
 | `KANBUS_SNYK_API_BASE` | Snyk API base URL | `snyk_sync.rs:33` | `snyk_sync.py:42` | shared | Points sync at a test server |
 | `KANBUS_METHODOLOGY_DIRECTORY` | Exported to methodology tools with the bundle directory | `methodology_bundles.rs:32` | `methodology_bundles.py:29` | shared | Set by Kanbus, read by the tool |
-| `KANBUS_NO_DAEMON` | `1`, `true`, or `yes` bypasses the index daemon | `daemon_client.rs:114` | `daemon_client.py:91` | shared | |
 | `KANBUS_NO_GUIDANCE` | Disable policy guidance output (`1`, `true`, `yes`, `on`) | `policy_guidance.rs:25` | `policy_guidance.py:35` | shared | |
 | `KANBUS_NO_HOOKS` | Disable lifecycle hooks (`1`, `true`, `yes`, `on`) | `hooks.rs:131` | `hooks.py:199` | shared | See [Lifecycle Hooks](LIFECYCLE_HOOKS.md) |
 | `KANBUS_OVERLAY_ENABLED` | Enable the overlay | `config_loader.rs:933` | `config_loader.py:181` | shared | Overrides `overlay.enabled` |
 | `KANBUS_OVERLAY_TTL_S` | Overlay time to live in seconds | `config_loader.rs:938` | `config_loader.py:185` | shared | Overrides `overlay.ttl_s` |
-| `KANBUS_REALTIME_AUTOSTART` | Start the local broker automatically | `config_loader.rs:887` | `config_loader.py:155` | shared | See [Realtime](REALTIME.md) |
-| `KANBUS_REALTIME_BROKER` | Broker URL, or `off` to disable realtime | `config_loader.rs:882` | `config_loader.py:151` | shared | `off` is what tests use |
+| `KANBUS_REALTIME_AUTOSTART` | Start the local broker automatically (console and `gossip watch` only; the CLI never autostarts) | `config_loader.rs:887` | `config_loader.py:155` | shared | See [Realtime](REALTIME.md) |
+| `KANBUS_REALTIME_BROKER` | Broker URL, `auto`, or `off`. A URL makes every CLI mutation publish to it (fire-and-forget, 2 second cap); `auto` (default) makes the CLI publish nothing and lets the console discover a broker; `off` disables realtime | `config_loader.rs:882` | `config_loader.py:151` | shared | `off` is what tests use. See [Realtime](REALTIME.md) |
 | `KANBUS_REALTIME_KEEPALIVE` | MQTT keepalive seconds | `config_loader.rs:892` | `config_loader.py:159` | shared | |
 | `KANBUS_REALTIME_MQTT_API_TOKEN` | Token for the MQTT API | `config_loader.rs:915` | `config_loader.py:173` | shared | Credential |
 | `KANBUS_REALTIME_MQTT_CUSTOM_AUTHORIZER_NAME` | MQTT custom authorizer name | `config_loader.rs:906` | `config_loader.py:168` | shared | |

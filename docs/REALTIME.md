@@ -11,7 +11,8 @@ Mosquitto is **optional** for routine Kanbus CLI board work (`kbs list`, `kbs sh
 Mosquitto is needed only when you explicitly use **local MQTT realtime**:
 
 - `kbs gossip watch --transport mqtt --broker auto`
-- MQTT transport with `realtime.autostart=true` (opt-in; the default is `false`) and no reachable broker
+- The console (`kbsc`) bridge, which discovers or autostarts a local broker
+- A broker you point the CLI at with an explicit `realtime.broker` URL
 
 The default console hub path uses UDS (`kbsc` plus routine CLI mutations). Install Mosquitto only when you want local MQTT gossip outside the console UDS broker.
 
@@ -57,7 +58,23 @@ kanbus gossip watch --transport mqtt --broker auto --autostart
 # or: kbs gossip watch --transport mqtt --broker auto --autostart
 ```
 
-With `--autostart` (or `realtime.autostart: true`), if Mosquitto is installed and no broker is reachable, Kanbus will autostart a local broker and write `~/.kanbus/run/broker.json`. Autostart is off by default so ordinary `kbs` commands never spawn a broker; the console turns it on for its own bridge.
+With `--autostart` (or `realtime.autostart: true`), if Mosquitto is installed and no broker is reachable, Kanbus will autostart a local broker and write `~/.kanbus/run/broker.json`. Autostart is off by default, and ordinary CLI commands (`kbs create`, `kbs update` and the rest) never autostart or discover a broker at all; the console turns it on for its own bridge.
+
+## CLI and console realtime behavior
+
+CLI commands and the console treat `realtime.broker` differently. The CLI is built to finish immediately and never start background processes.
+
+| `realtime.broker` | CLI mutation (create, update, comment, dependency change, delete, close) | Console (`kbsc`) |
+| --- | --- | --- |
+| `auto` (default) | No broker discovery, no autostart, no publish. | Discovers a broker through `~/.kanbus/run/broker.json` then `mqtt://127.0.0.1:1883`, and autostarts one when allowed. |
+| `mqtt://...` or `mqtts://...` (also `KANBUS_REALTIME_BROKER`) | Publishes every issue event to that broker, fire-and-forget on a detached thread, with no reachability probe and no autostart. | Uses the explicit broker. |
+| `off` | Nothing is published. | Realtime is disabled. |
+
+A running console hub on the local UDS socket still receives CLI events inline: with `realtime.transport` `uds` the CLI writes to the socket and stops, and with `auto` it does so when the socket accepts the write, otherwise it continues with the rules above (a stale socket file is ignored). That is a single local socket write with a 2 second timeout and no discovery.
+
+**Publish cap.** A CLI publish never holds a command open for longer than 2 seconds (`CLI_REALTIME_PUBLISH_CAP`). The publish starts on a detached thread when the mutation is recorded, so the command does the rest of its work in parallel. When the command has finished, the process waits for each publish to complete or for 2 seconds after that publish started, whichever comes first, and then exits. A broker that is down or refuses connections prints `warning: realtime publish failed: ...`; a broker that accepts the connection but never answers prints `warning: realtime publish abandoned after 2s`. Either way the command succeeds and the issue change is already saved.
+
+To make the CLI publish on a machine, set the broker explicitly, for example `kbs setup env KANBUS_REALTIME_BROKER --value mqtt://127.0.0.1:1883`.
 
 ## Always-on local broker (recommended for many worktrees and agents)
 
@@ -119,9 +136,9 @@ later leaves as `mqtt` while flipping the broker to `mqtts://` for a shared AWS 
 
 An explicit broker URL bypasses `~/.kanbus/run/broker.json` discovery. That file is never
 pruned, so if Kanbus previously autostarted a broker, either set the explicit URL (recommended)
-or delete `~/.kanbus/run/broker.json`. Autostart stays harmless either way: Kanbus only starts
-Mosquitto when the configured broker is unreachable, and only ever kills brokers it started
-itself.
+or delete `~/.kanbus/run/broker.json`. The CLI never autostarts a broker, and the console only
+starts Mosquitto when its broker is unreachable and autostart is on; Kanbus only ever kills
+brokers it started itself.
 
 **Verify end to end:** keep `mosquitto_sub -h 127.0.0.1 -t 'projects/#' -v` running in one terminal and run
 `kbs update <id> --status in_progress` in any checkout; the update should appear in the subscriber.
@@ -152,16 +169,16 @@ UDS default socket path: `$XDG_RUNTIME_DIR/kanbus/bus.sock` (fallback: `~/.kanbu
 
 ## Broker discovery
 
-**Discovery precedence** (explicit exception to the no-fallback policy):
+**Discovery precedence** (explicit exception to the no-fallback policy), used by the console and by `gossip watch` when `realtime.broker` is `auto`:
 
 1. `~/.kanbus/run/broker.json` if present
 2. `mqtt://127.0.0.1:1883`
 
-If `realtime.broker=off`, realtime is disabled.
+CLI mutations never run discovery: with `realtime.broker=auto` they publish nothing. If `realtime.broker=off`, realtime is disabled.
 
 ## Autostart
 
-Autostart applies only to MQTT:
+Autostart applies only to MQTT and only to the console and `gossip watch`; CLI mutations never autostart a broker:
 
 - If `realtime.autostart=true` and no broker is reachable, Kanbus will start Mosquitto bound to `127.0.0.1` on the first available port.
 - Metadata is written to `~/.kanbus/run/broker.json` with `endpoint`, `pid`, and log paths.
@@ -325,8 +342,8 @@ The legacy CLI-to-console control channel has been removed. These commands now f
 ```yaml
 realtime:
   transport: auto
-  broker: auto
-  autostart: true
+  broker: auto               # CLI: publish nothing; console: discover and autostart
+  autostart: false           # console and gossip watch only
   keepalive: false
   uds_socket_path: null
   topics:
@@ -357,6 +374,8 @@ should apply machine-wide, across every clone and worktree, rather than per proj
 ## Troubleshooting
 
 - **Mosquitto missing:** only required for explicit MQTT gossip commands. Routine CLI board work does not need Mosquitto. Install with `brew install mosquitto` (macOS) or `apt install mosquitto` (Debian/Ubuntu). Kanbus prints at most one install hint per process for MQTT commands unless `KANBUS_REALTIME_WARN_MOSQUITTO=0`.
+- **CLI changes do not appear live in other clones or the console:** the CLI publishes only to an explicit broker. Set `KANBUS_REALTIME_BROKER` (or `realtime.broker`) to a broker URL.
+- **`warning: realtime publish failed` or `abandoned after 2s` after a CLI command:** the explicit broker is down or not answering. The command still succeeded; fix the broker or set `realtime.broker: off`.
 - **Broker not reachable:** verify `realtime.broker` and `broker.json` endpoint; try `mqtt://127.0.0.1:1883`. If Kanbus previously autostarted a broker, `~/.kanbus/run/broker.json` may point at a broker that is no longer running — set an explicit `KANBUS_REALTIME_BROKER` (recommended) or delete that file.
 - **UDS socket missing:** start the broker with `kanbus gossip broker`.
 

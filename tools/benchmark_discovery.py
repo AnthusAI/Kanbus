@@ -27,7 +27,7 @@ from kanbus.models import IssueData
 
 from benchmark_discovery_fixtures import FixturePlan, generate_multi_project, generate_single_project
 
-os.environ.setdefault("KANBUS_NO_DAEMON", "1")
+os.environ.setdefault("KANBUS_DAEMON", "0")
 
 
 @dataclass(frozen=True)
