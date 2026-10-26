@@ -133,8 +133,8 @@ Beyond the schema, loading fails when:
 ```yaml
 realtime:
   transport: auto            # auto | uds | mqtt
-  broker: auto               # auto | off | mqtt://... | mqtts://...
-  autostart: false           # autostart mosquitto if unreachable (the gossip bridge always autostarts)
+  broker: auto               # auto | off | mqtt://... | mqtts://... (CLI publishes only to an explicit URL; auto = CLI publishes nothing, console discovers)
+  autostart: false           # console and gossip watch only; the CLI never autostarts a broker (the gossip bridge always autostarts)
   keepalive: false           # keep autostarted broker running
   uds_socket_path: null      # override UDS socket path
   mqtt_custom_authorizer_name: null  # optional AWS IoT custom authorizer name

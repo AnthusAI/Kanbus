@@ -238,7 +238,7 @@ The router publishes event history and router-owned issue status records to `ref
 
 ### `kanbus list`
 
-List issues with optional filters. Uses the index daemon by default.
+List issues with optional filters. Uses the index daemon only when `KANBUS_DAEMON=1`.
 
 ```bash
 kanbus list [filters]
@@ -317,7 +317,7 @@ kanbus commit
 
 ### `kanbus daemon-status`
 
-Report daemon status.
+Report daemon status. Requires `KANBUS_DAEMON=1`; otherwise it fails with `daemon disabled`.
 
 ```bash
 kanbus daemon-status

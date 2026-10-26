@@ -15,7 +15,7 @@ use crate::step_definitions::initialization_steps::{
     apply_environment_overrides, restore_environment, run_from_args_in_blocking_thread, KanbusWorld,
 };
 
-fn run_cli_command(world: &mut KanbusWorld, command: &str) {
+pub(crate) fn run_cli_command(world: &mut KanbusWorld, command: &str) {
     let normalized = command.replace("\\\"", "\"");
     if normalized == "kanbus router run --watch" {
         crate::step_definitions::router_contract_steps::launch_watch(world);
@@ -33,10 +33,6 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         .as_ref()
         .expect("working directory not set");
 
-    // Respect existing daemon toggles; default to disabling the daemon for deterministic tests.
-    if std::env::var("KANBUS_NO_DAEMON").is_err() {
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
-    }
     if normalized.starts_with("kanbus list")
         && kanbus::daemon_client::is_daemon_enabled()
         && !has_test_daemon_response()
@@ -52,7 +48,7 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
         set_test_daemon_response(Some(TestDaemonResponse::Envelope(response)));
     }
     if world.daemon_list_error && normalized.starts_with("kanbus list") {
-        std::env::set_var("KANBUS_NO_DAEMON", "0");
+        std::env::set_var("KANBUS_DAEMON", "1");
         let response = ResponseEnvelope {
             protocol_version: PROTOCOL_VERSION.to_string(),
             request_id: "req-list".to_string(),
@@ -95,10 +91,7 @@ fn run_cli_command(world: &mut KanbusWorld, command: &str) {
             world.stdout = Some(output.stdout);
             world.stderr = Some(output.stderr);
             record_kanbus_issue_id_if_created(world, &normalized);
-            let no_daemon = std::env::var("KANBUS_NO_DAEMON")
-                .unwrap_or_default()
-                .to_ascii_lowercase();
-            if !matches!(no_daemon.as_str(), "1" | "true" | "yes") {
+            if kanbus::daemon_client::is_daemon_enabled() {
                 world.daemon_connected = true;
                 world.daemon_spawned = true;
                 world.stale_socket_removed = true;
@@ -248,9 +241,6 @@ fn run_cli_command_with_stdin_and_interactivity(
     if matches!(args.first().map(String::as_str), Some("kanbus")) {
         args.remove(0);
     }
-    if std::env::var("KANBUS_NO_DAEMON").is_err() {
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
-    }
     let binary_path = build_kbs_binary();
     let cwd = world
         .working_directory
@@ -260,7 +250,7 @@ fn run_cli_command_with_stdin_and_interactivity(
     command_builder
         .args(args)
         .current_dir(cwd)
-        .env("KANBUS_NO_DAEMON", "1");
+        .env("KANBUS_DAEMON", "0");
     if force_interactive {
         command_builder.env("KANBUS_FORCE_INTERACTIVE", "1");
     } else {
@@ -301,9 +291,6 @@ fn run_cli_command_non_interactive(world: &mut KanbusWorld, command: &str) {
     if matches!(args.first().map(String::as_str), Some("kanbus")) {
         args.remove(0);
     }
-    if std::env::var("KANBUS_NO_DAEMON").is_err() {
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
-    }
     let binary_path = build_kbs_binary();
     let cwd = world
         .working_directory
@@ -312,7 +299,7 @@ fn run_cli_command_non_interactive(world: &mut KanbusWorld, command: &str) {
     let output = Command::new(binary_path)
         .args(args)
         .current_dir(cwd)
-        .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_DAEMON", "0")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

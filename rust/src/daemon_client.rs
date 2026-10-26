@@ -194,16 +194,17 @@ use overrides::{
 
 fn daemon_spawn_failed_error(error: &std::io::Error) -> KanbusError {
     KanbusError::Io(format!(
-        "daemon spawn failed: {error}. Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+        "daemon spawn failed: {error}. Unset KANBUS_DAEMON to bypass the daemon."
     ))
 }
 
 /// Return whether daemon mode is enabled.
+///
+/// The daemon is opt-in: it is used only when `KANBUS_DAEMON` is `1`, `true`
+/// or `yes`. Unset or any other value leaves it off.
 pub fn is_daemon_enabled() -> bool {
-    let value = env::var("KANBUS_NO_DAEMON")
-        .unwrap_or_default()
-        .to_lowercase();
-    !matches!(value.as_str(), "1" | "true" | "yes")
+    let value = env::var("KANBUS_DAEMON").unwrap_or_default().to_lowercase();
+    matches!(value.as_str(), "1" | "true" | "yes")
 }
 
 /// Error message returned when a stale daemon rejects the current config schema.
@@ -386,7 +387,7 @@ fn ensure_daemon_socket_best_effort(root: &Path, socket_path: &Path) -> Result<(
 
 #[cfg(unix)]
 fn is_socket_connectable(socket_path: &Path) -> bool {
-    UnixStream::connect(socket_path).is_ok()
+    connect_with_timeout(socket_path, DAEMON_CONNECT_TIMEOUT).is_ok()
 }
 
 #[cfg(not(unix))]
@@ -446,8 +447,41 @@ pub fn request_virtuus(root: &Path, request: &Value) -> Result<Value, KanbusErro
     }
 }
 
+/// Maximum time to wait for a connection to the daemon socket.
 #[cfg(unix)]
-const DAEMON_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+pub const DAEMON_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Maximum time to wait on a daemon socket read or write.
+#[cfg(unix)]
+pub const DAEMON_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Connect to a Unix socket without blocking longer than `timeout`.
+///
+/// The standard library has no connect timeout for Unix sockets, so the
+/// connection is made on a helper thread that is abandoned when the deadline
+/// passes.
+///
+/// # Arguments
+/// * `socket_path` - Socket to connect to.
+/// * `timeout` - Longest time to wait for the connection.
+///
+/// # Errors
+/// Returns the connection error or a timed-out error.
+#[cfg(unix)]
+pub fn connect_with_timeout(socket_path: &Path, timeout: Duration) -> std::io::Result<UnixStream> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let path = socket_path.to_path_buf();
+    std::thread::spawn(move || {
+        let _ = sender.send(UnixStream::connect(path));
+    });
+    match receiver.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "daemon socket connect timed out",
+        )),
+    }
+}
 
 #[cfg(unix)]
 fn apply_daemon_request_timeouts(stream: &UnixStream) -> std::io::Result<()> {
@@ -457,7 +491,8 @@ fn apply_daemon_request_timeouts(stream: &UnixStream) -> std::io::Result<()> {
 
 #[cfg(unix)]
 fn send_virtuus_request(socket_path: &Path, request: &Value) -> Result<Value, String> {
-    let mut stream = UnixStream::connect(socket_path).map_err(|error| error.to_string())?;
+    let mut stream = connect_with_timeout(socket_path, DAEMON_CONNECT_TIMEOUT)
+        .map_err(|error| error.to_string())?;
     apply_daemon_request_timeouts(&stream).map_err(|error| error.to_string())?;
     let payload = serde_json::to_string(request).map_err(|error| error.to_string())?;
     stream
@@ -508,7 +543,7 @@ fn request_with_recovery(
                 }
             }
             Err(KanbusError::Io(format!(
-                "daemon connection failed after retries: {}. Set KANBUS_NO_DAEMON=1 to bypass the daemon.",
+                "daemon connection failed after retries: {}. Unset KANBUS_DAEMON to bypass the daemon.",
                 socket_path.display()
             )))
         }
@@ -523,13 +558,14 @@ fn send_request(
     if let Some(simulated) = take_simulated_response() {
         return simulated;
     }
-    let mut stream = UnixStream::connect(socket_path).map_err(|error| {
-        KanbusError::Io(format!(
-            "daemon connect failed: {}: {}",
-            socket_path.display(),
-            error
-        ))
-    })?;
+    let mut stream =
+        connect_with_timeout(socket_path, DAEMON_CONNECT_TIMEOUT).map_err(|error| {
+            KanbusError::Io(format!(
+                "daemon connect failed: {}: {}",
+                socket_path.display(),
+                error
+            ))
+        })?;
     apply_daemon_request_timeouts(&stream).map_err(|error| KanbusError::Io(error.to_string()))?;
     let payload =
         serde_json::to_string(request).map_err(|error| KanbusError::Io(error.to_string()))?;
@@ -606,4 +642,29 @@ fn spawn_daemon(_root: &Path) -> Result<(), KanbusError> {
     Err(KanbusError::IssueOperation(
         "daemon not supported on this platform".to_string(),
     ))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::net::UnixListener;
+
+    #[test]
+    fn connect_with_timeout_reaches_a_listening_socket() {
+        let directory = tempfile::TempDir::new().expect("temp dir");
+        let socket_path = directory.path().join("daemon.sock");
+        let _listener = UnixListener::bind(&socket_path).expect("bind");
+        assert!(connect_with_timeout(&socket_path, DAEMON_CONNECT_TIMEOUT).is_ok());
+        assert!(is_socket_connectable(&socket_path));
+    }
+
+    #[test]
+    fn connect_with_timeout_fails_fast_for_a_missing_socket() {
+        let directory = tempfile::TempDir::new().expect("temp dir");
+        let socket_path = directory.path().join("missing.sock");
+        let started_at = std::time::Instant::now();
+        assert!(connect_with_timeout(&socket_path, DAEMON_CONNECT_TIMEOUT).is_err());
+        assert!(started_at.elapsed() < DAEMON_CONNECT_TIMEOUT);
+        assert!(!is_socket_connectable(&socket_path));
+    }
 }

@@ -845,9 +845,9 @@ mod tests {
     #[test]
     fn cli_now_recursively_backfills_every_rendered_tree_node() {
         let previous_mock = std::env::var("KANBUS_TEST_AI_MOCK").ok();
-        let previous_no_daemon = std::env::var("KANBUS_NO_DAEMON").ok();
+        let previous_daemon_setting = std::env::var("KANBUS_DAEMON").ok();
         std::env::set_var("KANBUS_TEST_AI_MOCK", "1");
-        std::env::set_var("KANBUS_NO_DAEMON", "1");
+        std::env::set_var("KANBUS_DAEMON", "0");
         let temp_dir = TempDir::new().expect("tempdir");
         fs::write(
             temp_dir.path().join(".kanbus.yml"),
@@ -899,9 +899,9 @@ mod tests {
             Some(value) => std::env::set_var("KANBUS_TEST_AI_MOCK", value),
             None => std::env::remove_var("KANBUS_TEST_AI_MOCK"),
         }
-        match previous_no_daemon {
-            Some(value) => std::env::set_var("KANBUS_NO_DAEMON", value),
-            None => std::env::remove_var("KANBUS_NO_DAEMON"),
+        match previous_daemon_setting {
+            Some(value) => std::env::set_var("KANBUS_DAEMON", value),
+            None => std::env::remove_var("KANBUS_DAEMON"),
         }
     }
 }

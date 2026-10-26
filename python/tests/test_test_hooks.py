@@ -36,7 +36,7 @@ def test_service_switch_is_ignored_without_the_gate(
 
     monkeypatch.setenv("KANBUS_TEST_DISABLE_SERVICE", "1")
     monkeypatch.delenv("KANBUS_ENABLE_TEST_HOOKS")
-    monkeypatch.delenv("KANBUS_NO_DAEMON", raising=False)
+    monkeypatch.setenv("KANBUS_DAEMON", "1")
     (tmp_path / ".kanbus.yml").write_text("project_key: tst\n", encoding="utf-8")
 
     assert issue_files._use_service(tmp_path / "project" / "issues")

@@ -154,7 +154,7 @@ def main(argv: Iterable[str]) -> int:
     _ensure_rust_binary(args.rust_binary)
 
     env = os.environ.copy()
-    env.setdefault("KANBUS_NO_DAEMON", "1")
+    env.setdefault("KANBUS_DAEMON", "0")
     env.setdefault("PYTHONPATH", str(PYTHON_SRC))
 
     python_base = [args.python_executable, "-m", "kanbus.cli"]

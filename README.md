@@ -50,7 +50,7 @@ Kanbus is a spiritual successor to [Beads](https://github.com/steveyegge/beads).
 
 Kanbus ships a Python CLI (`kanbus`) and a Rust CLI (`kbs`, plus the `kbsc` console server). They are separate, complete implementations that run the same Gherkin behavior specifications in [`features/`](features), so commands, output, and file formats match. Python installs with `pip` and is the lighter dependency; Rust is faster on large boards.
 
-Read-heavy commands use an automatically started index daemon. Set `KANBUS_NO_DAEMON=1` to bypass it, and see `kbs daemon-status` and `kbs daemon-stop`.
+The index daemon is opt-in: set `KANBUS_DAEMON=1` to let read-heavy commands use an automatically started daemon, and see `kbs daemon-status` and `kbs daemon-stop`. Without it, commands never start or wait for a background process.
 
 ## Console
 

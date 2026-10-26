@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import socket
 import sys
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -438,7 +437,8 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
@@ -449,17 +449,18 @@ def test_publish_issue_deleted_invokes_publish_with_formatted_topic(
 
     captured: dict[str, object] = {}
 
-    def _capture_publish(_root, _config, topic, envelope) -> None:
+    def _capture_publish(_endpoint, topic, envelope, _realtime) -> None:
         captured["topic"] = topic
         captured["envelope"] = envelope
 
-    monkeypatch.setattr(gossip, "_publish_envelope", _capture_publish)
+    monkeypatch.setattr(gossip, "_publish_mqtt", _capture_publish)
     gossip.publish_issue_deleted(
         root=tmp_path,
         project_dir=tmp_path / "project",
         issue_id="kanbus-3",
         event_id="evt-3",
     )
+    gossip.finish_pending_realtime_publishes()
     assert captured["topic"] == f"projects/{TEST_PROJECT_ID}/events"
     envelope = captured["envelope"]
     assert isinstance(envelope, gossip.GossipEnvelope)
@@ -475,7 +476,8 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
@@ -485,7 +487,7 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
     )
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
+        "_publish_mqtt",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     gossip.publish_issue_deleted(
@@ -494,6 +496,7 @@ def test_publish_issue_deleted_prints_warning_on_publish_failure(
         issue_id="kanbus-4",
         event_id="evt-4",
     )
+    gossip.finish_pending_realtime_publishes()
     captured = capsys.readouterr()
     assert "warning: realtime publish failed for kanbus-4" in captured.err
 
@@ -1030,7 +1033,8 @@ def test_publish_issue_mutation_success_and_warning_paths(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
@@ -1044,8 +1048,8 @@ def test_publish_issue_mutation_success_and_warning_paths(
     captured: dict[str, object] = {}
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
-        lambda _root, _config, topic, envelope: captured.update(
+        "_publish_mqtt",
+        lambda _endpoint, topic, envelope, _realtime: captured.update(
             {"topic": topic, "envelope": envelope}
         ),
     )
@@ -1056,12 +1060,13 @@ def test_publish_issue_mutation_success_and_warning_paths(
         event_id="evt-11",
         event_type="issue.mutated",
     )
+    gossip.finish_pending_realtime_publishes()
     assert captured["topic"] == f"projects/{TEST_PROJECT_ID}/events"
     assert captured["envelope"].event_id == "evt-11"
 
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
+        "_publish_mqtt",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("publish failed")),
     )
     gossip.publish_issue_mutation(
@@ -1071,6 +1076,7 @@ def test_publish_issue_mutation_success_and_warning_paths(
         event_id="evt-12",
         event_type="issue.mutated",
     )
+    gossip.finish_pending_realtime_publishes()
     assert "warning: realtime publish failed for kanbus-12" in capsys.readouterr().err
 
 
@@ -1932,33 +1938,6 @@ def test_broadcast_payload_ignores_non_string_topic() -> None:
     assert len(subscribers) == 1
 
 
-def test_publish_within_hard_cap_abandons_a_wedged_publisher(
-    monkeypatch, capsys
-) -> None:
-    release_wedged_publisher = threading.Event()
-
-    def wedged_publish(*_args, **_kwargs) -> None:
-        release_wedged_publisher.wait(timeout=10)
-
-    monkeypatch.setattr(gossip, "_publish_envelope", wedged_publish)
-    monkeypatch.setattr(gossip, "REALTIME_PUBLISH_HARD_CAP_SECONDS", 0.2)
-    started_at = time.monotonic()
-    gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)
-    elapsed_seconds = time.monotonic() - started_at
-    release_wedged_publisher.set()
-    assert elapsed_seconds < 2.0
-    assert "abandoned" in capsys.readouterr().err
-
-
-def test_publish_within_hard_cap_reraises_publisher_failure(monkeypatch) -> None:
-    def failing_publish(*_args, **_kwargs) -> None:
-        raise OSError("broker exploded")
-
-    monkeypatch.setattr(gossip, "_publish_envelope", failing_publish)
-    with pytest.raises(OSError, match="broker exploded"):
-        gossip._publish_envelope_within_hard_cap(Path("."), None, "topic", None)
-
-
 def test_event_carrying_another_projects_identity_is_dropped(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -2037,7 +2016,8 @@ def test_publish_issue_mutation_uses_scoped_topic_and_identity(
     configuration = SimpleNamespace(
         project_id=TEST_PROJECT_ID,
         realtime=SimpleNamespace(
-            broker="auto",
+            transport="mqtt",
+            broker="mqtt://127.0.0.1:1883",
             topics=SimpleNamespace(project_events="projects/{project}/events"),
         ),
     )
@@ -2048,14 +2028,15 @@ def test_publish_issue_mutation_uses_scoped_topic_and_identity(
     captured: dict[str, object] = {}
     monkeypatch.setattr(
         gossip,
-        "_publish_envelope",
-        lambda _root, _config, topic, envelope: captured.update(
+        "_publish_mqtt",
+        lambda _endpoint, topic, envelope, _realtime: captured.update(
             {"topic": topic, "envelope": envelope}
         ),
     )
     gossip.publish_issue_mutation(
         tmp_path, project_dir, build_issue("kanbus-31"), "evt-31", "issue.mutated"
     )
+    gossip.finish_pending_realtime_publishes()
     identity = TEST_PROJECT_ID
     assert captured["topic"] == f"projects/{identity}/events"
     assert captured["envelope"].project_identity == identity

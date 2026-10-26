@@ -99,7 +99,7 @@ const ISOLATED_ENV_EXACT_KEYS: [&str; 1] = ["OPENAI_API_KEY"];
 /// so the suite's behavior does not depend on the machine it runs on (a real
 /// `~/.kanbus.env`, a real broker on the loopback interface, a real
 /// `OPENAI_API_KEY` in the shell, etc). Harness-set vars such as
-/// `KANBUS_NO_DAEMON` are untouched since they don't match the stripped
+/// `KANBUS_DAEMON` are untouched since they don't match the stripped
 /// prefixes/keys. The returned `TempDir` must be kept alive for the whole
 /// process run; `HOME` becomes invalid once it drops.
 fn isolate_process_environment_for_cucumber_suite() -> tempfile::TempDir {

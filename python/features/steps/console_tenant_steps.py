@@ -47,7 +47,7 @@ def _server(context: object, multi: bool = True) -> Iterator[str]:
         CONSOLE_PORT=str(port),
         CONSOLE_DATA_ROOT=str(root),
         CONSOLE_TENANT_MODE="multi" if multi else "single",
-        KANBUS_NO_DAEMON="1",
+        KANBUS_DAEMON="0",
     )
     process = subprocess.Popen(
         [str(_kbsc_binary_path())],

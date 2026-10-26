@@ -166,8 +166,8 @@ mod tests {
             let lock = DAEMON_ENV_LOCK
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let previous = std::env::var_os("KANBUS_NO_DAEMON");
-            std::env::set_var("KANBUS_NO_DAEMON", "1");
+            let previous = std::env::var_os("KANBUS_DAEMON");
+            std::env::set_var("KANBUS_DAEMON", "0");
             Self {
                 _lock: lock,
                 previous,
@@ -178,9 +178,9 @@ mod tests {
     impl Drop for DaemonDisabledEnv {
         fn drop(&mut self) {
             if let Some(value) = self.previous.as_ref() {
-                std::env::set_var("KANBUS_NO_DAEMON", value);
+                std::env::set_var("KANBUS_DAEMON", value);
             } else {
-                std::env::remove_var("KANBUS_NO_DAEMON");
+                std::env::remove_var("KANBUS_DAEMON");
             }
         }
     }

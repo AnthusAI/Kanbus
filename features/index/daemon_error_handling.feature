@@ -92,7 +92,7 @@ Feature: Daemon error handling
     When I request daemon status via the client
     Then the daemon request should fail with a daemon connection diagnostic
 
-  Scenario: Daemon spawn failure reports KANBUS_NO_DAEMON hint
+  Scenario: Daemon spawn failure reports KANBUS_DAEMON hint
     Given a Kanbus project with default configuration
     And daemon mode is enabled
     And daemon spawning will fail

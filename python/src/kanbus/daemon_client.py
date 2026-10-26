@@ -23,6 +23,7 @@ from kanbus.daemon_protocol import (
 
 logger = logging.getLogger(__name__)
 
+DAEMON_CONNECT_TIMEOUT_SECONDS = 1.0
 DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 DAEMON_SOCKET_WAIT_SECONDS = 0.4
 DAEMON_SOCKET_POLL_INTERVAL_SECONDS = 0.025
@@ -85,11 +86,14 @@ def is_daemon_transport_error(message: str) -> bool:
 def is_daemon_enabled() -> bool:
     """Return whether daemon mode is enabled.
 
+    The daemon is opt-in: it is used only when ``KANBUS_DAEMON`` is ``1``,
+    ``true`` or ``yes``. Unset or any other value leaves it off.
+
     :return: True when daemon mode is enabled.
     :rtype: bool
     """
-    value = os.getenv("KANBUS_NO_DAEMON", "").lower()
-    return value not in {"1", "true", "yes"}
+    value = os.getenv("KANBUS_DAEMON", "").lower()
+    return value in {"1", "true", "yes"}
 
 
 def send_request(socket_path: Path, request: RequestEnvelope) -> ResponseEnvelope:
@@ -106,8 +110,9 @@ def send_request(socket_path: Path, request: RequestEnvelope) -> ResponseEnvelop
     payload = json.dumps(request.model_dump(mode="json")).encode("utf-8") + b"\n"
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.settimeout(DAEMON_REQUEST_TIMEOUT_SECONDS)
+            sock.settimeout(DAEMON_CONNECT_TIMEOUT_SECONDS)
             sock.connect(str(socket_path))
+            sock.settimeout(DAEMON_REQUEST_TIMEOUT_SECONDS)
             sock.sendall(payload)
             response_raw = sock.makefile("rb").readline()
     except OSError as error:
@@ -138,7 +143,7 @@ def spawn_daemon(root: Path) -> None:
     except OSError as error:
         raise DaemonClientError(
             f"daemon spawn failed: {error}. "
-            "Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+            "Unset KANBUS_DAEMON to bypass the daemon."
         ) from error
 
 
@@ -268,8 +273,9 @@ def request_shutdown(root: Path) -> dict[str, Any]:
 
 def _send_virtuus_request(socket_path: Path, request: dict[str, Any]) -> Any:
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-        connection.settimeout(DAEMON_REQUEST_TIMEOUT_SECONDS)
+        connection.settimeout(DAEMON_CONNECT_TIMEOUT_SECONDS)
         connection.connect(str(socket_path))
+        connection.settimeout(DAEMON_REQUEST_TIMEOUT_SECONDS)
         connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
         response = b""
         while not response.endswith(b"\n"):
@@ -392,7 +398,7 @@ def _request_with_recovery(
                 time.sleep(0.05)
         raise DaemonClientError(
             f"daemon connection failed after retries: {socket_path}. "
-            "Set KANBUS_NO_DAEMON=1 to bypass the daemon."
+            "Unset KANBUS_DAEMON to bypass the daemon."
         ) from last_error
 
 

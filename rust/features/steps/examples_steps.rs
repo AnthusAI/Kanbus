@@ -52,7 +52,7 @@ fn when_run_kanbus_init_in_example(_world: &mut KanbusWorld, name: String) {
     let status = Command::new(binary_path)
         .args(["init"])
         .current_dir(&path)
-        .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_DAEMON", "0")
         .status()
         .expect("kanbus init failed");
     if !status.success() {
@@ -67,7 +67,7 @@ fn when_run_kanbus_setup_agents_in_example(_world: &mut KanbusWorld, name: Strin
     let status = Command::new(binary_path)
         .args(["setup", "agents"])
         .current_dir(&path)
-        .env("KANBUS_NO_DAEMON", "1")
+        .env("KANBUS_DAEMON", "0")
         .status()
         .expect("kanbus setup agents failed");
     if !status.success() {

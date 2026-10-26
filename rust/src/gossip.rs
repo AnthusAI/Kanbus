@@ -278,9 +278,7 @@ pub fn publish_issue_mutation_with_context(
         coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_identity);
-    if let Err(error) = publish_envelope(root, configuration, &topic, &envelope) {
-        eprintln!("warning: realtime publish failed: {error}");
-    }
+    publish_issue_event(root, configuration, &topic, &envelope);
     Ok(())
 }
 
@@ -320,9 +318,7 @@ pub fn publish_issue_deleted(
         coordination: CoordinationGossipFields::default(),
     };
     let topic = project_topic(&configuration.realtime, &project_identity);
-    if let Err(error) = publish_envelope(root, configuration, &topic, &envelope) {
-        eprintln!("warning: realtime publish failed: {error}");
-    }
+    publish_issue_event(root, configuration, &topic, &envelope);
     Ok(())
 }
 
@@ -1320,6 +1316,136 @@ fn run_uds_subscription(
     ))
 }
 
+/// Longest time a CLI command waits for its fire-and-forget realtime publish.
+pub const CLI_REALTIME_PUBLISH_CAP: Duration = Duration::from_secs(2);
+
+static CONSOLE_REALTIME_PUBLISHING: AtomicBool = AtomicBool::new(false);
+
+struct PendingCliPublish {
+    outcome: mpsc::Receiver<Result<(), KanbusError>>,
+    deadline: Instant,
+}
+
+static PENDING_CLI_PUBLISHES: Mutex<Vec<PendingCliPublish>> = Mutex::new(Vec::new());
+
+/// Give this process the console's realtime publishing behavior.
+///
+/// The console keeps broker discovery, autostart and synchronous publishing for
+/// issue events. Every other process (the CLI) never discovers or starts a
+/// broker and publishes only to an explicitly configured one, without waiting.
+pub fn enable_console_realtime_publishing() {
+    CONSOLE_REALTIME_PUBLISHING.store(true, Ordering::SeqCst);
+}
+
+fn publish_issue_event(
+    root: &Path,
+    configuration: &ProjectConfiguration,
+    topic: &str,
+    envelope: &GossipEnvelope,
+) {
+    if CONSOLE_REALTIME_PUBLISHING.load(Ordering::SeqCst) {
+        if let Err(error) = publish_envelope(root, configuration, topic, envelope) {
+            eprintln!("warning: realtime publish failed: {error}");
+        }
+        return;
+    }
+    publish_issue_event_from_cli(&configuration.realtime, topic, envelope);
+}
+
+/// Publish an issue event for a CLI command.
+///
+/// A running console hub on the local UDS socket receives the event inline.
+/// With `realtime.broker` set to `auto` or `off` nothing else happens: no
+/// broker discovery, no autostart, no publish. With an explicit broker URL the
+/// event is published on a detached thread; see
+/// [`finish_pending_realtime_publishes`] for the process-exit rule.
+fn publish_issue_event_from_cli(realtime: &RealtimeConfig, topic: &str, envelope: &GossipEnvelope) {
+    if cfg!(unix) && realtime.transport == "uds" {
+        let _ = publish_uds(topic, envelope, realtime);
+        return;
+    }
+    if cfg!(unix)
+        && realtime.transport == "auto"
+        && publish_uds_if_available(topic, envelope, realtime)
+    {
+        return;
+    }
+    if realtime.broker == "auto" || realtime.broker == "off" {
+        return;
+    }
+    let endpoint = match parse_broker_url(&realtime.broker) {
+        Ok(endpoint) => endpoint,
+        Err(error) => {
+            report_cli_publish_outcome(Err(error));
+            return;
+        }
+    };
+    let realtime = realtime.clone();
+    let topic = topic.to_string();
+    let envelope = envelope.clone();
+    let (outcome_sender, outcome) = mpsc::channel();
+    let spawned = thread::Builder::new()
+        .name("kanbus-realtime-publish".to_string())
+        .spawn(move || {
+            let _ = outcome_sender.send(publish_mqtt(&endpoint, &topic, &envelope, &realtime));
+        });
+    if let Err(error) = spawned {
+        report_cli_publish_outcome(Err(KanbusError::Io(error.to_string())));
+        return;
+    }
+    let mut pending = PENDING_CLI_PUBLISHES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    pending.retain(|entry| match entry.outcome.try_recv() {
+        Ok(result) => {
+            report_cli_publish_outcome(result);
+            false
+        }
+        Err(mpsc::TryRecvError::Disconnected) => false,
+        Err(mpsc::TryRecvError::Empty) => true,
+    });
+    pending.push(PendingCliPublish {
+        outcome,
+        deadline: Instant::now() + CLI_REALTIME_PUBLISH_CAP,
+    });
+}
+
+fn report_cli_publish_outcome(outcome: Result<(), KanbusError>) {
+    if let Err(error) = outcome {
+        crate::rich_text_signals::emit_stderr_line(&format!(
+            "warning: realtime publish failed: {error}"
+        ));
+    }
+}
+
+/// Wait for the realtime publishes a CLI command started, up to the cap.
+///
+/// Every publish started by a CLI command has a deadline of
+/// [`CLI_REALTIME_PUBLISH_CAP`] after it started. The command runner calls this
+/// once the command has finished: it returns as soon as each publish completes
+/// or its deadline passes, so the process never exits before a publish ends
+/// unless the cap is hit, in which case it warns and abandons that publish.
+pub fn finish_pending_realtime_publishes() {
+    let pending = std::mem::take(
+        &mut *PENDING_CLI_PUBLISHES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
+    for entry in pending {
+        let remaining = entry.deadline.saturating_duration_since(Instant::now());
+        match entry.outcome.recv_timeout(remaining) {
+            Ok(result) => report_cli_publish_outcome(result),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                crate::rich_text_signals::emit_stderr_line(&format!(
+                    "warning: realtime publish abandoned after {}s",
+                    CLI_REALTIME_PUBLISH_CAP.as_secs_f32()
+                ));
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {}
+        }
+    }
+}
+
 const REALTIME_PUBLISH_HARD_CAP: Duration = Duration::from_secs(5);
 
 fn publish_envelope(
@@ -1458,6 +1584,9 @@ fn publish_uds_if_available(
     publish_uds(topic, envelope, realtime).is_ok()
 }
 
+/// Longest time a UDS publish waits to connect to or write to the local hub.
+const UDS_PUBLISH_TIMEOUT: Duration = Duration::from_secs(2);
+
 #[cfg(unix)]
 fn publish_uds(
     topic: &str,
@@ -1465,8 +1594,11 @@ fn publish_uds(
     realtime: &RealtimeConfig,
 ) -> Result<(), KanbusError> {
     let socket_path = uds_socket_path(Some(realtime));
-    let mut stream =
-        UnixStream::connect(socket_path).map_err(|error| KanbusError::Io(error.to_string()))?;
+    let mut stream = crate::daemon_client::connect_with_timeout(&socket_path, UDS_PUBLISH_TIMEOUT)
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
+    stream
+        .set_write_timeout(Some(UDS_PUBLISH_TIMEOUT))
+        .map_err(|error| KanbusError::Io(error.to_string()))?;
     let payload = serde_json::json!({"op": "pub", "topic": topic, "msg": envelope});
     let line =
         serde_json::to_string(&payload).map_err(|error| KanbusError::Io(error.to_string()))? + "\n";
@@ -2486,6 +2618,89 @@ mod tests {
             &envelope,
             &realtime
         ));
+    }
+
+    static CLI_PUBLISH_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn pending_cli_publish_count() -> usize {
+        PENDING_CLI_PUBLISHES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len()
+    }
+
+    #[test]
+    fn cli_publish_with_broker_auto_or_off_starts_nothing() {
+        let _guard = CLI_PUBLISH_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        finish_pending_realtime_publishes();
+        for broker in ["auto", "off"] {
+            let mut realtime = sample_realtime(Some("/nonexistent/kanbus-bus.sock".to_string()));
+            realtime.broker = broker.to_string();
+            publish_issue_event_from_cli(&realtime, "projects/test/events", &sample_envelope());
+            assert_eq!(pending_cli_publish_count(), 0, "broker {broker}");
+        }
+    }
+
+    #[test]
+    fn cli_publish_with_an_invalid_explicit_broker_starts_nothing() {
+        let _guard = CLI_PUBLISH_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        finish_pending_realtime_publishes();
+        let mut realtime = sample_realtime(Some("/nonexistent/kanbus-bus.sock".to_string()));
+        realtime.broker = "not-a-url".to_string();
+        publish_issue_event_from_cli(&realtime, "projects/test/events", &sample_envelope());
+        assert_eq!(pending_cli_publish_count(), 0);
+    }
+
+    #[test]
+    fn cli_publish_with_an_explicit_broker_runs_detached_and_finishes_quickly_on_refusal() {
+        let _guard = CLI_PUBLISH_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        finish_pending_realtime_publishes();
+        let closed_port = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("bind")
+            .local_addr()
+            .expect("address")
+            .port();
+        let mut realtime = sample_realtime(Some("/nonexistent/kanbus-bus.sock".to_string()));
+        realtime.broker = format!("mqtt://127.0.0.1:{closed_port}");
+        let started_at = Instant::now();
+        publish_issue_event_from_cli(&realtime, "projects/test/events", &sample_envelope());
+        assert!(started_at.elapsed() < Duration::from_millis(500));
+        assert_eq!(pending_cli_publish_count(), 1);
+        finish_pending_realtime_publishes();
+        assert_eq!(pending_cli_publish_count(), 0);
+        assert!(started_at.elapsed() < CLI_REALTIME_PUBLISH_CAP + Duration::from_secs(1));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cli_publish_reaches_a_running_console_hub_inline() {
+        let _guard = CLI_PUBLISH_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        finish_pending_realtime_publishes();
+        let tmp = TempDir::new().expect("temp dir");
+        let socket_path = tmp.path().join("bus.sock");
+        let broker_socket = socket_path.clone();
+        thread::spawn(move || {
+            let _ = run_uds_broker(&broker_socket);
+        });
+        for _ in 0..40 {
+            if socket_path.exists() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+        let mut realtime = sample_realtime(Some(socket_path.display().to_string()));
+        realtime.transport = "auto".to_string();
+        realtime.broker = "auto".to_string();
+        publish_issue_event_from_cli(&realtime, "projects/test/events", &sample_envelope());
+        assert_eq!(pending_cli_publish_count(), 0);
     }
 
     #[test]
