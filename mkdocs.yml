@@ -26,4 +26,5 @@ nav:
   - Troubleshooting: TROUBLESHOOTING.md
   - Migration from Beads: MIGRATION.md
   - Kanbus vs. Beads: VS_BEADS.md
+  - Building from Source: dev/building-from-source.md
   - Code Quality: dev/code-quality.md

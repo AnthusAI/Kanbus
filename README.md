@@ -24,7 +24,7 @@ kbs show <id>
 kbs commit                # commit board changes to git
 ```
 
-[Installation](INSTALL.md) lists every install path, and [Getting Started](docs/GETTING_STARTED.md) walks through your first board.
+[Building from source](docs/dev/building-from-source.md) covers developer installs, and [Getting Started](docs/GETTING_STARTED.md) walks through your first board.
 
 ## Three ways to run it
 

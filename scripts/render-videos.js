@@ -25,7 +25,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const videosDir = path.join(repoRoot, "videos");
 const outDir = path.join(videosDir, "out");
 const siteStaticVideosDir = path.join(repoRoot, "apps", "kanb.us", "static", "videos");
-const publicVideomlDir = path.join(repoRoot, "public", "videoml");
+const publicVideomlDir = path.join(videosDir, "public", "videoml");
 
 const run = (cmd, opts = {}) => {
   execSync(cmd, { stdio: "inherit", ...opts });
@@ -208,7 +208,7 @@ const ensureAliasAsset = (targetPath, sourcePath) => {
 };
 
 function getTimelineDurationSec(compositionId) {
-  const timelinePath = path.join(repoRoot, "src", "videos", compositionId, `${compositionId}.timeline.json`);
+  const timelinePath = path.join(videosDir, "src", "videos", compositionId, `${compositionId}.timeline.json`);
   if (!existsSync(timelinePath)) return 30;
   const data = JSON.parse(readFileSync(timelinePath, "utf8"));
   const items = data.items || [];
@@ -232,7 +232,7 @@ function ensureSilentWav(compositionId) {
 }
 
 function mixLifecycleHooksFromSegments() {
-  const segmentsDir = path.join(repoRoot, "src", "videos", "lifecycle-hooks", "env", "development", "segments");
+  const segmentsDir = path.join(videosDir, "src", "videos", "lifecycle-hooks", "env", "development", "segments");
   const outPath = path.join(publicVideomlDir, "lifecycle-hooks.wav");
   const segs = [
     path.join(segmentsDir, "hook--hook_voice--tts--4142a228b2e5--1.wav"),
