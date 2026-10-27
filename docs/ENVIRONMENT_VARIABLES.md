@@ -72,6 +72,16 @@ binary and `kbs cloud token` commands). Remove together with that code.
 | `KANBUS_TENANT_ACCOUNT_CLAIM_KEY` | Token claim holding the account (default `custom:account`) | `bin/console_lambda.rs:202` | none | legacy-cloud |
 | `KANBUS_TENANT_PROJECT_CLAIM_KEY` | Token claim holding the project (default `custom:project`) | `bin/console_lambda.rs:207` | none | legacy-cloud |
 
+## Console server variables
+
+Read by the Rust `kbsc` console server only; the Python package has no console. These do not use the
+`KANBUS_` prefix.
+
+| Name | Purpose | Rust | Python | Class | Note |
+| --- | --- | --- | --- | --- | --- |
+| `CONSOLE_HOST` | Interface `kbsc` listens on. Unset or empty means every interface (`0.0.0.0`), so other devices on the local network can open the board. `localhost` means `127.0.0.1`. Any other value must be an IP address; an invalid value stops `kbsc` at startup with exit status 1 and an error naming the value. | `bin/console_local.rs` (`resolve_bind_host`) | none | single-runtime | Reads are unauthenticated on the network; writes (comments, status changes, assignments) are accepted from localhost only. Set `CONSOLE_HOST=127.0.0.1` to listen on loopback only. See [Open the console](getting-started/local-files.md#7-open-the-console) |
+| `CONSOLE_PORT` | Port `kbsc` listens on; overrides `console_port` in `.kanbus.yml` (default 5174 when neither is set) | `bin/console_local.rs` | none | single-runtime | Give each repository its own port |
+
 ## Test hooks
 
 Not for users. Both runtimes gate them (see the classification notes above).
