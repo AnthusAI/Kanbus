@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   no-git-url-dependencies:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -24,7 +24,7 @@ jobs:
           fi
 
   embedded-kanbus:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -58,7 +58,7 @@ jobs:
           cargo clippy --locked --all-features --all-targets -- -D warnings
 
   python:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       coverage_percent: ${{ steps.python_coverage.outputs.percentage }}
       coverage_color: ${{ steps.python_coverage.outputs.color }}
@@ -120,7 +120,7 @@ jobs:
         run: python tools/generate_configuration_reference.py --check
 
   python-versions:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -146,7 +146,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-14, windows-latest]
+        os: [ubuntu-24.04, macos-14, windows-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -160,7 +160,7 @@ jobs:
         run: python tools/verify_python_installation.py
 
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:
       coverage_percent: ${{ steps.rust_coverage.outputs.percentage }}
@@ -264,7 +264,7 @@ jobs:
           path: coverage-rust/cobertura.xml
 
   coverage-ratchet:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [python, rust]
     steps:
       - name: Checkout
@@ -346,7 +346,7 @@ jobs:
             coverage-parity-report.json
 
   rust-console-parity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       RUST_BACKTRACE: 1
@@ -365,7 +365,7 @@ jobs:
           KANBUS_CUCUMBER_ONLY_CONSOLE=1 cargo test --locked --test cucumber -- --fail-fast
 
   python-console-parity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       RUST_BACKTRACE: 1
@@ -400,7 +400,7 @@ jobs:
           KANBUS_ENABLE_COVERAGE_HELPER=0 python -m behave --tags "@console-server and not @slow"
 
   cli-parity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -434,7 +434,7 @@ jobs:
 
   implementation-cochange:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       pull-requests: read
@@ -456,7 +456,7 @@ jobs:
             --labels "$current_labels"
 
   console-ui:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -502,7 +502,7 @@ jobs:
           path: apps/console/dist
 
   performance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -533,7 +533,7 @@ jobs:
         run: python tools/check_board_load.py
 
   binary-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [rust, console-ui]
     steps:
       - name: Checkout
@@ -581,7 +581,7 @@ jobs:
         run: tools/test_prebuilt_binaries_docker.sh dist/kbs dist/kbsc
 
   beads-interop:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       [
         python,
@@ -660,7 +660,7 @@ jobs:
   badges:
     needs: [python, rust]
     if: ${{ always() && github.event_name == 'push' && github.ref_name == 'main' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
