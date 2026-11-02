@@ -28,7 +28,7 @@ jobs:
   ui-package:
     name: Shared UI package
     if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'ui-v') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -54,7 +54,7 @@ jobs:
   api-client-package:
     name: API client package
     if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'api-client-v') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -79,7 +79,7 @@ jobs:
   cdk-package:
     name: CDK construct package
     if: ${{ github.event_name == 'push' && startsWith(github.ref_name, 'kanbus-cdk-v') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -134,7 +134,7 @@ jobs:
     name: PyPI Release
     # Run for python release tags, or manual dispatch when rust_only is not set.
     if: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'kanbus-py-')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.rust_only == '') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       release_tag: ${{ steps.release_tag.outputs.tag }}
     steps:
@@ -239,7 +239,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             binary: kbs
             archive: tar.gz
@@ -309,7 +309,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             binary: kbsc
             archive: tar.gz
@@ -405,7 +405,7 @@ jobs:
     name: Publish VSCode Extension
     needs: [pypi-release, console-server-binaries]
     if: ${{ needs.pypi-release.outputs.release_tag != '' && (github.event_name != 'workflow_dispatch' || github.event.inputs.pypi_only != 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -457,7 +457,7 @@ jobs:
 
   rust-crate:
     if: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'kanbus-rust-')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.rust_only != '') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CARGO_TERM_COLOR: always
     steps:
