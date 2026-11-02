@@ -24,7 +24,7 @@
   "updated_at": "2026-02-11T04:50:17.410185Z",
   "closed_at": "2026-02-11T04:50:17.410185Z",
   "custom": {
-    "beads_close_reason": "Amplify app d11ru5nyvcz6ac provisioned. Gatsby build fixed (gatsby-plugin-postcss). Site building and live. Launched with placeholder content; design/author tasks deferred.",
+    "beads_close_reason": "Amplify app <amplify-app-id> provisioned. Gatsby build fixed (gatsby-plugin-postcss). Site building and live. Launched with placeholder content; design/author tasks deferred.",
     "beads_owner": "agent@example.com"
   }
 }

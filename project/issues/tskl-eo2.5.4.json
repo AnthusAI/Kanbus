@@ -70,7 +70,7 @@
     {
       "id": "5a15fe9d-882c-5914-99b5-03bcb9fdbf05",
       "author": "ryan.porter",
-      "text": "Progress: Worker+API path is now deploy-validated end-to-end through queue sync and authenticated API data reads.\nEvidence: stack UPDATE_COMPLETE at 2026-03-07 03:13 ET; /anthus/kanbus/api/config=200 and /issues=200 after redeploy; worker logs show successful fetch/reset runs.\nNext: run signed webhook ingress validation to close task.\nRisk/Blocker: blocked on secretsmanager:GetSecretValue/PutSecretValue access for arn:aws:secretsmanager:us-east-1:335163751677:secret:kanbus/github-webhook/dev-DFdNbj.",
+      "text": "Progress: Worker+API path is now deploy-validated end-to-end through queue sync and authenticated API data reads.\nEvidence: stack UPDATE_COMPLETE at 2026-03-07 03:13 ET; /anthus/kanbus/api/config=200 and /issues=200 after redeploy; worker logs show successful fetch/reset runs.\nNext: run signed webhook ingress validation to close task.\nRisk/Blocker: blocked on secretsmanager:GetSecretValue/PutSecretValue access for arn:aws:secretsmanager:us-east-1:<account-id>:secret:kanbus/github-webhook/dev-DFdNbj.",
       "created_at": "2026-03-07T08:14:20.893638Z",
       "comment_type": "default"
     },

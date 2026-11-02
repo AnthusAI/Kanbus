@@ -4,7 +4,7 @@ The API remains unpublished. Its Virtuus store dependency is pinned to tested pu
 
 ## Real AWS API CRUD
 
-The guarded `scripts/run-aws-proof.py` run verified account `682849160744`, existing profile `cyclotron-production`, region `us-east-1`, and the existing private stack `virtuus-store-proof-20261014-aws01` at `CREATE_COMPLETE`. No resources or IAM grants were created.
+The guarded `scripts/run-aws-proof.py` run verified account `<account-id>`, existing profile `cyclotron-production`, region `us-east-1`, and the existing private stack `virtuus-store-proof-20261014-aws01` at `CREATE_COMPLETE`. No resources or IAM grants were created.
 
 - Namespace: `proof-api/proof-api-20261014-01`
 - Bucket: `virtuus-store-proof-20261014-aws01-canonicalbucket-wdxzesz9pihb`

@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 PROFILE = "cyclotron-production"
-ACCOUNT = "682849160744"
+ACCOUNT = os.environ.get("KANBUS_PROOF_AWS_ACCOUNT_ID", "")
 STACK = "virtuus-store-proof-20261014-aws01"
 REGION = "us-east-1"
 
@@ -23,6 +23,8 @@ def aws(*args):
 
 def main():
     """Guard account and fixture ownership, then run ignored integration proof."""
+    if not ACCOUNT:
+        raise SystemExit("set KANBUS_PROOF_AWS_ACCOUNT_ID to the account that owns the proof fixture")
     identity = aws("sts", "get-caller-identity")
     if identity["Account"] != ACCOUNT:
         raise SystemExit("Wrong AWS account; refusing to run")
