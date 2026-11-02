@@ -2033,7 +2033,7 @@ fn arn_normalization_rejects_lookalikes_other_accounts_and_malformed_arns() {
         assumed("control", ""),
         format!("arn:aws:sts::{ACCOUNT}:assumed-role/path/control/s"),
         format!("arn:aws:sts::{ACCOUNT}:assumed-role/control/s/extra"),
-        "arn:aws:sts::999988887777:assumed-role/control/s".to_string(),
+        "arn:aws:sts::123456789012:assumed-role/control/s".to_string(),
         format!("arn:aws:sts::{ACCOUNT}:federated-user/control"),
         format!("arn:aws:sts::{ACCOUNT}:assumed-role/control"),
         format!("arn:aws:iam::{ACCOUNT}:role/control"),
@@ -2052,7 +2052,7 @@ fn arn_normalization_rejects_lookalikes_other_accounts_and_malformed_arns() {
             "{arn} must not authenticate"
         );
     }
-    let mismatched_account = role_event(&assumed("control", "s"), "999988887777", None);
+    let mismatched_account = role_event(&assumed("control", "s"), "123456789012", None);
     assert_eq!(
         authenticate_cloud(&mismatched_account, &mapped)
             .unwrap_err()
@@ -2060,7 +2060,7 @@ fn arn_normalization_rejects_lookalikes_other_accounts_and_malformed_arns() {
         403
     );
     let other_account_mapping =
-        mapping(json!([{"role_arn":"arn:aws:iam::999988887777:role/control","tenants":"*"}]));
+        mapping(json!([{"role_arn":"arn:aws:iam::123456789012:role/control","tenants":"*"}]));
     assert_eq!(
         authenticate_role(&other_account_mapping, "control", None)
             .unwrap_err()
