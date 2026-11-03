@@ -54,7 +54,8 @@ try {
     const expand = page.getByRole("button", { name: "Expand Open", exact: true });
     await expect(expand).toHaveAttribute("aria-expanded", "false");
     await expect(cards).toHaveCount(0);
-    assert((await expand.locator("..").boundingBox()).width <= 50);
+    const collapsedHeaderWidth = (await expand.locator("..").boundingBox()).width;
+    assert(width === 390 ? collapsedHeaderWidth > 300 : collapsedHeaderWidth <= 50);
     await page.reload();
     await expect(expand).toBeVisible();
     await expand.focus();
