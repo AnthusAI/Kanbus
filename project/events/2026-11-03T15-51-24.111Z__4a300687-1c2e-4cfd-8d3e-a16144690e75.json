@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "4a300687-1c2e-4cfd-8d3e-a16144690e75",
+  "issue_id": "kbs-9563cfe6-b189-45db-845e-24a2df891048",
+  "event_type": "dependency_added",
+  "occurred_at": "2026-11-03T15:51:24.111Z",
+  "actor_id": "home",
+  "payload": {
+    "dependency_type": "blocked-by",
+    "target_id": "kbs-f9bcdfce-745c-40b6-8079-617d4a503d61"
+  }
+}

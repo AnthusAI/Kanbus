@@ -9,10 +9,15 @@
   "creator": null,
   "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
   "labels": [],
-  "dependencies": [],
+  "dependencies": [
+    {
+      "target": "kbs-f9bcdfce-745c-40b6-8079-617d4a503d61",
+      "type": "blocked-by"
+    }
+  ],
   "comments": [],
   "created_at": "2026-11-03T15:51:00.990991Z",
-  "updated_at": "2026-11-03T15:51:01.052196Z",
+  "updated_at": "2026-11-03T15:51:24.020715Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
