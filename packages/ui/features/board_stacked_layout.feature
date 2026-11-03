@@ -147,3 +147,25 @@ Feature: Stacked board layout
     When the host hydrates a server rendered board at 375 by 700
     Then the hydrated board layout becomes "stacked"
     And the console reported no hydration warning
+
+  Scenario: Collapsing the pinned section keeps the reader at that section header
+    Given a host application with article and task issues
+    When the host renders a stacked board of sectioned data at 375 by 700
+    And I scroll the stacked board by 2500 pixels
+    And I collapse the pinned section header with the keyboard
+    Then the header of section "Draft" is at the top of the board
+    And the header of section "Draft" shows the count 60
+    And focus is on the header of section "Draft"
+
+  Scenario: Crossing the breakpoint with a selected card brings the card into view
+    Given a host application with article and task issues
+    When the host renders a stacked board of large data at 375 by 812
+    And I scroll the stacked board by 3000 pixels
+    And I remember the position of the first visible issue card
+    And I select the first visible issue card with the keyboard
+    And the viewport becomes 812 by 375
+    Then the board layout is "columns"
+    And the remembered issue card is within the viewport
+    When the viewport becomes 375 by 812
+    Then the board layout is "stacked"
+    And the remembered issue card is within the viewport

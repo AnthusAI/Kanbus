@@ -371,6 +371,39 @@ Then("the console reported no hydration warning", async function () {
   expect(warnings).toEqual([]);
 });
 
+When("I collapse the pinned section header with the keyboard", async function () {
+  const button = this.page.locator(".kb-stacked-sticky-header .kb-column-header");
+  await button.focus();
+  await button.press("Enter");
+});
+Then("the header of section {string} is at the top of the board", async function (name) {
+  const header = this.page.getByRole("button", { name: `Expand ${name}`, exact: true });
+  await expect.poll(async () => {
+    const headerTop = (await header.boundingBox()).y;
+    const scrollerTop = (await this.page.locator(".kb-stacked-scroll").boundingBox()).y;
+    return Math.abs(headerTop - scrollerTop) <= 1;
+  }).toBe(true);
+});
+Then("the header of section {string} shows the count {int}", async function (name, count) {
+  const header = this.page.getByRole("button", { name: `Expand ${name}`, exact: true });
+  await expect(header.locator("span").last()).toHaveText(String(count));
+});
+Then("focus is on the header of section {string}", async function (name) {
+  await expect(this.page.getByRole("button", { name: `Expand ${name}`, exact: true })).toBeFocused();
+});
+Then("the remembered issue card is within the viewport", async function () {
+  await expect.poll(async () => this.page.locator(`.issue-card[data-issue-id="${this.rememberedIdentifier}"]`).evaluate((card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= -1 && box.left >= -1 && box.bottom <= innerHeight + 1 && box.right <= innerWidth + 1;
+  })).toBe(true);
+});
+Then("the issue card {string} is within the viewport", async function (identifier) {
+  await expect.poll(async () => this.page.locator(`.issue-card[data-issue-id="${identifier}"]`).evaluate((card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= -1 && box.left >= -1 && box.bottom <= innerHeight + 1 && box.right <= innerWidth + 1;
+  })).toBe(true);
+});
+
 setDefaultTimeout(15000);
 
 BeforeAll(async () => {

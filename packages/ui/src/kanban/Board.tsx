@@ -47,6 +47,8 @@ export interface BoardProps {
   stackedBelowWidth?: number;
 }
 
+const FRAMES_FOR_COLUMN_VIRTUALIZER_TO_SETTLE = 8;
+
 type IssueComparator = (a: KanbanIssue, b: KanbanIssue) => number;
 
 const DONE_NAMES = new Set(["done", "closed", "complete", "completed", "resolved"]);
@@ -285,6 +287,9 @@ function BoardComponent({
 }: Omit<BoardProps, "formatIssueId">) {
   const resolvedLayout = useResolvedBoardLayout(layout, stackedBelowWidth);
   const isStacked = resolvedLayout === "stacked";
+  const previousResolvedLayoutReference = useRef<typeof resolvedLayout | null>(null);
+  const layoutChangedThisRender =
+    previousResolvedLayoutReference.current !== null && previousResolvedLayoutReference.current !== resolvedLayout;
   const columnState = useBoardColumnState({ config, columns, storageKey: collapsedColumns === undefined ? columnStateKey : undefined });
   const visibleCollapsedColumns = collapsedColumns ?? columnState.collapsedColumns;
   const toggleColumn = onToggleCollapse ?? (collapsedColumns === undefined ? columnState.toggleColumn : undefined);
@@ -378,6 +383,9 @@ function BoardComponent({
   }, [issues]);
 
   useIsomorphicLayoutEffect(() => {
+    if (layoutChangedThisRender && selectedIssueId != null) {
+      didInitialScroll.current = true;
+    }
     if (isStacked || initialScroll === "preserve" || didInitialScroll.current) {
       return;
     }
@@ -394,7 +402,31 @@ function BoardComponent({
   }, [columns.length, initialScroll, isStacked]);
 
   useEffect(() => {
-    if (!detailOpen || isStacked) return;
+    if (!layoutChangedThisRender || isStacked || selectedIssueId == null) {
+      return;
+    }
+    let remainingAnimationFrames = FRAMES_FOR_COLUMN_VIRTUALIZER_TO_SETTLE;
+    let animationFrameHandle = 0;
+    const revealSelectedCardWhenSettled = () => {
+      remainingAnimationFrames -= 1;
+      if (remainingAnimationFrames > 0) {
+        animationFrameHandle = window.requestAnimationFrame(revealSelectedCardWhenSettled);
+        return;
+      }
+      boardRef.current
+        ?.querySelector<HTMLElement>('.issue-card[data-selected="true"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    };
+    animationFrameHandle = window.requestAnimationFrame(revealSelectedCardWhenSettled);
+    return () => window.cancelAnimationFrame(animationFrameHandle);
+  }, [resolvedLayout]);
+
+  useIsomorphicLayoutEffect(() => {
+    previousResolvedLayoutReference.current = resolvedLayout;
+  }, [resolvedLayout]);
+
+  useEffect(() => {
+    if (!detailOpen || isStacked || (layoutChangedThisRender && selectedIssueId != null)) return;
     const node = boardRef.current;
     if (!node) return;
     const maxScrollLeft = node.scrollWidth - node.clientWidth;
@@ -452,15 +484,16 @@ function BoardComponent({
 
   if (isStacked) {
     return (
-      <div ref={setBoardRef} className="kb-stacked-board" data-layout="stacked" data-motion={stableMotion.mode}>
+      <div key="stacked" ref={setBoardRef} className="kb-stacked-board" data-layout="stacked" data-motion={stableMotion.mode}>
         <StackedBoard sections={stackedSections} priorityLookup={priorityLookup} config={config}
-          onSelectIssue={onSelectIssue} selectedIssueId={selectedIssueId} motion={stableMotion} />
+          onSelectIssue={onSelectIssue} selectedIssueId={selectedIssueId} motion={stableMotion}
+          revealSelectedIssueOnMount={layoutChangedThisRender} />
       </div>
     );
   }
 
   return (
-    <div ref={setBoardRef} className="kb-grid gap-2" data-layout="columns" data-motion={stableMotion.mode}>
+    <div key="columns" ref={setBoardRef} className="kb-grid gap-2" data-layout="columns" data-motion={stableMotion.mode}>
       {columns.map((column) => {
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;
@@ -477,6 +510,7 @@ function BoardComponent({
             collapsed={visibleCollapsedColumns.has(column)}
             onToggleCollapse={columnToggleHandlers.get(column)}
             motion={stableMotion}
+            revealSelectedIssueOnMount={layoutChangedThisRender}
           />
         );
       })}
