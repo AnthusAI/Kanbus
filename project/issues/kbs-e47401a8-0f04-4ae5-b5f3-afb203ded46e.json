@@ -40,10 +40,17 @@
       "text": "2026-10-26: platform-ci pinned by SHA (PR #540 merged). Ryan chose the live main ruleset as the source of truth; infra/github-rulesets/main-branch-protection.json now matches it (enforcement disabled, no required reviews) and the drift check passes. Still waiting on Ryan: kbsc default bind host, develop ruleset and required checks, PyPI Trusted Publishing.",
       "created_at": "2026-10-26T17:16:30.154455Z",
       "comment_type": "default"
+    },
+    {
+      "id": "1b2c4187-d921-4484-92d8-7c824674b5fd",
+      "author": "home",
+      "text": "2026-11-03: Ryan chose 0.0.0.0 as the kbsc default bind host; PR #558 merged (default 0.0.0.0, CONSOLE_HOST=127.0.0.1 restricts it, invalid values exit with a clear error, writes stay localhost-only, documented). Still waiting on Ryan: develop ruleset and required checks, PyPI Trusted Publishing.",
+      "created_at": "2026-11-03T16:00:08.248236Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-10-17T19:41:45.021043975Z",
-  "updated_at": "2026-10-26T17:16:30.155130Z",
+  "updated_at": "2026-11-03T16:00:08.248832Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
