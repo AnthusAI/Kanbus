@@ -14,6 +14,8 @@ import type {
   KanbanSortRule
 } from "./types";
 import { BoardColumn } from "./BoardColumn";
+import { StackedBoard, type StackedBoardSection } from "./StackedBoard";
+import { useResolvedBoardLayout, type BoardLayout } from "./useResolvedBoardLayout";
 import { IssueIdFormatProvider, type IssueIdFormatter } from "./issue-id-format";
 import { useBoardColumnState } from "./useBoardColumnState";
 import { useBoardTransitions } from "./useBoardTransitions";
@@ -39,6 +41,10 @@ export interface BoardProps {
   motion?: KanbanMotionConfig;
   initialScroll?: "start" | "end" | "preserve";
   formatIssueId?: IssueIdFormatter;
+  /** "auto" stacks below stackedBelowWidth of the viewport; "columns" and "stacked" force a layout. */
+  layout?: BoardLayout;
+  /** Viewport width in pixels below which "auto" stacks the sections; default 600. */
+  stackedBelowWidth?: number;
 }
 
 type IssueComparator = (a: KanbanIssue, b: KanbanIssue) => number;
@@ -273,8 +279,12 @@ function BoardComponent({
   onToggleCollapse,
   columnStateKey,
   motion,
-  initialScroll = "end"
+  initialScroll = "end",
+  layout,
+  stackedBelowWidth
 }: Omit<BoardProps, "formatIssueId">) {
+  const resolvedLayout = useResolvedBoardLayout(layout, stackedBelowWidth);
+  const isStacked = resolvedLayout === "stacked";
   const columnState = useBoardColumnState({ config, columns, storageKey: collapsedColumns === undefined ? columnStateKey : undefined });
   const visibleCollapsedColumns = collapsedColumns ?? columnState.collapsedColumns;
   const toggleColumn = onToggleCollapse ?? (collapsedColumns === undefined ? columnState.toggleColumn : undefined);
@@ -304,7 +314,7 @@ function BoardComponent({
 
   if (previousIssuesRef.current !== issues) {
     previousIssuesRef.current = issues;
-    if (boardRef.current && stableMotion.mode === "css" && typeof window !== "undefined") {
+    if (boardRef.current && stableMotion.mode === "css" && !isStacked && typeof window !== "undefined") {
       const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
       if (cards.length > 0) {
         flipStateRef.current = Flip.getState(cards, { props: "opacity" });
@@ -316,6 +326,9 @@ function BoardComponent({
     if (flipStateRef.current && boardRef.current && typeof window !== "undefined") {
       const state = flipStateRef.current;
       flipStateRef.current = null;
+      if (isStacked) {
+        return;
+      }
 
       const cards = gsap.utils.toArray<HTMLElement>(".issue-card", boardRef.current);
       if (cards.length > 0) {
@@ -365,7 +378,7 @@ function BoardComponent({
   }, [issues]);
 
   useIsomorphicLayoutEffect(() => {
-    if (initialScroll === "preserve" || didInitialScroll.current) {
+    if (isStacked || initialScroll === "preserve" || didInitialScroll.current) {
       return;
     }
     const node = boardRef.current;
@@ -378,16 +391,16 @@ function BoardComponent({
     }
     node.scrollLeft = initialScroll === "start" ? 0 : maxScrollLeft;
     didInitialScroll.current = true;
-  }, [columns.length, initialScroll]);
+  }, [columns.length, initialScroll, isStacked]);
 
   useEffect(() => {
-    if (!detailOpen) return;
+    if (!detailOpen || isStacked) return;
     const node = boardRef.current;
     if (!node) return;
     const maxScrollLeft = node.scrollWidth - node.clientWidth;
     if (maxScrollLeft <= 0) return;
     node.scrollTo({ left: maxScrollLeft, behavior: reducedMotion ? "auto" : "smooth" });
-  }, [detailOpen, reducedMotion]);
+  }, [detailOpen, reducedMotion, isStacked]);
 
   const orderedIssuesByColumn = useMemo(() => {
     const issuesByStatus = new Map<string, KanbanIssue[]>();
@@ -426,8 +439,28 @@ function BoardComponent({
     [columns, toggleColumn]
   );
 
+  const stackedSections = useMemo<StackedBoardSection[]>(
+    () => columns.map((column) => ({
+      columnKey: column,
+      title: config?.statuses.find((status) => status.key === column)?.name ?? column,
+      issues: stableOrderedIssuesByColumn.get(column) ?? [],
+      collapsed: visibleCollapsedColumns.has(column),
+      onToggleCollapse: columnToggleHandlers.get(column)
+    })),
+    [columns, config, stableOrderedIssuesByColumn, visibleCollapsedColumns, columnToggleHandlers]
+  );
+
+  if (isStacked) {
+    return (
+      <div ref={setBoardRef} className="kb-stacked-board" data-layout="stacked" data-motion={stableMotion.mode}>
+        <StackedBoard sections={stackedSections} priorityLookup={priorityLookup} config={config}
+          onSelectIssue={onSelectIssue} selectedIssueId={selectedIssueId} motion={stableMotion} />
+      </div>
+    );
+  }
+
   return (
-    <div ref={setBoardRef} className="kb-grid gap-2" data-motion={stableMotion.mode}>
+    <div ref={setBoardRef} className="kb-grid gap-2" data-layout="columns" data-motion={stableMotion.mode}>
       {columns.map((column) => {
         const displayTitle =
           config?.statuses.find((status) => status.key === column)?.name ?? column;

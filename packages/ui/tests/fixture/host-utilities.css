@@ -1,3 +1,4 @@
 /* Model a host utility layer loaded after the shared styles. */
 .rounded-xl { border-radius: 12px; }
 .fixture-large-column > .kb-grid { height: 100%; }
+.fixture-stacked-host > .kb-issue-collection { height: 100%; }

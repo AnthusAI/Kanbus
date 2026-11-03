@@ -131,6 +131,31 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+.kb-stacked-board {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.kb-stacked-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.kb-stacked-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--background, Canvas);
+}
+
 .is-flipping,
 .is-flipping .layout-frame,
 .is-flipping .layout-main,

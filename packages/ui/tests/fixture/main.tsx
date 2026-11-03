@@ -1,15 +1,13 @@
 import React, { useState } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import * as Kanbus from "@kanbus/ui";
 import "@kanbus/ui/styles/tokens.css";
 import "@kanbus/ui/styles/kanban.css";
 import "@kanbus/ui/styles/organizer.css";
 import "@kanbus/ui/styles/themes/index.css";
 import "./host-utilities.css";
-
-interface HostIssue extends Kanbus.KanbanIssue {
-  hostOnlyField?: string;
-}
+import { fixtureConfiguration, fixtureIssues, type HostIssue } from "./fixture-data";
+import { StackedBoardHost, buildStackedIssues, type StackedBoardSettings } from "./stacked-board-host";
 
 declare global {
   interface Window {
@@ -33,37 +31,16 @@ declare global {
     replaceLargeColumnWithCopies: (retitledIdentifier: string, newTitle: string) => void;
     resetCardRenderCounts: () => void;
     cardRenderCounts: () => Record<string, number>;
+    renderStackedBoard: (settings: StackedBoardSettings) => void;
+    updateStackedBoard: (settings: Partial<StackedBoardSettings>) => void;
+    updateStackedIssue: (identifier: string, status: string) => void;
+    hydrateStackedBoard: (serverRenderedMarkup: string, hydrationSettings: StackedBoardSettings) => void;
   }
 }
 
-const configuration: Kanbus.KanbanConfig = {
-  statuses: [
-    { key: "draft", name: "Draft", category: "Active" },
-    { key: "review", name: "Editorial review", category: "Active" },
-    { key: "published", name: "Published", category: "Done" },
-    { key: "open", name: "Open", category: "Active" }
-  ],
-  categories: [{ name: "Active" }, { name: "Done" }],
-  priorities: { 1: { name: "High" }, 2: { name: "Normal" } },
-  type_colors: { article: "blue", task: "green" },
-  workflows: {
-    article: { draft: ["review"], review: ["draft", "published"], published: [] },
-    default: { open: [] }
-  }
-};
+const configuration = fixtureConfiguration;
 
-let issues: HostIssue[] = [
-  { id: "article-1", title: "First article", type: "article", status: "draft", priority: 1,
-    hostOnlyField: "original record",
-    excerpt: "The council met on Tuesday evening to debate the long awaited proposal for the harbor district, hearing from residents, merchants and engineers before adjourning without a vote until the following week.",
-    assignee: "alex", labels: ["newsletter"], parent: "series-1", custom: { score: 8, ready: true },
-    comments: [{ author: "alex", created_at: "2026-10-14T00:00:00Z", text: "Hidden text", comment_type: "summary", data: { activity_summary: "Arrange the interview" } }] },
-  { id: "article-2", title: "Second article", type: "article", status: "review", priority: 2,
-    subtitle: "Why the harbor vote slipped a week", assignee: "ben", custom: { score: "8" } },
-  { id: "article-3", title: "Third article", type: "article", status: "draft", priority: 2,
-    assignee: "alex", custom: { score: 12 } },
-  { id: "task-1", title: "Other work", type: "task", status: "open", priority: 2 }
-];
+let issues: HostIssue[] = fixtureIssues.map((issue) => ({ ...issue }));
 
 const root = createRoot(document.getElementById("root")!);
 let largeColumnIssues: HostIssue[] = [];
@@ -95,6 +72,15 @@ function renderLargeColumnBoard() {
     </div>
   );
 }
+let stackedSettings: StackedBoardSettings = {};
+let stackedIssues: HostIssue[] = [];
+let stackedHostSerial = 0;
+
+function renderStackedHost() {
+  root.render(<StackedBoardHost key={stackedHostSerial} settings={stackedSettings} records={stackedIssues}
+    baseConfiguration={fixtureConfiguration} />);
+}
+
 let currentQuery: Kanbus.IssueQuery = {};
 let organizer = false;
 let organizerMode: "light" | "dark" = "light";
@@ -102,6 +88,29 @@ let organizerScroll: "start" | "end" | "preserve" = "start";
 let currentView: "board" | "list" = "board";
 
 Object.assign(window, {
+  renderStackedBoard(settings: StackedBoardSettings) {
+    organizer = false;
+    stackedHostSerial += 1;
+    stackedSettings = settings;
+    stackedIssues = buildStackedIssues(settings.dataset ?? "articles", issues);
+    renderStackedHost();
+  },
+  updateStackedBoard(settings: Partial<StackedBoardSettings>) {
+    stackedSettings = { ...stackedSettings, ...settings };
+    renderStackedHost();
+  },
+  updateStackedIssue(id: string, status: string) {
+    stackedIssues = stackedIssues.map((issue) => issue.id === id ? { ...issue, status } : issue);
+    renderStackedHost();
+  },
+  hydrateStackedBoard(serverRenderedMarkup: string, hydrationSettings: StackedBoardSettings) {
+    const container = document.createElement("div");
+    container.id = "hydration-root";
+    document.body.appendChild(container);
+    container.innerHTML = serverRenderedMarkup;
+    hydrateRoot(container, <StackedBoardHost settings={hydrationSettings} records={buildStackedIssues("articles", issues)}
+      baseConfiguration={fixtureConfiguration} />);
+  },
   renderLargeColumn(issueCount: number) {
     largeColumnSelectedIdentifier = null;
     largeColumnIssues = Array.from({ length: issueCount }, (_, index) => ({
@@ -140,6 +149,7 @@ Object.assign(window, {
         config={configuration}
         query={query}
         view={view}
+        layout="columns"
         motion={{ mode: "static" }}
         emptyMessage="No matching articles"
         onSelectIssue={(issue) => {
@@ -199,7 +209,7 @@ function BoardConsumer({ kind, storageKey }: { kind: "console" | "embedded"; sto
   const [selected, setSelected] = useState<Kanbus.KanbanIssue | null>(null);
   const config = { ...configuration, statuses: configuration.statuses.map(status => ({ ...status, collapsed: status.key === "published" })) };
   const state = Kanbus.useBoardColumnState({ config, storageKey: kind === "console" ? storageKey : undefined });
-  const common = { config, onSelectIssue: setSelected, selectedIssueId: selected?.id, motion: { mode: "static" as const }, initialScroll: "start" as const };
+  const common = { config, onSelectIssue: setSelected, selectedIssueId: selected?.id, motion: { mode: "static" as const }, initialScroll: "start" as const, layout: "columns" as const };
   return <div className={kind === "embedded" ? "kb-theme-organizer" : undefined} style={{ height: 600 }}>
     {kind === "console" ? <Kanbus.Board {...common} columns={["draft", "review", "published"]}
       issues={issues.filter(issue => issue.type === "article")} priorityLookup={{ 1: "High", 2: "Normal" }}
@@ -228,7 +238,7 @@ function OrganizerHost({ mode, initialScroll }: { mode: "light" | "dark"; initia
   const [selected, setSelected] = useState<HostIssue | null>(null);
   return <div className="kb-theme-organizer" data-color-mode={mode}>
     <Kanbus.IssueCollection issues={issues} config={configuration} query={{ type: "article" }}
-      initialScroll={initialScroll} motion={{mode:"static"}} onSelectIssue={setSelected}
+      initialScroll={initialScroll} layout="columns" motion={{mode:"static"}} onSelectIssue={setSelected}
       selectedIssueId={selected?.id} columnStateKey="fixture.organizer.columns.v1" />
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)}
       fields={[{label:"Editorial score",value:String(selected.custom?.score)}]} />}
