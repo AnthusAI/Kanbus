@@ -10,9 +10,17 @@
   "parent": "kbs-29c41525-9a9d-49b4-a077-5b7fc62c939d",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7bdb7f47-c216-4213-bf60-f64782264b64",
+      "author": "home",
+      "text": "Item 4 (narrow panel-width layout) is resolved by layout='stacked' from epic kbs-c2a93c: a host with a side panel forces it explicitly. The other items here are unchanged.",
+      "created_at": "2026-11-03T15:51:01.899873Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-10-20T01:19:21.052494Z",
-  "updated_at": "2026-10-20T01:19:21.131467Z",
+  "updated_at": "2026-11-03T15:51:01.900277Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,

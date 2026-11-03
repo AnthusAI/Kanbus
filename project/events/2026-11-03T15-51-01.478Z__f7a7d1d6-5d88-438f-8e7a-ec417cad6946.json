@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f7a7d1d6-5d88-438f-8e7a-ec417cad6946",
+  "issue_id": "kbs-bab14c1d-4ccb-4c51-b899-7501926af760",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-03T15:51:01.478Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Kanbus console on phones: adopt the stacked board",
+    "description": "The console (apps/console/src/components/ConsoleViewTrack.tsx) gets layout='auto' by default once it uses the new version. Verify and fix the surrounding console at 390 px: the toolbar and type filter fit without horizontal scroll, the detail panel fills the screen with a working close control and the resizer is hidden, and closing detail returns to the same card. features/console/board_horizontal_scroll.feature stays valid at desktop width. Acceptance: console UI scenario at 390 px for board, open detail, close detail; existing console suites pass. Live console check from a phone on the LAN at http://192.168.0.199:4242 or the Mac's .local name.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+    "labels": []
+  }
+}

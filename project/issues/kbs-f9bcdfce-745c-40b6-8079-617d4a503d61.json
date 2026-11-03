@@ -1,0 +1,20 @@
+{
+  "id": "kbs-f9bcdfce-745c-40b6-8079-617d4a503d61",
+  "title": "Stacked layout core: layout prop, viewport breakpoint, single virtualized scroller",
+  "description": "Spec first in packages/ui/features/board_stacked_layout.feature, then implement in packages/ui/src/kanban.\n\nBehaviour: layout 'auto' resolves from a matchMedia query on stackedBelowWidth using useSyncExternalStore, with columns as the server snapshot so server rendering and hydration match. Stacked mode renders sections in column order in one scroller, with a sticky header for the current section. Cards keep IssueCard unchanged. Tapping a section header collapses it to the header row; the chevron points down or right rather than sideways, and the 48 px vertical-text collapsed style does not apply. initialScroll and the detailOpen scroll-to-right are horizontal behaviours and do nothing in stacked mode.\n\nAcceptance scenarios: 375 px wide renders sections with no horizontal page or board scroll; 1024 px renders columns unchanged; resizing across the breakpoint switches layout and keeps the selection; layout='columns' and layout='stacked' override the viewport; stackedBelowWidth changes the threshold; a 500-issue section renders at most 40 cards and scrolls to its last card; the selected card stays rendered and in place after a detail panel opens and closes; collapse state is shared across layouts and persists through columnStateKey; config-collapsed statuses start collapsed; status moves with animated motion and with reduced motion do not throw or leave is-flipping set; no React hydration warning.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-11-03T15:51:00.677343Z",
+  "updated_at": "2026-11-03T15:51:00.749742Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

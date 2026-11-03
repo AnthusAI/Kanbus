@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "92ec572b-6bec-4e54-b1b8-87cb69dbbd23",
+  "issue_id": "kbs-9b0ebd83-9432-469c-bffd-3843cb6941f6",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-03T15:51:01.052Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Near-end callback for hosts that page issues by column",
+    "description": "Papyrus loads more records by watching scroll events on .kb-column-scroll elements directly (components/newsroom-board-view.tsx, loadMoreWhenColumnIsNearItsEnd). A stacked board has no per-column scroller, so that paging would silently stop. Add onColumnNearEnd?: (columnKey: string) => void and a threshold to Board and IssueCollection, fired in both layouts when the end of a column's cards comes within the threshold of the viewport, including when a short column is already fully visible on first render. Do not fire for collapsed columns. Acceptance: scenarios for both layouts, and no repeated firing while the issue list is unchanged. Document it in packages/ui/README.md as the supported way to page, instead of reading internal class names.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+    "labels": []
+  }
+}

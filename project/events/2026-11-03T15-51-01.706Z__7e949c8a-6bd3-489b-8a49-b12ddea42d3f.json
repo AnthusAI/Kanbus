@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "7e949c8a-6bd3-489b-8a49-b12ddea42d3f",
+  "issue_id": "kbs-0695309e-e91c-493b-b130-0e633aca3a25",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-03T15:51:01.706Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Release @kanbus/ui with the stacked layout and tell the hosts",
+    "description": "Bump packages/ui to 0.5.0, since hosts get new phone behaviour by default. Document layout, stackedBelowWidth and onColumnNearEnd in packages/ui/README.md, including that layout='columns' opts out. Tag ui-v0.5.0 and confirm the release workflow publishes the tarball. Then tell the Papyrus session (its PPY task consumes this) and check which other hosts pin @kanbus/ui, including Papyrus-web and Chatticus.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+    "labels": []
+  }
+}

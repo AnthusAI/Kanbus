@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "30679d22-a5c3-43dd-aca9-194718e6ccec",
+  "issue_id": "kbs-9563cfe6-b189-45db-845e-24a2df891048",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-03T15:51:01.276Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Stacked layout styling across themes, with touch targets",
+    "description": "Style the stacked layout in packages/ui/src/styles/kanban.css and every theme under styles/themes. Set a data-layout attribute on the board root rather than a separate media query, so forced layout='stacked' on a wide screen looks the same. Editorial themes use a left rule between columns (.kb-column + .kb-column); in stacked mode that becomes a top rule with no left padding. Section headers are at least 44 px tall in stacked mode (28 px today), with no column width constraint. Long titles and ids wrap without horizontal overflow. Acceptance: Playwright screenshots of every theme at 375 px in light and dark mode reviewed; no element wider than the viewport; keyboard focus ring visible on section headers; columns layout pixels unchanged at 1440 px.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+    "labels": []
+  }
+}

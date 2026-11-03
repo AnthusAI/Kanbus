@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "af6da055-0543-4bb6-8406-cbd51c98aec9",
+  "issue_id": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-03T15:51:00.341Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Stacked board layout on phones in @kanbus/ui",
+    "description": "Driver: the horizontal board is a poor experience on phones in the Papyrus newsroom CMS. Below a viewport width breakpoint the board becomes one vertical column, with each status column as a section. This belongs in @kanbus/ui so every host (Papyrus, Chatticus, the Kanbus console) gets it through Board and IssueCollection.\n\nDesign decisions:\n- API: layout?: 'auto' | 'columns' | 'stacked' on Board and IssueCollection, default 'auto', plus stackedBelowWidth?: number, default 768. Stacked applies below 768 px, so tablets in portrait (768 and up) keep columns.\n- Viewport, not container: opening a detail panel narrows the board, and that must not flip the layout and lose the reader's place. A host that embeds the board in a narrow side panel passes layout='stacked' explicitly.\n- One scroller: stacked mode has one vertical scroller and one virtualizer over a flat list of section headers and cards, so a 500-card column stays bounded. Stacking the existing per-column virtualizers would nest scrollers on a phone.\n- Same state and selectors: collapsed columns share the existing state and storage key, config-collapsed statuses stay collapsed, and .kb-column-header, .issue-card and aria-expanded keep working for hosts and tests.\n\nTasks run in order: stacked layout core, near-end callback, themes and touch, console, release. The Papyrus newsroom rollout is tracked on the PPY board and depends on the release.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}
