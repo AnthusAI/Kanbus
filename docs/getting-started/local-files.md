@@ -120,6 +120,19 @@ kbsc
 
 Open `http://127.0.0.1:4311/` to see the board. The console reads the same files as the CLI and updates live when the CLI changes them on the same machine. The Python package does not include the console; install `kbs` and `kbsc` for it.
 
+By default `kbsc` listens on every network interface (`0.0.0.0`), so other devices on your local network can open the board at `http://<your-machine-address>:4311/`. Be aware of what that exposes:
+
+- Reads are unauthenticated. Anyone who can reach the port on your network can view the board.
+- Writes are localhost only. Comments, status changes, and assignments are refused from any other address.
+
+To listen on this machine only, set `CONSOLE_HOST=127.0.0.1` (or `localhost`):
+
+```bash
+CONSOLE_HOST=127.0.0.1 kbsc
+```
+
+`CONSOLE_HOST` must be an IP address or `localhost`; any other value stops `kbsc` at startup with an error instead of falling back to a different address. See [Environment variables](../ENVIRONMENT_VARIABLES.md#console-server-variables).
+
 ## 8. Set up coding agents
 
 ```bash

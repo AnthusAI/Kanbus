@@ -7,6 +7,7 @@ pub mod comment_steps;
 pub mod commit_steps;
 pub mod compatibility_steps;
 pub mod configuration_steps;
+pub mod console_binding_steps;
 pub mod console_screenshot_steps;
 pub mod console_snapshot_steps;
 pub mod console_ui_state_steps;

@@ -258,7 +258,14 @@ async fn main() {
     trace("checking project structure");
     maybe_prompt_project_repair(&data_root);
     trace("loading config");
-    let (bind_ip, bind_host) = resolve_bind_host(std::env::var("CONSOLE_HOST").ok());
+    let (bind_ip, bind_host) = match resolve_bind_host(std::env::var("CONSOLE_HOST").ok()) {
+        Ok(resolved) => resolved,
+        Err(message) => {
+            eprintln!("Error: {message}");
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
+        }
+    };
 
     // Try to load console_port from project config
     let config_port = match FileStore::new(&data_root).load_config() {
@@ -473,34 +480,43 @@ fn maybe_prompt_project_repair(root: &Path) {
     }
 }
 
-fn resolve_bind_host(value: Option<String>) -> (IpAddr, String) {
-    let fallback = "127.0.0.1";
-    let raw = value.unwrap_or_else(|| fallback.to_string());
+const DEFAULT_BIND_HOST: &str = "0.0.0.0";
+const LOOPBACK_BIND_HOST: &str = "127.0.0.1";
+
+/// Resolve the interface `kbsc` binds from the `CONSOLE_HOST` value.
+///
+/// An unset or empty value binds every interface (`0.0.0.0`) so the console is
+/// reachable from other devices on the local network. `localhost` means the
+/// loopback address `127.0.0.1`. Any other value must be an IP address.
+///
+/// # Arguments
+/// * `value` - The raw `CONSOLE_HOST` value, if set
+///
+/// # Returns
+/// The parsed address and the host text used in startup messages.
+///
+/// # Errors
+/// Returns a message naming the value when it is not an IP address or `localhost`.
+fn resolve_bind_host(value: Option<String>) -> Result<(IpAddr, String), String> {
+    let raw = value.unwrap_or_default();
     let candidate = raw.trim();
     if candidate.is_empty() {
-        return (
-            fallback.parse().expect("valid fallback ip"),
-            fallback.to_string(),
-        );
+        return Ok((
+            DEFAULT_BIND_HOST.parse().expect("valid default ip"),
+            DEFAULT_BIND_HOST.to_string(),
+        ));
     }
     if candidate.eq_ignore_ascii_case("localhost") {
-        return (
-            fallback.parse().expect("valid localhost ip"),
-            fallback.to_string(),
-        );
+        return Ok((
+            LOOPBACK_BIND_HOST.parse().expect("valid loopback ip"),
+            LOOPBACK_BIND_HOST.to_string(),
+        ));
     }
     match candidate.parse::<IpAddr>() {
-        Ok(ip) => (ip, candidate.to_string()),
-        Err(_) => {
-            eprintln!(
-                "Warning: CONSOLE_HOST '{}' is invalid; defaulting to 127.0.0.1",
-                candidate
-            );
-            (
-                fallback.parse().expect("valid fallback ip"),
-                fallback.to_string(),
-            )
-        }
+        Ok(ip) => Ok((ip, candidate.to_string())),
+        Err(_) => Err(format!(
+            "CONSOLE_HOST '{candidate}' is not a valid IP address or 'localhost'"
+        )),
     }
 }
 
@@ -875,11 +891,12 @@ async fn reject_invalid_tenant_segments(
     next.run(request).await
 }
 
-/// Writes (comments, status changes) are refused from anything but the
-/// loopback interface. `kbsc` binds `0.0.0.0` so it is reachable from other
-/// devices on the network for reads; there is no per-user authentication, so
-/// a remote write would be anonymous and unauthorized. Localhost is treated
-/// as the operator's own shell.
+/// Writes (comments, status changes, assignments) are refused from anything
+/// but a loopback peer address. By default `kbsc` listens on every interface
+/// (`CONSOLE_HOST` unset means `0.0.0.0`), so other devices on the network can
+/// read the board; there is no per-user authentication, so a remote write
+/// would be anonymous and unauthorized. A loopback caller is treated as the
+/// operator's own shell.
 fn require_loopback(addr: SocketAddr) -> Option<Response> {
     if addr.ip().is_loopback() {
         return None;
@@ -2651,14 +2668,35 @@ mod tests {
     }
 
     #[test]
-    fn resolve_bind_host_handles_localhost_and_invalid_input() {
-        let (localhost_ip, localhost_host) = resolve_bind_host(Some("localhost".to_string()));
-        assert_eq!(localhost_ip.to_string(), "127.0.0.1");
-        assert_eq!(localhost_host, "127.0.0.1");
+    fn resolve_bind_host_defaults_to_all_interfaces_when_unset_or_empty() {
+        for value in [None, Some(String::new()), Some("   ".to_string())] {
+            let (ip, host) = resolve_bind_host(value).expect("default host");
+            assert_eq!(ip.to_string(), "0.0.0.0");
+            assert_eq!(host, "0.0.0.0");
+        }
+    }
 
-        let (fallback_ip, fallback_host) = resolve_bind_host(Some("not-an-ip".to_string()));
-        assert_eq!(fallback_ip.to_string(), "127.0.0.1");
-        assert_eq!(fallback_host, "127.0.0.1");
+    #[test]
+    fn resolve_bind_host_maps_localhost_and_accepts_explicit_addresses() {
+        let (ip, host) = resolve_bind_host(Some("LocalHost".to_string())).expect("localhost");
+        assert_eq!(ip.to_string(), "127.0.0.1");
+        assert_eq!(host, "127.0.0.1");
+
+        let (ip, host) = resolve_bind_host(Some("192.168.1.20".to_string())).expect("lan ip");
+        assert_eq!(ip.to_string(), "192.168.1.20");
+        assert_eq!(host, "192.168.1.20");
+
+        let (ip, _) = resolve_bind_host(Some("::1".to_string())).expect("ipv6 loopback");
+        assert!(ip.is_loopback());
+    }
+
+    #[test]
+    fn resolve_bind_host_rejects_invalid_values_without_falling_back() {
+        let error = resolve_bind_host(Some("not-an-ip".to_string())).expect_err("invalid host");
+        assert_eq!(
+            error,
+            "CONSOLE_HOST 'not-an-ip' is not a valid IP address or 'localhost'"
+        );
     }
 
     #[test]
