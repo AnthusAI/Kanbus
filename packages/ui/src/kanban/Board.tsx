@@ -18,6 +18,7 @@ import { StackedBoard, type StackedBoardSection } from "./StackedBoard";
 import { useResolvedBoardLayout, type BoardLayout } from "./useResolvedBoardLayout";
 import { IssueIdFormatProvider, type IssueIdFormatter } from "./issue-id-format";
 import { useBoardColumnState } from "./useBoardColumnState";
+import { useColumnNearEndReporter } from "./column-near-end";
 import { useBoardTransitions } from "./useBoardTransitions";
 import {
   normalizeMotionConfig,
@@ -45,6 +46,10 @@ export interface BoardProps {
   layout?: BoardLayout;
   /** Viewport width in pixels below which "auto" stacks the sections; default 600. */
   stackedBelowWidth?: number;
+  /** Called once when the reader nears the end of a column's loaded cards; fires again only when that column's issue count changes. */
+  onColumnNearEnd?: (columnKey: string) => void;
+  /** How many cards from the end of the rendered range count as near the end; default 10. */
+  columnNearEndThreshold?: number;
 }
 
 const FRAMES_FOR_COLUMN_VIRTUALIZER_TO_SETTLE = 8;
@@ -283,8 +288,11 @@ function BoardComponent({
   motion,
   initialScroll = "end",
   layout,
-  stackedBelowWidth
+  stackedBelowWidth,
+  onColumnNearEnd,
+  columnNearEndThreshold
 }: Omit<BoardProps, "formatIssueId">) {
+  const reportColumnNearEnd = useColumnNearEndReporter(onColumnNearEnd, transitionKey ?? "");
   const resolvedLayout = useResolvedBoardLayout(layout, stackedBelowWidth);
   const isStacked = resolvedLayout === "stacked";
   const previousResolvedLayoutReference = useRef<typeof resolvedLayout | null>(null);
@@ -487,7 +495,8 @@ function BoardComponent({
       <div key="stacked" ref={setBoardRef} className="kb-stacked-board" data-layout="stacked" data-motion={stableMotion.mode}>
         <StackedBoard sections={stackedSections} priorityLookup={priorityLookup} config={config}
           onSelectIssue={onSelectIssue} selectedIssueId={selectedIssueId} motion={stableMotion}
-          revealSelectedIssueOnMount={layoutChangedThisRender} />
+          revealSelectedIssueOnMount={layoutChangedThisRender}
+          reportColumnNearEnd={reportColumnNearEnd} columnNearEndThreshold={columnNearEndThreshold} />
       </div>
     );
   }
@@ -511,6 +520,8 @@ function BoardComponent({
             onToggleCollapse={columnToggleHandlers.get(column)}
             motion={stableMotion}
             revealSelectedIssueOnMount={layoutChangedThisRender}
+            reportColumnNearEnd={reportColumnNearEnd}
+            columnNearEndThreshold={columnNearEndThreshold}
           />
         );
       })}

@@ -14,6 +14,10 @@ export interface StackedBoardSettings {
   collapsePublishedByConfiguration?: boolean;
   theme?: Kanbus.KanbusThemeId;
   mode?: Kanbus.KanbusColorMode;
+  collapsedStatusKey?: string;
+  initialSelectedIssueId?: string;
+  columnNearEndThreshold?: number;
+  searchText?: string;
 }
 
 export const stackedStatuses = ["draft", "review", "published"];
@@ -43,11 +47,15 @@ export function buildStackedIssues(dataset: StackedDataset, articleSource: HostI
 }
 
 export function StackedBoardHost({ settings, records, baseConfiguration }: { settings: StackedBoardSettings; records: HostIssue[]; baseConfiguration: Kanbus.KanbanConfig }) {
-  const [selected, setSelected] = useState<Kanbus.KanbanIssue | null>(null);
+  const [selected, setSelected] = useState<Kanbus.KanbanIssue | null>(
+    () => records.find((issue) => issue.id === settings.initialSelectedIssueId) ?? null
+  );
   const stackedConfiguration = {
     ...baseConfiguration,
     statuses: baseConfiguration.statuses.map((status) => ({
-      ...status, collapsed: settings.collapsePublishedByConfiguration === true && status.key === "published"
+      ...status,
+      collapsed: (settings.collapsePublishedByConfiguration === true && status.key === "published")
+        || status.key === settings.collapsedStatusKey
     }))
   };
   const common = {
@@ -59,14 +67,16 @@ export function StackedBoardHost({ settings, records, baseConfiguration }: { set
     layout: settings.layout,
     formatIssueId: settings.dataset === "long" ? (issue: Kanbus.KanbanIssue) => issue.id : undefined,
     stackedBelowWidth: settings.stackedBelowWidth,
-    columnStateKey: settings.columnStateKey
+    columnStateKey: settings.columnStateKey,
+    columnNearEndThreshold: settings.columnNearEndThreshold,
+    onColumnNearEnd: (columnKey: string) => { window.nearEndCalls.push(columnKey); }
   };
   const boardContent = <div className={settings.theme ? undefined : "kb-theme-organizer"}>
     <div className="fixture-stacked-host" style={{ height: settings.theme ? "100vh" : 600 }}>
       {settings.component === "board"
         ? <Kanbus.Board {...common} columns={stackedStatuses} issues={records}
             priorityLookup={{ 1: "High", 2: "Normal" }} />
-        : <Kanbus.IssueCollection {...common} issues={records} query={{ type: "article" }} />}
+        : <Kanbus.IssueCollection {...common} issues={records} query={{ type: "article", ...(settings.searchText ? { search: settings.searchText } : {}) }} />}
     </div>
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)} />}
   </div>;

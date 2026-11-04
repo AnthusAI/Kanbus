@@ -132,6 +132,42 @@ subtitle, so hosts map it from their own records. It is separate from
 `excerpt`, which is a longer blurb clamped to three lines with a More/Less
 toggle.
 
+## Paging issues by column
+
+A host that loads issues a page at a time per column passes `onColumnNearEnd`
+to `Board` or `IssueCollection`. Do not watch scroll events on internal class
+names such as `.kb-column-scroll`: the stacked layout has no such element, and
+`onColumnNearEnd` works the same in both layouts.
+
+```tsx
+<IssueCollection
+  issues={loadedIssues}
+  config={config}
+  onColumnNearEnd={(columnKey) => loadNextPage(columnKey)}
+  columnNearEndThreshold={10}
+/>
+```
+
+- `onColumnNearEnd(columnKey)` fires when the last loaded card of a column is
+  within `columnNearEndThreshold` cards (default 10) of the end of the range
+  the virtualizer is displaying. The check uses the displayed range, so a
+  selected card kept rendered far away does not make its column look near the
+  end.
+- It fires once per column for a given number of loaded issues. Re-rendering
+  with new issue objects and the same count does not fire again. After the host
+  adds issues, the callback can fire again once the reader nears the new end.
+- A short column that is fully visible on first render fires once. An empty
+  column never fires, and neither does a collapsed column or section; expanding
+  one can fire. In the stacked layout only sections the reader has reached fire.
+- The callback may be a new inline function on every render.
+- It does not retry. A failed page load leaves the issue count unchanged, so
+  the column does not fire again; the host handles retrying its own failed load.
+- Changing the query (the `transitionKey` Board receives from `IssueCollection`)
+  clears what was reported, so a column that ends with the same count after a
+  query change can fire again; a re-render with the same query does not.
+- Crossing the layout breakpoint does not throw and does not report a column
+  again for the same count.
+
 ## Browser acceptance tests
 
 The package-local Gherkin specifications describe React behavior rather than
