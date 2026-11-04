@@ -132,6 +132,31 @@ subtitle, so hosts map it from their own records. It is separate from
 `excerpt`, which is a longer blurb clamped to three lines with a More/Less
 toggle.
 
+## Board layout on phones
+
+Below a viewport width of 600 px, `Board` and `IssueCollection` render the
+status columns as sections of one vertical list, with one scroller and the
+current section's header pinned at the top. At 600 px and up, including phones
+in landscape and tablets, the board keeps its side by side columns.
+
+```tsx
+<IssueCollection issues={issues} config={config} layout="auto" stackedBelowWidth={600} />
+```
+
+- `layout` is `"auto"` by default. `"columns"` keeps the horizontal board at
+  every width, and `"stacked"` forces sections at every width, which suits a
+  board embedded in a narrow side panel.
+- `stackedBelowWidth` changes the threshold. The rule uses the viewport width
+  only, so a detail panel that narrows the board does not change the layout.
+- Server rendering and the first hydration pass use columns, and the layout
+  resolves on the client before paint.
+- Give the board a bounded height, as in the columns layout, so that it
+  virtualizes its cards.
+- Collapsed columns share state and the `columnStateKey` storage key across
+  layouts. `.kb-column-header`, `.issue-card` and `aria-expanded` work in both
+  layouts; `.kb-column` and `.kb-column-scroll` exist only in columns. Use
+  `data-layout` on the board root to tell them apart.
+
 ## Paging issues by column
 
 A host that loads issues a page at a time per column passes `onColumnNearEnd`
