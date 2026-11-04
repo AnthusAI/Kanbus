@@ -15,9 +15,17 @@
       "type": "blocked-by"
     }
   ],
-  "comments": [],
+  "comments": [
+    {
+      "id": "da670619-6c5f-489f-8862-4d29d2abf8f7",
+      "author": "home",
+      "text": "From review of the core at 375 px: the priority chip is clipped at the card's right edge (HIGH shows as HIG) and cards have no side gutter, so the card shadow is cut off at the viewport edge. Section header height is the SECTION_HEADER_HEIGHT_PIXELS constant in StackedBoard.tsx, applied inline and used in the virtualizer estimate, so change it there to reach 44 px.",
+      "created_at": "2026-11-04T00:29:39.877364Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-11-03T15:51:01.209614Z",
-  "updated_at": "2026-11-03T15:51:24.111525Z",
+  "updated_at": "2026-11-04T00:29:39.877764Z",
   "closed_at": null,
   "right_now_summary": null,
   "right_now_updated_at": null,
