@@ -1,0 +1,20 @@
+{
+  "id": "kbs-3940fd35-dc9b-4cb7-8408-832d3b96d681",
+  "title": "Overlay lock files are left untracked after kbs comment and close",
+  "description": "Reported by the Biblicus session on 0.37.0: after kbs comment, kbs close and kbs commit in a fresh worktree, project/.overlay/locks/<issue id>.lock remains as an untracked file, so gh pr create warns about uncommitted changes. project/.overlay/ is a local cache and must never appear in git status. Fix one way: kbs init writes a gitignore rule for project/.overlay/ (and kbs doctor reports and offers the fix when the rule is missing), and lock files are removed when the operation that took them finishes. Spec both; both runtimes.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "kbs-121c3209-be4a-4047-b993-f710c522ec2c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T23:01:31.713839Z",
+  "updated_at": "2026-10-20T23:01:31.773274Z",
+  "closed_at": null,
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}
