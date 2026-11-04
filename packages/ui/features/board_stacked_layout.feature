@@ -169,3 +169,96 @@ Feature: Stacked board layout
     When the viewport becomes 375 by 812
     Then the board layout is "stacked"
     And the remembered issue card is within the viewport
+
+  Scenario Outline: The stacked board is themed without overflow in every theme and mode
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at 375 by 812 with theme "<theme>" in <mode> mode
+    Then no element of the board is wider than the viewport and nothing scrolls horizontally
+    And every priority chip sits inside its card with its full text visible
+    And every section header is at least 44 pixels tall
+    And every card has a side gutter at least as wide as its shadow
+    When I scroll the stacked board by 450 pixels
+    Then the sticky section header has an opaque background
+
+    Examples:
+      | theme             | mode  |
+      | refined-newsprint | light |
+      | refined-newsprint | dark  |
+      | newspaper-gothic  | light |
+      | newspaper-gothic  | dark  |
+      | night-desk        | light |
+      | night-desk        | dark  |
+      | broadsheet-green  | light |
+      | broadsheet-green  | dark  |
+
+  Scenario Outline: A long unbroken title and a long identifier wrap without horizontal overflow
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at 375 by 812 with theme "<theme>" in light mode
+    Then the long issue card shows its whole title and identifier inside the card
+    And no element of the board is wider than the viewport and nothing scrolls horizontally
+
+    Examples:
+      | theme             |
+      | refined-newsprint |
+      | newspaper-gothic  |
+      | night-desk        |
+      | broadsheet-green  |
+
+  Scenario: The default styling of the stacked board has no overflow and an opaque pinned header
+    Given a host application with article and task issues
+    When the host renders a stacked board of long data at 375 by 812
+    Then no element of the board is wider than the viewport and nothing scrolls horizontally
+    And every priority chip sits inside its card with its full text visible
+    And every section header is at least 44 pixels tall
+    And every card has a side gutter at least as wide as its shadow
+    When I scroll the stacked board by 450 pixels
+    Then the sticky section header has an opaque background
+
+  Scenario Outline: Keyboard focus on a section header shows a ring that is not clipped
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at 375 by 812 with theme "<theme>" in <mode> mode
+    And I move keyboard focus to the first section header
+    Then the focused section header shows a visible focus ring inside the board
+
+    Examples:
+      | theme             | mode  |
+      | refined-newsprint | light |
+      | newspaper-gothic  | dark  |
+      | night-desk        | dark  |
+      | broadsheet-green  | light |
+
+  Scenario: The default styling shows a focus ring on a section header that is not clipped
+    Given a host application with article and task issues
+    When the host renders a stacked board of long data at 375 by 812
+    And I move keyboard focus to the first section header
+    Then the focused section header shows a visible focus ring inside the board
+
+  Scenario Outline: A forced stacked layout on a wide screen is styled like the narrow one
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at 375 by 812 with theme "<theme>" in <mode> mode
+    And I remember the section styling
+    And the host renders a themed stacked board of long data at 1440 by 900 with theme "<theme>" in <mode> mode and layout "stacked"
+    Then the board layout is "stacked"
+    And the section styling matches the remembered section styling
+    And every section header spans the width of the board
+
+    Examples:
+      | theme             | mode  |
+      | refined-newsprint | light |
+      | newspaper-gothic  | dark  |
+      | night-desk        | light |
+      | broadsheet-green  | dark  |
+
+  Scenario Outline: Editorial stacked sections are separated by a top rule and the columns layout keeps its left rule
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at 375 by 812 with theme "<theme>" in <mode> mode
+    Then every section header after the first has a 1px top rule and no left rule
+    When the host renders a themed stacked board of long data at 1440 by 900 with theme "<theme>" in <mode> mode and layout "columns"
+    Then every column after the first has a 1px left rule and 12px left padding
+
+    Examples:
+      | theme             | mode  |
+      | refined-newsprint | light |
+      | newspaper-gothic  | light |
+      | night-desk        | dark  |
+      | broadsheet-green  | dark  |

@@ -173,7 +173,7 @@ When("the host renders a stacked board of articles at {int} by {int}", async fun
   await renderStackedBoardAt(this, width, height, { dataset: "articles" });
 });
 When("the host renders a stacked board of {word} data at {int} by {int}", async function (dataset, width, height) {
-  await renderStackedBoardAt(this, width, height, { dataset: dataset === "large" ? "large" : "sections" });
+  await renderStackedBoardAt(this, width, height, { dataset: { large: "large", long: "long" }[dataset] ?? "sections" });
 });
 When("the host renders a stacked board of articles at {int} by {int} with layout {string}", async function (width, height, layout) {
   await renderStackedBoardAt(this, width, height, { layout });
@@ -828,4 +828,252 @@ Then("the card {string} has no subtitle element", async function (identifier) {
 });
 When("the host changes the subtitle of issue {string} to {string}", async function (identifier, subtitle) {
   await this.page.evaluate(({ identifier, subtitle }) => window.updateIssueSubtitle(identifier, subtitle), { identifier, subtitle });
+});
+
+const LONG_ISSUE_IDENTIFIER = `host-${"identifier".repeat(9)}`;
+const SECTION_STYLE_PROPERTIES = [
+  "display", "height", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+  "borderTopWidth", "borderBottomWidth", "borderLeftWidth", "borderTopColor", "borderBottomColor",
+  "fontFamily", "fontSize", "fontWeight", "letterSpacing", "textTransform", "color", "backgroundColor"
+];
+const COLUMNS_STYLE_PROPERTIES = [
+  ...SECTION_STYLE_PROPERTIES, "boxShadow", "borderRadius", "flexBasis", "marginLeft"
+];
+const COLUMNS_BASELINE_PATH = new URL("./fixture/columns-layout-baseline.json", import.meta.url);
+
+async function renderThemedStackedBoardAt(world, width, height, theme, mode, layout) {
+  await world.page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
+  await renderStackedBoardAt(world, width, height, { dataset: "long", theme, mode, layout });
+  await expect(world.page.locator(".issue-card").first()).toBeVisible();
+}
+
+When("the host renders a themed stacked board of long data at {int} by {int} with theme {string} in {word} mode", async function (width, height, theme, mode) {
+  await renderThemedStackedBoardAt(this, width, height, theme, mode, undefined);
+});
+When("the host renders a themed stacked board of long data at {int} by {int} with theme {string} in {word} mode and layout {string}", async function (width, height, theme, mode, layout) {
+  await renderThemedStackedBoardAt(this, width, height, theme, mode, layout);
+});
+
+Then("no element of the board is wider than the viewport and nothing scrolls horizontally", async function () {
+  const report = await this.page.evaluate(() => {
+    const board = document.querySelector("[data-layout]");
+    const wider = [board, ...board.querySelectorAll("*")]
+      .filter((element) => {
+        const box = element.getBoundingClientRect();
+        return box.width > innerWidth + 0.5 || box.right > innerWidth + 0.5 || box.left < -0.5;
+      })
+      .map((element) => `${element.tagName}.${element.getAttribute("class")} left=${element.getBoundingClientRect().left} right=${element.getBoundingClientRect().right}`);
+    const scrolledSideways = [document.documentElement, document.body, board, ...board.querySelectorAll("*")]
+      .filter((element) => element.scrollLeft !== 0 || (element.scrollWidth > element.clientWidth + 0.5 && getComputedStyle(element).overflowX !== "visible" && getComputedStyle(element).overflowX !== "hidden"))
+      .map((element) => `${element.tagName}.${element.getAttribute("class")}`);
+    return { wider, scrolledSideways, pageOverflow: document.documentElement.scrollWidth - innerWidth };
+  });
+  expect(report.wider).toEqual([]);
+  expect(report.scrolledSideways).toEqual([]);
+  expect(report.pageOverflow).toBeLessThanOrEqual(0);
+});
+Then("every priority chip sits inside its card with its full text visible", async function () {
+  const problems = await this.page.evaluate(() => [...document.querySelectorAll(".issue-card")].flatMap((card) => {
+    const chip = card.querySelector(".issue-accent-priority");
+    const cardBox = card.getBoundingClientRect();
+    const chipBox = chip.getBoundingClientRect();
+    const found = [];
+    if (chipBox.right > cardBox.right + 0.5) found.push(`${card.dataset.issueId} chip right ${chipBox.right} beyond card right ${cardBox.right}`);
+    if (chipBox.left < cardBox.left - 0.5) found.push(`${card.dataset.issueId} chip left ${chipBox.left} before card left ${cardBox.left}`);
+    if (chip.scrollWidth > chip.clientWidth + 0.5) found.push(`${card.dataset.issueId} chip text is cut off`);
+    return found;
+  }));
+  expect(problems).toEqual([]);
+});
+Then("every section header is at least 44 pixels tall", async function () {
+  const heights = await this.page.locator(".kb-column-header").evaluateAll((headers) => headers.map((header) => header.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThanOrEqual(2);
+  for (const height of heights) expect(height).toBeGreaterThanOrEqual(44);
+});
+Then("every card has a side gutter at least as wide as its shadow", async function () {
+  const problems = await this.page.evaluate(() => {
+    const scroller = document.querySelector(".kb-stacked-scroll").getBoundingClientRect();
+    return [...document.querySelectorAll(".issue-card")].flatMap((card) => {
+      const box = card.getBoundingClientRect();
+      const shadow = getComputedStyle(card).boxShadow;
+      const extents = shadow === "none" ? [] : shadow.split(/,(?![^(]*\))/).map((layer) => {
+        const lengths = (layer.match(/-?\d+(\.\d+)?px/g) ?? []).map(parseFloat);
+        const [offsetX = 0, , blur = 0, spread = 0] = lengths;
+        return { left: Math.max(0, blur + spread - offsetX), right: Math.max(0, blur + spread + offsetX) };
+      });
+      const leftNeeded = Math.max(0, ...extents.map((extent) => extent.left));
+      const rightNeeded = Math.max(0, ...extents.map((extent) => extent.right));
+      const found = [];
+      if (box.left - scroller.left < Math.max(8, leftNeeded)) found.push(`${card.dataset.issueId} left gutter ${box.left - scroller.left}`);
+      if (scroller.right - box.right < Math.max(8, rightNeeded)) found.push(`${card.dataset.issueId} right gutter ${scroller.right - box.right}`);
+      return found;
+    });
+  });
+  expect(problems).toEqual([]);
+});
+Then("the sticky section header has an opaque background", async function () {
+  const alpha = await this.page.evaluate(() => {
+    const sticky = document.querySelector(".kb-stacked-sticky-header");
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.fillStyle = getComputedStyle(sticky).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    const backgroundImage = getComputedStyle(sticky).backgroundImage;
+    return { alpha: context.getImageData(0, 0, 1, 1).data[3], backgroundImage, declared: getComputedStyle(sticky).backgroundColor };
+  });
+  expect(alpha.declared).not.toBe("rgba(0, 0, 0, 0)");
+  expect(alpha.alpha).toBe(255);
+});
+Then("the long issue card shows its whole title and identifier inside the card", async function () {
+  const report = await this.page.evaluate((identifier) => {
+    const card = document.querySelector(`.issue-card[data-issue-id="${identifier}"]`);
+    if (!card) return { missing: true };
+    const cardBox = card.getBoundingClientRect();
+    const title = card.querySelector("h3");
+    const idLabel = card.querySelector(".issue-accent-id");
+    const titleRange = document.createRange();
+    titleRange.selectNodeContents(title);
+    const titleBox = titleRange.getBoundingClientRect();
+    return {
+      missing: false,
+      titleInside: titleBox.right <= cardBox.right + 0.5 && titleBox.left >= cardBox.left - 0.5,
+      titleWraps: titleRange.getClientRects().length > 1,
+      identifierInside: idLabel.getBoundingClientRect().right <= cardBox.right + 0.5,
+      identifierFullyShown: idLabel.scrollWidth <= idLabel.clientWidth + 0.5 || getComputedStyle(idLabel).whiteSpace !== "nowrap",
+      identifierWraps: idLabel.getBoundingClientRect().height > parseFloat(getComputedStyle(idLabel).fontSize) * 1.8
+    };
+  }, LONG_ISSUE_IDENTIFIER);
+  expect(report).toEqual({ missing: false, titleInside: true, titleWraps: true, identifierInside: true, identifierFullyShown: true, identifierWraps: true });
+});
+
+When("I move keyboard focus to the first section header", async function () {
+  await this.page.locator("body").click({ position: { x: 1, y: 1 } });
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await this.page.keyboard.press("Tab");
+    if (await this.page.evaluate(() => document.activeElement?.classList.contains("kb-column-header"))) return;
+  }
+  throw new Error("Keyboard focus never reached a section header");
+});
+Then("the focused section header shows a visible focus ring inside the board", async function () {
+  const ring = await this.page.evaluate(() => {
+    const header = document.activeElement;
+    const style = getComputedStyle(header);
+    const scroller = document.querySelector(".kb-stacked-scroll").getBoundingClientRect();
+    const box = header.getBoundingClientRect();
+    const width = parseFloat(style.outlineWidth);
+    const offset = parseFloat(style.outlineOffset);
+    return {
+      matchesFocusVisible: header.matches(":focus-visible"),
+      style: style.outlineStyle,
+      width,
+      offset,
+      colorVisible: style.outlineColor !== "rgba(0, 0, 0, 0)" && style.outlineColor !== "transparent",
+      outerLeft: box.left - width - offset - scroller.left,
+      outerRight: scroller.right - (box.right + width + offset),
+      outerTop: box.top - width - offset - scroller.top
+    };
+  });
+  expect(ring.matchesFocusVisible).toBe(true);
+  expect(ring.style).toBe("solid");
+  expect(ring.width).toBeGreaterThanOrEqual(2);
+  expect(ring.colorVisible).toBe(true);
+  expect(ring.outerLeft).toBeGreaterThanOrEqual(-0.5);
+  expect(ring.outerRight).toBeGreaterThanOrEqual(-0.5);
+  expect(ring.outerTop).toBeGreaterThanOrEqual(-0.5);
+});
+
+async function collectSectionStyling(page) {
+  return page.evaluate((properties) => {
+    const pick = (element) => Object.fromEntries(properties.map((property) => [property, getComputedStyle(element)[property]]));
+    const rows = [...document.querySelectorAll(".kb-stacked-header-row")];
+    const sticky = document.querySelector(".kb-stacked-sticky-header");
+    const firstHeader = sticky.querySelector(".kb-column-header");
+    const laterRow = rows.find((row) => row.querySelector(".kb-column-header"));
+    return {
+      stickyWrapper: pick(sticky),
+      stickyButton: pick(firstHeader),
+      laterButton: laterRow ? pick(laterRow.querySelector(".kb-column-header")) : null,
+      laterRow: laterRow ? pick(laterRow) : null
+    };
+  }, SECTION_STYLE_PROPERTIES);
+}
+When("I remember the section styling", async function () {
+  this.rememberedSectionStyling = await collectSectionStyling(this.page);
+});
+Then("the section styling matches the remembered section styling", async function () {
+  const current = await collectSectionStyling(this.page);
+  const widthDependent = ["width"];
+  for (const group of Object.keys(this.rememberedSectionStyling)) {
+    const remembered = this.rememberedSectionStyling[group];
+    for (const property of SECTION_STYLE_PROPERTIES.filter((name) => !widthDependent.includes(name))) {
+      expect(`${group}.${property}=${current[group]?.[property]}`).toBe(`${group}.${property}=${remembered?.[property]}`);
+    }
+  }
+});
+Then("every section header spans the width of the board", async function () {
+  const report = await this.page.evaluate(() => {
+    const scroller = document.querySelector(".kb-stacked-scroll");
+    return [...scroller.querySelectorAll(".kb-column-header")].map((header) => [header.getBoundingClientRect().width, scroller.clientWidth]);
+  });
+  for (const [headerWidth, scrollerWidth] of report) expect(Math.abs(headerWidth - scrollerWidth)).toBeLessThanOrEqual(1);
+});
+Then("every section header after the first has a 1px top rule and no left rule", async function () {
+  const report = await this.page.evaluate(() => [...document.querySelectorAll(".kb-stacked-header-row")]
+    .filter((row) => row.dataset.index !== "0" && row.querySelector(".kb-column-header") !== null)
+    .map((row) => {
+      const header = getComputedStyle(row.querySelector(".kb-column-header"));
+      return { topRule: header.borderTopWidth, topStyle: header.borderTopStyle, leftRule: header.borderLeftWidth };
+    }));
+  expect(report.length).toBeGreaterThanOrEqual(1);
+  for (const entry of report) {
+    expect(entry.topRule).toBe("1px");
+    expect(entry.topStyle).toBe("solid");
+    expect(entry.leftRule).toBe("0px");
+  }
+});
+Then("every column after the first has a 1px left rule and 12px left padding", async function () {
+  const report = await this.page.locator(".kb-column").evaluateAll((columns) => columns.slice(1).map((column) => {
+    const style = getComputedStyle(column);
+    return { rule: style.borderLeftWidth, padding: style.paddingLeft };
+  }));
+  expect(report.length).toBe(2);
+  for (const entry of report) {
+    expect(entry.rule).toBe("1px");
+    expect(entry.padding).toBe("12px");
+  }
+});
+
+async function collectColumnsLayout(page) {
+  return page.evaluate((properties) => {
+    const pick = (element) => Object.fromEntries(properties.map((property) => [property, getComputedStyle(element)[property]]));
+    const geometry = (element) => {
+      const box = element.getBoundingClientRect();
+      return { left: Math.round(box.left), top: Math.round(box.top), width: Math.round(box.width) };
+    };
+    const describe = (selector, limit) => [...document.querySelectorAll(selector)].slice(0, limit)
+      .map((element) => ({ geometry: geometry(element), style: pick(element) }));
+    return {
+      columns: describe(".kb-column", 3),
+      columnHeaders: describe(".kb-column-header", 3),
+      cards: describe(".issue-card", 6),
+      priorityChips: describe(".issue-accent-priority", 6),
+      idLabels: describe(".issue-accent-id", 6)
+    };
+  }, COLUMNS_STYLE_PROPERTIES);
+}
+Then("the columns layout matches the recorded baseline for {string} in {word} mode", async function (theme, mode) {
+  const { readFile, writeFile } = await import("node:fs/promises");
+  const collected = await collectColumnsLayout(this.page);
+  const key = `${theme}/${mode}`;
+  if (process.env.RECORD_COLUMNS_BASELINE === "1") {
+    let recorded = {};
+    try { recorded = JSON.parse(await readFile(COLUMNS_BASELINE_PATH, "utf8")); } catch {}
+    recorded[key] = collected;
+    await writeFile(COLUMNS_BASELINE_PATH, `${JSON.stringify(recorded, null, 2)}\n`);
+    return;
+  }
+  const baseline = JSON.parse(await readFile(COLUMNS_BASELINE_PATH, "utf8"));
+  expect(collected).toEqual(baseline[key]);
 });

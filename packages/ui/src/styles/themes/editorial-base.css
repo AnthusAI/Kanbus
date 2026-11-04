@@ -69,6 +69,13 @@
   font: var(--kb-theme-label-weight, 600) 11px/1 var(--kb-theme-ui-font); letter-spacing: .1em; text-transform: uppercase;
 }
 [data-kanbus-theme] .kb-column-header > :last-child { color: var(--kb-theme-muted); }
+
+/* Stacked sections: a 44px header, a 1px top rule between sections instead of the column's left rule, no left padding on the section. */
+[data-kanbus-theme] [data-layout="stacked"] .kb-column-header { padding: 0 var(--kb-stacked-gutter); align-items: center; }
+[data-kanbus-theme] [data-layout="stacked"] .kb-stacked-header-row:not([data-index="0"]) .kb-column-header { border-top: 1px solid var(--kb-theme-rule); }
+[data-kanbus-theme] [data-layout="stacked"] .issue-accent-id { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+[data-kanbus-theme] [data-layout="stacked"] .kb-stacked-sticky-header { background-color: var(--kb-theme-paper); }
+[data-kanbus-theme] [data-layout="stacked"] .kb-column-header:focus-visible { outline: 2px solid var(--kb-theme-accent); outline-offset: -2px; }
 [data-kanbus-theme] .kb-collapse-icon { width: 12px; height: 12px; margin-left: 4px; color: var(--kb-theme-muted); }
 [data-kanbus-theme] .kb-column-scroll { margin-top: 0; }
 

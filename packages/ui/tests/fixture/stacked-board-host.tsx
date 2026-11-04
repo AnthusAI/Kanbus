@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import * as Kanbus from "@kanbus/ui";
 import type { HostIssue } from "./fixture-data";
 
-export type StackedDataset = "articles" | "sections" | "large";
+export type StackedDataset = "articles" | "sections" | "large" | "long";
 
 export interface StackedBoardSettings {
   component?: "collection" | "board";
@@ -12,6 +12,8 @@ export interface StackedBoardSettings {
   motionMode?: "static" | "css";
   columnStateKey?: string;
   collapsePublishedByConfiguration?: boolean;
+  theme?: Kanbus.KanbusThemeId;
+  mode?: Kanbus.KanbusColorMode;
 }
 
 export const stackedStatuses = ["draft", "review", "published"];
@@ -24,6 +26,15 @@ export function buildStackedIssues(dataset: StackedDataset, articleSource: HostI
       id: `bulk-${index + 1}`, title: `Bulk issue ${index + 1}`, type: "article", status: "draft", priority: 2,
       created_at: new Date(baseTime + index * 60_000).toISOString()
     }));
+  }
+  if (dataset === "long") {
+    const longUnbrokenWord = "Unbreakable".repeat(14);
+    return stackedStatuses.flatMap((status) => Array.from({ length: 10 }, (_, index) => ({
+      id: index === 0 && status === "draft" ? `host-${"identifier".repeat(9)}` : `${status}-${index + 1}`,
+      title: index === 0 && status === "draft" ? longUnbrokenWord : `${status} headline number ${index + 1} that runs long enough to wrap onto a second line`,
+      type: "article", status, priority: index % 2 === 0 ? 1 : 2,
+      created_at: new Date(baseTime + index * 60_000).toISOString()
+    })));
   }
   return stackedStatuses.flatMap((status, statusIndex) => Array.from({ length: 60 }, (_, index) => ({
     id: `${status}-${index + 1}`, title: `${status} issue ${index + 1}`, type: "article", status, priority: 2,
@@ -46,11 +57,12 @@ export function StackedBoardHost({ settings, records, baseConfiguration }: { set
     detailOpen: selected !== null,
     motion: { mode: settings.motionMode ?? "static" } as const,
     layout: settings.layout,
+    formatIssueId: settings.dataset === "long" ? (issue: Kanbus.KanbanIssue) => issue.id : undefined,
     stackedBelowWidth: settings.stackedBelowWidth,
     columnStateKey: settings.columnStateKey
   };
-  return <div className="kb-theme-organizer">
-    <div className="fixture-stacked-host" style={{ height: 600 }}>
+  const boardContent = <div className={settings.theme ? undefined : "kb-theme-organizer"}>
+    <div className="fixture-stacked-host" style={{ height: settings.theme ? "100vh" : 600 }}>
       {settings.component === "board"
         ? <Kanbus.Board {...common} columns={stackedStatuses} issues={records}
             priorityLookup={{ 1: "High", 2: "Normal" }} />
@@ -58,5 +70,9 @@ export function StackedBoardHost({ settings, records, baseConfiguration }: { set
     </div>
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)} />}
   </div>;
+  if (settings.theme) {
+    return <Kanbus.KanbusThemeScope theme={settings.theme} mode={settings.mode}>{boardContent}</Kanbus.KanbusThemeScope>;
+  }
+  return boardContent;
 }
 

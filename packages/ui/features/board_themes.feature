@@ -100,3 +100,19 @@ Feature: Editorial board themes for hosts and the console
   Scenario: The package lists the themes and the fonts each one needs
     Given a host application with article and task issues
     Then the package lists four themes with font families for each
+
+  Scenario Outline: The columns layout at 1440 pixels is unchanged by the stacked styling
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at 1440 by 900 with theme "<theme>" in <mode> mode and layout "columns"
+    Then the columns layout matches the recorded baseline for "<theme>" in <mode> mode
+
+    Examples:
+      | theme             | mode  |
+      | refined-newsprint | light |
+      | refined-newsprint | dark  |
+      | newspaper-gothic  | light |
+      | newspaper-gothic  | dark  |
+      | night-desk        | light |
+      | night-desk        | dark  |
+      | broadsheet-green  | light |
+      | broadsheet-green  | dark  |

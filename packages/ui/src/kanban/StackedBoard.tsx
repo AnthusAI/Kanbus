@@ -27,7 +27,7 @@ type StackedRow =
   | { kind: "header"; key: string; sectionIndex: number }
   | { kind: "card"; key: string; sectionIndex: number; issue: KanbanIssue; indexWithinSection: number };
 
-const SECTION_HEADER_HEIGHT_PIXELS = 40;
+const SECTION_HEADER_HEIGHT_PIXELS = 44;
 const ESTIMATED_CARD_HEIGHT_PIXELS = 132;
 const OVERSCAN_ROW_COUNT = 6;
 const INITIAL_VIEWPORT_HEIGHT_PIXELS = 900;
