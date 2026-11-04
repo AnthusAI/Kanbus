@@ -5,6 +5,7 @@ import { filterIssues, type IssueQuery } from "./issue-query";
 import { getStatusColumnsForIssueTypes } from "./workflow-columns";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import type { KanbanMotionConfig } from "./motion";
+import type { BoardLayout } from "./useResolvedBoardLayout";
 import { IssueIdFormatProvider, type IssueIdFormatter } from "./issue-id-format";
 
 /** A host-controlled collection with no transport, authentication, or routing. */
@@ -25,6 +26,8 @@ export interface IssueCollectionProps<Issue extends KanbanIssue = KanbanIssue> {
   className?: string;
   initialScroll?: "start" | "end" | "preserve";
   formatIssueId?: IssueIdFormatter;
+  layout?: BoardLayout;
+  stackedBelowWidth?: number;
 }
 
 const EMPTY_QUERY: IssueQuery = {};
@@ -46,7 +49,9 @@ export function IssueCollection<Issue extends KanbanIssue>({
   ariaLabel = "Issues",
   className,
   initialScroll,
-  formatIssueId
+  formatIssueId,
+  layout,
+  stackedBelowWidth
 }: IssueCollectionProps<Issue>) {
   const visibleIssues = useMemo(() => filterIssues(issues, query), [issues, query]);
   const columns = useMemo(() => getStatusColumnsForIssueTypes(config, query.type === undefined ? [] : [query.type])
@@ -79,6 +84,8 @@ export function IssueCollection<Issue extends KanbanIssue>({
           transitionKey={JSON.stringify(query)}
           motion={motion}
           initialScroll={initialScroll}
+          layout={layout}
+          stackedBelowWidth={stackedBelowWidth}
         />
       ) : (
         <ul className="kb-issue-list">

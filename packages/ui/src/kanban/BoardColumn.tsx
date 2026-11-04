@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useLayoutEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import type { KanbanConfig, KanbanIssue } from "./types";
@@ -16,6 +16,7 @@ export interface BoardColumnProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   motion?: KanbanMotionConfig;
+  revealSelectedIssueOnMount?: boolean;
 }
 
 const ESTIMATED_CARD_HEIGHT_PIXELS = 132;
@@ -23,7 +24,7 @@ const OVERSCAN_CARD_COUNT = 6;
 const INITIAL_VIEWPORT_HEIGHT_PIXELS = 900;
 
 function BoardColumnComponent({ columnKey, title, issues, priorityLookup, config, onSelectIssue,
-  selectedIssueId, collapsed = false, onToggleCollapse, motion }: BoardColumnProps) {
+  selectedIssueId, collapsed = false, onToggleCollapse, motion, revealSelectedIssueOnMount = false }: BoardColumnProps) {
   const displayTitle = title.replace(/_/g, " ");
   const scrollContainerReference = useRef<HTMLDivElement | null>(null);
   const selectedIndex = selectedIssueId == null ? -1 : issues.findIndex((issue) => issue.id === selectedIssueId);
@@ -48,6 +49,12 @@ function BoardColumnComponent({ columnKey, title, issues, priorityLookup, config
     rangeExtractor: extractVisibleRange,
     initialRect: { width: 0, height: INITIAL_VIEWPORT_HEIGHT_PIXELS }
   });
+
+  useLayoutEffect(() => {
+    if (revealSelectedIssueOnMount && selectedIndex >= 0 && !collapsed) {
+      virtualizer.scrollToIndex(selectedIndex, { align: "center" });
+    }
+  }, []);
 
   return (
     <div className={`kb-column flex flex-col h-full min-h-0${collapsed ? " kb-column-collapsed" : ""}`} data-column-key={columnKey}>

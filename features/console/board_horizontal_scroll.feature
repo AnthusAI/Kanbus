@@ -6,7 +6,7 @@ Feature: Console board horizontal scroll stability
 
   Scenario: A realtime issue move does not shift the board horizontally
     Given the console is open
-    And the browser viewport is 500 by 800
+    And the browser viewport is 640 by 800
     And the console has only these issues:
       | id         | title        | status  |
       | kbs-scroll | Scroll issue | open    |

@@ -2,6 +2,8 @@ export { Board } from "./Board";
 export type { BoardProps } from "./Board";
 export { useBoardColumnState } from "./useBoardColumnState";
 export type { BoardColumnStateOptions } from "./useBoardColumnState";
+export { useResolvedBoardLayout } from "./useResolvedBoardLayout";
+export type { BoardLayout, ResolvedBoardLayout } from "./useResolvedBoardLayout";
 export { BoardColumn } from "./BoardColumn";
 export type { BoardColumnProps } from "./BoardColumn";
 export { StatusTree } from "./StatusTree";

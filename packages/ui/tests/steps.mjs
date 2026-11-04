@@ -161,6 +161,249 @@ Then("no other issue card is rendered again", async function () {
   expect(others).toEqual([]);
 });
 
+const STACKED_ROOT = "[data-layout]";
+
+async function renderStackedBoardAt(world, width, height, settings) {
+  await world.page.setViewportSize({ width, height });
+  await world.page.evaluate((value) => window.renderStackedBoard(value), { dataset: "articles", ...settings });
+  await expect(world.page.locator(STACKED_ROOT)).toHaveCount(1);
+}
+
+When("the host renders a stacked board of articles at {int} by {int}", async function (width, height) {
+  await renderStackedBoardAt(this, width, height, { dataset: "articles" });
+});
+When("the host renders a stacked board of {word} data at {int} by {int}", async function (dataset, width, height) {
+  await renderStackedBoardAt(this, width, height, { dataset: dataset === "large" ? "large" : "sections" });
+});
+When("the host renders a stacked board of articles at {int} by {int} with layout {string}", async function (width, height, layout) {
+  await renderStackedBoardAt(this, width, height, { layout });
+});
+When("the host renders a stacked board of articles at {int} by {int} with stackedBelowWidth {int}", async function (width, height, stackedBelowWidth) {
+  await renderStackedBoardAt(this, width, height, { stackedBelowWidth });
+});
+When("the host renders a stacked board of articles at {int} by {int} with columnStateKey {string}", async function (width, height, columnStateKey) {
+  await renderStackedBoardAt(this, width, height, { columnStateKey });
+});
+When("the host renders a stacked board of articles at {int} by {int} with published collapsed by configuration", async function (width, height) {
+  await renderStackedBoardAt(this, width, height, { collapsePublishedByConfiguration: true });
+});
+When("the host renders a stacked board of articles at {int} by {int} with animated motion", async function (width, height) {
+  await renderStackedBoardAt(this, width, height, { motionMode: "css" });
+});
+When("the host renders a stacked board of articles at {int} by {int} with reduced motion", async function (width, height) {
+  await this.page.emulateMedia({ reducedMotion: "reduce" });
+  await renderStackedBoardAt(this, width, height, { motionMode: "css" });
+});
+When("the host renders a standalone stacked Board at {int} by {int}", async function (width, height) {
+  await renderStackedBoardAt(this, width, height, { component: "board" });
+});
+When("the viewport becomes {int} by {int}", async function (width, height) {
+  await this.page.setViewportSize({ width, height });
+});
+When("I reload the page and render a stacked board of articles at {int} by {int} with columnStateKey {string}", async function (width, height, columnStateKey) {
+  await this.page.reload();
+  await this.page.waitForFunction(() => window.hostReady);
+  await renderStackedBoardAt(this, width, height, { columnStateKey });
+});
+When("the host moves stacked issue {string} to status {string}", async function (identifier, status) {
+  await this.page.evaluate(({ identifier, status }) => window.updateStackedIssue(identifier, status), { identifier, status });
+});
+
+Then("the board layout is {string}", async function (layout) {
+  await expect(this.page.locator(STACKED_ROOT)).toHaveAttribute("data-layout", layout);
+});
+Then("the board sections are {string}", async function (expected) {
+  const names = expected.split(", ");
+  const headers = this.page.locator(".kb-column-header");
+  await expect(headers).toHaveCount(names.length);
+  for (let index = 0; index < names.length; index++) {
+    await expect(headers.nth(index)).toContainText(names[index]);
+  }
+});
+Then("the board has no horizontal overflow", async function () {
+  const overflow = await this.page.evaluate(() => {
+    const board = document.querySelector("[data-layout]");
+    const elementsPastTheViewport = [...board.querySelectorAll(".issue-card, .kb-column-header, .kb-stacked-scroll")]
+      .filter((element) => element.getBoundingClientRect().right > innerWidth + 0.5)
+      .map((element) => `${element.tagName}.${element.getAttribute("class")} right=${element.getBoundingClientRect().right}`);
+    return { page: document.documentElement.scrollWidth - innerWidth, board: board.scrollWidth - board.clientWidth, elementsPastTheViewport };
+  });
+  expect(overflow.page).toBeLessThanOrEqual(0);
+  expect(overflow.board).toBeLessThanOrEqual(0);
+  expect(overflow.elementsPastTheViewport).toEqual([]);
+});
+Then("the issue cards are stacked vertically", async function () {
+  const boxes = await this.page.locator(".issue-card").evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect()));
+  expect(boxes.length).toBeGreaterThan(1);
+  for (let index = 1; index < boxes.length; index++) {
+    expect(boxes[index].top).toBeGreaterThanOrEqual(boxes[index - 1].bottom - 1);
+  }
+});
+Then("the board has not scrolled horizontally", async function () {
+  const offsets = await this.page.evaluate(() => [...document.querySelectorAll("[data-layout], [data-layout] *")].map((element) => element.scrollLeft));
+  expect(offsets.every((offset) => offset === 0)).toBe(true);
+});
+Then("the board columns sit side by side", async function () {
+  const boxes = await this.page.locator(".kb-column").evaluateAll((columns) => columns.map((column) => column.getBoundingClientRect()));
+  expect(boxes.length).toBe(3);
+  expect(new Set(boxes.map((box) => Math.round(box.top))).size).toBe(1);
+  expect(boxes[1].left).toBeGreaterThan(boxes[0].left);
+});
+Then("no stacked scroller is rendered", async function () {
+  await expect(this.page.locator(".kb-stacked-scroll")).toHaveCount(0);
+  await expect(this.page.locator(".kb-column-scroll").first()).toBeVisible();
+});
+Then("the issue card {string} is selected", async function (identifier) {
+  await expect(this.page.locator(`.issue-card[data-issue-id="${identifier}"]`)).toHaveAttribute("data-selected", "true");
+});
+
+When("I scroll the stacked board to its end", async function () {
+  const scroller = this.page.locator(".kb-stacked-scroll");
+  await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await this.page.waitForTimeout(200);
+  await scroller.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await this.page.waitForTimeout(200);
+});
+When("I scroll the stacked board by {int} pixels", async function (pixels) {
+  await this.page.locator(".kb-stacked-scroll").evaluate((element, offset) => { element.scrollTop = offset; }, pixels);
+  await this.page.waitForTimeout(250);
+});
+When("I remember the position of the first visible issue card", async function () {
+  const remembered = await this.page.locator(".kb-stacked-scroll").evaluate((scroller) => {
+    const top = scroller.getBoundingClientRect().top;
+    const visible = [...scroller.querySelectorAll(".issue-card")]
+      .filter((card) => card.getBoundingClientRect().top > top + 60)
+      .sort((left, right) => left.getBoundingClientRect().top - right.getBoundingClientRect().top);
+    return { identifier: visible[0].dataset.issueId, offset: visible[0].getBoundingClientRect().top - top };
+  });
+  this.rememberedOffset = remembered.offset;
+  this.rememberedIdentifier = remembered.identifier;
+});
+When("I select the first visible issue card with the keyboard", async function () {
+  const card = this.page.locator(`.issue-card[data-issue-id="${this.rememberedIdentifier}"]`);
+  await card.focus();
+  await card.press("Enter");
+  await expect(this.page.locator(".kb-issue-detail")).toBeVisible();
+});
+Then("the remembered issue card is displayed", async function () {
+  await expect(this.page.locator(`.issue-card[data-issue-id="${this.rememberedIdentifier}"]`)).toHaveCount(1);
+});
+Then("the remembered issue card is in its remembered position", async function () {
+  const card = this.page.locator(`.issue-card[data-issue-id="${this.rememberedIdentifier}"]`);
+  await expect(card).toHaveCount(1);
+  const offset = await this.page.locator(".kb-stacked-scroll").evaluate(
+    (scroller, identifier) => scroller.querySelector(`.issue-card[data-issue-id="${identifier}"]`).getBoundingClientRect().top - scroller.getBoundingClientRect().top,
+    this.rememberedIdentifier
+  );
+  expect(Math.abs(offset - this.rememberedOffset)).toBeLessThanOrEqual(1);
+});
+When("I close the shared detail panel with Escape", async function () {
+  await this.page.locator(".kb-issue-detail h2").focus();
+  await this.page.keyboard.press("Escape");
+  await expect(this.page.locator(".kb-issue-detail")).toHaveCount(0);
+});
+
+Then("a single section header is pinned at the top of the board", async function () {
+  const pinnedHeaders = await this.page.locator(".kb-stacked-scroll").evaluate((scroller) => {
+    const top = scroller.getBoundingClientRect().top;
+    return [...scroller.querySelectorAll(".kb-column-header")]
+      .map((header) => header.getBoundingClientRect())
+      .filter((box) => Math.abs(box.top - top) <= 1);
+  });
+  expect(pinnedHeaders.length).toBe(1);
+});
+Then("the pinned section header belongs to the section of the first visible card", async function () {
+  await expect.poll(async () => this.page.locator(".kb-stacked-scroll").evaluate((scroller) => {
+    const top = scroller.getBoundingClientRect().top;
+    const pinned = [...scroller.querySelectorAll(".kb-column-header")]
+      .find((header) => Math.abs(header.getBoundingClientRect().top - top) <= 1);
+    const firstCard = [...scroller.querySelectorAll(".issue-card")]
+      .filter((card) => card.getBoundingClientRect().bottom > top + 60)
+      .sort((left, right) => left.getBoundingClientRect().top - right.getBoundingClientRect().top)[0];
+    if (!pinned || !firstCard) return "missing";
+    const pinnedSection = pinned.closest("[data-column-key]").dataset.columnKey;
+    const cardSection = firstCard.closest("[data-column-key]").dataset.columnKey;
+    return pinnedSection === cardSection ? "match" : `${pinnedSection} versus ${cardSection}`;
+  })).toBe("match");
+});
+
+Then("column {string} is collapsed in the stacked board", async function (name) {
+  const button = this.page.getByRole("button", { name: `Expand ${name}`, exact: true });
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  const sectionKey = await button.evaluate((element) => element.closest("[data-column-key]").dataset.columnKey);
+  await expect(this.page.locator(`.issue-card`).locator(`xpath=ancestor::*[@data-column-key="${sectionKey}"]`)).toHaveCount(0);
+});
+Then("the stacked section {string} has the vertical text style disabled", async function (name) {
+  const button = this.page.getByRole("button", { name: `Expand ${name}`, exact: true });
+  await expect(this.page.locator(".kb-column-collapsed")).toHaveCount(0);
+  expect(await button.locator(".kb-column-title").evaluate((title) => getComputedStyle(title).writingMode)).toBe("horizontal-tb");
+  expect((await button.boundingBox()).width).toBeGreaterThan(200);
+});
+Then("the chevron of section {string} points {word}", async function (name, direction) {
+  const label = direction === "down" ? `Collapse ${name}` : `Expand ${name}`;
+  const icon = this.page.getByRole("button", { name: label, exact: true }).locator(".kb-collapse-icon");
+  await expect(icon).toHaveAttribute("class", direction === "down" ? /lucide-chevron-down/ : /lucide-chevron-right/);
+});
+Then("the board is not flipping", async function () {
+  await this.page.waitForTimeout(800);
+  await expect(this.page.locator(".is-flipping")).toHaveCount(0);
+});
+
+When("the host hydrates a server rendered board at {int} by {int}", async function (width, height) {
+  this.consoleEntries = [];
+  this.page.on("console", (message) => this.consoleEntries.push(`${message.type()}: ${message.text()}`));
+  await this.page.setViewportSize({ width, height });
+  const hydrationSettings = { columnStateKey: "fixture-hydration-state" };
+  const serverModule = await server.ssrLoadModule("/tests/fixture/server-render.tsx");
+  const serverRenderedMarkup = serverModule.renderStackedBoardMarkupOnServer(hydrationSettings);
+  expect(serverRenderedMarkup).toContain('data-layout="columns"');
+  await this.page.evaluate(
+    ({ markup, settings }) => window.hydrateStackedBoard(markup, settings),
+    { markup: serverRenderedMarkup, settings: hydrationSettings }
+  );
+});
+Then("the hydrated board layout becomes {string}", async function (layout) {
+  await expect(this.page.locator("#hydration-root [data-layout]")).toHaveAttribute("data-layout", layout);
+  await expect(this.page.locator("#hydration-root .issue-card").first()).toBeVisible();
+});
+Then("the console reported no hydration warning", async function () {
+  const warnings = this.consoleEntries.filter((entry) => /Warning:|hydrat|did not match/i.test(entry));
+  expect(warnings).toEqual([]);
+});
+
+When("I collapse the pinned section header with the keyboard", async function () {
+  const button = this.page.locator(".kb-stacked-sticky-header .kb-column-header");
+  await button.focus();
+  await button.press("Enter");
+});
+Then("the header of section {string} is at the top of the board", async function (name) {
+  const header = this.page.getByRole("button", { name: `Expand ${name}`, exact: true });
+  await expect.poll(async () => {
+    const headerTop = (await header.boundingBox()).y;
+    const scrollerTop = (await this.page.locator(".kb-stacked-scroll").boundingBox()).y;
+    return Math.abs(headerTop - scrollerTop) <= 1;
+  }).toBe(true);
+});
+Then("the header of section {string} shows the count {int}", async function (name, count) {
+  const header = this.page.getByRole("button", { name: `Expand ${name}`, exact: true });
+  await expect(header.locator("span").last()).toHaveText(String(count));
+});
+Then("focus is on the header of section {string}", async function (name) {
+  await expect(this.page.getByRole("button", { name: `Expand ${name}`, exact: true })).toBeFocused();
+});
+Then("the remembered issue card is within the viewport", async function () {
+  await expect.poll(async () => this.page.locator(`.issue-card[data-issue-id="${this.rememberedIdentifier}"]`).evaluate((card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= -1 && box.left >= -1 && box.bottom <= innerHeight + 1 && box.right <= innerWidth + 1;
+  })).toBe(true);
+});
+Then("the issue card {string} is within the viewport", async function (identifier) {
+  await expect.poll(async () => this.page.locator(`.issue-card[data-issue-id="${identifier}"]`).evaluate((card) => {
+    const box = card.getBoundingClientRect();
+    return box.top >= -1 && box.left >= -1 && box.bottom <= innerHeight + 1 && box.right <= innerWidth + 1;
+  })).toBe(true);
+});
+
 setDefaultTimeout(15000);
 
 BeforeAll(async () => {
