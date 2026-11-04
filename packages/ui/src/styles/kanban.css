@@ -747,6 +747,11 @@ html[data-motion="reduced"] .detail-page {
 .issue-card-excerpt-toggle { appearance: none; background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .issue-card-excerpt-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
+.issue-card { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.issue-accent-bar { box-sizing: border-box; }
+.issue-accent-priority { flex: 0 0 auto; }
+.issue-card h3 { min-width: 0; overflow-wrap: anywhere; }
+
 /* Stacked layout. Styled through the data-layout attribute so a forced layout looks the same at any width. */
 .kb-stacked-board { --kb-stacked-gutter: 12px; }
 [data-layout="stacked"] .kb-stacked-sticky-header { background-color: var(--background, Canvas); background-image: none; }
@@ -754,9 +759,5 @@ html[data-motion="reduced"] .detail-page {
 [data-layout="stacked"] .kb-column-header:focus-visible { outline-offset: -3px; }
 [data-layout="stacked"] .kb-column-title { text-overflow: ellipsis; }
 [data-layout="stacked"] .kb-column-card-slot { box-sizing: border-box; min-width: 0; padding-inline: var(--kb-stacked-gutter); }
-[data-layout="stacked"] .issue-card { grid-template-columns: minmax(0, 1fr); min-width: 0; }
-[data-layout="stacked"] .issue-accent-bar { box-sizing: border-box; }
 [data-layout="stacked"] .issue-accent-left { min-width: 0; }
 [data-layout="stacked"] .issue-accent-id { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
-[data-layout="stacked"] .issue-accent-priority { flex: 0 0 auto; }
-[data-layout="stacked"] .issue-card h3 { min-width: 0; overflow-wrap: anywhere; }
