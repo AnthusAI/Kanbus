@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "58988068-9b78-4ec6-9128-abda76804436",
+  "issue_id": "kbs-61901162-12cb-4bfb-99f5-0d437994356a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-04T03:18:49.582Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Long card titles are clipped instead of wrapping in the columns layout",
+    "description": "Seen in Papyrus at 667 by 375, a phone in landscape, which keeps columns: card titles run off the column and are cut (Three sources confirm the zoni). The theming work for the stacked layout found the cause: .issue-card has an auto grid track that grows to the title's max-content, so the title never wraps. That fix was scoped to data-layout stacked. Spec first in packages/ui, for every theme and the default styling at 667 by 375 and 1440 by 900: a long title wraps inside its card, nothing is clipped by the card, and the id still truncates. Then apply the stacked rules that fix this to both layouts. Release as ui-v0.5.1 and bump Papyrus.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "kbs-c2a93c46-e2f9-430a-95da-0f00e6093283",
+    "labels": []
+  }
+}

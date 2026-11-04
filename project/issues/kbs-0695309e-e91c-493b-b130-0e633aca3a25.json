@@ -3,7 +3,7 @@
   "title": "Release @kanbus/ui with the stacked layout and tell the hosts",
   "description": "Bump packages/ui to 0.5.0, since hosts get new phone behaviour by default. Document layout, stackedBelowWidth and onColumnNearEnd in packages/ui/README.md, including that layout='columns' opts out. Tag ui-v0.5.0 and confirm the release workflow publishes the tarball. Then tell the Papyrus session (its PPY task consumes this) and check which other hosts pin @kanbus/ui, including Papyrus-web and Chatticus.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -23,10 +23,18 @@
       "type": "blocked-by"
     }
   ],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f9ef199f-642a-4495-9fb6-461011c0e086",
+      "author": "home",
+      "text": "Published ui-v0.5.0 with kanbus-ui-0.5.0.tgz. Papyrus adopts it under PPY-7a9355. Other hosts stay on their own pins until bumped: Prospectus-web vendors an organizer tarball, and another host vendors 0.4.2. They get phone stacking only when they bump.",
+      "created_at": "2026-11-04T03:05:47.258758Z",
+      "comment_type": "default"
+    }
+  ],
   "created_at": "2026-11-03T15:51:01.639818Z",
-  "updated_at": "2026-11-03T15:51:24.575304Z",
-  "closed_at": null,
+  "updated_at": "2026-11-04T03:05:47.259074Z",
+  "closed_at": "2026-11-04T03:05:46.936866Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
