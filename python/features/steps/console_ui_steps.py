@@ -69,7 +69,7 @@ def _wait_for_server(port: int, timeout: float = 30.0) -> int | None:
                 with urllib.request.urlopen(url, timeout=0.5) as resp:
                     if resp.status == 200:
                         return candidate
-            except (urllib.error.URLError, OSError):
+            except (urllib.error.URLError, http.client.HTTPException, OSError):
                 continue
         time.sleep(0.1)
     return None
