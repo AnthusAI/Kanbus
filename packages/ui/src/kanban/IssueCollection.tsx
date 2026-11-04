@@ -28,6 +28,8 @@ export interface IssueCollectionProps<Issue extends KanbanIssue = KanbanIssue> {
   formatIssueId?: IssueIdFormatter;
   layout?: BoardLayout;
   stackedBelowWidth?: number;
+  onColumnNearEnd?: (columnKey: string) => void;
+  columnNearEndThreshold?: number;
 }
 
 const EMPTY_QUERY: IssueQuery = {};
@@ -51,7 +53,9 @@ export function IssueCollection<Issue extends KanbanIssue>({
   initialScroll,
   formatIssueId,
   layout,
-  stackedBelowWidth
+  stackedBelowWidth,
+  onColumnNearEnd,
+  columnNearEndThreshold
 }: IssueCollectionProps<Issue>) {
   const visibleIssues = useMemo(() => filterIssues(issues, query), [issues, query]);
   const columns = useMemo(() => getStatusColumnsForIssueTypes(config, query.type === undefined ? [] : [query.type])
@@ -86,6 +90,8 @@ export function IssueCollection<Issue extends KanbanIssue>({
           initialScroll={initialScroll}
           layout={layout}
           stackedBelowWidth={stackedBelowWidth}
+          onColumnNearEnd={onColumnNearEnd}
+          columnNearEndThreshold={columnNearEndThreshold}
         />
       ) : (
         <ul className="kb-issue-list">

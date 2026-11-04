@@ -1,9 +1,10 @@
-import React, { useCallback, useLayoutEffect, useRef } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { IssueCard } from "./IssueCard";
 import type { KanbanMotionConfig } from "./motion";
+import { DEFAULT_COLUMN_NEAR_END_THRESHOLD, isLastCardWithinThresholdOfRangeEnd, type ColumnNearEndReporter } from "./column-near-end";
 
 export interface BoardColumnProps {
   columnKey?: string;
@@ -17,6 +18,8 @@ export interface BoardColumnProps {
   onToggleCollapse?: () => void;
   motion?: KanbanMotionConfig;
   revealSelectedIssueOnMount?: boolean;
+  reportColumnNearEnd?: ColumnNearEndReporter;
+  columnNearEndThreshold?: number;
 }
 
 const ESTIMATED_CARD_HEIGHT_PIXELS = 132;
@@ -24,7 +27,8 @@ const OVERSCAN_CARD_COUNT = 6;
 const INITIAL_VIEWPORT_HEIGHT_PIXELS = 900;
 
 function BoardColumnComponent({ columnKey, title, issues, priorityLookup, config, onSelectIssue,
-  selectedIssueId, collapsed = false, onToggleCollapse, motion, revealSelectedIssueOnMount = false }: BoardColumnProps) {
+  selectedIssueId, collapsed = false, onToggleCollapse, motion, revealSelectedIssueOnMount = false,
+  reportColumnNearEnd, columnNearEndThreshold = DEFAULT_COLUMN_NEAR_END_THRESHOLD }: BoardColumnProps) {
   const displayTitle = title.replace(/_/g, " ");
   const scrollContainerReference = useRef<HTMLDivElement | null>(null);
   const selectedIndex = selectedIssueId == null ? -1 : issues.findIndex((issue) => issue.id === selectedIssueId);
@@ -50,6 +54,18 @@ function BoardColumnComponent({ columnKey, title, issues, priorityLookup, config
     initialRect: { width: 0, height: INITIAL_VIEWPORT_HEIGHT_PIXELS }
   });
 
+  const virtualItems = virtualizer.getVirtualItems();
+  const renderedRangeEndIndex = virtualizer.range?.endIndex ?? -1;
+  const issueCount = issues.length;
+  useEffect(() => {
+    if (!reportColumnNearEnd || collapsed || columnKey === undefined || issueCount === 0 || renderedRangeEndIndex < 0) {
+      return;
+    }
+    if (isLastCardWithinThresholdOfRangeEnd(issueCount - 1, renderedRangeEndIndex, columnNearEndThreshold)) {
+      reportColumnNearEnd(columnKey, issueCount);
+    }
+  }, [reportColumnNearEnd, collapsed, columnKey, issueCount, renderedRangeEndIndex, columnNearEndThreshold]);
+
   useLayoutEffect(() => {
     if (revealSelectedIssueOnMount && selectedIndex >= 0 && !collapsed) {
       virtualizer.scrollToIndex(selectedIndex, { align: "center" });
@@ -68,7 +84,7 @@ function BoardColumnComponent({ columnKey, title, issues, priorityLookup, config
       </button>
       {!collapsed && <div ref={scrollContainerReference} className="kb-column-scroll mt-1 flex-1 min-h-0 overflow-y-auto">
         <div className="min-h-[50px]" style={{ display: "block", position: "relative", height: virtualizer.getTotalSize() }}>
-          {virtualizer.getVirtualItems().map((virtualItem) => {
+          {virtualItems.map((virtualItem) => {
             const issue = issues[virtualItem.index];
             return (
               <div key={virtualItem.key} ref={virtualizer.measureElement} className="kb-column-card-slot" data-index={virtualItem.index}

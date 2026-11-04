@@ -829,3 +829,71 @@ Then("the card {string} has no subtitle element", async function (identifier) {
 When("the host changes the subtitle of issue {string} to {string}", async function (identifier, subtitle) {
   await this.page.evaluate(({ identifier, subtitle }) => window.updateIssueSubtitle(identifier, subtitle), { identifier, subtitle });
 });
+
+async function renderPagedBoardAt(world, dataset, width, height, settings) {
+  world.pageErrors = [];
+  world.page.on("pageerror", (error) => world.pageErrors.push(error.message));
+  await renderStackedBoardAt(world, width, height, { dataset, ...settings });
+}
+
+When("the host renders a paged board of {word} data at {int} by {int}", async function (dataset, width, height) {
+  await renderPagedBoardAt(this, dataset, width, height, {});
+});
+When("the host renders a paged board of {word} data at {int} by {int} with threshold {int}", async function (dataset, width, height, columnNearEndThreshold) {
+  await renderPagedBoardAt(this, dataset, width, height, { columnNearEndThreshold });
+});
+When("the host renders a paged board of {word} data at {int} by {int} with {word} collapsed", async function (dataset, width, height, collapsedStatusKey) {
+  await renderPagedBoardAt(this, dataset, width, height, { collapsedStatusKey });
+});
+When("the host renders a paged board of {word} data at {int} by {int} with issue {string} selected", async function (dataset, width, height, initialSelectedIssueId) {
+  await renderPagedBoardAt(this, dataset, width, height, { initialSelectedIssueId });
+});
+
+async function pagedScroller(world, columnKey) {
+  const layout = await world.page.locator(STACKED_ROOT).getAttribute("data-layout");
+  return layout === "stacked"
+    ? world.page.locator(".kb-stacked-scroll")
+    : world.page.locator(`.kb-column[data-column-key="${columnKey}"] .kb-column-scroll`);
+}
+
+When("I scroll the {string} cards until the issue card {string} is displayed", async function (columnKey, identifier) {
+  const scroller = await pagedScroller(this, columnKey);
+  await expect.poll(async () => {
+    await scroller.evaluate((element) => { element.scrollTop += 500; });
+    await this.page.waitForTimeout(60);
+    return this.page.locator(`.issue-card[data-issue-id="${identifier}"]`).count();
+  }, { timeout: 20000 }).toBe(1);
+  await this.page.waitForTimeout(300);
+});
+When("I scroll the {string} cards a little further", async function (columnKey) {
+  const scroller = await pagedScroller(this, columnKey);
+  await scroller.evaluate((element) => { element.scrollTop += 100; });
+  await this.page.waitForTimeout(300);
+});
+When("the host appends {int} issues to the status {string}", async function (count, status) {
+  await this.page.evaluate(({ count, status }) => window.appendStackedIssues(status, count), { count, status });
+  await this.page.waitForTimeout(300);
+});
+When("the host replaces every issue with a copy", async function () {
+  await this.page.evaluate(() => window.copyStackedIssues());
+  await this.page.waitForTimeout(300);
+});
+
+async function readNearEndCalls(world) {
+  await world.page.waitForTimeout(300);
+  return world.page.evaluate(() => [...window.nearEndCalls].sort());
+}
+Then("the near end calls are {string}", async function (expected) {
+  expect(await readNearEndCalls(this)).toEqual(expected.split(", ").sort());
+});
+Then("there are no near end calls", async function () {
+  expect(await readNearEndCalls(this)).toEqual([]);
+});
+Then("the board raised no page errors", async function () {
+  expect(this.pageErrors).toEqual([]);
+});
+
+When("the host searches the issues for {string}", async function (searchText) {
+  await this.page.evaluate((value) => window.updateStackedBoard({ searchText: value }), searchText);
+  await this.page.waitForTimeout(300);
+});

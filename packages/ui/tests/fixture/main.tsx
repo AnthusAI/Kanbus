@@ -31,6 +31,9 @@ declare global {
     replaceLargeColumnWithCopies: (retitledIdentifier: string, newTitle: string) => void;
     resetCardRenderCounts: () => void;
     cardRenderCounts: () => Record<string, number>;
+    nearEndCalls: string[];
+    appendStackedIssues: (status: string, count: number) => void;
+    copyStackedIssues: () => void;
     renderStackedBoard: (settings: StackedBoardSettings) => void;
     updateStackedBoard: (settings: Partial<StackedBoardSettings>) => void;
     updateStackedIssue: (identifier: string, status: string) => void;
@@ -88,7 +91,23 @@ let organizerScroll: "start" | "end" | "preserve" = "start";
 let currentView: "board" | "list" = "board";
 
 Object.assign(window, {
+  nearEndCalls: [] as string[],
+  appendStackedIssues(status: string, count: number) {
+    const existingCount = stackedIssues.filter((issue) => issue.status === status).length;
+    const baseTime = Date.UTC(2026, 6, 1);
+    const appended = Array.from({ length: count }, (_, index) => ({
+      id: `${status}-${existingCount + index + 1}`, title: `${status} issue ${existingCount + index + 1}`,
+      type: "article", status, priority: 2, created_at: new Date(baseTime + index * 60_000).toISOString()
+    }));
+    stackedIssues = [...stackedIssues, ...appended];
+    renderStackedHost();
+  },
+  copyStackedIssues() {
+    stackedIssues = stackedIssues.map((issue) => ({ ...issue }));
+    renderStackedHost();
+  },
   renderStackedBoard(settings: StackedBoardSettings) {
+    window.nearEndCalls = [];
     organizer = false;
     stackedHostSerial += 1;
     stackedSettings = settings;

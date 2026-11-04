@@ -4,6 +4,7 @@ import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/rea
 import type { KanbanConfig, KanbanIssue } from "./types";
 import { IssueCard } from "./IssueCard";
 import type { KanbanMotionConfig } from "./motion";
+import { DEFAULT_COLUMN_NEAR_END_THRESHOLD, isLastCardWithinThresholdOfRangeEnd, type ColumnNearEndReporter } from "./column-near-end";
 
 export interface StackedBoardSection {
   columnKey: string;
@@ -21,6 +22,8 @@ export interface StackedBoardProps {
   selectedIssueId?: string | null;
   motion?: KanbanMotionConfig;
   revealSelectedIssueOnMount?: boolean;
+  reportColumnNearEnd?: ColumnNearEndReporter;
+  columnNearEndThreshold?: number;
 }
 
 type StackedRow =
@@ -70,7 +73,8 @@ function SectionHeaderButton({ section, onToggle }: { section: StackedBoardSecti
  * sticky element inside absolutely positioned virtual rows cannot stick. Its own virtual row is
  * left empty while it is the pinned one, so each header exists once in the document.
  */
-function StackedBoardComponent({ sections, priorityLookup, config, onSelectIssue, selectedIssueId, motion, revealSelectedIssueOnMount = false }: StackedBoardProps) {
+function StackedBoardComponent({ sections, priorityLookup, config, onSelectIssue, selectedIssueId, motion, revealSelectedIssueOnMount = false,
+  reportColumnNearEnd, columnNearEndThreshold = DEFAULT_COLUMN_NEAR_END_THRESHOLD }: StackedBoardProps) {
   const scrollContainerReference = useRef<HTMLDivElement | null>(null);
   const rows = useMemo(() => buildFlatRows(sections), [sections]);
   const selectedRowIndex = useMemo(
@@ -105,6 +109,28 @@ function StackedBoardComponent({ sections, priorityLookup, config, onSelectIssue
   const firstVisibleRowIndex = virtualizer.range?.startIndex ?? 0;
   const pinnedSectionIndex = rows[firstVisibleRowIndex]?.sectionIndex ?? 0;
   const pinnedSection = sections[pinnedSectionIndex];
+
+  const lastCardRowIndexBySectionIndex = useMemo(() => {
+    const lastCardRowIndexes = new Map<number, number>();
+    rows.forEach((row, rowIndex) => {
+      if (row.kind === "card") {
+        lastCardRowIndexes.set(row.sectionIndex, rowIndex);
+      }
+    });
+    return lastCardRowIndexes;
+  }, [rows]);
+  const renderedRangeEndRowIndex = virtualizer.range?.endIndex ?? -1;
+  useEffect(() => {
+    if (!reportColumnNearEnd || renderedRangeEndRowIndex < 0) {
+      return;
+    }
+    for (const [sectionIndex, lastCardRowIndex] of lastCardRowIndexBySectionIndex) {
+      const section = sections[sectionIndex];
+      if (isLastCardWithinThresholdOfRangeEnd(lastCardRowIndex, renderedRangeEndRowIndex, columnNearEndThreshold)) {
+        reportColumnNearEnd(section.columnKey, section.issues.length);
+      }
+    }
+  }, [reportColumnNearEnd, lastCardRowIndexBySectionIndex, sections, renderedRangeEndRowIndex, columnNearEndThreshold]);
 
   const collapseAnchorColumnKeyReference = useRef<string | null>(null);
   const focusPinnedHeaderColumnKeyReference = useRef<string | null>(null);
