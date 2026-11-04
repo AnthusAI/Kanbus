@@ -15,6 +15,7 @@ export interface StackedBoardSettings {
   collapsedStatusKey?: string;
   initialSelectedIssueId?: string;
   columnNearEndThreshold?: number;
+  searchText?: string;
 }
 
 export const stackedStatuses = ["draft", "review", "published"];
@@ -63,7 +64,7 @@ export function StackedBoardHost({ settings, records, baseConfiguration }: { set
       {settings.component === "board"
         ? <Kanbus.Board {...common} columns={stackedStatuses} issues={records}
             priorityLookup={{ 1: "High", 2: "Normal" }} />
-        : <Kanbus.IssueCollection {...common} issues={records} query={{ type: "article" }} />}
+        : <Kanbus.IssueCollection {...common} issues={records} query={{ type: "article", ...(settings.searchText ? { search: settings.searchText } : {}) }} />}
     </div>
     {selected && <Kanbus.IssueDetailPanel issue={selected} onClose={() => setSelected(null)} />}
   </div>;

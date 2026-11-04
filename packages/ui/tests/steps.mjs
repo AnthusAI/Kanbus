@@ -892,3 +892,8 @@ Then("there are no near end calls", async function () {
 Then("the board raised no page errors", async function () {
   expect(this.pageErrors).toEqual([]);
 });
+
+When("the host searches the issues for {string}", async function (searchText) {
+  await this.page.evaluate((value) => window.updateStackedBoard({ searchText: value }), searchText);
+  await this.page.waitForTimeout(300);
+});

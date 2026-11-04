@@ -160,6 +160,11 @@ names such as `.kb-column-scroll`: the stacked layout has no such element, and
   column never fires, and neither does a collapsed column or section; expanding
   one can fire. In the stacked layout only sections the reader has reached fire.
 - The callback may be a new inline function on every render.
+- It does not retry. A failed page load leaves the issue count unchanged, so
+  the column does not fire again; the host handles retrying its own failed load.
+- Changing the query (the `transitionKey` Board receives from `IssueCollection`)
+  clears what was reported, so a column that ends with the same count after a
+  query change can fire again; a re-render with the same query does not.
 - Crossing the layout breakpoint does not throw and does not report a column
   again for the same count.
 

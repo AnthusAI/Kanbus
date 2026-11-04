@@ -89,3 +89,18 @@ Feature: Board column near end callback
     Then the board layout is "columns"
     And the near end calls are "draft"
     And the board raised no page errors
+
+  Scenario Outline: A query change that leaves a column with the same count fires again but the same query does not
+    Given a host application with article and task issues
+    When the host renders a paged board of sections data at <width> by <height>
+    And I scroll the "draft" cards until the issue card "draft-60" is displayed
+    Then the near end calls are "draft"
+    When the host replaces every issue with a copy
+    Then the near end calls are "draft"
+    When the host searches the issues for "issue"
+    Then the near end calls are "draft, draft"
+
+    Examples:
+      | width | height | layout  |
+      | 1200  | 800    | columns |
+      | 375   | 800    | stacked |

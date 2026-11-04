@@ -292,7 +292,7 @@ function BoardComponent({
   onColumnNearEnd,
   columnNearEndThreshold
 }: Omit<BoardProps, "formatIssueId">) {
-  const reportColumnNearEnd = useColumnNearEndReporter(onColumnNearEnd);
+  const reportColumnNearEnd = useColumnNearEndReporter(onColumnNearEnd, transitionKey ?? "");
   const resolvedLayout = useResolvedBoardLayout(layout, stackedBelowWidth);
   const isStacked = resolvedLayout === "stacked";
   const previousResolvedLayoutReference = useRef<typeof resolvedLayout | null>(null);
