@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "6555de4c-60ff-47e6-a327-c1dba7dbb2eb",
+  "issue_id": "kbs-881aeb2a-1915-40f5-af2c-123c6587faa4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-11-04T01:07:42.905Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "Console test server wait crashes on a non-HTTP reply from a nearby port",
+    "description": "python/features/steps/console_ui_steps.py _wait_for_server probes the requested port and the next 16 ports. It catches URLError and OSError only, so a port that answers with something other than HTTP raises http.client.HTTPException from _read_status and errors the scenario. Seen on develop CI at agent_assignment_editor.feature:34 on a board-only commit. Catch http.client.HTTPException so the probe moves to the next candidate.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

@@ -3,7 +3,7 @@
   "title": "Stacked layout styling across themes, with touch targets",
   "description": "Style the stacked layout in packages/ui/src/styles/kanban.css and every theme under styles/themes. Set a data-layout attribute on the board root rather than a separate media query, so forced layout='stacked' on a wide screen looks the same. Editorial themes use a left rule between columns (.kb-column + .kb-column); in stacked mode that becomes a top rule with no left padding. Section headers are at least 44 px tall in stacked mode (28 px today), with no column width constraint. Long titles and ids wrap without horizontal overflow. Acceptance: Playwright screenshots of every theme at 375 px in light and dark mode reviewed; no element wider than the viewport; keyboard focus ring visible on section headers; columns layout pixels unchanged at 1440 px.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -25,8 +25,8 @@
     }
   ],
   "created_at": "2026-11-03T15:51:01.209614Z",
-  "updated_at": "2026-11-04T00:29:39.877764Z",
-  "closed_at": null,
+  "updated_at": "2026-11-04T02:21:33.750422Z",
+  "closed_at": "2026-11-04T02:21:33.406466Z",
   "right_now_summary": null,
   "right_now_updated_at": null,
   "custom": {}
