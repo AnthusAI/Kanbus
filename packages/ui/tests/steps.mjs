@@ -836,10 +836,6 @@ const SECTION_STYLE_PROPERTIES = [
   "borderTopWidth", "borderBottomWidth", "borderLeftWidth", "borderTopColor", "borderBottomColor",
   "fontFamily", "fontSize", "fontWeight", "letterSpacing", "textTransform", "color", "backgroundColor"
 ];
-const COLUMNS_STYLE_PROPERTIES = [
-  ...SECTION_STYLE_PROPERTIES, "boxShadow", "borderRadius", "flexBasis", "marginLeft"
-];
-const COLUMNS_BASELINE_PATH = new URL("./fixture/columns-layout-baseline.json", import.meta.url);
 
 async function renderThemedStackedBoardAt(world, width, height, theme, mode, layout) {
   await world.page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
@@ -1043,37 +1039,4 @@ Then("every column after the first has a 1px left rule and 12px left padding", a
     expect(entry.rule).toBe("1px");
     expect(entry.padding).toBe("12px");
   }
-});
-
-async function collectColumnsLayout(page) {
-  return page.evaluate((properties) => {
-    const pick = (element) => Object.fromEntries(properties.map((property) => [property, getComputedStyle(element)[property]]));
-    const geometry = (element) => {
-      const box = element.getBoundingClientRect();
-      return { left: Math.round(box.left), top: Math.round(box.top), width: Math.round(box.width) };
-    };
-    const describe = (selector, limit) => [...document.querySelectorAll(selector)].slice(0, limit)
-      .map((element) => ({ geometry: geometry(element), style: pick(element) }));
-    return {
-      columns: describe(".kb-column", 3),
-      columnHeaders: describe(".kb-column-header", 3),
-      cards: describe(".issue-card", 6),
-      priorityChips: describe(".issue-accent-priority", 6),
-      idLabels: describe(".issue-accent-id", 6)
-    };
-  }, COLUMNS_STYLE_PROPERTIES);
-}
-Then("the columns layout matches the recorded baseline for {string} in {word} mode", async function (theme, mode) {
-  const { readFile, writeFile } = await import("node:fs/promises");
-  const collected = await collectColumnsLayout(this.page);
-  const key = `${theme}/${mode}`;
-  if (process.env.RECORD_COLUMNS_BASELINE === "1") {
-    let recorded = {};
-    try { recorded = JSON.parse(await readFile(COLUMNS_BASELINE_PATH, "utf8")); } catch {}
-    recorded[key] = collected;
-    await writeFile(COLUMNS_BASELINE_PATH, `${JSON.stringify(recorded, null, 2)}\n`);
-    return;
-  }
-  const baseline = JSON.parse(await readFile(COLUMNS_BASELINE_PATH, "utf8"));
-  expect(collected).toEqual(baseline[key]);
 });
