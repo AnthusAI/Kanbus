@@ -262,3 +262,40 @@ Feature: Stacked board layout
       | newspaper-gothic  | light |
       | night-desk        | dark  |
       | broadsheet-green  | dark  |
+
+  Scenario Outline: Long titles wrap inside their cards in the columns layout in every theme
+    Given a host application with article and task issues
+    When the host renders a themed stacked board of long data at <width> by <height> with theme "<theme>" in <mode> mode and layout "columns"
+    Then every card title stays inside its card without being cut off
+    And the long unbroken title stays inside its card
+    And every priority chip sits inside its card with its full text visible
+    And the long issue identifier stays inside its card on a single line
+    And the multi-word title under a long path identifier wraps inside its card
+
+    Examples:
+      | theme             | mode  | width | height |
+      | refined-newsprint | light | 667   | 375    |
+      | refined-newsprint | dark  | 1440  | 900    |
+      | newspaper-gothic  | light | 667   | 375    |
+      | newspaper-gothic  | dark  | 1440  | 900    |
+      | night-desk        | light | 667   | 375    |
+      | night-desk        | dark  | 1440  | 900    |
+      | broadsheet-green  | light | 667   | 375    |
+      | broadsheet-green  | dark  | 1440  | 900    |
+      | refined-newsprint | dark  | 667   | 375    |
+      | newspaper-gothic  | light | 1440  | 900    |
+      | night-desk        | light | 1440  | 900    |
+      | broadsheet-green  | light | 1440  | 900    |
+
+  Scenario Outline: Long titles wrap inside their cards in the columns layout with the default styling
+    Given a host application with article and task issues
+    When the host renders a stacked board of long data at <width> by <height> with layout "columns"
+    Then every card title stays inside its card without being cut off
+    And the long unbroken title stays inside its card
+    And every priority chip sits inside its card with its full text visible
+    And the multi-word title under a long path identifier wraps inside its card
+
+    Examples:
+      | width | height |
+      | 667   | 375    |
+      | 1440  | 900    |

@@ -944,6 +944,69 @@ Then("the long issue card shows its whole title and identifier inside the card",
   expect(report).toEqual({ missing: false, titleInside: true, titleWraps: true, identifierInside: true, identifierFullyShown: true, identifierWraps: true });
 });
 
+When("the host renders a stacked board of long data at {int} by {int} with layout {string}", async function (width, height, layout) {
+  await renderStackedBoardAt(this, width, height, { dataset: "long", layout });
+  await expect(this.page.locator(".issue-card").first()).toBeVisible();
+});
+Then("every card title stays inside its card without being cut off", async function () {
+  const problems = await this.page.evaluate(() => [...document.querySelectorAll(".issue-card")].flatMap((card) => {
+    const cardBox = card.getBoundingClientRect();
+    const title = card.querySelector("h3");
+    const titleBox = title.getBoundingClientRect();
+    const found = [];
+    if (titleBox.right > cardBox.right + 0.5) found.push(`${card.dataset.issueId} title right ${titleBox.right} beyond card right ${cardBox.right}`);
+    if (title.scrollWidth > title.clientWidth + 0.5) found.push(`${card.dataset.issueId} title scrollWidth ${title.scrollWidth} exceeds clientWidth ${title.clientWidth}`);
+    return found;
+  }));
+  expect(problems).toEqual([]);
+});
+Then("the long unbroken title stays inside its card", async function () {
+  const report = await this.page.evaluate((identifier) => {
+    const card = document.querySelector(`.issue-card[data-issue-id="${identifier}"]`);
+    if (!card) return { missing: true };
+    const cardBox = card.getBoundingClientRect();
+    const title = card.querySelector("h3");
+    const titleRange = document.createRange();
+    titleRange.selectNodeContents(title);
+    const textBox = titleRange.getBoundingClientRect();
+    return { missing: false, textInside: textBox.right <= cardBox.right + 0.5 && textBox.left >= cardBox.left - 0.5, notCut: title.scrollWidth <= title.clientWidth + 0.5 };
+  }, LONG_ISSUE_IDENTIFIER);
+  expect(report).toEqual({ missing: false, textInside: true, notCut: true });
+});
+Then("the long issue identifier stays inside its card on a single line", async function () {
+  const report = await this.page.evaluate((identifier) => {
+    const card = document.querySelector(`.issue-card[data-issue-id="${identifier}"]`);
+    if (!card) return { missing: true };
+    const idLabel = card.querySelector(".issue-accent-id");
+    const idBox = idLabel.getBoundingClientRect();
+    return {
+      missing: false,
+      inside: idBox.right <= card.getBoundingClientRect().right + 0.5,
+      singleLine: idBox.height < parseFloat(getComputedStyle(idLabel).fontSize) * 1.8
+    };
+  }, LONG_ISSUE_IDENTIFIER);
+  expect(report).toEqual({ missing: false, inside: true, singleLine: true });
+});
+
+Then("the multi-word title under a long path identifier wraps inside its card", async function () {
+  const report = await this.page.evaluate(() => {
+    const card = document.querySelector('.issue-card[data-issue-id="news/three-sources-confirm-the-zoning-reversal"]');
+    if (!card) return { missing: true };
+    const cardBox = card.getBoundingClientRect();
+    const title = card.querySelector("h3");
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    const chipBox = card.querySelector(".issue-accent-priority").getBoundingClientRect();
+    return {
+      missing: false,
+      titleInside: title.getBoundingClientRect().right <= cardBox.right + 0.5 && range.getBoundingClientRect().right <= cardBox.right + 0.5,
+      titleWraps: range.getClientRects().length > 1,
+      chipInside: chipBox.right <= cardBox.right + 0.5
+    };
+  });
+  expect(report).toEqual({ missing: false, titleInside: true, titleWraps: true, chipInside: true });
+});
+
 When("I move keyboard focus to the first section header", async function () {
   await this.page.locator("body").click({ position: { x: 1, y: 1 } });
   for (let attempt = 0; attempt < 4; attempt++) {
