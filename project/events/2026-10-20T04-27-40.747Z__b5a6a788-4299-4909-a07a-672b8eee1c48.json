@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "b5a6a788-4299-4909-a07a-672b8eee1c48",
+  "issue_id": "kbs-7921a3fd-ae25-48ad-ac50-34a9b5a2bf24",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T04:27:40.747Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "PyPI long description (python/README.md) is stale: 'in production', 'No Daemon' vs Daemon section, old tagline",
+    "description": "**Problem**\npython/README.md is the PyPI long description. It contradicts itself and carries an old tagline, so the PyPI page misleads readers.\n\n**Evidence**\n- python/README.md says \"Kanbus is in production\" (a present-tense production claim that needs checking before it stays on a public package page).\n- It has a \"No Daemon\" statement that contradicts the Daemon section in the same file.\n- The tagline is the old one and does not match the current repo README.\n\n**Fix**\nRe-sync python/README.md with the current root README (see the earlier \"Sync PyPI README with repo README\" work, aa9): current tagline, consistent daemon description, and remove or soften the production claim until Ryan approves wording.\n\n**How to verify**\nRead the rendered PyPI page after the next release: tagline matches the root README, there is no \"No Daemon\" contradiction, and `grep -n \"in production\" python/README.md` returns nothing or approved wording.\n\nSource: Anthus repo audit, 2026-10-20.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude-code",
+      "model": "claude-sonnet-5-5",
+      "name": "audit-filing"
+    }
+  }
+}

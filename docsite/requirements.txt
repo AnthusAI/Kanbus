@@ -1,2 +1,2 @@
-papyrus-newsroom[markus] @ git+https://github.com/AnthusAI/Papyrus.git@develop
-anthus-markus>=0.7.0,<1.0.0
+papyrus-newsroom[markus]==5.14.0
+anthus-markus>=0.13.0,<0.14

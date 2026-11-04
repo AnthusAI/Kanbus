@@ -1226,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "kanbus"
-version = "0.35.0"
+version = "0.41.0"
 dependencies = [
  "axum",
  "base64 0.22.1",

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "event_id": "9034c0c0-0aaf-4472-9302-b162b1561a6b",
+  "issue_id": "kbs-7b989204-afc5-403d-a153-5fcb0d549432",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-20T04:27:49.047Z",
+  "actor_id": "home",
+  "payload": {
+    "title": "PyPI README links to repo-relative docs/VS_BEADS.md and AGENTS.md, which 404 on PyPI",
+    "description": "**Problem**\nRelative links in the PyPI long description resolve against pypi.org, not the repo, so they are dead on the package page.\n\n**Evidence**\n- python/README.md:30 and :121 link to relative `docs/VS_BEADS.md` and `AGENTS.md`.\n\n**Fix**\nUse absolute GitHub URLs (https://github.com/AnthusAI/Kanbus/blob/main/docs/VS_BEADS.md and .../AGENTS.md) in python/README.md.\n\n**How to verify**\n`grep -nE '\\]\\((docs/|AGENTS.md)' python/README.md` returns nothing; on the next PyPI release the links open the GitHub files.\n\nSource: Anthus repo audit, 2026-10-20.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [],
+    "agent": {
+      "platform": "claude-code",
+      "model": "claude-sonnet-5-5",
+      "name": "audit-filing"
+    }
+  }
+}
