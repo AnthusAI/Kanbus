@@ -287,15 +287,38 @@ html[data-motion="reduced"] .toggle-button {
 }
 
 @media (max-width: 768px) {
-  .search-input-field {
-    max-width: 0;
-    width: 0;
-    overflow: hidden;
+  .console-toolbar {
+    flex-wrap: wrap;
   }
 
-  .search-input {
-    padding-left: 4px;
-    padding-right: 4px;
+  .console-toolbar > .console-toolbar-controls {
+    display: contents;
+  }
+
+  .console-toolbar .search-input {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .console-toolbar .search-input-field {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .console-toolbar .kb-type-filter-scroll {
+    order: 1;
+    flex: 1 1 100%;
+    overflow: visible;
+  }
+
+  .console-toolbar .kb-type-filter {
+    flex-wrap: wrap;
+    width: 100%;
+    height: auto;
+    min-height: 28px;
+    row-gap: 2px;
+    border-radius: 16px;
   }
 }
 
@@ -1403,9 +1426,24 @@ html[data-motion="reduced"] .sidebar-column {
 }
 
 @media (max-width: 768px) {
-  .detail-column-open {
+  .view-panel {
+    position: relative;
+  }
+
+  .view-panel .detail-column {
+    position: absolute;
+    inset: 0;
     width: 100%;
+    min-width: 100%;
+    max-width: 100%;
     flex: 0 0 100%;
+    margin: 0;
+    transform: translateX(100%);
+    transition: transform var(--layout-transition, 0.25s) ease;
+  }
+
+  .view-panel .detail-column-open {
+    transform: translateX(0);
   }
 
   .detail-resizer {

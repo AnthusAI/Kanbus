@@ -80,7 +80,7 @@ export function ConsoleToolbar({
       : "transition-opacity duration-300";
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="console-toolbar flex items-center gap-2" data-testid="console-toolbar">
       <div className="flex-none">
         <AnimatedSelector
           name="panel-mode"
@@ -90,7 +90,7 @@ export function ConsoleToolbar({
           testIdPrefix="view-toggle"
         />
       </div>
-      <div className="flex-1 min-w-0 flex justify-end overflow-hidden gap-2">
+      <div className="console-toolbar-controls flex-1 min-w-0 flex justify-end overflow-hidden gap-2">
         {loadingVisible ? (
           <span
             className={`loading-pill loading-pill--compact ${
