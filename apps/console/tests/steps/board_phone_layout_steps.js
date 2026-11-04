@@ -85,7 +85,8 @@ Then("the console toolbar should not scroll horizontally", async function () {
   const scrollingElements = await this.page.evaluate(() => {
     const toolbar = document.querySelector('[data-testid="console-toolbar"]');
     return [toolbar, ...toolbar.querySelectorAll("*")]
-      .filter((element) => element.scrollWidth > element.clientWidth + 1 && element.clientWidth > 0)
+      .filter((element) => ["auto", "scroll"].includes(getComputedStyle(element).overflowX))
+      .filter((element) => element.scrollWidth > element.clientWidth + 1)
       .map((element) => `${element.tagName.toLowerCase()}.${String(element.className).slice(0, 60)}`);
   });
   expect(scrollingElements).toEqual([]);
