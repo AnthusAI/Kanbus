@@ -34,7 +34,7 @@ export function buildStackedIssues(dataset: StackedDataset, articleSource: HostI
   if (dataset === "long") {
     const longUnbrokenWord = "Unbreakable".repeat(14);
     return stackedStatuses.flatMap((status) => Array.from({ length: 10 }, (_, index) => ({
-      id: index === 0 && status === "draft" ? `host-${"identifier".repeat(9)}` : `${status}-${index + 1}`,
+      id: index === 0 && status === "draft" ? `host-${"identifier".repeat(9)}` : index === 1 && status === "draft" ? "news/three-sources-confirm-the-zoning-reversal" : `${status}-${index + 1}`,
       title: index === 0 && status === "draft" ? longUnbrokenWord : `${status} headline number ${index + 1} that runs long enough to wrap onto a second line`,
       type: "article", status, priority: index % 2 === 0 ? 1 : 2,
       created_at: new Date(baseTime + index * 60_000).toISOString()

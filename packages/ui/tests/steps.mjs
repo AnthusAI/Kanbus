@@ -988,6 +988,25 @@ Then("the long issue identifier stays inside its card on a single line", async f
   expect(report).toEqual({ missing: false, inside: true, singleLine: true });
 });
 
+Then("the multi-word title under a long path identifier wraps inside its card", async function () {
+  const report = await this.page.evaluate(() => {
+    const card = document.querySelector('.issue-card[data-issue-id="news/three-sources-confirm-the-zoning-reversal"]');
+    if (!card) return { missing: true };
+    const cardBox = card.getBoundingClientRect();
+    const title = card.querySelector("h3");
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    const chipBox = card.querySelector(".issue-accent-priority").getBoundingClientRect();
+    return {
+      missing: false,
+      titleInside: title.getBoundingClientRect().right <= cardBox.right + 0.5 && range.getBoundingClientRect().right <= cardBox.right + 0.5,
+      titleWraps: range.getClientRects().length > 1,
+      chipInside: chipBox.right <= cardBox.right + 0.5
+    };
+  });
+  expect(report).toEqual({ missing: false, titleInside: true, titleWraps: true, chipInside: true });
+});
+
 When("I move keyboard focus to the first section header", async function () {
   await this.page.locator("body").click({ position: { x: 1, y: 1 } });
   for (let attempt = 0; attempt < 4; attempt++) {

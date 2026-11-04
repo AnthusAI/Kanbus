@@ -270,6 +270,7 @@ Feature: Stacked board layout
     And the long unbroken title stays inside its card
     And every priority chip sits inside its card with its full text visible
     And the long issue identifier stays inside its card on a single line
+    And the multi-word title under a long path identifier wraps inside its card
 
     Examples:
       | theme             | mode  | width | height |
@@ -292,6 +293,7 @@ Feature: Stacked board layout
     Then every card title stays inside its card without being cut off
     And the long unbroken title stays inside its card
     And every priority chip sits inside its card with its full text visible
+    And the multi-word title under a long path identifier wraps inside its card
 
     Examples:
       | width | height |
